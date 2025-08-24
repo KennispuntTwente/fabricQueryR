@@ -49,8 +49,9 @@ the resulting data.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">fabric_pbi_dax_query</span><span class="op">(</span></span>
 <span>  <span class="va">connstr</span>,</span>
 <span>  <span class="va">dax</span>,</span>
-<span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"PBI_TENANT_ID"</span><span class="op">)</span>,</span>
-<span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"PBI_CLIENT_ID"</span>, unset <span class="op">=</span> <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
+<span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
+<span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
+<span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  include_nulls <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -73,12 +74,12 @@ bare <code>powerbi://...</code> for the data source plus a <code>Dataset=</code>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
-<dd><p>Microsoft Azure tenant ID. Defaults to <code>Sys.getenv("PBI_TENANT_ID")</code> if missing.</p></dd>
+<dd><p>Microsoft Azure tenant ID. Defaults to <code>Sys.getenv("FABRICQUERYR_TENANT_ID")</code> if missing.</p></dd>
 
 
 <dt id="arg-client-id">client_id<a class="anchor" aria-label="anchor" href="#arg-client-id"></a></dt>
 <dd><p>Microsoft Azure application (client) ID used to authenticate. Defaults to
-<code>Sys.getenv("PBI_CLIENT_ID")</code>. You may be able to use the Azure CLI app id
+<code>Sys.getenv("FABRICQUERYR_CLIENT_ID")</code>. You may be able to use the Azure CLI app id
 <code>"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</code>, but may want to make your own
 app registration in your tenant for better control.</p></dd>
 
@@ -112,8 +113,8 @@ or has been granted 'Build' permissions on the dataset (via sharing).</p>
 <span class="r-in"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">pbi_dax_query</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  connstr <span class="op">=</span> <span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(1000, 'Customers')"</span>,</span></span>
-<span class="r-in"><span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"PBI_TENANT_ID"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"PBI_CLIENT_ID"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://pillar.r-lib.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
