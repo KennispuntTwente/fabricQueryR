@@ -83,7 +83,7 @@
 <span><span class="co"># Sys.setenv(FABRICQUERYR_TENANT_ID = "...")</span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "...")</span></span>
 <span></span>
-<span><span class="co"># SQL connection ----------------------------------------------------------</span></span>
+<span><span class="co"># SQL connection to Data Warehouse or Lakehouse --------------------------------</span></span>
 <span></span>
 <span><span class="co"># Find your SQL connection string in Fabric by going to a Lakehouse or Data</span></span>
 <span><span class="co">#   Warehouse item; then Settings -&gt; SQL analytics endpoint</span></span>
@@ -105,7 +105,7 @@
 <span><span class="st">  SELECT TABLE_SCHEMA, TABLE_NAME</span></span>
 <span><span class="st">  FROM INFORMATION_SCHEMA.TABLES</span></span>
 <span><span class="st">  WHERE TABLE_TYPE = 'BASE TABLE'</span></span>
-<span><span class="st">"</span></span>
+<span><span class="st">  "</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Read 'Customers' table</span></span>
@@ -115,7 +115,7 @@
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span></span>
 <span></span>
-<span><span class="co"># OneLake table -----------------------------------------------------------</span></span>
+<span><span class="co"># Table from Lakehouse via OneLake data access ---------------------------------</span></span>
 <span></span>
 <span><span class="co"># Ensure that the account/principal you authenticate with has access via</span></span>
 <span><span class="co">#   being part of the workspace, or via Lakehouse -&gt; Manage OneLake data access</span></span>
@@ -127,8 +127,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span></span>
-<span></span>
-<span><span class="co"># DAX query ---------------------------------------------------------------</span></span>
+<span><span class="co"># DAX query against Semantic Model ---------------------------------------------</span></span>
 <span></span>
 <span><span class="co"># Ensure that the account you use to authenticate has access to the workspace,</span></span>
 <span><span class="co">#   or that you have been granted 'Build' permissions on the dataset (via sharing)</span></span>
