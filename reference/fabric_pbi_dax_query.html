@@ -65,12 +65,12 @@ the resulting data.</p>
 <dd><p>Character. Power BI connection string, e.g.
 <code>"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"</code>.
 The function accepts either <code>Data Source=</code> and <code>Initial Catalog=</code> parts, or a
-bare <code>powerbi://...</code> for the data source plus a <code>Dataset=</code>/<code>Catalog=</code>/<code>Initial Catalog=</code> key.
-(See details.)</p></dd>
+bare <code>powerbi://...</code> for the data source plus a <code>Dataset=</code>/<code>Catalog=</code>/<code>Initial Catalog=</code> key
+(see details).</p></dd>
 
 
 <dt id="arg-dax">dax<a class="anchor" aria-label="anchor" href="#arg-dax"></a></dt>
-<dd><p>Character scalar with a valid DAX query. (See example.)</p></dd>
+<dd><p>Character scalar with a valid DAX query (see example).</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
@@ -100,11 +100,15 @@ If TRUE, null values are included in the response; if FALSE, they are omitted.</
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>In Fabric/PowerBi, you can find and copy the connection string by going to
+
+<ul><li><p>In Fabric/PowerBi, you can find and copy the connection string by going to
 a 'Semantic model' item, then go to 'File' -&gt; 'Settings' -&gt; 'Server settings'.
 Ensure that the account you use to authenticate has access to the workspace,
-or has been granted 'Build' permissions on the dataset (via sharing).</p>
-    </div>
+or has been granted 'Build' permissions on the dataset (via sharing).</p></li>
+<li><p>The <code>{AzureAuth}</code> package is used to acquire the token. Be wary of
+caching behavior; you may want to call <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code>
+to clear cached tokens if you run into issues</p></li>
+</ul></div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

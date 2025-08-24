@@ -110,14 +110,18 @@ parts. If <code>NULL</code> (default), a temp dir is used and cleaned up on exit
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
+
+<ul><li><p>In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 filesystem. Within a Lakehouse item, Delta tables are stored under
 <code>Tables/&lt;table&gt;</code> with a <code>_delta_log/</code> directory that tracks commit state.
 This helper replays the JSON commits to avoid double-counting
-compacted/removed files.</p>
-<p>Ensure the app/service principal you authenticate with has access via
-<strong>Lakehouse → Manage OneLake data access</strong> (or is a member of the workspace).</p>
-    </div>
+compacted/removed files.</p></li>
+<li><p>Ensure the account/principal you authenticate with has access via
+<strong>Lakehouse -&gt; Manage OneLake data access</strong> (or is a member of the workspace).</p></li>
+<li><p>The <code>{AzureAuth}</code> package is used to acquire the token. Be wary of
+caching behavior; you may want to call <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code>
+to clear cached tokens if you run into issues</p></li>
+</ul></div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
