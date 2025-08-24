@@ -54,7 +54,7 @@
 <p>‘fabricQueryR’ is an R package which helps you to query data from Microsoft Fabric in R. It comes with three methods which help you to get your Microsoft Fabric data into R:</p>
 <ol style="list-style-type: decimal">
 <li><p>Create a connection to a SQL endpoint (e.g., from a <code>Lakehouse</code> or <code>Data Warehouse</code> item): <code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>. This results in a ‘DBI’ connection object which you can execute SQL queries with, and/or use with ‘DBI’-compatible packages like ‘dbplyr’, ‘odbc’, et cetera.</p></li>
-<li><p>Execute a DAX query against a Fabric/PowerBi <code>Semantic Model</code> item: <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>. With this, you can run DAX queries against a Fabric/PowerBi dataset and get the results as a ‘tibble’ dataframe.</p></li>
+<li><p>Execute a DAX query against a Fabric/Power Bi <code>Semantic Model</code> item: <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>. With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a ‘tibble’ dataframe.</p></li>
 <li><p>Read a Delta table from a Fabric <code>Lakehouse</code> item: <code><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code>. This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.</p></li>
 </ol>
 <div class="section level2">
