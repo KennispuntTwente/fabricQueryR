@@ -134,10 +134,13 @@
 <span><span class="co"># DAX query against Semantic Model ---------------------------------------------</span></span>
 <span></span>
 <span><span class="co"># Ensure that the account you use to authenticate has access to the workspace,</span></span>
-<span><span class="co">#   or that you have been granted 'Build' permissions on the dataset (via sharing)</span></span>
+<span><span class="co">#   or that you have been granted 'Build' permissions on the dataset (via share)</span></span>
 <span></span>
 <span><span class="va">df_dax</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
-<span>  connstr <span class="op">=</span> <span class="st">"Data Source=powerbi://api.powerbi.com/v1.0/myorg/ExampleWorkspace;Initial Catalog=test data 1;"</span>,</span>
+<span>  connstr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"Data Source=powerbi://api.powerbi.com/v1.0/myorg/"</span>,</span>
+<span>    <span class="st">"ExampleWorkspace;Initial Catalog=test data 1;"</span></span>
+<span>  <span class="op">)</span>,</span>
 <span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(100000, 'Sheet1')"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
