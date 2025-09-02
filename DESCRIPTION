@@ -1,6 +1,6 @@
 Package: fabricQueryR
 Title: Query Data in 'Microsoft Fabric'
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: 
     c(person(given = "Luka",
              family = "Koning",
@@ -11,7 +11,7 @@ Authors@R:
              email = "info@kennispunttwente.nl"))
 Description: 
     Query data hosted in 'Microsoft Fabric'. Provides helpers to open 'DBI'
-    connections to SQL endpoints of 'Lakehouse' and 'Data Warehouse' items; submit
+    connections to 'SQL' endpoints of 'Lakehouse' and 'Data Warehouse' items; submit
     'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft
     Fabric' and 'Power BI'; and read 'Delta Lake' tables stored in 'OneLake'
     ('Azure Data Lake Storage Gen2').

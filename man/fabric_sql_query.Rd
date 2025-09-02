@@ -62,6 +62,7 @@ Convenience wrapper that opens a connection with
 connection is closed on exit.
 }
 \examples{
+# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
 df <- fabric_sql_query(
   server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",

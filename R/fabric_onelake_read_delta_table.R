@@ -41,6 +41,7 @@
 #' @export
 #'
 #' @examples
+#' # Example is not executed since it requires configured credentials for Fabric
 #' \dontrun{
 #' df <- fabric_onelake_read_delta_table(
 #'   table_path     = "Patients/PatientInfo",

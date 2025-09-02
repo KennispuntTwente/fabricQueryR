@@ -73,6 +73,7 @@ to clear cached tokens if you run into issues
 }
 }
 \examples{
+# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
 con <- fabric_sql_connect(
   server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",

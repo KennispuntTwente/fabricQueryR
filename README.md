@@ -15,8 +15,7 @@ your Microsoft Fabric data into R:
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
     `Data Warehouse` item): `fabric_sql_connect()`. This results in a
     ‘DBI’ connection object which you can execute SQL queries with,
-    and/or use with ‘DBI’-compatible packages like ‘dbplyr’, ‘odbc’, et
-    cetera.
+    and/or use with ‘DBI’-compatible packages like ‘dbplyr’.
 
 2.  Execute a DAX query against a Fabric/Power Bi `Semantic Model` item:
     `fabric_pbi_dax_query()`. With this, you can run DAX queries against

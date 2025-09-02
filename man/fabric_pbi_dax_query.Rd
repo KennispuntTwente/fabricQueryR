@@ -57,6 +57,7 @@ to clear cached tokens if you run into issues
 }
 }
 \examples{
+# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
 conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/My Workspace;Initial Catalog=SalesModel;"
 df <- fabric_pbi_dax_query(

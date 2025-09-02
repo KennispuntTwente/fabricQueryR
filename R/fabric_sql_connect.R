@@ -41,6 +41,7 @@
 #' @export
 #'
 #' @examples
+#' # Example is not executed since it requires configured credentials for Fabric
 #' \dontrun{
 #' con <- fabric_sql_connect(
 #'   server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",
@@ -169,6 +170,7 @@ fabric_sql_connect <- function(
 #' @export
 #'
 #' @examples
+#' # Example is not executed since it requires configured credentials for Fabric
 #' \dontrun{
 #' df <- fabric_sql_query(
 #'   server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",
