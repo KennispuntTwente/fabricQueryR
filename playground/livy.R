@@ -6,7 +6,7 @@ sess_url <- "https://api.fabric.microsoft.com/v1/workspaces/f220e0af-bc85-40ee-8
 # run sparkr code
 res <- fabric_livy_run(
   livy_url = sess_url,
-  kind = "sparkr",
+  kind = "pyspark",
   code = "print(1+2)"
 )
 print(res$output$parsed) # "3" (text/plain)
