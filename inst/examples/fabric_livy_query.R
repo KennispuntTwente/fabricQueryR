@@ -1,63 +1,12 @@
-devtools::load_all()
-
-library(dplyr)
-library(purrr)
-
-# options(fabricqueryr.sql.driver = "ODBC Driver 17 for SQL Server")
-# Sys.setenv(FABRICQUERYR_TENANT_ID = "...")
-# Sys.setenv(FABRICQUERYR_CLIENT_ID = "...")
-
-# SQL connection ----------------------------------------------------------
-
-# Get connection
-con <- fabric_sql_connect(
-  server = "2gxzdezjoe4ethsnmm6grd4tya-v7qcb4ufxtxebbnrg2fuox4qiy.datawarehouse.fabric.microsoft.com"
-)
-
-# List databases
-DBI::dbGetQuery(con, "SELECT name FROM sys.databases")
-
-# List tables in the current database
-DBI::dbGetQuery(
-  con,
-  "
-  SELECT TABLE_SCHEMA, TABLE_NAME
-  FROM INFORMATION_SCHEMA.TABLES
-  WHERE TABLE_TYPE = 'BASE TABLE'
-  "
-)
-
-# Read 'Patienten' table
-df_sql <- DBI::dbReadTable(con, "Patienten")
-
-# Close connection
-DBI::dbDisconnect(con)
-
-
-# OneLake table -----------------------------------------------------------
-
-df_onelake <- fabric_onelake_read_delta_table(
-  table_path = "Patienten/patienten_hash",
-  workspace_name = "Borne_automatisering_test",
-  lakehouse_name = "Lakehouse.Lakehouse",
-)
-
-
-# DAX query ---------------------------------------------------------------
-
-df_dax <- fabric_pbi_dax_query(
-  connstr = "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Borne_automatisering_test;Initial Catalog=test data 1;",
-  dax = "EVALUATE TOPN(100000, 'Sheet1')"
-)
-
-
-# Livy API query ----------------------------------------------------------
-
-sess_url <- "https://api.fabric.microsoft.com/v1/workspaces/f220e0af-bc85-40ee-85b1-368b475f9046/lakehouses/44de17dc-2d5e-44c6-bdce-6bcbc999e01e/livyapi/versions/2023-12-01/sessions"
+# Find your session URL in Fabric by going to a 'Lakehouse' item,
+#   then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'
+sess_url <- "https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."
 
 # Livy API can run SQL, SparkR, PySpark, & Spark
-# Below are two examples of SQL & SparkR usage
+# Below are examples of 1) SQL & 2) SparkR usage
 
+# Example is not executed since it requires configured credentials for Fabric
+\dontrun{
 ## 1 Livy & SQL
 
 # Here we run SQL remotely in Microsoft Fabric with Spark, to get data to local R
@@ -67,7 +16,9 @@ sess_url <- "https://api.fabric.microsoft.com/v1/workspaces/f220e0af-bc85-40ee-8
 livy_sql_result <- fabric_livy_query(
   livy_url = sess_url,
   kind = "sql",
-  code = "SELECT * FROM Patienten LIMIT 1000"
+  code = "SELECT * FROM Patienten LIMIT 1000",
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 )
 
 # '$schema$fields' contains column info, & '$data' contains data as matrix without column names
@@ -109,7 +60,9 @@ livy_sparkr_result <- fabric_livy_query(
     # output marked B64 string
     'cat("<<B64RDS>>", b64, "<<END>>", sep = "")',
     sep = "\n"
-  )
+  ),
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 )
 
 # Extract marked B64 string from Livy output
@@ -121,3 +74,4 @@ b64 <- sub('<<END>>.*', '', b64)
 raw_gz <- base64enc::base64decode(b64)
 r_raw  <- memDecompress(raw_gz, type = "gzip")
 df_livy_sparkr <- unserialize(r_raw)
+}

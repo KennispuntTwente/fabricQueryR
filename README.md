@@ -11,7 +11,7 @@ status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-proje
 <!-- badges: end -->
 
 ‘fabricQueryR’ is an R package which helps you to query data from
-Microsoft Fabric in R. It comes with three methods which help you to get
+Microsoft Fabric in R. It comes with four methods which help you to get
 your Microsoft Fabric data into R:
 
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
@@ -28,6 +28,10 @@ your Microsoft Fabric data into R:
     `fabric_onelake_read_delta_table()`. This function downloads the
     underlying Parquet files from the Delta table stored in OneLake
     (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.
+
+4.  Execute a Livy API query: `fabric_livy_query()`. With this, you can
+    remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft
+    Fabric and get a list with the results in your local R session.
 
 ## Installation
 
@@ -63,6 +67,8 @@ from Fabric into R:
 #   this will be automatically used if you do not set 'FABRICQUERYR_CLIENT_ID'
 # The AzureAuth package is used to acquire tokens; you may be redirected
 #   to a browser window to sign in the first time
+
+library(fabricQueryR)
 
 # Sys.setenv(FABRICQUERYR_TENANT_ID = "...")
 # Sys.setenv(FABRICQUERYR_CLIENT_ID = "...")
@@ -123,6 +129,22 @@ df_dax <- fabric_pbi_dax_query(
   ),
   dax = "EVALUATE TOPN(100000, 'Sheet1')"
 )
+
+
+# Livy query to execute Spark code ---------------------------------------------
+
+# Find your session URL in Fabric by going to a 'Lakehouse' item,
+#   then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'
+sess_url <- "https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."
+
+# Run a Livy SparkR query
+livy_sparkr_result <- fabric_livy_query(
+  livy_url = sess_url,
+  kind = "sparkr",
+  code = "print(1+2)"
+)
+
+# (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)
 ```
 
 ## Background

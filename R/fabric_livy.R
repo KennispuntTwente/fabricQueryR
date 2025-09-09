@@ -20,7 +20,6 @@
 #' [Livy API overview - Microsoft Fabric - 'What is the Livy API for Data Engineering?'](<https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview>);
 #' [Livy Docs - REST API](https://livy.apache.org/docs/latest/rest-api.html).
 #'
-#'
 #' @param livy_url Character. Livy session job connection string, e.g.
 #' `"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"`
 #' (see details).
@@ -42,7 +41,7 @@
 #' @param poll_interval Integer. Polling interval in seconds when waiting for session/statement readiness.
 #' @param timeout Integer. Timeout in seconds when waiting for session/statement readiness.
 #'
-#' @returns A list with statement details and results. The list contains:
+#' @return A list with statement details and results. The list contains:
 #' - `id`: Statement ID.
 #' - `state`: Final statement state (should be `"available"`).
 #' - `started_local`: Local timestamp when statement started running.
@@ -61,20 +60,8 @@
 #'
 #' @export
 #'
-#' @examples
-#' # Example is not executed since it requires configured credentials for Fabric
-#' \dontrun{
-#' sess_url <-
-#' res <- fabric_livy_run(
-#'  livy_url = "https://api.fabric.microsoft.com/v1/workspaces/...",
-#'  kind = "sparkr",
-#'  code = "print(1+2)",
-#'  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-#'  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
-#' )
-#' print(res$output$parsed) # "3" (text/plain)
-#' }
-fabric_livy_run <- function(
+#' @example inst/examples/fabric_livy_query.R
+fabric_livy_query <- function(
   livy_url, # <- paste your sessions/batches/base URL
   code,
   kind = c("spark", "pyspark", "sparkr", "sql"),
