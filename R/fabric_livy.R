@@ -339,9 +339,9 @@ fabric_livy_session_create <- function(
   )
   if (!is.null(environment_id) && nzchar(environment_id)) {
     payload$conf <- payload$conf %||% list()
-    payload$conf[["spark.fabric.environmentDetails"]] <- sprintf(
-      "{\"id\":\"%s\"}",
-      environment_id
+    payload$conf[["spark.fabric.environmentDetails"]] <- jsonlite::toJSON(
+      list(id = environment_id),
+      auto_unbox = TRUE
     )
   }
 
