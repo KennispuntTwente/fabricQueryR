@@ -6,6 +6,8 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/kennispunttwente/fabricQueryR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/kennispunttwente/fabricQueryR/actions/workflows/R-CMD-check.yaml)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-project.org/package=fabricQueryR)
 <!-- badges: end -->
 
 ‘fabricQueryR’ is an R package which helps you to query data from
@@ -39,7 +41,7 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 remotes::install_github("kennispunttwente/fabricQueryR")
 ```
 
-Or, install the latest version from CRAN (once available):
+Or, install the latest release from CRAN:
 
 ``` r
 install.packages("fabricQueryR")
