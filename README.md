@@ -57,7 +57,7 @@ See the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
 
-Below is a code snippet showing how to use the three methods to get data
+Below is a code snippet showing how to use the four methods to get data
 from Fabric into R:
 
 ``` r

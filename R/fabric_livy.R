@@ -47,7 +47,7 @@
 #' - `started_local`: Local timestamp when statement started running.
 #' - `completed_local`: Local timestamp when statement completed.
 #' - `duration_sec`: Duration in seconds (local).
-#' - `output`: A list with raw output details:#'
+#' - `output`: A list with raw output details:
 #'     - `status`: Output status (e.g., `"ok"`).
 #'     - `execution_count`: Execution count (if applicable). The number of
 #'       statements that have been executed in the session.
@@ -226,7 +226,7 @@ fabric_livy_statement <- function(
         stop(sprintf("Statement ended with state: %s", state), call. = FALSE)
       }
     } else {
-      cli::cli_progress_update(id = bar_id, status = state)
+      if (use_cli) cli::cli_progress_update(id = bar_id, status = state)
     }
   }
 
