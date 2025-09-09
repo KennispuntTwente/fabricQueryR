@@ -1,6 +1,6 @@
 Package: fabricQueryR
 Title: Query Data in 'Microsoft Fabric'
-Version: 0.1.1
+Version: 0.1.1.9000
 Authors@R: 
     c(person(given = "Luka",
              family = "Koning",
