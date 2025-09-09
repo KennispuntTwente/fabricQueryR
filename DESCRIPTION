@@ -20,7 +20,6 @@ Suggests:
     AzureStor,
     DBI,
     odbc,
-    jsonlite,
     readr,
     fs,
     arrow,
@@ -36,6 +35,7 @@ Imports:
     tibble,
     purrr,
     stringr,
+    jsonlite,
     cli,
     rlang,
     utils

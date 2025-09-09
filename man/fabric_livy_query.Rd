@@ -59,7 +59,7 @@ A list with statement details and results. The list contains:
 \item \code{started_local}: Local timestamp when statement started running.
 \item \code{completed_local}: Local timestamp when statement completed.
 \item \code{duration_sec}: Duration in seconds (local).
-\item \code{output}: A list with raw output details:#'
+\item \code{output}: A list with raw output details:
 \itemize{
 \item \code{status}: Output status (e.g., \code{"ok"}).
 \item \code{execution_count}: Execution count (if applicable). The number of
