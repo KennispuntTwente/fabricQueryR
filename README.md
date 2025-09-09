@@ -131,7 +131,7 @@ df_dax <- fabric_pbi_dax_query(
 )
 
 
-# Livy query to execute Spark code ---------------------------------------------
+# Livy API query to execute Spark code -----------------------------------------
 
 # Find your session URL in Fabric by going to a 'Lakehouse' item,
 #   then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'
@@ -156,7 +156,7 @@ integrates with Power BI for analytics and reporting. Microsoft is
 actively promoting Fabric as the next-generation data platform for
 organizations using Microsoft Azure and Power BI.
 
-As my organization started working with Microsoft Fabric, I found that
+As our organization started working with Microsoft Fabric, I found that
 that loading data into R from Fabric was not yet straightforward, and
 took some effort to get working. To help others in the same situation, I
 decided to share the functions I created to make this easier.
