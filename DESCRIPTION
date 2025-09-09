@@ -17,9 +17,9 @@ Description:
     ('Azure Data Lake Storage Gen2'); and execute 'Spark' code via the 'Fabric Livy API'. 
 License: MIT + file LICENSE
 Suggests: 
+    AzureStor,
     DBI,
     odbc,
-    AzureStor,
     jsonlite,
     readr,
     fs,
@@ -31,14 +31,14 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports: 
     AzureAuth,
-    dplyr,
     httr2,
-    purrr,
-    rlang,
+    dplyr,
     tibble,
-    utils,
+    purrr,
+    stringr,
     cli,
-    stringr
+    rlang,
+    utils
 URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.github.io/fabricQueryR/
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues
 Depends: 
