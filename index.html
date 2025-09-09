@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Query Data in Microsoft Fabric">
-<meta name="description" content="Query data hosted in Microsoft Fabric. Provides helpers to open DBI connections to SQL endpoints of Lakehouse and Data Warehouse items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; and read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2).">
-<meta property="og:description" content="Query data hosted in Microsoft Fabric. Provides helpers to open DBI connections to SQL endpoints of Lakehouse and Data Warehouse items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; and read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2).">
+<meta name="description" content="Query data hosted in Microsoft Fabric. Provides helpers to open DBI connections to SQL endpoints of Lakehouse and Data Warehouse items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2); and execute Spark code via the Fabric Livy API.">
+<meta property="og:description" content="Query data hosted in Microsoft Fabric. Provides helpers to open DBI connections to SQL endpoints of Lakehouse and Data Warehouse items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2); and execute Spark code via the Fabric Livy API.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -51,11 +51,12 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>‘fabricQueryR’ is an R package which helps you to query data from Microsoft Fabric in R. It comes with three methods which help you to get your Microsoft Fabric data into R:</p>
+<p>‘fabricQueryR’ is an R package which helps you to query data from Microsoft Fabric in R. It comes with four methods which help you to get your Microsoft Fabric data into R:</p>
 <ol style="list-style-type: decimal">
 <li><p>Create a connection to a SQL endpoint (e.g., from a <code>Lakehouse</code> or <code>Data Warehouse</code> item): <code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>. This results in a ‘DBI’ connection object which you can execute SQL queries with, and/or use with ‘DBI’-compatible packages like ‘dbplyr’.</p></li>
 <li><p>Execute a DAX query against a Fabric/Power Bi <code>Semantic Model</code> item: <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>. With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a ‘tibble’ dataframe.</p></li>
 <li><p>Read a Delta table from a Fabric <code>Lakehouse</code> item: <code><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code>. This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.</p></li>
+<li><p>Execute a Livy API query: <code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code>. With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric and get a list with the results in your local R session.</p></li>
 </ol>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -75,7 +76,7 @@
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
 <p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html" class="external-link">reference</a> for the full documentation of all functions.</p>
-<p>Below is a code snippet showing how to use the three methods to get data from Fabric into R:</p>
+<p>Below is a code snippet showing how to use the four methods to get data from Fabric into R:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># First find your 'tenant' ID &amp; 'client' ID (app registration) in Azure/Entra</span></span>
@@ -83,6 +84,8 @@
 <span><span class="co">#   this will be automatically used if you do not set 'FABRICQUERYR_CLIENT_ID'</span></span>
 <span><span class="co"># The AzureAuth package is used to acquire tokens; you may be redirected</span></span>
 <span><span class="co">#   to a browser window to sign in the first time</span></span>
+<span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_TENANT_ID = "...")</span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "...")</span></span>
@@ -142,7 +145,23 @@
 <span>    <span class="st">"ExampleWorkspace;Initial Catalog=test data 1;"</span></span>
 <span>  <span class="op">)</span>,</span>
 <span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(100000, 'Sheet1')"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span></span>
+<span></span>
+<span><span class="co"># Livy query to execute Spark code ---------------------------------------------</span></span>
+<span></span>
+<span><span class="co"># Find your session URL in Fabric by going to a 'Lakehouse' item,</span></span>
+<span><span class="co">#   then go to 'Settings' -&gt; 'Livy Endpoint' -&gt; 'Session job connection string'</span></span>
+<span><span class="va">sess_url</span> <span class="op">&lt;-</span> <span class="st">"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."</span></span>
+<span></span>
+<span><span class="co"># Run a Livy SparkR query</span></span>
+<span><span class="va">livy_sparkr_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
+<span>  livy_url <span class="op">=</span> <span class="va">sess_url</span>,</span>
+<span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
+<span>  code <span class="op">=</span> <span class="st">"print(1+2)"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="background">Background<a class="anchor" aria-label="anchor" href="#background"></a>
