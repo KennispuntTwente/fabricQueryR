@@ -102,19 +102,6 @@ fabric_sql_connect <- function(
     reason = "to open a Fabric SQL connection"
   )
 
-  inform <- function(msg, type = c("info", "warning", "danger", "success")) {
-    if (!isTRUE(verbose)) return(invisible())
-    type <- match.arg(type)
-    switch(
-      type,
-      info = cli::cli_alert_info(msg),
-      warning = cli::cli_alert_warning(msg),
-      danger = cli::cli_alert_danger(msg),
-      success = cli::cli_alert_success(msg)
-    )
-    invisible()
-  }
-
   # ---- access token ----
   if (is.null(access_token)) {
     if (!nzchar(tenant_id))
@@ -128,7 +115,7 @@ fabric_sql_connect <- function(
         call. = FALSE
       )
 
-    inform("Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL ...")
+    inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL ...")
     access_token <- fabric_get_sqldb_token(
       tenant_id = tenant_id,
       client_id = client_id
@@ -139,7 +126,7 @@ fabric_sql_connect <- function(
   host <- fabric_normalize_server(server)
 
   # ---- connect via ODBC ----
-  inform("Opening ODBC connection to {host} / DB '{database}' ...")
+  inform(verbose, "Opening ODBC connection to {host} / DB '{database}' ...")
   con <- DBI::dbConnect(
     odbc::odbc(),
     driver = odbc_driver,
@@ -153,7 +140,7 @@ fabric_sql_connect <- function(
     attributes = list(azure_token = access_token),
     ...
   )
-  inform("Connected.", type = "success")
+  inform(verbose, "Connected.", type = "success")
   con
 }
 

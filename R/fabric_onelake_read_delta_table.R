@@ -93,7 +93,6 @@ fabric_onelake_read_delta_table <- function(
     c(
       "AzureStor",
       "arrow",
-      "jsonlite",
       "readr",
       "fs"
     ),
