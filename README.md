@@ -76,7 +76,7 @@ library(fabricQueryR)
 # SQL connection to Data Warehouse or Lakehouse --------------------------------
 
 # Find your SQL connection string in Fabric by going to a Lakehouse or Data
-#   Warehouse item; then Settings -> SQL analytics endpoint
+#   Warehouse item, then go to 'Settings' -> 'SQL analytics endpoint'
 # Ensure that the account/principal you authenticate with has access to
 #   the workspace 
 
@@ -119,6 +119,8 @@ df_onelake <- fabric_onelake_read_delta_table(
 
 # DAX query against Semantic Model ---------------------------------------------
 
+# Find your connection string in Fabric by going to a 'Semantic Model' item,
+#   then go to 'File' -> 'Settings' -> 'Server settings'
 # Ensure that the account you use to authenticate has access to the workspace,
 #   or that you have been granted 'Build' permissions on the dataset (via share)
 
@@ -133,13 +135,13 @@ df_dax <- fabric_pbi_dax_query(
 
 # Livy API query to execute Spark code -----------------------------------------
 
-# Find your session URL in Fabric by going to a 'Lakehouse' item,
+# Find your connection string in Fabric by going to a 'Lakehouse' item,
 #   then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'
-sess_url <- "https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."
+# Ensure that the account you use to authenticate has access to the workspace
 
 # Run a Livy SparkR query
 livy_sparkr_result <- fabric_livy_query(
-  livy_url = sess_url,
+  livy_url = "https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."
   kind = "sparkr",
   code = "print(1+2)"
 )
