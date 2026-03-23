@@ -45,7 +45,7 @@ test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
       got_group <<- TRUE
       "11111111-1111-1111-1111-111111111111"
     },
-  pbi_get_dataset_id_by_name = function(
+    pbi_get_dataset_id_by_name = function(
       access_token,
       group_id,
       dataset_name,
@@ -59,7 +59,10 @@ test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
       "22222222-2222-2222-2222-222222222222"
     },
     {
-      ids <- fabricQueryR:::pbi_resolve_ids_from_connstr(conn, access_token = fake_token)
+      ids <- fabricQueryR:::pbi_resolve_ids_from_connstr(
+        conn,
+        access_token = fake_token
+      )
       expect_true(got_group)
       expect_true(got_dataset)
       expect_equal(ids$group_id, "11111111-1111-1111-1111-111111111111")

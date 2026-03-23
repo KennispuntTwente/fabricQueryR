@@ -127,7 +127,9 @@ fabric_livy_statement <- function(
 
   stmts_url <- paste0(session$url, "/statements")
   payload <- list(code = code)
-  if (!is.null(kind)) payload$kind <- kind
+  if (!is.null(kind)) {
+    payload$kind <- kind
+  }
 
   inform(verbose, "Submitting statement ...")
   t_submit <- Sys.time()
@@ -152,8 +154,9 @@ fabric_livy_statement <- function(
     on.exit(try(guard$reset(), silent = TRUE), add = TRUE)
 
     first_line <- trimws(strsplit(code, "\n", fixed = TRUE)[[1]][1])
-    if (nchar(first_line) > 60)
+    if (nchar(first_line) > 60) {
       first_line <- paste0(substr(first_line, 1, 57), "...")
+    }
 
     bar_id <- cli::cli_progress_bar(
       name = paste0("Statement ", st$id, " - ", first_line),
@@ -170,7 +173,9 @@ fabric_livy_statement <- function(
         )
         return(cur)
       }
-      if (identical(prev, cur)) return(prev)
+      if (identical(prev, cur)) {
+        return(prev)
+      }
       cli::cli_progress_update(
         id = bar_id,
         status = sprintf("%s \u2192 %s", prev, cur)
@@ -179,8 +184,9 @@ fabric_livy_statement <- function(
     }
   } else {
     show_state <- function(prev, cur) {
-      if (is.null(prev) || !identical(prev, cur))
+      if (is.null(prev) || !identical(prev, cur)) {
         inform(TRUE, sprintf("Statement state: %s", cur))
+      }
       cur
     }
   }
@@ -189,8 +195,9 @@ fabric_livy_statement <- function(
   prev <- show_state(prev, state)
 
   while (!identical(state, "available")) {
-    if (Sys.time() > deadline)
+    if (Sys.time() > deadline) {
       stop("Timed out waiting for statement.", call. = FALSE)
+    }
     Sys.sleep(poll_interval)
 
     st <- httr2::request(stmt_url) |>
@@ -200,20 +207,26 @@ fabric_livy_statement <- function(
     state <- st$state %||% "unknown"
     prev <- show_state(prev, state)
 
-    if (is.null(started_local) && state %in% c("running", "waiting"))
+    if (is.null(started_local) && state %in% c("running", "waiting")) {
       started_local <- Sys.time()
+    }
 
     if (state %in% c("error", "cancelling", "cancelled")) {
       completed_local <- Sys.time()
-      if (use_cli) cli::cli_progress_done(id = bar_id)
+      if (use_cli) {
+        cli::cli_progress_done(id = bar_id)
+      }
       # Try to surface any message if present
       msg <- tryCatch(
         {
           o <- st$output
-          if (is.list(o) && !is.null(o$error)) as.character(o$error) else if (
-            is.list(o) && !is.null(o$data$`text/plain`)
-          )
-            as.character(o$data$`text/plain`) else NULL
+          if (is.list(o) && !is.null(o$error)) {
+            as.character(o$error)
+          } else if (is.list(o) && !is.null(o$data$`text/plain`)) {
+            as.character(o$data$`text/plain`)
+          } else {
+            NULL
+          }
         },
         error = function(e) NULL
       )
@@ -250,8 +263,9 @@ fabric_livy_statement <- function(
       ),
       silent = TRUE
     )
-    if (!inherits(obj, "try-error"))
+    if (!inherits(obj, "try-error")) {
       parsed <- if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
+    }
   } else if (!is.null(data[["text/plain"]])) {
     parsed <- as.character(data[["text/plain"]])
   }
@@ -353,7 +367,9 @@ fabric_livy_session_create <- function(
     .httr2_json()
 
   session_id <- as.character(resp$id %||% NA)
-  if (!nzchar(session_id)) stop("Failed to create Livy session.", call. = FALSE)
+  if (!nzchar(session_id)) {
+    stop("Failed to create Livy session.", call. = FALSE)
+  }
   invisible(list(
     id = session_id,
     url = paste0(sessions_url, "/", session_id),
@@ -390,7 +406,9 @@ fabric_livy_session_wait <- function(
         )
         return(cur)
       }
-      if (identical(prev, cur)) return(prev)
+      if (identical(prev, cur)) {
+        return(prev)
+      }
       cli::cli_progress_update(
         id = bar_id,
         status = sprintf("%s \u2192 %s", prev, cur)
@@ -400,16 +418,18 @@ fabric_livy_session_wait <- function(
   } else {
     inform(TRUE, "Waiting for Livy session to become idle ...")
     update_status <- function(prev, cur) {
-      if (is.null(prev) || !identical(prev, cur))
+      if (is.null(prev) || !identical(prev, cur)) {
         inform(TRUE, sprintf("Session state: %s", cur))
+      }
       cur
     }
   }
 
   prev <- NULL
   repeat {
-    if (Sys.time() > deadline)
+    if (Sys.time() > deadline) {
       stop("Timed out waiting for session to become idle.", call. = FALSE)
+    }
 
     s <- httr2::request(session$url) |>
       httr2::req_headers(Authorization = paste("Bearer", session$token)) |>
@@ -418,9 +438,13 @@ fabric_livy_session_wait <- function(
     st <- s$state %||% "unknown"
     prev <- update_status(prev, st)
 
-    if (st == "idle") break
+    if (st == "idle") {
+      break
+    }
     if (st %in% c("error", "dead", "killed", "shutting_down")) {
-      if (use_cli) cli::cli_progress_done(id = bar_id)
+      if (use_cli) {
+        cli::cli_progress_done(id = bar_id)
+      }
       stop(paste("Session failed:", st), call. = FALSE)
     }
     Sys.sleep(poll_interval)

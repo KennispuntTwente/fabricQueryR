@@ -72,7 +72,7 @@ livy_sql_result <- fabric_livy_query(
 
 # '$schema$fields' contains column info, & '$data' contains data as matrix without column names
 payload <- livy_sql_result$output$data[["application/json"]]
-schema  <- as_tibble(payload$schema$fields) # has columns: name, type, nullable
+schema <- as_tibble(payload$schema$fields) # has columns: name, type, nullable
 col_nms <- schema$name
 
 # Build dataframe (tibble) from the Livy result
@@ -81,10 +81,10 @@ df_livy_sql <- payload$data |>
   set_names(col_nms) |>
   mutate(
     # cast by schema$type (add more cases if your schema includes them)
-    across(all_of(schema$name[schema$type == "long"]),    readr::parse_integer),
-    across(all_of(schema$name[schema$type == "double"]),  readr::parse_double),
+    across(all_of(schema$name[schema$type == "long"]), readr::parse_integer),
+    across(all_of(schema$name[schema$type == "double"]), readr::parse_double),
     across(all_of(schema$name[schema$type == "boolean"]), readr::parse_logical),
-    across(all_of(schema$name[schema$type == "string"]),  as.character)
+    across(all_of(schema$name[schema$type == "string"]), as.character)
   )
 
 ## 2 Livy & SparkR
@@ -119,5 +119,5 @@ b64 <- sub('<<END>>.*', '', b64)
 
 # Decode to dataframe
 raw_gz <- base64enc::base64decode(b64)
-r_raw  <- memDecompress(raw_gz, type = "gzip")
+r_raw <- memDecompress(raw_gz, type = "gzip")
 df_livy_sparkr <- unserialize(r_raw)

@@ -5,8 +5,9 @@
   }
 
   ctype <- try(httr2::resp_content_type(resp), silent = TRUE)
-  if (inherits(ctype, "try-error") || is.null(ctype) || is.na(ctype))
+  if (inherits(ctype, "try-error") || is.null(ctype) || is.na(ctype)) {
     ctype <- ""
+  }
 
   txt <- if (grepl("json", ctype, ignore.case = TRUE)) {
     out <- try(
@@ -21,8 +22,13 @@
     safe_string()
   }
 
-  if (identical(txt, "")) "<empty body>" else if (nchar(txt) > max_chars)
-    paste0(substr(txt, 1L, max_chars), "\n... <truncated> ...") else txt
+  if (identical(txt, "")) {
+    "<empty body>"
+  } else if (nchar(txt) > max_chars) {
+    paste0(substr(txt, 1L, max_chars), "\n... <truncated> ...")
+  } else {
+    txt
+  }
 }
 
 
@@ -54,7 +60,9 @@
 .httr2_json <- function(req) {
   req <- httr2::req_error(req, is_error = function(resp) FALSE) # don’t auto-stop
   resp <- httr2::req_perform(req)
-  if (httr2::resp_status(resp) >= 400L) .httr2_stop_http(resp)
+  if (httr2::resp_status(resp) >= 400L) {
+    .httr2_stop_http(resp)
+  }
   httr2::resp_body_json(resp, simplifyVector = TRUE)
 }
 
@@ -62,6 +70,8 @@
 .httr2_ok <- function(req) {
   req <- httr2::req_error(req, is_error = function(resp) FALSE)
   resp <- httr2::req_perform(req)
-  if (httr2::resp_status(resp) >= 400L) .httr2_stop_http(resp)
+  if (httr2::resp_status(resp) >= 400L) {
+    .httr2_stop_http(resp)
+  }
   invisible(TRUE)
 }

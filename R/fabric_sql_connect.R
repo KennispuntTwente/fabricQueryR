@@ -104,18 +104,23 @@ fabric_sql_connect <- function(
 
   # ---- access token ----
   if (is.null(access_token)) {
-    if (!nzchar(tenant_id))
+    if (!nzchar(tenant_id)) {
       stop(
         "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
         call. = FALSE
       )
-    if (!nzchar(client_id))
+    }
+    if (!nzchar(client_id)) {
       stop(
         "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
         call. = FALSE
       )
+    }
 
-    inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL ...")
+    inform(
+      verbose,
+      "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL ..."
+    )
     access_token <- fabric_get_sqldb_token(
       tenant_id = tenant_id,
       client_id = client_id

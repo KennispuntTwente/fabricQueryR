@@ -61,16 +61,18 @@ fabric_pbi_dax_query <- function(
   stopifnot(is.character(connstr), length(connstr) == 1L)
   stopifnot(is.character(dax), length(dax) == 1L)
 
-  if (!nzchar(tenant_id))
+  if (!nzchar(tenant_id)) {
     stop(
       "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
       call. = FALSE
     )
-  if (!nzchar(client_id))
+  }
+  if (!nzchar(client_id)) {
     stop(
       "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
       call. = FALSE
     )
+  }
 
   token <- pbi_get_token(tenant_id = tenant_id, client_id = client_id)
   ids <- pbi_resolve_ids_from_connstr(
@@ -107,12 +109,15 @@ pbi_parse_connstr <- function(conn) {
     toks[grepl("(?i)^Data Source=", toks)],
     perl = TRUE
   )
-  if (length(ds) == 0) ds <- toks[grepl("(?i)^powerbi://", toks)]
-  if (length(ds) != 1)
+  if (length(ds) == 0) {
+    ds <- toks[grepl("(?i)^powerbi://", toks)]
+  }
+  if (length(ds) != 1) {
     stop(
       "Could not find a unique Data Source in connection string.",
       call. = FALSE
     )
+  }
   ds <- ds[[1]]
 
   # Dataset name can be specified using several synonyms
@@ -230,10 +235,14 @@ pbi_execute_dax <- function(
   out <- httr2::resp_body_json(resp)
 
   tbls <- out$results[[1]]$tables
-  if (is.null(tbls) || length(tbls) == 0L) return(tibble::tibble())
+  if (is.null(tbls) || length(tbls) == 0L) {
+    return(tibble::tibble())
+  }
 
   rows <- tbls[[1]]$rows
-  if (is.null(rows) || length(rows) == 0L) return(tibble::tibble())
+  if (is.null(rows) || length(rows) == 0L) {
+    return(tibble::tibble())
+  }
 
   # rows: list of named lists. bind_rows keeps original column names, including [Table][Col] style.
   dplyr::bind_rows(rows)
@@ -264,8 +273,9 @@ pbi_get_group_id_by_name <- function(
     function(g) tolower(g$name) == tolower(workspace_name),
     logical(1)
   )]
-  if (length(hits) == 0)
+  if (length(hits) == 0) {
     stop(sprintf("Workspace '%s' not found.", workspace_name), call. = FALSE)
+  }
   hits[[1]]$id
 }
 
@@ -296,10 +306,11 @@ pbi_get_dataset_id_by_name <- function(
     function(d) tolower(d$name) == tolower(dataset_name),
     logical(1)
   )]
-  if (length(hits) == 0)
+  if (length(hits) == 0) {
     stop(
       sprintf("Dataset '%s' not found in workspace.", dataset_name),
       call. = FALSE
     )
+  }
   hits[[1]]$id
 }
