@@ -11,6 +11,7 @@ fabric_onelake_read_delta_table(
   table_path,
   workspace_name,
   lakehouse_name,
+  schema = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -37,6 +38,14 @@ fabric_onelake_read_delta_table(
 
   Character. Lakehouse item name, with or without the `.Lakehouse`
   suffix (e.g. `"Lakehouse"` or `"Lakehouse.Lakehouse"`).
+
+- schema:
+
+  Character or `NULL`. Lakehouse schema name (e.g. `"dbo"`). When
+  supplied, the table is resolved under `Tables/<schema>/<table>`
+  instead of `Tables/<table>`. Schema support requires a schema-enabled
+  Lakehouse (enabled by default for new lakehouses). Defaults to `NULL`
+  (no schema, for non-schema lakehouses).
 
 - tenant_id:
 
@@ -71,9 +80,14 @@ A tibble with the table's current rows (0 rows if the table is empty).
 
 - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
   filesystem. Within a Lakehouse item, Delta tables are stored under
-  `Tables/<table>` with a `_delta_log/` directory that tracks commit
-  state. This helper replays the JSON commits to avoid double-counting
-  compacted/removed files.
+  `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
+  (schema-enabled lakehouse) with a `_delta_log/` directory that tracks
+  commit state. This helper replays the JSON commits to avoid
+  double-counting compacted/removed files.
+
+- Schema-enabled lakehouses (the default for new lakehouses) organise
+  tables into named schemas. Supply the `schema` argument (e.g. `"dbo"`)
+  to read a table stored under a specific schema.
 
 - Ensure the account/principal you authenticate with has access via
   **Lakehouse -\> Manage OneLake data access** (or is a member of the
@@ -97,5 +111,13 @@ df <- fabric_onelake_read_delta_table(
   client_id      = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 )
 dplyr::glimpse(df)
+
+# Schema-enabled lakehouse: read from Tables/dbo/PatientInfo
+df2 <- fabric_onelake_read_delta_table(
+  table_path     = "PatientInfo",
+  workspace_name = "PatientsWorkspace",
+  lakehouse_name = "Lakehouse.Lakehouse",
+  schema         = "dbo"
+)
 } # }
 ```
