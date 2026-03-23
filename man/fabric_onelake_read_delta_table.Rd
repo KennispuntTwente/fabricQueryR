@@ -8,6 +8,7 @@ fabric_onelake_read_delta_table(
   table_path,
   workspace_name,
   lakehouse_name,
+  schema = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -26,6 +27,12 @@ segment is used as the table directory under \verb{Tables/}.}
 
 \item{lakehouse_name}{Character. Lakehouse item name, with or without the
 \code{.Lakehouse} suffix (e.g. \code{"Lakehouse"} or \code{"Lakehouse.Lakehouse"}).}
+
+\item{schema}{Character or \code{NULL}. Lakehouse schema name (e.g. \code{"dbo"}).
+When supplied, the table is resolved under \verb{Tables/<schema>/<table>}
+instead of \verb{Tables/<table>}. Schema support requires a schema-enabled
+Lakehouse (enabled by default for new lakehouses). Defaults to \code{NULL}
+(no schema, for non-schema lakehouses).}
 
 \item{tenant_id}{Character. Entra ID (Azure AD) tenant GUID. Defaults to
 \code{Sys.getenv("FABRICQUERYR_TENANT_ID")} if missing.}
@@ -55,9 +62,13 @@ returns the result as a tibble.
 \itemize{
 \item In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 filesystem. Within a Lakehouse item, Delta tables are stored under
-\verb{Tables/<table>} with a \verb{_delta_log/} directory that tracks commit state.
-This helper replays the JSON commits to avoid double-counting
-compacted/removed files.
+\verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
+(schema-enabled lakehouse) with a \verb{_delta_log/} directory that tracks
+commit state. This helper replays the JSON commits to avoid
+double-counting compacted/removed files.
+\item Schema-enabled lakehouses (the default for new lakehouses) organise
+tables into named schemas. Supply the \code{schema} argument (e.g. \code{"dbo"})
+to read a table stored under a specific schema.
 \item Ensure the account/principal you authenticate with has access via
 \strong{Lakehouse -> Manage OneLake data access} (or is a member of the workspace).
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
@@ -76,5 +87,13 @@ df <- fabric_onelake_read_delta_table(
   client_id      = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 )
 dplyr::glimpse(df)
+
+# Schema-enabled lakehouse: read from Tables/dbo/PatientInfo
+df2 <- fabric_onelake_read_delta_table(
+  table_path     = "PatientInfo",
+  workspace_name = "PatientsWorkspace",
+  lakehouse_name = "Lakehouse.Lakehouse",
+  schema         = "dbo"
+)
 }
 }

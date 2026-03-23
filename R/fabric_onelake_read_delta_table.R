@@ -10,9 +10,13 @@
 #' @details
 #' - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 #'  filesystem. Within a Lakehouse item, Delta tables are stored under
-#'  `Tables/<table>` with a `_delta_log/` directory that tracks commit state.
-#'  This helper replays the JSON commits to avoid double-counting
-#'  compacted/removed files.
+#'  `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
+#'  (schema-enabled lakehouse) with a `_delta_log/` directory that tracks
+#'  commit state. This helper replays the JSON commits to avoid
+#'  double-counting compacted/removed files.
+#' - Schema-enabled lakehouses (the default for new lakehouses) organise
+#'  tables into named schemas. Supply the `schema` argument (e.g. `"dbo"`)
+#'  to read a table stored under a specific schema.
 #' - Ensure the account/principal you authenticate with has access via
 #'  **Lakehouse -> Manage OneLake data access** (or is a member of the workspace).
 #' - \pkg{AzureAuth} is used to acquire the token. Be wary of
@@ -26,6 +30,11 @@
 #'   (this is the ADLS filesystem/container name).
 #' @param lakehouse_name Character. Lakehouse item name, with or without the
 #'   `.Lakehouse` suffix (e.g. `"Lakehouse"` or `"Lakehouse.Lakehouse"`).
+#' @param schema Character or `NULL`. Lakehouse schema name (e.g. `"dbo"`).
+#'   When supplied, the table is resolved under `Tables/<schema>/<table>`
+#'   instead of `Tables/<table>`. Schema support requires a schema-enabled
+#'   Lakehouse (enabled by default for new lakehouses). Defaults to `NULL`
+#'   (no schema, for non-schema lakehouses).
 #' @param tenant_id Character. Entra ID (Azure AD) tenant GUID. Defaults to
 #'   `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
 #' @param client_id Character. App registration (client) ID. Defaults to
@@ -51,11 +60,20 @@
 #'   client_id      = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 #' )
 #' dplyr::glimpse(df)
+#'
+#' # Schema-enabled lakehouse: read from Tables/dbo/PatientInfo
+#' df2 <- fabric_onelake_read_delta_table(
+#'   table_path     = "PatientInfo",
+#'   workspace_name = "PatientsWorkspace",
+#'   lakehouse_name = "Lakehouse.Lakehouse",
+#'   schema         = "dbo"
+#' )
 #' }
 fabric_onelake_read_delta_table <- function(
   table_path,
   workspace_name,
   lakehouse_name,
+  schema = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -77,16 +95,18 @@ fabric_onelake_read_delta_table <- function(
     length(lakehouse_name) == 1L,
     nzchar(lakehouse_name)
   )
-  if (!nzchar(tenant_id))
+  if (!nzchar(tenant_id)) {
     stop(
       "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
       call. = FALSE
     )
-  if (!nzchar(client_id))
+  }
+  if (!nzchar(client_id)) {
     stop(
       "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
       call. = FALSE
     )
+  }
 
   # ---- deps ----
   rlang::check_installed(
@@ -100,7 +120,9 @@ fabric_onelake_read_delta_table <- function(
   )
 
   inform <- function(msg, type = c("info", "warning", "danger", "success")) {
-    if (!isTRUE(verbose)) return(invisible())
+    if (!isTRUE(verbose)) {
+      return(invisible())
+    }
     type <- match.arg(type)
     switch(
       type,
@@ -127,7 +149,14 @@ fabric_onelake_read_delta_table <- function(
   lakehouse_item <- fabric_normalize_lakehouse_item(lakehouse_name)
   parts <- strsplit(table_path, "/", fixed = TRUE)[[1]]
   table_name <- parts[length(parts)]
-  table_dir <- fs::path(lakehouse_item, "Tables", table_name)
+
+  if (!is.null(schema)) {
+    stopifnot(is.character(schema), length(schema) == 1L, nzchar(schema))
+    table_dir <- fs::path(lakehouse_item, "Tables", schema, table_name)
+  } else {
+    table_dir <- fs::path(lakehouse_item, "Tables", table_name)
+  }
+
   log_dir <- fs::path(table_dir, "_delta_log")
   inform("Table root: {.path {table_dir}}")
 
@@ -248,7 +277,9 @@ fabric_delta_active_parts <- function(fs_cont, files, log_dir) {
     AzureStor::storage_download(fs_cont, src = p, dest = tmp, overwrite = TRUE)
 
     lines <- readr::read_lines(tmp, progress = FALSE)
-    if (!length(lines)) return(invisible())
+    if (!length(lines)) {
+      return(invisible())
+    }
 
     recs <- purrr::map(
       lines,
