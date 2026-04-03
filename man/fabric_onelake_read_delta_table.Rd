@@ -32,7 +32,8 @@ segment is used as the table directory under \verb{Tables/}.}
 When supplied, the table is resolved under \verb{Tables/<schema>/<table>}
 instead of \verb{Tables/<table>}. Schema support requires a schema-enabled
 Lakehouse (enabled by default for new lakehouses). Defaults to \code{NULL}
-(no schema, for non-schema lakehouses).}
+(no schema, for non-schema lakehouses). (Note: schema support through this
+argument is experimental.)}
 
 \item{tenant_id}{Character. Entra ID (Azure AD) tenant GUID. Defaults to
 \code{Sys.getenv("FABRICQUERYR_TENANT_ID")} if missing.}

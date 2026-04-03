@@ -34,7 +34,8 @@
 #'   When supplied, the table is resolved under `Tables/<schema>/<table>`
 #'   instead of `Tables/<table>`. Schema support requires a schema-enabled
 #'   Lakehouse (enabled by default for new lakehouses). Defaults to `NULL`
-#'   (no schema, for non-schema lakehouses).
+#'   (no schema, for non-schema lakehouses). (Note: schema support through this
+#'   argument is experimental.)
 #' @param tenant_id Character. Entra ID (Azure AD) tenant GUID. Defaults to
 #'   `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
 #' @param client_id Character. App registration (client) ID. Defaults to
