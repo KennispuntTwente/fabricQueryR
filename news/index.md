@@ -1,5 +1,7 @@
 # Changelog
 
+## fabricQueryR (development version)
+
 ## fabricQueryR 0.2.1
 
 CRAN release: 2026-04-03
