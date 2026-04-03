@@ -45,7 +45,8 @@ fabric_onelake_read_delta_table(
   supplied, the table is resolved under `Tables/<schema>/<table>`
   instead of `Tables/<table>`. Schema support requires a schema-enabled
   Lakehouse (enabled by default for new lakehouses). Defaults to `NULL`
-  (no schema, for non-schema lakehouses).
+  (no schema, for non-schema lakehouses). (Note: schema support through
+  this argument is experimental.)
 
 - tenant_id:
 

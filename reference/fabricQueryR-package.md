@@ -20,8 +20,7 @@ Useful links:
 
 ## Author
 
-**Maintainer**: Luka Koning <l.koning@kennispunttwente.nl> \[copyright
-holder\]
+**Maintainer**: Luka Koning <koningluka@gmail.com> \[copyright holder\]
 
 Other contributors:
 
