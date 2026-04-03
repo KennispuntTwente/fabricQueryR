@@ -1,3 +1,5 @@
+# fabricQueryR (development version)
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 
