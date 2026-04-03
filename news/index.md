@@ -1,5 +1,12 @@
 # Changelog
 
+## fabricQueryR (development version)
+
+- [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md):
+  add experimental support for specifying a Lakehouse schema name to
+  read from a specific schema within a Lakehouse which has Lakehouse
+  schemas enabled.
+
 ## fabricQueryR 0.2.0
 
 CRAN release: 2025-09-15
