@@ -2,6 +2,8 @@
 
 ## fabricQueryR 0.2.1
 
+CRAN release: 2026-04-03
+
 - Update e-mail address of maintainer in DESCRIPTION file (change to a
   personal e-mail address due to leaving the organization).
 
