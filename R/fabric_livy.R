@@ -254,6 +254,13 @@ fabric_livy_statement <- function(
 
   out <- st$output %||% list()
   data <- out$data %||% list()
+  if (identical(out$status, "error")) {
+    msg <- out$evalue %||%
+      out$error %||%
+      data[["text/plain"]] %||%
+      "Livy statement failed."
+    stop(as.character(msg), call. = FALSE)
+  }
   parsed <- NULL
   if (!is.null(data[["application/json"]])) {
     obj <- try(
