@@ -21,6 +21,7 @@
 #'  to read a table stored under a specific schema.
 #' - Ensure the account/principal you authenticate with has access via
 #'  **Lakehouse -> Manage OneLake data access** (or is a member of the workspace).
+#' - Tokens use the `https://storage.azure.com/.default` audience.
 #' - \pkg{AzureAuth} is used to acquire the token. Be wary of
 #'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
 #'  to clear cached tokens if you run into issues
@@ -45,6 +46,9 @@
 #'   `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if not set.
 #' @param access_token Optional character. If supplied, use this bearer token
 #'   instead of acquiring a new one via `{AzureAuth}`.
+#' @param token_provider Optional function returning a OneLake Storage bearer
+#'   token. It may accept `audience` and `force_refresh` arguments. Supply only
+#'   one of `access_token` and `token_provider`.
 #' @param version Optional non-negative integer Delta table version to read.
 #'   Defaults to the latest version.
 #' @param dest_dir Character or `NULL`. Local staging directory for the complete
@@ -87,6 +91,7 @@ fabric_onelake_read_delta_table <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   access_token = NULL,
+  token_provider = NULL,
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
@@ -104,20 +109,6 @@ fabric_onelake_read_delta_table <- function(
     length(lakehouse_name) == 1L,
     nzchar(lakehouse_name)
   )
-  if (is.null(access_token)) {
-    if (!nzchar(tenant_id)) {
-      stop(
-        "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
-        call. = FALSE
-      )
-    }
-    if (!nzchar(client_id)) {
-      stop(
-        "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
-        call. = FALSE
-      )
-    }
-  }
   if (!is.null(version)) {
     if (
       length(version) != 1L ||
@@ -158,15 +149,16 @@ fabric_onelake_read_delta_table <- function(
   }
 
   # ---- auth (MSAL v2 + refresh) ----
-  if (is.null(access_token)) {
+  if (is.null(access_token) && is.null(token_provider)) {
     inform("Authenticating with {.pkg AzureAuth} (MSAL v2)...")
-    token <- fabric_get_storage_token(
-      tenant_id = tenant_id,
-      client_id = client_id
-    )
-  } else {
-    token <- access_token
   }
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    access_token = access_token,
+    token_provider = token_provider
+  )
+  token <- fabric_get_token(credential, .fabric_audience$storage)
 
   # ---- DFS endpoint + filesystem (workspace) ----
   ep <- AzureStor::adls_endpoint(dfs_base, token = token)
@@ -240,13 +232,10 @@ fabric_onelake_read_delta_table <- function(
 #' @keywords internal
 #' @noRd
 fabric_get_storage_token <- function(tenant_id, client_id) {
-  tok <- AzureAuth::get_azure_token(
-    tenant = tenant_id,
-    app = client_id,
-    version = 2,
-    resource = c("https://storage.azure.com/.default", "offline_access")
+  fabric_get_token(
+    fabric_credential(tenant_id = tenant_id, client_id = client_id),
+    .fabric_audience$storage
   )
-  tok$credentials$access_token
 }
 
 #' Normalize a Lakehouse item name to include the `.Lakehouse` suffix

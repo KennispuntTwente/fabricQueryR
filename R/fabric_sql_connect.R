@@ -14,6 +14,8 @@
 #'   You may also pass a DSN-less `Server=...` string; it will be normalized.
 #' - By default we request a token for
 #'   `https://database.windows.net/.default`.
+#'   The identity must have permission to connect to and query the target SQL
+#'   analytics endpoint, Warehouse, or SQL database.
 #' - \pkg{AzureAuth} is used to acquire the token. Be wary of
 #'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
 #'  to clear cached tokens if you run into issues
@@ -28,6 +30,9 @@
 #'   `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if unset.
 #' @param access_token Optional character. If supplied, use this bearer token
 #'   instead of acquiring a new one via `{AzureAuth}`.
+#' @param token_provider Optional function returning a Fabric SQL bearer token.
+#'   It may accept `audience` and `force_refresh` arguments. Supply only one of
+#'   `access_token` and `token_provider`.
 #' @param odbc_driver Character. ODBC driver name. Defaults to
 #'   `getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server")`.
 #' @param port Integer. TCP port (default 1433).
@@ -75,6 +80,7 @@ fabric_sql_connect <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   access_token = NULL,
+  token_provider = NULL,
   odbc_driver = getOption(
     "fabricqueryr.sql.driver",
     "ODBC Driver 18 for SQL Server"
@@ -103,29 +109,19 @@ fabric_sql_connect <- function(
   )
 
   # ---- access token ----
-  if (is.null(access_token)) {
-    if (!nzchar(tenant_id)) {
-      stop(
-        "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
-        call. = FALSE
-      )
-    }
-    if (!nzchar(client_id)) {
-      stop(
-        "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
-        call. = FALSE
-      )
-    }
-
+  if (is.null(access_token) && is.null(token_provider)) {
     inform(
       verbose,
       "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL ..."
     )
-    access_token <- fabric_get_sqldb_token(
-      tenant_id = tenant_id,
-      client_id = client_id
-    )
   }
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    access_token = access_token,
+    token_provider = token_provider
+  )
+  access_token <- fabric_get_token(credential, .fabric_audience$sql)
 
   # ---- normalize server ----
   host <- fabric_normalize_server(server)
@@ -183,6 +179,7 @@ fabric_sql_query <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   access_token = NULL,
+  token_provider = NULL,
   odbc_driver = getOption(
     "fabricqueryr.sql.driver",
     "ODBC Driver 18 for SQL Server"
@@ -201,6 +198,7 @@ fabric_sql_query <- function(
     tenant_id = tenant_id,
     client_id = client_id,
     access_token = access_token,
+    token_provider = token_provider,
     odbc_driver = odbc_driver,
     port = port,
     encrypt = encrypt,
@@ -221,13 +219,10 @@ fabric_sql_query <- function(
 #' @keywords internal
 #' @noRd
 fabric_get_sqldb_token <- function(tenant_id, client_id) {
-  tok <- AzureAuth::get_azure_token(
-    resource = c("https://database.windows.net/.default", "offline_access"),
-    tenant = tenant_id,
-    app = client_id,
-    version = 2
+  fabric_get_token(
+    fabric_credential(tenant_id = tenant_id, client_id = client_id),
+    .fabric_audience$sql
   )
-  tok$credentials$access_token
 }
 
 #' Normalize a Fabric SQL server value

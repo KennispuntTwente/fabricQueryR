@@ -15,6 +15,10 @@
 #' - \pkg{AzureAuth} is used to acquire the token. Be wary of
 #'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
 #'  to clear cached tokens if you run into issues
+#' - Requests use the Power BI audience
+#'  `https://analysis.windows.net/powerbi/api/.default` and require
+#'  `Dataset.Read.All` (or `Dataset.ReadWrite.All`) plus dataset Read and Build
+#'  permissions. Name lookup also requires `Workspace.Read.All` or equivalent.
 #'
 #' @param connstr Optional character. Power BI connection string, e.g.
 #'   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
@@ -38,6 +42,9 @@
 #' 'myorg' is appropriate for most use cases and does not necessarily need to be changed.
 #' @param access_token Optional character. If supplied, use this bearer token
 #' instead of acquiring a new one via `{AzureAuth}`.
+#' @param token_provider Optional function that returns a Power BI bearer token.
+#'   It may accept `audience` and `force_refresh` arguments and is called again
+#'   after an HTTP 401. Supply only one of `access_token` and `token_provider`.
 #' @param impersonated_user Optional user principal name sent as
 #'   `impersonatedUserName` for supported row-level security scenarios.
 #'
@@ -69,6 +76,7 @@ fabric_pbi_dax_query <- function(
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
   access_token = NULL,
+  token_provider = NULL,
   impersonated_user = NULL
 ) {
   stopifnot(is.character(dax), length(dax) == 1L, nzchar(dax))
@@ -103,26 +111,17 @@ fabric_pbi_dax_query <- function(
     )
   }
 
-  if (is.null(access_token)) {
-    if (!nzchar(tenant_id)) {
-      stop(
-        "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
-        call. = FALSE
-      )
-    }
-    if (!nzchar(client_id)) {
-      stop(
-        "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
-        call. = FALSE
-      )
-    }
-    access_token <- pbi_get_token(tenant_id = tenant_id, client_id = client_id)
-  }
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    access_token = access_token,
+    token_provider = token_provider
+  )
 
   if (is.null(dataset_id)) {
     ids <- pbi_resolve_ids_from_connstr(
       connstr = connstr,
-      access_token = access_token,
+      credential = credential,
       api_base = api_base
     )
     workspace_id <- ids$group_id
@@ -130,7 +129,7 @@ fabric_pbi_dax_query <- function(
   }
 
   pbi_execute_dax(
-    access_token = access_token,
+    credential = credential,
     dataset_id = dataset_id,
     dax = dax,
     group_id = workspace_id,
@@ -189,25 +188,25 @@ pbi_parse_connstr <- function(conn) {
 #' Resolve workspace & dataset GUIDs using the Power BI REST API
 #'
 #' @param connstr Connection string used to infer workspace & dataset names.
-#' @param access_token OAuth2 bearer token for the Power BI API.
+#' @param credential Internal audience-aware credential.
 #' @param api_base API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
 #' @return A list with `group_id`, `dataset_id`, `workspace`, and `dataset`.
 #' @keywords internal
 #' @noRd
 pbi_resolve_ids_from_connstr <- function(
   connstr,
-  access_token,
+  credential,
   api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   p <- pbi_parse_connstr(connstr)
 
   group_id <- pbi_get_group_id_by_name(
-    access_token = access_token,
+    credential = credential,
     workspace_name = p$workspace,
     api_base = api_base
   )
   dataset_id <- pbi_get_dataset_id_by_name(
-    access_token = access_token,
+    credential = credential,
     group_id = group_id,
     dataset_name = p$dataset,
     api_base = api_base
@@ -229,16 +228,10 @@ pbi_resolve_ids_from_connstr <- function(
 #' @keywords internal
 #' @noRd
 pbi_get_token <- function(tenant_id, client_id) {
-  tok <- AzureAuth::get_azure_token(
-    tenant = tenant_id,
-    app = client_id,
-    version = 2,
-    resource = c(
-      "https://analysis.windows.net/powerbi/api/.default",
-      "offline_access"
-    )
+  fabric_get_token(
+    fabric_credential(tenant_id = tenant_id, client_id = client_id),
+    .fabric_audience$power_bi
   )
-  tok$credentials$access_token
 }
 
 #' Execute a DAX query against a dataset
@@ -254,7 +247,7 @@ pbi_get_token <- function(tenant_id, client_id) {
 #' @keywords internal
 #' @noRd
 pbi_execute_dax <- function(
-  access_token,
+  credential,
   dataset_id,
   dax,
   group_id = NULL,
@@ -282,10 +275,15 @@ pbi_execute_dax <- function(
   }
 
   req <- httr2::request(path) |>
-    httr2::req_headers(Authorization = paste("Bearer", access_token)) |>
     httr2::req_body_json(body)
 
-  out <- .httr2_json(req, simplifyVector = FALSE)
+  out <- .httr2_json(
+    req,
+    simplifyVector = FALSE,
+    credential = credential,
+    audience = .fabric_audience$power_bi,
+    idempotent = TRUE
+  )
   pbi_parse_dax_response(out)
 }
 
@@ -396,14 +394,14 @@ pbi_check_dax_error <- function(error, level) {
 #' @keywords internal
 #' @noRd
 pbi_get_group_id_by_name <- function(
-  access_token,
+  credential,
   workspace_name,
   api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   url <- sprintf("%s/groups", api_base)
   vals <- pbi_get_collection(
     url,
-    access_token,
+    credential,
     offset_pagination = TRUE
   )
   hits <- vals[vapply(
@@ -437,13 +435,13 @@ pbi_get_group_id_by_name <- function(
 #' @keywords internal
 #' @noRd
 pbi_get_dataset_id_by_name <- function(
-  access_token,
+  credential,
   group_id,
   dataset_name,
   api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   url <- sprintf("%s/groups/%s/datasets", api_base, group_id)
-  vals <- pbi_get_collection(url, access_token)
+  vals <- pbi_get_collection(url, credential)
   hits <- vals[vapply(
     vals,
     function(d) tolower(d$name) == tolower(dataset_name),
@@ -478,41 +476,18 @@ pbi_get_dataset_id_by_name <- function(
 #' @noRd
 pbi_get_collection <- function(
   url,
-  access_token,
+  credential,
   offset_pagination = FALSE,
   page_size = 5000L
 ) {
-  values <- list()
-  next_url <- url
-  skip <- 0L
-  repeat {
-    req <- httr2::request(next_url) |>
-      httr2::req_headers(Authorization = paste("Bearer", access_token))
-    if (isTRUE(offset_pagination) && identical(next_url, url)) {
-      req <- httr2::req_url_query(
-        req,
-        `$top` = page_size,
-        `$skip` = skip
-      )
-    }
-    page <- .httr2_json(req, simplifyVector = FALSE)
-    page_values <- page$value %||% list()
-    values <- c(values, page_values)
-
-    next_link <- page[["@odata.nextLink"]] %||% page[["odata.nextLink"]]
-    if (!is.null(next_link) && nzchar(next_link)) {
-      next_url <- next_link
-      offset_pagination <- FALSE
-      next
-    }
-    if (
-      isTRUE(offset_pagination) &&
-        length(page_values) == as.integer(page_size)
-    ) {
-      skip <- skip + as.integer(page_size)
-      next
-    }
-    break
+  if (is.character(credential)) {
+    credential <- fabric_credential(access_token = credential)
   }
-  values
+  .httr2_collection(
+    url,
+    credential = credential,
+    audience = .fabric_audience$power_bi,
+    offset_pagination = offset_pagination,
+    page_size = page_size
+  )
 }

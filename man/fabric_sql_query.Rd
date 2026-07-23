@@ -12,6 +12,7 @@ fabric_sql_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
   port = 1433L,
   encrypt = "yes",
@@ -38,6 +39,10 @@ fabric_sql_query(
 
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
+
+\item{token_provider}{Optional function returning a Fabric SQL bearer token.
+It may accept \code{audience} and \code{force_refresh} arguments. Supply only one of
+\code{access_token} and \code{token_provider}.}
 
 \item{odbc_driver}{Character. ODBC driver name. Defaults to
 \code{getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server")}.}

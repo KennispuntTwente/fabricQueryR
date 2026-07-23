@@ -12,6 +12,14 @@
   bypass, optional RLS impersonation, paginated workspace lookup, and ambiguity
   errors for duplicate names.
 
+* Authentication and REST behavior are now shared across Fabric surfaces.
+  Exported functions accept refreshable `token_provider` callbacks in addition
+  to static tokens and interactive `AzureAuth`; REST calls use bounded retries
+  for throttling/transient failures, honor `Retry-After`, refresh after 401,
+  and include redacted endpoint/request diagnostics. Shared pagination and
+  Fabric long-running-operation polling helpers are covered by deterministic
+  tests.
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

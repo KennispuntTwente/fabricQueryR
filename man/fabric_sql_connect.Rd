@@ -11,6 +11,7 @@ fabric_sql_connect(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
   port = 1433L,
   encrypt = "yes",
@@ -35,6 +36,10 @@ fabric_sql_connect(
 
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
+
+\item{token_provider}{Optional function returning a Fabric SQL bearer token.
+It may accept \code{audience} and \code{force_refresh} arguments. Supply only one of
+\code{access_token} and \code{token_provider}.}
 
 \item{odbc_driver}{Character. ODBC driver name. Defaults to
 \code{getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server")}.}
@@ -67,8 +72,10 @@ then \strong{Settings} -> \strong{SQL analytics endpoint} -> \strong{SQL connect
 You may also pass a DSN-less \code{Server=...} string; it will be normalized.
 \item By default we request a token for
 \verb{https://database.windows.net/.default}.
+The identity must have permission to connect to and query the target SQL
+analytics endpoint, Warehouse, or SQL database.
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:get_azure_token]{AzureAuth::clean_token_directory()}}
+caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 to clear cached tokens if you run into issues
 }
 }

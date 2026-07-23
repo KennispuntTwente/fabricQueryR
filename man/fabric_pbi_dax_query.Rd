@@ -15,6 +15,7 @@ fabric_pbi_dax_query(
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
   access_token = NULL,
+  token_provider = NULL,
   impersonated_user = NULL
 )
 }
@@ -50,6 +51,10 @@ If TRUE, null values are included in the response; if FALSE, they are omitted.}
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
 
+\item{token_provider}{Optional function that returns a Power BI bearer token.
+It may accept \code{audience} and \code{force_refresh} arguments and is called again
+after an HTTP 401. Supply only one of \code{access_token} and \code{token_provider}.}
+
 \item{impersonated_user}{Optional user principal name sent as
 \code{impersonatedUserName} for supported row-level security scenarios.}
 }
@@ -71,6 +76,10 @@ or has been granted 'Build' permissions on the dataset (via sharing).
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
 caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 to clear cached tokens if you run into issues
+\item Requests use the Power BI audience
+\verb{https://analysis.windows.net/powerbi/api/.default} and require
+\code{Dataset.Read.All} (or \code{Dataset.ReadWrite.All}) plus dataset Read and Build
+permissions. Name lookup also requires \code{Workspace.Read.All} or equivalent.
 }
 }
 \examples{

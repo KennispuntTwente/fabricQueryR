@@ -1,6 +1,6 @@
 test_that("Livy statement output errors are raised", {
   local_mocked_bindings(
-    .httr2_json = function(request) {
+    .httr2_json = function(request, ...) {
       list(
         id = 1L,
         state = "available",

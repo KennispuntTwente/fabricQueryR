@@ -13,6 +13,7 @@ fabric_onelake_read_delta_table(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
@@ -46,6 +47,10 @@ argument is experimental.)}
 
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
+
+\item{token_provider}{Optional function returning a OneLake Storage bearer
+token. It may accept \code{audience} and \code{force_refresh} arguments. Supply only
+one of \code{access_token} and \code{token_provider}.}
 
 \item{version}{Optional non-negative integer Delta table version to read.
 Defaults to the latest version.}
@@ -82,6 +87,7 @@ tables into named schemas. Supply the \code{schema} argument (e.g. \code{"dbo"})
 to read a table stored under a specific schema.
 \item Ensure the account/principal you authenticate with has access via
 \strong{Lakehouse -> Manage OneLake data access} (or is a member of the workspace).
+\item Tokens use the \verb{https://storage.azure.com/.default} audience.
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
 caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 to clear cached tokens if you run into issues

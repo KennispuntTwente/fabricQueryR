@@ -27,7 +27,7 @@ test_that("pbi_parse_connstr errors when Data Source missing", {
 # pbi_resolve_ids_from_connstr() ------------------------------------------
 
 test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
-  fake_token <- "tok"
+  fake_credential <- fabric_credential(access_token = "tok")
   conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/WS;Initial Catalog=DS;"
 
   got_group <- NULL
@@ -35,23 +35,23 @@ test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
 
   testthat::with_mocked_bindings(
     pbi_get_group_id_by_name = function(
-      access_token,
+      credential,
       workspace_name,
       api_base
     ) {
-      expect_equal(access_token, fake_token)
+      expect_identical(credential, fake_credential)
       expect_equal(workspace_name, "WS")
       expect_match(api_base, "api.powerbi.com")
       got_group <<- TRUE
       "11111111-1111-1111-1111-111111111111"
     },
     pbi_get_dataset_id_by_name = function(
-      access_token,
+      credential,
       group_id,
       dataset_name,
       api_base
     ) {
-      expect_equal(access_token, fake_token)
+      expect_identical(credential, fake_credential)
       expect_equal(group_id, "11111111-1111-1111-1111-111111111111")
       expect_equal(dataset_name, "DS")
       expect_match(api_base, "api.powerbi.com")
@@ -61,7 +61,7 @@ test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
     {
       ids <- fabricQueryR:::pbi_resolve_ids_from_connstr(
         conn,
-        access_token = fake_token
+        credential = fake_credential
       )
       expect_true(got_group)
       expect_true(got_dataset)
@@ -83,14 +83,17 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
     },
     pbi_resolve_ids_from_connstr = function(
       connstr,
-      access_token,
+      credential,
       api_base
     ) {
-      expect_equal(access_token, "supplied-token")
+      expect_equal(
+        fabric_get_token(credential, .fabric_audience$power_bi),
+        "supplied-token"
+      )
       list(group_id = "group-id", dataset_id = "dataset-id")
     },
     pbi_execute_dax = function(
-      access_token,
+      credential,
       dataset_id,
       dax,
       group_id,
@@ -98,7 +101,10 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
       api_base,
       impersonated_user
     ) {
-      expect_equal(access_token, "supplied-token")
+      expect_equal(
+        fabric_get_token(credential, .fabric_audience$power_bi),
+        "supplied-token"
+      )
       expect_equal(dataset_id, "dataset-id")
       expect_equal(group_id, "group-id")
       expect_null(impersonated_user)
@@ -130,7 +136,7 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
       stop("unexpected lookup")
     },
     pbi_execute_dax = function(
-      access_token,
+      credential,
       dataset_id,
       dax,
       group_id,
@@ -138,7 +144,10 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
       api_base,
       impersonated_user
     ) {
-      expect_equal(access_token, "token")
+      expect_equal(
+        fabric_get_token(credential, .fabric_audience$power_bi),
+        "token"
+      )
       expect_equal(dataset_id, "dataset-id")
       expect_equal(group_id, "workspace-id")
       expect_equal(impersonated_user, "reader@example.com")
@@ -245,7 +254,7 @@ test_that("DAX response parser rejects unsupported multiplicity", {
 
 test_that("DAX execution sends impersonation and parses one table", {
   local_mocked_bindings(
-    .httr2_json = function(req, simplifyVector) {
+    .httr2_json = function(req, simplifyVector, ...) {
       expect_false(simplifyVector)
       body <- req$body$data
       expect_equal(body$impersonatedUserName, "reader@example.com")
@@ -259,7 +268,7 @@ test_that("DAX execution sends impersonation and parses one table", {
   )
 
   result <- pbi_execute_dax(
-    access_token = "token",
+    credential = fabric_credential(access_token = "token"),
     dataset_id = "dataset",
     group_id = "workspace",
     dax = 'EVALUATE ROW("value", 7)',
@@ -275,7 +284,7 @@ test_that("Power BI collection paging follows offsets and next links", {
     list(value = list(list(id = "three")))
   )
   local_mocked_bindings(
-    .httr2_json = function(req, simplifyVector) {
+    .httr2_json = function(req, simplifyVector, ...) {
       calls[[length(calls) + 1L]] <<- req$url
       responses[[length(calls)]]
     }

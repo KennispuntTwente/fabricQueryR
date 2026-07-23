@@ -12,7 +12,10 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     schema = lakehouse$schema,
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+    token_provider = function(audience, force_refresh = FALSE) {
+      expect_equal(audience, "https://storage.azure.com/.default")
+      fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+    },
     verbose = FALSE
   )
   result <- result[order(result$id), ]
@@ -102,7 +105,10 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
     database = lakehouse$display_name,
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    token_provider = function(audience, force_refresh = FALSE) {
+      expect_equal(audience, "https://database.windows.net/.default")
+      fabric_test_token("FABRIC_TEST_SQL_TOKEN")
+    },
     verbose = FALSE
   )
   on.exit(
@@ -203,7 +209,10 @@ test_that("fabric_livy_query executes Spark and returns its output", {
     kind = "pyspark",
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    token_provider = function(audience, force_refresh = FALSE) {
+      expect_equal(audience, "https://api.fabric.microsoft.com/.default")
+      fabric_test_token("FABRIC_TEST_API_TOKEN")
+    },
     conf = list("spark.sql.shuffle.partitions" = "2"),
     verbose = FALSE
   )
@@ -248,7 +257,13 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
     ),
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    token_provider = function(audience, force_refresh = FALSE) {
+      expect_equal(
+        audience,
+        "https://analysis.windows.net/powerbi/api/.default"
+      )
+      fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    }
   )
 
   expect_s3_class(result, "tbl_df")

@@ -12,6 +12,7 @@ fabric_livy_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
@@ -38,6 +39,10 @@ app registration in your tenant for better control.}
 
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
+
+\item{token_provider}{Optional function returning a Fabric API bearer token.
+It may accept \code{audience} and \code{force_refresh} arguments. Supply only one of
+\code{access_token} and \code{token_provider}.}
 
 \item{environment_id}{Optional character. Fabric Environment (pool) ID to use
 for the session. If \code{NULL} (default), the default environment for the user
@@ -84,8 +89,11 @@ the result, and closes the session.
 to a 'Lakehouse' item, then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'.
 \item By default we request a token for \verb{https://api.fabric.microsoft.com/.default}.
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:get_azure_token]{AzureAuth::clean_token_directory()}}
+caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 to clear cached tokens if you run into issues
+\item Requests use the \verb{https://api.fabric.microsoft.com/.default} audience.
+The identity must have access to the workspace and permission to run Spark
+sessions on the target lakehouse.
 }
 }
 \examples{

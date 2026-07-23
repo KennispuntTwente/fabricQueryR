@@ -15,6 +15,9 @@
 #' - \pkg{AzureAuth} is used to acquire the token. Be wary of
 #' caching behavior; you may want to call [AzureAuth::clean_token_directory()]
 #' to clear cached tokens if you run into issues
+#' - Requests use the `https://api.fabric.microsoft.com/.default` audience.
+#'   The identity must have access to the workspace and permission to run Spark
+#'   sessions on the target lakehouse.
 #'
 #' @seealso
 #' [Livy API overview - Microsoft Fabric - 'What is the Livy API for Data Engineering?'](<https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview>);
@@ -33,6 +36,9 @@
 #'   app registration in your tenant for better control.
 #' @param access_token Optional character. If supplied, use this bearer token
 #'   instead of acquiring a new one via `{AzureAuth}`.
+#' @param token_provider Optional function returning a Fabric API bearer token.
+#'   It may accept `audience` and `force_refresh` arguments. Supply only one of
+#'   `access_token` and `token_provider`.
 #' @param environment_id Optional character. Fabric Environment (pool) ID to use
 #' for the session. If `NULL` (default), the default environment for the user
 #'  will be used.
@@ -71,6 +77,7 @@ fabric_livy_query <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   access_token = NULL,
+  token_provider = NULL,
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
@@ -83,6 +90,7 @@ fabric_livy_query <- function(
     tenant_id = tenant_id,
     client_id = client_id,
     access_token = access_token,
+    token_provider = token_provider,
     kind = NULL, # let statements specify kind (0.5+ behavior)
     conf = conf,
     environment_id = environment_id,
@@ -122,7 +130,7 @@ fabric_livy_statement <- function(
     c("httr2", "jsonlite", "tibble"),
     reason = "to call the Livy REST API"
   )
-  stopifnot(is.list(session), nzchar(session$url), nzchar(session$token))
+  stopifnot(is.list(session), nzchar(session$url))
   stopifnot(is.character(code), length(code) == 1L, nzchar(code))
 
   stmts_url <- paste0(session$url, "/statements")
@@ -134,10 +142,12 @@ fabric_livy_statement <- function(
   inform(verbose, "Submitting statement ...")
   t_submit <- Sys.time()
   st <- httr2::request(stmts_url) |>
-    httr2::req_headers(Authorization = paste("Bearer", session$token)) |>
     httr2::req_body_json(payload) |>
     httr2::req_method("POST") |>
-    .httr2_json()
+    .httr2_json(
+      credential = fabric_livy_session_credential(session),
+      audience = .fabric_audience$fabric
+    )
 
   stmt_url <- paste0(stmts_url, "/", st$id)
   deadline <- Sys.time() + timeout
@@ -201,8 +211,10 @@ fabric_livy_statement <- function(
     Sys.sleep(poll_interval)
 
     st <- httr2::request(stmt_url) |>
-      httr2::req_headers(Authorization = paste("Bearer", session$token)) |>
-      .httr2_json()
+      .httr2_json(
+        credential = fabric_livy_session_credential(session),
+        audience = .fabric_audience$fabric
+      )
 
     state <- st$state %||% "unknown"
     prev <- show_state(prev, state)
@@ -308,6 +320,7 @@ fabric_livy_session_create <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   access_token = NULL,
+  token_provider = NULL,
   kind = NULL, # "spark","pyspark","sparkr","sql" (optional)
   name = NULL,
   conf = NULL,
@@ -329,11 +342,15 @@ fabric_livy_session_create <- function(
   timeout = 600L
 ) {
   rlang::check_installed(c("httr2"), reason = "to call the Livy REST API")
-  if (is.null(access_token)) {
-    rlang::check_installed("AzureAuth")
+  if (is.null(access_token) && is.null(token_provider)) {
     inform(verbose, "Authenticating for Fabric Livy API ...")
-    access_token <- fabric_get_livy_token(tenant_id, client_id)
   }
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    access_token = access_token,
+    token_provider = token_provider
+  )
 
   sessions_url <- fabric_livy_endpoint(livy_url, "sessions")
 
@@ -368,10 +385,12 @@ fabric_livy_session_create <- function(
 
   inform(verbose, "Creating Livy session ...")
   resp <- httr2::request(sessions_url) |>
-    httr2::req_headers(Authorization = paste("Bearer", access_token)) |>
     httr2::req_body_json(payload) |>
     httr2::req_method("POST") |>
-    .httr2_json()
+    .httr2_json(
+      credential = credential,
+      audience = .fabric_audience$fabric
+    )
 
   session_id <- as.character(resp$id %||% NA)
   if (!nzchar(session_id)) {
@@ -380,7 +399,8 @@ fabric_livy_session_create <- function(
   invisible(list(
     id = session_id,
     url = paste0(sessions_url, "/", session_id),
-    token = access_token
+    token = access_token,
+    credential = credential
   ))
 }
 
@@ -391,7 +411,7 @@ fabric_livy_session_wait <- function(
   verbose = TRUE
 ) {
   rlang::check_installed("httr2")
-  stopifnot(is.list(session), nzchar(session$url), nzchar(session$token))
+  stopifnot(is.list(session), nzchar(session$url))
   deadline <- Sys.time() + timeout
 
   use_cli <- isTRUE(verbose) && rlang::is_installed("cli")
@@ -439,8 +459,10 @@ fabric_livy_session_wait <- function(
     }
 
     s <- httr2::request(session$url) |>
-      httr2::req_headers(Authorization = paste("Bearer", session$token)) |>
-      .httr2_json()
+      .httr2_json(
+        credential = fabric_livy_session_credential(session),
+        audience = .fabric_audience$fabric
+      )
 
     st <- s$state %||% "unknown"
     prev <- update_status(prev, st)
@@ -472,9 +494,11 @@ fabric_livy_session_close <- function(session, verbose = TRUE) {
   try(
     {
       httr2::request(session$url) |>
-        httr2::req_headers(Authorization = paste("Bearer", session$token)) |>
         httr2::req_method("DELETE") |>
-        .httr2_ok()
+        .httr2_ok(
+          credential = fabric_livy_session_credential(session),
+          audience = .fabric_audience$fabric
+        )
       closed <- TRUE
     },
     silent = TRUE
@@ -495,13 +519,17 @@ fabric_livy_session_close <- function(session, verbose = TRUE) {
 
 # Token for Fabric + refresh capability
 fabric_get_livy_token <- function(tenant_id, client_id) {
-  tok <- AzureAuth::get_azure_token(
-    resource = c("https://api.fabric.microsoft.com/.default", "offline_access"),
-    tenant = tenant_id,
-    app = client_id,
-    version = 2
+  fabric_get_token(
+    fabric_credential(tenant_id = tenant_id, client_id = client_id),
+    .fabric_audience$fabric
   )
-  tok$credentials$access_token
+}
+
+fabric_livy_session_credential <- function(session) {
+  if (inherits(session$credential, "fabric_credential")) {
+    return(session$credential)
+  }
+  fabric_credential(access_token = session$token)
 }
 
 
