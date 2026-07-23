@@ -1,0 +1,7 @@
+workspace_name        = "fabricqueryr-local-yourname"
+capacity_id           = "00000000-0000-0000-0000-000000000000"
+workspace_description = "Ephemeral fabricQueryR sandbox; owner=yourname; expires=2026-07-24"
+
+# Set only when the identity running tests differs from the Terraform identity.
+# test_principal_id   = "00000000-0000-0000-0000-000000000000"
+# test_principal_role = "Contributor"

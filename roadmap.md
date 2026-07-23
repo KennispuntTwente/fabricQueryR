@@ -205,18 +205,19 @@ description.
 ### Initial deliverables
 
 - [ ] Expand unit coverage for all five exported functions and their HTTP helpers.
-- [ ] Add Terraform for an ephemeral capacity-bound workspace and CI role
+- [x] Add Terraform for an ephemeral capacity-bound workspace and CI role
   assignment, with remote or per-run isolated state.
-- [ ] Add the `uv` project and commit `uv.lock`.
+- [x] Add the `uv` project and commit `uv.lock`.
 - [ ] Add source-controlled lakehouse, notebook, Warehouse, and semantic-model
   definitions deployable with `fabric-cicd`.
-- [ ] Add deterministic fixture upload, seeding, readiness polling, and manifest
+- [x] Add deterministic fixture upload, seeding, readiness polling, and manifest
   generation.
-- [ ] Add integration-test helpers that skip with a precise reason when no manifest
+- [x] Add integration-test helpers that skip with a precise reason when no manifest
   or workload capability is available.
-- [ ] Add OIDC-based GitHub Actions smoke and scheduled workflows.
-- [ ] Add unconditional teardown and a scheduled stale-workspace janitor.
-- [ ] Document one-command local deploy, test, and destroy workflows.
+- [x] Add OIDC-based GitHub Actions smoke and scheduled workflows.
+- [x] Add unconditional Terraform teardown to the integration workflow.
+- [ ] Add a scheduled stale-workspace janitor for canceled runners.
+- [x] Document one-command local deploy, test, and destroy workflows.
 
 ### Acceptance criteria
 

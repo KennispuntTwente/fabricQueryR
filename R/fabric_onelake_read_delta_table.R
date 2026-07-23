@@ -41,6 +41,8 @@
 #' @param client_id Character. App registration (client) ID. Defaults to
 #'   `Sys.getenv("FABRICQUERYR_CLIENT_ID")`, falling back to the Azure CLI app id
 #'   `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if not set.
+#' @param access_token Optional character. If supplied, use this bearer token
+#'   instead of acquiring a new one via `{AzureAuth}`.
 #' @param dest_dir Character or `NULL`. Local staging directory for Parquet
 #'   parts. If `NULL` (default), a temp dir is used and cleaned up on exit.
 #' @param verbose Logical. Print progress messages via `{cli}`. Default `TRUE`.
@@ -80,6 +82,7 @@ fabric_onelake_read_delta_table <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
+  access_token = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
@@ -96,7 +99,7 @@ fabric_onelake_read_delta_table <- function(
     length(lakehouse_name) == 1L,
     nzchar(lakehouse_name)
   )
-  if (!nzchar(tenant_id)) {
+  if (is.null(access_token) && !nzchar(tenant_id)) {
     stop(
       "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
       call. = FALSE
@@ -136,11 +139,15 @@ fabric_onelake_read_delta_table <- function(
   }
 
   # ---- auth (MSAL v2 + refresh) ----
-  inform("Authenticating with {.pkg AzureAuth} (MSAL v2)...")
-  token <- fabric_get_storage_token(
-    tenant_id = tenant_id,
-    client_id = client_id
-  )
+  if (is.null(access_token)) {
+    inform("Authenticating with {.pkg AzureAuth} (MSAL v2)...")
+    token <- fabric_get_storage_token(
+      tenant_id = tenant_id,
+      client_id = client_id
+    )
+  } else {
+    token <- access_token
+  }
 
   # ---- DFS endpoint + filesystem (workspace) ----
   ep <- AzureStor::adls_endpoint(dfs_base, token = token)

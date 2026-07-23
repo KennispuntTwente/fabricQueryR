@@ -12,6 +12,7 @@ fabric_onelake_read_delta_table(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
+  access_token = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
@@ -41,6 +42,9 @@ argument is experimental.)}
 \item{client_id}{Character. App registration (client) ID. Defaults to
 \code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}, falling back to the Azure CLI app id
 \code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"} if not set.}
+
+\item{access_token}{Optional character. If supplied, use this bearer token
+instead of acquiring a new one via \code{{AzureAuth}}.}
 
 \item{dest_dir}{Character or \code{NULL}. Local staging directory for Parquet
 parts. If \code{NULL} (default), a temp dir is used and cleaned up on exit.}

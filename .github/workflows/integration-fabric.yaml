@@ -1,0 +1,120 @@
+name: Fabric integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: fabric-integration-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Ephemeral Fabric sandbox
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 90
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_DIR: infra/fabric/terraform
+      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      TF_VAR_workspace_description: fabricqueryr-ci; run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+      FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+          terraform_wrapper: false
+
+      - name: Check Terraform formatting
+        run: terraform -chdir="$TF_DIR" fmt -check -recursive
+
+      - name: Initialize Terraform
+        id: terraform_init
+        run: terraform -chdir="$TF_DIR" init -input=false
+
+      - name: Validate Terraform
+        run: terraform -chdir="$TF_DIR" validate
+
+      - name: Create workspace and Lakehouse
+        run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
+
+      - name: Export Terraform outputs
+        run: |
+          echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+
+      - name: Install locked sandbox environment
+        run: uv --directory tools/fabric-sandbox sync --locked
+
+      - name: Validate local sandbox configuration
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor
+
+      - name: Deploy Fabric item definitions
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox deploy
+
+      - name: Seed test data
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox seed
+
+      - name: Discover Fabric endpoints
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox discover
+
+      - name: Acquire short-lived test tokens
+        run: |
+          storage_token="$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)"
+          sql_token="$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)"
+          api_token="$(az account get-access-token --resource https://api.fabric.microsoft.com/ --query accessToken -o tsv)"
+          echo "::add-mask::$storage_token"
+          echo "::add-mask::$sql_token"
+          echo "::add-mask::$api_token"
+          {
+            echo "FABRIC_TEST_STORAGE_TOKEN=$storage_token"
+            echo "FABRIC_TEST_SQL_TOKEN=$sql_token"
+            echo "FABRIC_TEST_API_TOKEN=$api_token"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Microsoft ODBC driver
+        run: |
+          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
+          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::devtools
+          needs: check
+
+      - name: Run Fabric integration tests
+        run: Rscript -e 'devtools::test(filter = "integration-fabric")'
+
+      - name: Destroy Fabric sandbox
+        if: always() && steps.terraform_init.outcome == 'success'
+        run: terraform -chdir="$TF_DIR" destroy -auto-approve -input=false

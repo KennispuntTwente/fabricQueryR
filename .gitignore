@@ -6,3 +6,13 @@
 .quarto
 docs
 /revdep
+.fabric-test-manifest.json
+tools/fabric-sandbox/.venv/
+**/__pycache__/
+*.py[cod]
+**/.pytest_cache/
+infra/fabric/terraform/.terraform/
+infra/fabric/terraform/*.tfstate
+infra/fabric/terraform/*.tfstate.*
+infra/fabric/terraform/*.tfplan
+infra/fabric/terraform/terraform.tfvars
