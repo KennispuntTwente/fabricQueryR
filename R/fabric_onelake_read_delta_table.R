@@ -246,6 +246,17 @@ fabric_get_storage_token <- function(tenant_id, client_id) {
 #' @noRd
 fabric_normalize_lakehouse_item <- function(lakehouse_name) {
   if (
+    stringr::str_detect(
+      lakehouse_name,
+      stringr::regex(
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        ignore_case = TRUE
+      )
+    )
+  ) {
+    return(lakehouse_name)
+  }
+  if (
     stringr::str_ends(
       lakehouse_name,
       stringr::regex("\\.lakehouse$", ignore_case = TRUE)
