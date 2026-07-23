@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 from azure.core.credentials import TokenCredential
 import httpx
@@ -149,10 +150,15 @@ class FabricApi:
         location = response.headers.get("Location")
         if not location:
             raise RuntimeError("notebook job response did not include a Location header")
+        job_instance_id = urlparse(location).path.rstrip("/").rsplit("/", 1)[-1]
+        job_url = (
+            f"/workspaces/{workspace_id}/notebooks/{notebook_id}"
+            f"/jobs/execute/instances/{job_instance_id}"
+        )
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            job = self.request("GET", location, params={"beta": "false"}).json()
+            job = self.request("GET", job_url, params={"beta": "true"}).json()
             status = job.get("status")
             if status in TERMINAL_JOB_STATES:
                 if status != "Completed":
@@ -162,6 +168,8 @@ class FabricApi:
                         f"{job.get('failureReason')}"
                     )
                 exit_value = job.get("exitValue")
+                if exit_value is None:
+                    exit_value = job.get("properties", {}).get("exitValue")
                 if isinstance(exit_value, str) and exit_value.startswith(
                     NOTEBOOK_ERROR_PREFIX
                 ):
@@ -171,6 +179,7 @@ class FabricApi:
                         "seed notebook completed without its success marker; "
                         f"exitValue={exit_value!r}"
                     )
+                job["exitValue"] = exit_value
                 return job
             self.sleep(10)
         raise TimeoutError(f"notebook job did not finish within {timeout} seconds")

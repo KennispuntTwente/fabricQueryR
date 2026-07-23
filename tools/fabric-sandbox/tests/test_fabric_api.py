@@ -85,16 +85,22 @@ def test_run_notebook_surfaces_seed_traceback_from_exit_value():
                 202,
                 headers={"Location": "/jobs/instances/job-id"},
             )
-        assert request.url.params["beta"] == "false"
+        assert request.url.params["beta"] == "true"
+        assert request.url.path.endswith(
+            "/workspaces/workspace-id/notebooks/notebook-id/"
+            "jobs/execute/instances/job-id"
+        )
         return httpx.Response(
             200,
             json={
                 "id": "job-id",
                 "status": "Completed",
-                "exitValue": (
-                    "fabricqueryr-seed-error: write basic Delta table\n"
-                    "AnalysisException: exact Spark failure"
-                ),
+                "properties": {
+                    "exitValue": (
+                        "fabricqueryr-seed-error: write basic Delta table\n"
+                        "AnalysisException: exact Spark failure"
+                    )
+                },
             },
         )
 
@@ -128,13 +134,19 @@ def test_run_notebook_binds_lakehouse_and_requires_success_marker():
                 202,
                 headers={"Location": "/jobs/instances/job-id"},
             )
-        assert request.url.params["beta"] == "false"
+        assert request.url.params["beta"] == "true"
+        assert request.url.path.endswith(
+            "/workspaces/workspace-id/notebooks/notebook-id/"
+            "jobs/execute/instances/job-id"
+        )
         return httpx.Response(
             200,
             json={
                 "id": "job-id",
                 "status": "Completed",
-                "exitValue": "fabricqueryr-seed-success",
+                "properties": {
+                    "exitValue": "fabricqueryr-seed-success",
+                },
             },
         )
 
