@@ -36,6 +36,8 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         lakehouse = _wait_for_lakehouse_sql_endpoint(
             api, workspace_id, lakehouse_item["id"]
         )
+        sql_endpoint_id = lakehouse["properties"]["sqlEndpointProperties"]["id"]
+        api.refresh_sql_endpoint_metadata(workspace_id, sql_endpoint_id)
 
     properties = lakehouse["properties"]
     sql_endpoint = properties["sqlEndpointProperties"]

@@ -9,7 +9,7 @@ test_that("OneLake reads the seeded Delta fixture", {
     result <- fabric_onelake_read_delta_table(
         table_path = lakehouse$tables$basic,
         workspace_name = manifest$workspace_id,
-        lakehouse_name = lakehouse$display_name,
+        lakehouse_name = lakehouse$id,
         schema = lakehouse$schema,
         access_token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
         verbose = FALSE
@@ -40,10 +40,25 @@ test_that("SQL queries the seeded Lakehouse table", {
 test_that("Livy executes code against the seeded Lakehouse", {
     manifest <- fabric_test_manifest()
     lakehouse <- manifest$items$TestLakehouse
+    table_name <- paste(
+        sprintf(
+            "`%s`",
+            c(
+                manifest$workspace_name,
+                lakehouse$display_name,
+                lakehouse$schema,
+                lakehouse$tables$basic
+            )
+        ),
+        collapse = "."
+    )
 
     result <- fabric_livy_query(
         livy_url = lakehouse$livy_url,
-        code = 'spark.sql("SELECT COUNT(*) FROM dbo.fabricqueryr_basic").collect()',
+        code = sprintf(
+            'spark.sql("SELECT COUNT(*) FROM %s").collect()',
+            table_name
+        ),
         kind = "pyspark",
         access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
         verbose = FALSE

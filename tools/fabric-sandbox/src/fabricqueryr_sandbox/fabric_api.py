@@ -13,6 +13,7 @@ import httpx
 FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 FABRIC_API = "https://api.fabric.microsoft.com/v1"
 TERMINAL_JOB_STATES = {"Completed", "Failed", "Cancelled", "Deduped"}
+TERMINAL_OPERATION_STATES = {"Succeeded", "Failed", "Cancelled"}
 NOTEBOOK_ERROR_PREFIX = "fabricqueryr-seed-error:"
 
 
@@ -77,6 +78,44 @@ class FabricApi:
         return self.request(
             "GET", f"/workspaces/{workspace_id}/lakehouses/{lakehouse_id}"
         ).json()
+
+    def refresh_sql_endpoint_metadata(
+        self,
+        workspace_id: str,
+        sql_endpoint_id: str,
+        *,
+        timeout: int = 900,
+    ) -> dict[str, Any]:
+        response = self.request(
+            "POST",
+            (
+                f"/workspaces/{workspace_id}/sqlEndpoints/"
+                f"{sql_endpoint_id}/refreshMetadata"
+            ),
+            json={"recreateTables": False},
+        )
+        if response.status_code == 200:
+            return response.json()
+
+        location = response.headers.get("Location")
+        if not location:
+            raise RuntimeError(
+                "SQL endpoint metadata refresh did not include a Location header"
+            )
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            operation = self.request("GET", location).json()
+            status = operation.get("status")
+            if status in TERMINAL_OPERATION_STATES:
+                if status != "Succeeded":
+                    raise RuntimeError(
+                        f"SQL endpoint metadata refresh ended in {status}: "
+                        f"{operation.get('error')}"
+                    )
+                return operation
+            self.sleep(10)
+        raise TimeoutError("SQL endpoint metadata refresh did not finish in time")
 
     def run_notebook(
         self,

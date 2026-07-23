@@ -95,3 +95,37 @@ def test_run_notebook_surfaces_seed_traceback_from_exit_value():
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
         with pytest.raises(RuntimeError, match="exact Spark failure"):
             api.run_notebook("workspace-id", "notebook-id")
+
+
+def test_refresh_sql_endpoint_metadata_waits_for_success():
+    responses = iter(
+        [
+            httpx.Response(
+                202,
+                headers={"Location": "/operations/operation-id"},
+            ),
+            httpx.Response(200, json={"status": "Running"}),
+            httpx.Response(200, json={"status": "Succeeded"}),
+        ]
+    )
+
+    def handler(request):
+        response = next(responses)
+        if request.method == "POST":
+            assert request.url.path.endswith(
+                "/workspaces/workspace-id/sqlEndpoints/endpoint-id/refreshMetadata"
+            )
+        else:
+            assert request.url.path.endswith("/operations/operation-id")
+        return response
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+    ) as api:
+        result = api.refresh_sql_endpoint_metadata(
+            "workspace-id", "endpoint-id"
+        )
+
+    assert result["status"] == "Succeeded"
