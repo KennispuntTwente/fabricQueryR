@@ -16,6 +16,7 @@ fabric_onelake_read_delta_table(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
@@ -66,6 +67,12 @@ fabric_onelake_read_delta_table(
   Optional character. If supplied, use this bearer token instead of
   acquiring a new one via `{AzureAuth}`.
 
+- token_provider:
+
+  Optional function returning a OneLake Storage bearer token. It may
+  accept `audience` and `force_refresh` arguments. Supply only one of
+  `access_token` and `token_provider`.
+
 - version:
 
   Optional non-negative integer Delta table version to read. Defaults to
@@ -109,6 +116,8 @@ A tibble with the table's current rows (0 rows if the table is empty).
 - Ensure the account/principal you authenticate with has access via
   **Lakehouse -\> Manage OneLake data access** (or is a member of the
   workspace).
+
+- Tokens use the `https://storage.azure.com/.default` audience.
 
 - AzureAuth is used to acquire the token. Be wary of caching behavior;
   you may want to call

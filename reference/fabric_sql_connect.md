@@ -14,6 +14,7 @@ fabric_sql_connect(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
   port = 1433L,
   encrypt = "yes",
@@ -50,6 +51,12 @@ fabric_sql_connect(
 
   Optional character. If supplied, use this bearer token instead of
   acquiring a new one via `{AzureAuth}`.
+
+- token_provider:
+
+  Optional function returning a Fabric SQL bearer token. It may accept
+  `audience` and `force_refresh` arguments. Supply only one of
+  `access_token` and `token_provider`.
 
 - odbc_driver:
 
@@ -92,7 +99,9 @@ A live `DBIConnection` object.
   normalized.
 
 - By default we request a token for
-  `https://database.windows.net/.default`.
+  `https://database.windows.net/.default`. The identity must have
+  permission to connect to and query the target SQL analytics endpoint,
+  Warehouse, or SQL database.
 
 - AzureAuth is used to acquire the token. Be wary of caching behavior;
   you may want to call

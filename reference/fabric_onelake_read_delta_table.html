@@ -54,6 +54,7 @@ Delta JSON commits and Parquet checkpoints.</p>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  access_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  token_provider <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  version <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dest_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -106,6 +107,12 @@ argument is experimental.)</p></dd>
 instead of acquiring a new one via <code>{AzureAuth}</code>.</p></dd>
 
 
+<dt id="arg-token-provider">token_provider<a class="anchor" aria-label="anchor" href="#arg-token-provider"></a></dt>
+<dd><p>Optional function returning a OneLake Storage bearer
+token. It may accept <code>audience</code> and <code>force_refresh</code> arguments. Supply only
+one of <code>access_token</code> and <code>token_provider</code>.</p></dd>
+
+
 <dt id="arg-version">version<a class="anchor" aria-label="anchor" href="#arg-version"></a></dt>
 <dd><p>Optional non-negative integer Delta table version to read.
 Defaults to the latest version.</p></dd>
@@ -146,6 +153,7 @@ tables into named schemas. Supply the <code>schema</code> argument (e.g. <code>"
 to read a table stored under a specific schema.</p></li>
 <li><p>Ensure the account/principal you authenticate with has access via
 <strong>Lakehouse -&gt; Manage OneLake data access</strong> (or is a member of the workspace).</p></li>
+<li><p>Tokens use the <code>https://storage.azure.com/.default</code> audience.</p></li>
 <li><p><span class="pkg">AzureAuth</span> is used to acquire the token. Be wary of
 caching behavior; you may want to call <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code>
 to clear cached tokens if you run into issues</p></li>

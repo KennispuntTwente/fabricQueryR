@@ -53,6 +53,7 @@ the result, and closes the session.</p>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  access_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  token_provider <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  environment_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  conf <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -94,6 +95,12 @@ app registration in your tenant for better control.</p></dd>
 <dt id="arg-access-token">access_token<a class="anchor" aria-label="anchor" href="#arg-access-token"></a></dt>
 <dd><p>Optional character. If supplied, use this bearer token
 instead of acquiring a new one via <code>{AzureAuth}</code>.</p></dd>
+
+
+<dt id="arg-token-provider">token_provider<a class="anchor" aria-label="anchor" href="#arg-token-provider"></a></dt>
+<dd><p>Optional function returning a Fabric API bearer token.
+It may accept <code>audience</code> and <code>force_refresh</code> arguments. Supply only one of
+<code>access_token</code> and <code>token_provider</code>.</p></dd>
 
 
 <dt id="arg-environment-id">environment_id<a class="anchor" aria-label="anchor" href="#arg-environment-id"></a></dt>
@@ -145,6 +152,9 @@ to a 'Lakehouse' item, then go to 'Settings' -&gt; 'Livy Endpoint' -&gt; 'Sessio
 <li><p><span class="pkg">AzureAuth</span> is used to acquire the token. Be wary of
 caching behavior; you may want to call <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code>
 to clear cached tokens if you run into issues</p></li>
+<li><p>Requests use the <code>https://api.fabric.microsoft.com/.default</code> audience.
+The identity must have access to the workspace and permission to run Spark
+sessions on the target lakehouse.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

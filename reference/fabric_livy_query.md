@@ -15,6 +15,7 @@ fabric_livy_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  token_provider = NULL,
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
@@ -57,6 +58,12 @@ fabric_livy_query(
 
   Optional character. If supplied, use this bearer token instead of
   acquiring a new one via `{AzureAuth}`.
+
+- token_provider:
+
+  Optional function returning a Fabric API bearer token. It may accept
+  `audience` and `force_refresh` arguments. Supply only one of
+  `access_token` and `token_provider`.
 
 - environment_id:
 
@@ -125,6 +132,10 @@ A list with statement details and results. The list contains:
   you may want to call
   [`AzureAuth::clean_token_directory()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
   to clear cached tokens if you run into issues
+
+- Requests use the `https://api.fabric.microsoft.com/.default` audience.
+  The identity must have access to the workspace and permission to run
+  Spark sessions on the target lakehouse.
 
 ## See also
 

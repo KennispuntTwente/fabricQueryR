@@ -19,6 +19,7 @@ fabric_pbi_dax_query(
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
   access_token = NULL,
+  token_provider = NULL,
   impersonated_user = NULL
 )
 ```
@@ -79,6 +80,12 @@ fabric_pbi_dax_query(
   Optional character. If supplied, use this bearer token instead of
   acquiring a new one via `{AzureAuth}`.
 
+- token_provider:
+
+  Optional function that returns a Power BI bearer token. It may accept
+  `audience` and `force_refresh` arguments and is called again after an
+  HTTP 401. Supply only one of `access_token` and `token_provider`.
+
 - impersonated_user:
 
   Optional user principal name sent as `impersonatedUserName` for
@@ -101,6 +108,12 @@ rows).
   you may want to call
   [`AzureAuth::clean_token_directory()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
   to clear cached tokens if you run into issues
+
+- Requests use the Power BI audience
+  `https://analysis.windows.net/powerbi/api/.default` and require
+  `Dataset.Read.All` (or `Dataset.ReadWrite.All`) plus dataset Read and
+  Build permissions. Name lookup also requires `Workspace.Read.All` or
+  equivalent.
 
 ## Examples
 

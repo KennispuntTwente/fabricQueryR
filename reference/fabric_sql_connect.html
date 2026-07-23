@@ -52,6 +52,7 @@ and passing an access token to the ODBC driver.</p>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  access_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  token_provider <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  odbc_driver <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"fabricqueryr.sql.driver"</span>, <span class="st">"ODBC Driver 18 for SQL Server"</span><span class="op">)</span>,</span>
 <span>  port <span class="op">=</span> <span class="fl">1433L</span>,</span>
 <span>  encrypt <span class="op">=</span> <span class="st">"yes"</span>,</span>
@@ -89,6 +90,12 @@ and passing an access token to the ODBC driver.</p>
 <dt id="arg-access-token">access_token<a class="anchor" aria-label="anchor" href="#arg-access-token"></a></dt>
 <dd><p>Optional character. If supplied, use this bearer token
 instead of acquiring a new one via <code>{AzureAuth}</code>.</p></dd>
+
+
+<dt id="arg-token-provider">token_provider<a class="anchor" aria-label="anchor" href="#arg-token-provider"></a></dt>
+<dd><p>Optional function returning a Fabric SQL bearer token.
+It may accept <code>audience</code> and <code>force_refresh</code> arguments. Supply only one of
+<code>access_token</code> and <code>token_provider</code>.</p></dd>
 
 
 <dt id="arg-odbc-driver">odbc_driver<a class="anchor" aria-label="anchor" href="#arg-odbc-driver"></a></dt>
@@ -130,7 +137,9 @@ You can find this by going to your <strong>Lakehouse</strong> or <strong>Data Wa
 then <strong>Settings</strong> -&gt; <strong>SQL analytics endpoint</strong> -&gt; <strong>SQL connection string</strong>.
 You may also pass a DSN-less <code>Server=...</code> string; it will be normalized.</p></li>
 <li><p>By default we request a token for
-<code>https://database.windows.net/.default</code>.</p></li>
+<code>https://database.windows.net/.default</code>.
+The identity must have permission to connect to and query the target SQL
+analytics endpoint, Warehouse, or SQL database.</p></li>
 <li><p><span class="pkg">AzureAuth</span> is used to acquire the token. Be wary of
 caching behavior; you may want to call <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code>
 to clear cached tokens if you run into issues</p></li>
