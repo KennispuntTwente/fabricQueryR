@@ -517,14 +517,6 @@ fabric_livy_session_close <- function(session, verbose = TRUE) {
 
 # Get token ---------------------------------------------------------------
 
-# Token for Fabric + refresh capability
-fabric_get_livy_token <- function(tenant_id, client_id) {
-  fabric_get_token(
-    fabric_credential(tenant_id = tenant_id, client_id = client_id),
-    .fabric_audience$fabric
-  )
-}
-
 fabric_livy_session_credential <- function(session) {
   if (inherits(session$credential, "fabric_credential")) {
     return(session$credential)

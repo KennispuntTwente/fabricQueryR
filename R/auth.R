@@ -151,16 +151,3 @@ fabric_get_token <- function(credential, audience, force_refresh = FALSE) {
   }
   credential$provider(audience, force_refresh = force_refresh)
 }
-
-#' Normalize an optional credential or legacy token
-#' @keywords internal
-#' @noRd
-fabric_as_credential <- function(credential = NULL, access_token = NULL) {
-  if (!is.null(credential)) {
-    if (!inherits(credential, "fabric_credential")) {
-      stop("Invalid Fabric credential.", call. = FALSE)
-    }
-    return(credential)
-  }
-  fabric_credential(access_token = access_token)
-}

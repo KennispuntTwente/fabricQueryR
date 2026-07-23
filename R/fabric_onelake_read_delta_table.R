@@ -228,20 +228,6 @@ fabric_onelake_read_delta_table <- function(
   tibble::as_tibble(df)
 }
 
-#' Get a OneLake (ADLS Gen2) access token with AzureAuth
-#'
-#' @param tenant_id Azure AD tenant GUID.
-#' @param client_id Azure AD application (client) ID.
-#' @return A bearer access token suitable for ADLS Gen2 (`Authorization: Bearer ...`).
-#' @keywords internal
-#' @noRd
-fabric_get_storage_token <- function(tenant_id, client_id) {
-  fabric_get_token(
-    fabric_credential(tenant_id = tenant_id, client_id = client_id),
-    .fabric_audience$storage
-  )
-}
-
 #' Normalize a Lakehouse item name to include the `.Lakehouse` suffix
 #' @keywords internal
 #' @noRd

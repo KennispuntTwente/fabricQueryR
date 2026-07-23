@@ -212,19 +212,6 @@ fabric_sql_query <- function(
   tibble::as_tibble(res)
 }
 
-#' Acquire an Azure AD token for SQL (database.windows.net)
-#' @param tenant_id Tenant GUID.
-#' @param client_id App (client) ID.
-#' @return Bearer access token string.
-#' @keywords internal
-#' @noRd
-fabric_get_sqldb_token <- function(tenant_id, client_id) {
-  fabric_get_token(
-    fabric_credential(tenant_id = tenant_id, client_id = client_id),
-    .fabric_audience$sql
-  )
-}
-
 #' Normalize a Fabric SQL server value
 #' @param server Input like "Server=host" or "tcp:host" or bare "host".
 #' @return Hostname string.
