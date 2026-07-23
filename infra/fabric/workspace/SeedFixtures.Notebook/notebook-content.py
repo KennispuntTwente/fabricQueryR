@@ -41,13 +41,10 @@ fixture = (
     .saveAsTable("dbo.fabricqueryr_partitioned")
 )
 
-spark.sql(
-    "ALTER TABLE dbo.fabricqueryr_partitioned "
-    "SET TBLPROPERTIES ('delta.checkpointInterval' = '1')"
-)
-fixture.limit(1).write.format("delta").mode("append").saveAsTable(
-    "dbo.fabricqueryr_partitioned"
-)
+for _ in range(10):
+    fixture.limit(1).write.format("delta").mode("append").saveAsTable(
+        "dbo.fabricqueryr_partitioned"
+    )
 
 print("fabricQueryR fixtures seeded")
 

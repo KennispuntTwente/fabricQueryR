@@ -1,5 +1,6 @@
 from azure.core.credentials import AccessToken
 import httpx
+import pytest
 
 from fabricqueryr_sandbox.fabric_api import FabricApi
 
@@ -47,3 +48,25 @@ def test_find_item_rejects_ambiguous_names():
             assert "found 2" in str(error)
         else:
             raise AssertionError("ambiguous item lookup should fail")
+
+
+def test_run_notebook_reports_cancelled_job_trace_ids():
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": "job-id",
+                "status": "Cancelled",
+                "rootActivityId": "activity-id",
+                "failureReason": {"message": "cancelled by Fabric"},
+            },
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        with pytest.raises(RuntimeError, match="job-id.*activity-id.*cancelled by Fabric"):
+            api.run_notebook("workspace-id", "notebook-id")

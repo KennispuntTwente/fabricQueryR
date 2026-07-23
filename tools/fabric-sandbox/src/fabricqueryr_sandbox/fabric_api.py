@@ -12,7 +12,7 @@ import httpx
 
 FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 FABRIC_API = "https://api.fabric.microsoft.com/v1"
-TERMINAL_JOB_STATES = {"Completed", "Failed", "Canceled", "Deduped"}
+TERMINAL_JOB_STATES = {"Completed", "Failed", "Cancelled", "Deduped"}
 
 
 class FabricApi:
@@ -100,7 +100,9 @@ class FabricApi:
             if status in TERMINAL_JOB_STATES:
                 if status != "Completed":
                     raise RuntimeError(
-                        f"notebook job ended in {status}: {job.get('failureReason')}"
+                        f"notebook job {job.get('id')} ended in {status} "
+                        f"(root activity {job.get('rootActivityId')}): "
+                        f"{job.get('failureReason')}"
                     )
                 return job
             self.sleep(10)
