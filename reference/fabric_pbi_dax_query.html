@@ -55,7 +55,8 @@ the resulting data.</p>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  include_nulls <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span></span>
+<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
+<span>  access_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -94,6 +95,11 @@ If TRUE, null values are included in the response; if FALSE, they are omitted.</
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
 'myorg' is appropriate for most use cases and does not necessarily need to be changed.</p></dd>
+
+
+<dt id="arg-access-token">access_token<a class="anchor" aria-label="anchor" href="#arg-access-token"></a></dt>
+<dd><p>Optional character. If supplied, use this bearer token
+instead of acquiring a new one via <code>{AzureAuth}</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
