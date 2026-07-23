@@ -9,7 +9,7 @@ from urllib.parse import quote
 from .credentials import get_credential
 from .fabric_api import FabricApi
 from .manifest import SandboxManifest
-from .power_bi_api import SEMANTIC_MODEL_NAME
+from .power_bi_api import PowerBiApi, SEMANTIC_MODEL_NAME
 from .settings import SandboxSettings
 
 
@@ -43,6 +43,11 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
 
     properties = lakehouse["properties"]
     sql_endpoint = properties["sqlEndpointProperties"]
+    with PowerBiApi(get_credential()) as power_bi:
+        semantic_model = power_bi.find_dataset(
+            workspace_id,
+            SEMANTIC_MODEL_NAME,
+        )
     manifest = SandboxManifest(
         workspace_id=workspace_id,
         workspace_name=settings.workspace_name,
@@ -71,6 +76,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "type": "Notebook",
             },
             "TestSemanticModel": {
+                "id": semantic_model["id"],
                 "type": "SemanticModel",
                 "display_name": SEMANTIC_MODEL_NAME,
                 "connection_string": (

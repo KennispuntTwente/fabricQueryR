@@ -291,4 +291,13 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   )
   expect_s3_class(empty, "tbl_df")
   expect_equal(nrow(empty), 0L)
+
+  by_id <- fabric_pbi_dax_query(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    dax = 'EVALUATE ROW("row_count", COUNTROWS(\'Facts\'))',
+    access_token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+  )
+  expect_s3_class(by_id, "tbl_df")
+  expect_equal(as.numeric(by_id[["[row_count]"]]), 3)
 })

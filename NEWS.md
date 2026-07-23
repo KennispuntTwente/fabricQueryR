@@ -6,6 +6,12 @@
   vectors before returning data instead of risking incorrect results. The new
   `version` argument supports versioned reads.
 
+* `fabric_pbi_dax_query()` now rejects embedded response, query, and table
+  errors—including HTTP 200 partial-result responses—rather than returning
+  incomplete data. It also supports direct `workspace_id`/`dataset_id` lookup
+  bypass, optional RLS impersonation, paginated workspace lookup, and ambiguity
+  errors for duplicate names.
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

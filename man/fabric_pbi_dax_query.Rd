@@ -5,24 +5,34 @@
 \title{Query a Microsoft Fabric/Power Bi semantic model with DAX}
 \usage{
 fabric_pbi_dax_query(
-  connstr,
+  connstr = NULL,
   dax,
+  workspace_id = NULL,
+  dataset_id = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  access_token = NULL
+  access_token = NULL,
+  impersonated_user = NULL
 )
 }
 \arguments{
-\item{connstr}{Character. Power BI connection string, e.g.
+\item{connstr}{Optional character. Power BI connection string, e.g.
 \code{"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"}.
 The function accepts either \verb{Data Source=} and \verb{Initial Catalog=} parts, or a
 bare \verb{powerbi://...} for the data source plus a \verb{Dataset=}/\verb{Catalog=}/\verb{Initial Catalog=} key
-(see details).}
+(see details). May be omitted when \code{dataset_id} is supplied.}
 
 \item{dax}{Character scalar with a valid DAX query (see example).}
+
+\item{workspace_id}{Optional workspace GUID. Use with \code{dataset_id} to avoid
+name-based discovery. If omitted with \code{dataset_id}, the unscoped dataset
+endpoint is used.}
+
+\item{dataset_id}{Optional semantic model/dataset GUID. When supplied, no
+connection-string name lookup is performed.}
 
 \item{tenant_id}{Microsoft Azure tenant ID. Defaults to \code{Sys.getenv("FABRICQUERYR_TENANT_ID")} if missing.}
 
@@ -39,6 +49,9 @@ If TRUE, null values are included in the response; if FALSE, they are omitted.}
 
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
+
+\item{impersonated_user}{Optional user principal name sent as
+\code{impersonatedUserName} for supported row-level security scenarios.}
 }
 \value{
 A tibble with the query result (0 rows if the DAX query returned no rows).
@@ -46,8 +59,8 @@ A tibble with the query result (0 rows if the DAX query returned no rows).
 \description{
 High-level helper that authenticates against Azure AD, resolves the
 workspace & dataset from a Power BI (Microsoft Fabric) XMLA/connection string, executes a DAX
-statement via the Power BI REST API, and returns a tibble with
-the resulting data.
+statement via the Power BI REST API, validates the complete response, and
+returns a tibble with the resulting data.
 }
 \details{
 \itemize{
@@ -56,7 +69,7 @@ a 'Semantic model' item, then go to 'File' -> 'Settings' -> 'Server settings'.
 Ensure that the account you use to authenticate has access to the workspace,
 or has been granted 'Build' permissions on the dataset (via sharing).
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:get_azure_token]{AzureAuth::clean_token_directory()}}
+caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 to clear cached tokens if you run into issues
 }
 }

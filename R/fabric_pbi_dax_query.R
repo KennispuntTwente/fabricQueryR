@@ -4,8 +4,8 @@
 #' @description
 #' High-level helper that authenticates against Azure AD, resolves the
 #' workspace & dataset from a Power BI (Microsoft Fabric) XMLA/connection string, executes a DAX
-#' statement via the Power BI REST API, and returns a tibble with
-#' the resulting data.
+#' statement via the Power BI REST API, validates the complete response, and
+#' returns a tibble with the resulting data.
 #'
 #' @details
 #' - In Microsoft Fabric/Power BI, you can find and copy the connection string by going to
@@ -16,11 +16,16 @@
 #'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
 #'  to clear cached tokens if you run into issues
 #'
-#' @param connstr Character. Power BI connection string, e.g.
+#' @param connstr Optional character. Power BI connection string, e.g.
 #'   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
 #'   The function accepts either `Data Source=` and `Initial Catalog=` parts, or a
 #'   bare `powerbi://...` for the data source plus a `Dataset=`/`Catalog=`/`Initial Catalog=` key
-#'   (see details).
+#'   (see details). May be omitted when `dataset_id` is supplied.
+#' @param workspace_id Optional workspace GUID. Use with `dataset_id` to avoid
+#'   name-based discovery. If omitted with `dataset_id`, the unscoped dataset
+#'   endpoint is used.
+#' @param dataset_id Optional semantic model/dataset GUID. When supplied, no
+#'   connection-string name lookup is performed.
 #' @param dax Character scalar with a valid DAX query (see example).
 #' @param tenant_id Microsoft Azure tenant ID. Defaults to `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
 #' @param client_id Microsoft Azure application (client) ID used to authenticate. Defaults to
@@ -33,6 +38,8 @@
 #' 'myorg' is appropriate for most use cases and does not necessarily need to be changed.
 #' @param access_token Optional character. If supplied, use this bearer token
 #' instead of acquiring a new one via `{AzureAuth}`.
+#' @param impersonated_user Optional user principal name sent as
+#'   `impersonatedUserName` for supported row-level security scenarios.
 #'
 #' @return A tibble with the query result (0 rows if the DAX query returned no rows).
 #' @export
@@ -50,8 +57,10 @@
 #' dplyr::glimpse(df)
 #' }
 fabric_pbi_dax_query <- function(
-  connstr,
+  connstr = NULL,
   dax,
+  workspace_id = NULL,
+  dataset_id = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -59,10 +68,40 @@ fabric_pbi_dax_query <- function(
   ),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  access_token = NULL
+  access_token = NULL,
+  impersonated_user = NULL
 ) {
-  stopifnot(is.character(connstr), length(connstr) == 1L)
-  stopifnot(is.character(dax), length(dax) == 1L)
+  stopifnot(is.character(dax), length(dax) == 1L, nzchar(dax))
+  if (!is.null(connstr)) {
+    stopifnot(is.character(connstr), length(connstr) == 1L, nzchar(connstr))
+  }
+  if (!is.null(workspace_id)) {
+    stopifnot(
+      is.character(workspace_id),
+      length(workspace_id) == 1L,
+      nzchar(workspace_id)
+    )
+  }
+  if (!is.null(dataset_id)) {
+    stopifnot(
+      is.character(dataset_id),
+      length(dataset_id) == 1L,
+      nzchar(dataset_id)
+    )
+  }
+  if (is.null(dataset_id) && is.null(connstr)) {
+    stop(
+      "Supply either connstr or dataset_id.",
+      call. = FALSE
+    )
+  }
+  if (!is.null(impersonated_user)) {
+    stopifnot(
+      is.character(impersonated_user),
+      length(impersonated_user) == 1L,
+      nzchar(impersonated_user)
+    )
+  }
 
   if (is.null(access_token)) {
     if (!nzchar(tenant_id)) {
@@ -80,19 +119,24 @@ fabric_pbi_dax_query <- function(
     access_token <- pbi_get_token(tenant_id = tenant_id, client_id = client_id)
   }
 
-  ids <- pbi_resolve_ids_from_connstr(
-    connstr = connstr,
-    access_token = access_token,
-    api_base = api_base
-  )
+  if (is.null(dataset_id)) {
+    ids <- pbi_resolve_ids_from_connstr(
+      connstr = connstr,
+      access_token = access_token,
+      api_base = api_base
+    )
+    workspace_id <- ids$group_id
+    dataset_id <- ids$dataset_id
+  }
 
   pbi_execute_dax(
     access_token = access_token,
-    dataset_id = ids$dataset_id,
+    dataset_id = dataset_id,
     dax = dax,
-    group_id = ids$group_id,
+    group_id = workspace_id,
     include_nulls = include_nulls,
-    api_base = api_base
+    api_base = api_base,
+    impersonated_user = impersonated_user
   )
 }
 
@@ -205,6 +249,7 @@ pbi_get_token <- function(tenant_id, client_id) {
 #' @param group_id Optional workspace (group) GUID. If supplied, the request is made to the group-scoped endpoint.
 #' @param include_nulls Logical; whether to include NULLs in response serialization.
 #' @param api_base API base URL.
+#' @param impersonated_user Optional impersonated user principal name.
 #' @return A tibble.
 #' @keywords internal
 #' @noRd
@@ -214,7 +259,8 @@ pbi_execute_dax <- function(
   dax,
   group_id = NULL,
   include_nulls = TRUE,
-  api_base = "https://api.powerbi.com/v1.0/myorg"
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  impersonated_user = NULL
 ) {
   path <- if (is.null(group_id)) {
     sprintf("%s/datasets/%s/executeQueries", api_base, dataset_id)
@@ -231,26 +277,114 @@ pbi_execute_dax <- function(
     queries = list(list(query = dax)),
     serializerSettings = list(includeNulls = isTRUE(include_nulls))
   )
+  if (!is.null(impersonated_user)) {
+    body$impersonatedUserName <- impersonated_user
+  }
 
   req <- httr2::request(path) |>
     httr2::req_headers(Authorization = paste("Bearer", access_token)) |>
     httr2::req_body_json(body)
 
-  resp <- httr2::req_perform(req)
-  out <- httr2::resp_body_json(resp)
+  out <- .httr2_json(req, simplifyVector = FALSE)
+  pbi_parse_dax_response(out)
+}
 
-  tbls <- out$results[[1]]$tables
-  if (is.null(tbls) || length(tbls) == 0L) {
+#' Validate and parse an Execute Queries response
+#' @param out Parsed JSON response.
+#' @return A tibble.
+#' @keywords internal
+#' @noRd
+pbi_parse_dax_response <- function(out) {
+  pbi_check_dax_error(out$error, "response")
+
+  results <- out$results
+  if (is.null(results) || length(results) == 0L) {
     return(tibble::tibble())
   }
+  for (result in results) {
+    pbi_check_dax_error(result$error, "query result")
+    for (table in result$tables %||% list()) {
+      pbi_check_dax_error(table$error, "table result")
+    }
+  }
+  if (length(results) != 1L) {
+    stop(
+      sprintf(
+        "Power BI returned %d query results; exactly one is supported.",
+        length(results)
+      ),
+      call. = FALSE
+    )
+  }
 
-  rows <- tbls[[1]]$rows
+  tables <- results[[1]]$tables
+  if (is.null(tables) || length(tables) == 0L) {
+    return(tibble::tibble())
+  }
+  if (length(tables) != 1L) {
+    stop(
+      sprintf(
+        "Power BI returned %d result tables; exactly one is supported.",
+        length(tables)
+      ),
+      call. = FALSE
+    )
+  }
+
+  rows <- tables[[1]]$rows
   if (is.null(rows) || length(rows) == 0L) {
     return(tibble::tibble())
   }
 
-  # rows: list of named lists. bind_rows keeps original column names, including [Table][Col] style.
+  # bind_rows preserves qualified and bracketed Power BI column names.
   dplyr::bind_rows(rows)
+}
+
+#' Raise an actionable embedded Execute Queries error
+#' @keywords internal
+#' @noRd
+pbi_check_dax_error <- function(error, level) {
+  if (is.null(error) || !length(error)) {
+    return(invisible())
+  }
+  flattened <- unlist(error, recursive = TRUE, use.names = TRUE)
+  flattened <- as.character(flattened[!is.na(flattened) & nzchar(flattened)])
+  detail <- if (length(flattened)) {
+    paste(unique(flattened), collapse = ": ")
+  } else {
+    jsonlite::toJSON(error, auto_unbox = TRUE)
+  }
+  is_partial <- grepl(
+    paste(
+      "more than",
+      "limit",
+      "exceed",
+      "truncat",
+      "partial",
+      "100[ ,]?000",
+      "1[ ,]?000[ ,]?000",
+      "15\\s*MB",
+      sep = "|"
+    ),
+    detail,
+    ignore.case = TRUE
+  )
+  if (is_partial) {
+    stop(
+      paste0(
+        "Power BI returned an incomplete DAX ",
+        level,
+        ": ",
+        detail,
+        ". Reduce the selected rows/columns or page the query in DAX."
+      ),
+      call. = FALSE
+    )
+  }
+  stop(
+    paste0("Power BI DAX ", level, " failed: ", detail),
+    call. = FALSE
+  )
 }
 
 #' Get a workspace (group) GUID by its name
@@ -267,12 +401,11 @@ pbi_get_group_id_by_name <- function(
   api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   url <- sprintf("%s/groups", api_base)
-  resp <- httr2::request(url) |>
-    httr2::req_headers(Authorization = paste("Bearer", access_token)) |>
-    httr2::req_perform() |>
-    httr2::resp_body_json()
-
-  vals <- resp$value
+  vals <- pbi_get_collection(
+    url,
+    access_token,
+    offset_pagination = TRUE
+  )
   hits <- vals[vapply(
     vals,
     function(g) tolower(g$name) == tolower(workspace_name),
@@ -280,6 +413,16 @@ pbi_get_group_id_by_name <- function(
   )]
   if (length(hits) == 0) {
     stop(sprintf("Workspace '%s' not found.", workspace_name), call. = FALSE)
+  }
+  if (length(hits) > 1L) {
+    stop(
+      sprintf(
+        "Workspace name '%s' is ambiguous (%d case-insensitive matches). Use workspace_id.",
+        workspace_name,
+        length(hits)
+      ),
+      call. = FALSE
+    )
   }
   hits[[1]]$id
 }
@@ -300,12 +443,7 @@ pbi_get_dataset_id_by_name <- function(
   api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   url <- sprintf("%s/groups/%s/datasets", api_base, group_id)
-  resp <- httr2::request(url) |>
-    httr2::req_headers(Authorization = paste("Bearer", access_token)) |>
-    httr2::req_perform() |>
-    httr2::resp_body_json()
-
-  vals <- resp$value
+  vals <- pbi_get_collection(url, access_token)
   hits <- vals[vapply(
     vals,
     function(d) tolower(d$name) == tolower(dataset_name),
@@ -317,5 +455,64 @@ pbi_get_dataset_id_by_name <- function(
       call. = FALSE
     )
   }
+  if (length(hits) > 1L) {
+    stop(
+      sprintf(
+        "Dataset name '%s' is ambiguous in the workspace (%d case-insensitive matches). Use dataset_id.",
+        dataset_name,
+        length(hits)
+      ),
+      call. = FALSE
+    )
+  }
   hits[[1]]$id
+}
+
+#' Read a complete Power BI collection
+#' @param url Initial collection URL.
+#' @param access_token OAuth2 bearer token.
+#' @param offset_pagination Whether to use documented `$top`/`$skip` paging.
+#' @param page_size Page size for offset pagination.
+#' @return A list containing every returned value.
+#' @keywords internal
+#' @noRd
+pbi_get_collection <- function(
+  url,
+  access_token,
+  offset_pagination = FALSE,
+  page_size = 5000L
+) {
+  values <- list()
+  next_url <- url
+  skip <- 0L
+  repeat {
+    req <- httr2::request(next_url) |>
+      httr2::req_headers(Authorization = paste("Bearer", access_token))
+    if (isTRUE(offset_pagination) && identical(next_url, url)) {
+      req <- httr2::req_url_query(
+        req,
+        `$top` = page_size,
+        `$skip` = skip
+      )
+    }
+    page <- .httr2_json(req, simplifyVector = FALSE)
+    page_values <- page$value %||% list()
+    values <- c(values, page_values)
+
+    next_link <- page[["@odata.nextLink"]] %||% page[["odata.nextLink"]]
+    if (!is.null(next_link) && nzchar(next_link)) {
+      next_url <- next_link
+      offset_pagination <- FALSE
+      next
+    }
+    if (
+      isTRUE(offset_pagination) &&
+        length(page_values) == as.integer(page_size)
+    ) {
+      skip <- skip + as.integer(page_size)
+      next
+    }
+    break
+  }
+  values
 }

@@ -70,6 +70,22 @@ class PowerBiApi:
             },
         ).json()
 
+    def find_dataset(self, workspace_id: str, name: str) -> dict[str, Any]:
+        datasets = self.request(
+            "GET",
+            f"/groups/{workspace_id}/datasets",
+        ).json().get("value", [])
+        matches = [
+            dataset
+            for dataset in datasets
+            if dataset.get("name", "").casefold() == name.casefold()
+        ]
+        if not matches:
+            raise LookupError(f"Power BI dataset not found: {name}")
+        if len(matches) > 1:
+            raise LookupError(f"Power BI dataset name is ambiguous: {name}")
+        return matches[0]
+
     def add_test_rows(self, workspace_id: str, dataset_id: str) -> None:
         self.request(
             "POST",

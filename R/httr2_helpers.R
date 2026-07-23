@@ -57,13 +57,13 @@
 }
 
 # Perform a request and parse JSON; do NOT throw until we format a great error
-.httr2_json <- function(req) {
+.httr2_json <- function(req, simplifyVector = TRUE) {
   req <- httr2::req_error(req, is_error = function(resp) FALSE) # don’t auto-stop
   resp <- httr2::req_perform(req)
   if (httr2::resp_status(resp) >= 400L) {
     .httr2_stop_http(resp)
   }
-  httr2::resp_body_json(resp, simplifyVector = TRUE)
+  httr2::resp_body_json(resp, simplifyVector = simplifyVector)
 }
 
 # Perform a request where we don't need a body back (DELETE, etc.)

@@ -61,3 +61,25 @@ def test_semantic_model_fixture_is_created_seeded_and_verified():
     row_payload = json.loads(requests[1].content)
     assert len(row_payload["rows"]) == 3
     assert row_payload["rows"][2]["amount"] is None
+
+
+def test_semantic_model_fixture_can_be_found_by_unique_name():
+    def handler(request):
+        assert request.method == "GET"
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {"id": "other-id", "name": "Other"},
+                    {"id": "dataset-id", "name": SEMANTIC_MODEL_NAME.lower()},
+                ]
+            },
+        )
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        dataset = api.find_dataset("workspace-id", SEMANTIC_MODEL_NAME)
+
+    assert dataset["id"] == "dataset-id"
