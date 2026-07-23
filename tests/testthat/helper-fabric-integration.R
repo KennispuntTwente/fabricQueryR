@@ -18,3 +18,18 @@ fabric_test_token <- function(variable) {
   )
   token
 }
+
+fabric_test_spark_table <- function(manifest, lakehouse) {
+  paste(
+    sprintf(
+      "`%s`",
+      c(
+        manifest$workspace_name,
+        lakehouse$display_name,
+        lakehouse$schema,
+        lakehouse$tables$basic
+      )
+    ),
+    collapse = "."
+  )
+}

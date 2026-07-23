@@ -86,13 +86,16 @@ jobs:
           storage_token="$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)"
           sql_token="$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)"
           api_token="$(az account get-access-token --resource https://api.fabric.microsoft.com/ --query accessToken -o tsv)"
+          pbi_token="$(az account get-access-token --resource https://analysis.windows.net/powerbi/api --query accessToken -o tsv)"
           echo "::add-mask::$storage_token"
           echo "::add-mask::$sql_token"
           echo "::add-mask::$api_token"
+          echo "::add-mask::$pbi_token"
           {
             echo "FABRIC_TEST_STORAGE_TOKEN=$storage_token"
             echo "FABRIC_TEST_SQL_TOKEN=$sql_token"
             echo "FABRIC_TEST_API_TOKEN=$api_token"
+            echo "FABRIC_TEST_PBI_TOKEN=$pbi_token"
           } >> "$GITHUB_ENV"
 
       - name: Install Microsoft ODBC driver

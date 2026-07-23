@@ -208,16 +208,26 @@ fabric_onelake_read_delta_table <- function(
   }
 
   inform("Downloading {length(data_blobs)} part{?s} to {.path {dest_dir}} ...")
+  dest_paths <- fs::path(dest_dir, active_rel)
+  purrr::walk(
+    unique(fs::path_dir(dest_paths)),
+    fs::dir_create,
+    recurse = TRUE
+  )
   AzureStor::storage_multidownload(
     fs_cont,
     src = data_blobs,
-    dest = fs::path(dest_dir, basename(data_blobs)),
+    dest = dest_paths,
     overwrite = TRUE
   )
 
   # ---- read with Arrow ----
   inform("Reading dataset with {.pkg arrow} ...")
-  ds <- arrow::open_dataset(dest_dir, format = "parquet")
+  ds <- arrow::open_dataset(
+    dest_dir,
+    format = "parquet",
+    partitioning = arrow::hive_partition()
+  )
   df <- dplyr::collect(ds)
 
   inform("Loaded {nrow(df)} row{?s}.", type = "success")

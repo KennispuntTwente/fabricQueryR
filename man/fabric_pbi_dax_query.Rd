@@ -11,7 +11,8 @@ fabric_pbi_dax_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   include_nulls = TRUE,
-  api_base = "https://api.powerbi.com/v1.0/myorg"
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  access_token = NULL
 )
 }
 \arguments{
@@ -35,6 +36,9 @@ If TRUE, null values are included in the response; if FALSE, they are omitted.}
 
 \item{api_base}{API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
 'myorg' is appropriate for most use cases and does not necessarily need to be changed.}
+
+\item{access_token}{Optional character. If supplied, use this bearer token
+instead of acquiring a new one via \code{{AzureAuth}}.}
 }
 \value{
 A tibble with the query result (0 rows if the DAX query returned no rows).

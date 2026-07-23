@@ -4,6 +4,7 @@ from azure.storage.filedatalake import DataLakeServiceClient
 
 from .credentials import get_credential
 from .fabric_api import FabricApi
+from .power_bi_api import seed_test_semantic_model
 from .settings import SandboxSettings
 
 
@@ -39,3 +40,12 @@ def seed(settings: SandboxSettings) -> None:
             f"seed notebook completed: {job.get('id')} "
             f"exitValue={job.get('exitValue')!r}"
         )
+
+    semantic_model = seed_test_semantic_model(
+        get_credential(),
+        workspace_id,
+    )
+    print(
+        "semantic model seeded: "
+        f"{semantic_model.get('name')} ({semantic_model.get('id')})"
+    )

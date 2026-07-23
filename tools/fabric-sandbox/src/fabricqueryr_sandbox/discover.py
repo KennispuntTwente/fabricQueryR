@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import time
 from typing import Any
+from urllib.parse import quote
 
 from .credentials import get_credential
 from .fabric_api import FabricApi
 from .manifest import SandboxManifest
+from .power_bi_api import SEMANTIC_MODEL_NAME
 from .settings import SandboxSettings
 
 
@@ -67,6 +69,15 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             "SeedFixtures": {
                 "id": notebook_item["id"],
                 "type": "Notebook",
+            },
+            "TestSemanticModel": {
+                "type": "SemanticModel",
+                "display_name": SEMANTIC_MODEL_NAME,
+                "connection_string": (
+                    "Data Source=powerbi://api.powerbi.com/v1.0/myorg/"
+                    f"{quote(settings.workspace_name, safe='')};"
+                    f"Initial Catalog={SEMANTIC_MODEL_NAME};"
+                ),
             },
         },
     )

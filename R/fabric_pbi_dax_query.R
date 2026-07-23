@@ -31,6 +31,8 @@
 #' If TRUE, null values are included in the response; if FALSE, they are omitted.
 #' @param api_base API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
 #' 'myorg' is appropriate for most use cases and does not necessarily need to be changed.
+#' @param access_token Optional character. If supplied, use this bearer token
+#' instead of acquiring a new one via `{AzureAuth}`.
 #'
 #' @return A tibble with the query result (0 rows if the DAX query returned no rows).
 #' @export
@@ -56,33 +58,36 @@ fabric_pbi_dax_query <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   include_nulls = TRUE,
-  api_base = "https://api.powerbi.com/v1.0/myorg"
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  access_token = NULL
 ) {
   stopifnot(is.character(connstr), length(connstr) == 1L)
   stopifnot(is.character(dax), length(dax) == 1L)
 
-  if (!nzchar(tenant_id)) {
-    stop(
-      "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
-      call. = FALSE
-    )
-  }
-  if (!nzchar(client_id)) {
-    stop(
-      "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
-      call. = FALSE
-    )
+  if (is.null(access_token)) {
+    if (!nzchar(tenant_id)) {
+      stop(
+        "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
+        call. = FALSE
+      )
+    }
+    if (!nzchar(client_id)) {
+      stop(
+        "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
+        call. = FALSE
+      )
+    }
+    access_token <- pbi_get_token(tenant_id = tenant_id, client_id = client_id)
   }
 
-  token <- pbi_get_token(tenant_id = tenant_id, client_id = client_id)
   ids <- pbi_resolve_ids_from_connstr(
     connstr = connstr,
-    access_token = token,
+    access_token = access_token,
     api_base = api_base
   )
 
   pbi_execute_dax(
-    access_token = token,
+    access_token = access_token,
     dataset_id = ids$dataset_id,
     dax = dax,
     group_id = ids$group_id,

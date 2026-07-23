@@ -72,3 +72,50 @@ test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
     }
   )
 })
+
+test_that("fabric_pbi_dax_query uses a supplied access token", {
+  token_requested <- FALSE
+
+  testthat::with_mocked_bindings(
+    pbi_get_token = function(...) {
+      token_requested <<- TRUE
+      "unexpected-token"
+    },
+    pbi_resolve_ids_from_connstr = function(
+      connstr,
+      access_token,
+      api_base
+    ) {
+      expect_equal(access_token, "supplied-token")
+      list(group_id = "group-id", dataset_id = "dataset-id")
+    },
+    pbi_execute_dax = function(
+      access_token,
+      dataset_id,
+      dax,
+      group_id,
+      include_nulls,
+      api_base
+    ) {
+      expect_equal(access_token, "supplied-token")
+      expect_equal(dataset_id, "dataset-id")
+      expect_equal(group_id, "group-id")
+      tibble::tibble(result = 3L)
+    },
+    {
+      result <- fabric_pbi_dax_query(
+        connstr = paste0(
+          "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;",
+          "Initial Catalog=Model;"
+        ),
+        dax = 'EVALUATE ROW("result", 3)',
+        tenant_id = "",
+        client_id = "",
+        access_token = "supplied-token"
+      )
+    }
+  )
+
+  expect_false(token_requested)
+  expect_equal(result$result, 3L)
+})

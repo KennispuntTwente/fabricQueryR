@@ -16,6 +16,8 @@ supported by the Microsoft Fabric Terraform provider.
 - A Fabric capacity ID
 - Tenant settings that permit the executing identity to use Fabric APIs and create
   workspaces
+- Power BI tenant settings that permit service principals to use Power BI APIs
+  and execute semantic-model queries
 - Capacity permissions that allow the identity to assign the workspace
 
 For local development, authenticate with `az login --tenant <tenant-id>`. CI uses
@@ -79,9 +81,10 @@ CI runs.
 
 ## Current fixture scope
 
-The first implementation slice deploys `TestLakehouse` and `SeedFixtures`. It
+The sandbox deploys `TestLakehouse` and `SeedFixtures`, then creates a small
+ephemeral Power BI semantic model through the supported push-dataset API. It
 creates basic and partitioned Delta tables, including a checkpoint-generating
-append, and exposes the Lakehouse SQL and Livy endpoints through the generated
-manifest. Warehouse, SQL Database, semantic-model/DAX, Eventhouse/KQL, and GraphQL
-fixtures are intentionally deferred until their definitions are exported from a
-real development workspace and validated; placeholder item schemas are not used.
+append, and exposes OneLake, SQL, Livy, and DAX test coordinates through the
+generated manifest. The integration suite directly exercises every exported
+`fabricQueryR` function. Warehouse, SQL Database, Eventhouse/KQL, and GraphQL
+fixtures remain deferred until package functions for those services are added.
