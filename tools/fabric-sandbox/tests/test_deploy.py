@@ -1,7 +1,26 @@
 from os import environ
+from pathlib import Path
+import re
 
 from fabricqueryr_sandbox.deploy import deploy
 from fabricqueryr_sandbox.settings import SandboxSettings
+
+
+def test_seed_notebook_ids_are_parameterized():
+    repository_root = Path(__file__).parents[3]
+    notebook = (
+        repository_root
+        / "infra/fabric/workspace/SeedFixtures.Notebook/notebook-content.py"
+    ).read_text()
+    parameters = (
+        repository_root / "infra/fabric/workspace/parameter.yml"
+    ).read_text()
+
+    for name in ("lakehouse_id", "workspace_id"):
+        pattern = rf'{name}\s*=\s*"([0-9a-fA-F-]{{36}})"'
+        assert pattern in parameters
+        assert len(re.findall(pattern, notebook)) == 1
+    assert "abfss://" in notebook
 
 
 def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):

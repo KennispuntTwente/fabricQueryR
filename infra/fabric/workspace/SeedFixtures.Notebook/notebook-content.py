@@ -21,12 +21,19 @@ import traceback
 
 from pyspark.sql import functions as F
 
+workspace_id = "00000000-0000-0000-0000-000000000002"
+lakehouse_id = "00000000-0000-0000-0000-000000000001"
+fixture_path = (
+    f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+    f"{lakehouse_id}/Files/fixtures/basic.csv"
+)
+
 stage = "read uploaded CSV fixture"
 try:
     fixture = (
         spark.read.option("header", True)
         .option("inferSchema", True)
-        .csv("/lakehouse/default/Files/fixtures/basic.csv")
+        .csv(fixture_path)
     )
 
     stage = "write basic Delta table"
