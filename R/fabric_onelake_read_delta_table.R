@@ -99,17 +99,19 @@ fabric_onelake_read_delta_table <- function(
     length(lakehouse_name) == 1L,
     nzchar(lakehouse_name)
   )
-  if (is.null(access_token) && !nzchar(tenant_id)) {
-    stop(
-      "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
-      call. = FALSE
-    )
-  }
-  if (!nzchar(client_id)) {
-    stop(
-      "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
-      call. = FALSE
-    )
+  if (is.null(access_token)) {
+    if (!nzchar(tenant_id)) {
+      stop(
+        "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
+        call. = FALSE
+      )
+    }
+    if (!nzchar(client_id)) {
+      stop(
+        "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
+        call. = FALSE
+      )
+    }
   }
 
   # ---- deps ----

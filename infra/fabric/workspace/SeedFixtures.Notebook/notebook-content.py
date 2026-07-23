@@ -61,6 +61,19 @@ try:
         fixture.limit(1).write.format("delta").mode("append").saveAsTable(
             "dbo.fabricqueryr_partitioned"
         )
+
+    stage = "replace a partition after the Delta checkpoint"
+    replacement = (
+        fixture.filter(F.col("category") == "B")
+        .withColumn("name", F.lit("beta-updated"))
+        .withColumn("amount", F.lit(21.0))
+    )
+    (
+        replacement.write.format("delta")
+        .mode("overwrite")
+        .option("replaceWhere", "category = 'B'")
+        .saveAsTable("dbo.fabricqueryr_partitioned")
+    )
 except Exception:
     mssparkutils.notebook.exit(
         f"fabricqueryr-seed-error: {stage}\n{traceback.format_exc()}"

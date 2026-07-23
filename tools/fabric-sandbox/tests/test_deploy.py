@@ -21,6 +21,8 @@ def test_seed_notebook_ids_are_parameterized():
         assert pattern in parameters
         assert len(re.findall(pattern, notebook)) == 1
     assert "abfss://" in notebook
+    assert '.option("replaceWhere", "category = \'B\'")' in notebook
+    assert '"beta-updated"' in notebook
 
 
 def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):

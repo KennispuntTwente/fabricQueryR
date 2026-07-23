@@ -84,7 +84,8 @@ CI runs.
 The sandbox deploys `TestLakehouse` and `SeedFixtures`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. It
 creates basic and partitioned Delta tables, including a checkpoint-generating
-append, and exposes OneLake, SQL, Livy, and DAX test coordinates through the
-generated manifest. The integration suite directly exercises every exported
-`fabricQueryR` function. Warehouse, SQL Database, Eventhouse/KQL, and GraphQL
-fixtures remain deferred until package functions for those services are added.
+append and a subsequent partition replacement, and exposes OneLake, SQL, Livy,
+and DAX test coordinates through the generated manifest. The integration suite
+directly exercises every exported `fabricQueryR` function. Warehouse, SQL
+Database, Eventhouse/KQL, and GraphQL fixtures remain deferred until package
+functions for those services are added.
