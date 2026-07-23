@@ -1,8 +1,8 @@
 # Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 
-Authenticates to OneLake (ADLS Gen2), resolves the table's `_delta_log`
-to determine the *current* active Parquet parts, downloads only those
-parts to a local staging directory, and returns the result as a tibble.
+Authenticates to OneLake (ADLS Gen2), stages the complete Delta table
+while preserving its directory structure, and resolves the requested
+snapshot from Delta JSON commits and Parquet checkpoints.
 
 ## Usage
 
@@ -16,6 +16,7 @@ fabric_onelake_read_delta_table(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
@@ -65,10 +66,15 @@ fabric_onelake_read_delta_table(
   Optional character. If supplied, use this bearer token instead of
   acquiring a new one via `{AzureAuth}`.
 
+- version:
+
+  Optional non-negative integer Delta table version to read. Defaults to
+  the latest version.
+
 - dest_dir:
 
-  Character or `NULL`. Local staging directory for Parquet parts. If
-  `NULL` (default), a temp dir is used and cleaned up on exit.
+  Character or `NULL`. Local staging directory for the complete Delta
+  table. If `NULL` (default), a temp dir is used and cleaned up on exit.
 
 - verbose:
 
@@ -88,9 +94,13 @@ A tibble with the table's current rows (0 rows if the table is empty).
 - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
   filesystem. Within a Lakehouse item, Delta tables are stored under
   `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
-  (schema-enabled lakehouse) with a `_delta_log/` directory that tracks
-  commit state. This helper replays the JSON commits to avoid
-  double-counting compacted/removed files.
+  (schema-enabled lakehouse). The complete table is staged because Delta
+  checkpoints and table features can reference files that cannot be
+  resolved correctly by replaying JSON commit files alone.
+
+- Checkpoint Parquet and data Parquet files are read with DuckDB. Tables
+  that require reader protocol versions or reader features this package
+  does not implement are rejected before any data is returned.
 
 - Schema-enabled lakehouses (the default for new lakehouses) organise
   tables into named schemas. Supply the `schema` argument (e.g. `"dbo"`)
