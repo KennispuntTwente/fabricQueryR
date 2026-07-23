@@ -2,21 +2,24 @@
 
 High-level helper that authenticates against Azure AD, resolves the
 workspace & dataset from a Power BI (Microsoft Fabric) XMLA/connection
-string, executes a DAX statement via the Power BI REST API, and returns
-a tibble with the resulting data.
+string, executes a DAX statement via the Power BI REST API, validates
+the complete response, and returns a tibble with the resulting data.
 
 ## Usage
 
 ``` r
 fabric_pbi_dax_query(
-  connstr,
+  connstr = NULL,
   dax,
+  workspace_id = NULL,
+  dataset_id = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  access_token = NULL
+  access_token = NULL,
+  impersonated_user = NULL
 )
 ```
 
@@ -24,15 +27,27 @@ fabric_pbi_dax_query(
 
 - connstr:
 
-  Character. Power BI connection string, e.g.
+  Optional character. Power BI connection string, e.g.
   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
   The function accepts either `Data Source=` and `Initial Catalog=`
   parts, or a bare `powerbi://...` for the data source plus a
-  `Dataset=`/`Catalog=`/`Initial Catalog=` key (see details).
+  `Dataset=`/`Catalog=`/`Initial Catalog=` key (see details). May be
+  omitted when `dataset_id` is supplied.
 
 - dax:
 
   Character scalar with a valid DAX query (see example).
+
+- workspace_id:
+
+  Optional workspace GUID. Use with `dataset_id` to avoid name-based
+  discovery. If omitted with `dataset_id`, the unscoped dataset endpoint
+  is used.
+
+- dataset_id:
+
+  Optional semantic model/dataset GUID. When supplied, no
+  connection-string name lookup is performed.
 
 - tenant_id:
 
@@ -63,6 +78,11 @@ fabric_pbi_dax_query(
 
   Optional character. If supplied, use this bearer token instead of
   acquiring a new one via `{AzureAuth}`.
+
+- impersonated_user:
+
+  Optional user principal name sent as `impersonatedUserName` for
+  supported row-level security scenarios.
 
 ## Value
 

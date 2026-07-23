@@ -34,8 +34,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fabricqueryr-development-version">fabricQueryR (development version)<a class="anchor" aria-label="anchor" href="#fabricqueryr-development-version"></a></h2>
-<ul><li>
-<code><a href="../reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> now preserves the full staged table layout and resolves snapshots from both JSON commits and Parquet checkpoints. It rejects unsupported Delta reader protocols, column mapping, and deletion vectors before returning data instead of risking incorrect results. The new <code>version</code> argument supports versioned reads.</li>
+<ul><li><p><code><a href="../reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> now preserves the full staged table layout and resolves snapshots from both JSON commits and Parquet checkpoints. It rejects unsupported Delta reader protocols, column mapping, and deletion vectors before returning data instead of risking incorrect results. The new <code>version</code> argument supports versioned reads.</p></li>
+<li><p><code><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code> now rejects embedded response, query, and table errors—including HTTP 200 partial-result responses—rather than returning incomplete data. It also supports direct <code>workspace_id</code>/<code>dataset_id</code> lookup bypass, optional RLS impersonation, paginated workspace lookup, and ambiguity errors for duplicate names.</p></li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.1" id="fabricqueryr-021">fabricQueryR 0.2.1<a class="anchor" aria-label="anchor" href="#fabricqueryr-021"></a></h2><p class="text-muted">CRAN release: 2026-04-03</p>
