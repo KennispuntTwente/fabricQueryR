@@ -113,7 +113,7 @@ jobs:
           needs: check
 
       - name: Run Fabric integration tests
-        run: Rscript -e 'devtools::test(filter = "integration-fabric")'
+        run: Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
 
       - name: Destroy Fabric sandbox
         if: always() && steps.terraform_init.outcome == 'success'

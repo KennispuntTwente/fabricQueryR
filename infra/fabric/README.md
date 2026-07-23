@@ -40,7 +40,7 @@ uv --directory tools/fabric-sandbox run fabric-sandbox deploy
 uv --directory tools/fabric-sandbox run fabric-sandbox seed
 uv --directory tools/fabric-sandbox run fabric-sandbox discover
 
-Rscript -e 'devtools::test(filter = "integration-fabric")'
+Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
 ```
 
 Always remove the workspace after testing:
