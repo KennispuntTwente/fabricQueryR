@@ -1,5 +1,11 @@
 # fabricQueryR (development version)
 
+* `fabric_onelake_read_delta_table()` now preserves the full staged table layout
+  and resolves snapshots from both JSON commits and Parquet checkpoints. It
+  rejects unsupported Delta reader protocols, column mapping, and deletion
+  vectors before returning data instead of risking incorrect results. The new
+  `version` argument supports versioned reads.
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

@@ -13,6 +13,7 @@ fabric_onelake_read_delta_table(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
+  version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
@@ -46,8 +47,11 @@ argument is experimental.)}
 \item{access_token}{Optional character. If supplied, use this bearer token
 instead of acquiring a new one via \code{{AzureAuth}}.}
 
-\item{dest_dir}{Character or \code{NULL}. Local staging directory for Parquet
-parts. If \code{NULL} (default), a temp dir is used and cleaned up on exit.}
+\item{version}{Optional non-negative integer Delta table version to read.
+Defaults to the latest version.}
+
+\item{dest_dir}{Character or \code{NULL}. Local staging directory for the complete
+Delta table. If \code{NULL} (default), a temp dir is used and cleaned up on exit.}
 
 \item{verbose}{Logical. Print progress messages via \code{{cli}}. Default \code{TRUE}.}
 
@@ -58,26 +62,28 @@ parts. If \code{NULL} (default), a temp dir is used and cleaned up on exit.}
 A tibble with the table's current rows (0 rows if the table is empty).
 }
 \description{
-Authenticates to OneLake (ADLS Gen2), resolves the table's
-\verb{_delta_log} to determine the \emph{current} active Parquet parts,
-downloads only those parts to a local staging directory, and
-returns the result as a tibble.
+Authenticates to OneLake (ADLS Gen2), stages the complete Delta table while
+preserving its directory structure, and resolves the requested snapshot from
+Delta JSON commits and Parquet checkpoints.
 }
 \details{
 \itemize{
 \item In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 filesystem. Within a Lakehouse item, Delta tables are stored under
 \verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
-(schema-enabled lakehouse) with a \verb{_delta_log/} directory that tracks
-commit state. This helper replays the JSON commits to avoid
-double-counting compacted/removed files.
+(schema-enabled lakehouse). The complete table is staged because Delta
+checkpoints and table features can reference files that cannot be resolved
+correctly by replaying JSON commit files alone.
+\item Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
+require reader protocol versions or reader features this package does not
+implement are rejected before any data is returned.
 \item Schema-enabled lakehouses (the default for new lakehouses) organise
 tables into named schemas. Supply the \code{schema} argument (e.g. \code{"dbo"})
 to read a table stored under a specific schema.
 \item Ensure the account/principal you authenticate with has access via
 \strong{Lakehouse -> Manage OneLake data access} (or is a member of the workspace).
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:get_azure_token]{AzureAuth::clean_token_directory()}}
+caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 to clear cached tokens if you run into issues
 }
 }

@@ -1,7 +1,6 @@
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   skip_if_not_installed("AzureStor")
-  skip_if_not_installed("arrow")
-  skip_if_not_installed("readr")
+  skip_if_not_installed("duckdb")
   skip_if_not_installed("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
@@ -38,8 +37,7 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
 
 test_that("fabric_onelake_read_delta_table resolves Delta removals and partitions", {
   skip_if_not_installed("AzureStor")
-  skip_if_not_installed("arrow")
-  skip_if_not_installed("readr")
+  skip_if_not_installed("duckdb")
   skip_if_not_installed("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
@@ -78,6 +76,19 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
     length(fs::dir_ls(dest_dir, recurse = TRUE, regexp = "\\.parquet$")),
     0L
   )
+  expect_true(
+    any(fs::file_exists(
+      fs::dir_ls(
+        fs::path(dest_dir, "_delta_log"),
+        regexp = "checkpoint.*\\.parquet$"
+      )
+    ))
+  )
+
+  historical <- fabric_delta_read_staged(dest_dir, version = 10)
+  historical_beta <- historical[historical$id == 2L, ]
+  expect_equal(historical_beta$name, "beta")
+  expect_equal(historical_beta$amount, 20)
 })
 
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
