@@ -30,4 +30,12 @@ def seed(settings: SandboxSettings) -> None:
         lakehouse = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook = api.find_item(workspace_id, "SeedFixtures", "Notebook")
         upload_fixtures(settings, workspace_id, lakehouse["id"])
-        api.run_notebook(workspace_id, notebook["id"])
+        job = api.run_notebook(
+            workspace_id,
+            notebook["id"],
+            lakehouse_id=lakehouse["id"],
+        )
+        print(
+            f"seed notebook completed: {job.get('id')} "
+            f"exitValue={job.get('exitValue')!r}"
+        )

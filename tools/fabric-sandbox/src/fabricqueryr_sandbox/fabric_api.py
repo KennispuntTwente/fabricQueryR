@@ -15,6 +15,7 @@ FABRIC_API = "https://api.fabric.microsoft.com/v1"
 TERMINAL_JOB_STATES = {"Completed", "Failed", "Cancelled", "Deduped"}
 TERMINAL_OPERATION_STATES = {"Succeeded", "Failed", "Cancelled"}
 NOTEBOOK_ERROR_PREFIX = "fabricqueryr-seed-error:"
+NOTEBOOK_SUCCESS_VALUE = "fabricqueryr-seed-success"
 
 
 class FabricApi:
@@ -122,12 +123,28 @@ class FabricApi:
         workspace_id: str,
         notebook_id: str,
         *,
+        lakehouse_id: str,
         timeout: int = 900,
     ) -> dict[str, Any]:
         response = self.request(
             "POST",
-            f"/workspaces/{workspace_id}/items/{notebook_id}/jobs/instances",
-            params={"jobType": "RunNotebook"},
+            (
+                f"/workspaces/{workspace_id}/notebooks/{notebook_id}"
+                "/jobs/execute/instances"
+            ),
+            params={"beta": "false"},
+            json={
+                "executionData": {
+                    "compute": "Spark",
+                    "computeConfiguration": {
+                        "defaultLakehouse": {
+                            "referenceType": "ById",
+                            "itemId": lakehouse_id,
+                            "workspaceId": workspace_id,
+                        }
+                    },
+                }
+            },
         )
         location = response.headers.get("Location")
         if not location:
@@ -135,7 +152,7 @@ class FabricApi:
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            job = self.request("GET", location, params={"beta": "true"}).json()
+            job = self.request("GET", location, params={"beta": "false"}).json()
             status = job.get("status")
             if status in TERMINAL_JOB_STATES:
                 if status != "Completed":
@@ -149,6 +166,11 @@ class FabricApi:
                     NOTEBOOK_ERROR_PREFIX
                 ):
                     raise RuntimeError(exit_value)
+                if exit_value != NOTEBOOK_SUCCESS_VALUE:
+                    raise RuntimeError(
+                        "seed notebook completed without its success marker; "
+                        f"exitValue={exit_value!r}"
+                    )
                 return job
             self.sleep(10)
         raise TimeoutError(f"notebook job did not finish within {timeout} seconds")

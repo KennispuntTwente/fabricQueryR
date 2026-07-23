@@ -1,3 +1,5 @@
+import json
+
 from azure.core.credentials import AccessToken
 import httpx
 import pytest
@@ -69,7 +71,11 @@ def test_run_notebook_reports_cancelled_job_trace_ids():
 
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
         with pytest.raises(RuntimeError, match="job-id.*activity-id.*cancelled by Fabric"):
-            api.run_notebook("workspace-id", "notebook-id")
+            api.run_notebook(
+                "workspace-id",
+                "notebook-id",
+                lakehouse_id="lakehouse-id",
+            )
 
 
 def test_run_notebook_surfaces_seed_traceback_from_exit_value():
@@ -79,7 +85,7 @@ def test_run_notebook_surfaces_seed_traceback_from_exit_value():
                 202,
                 headers={"Location": "/jobs/instances/job-id"},
             )
-        assert request.url.params["beta"] == "true"
+        assert request.url.params["beta"] == "false"
         return httpx.Response(
             200,
             json={
@@ -94,7 +100,73 @@ def test_run_notebook_surfaces_seed_traceback_from_exit_value():
 
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
         with pytest.raises(RuntimeError, match="exact Spark failure"):
-            api.run_notebook("workspace-id", "notebook-id")
+            api.run_notebook(
+                "workspace-id",
+                "notebook-id",
+                lakehouse_id="lakehouse-id",
+            )
+
+
+def test_run_notebook_binds_lakehouse_and_requires_success_marker():
+    def handler(request):
+        if request.method == "POST":
+            assert request.url.path.endswith(
+                "/workspaces/workspace-id/notebooks/notebook-id/"
+                "jobs/execute/instances"
+            )
+            assert request.url.params["beta"] == "false"
+            payload = json.loads(request.content)
+            assert payload["executionData"]["compute"] == "Spark"
+            assert payload["executionData"]["computeConfiguration"][
+                "defaultLakehouse"
+            ] == {
+                "referenceType": "ById",
+                "itemId": "lakehouse-id",
+                "workspaceId": "workspace-id",
+            }
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        assert request.url.params["beta"] == "false"
+        return httpx.Response(
+            200,
+            json={
+                "id": "job-id",
+                "status": "Completed",
+                "exitValue": "fabricqueryr-seed-success",
+            },
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        result = api.run_notebook(
+            "workspace-id",
+            "notebook-id",
+            lakehouse_id="lakehouse-id",
+        )
+
+    assert result["exitValue"] == "fabricqueryr-seed-success"
+
+
+def test_run_notebook_rejects_missing_success_marker():
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        return httpx.Response(
+            200,
+            json={"id": "job-id", "status": "Completed"},
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        with pytest.raises(RuntimeError, match="without its success marker"):
+            api.run_notebook(
+                "workspace-id",
+                "notebook-id",
+                lakehouse_id="lakehouse-id",
+            )
 
 
 def test_refresh_sql_endpoint_metadata_waits_for_success():
