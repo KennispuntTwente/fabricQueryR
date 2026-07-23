@@ -17,36 +17,49 @@
 
 # CELL ********************
 
+import traceback
+
 from pyspark.sql import functions as F
 
-fixture = (
-    spark.read.option("header", True)
-    .option("inferSchema", True)
-    .csv("/lakehouse/default/Files/fixtures/basic.csv")
-)
-
-(
-    fixture.withColumn("loaded_at", F.lit("2026-01-01T00:00:00Z").cast("timestamp"))
-    .write.format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", True)
-    .saveAsTable("dbo.fabricqueryr_basic")
-)
-
-(
-    fixture.write.format("delta")
-    .mode("overwrite")
-    .partitionBy("category")
-    .option("overwriteSchema", True)
-    .saveAsTable("dbo.fabricqueryr_partitioned")
-)
-
-for _ in range(10):
-    fixture.limit(1).write.format("delta").mode("append").saveAsTable(
-        "dbo.fabricqueryr_partitioned"
+stage = "read uploaded CSV fixture"
+try:
+    fixture = (
+        spark.read.option("header", True)
+        .option("inferSchema", True)
+        .csv("/lakehouse/default/Files/fixtures/basic.csv")
     )
 
-print("fabricQueryR fixtures seeded")
+    stage = "write basic Delta table"
+    (
+        fixture.withColumn(
+            "loaded_at", F.lit("2026-01-01T00:00:00Z").cast("timestamp")
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_basic")
+    )
+
+    stage = "write partitioned Delta table"
+    (
+        fixture.write.format("delta")
+        .mode("overwrite")
+        .partitionBy("category")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_partitioned")
+    )
+
+    stage = "generate Delta checkpoint"
+    for _ in range(10):
+        fixture.limit(1).write.format("delta").mode("append").saveAsTable(
+            "dbo.fabricqueryr_partitioned"
+        )
+except Exception:
+    mssparkutils.notebook.exit(
+        f"fabricqueryr-seed-error: {stage}\n{traceback.format_exc()}"
+    )
+
+mssparkutils.notebook.exit("fabricqueryr-seed-success")
 
 # METADATA ********************
 

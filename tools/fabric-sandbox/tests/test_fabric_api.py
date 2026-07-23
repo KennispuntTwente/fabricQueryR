@@ -70,3 +70,28 @@ def test_run_notebook_reports_cancelled_job_trace_ids():
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
         with pytest.raises(RuntimeError, match="job-id.*activity-id.*cancelled by Fabric"):
             api.run_notebook("workspace-id", "notebook-id")
+
+
+def test_run_notebook_surfaces_seed_traceback_from_exit_value():
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        assert request.url.params["beta"] == "true"
+        return httpx.Response(
+            200,
+            json={
+                "id": "job-id",
+                "status": "Completed",
+                "exitValue": (
+                    "fabricqueryr-seed-error: write basic Delta table\n"
+                    "AnalysisException: exact Spark failure"
+                ),
+            },
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        with pytest.raises(RuntimeError, match="exact Spark failure"):
+            api.run_notebook("workspace-id", "notebook-id")

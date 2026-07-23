@@ -13,6 +13,7 @@ import httpx
 FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 FABRIC_API = "https://api.fabric.microsoft.com/v1"
 TERMINAL_JOB_STATES = {"Completed", "Failed", "Cancelled", "Deduped"}
+NOTEBOOK_ERROR_PREFIX = "fabricqueryr-seed-error:"
 
 
 class FabricApi:
@@ -95,7 +96,7 @@ class FabricApi:
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            job = self.request("GET", location).json()
+            job = self.request("GET", location, params={"beta": "true"}).json()
             status = job.get("status")
             if status in TERMINAL_JOB_STATES:
                 if status != "Completed":
@@ -104,6 +105,11 @@ class FabricApi:
                         f"(root activity {job.get('rootActivityId')}): "
                         f"{job.get('failureReason')}"
                     )
+                exit_value = job.get("exitValue")
+                if isinstance(exit_value, str) and exit_value.startswith(
+                    NOTEBOOK_ERROR_PREFIX
+                ):
+                    raise RuntimeError(exit_value)
                 return job
             self.sleep(10)
         raise TimeoutError(f"notebook job did not finish within {timeout} seconds")
