@@ -4,6 +4,7 @@ from azure.core.credentials import AccessToken
 import httpx
 import pytest
 
+import fabricqueryr_sandbox.fabric_api as fabric_api
 from fabricqueryr_sandbox.fabric_api import FabricApi
 
 
@@ -158,6 +159,106 @@ def test_run_notebook_binds_lakehouse_and_requires_success_marker():
         )
 
     assert result["exitValue"] == "fabricqueryr-seed-success"
+
+
+def test_run_notebook_retries_until_job_instance_is_visible():
+    get_attempts = 0
+    sleeps = []
+
+    def handler(request):
+        nonlocal get_attempts
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        get_attempts += 1
+        if get_attempts == 1:
+            return httpx.Response(404, json={"errorCode": "ItemNotFound"})
+        return httpx.Response(
+            200,
+            json={
+                "id": "job-id",
+                "status": "Completed",
+                "exitValue": "fabricqueryr-seed-success",
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        result = api.run_notebook(
+            "workspace-id",
+            "notebook-id",
+            lakehouse_id="lakehouse-id",
+        )
+
+    assert result["exitValue"] == "fabricqueryr-seed-success"
+    assert get_attempts == 2
+    assert sleeps == [fabric_api.JOB_VISIBILITY_RETRY_SECONDS]
+
+
+def test_run_notebook_stops_retrying_persistent_not_found(monkeypatch):
+    get_attempts = 0
+    sleeps = []
+    monkeypatch.setattr(fabric_api, "JOB_VISIBILITY_RETRIES", 2)
+
+    def handler(request):
+        nonlocal get_attempts
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        get_attempts += 1
+        return httpx.Response(404, json={"errorCode": "ItemNotFound"})
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        with pytest.raises(httpx.HTTPStatusError, match="404 Not Found"):
+            api.run_notebook(
+                "workspace-id",
+                "notebook-id",
+                lakehouse_id="lakehouse-id",
+            )
+
+    assert get_attempts == 3
+    assert sleeps == [fabric_api.JOB_VISIBILITY_RETRY_SECONDS] * 2
+
+
+def test_run_notebook_does_not_retry_other_http_errors():
+    get_attempts = 0
+    sleeps = []
+
+    def handler(request):
+        nonlocal get_attempts
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={"Location": "/jobs/instances/job-id"},
+            )
+        get_attempts += 1
+        return httpx.Response(403, json={"errorCode": "Forbidden"})
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        with pytest.raises(httpx.HTTPStatusError, match="403 Forbidden"):
+            api.run_notebook(
+                "workspace-id",
+                "notebook-id",
+                lakehouse_id="lakehouse-id",
+            )
+
+    assert get_attempts == 1
+    assert sleeps == []
 
 
 def test_run_notebook_rejects_missing_success_marker():

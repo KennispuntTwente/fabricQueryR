@@ -17,6 +17,8 @@ TERMINAL_JOB_STATES = {"Completed", "Failed", "Cancelled", "Deduped"}
 TERMINAL_OPERATION_STATES = {"Succeeded", "Failed", "Cancelled"}
 NOTEBOOK_ERROR_PREFIX = "fabricqueryr-seed-error:"
 NOTEBOOK_SUCCESS_VALUE = "fabricqueryr-seed-success"
+JOB_VISIBILITY_RETRIES = 12
+JOB_VISIBILITY_RETRY_SECONDS = 5
 
 
 class FabricApi:
@@ -157,8 +159,21 @@ class FabricApi:
         )
 
         deadline = time.monotonic() + timeout
+        not_found_retries = 0
         while time.monotonic() < deadline:
-            job = self.request("GET", job_url, params={"beta": "true"}).json()
+            try:
+                job = self.request(
+                    "GET", job_url, params={"beta": "true"}
+                ).json()
+            except httpx.HTTPStatusError as error:
+                if (
+                    error.response.status_code != 404
+                    or not_found_retries >= JOB_VISIBILITY_RETRIES
+                ):
+                    raise
+                not_found_retries += 1
+                self.sleep(JOB_VISIBILITY_RETRY_SECONDS)
+                continue
             status = job.get("status")
             if status in TERMINAL_JOB_STATES:
                 if status != "Completed":
