@@ -33,6 +33,7 @@ your Microsoft Fabric data into R:
 You can install the development version of ‘fabricQueryR’ like so:
 
 ``` r
+
 if (!requireNamespace("remotes", quietly = TRUE)) {
   install.packages("remotes")
 }
@@ -43,6 +44,7 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 Or, install the latest release from CRAN:
 
 ``` r
+
 install.packages("fabricQueryR")
 ```
 
@@ -56,6 +58,7 @@ Below is a code snippet showing how to use the four methods to get data
 from Fabric into R:
 
 ``` r
+
 # First find your 'tenant' ID & 'client' ID (app registration) in Azure/Entra
 # You may be able to use the default Azure CLI app id;
 #   this will be automatically used if you do not set 'FABRICQUERYR_CLIENT_ID'
