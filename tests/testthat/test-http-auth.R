@@ -65,7 +65,9 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   response <- .httr2_perform(
     httr2::request("https://example.test/items"),
     max_tries = 3L,
-    .sleep = function(delay) delays <<- c(delays, delay),
+    .sleep = function(delay) {
+      delays <<- c(delays, delay)
+    },
     .runif = function(...) 1
   )
 
@@ -137,7 +139,11 @@ test_that("HTTP errors include diagnostics and redact secrets", {
   expect_match(conditionMessage(error), "Request ID: request-123")
   expect_match(conditionMessage(error), "Activity ID: activity-456")
   expect_match(conditionMessage(error), "<redacted>")
-  expect_false(grepl("secret-access-token", conditionMessage(error), fixed = TRUE))
+  expect_false(grepl(
+    "secret-access-token",
+    conditionMessage(error),
+    fixed = TRUE
+  ))
   expect_false(grepl("secret-bearer", conditionMessage(error), fixed = TRUE))
   expect_false(grepl("url-secret", conditionMessage(error), fixed = TRUE))
 })
@@ -168,7 +174,10 @@ test_that("shared pagination follows continuation URIs and tokens", {
     credential,
     .fabric_audience$fabric
   )
-  expect_equal(vapply(values, `[[`, character(1), "id"), c("one", "two", "three"))
+  expect_equal(
+    vapply(values, `[[`, character(1), "id"),
+    c("one", "two", "three")
+  )
   expect_equal(urls[[2]], "https://example.test/items?page=2")
   expect_match(urls[[3]], "continuationToken=next-token")
 })
@@ -249,7 +258,9 @@ test_that("credential validation rejects conflicting or invalid providers", {
     "only one",
     fixed = TRUE
   )
-  credential <- fabric_credential(token_provider = function() list(token = "ok"))
+  credential <- fabric_credential(token_provider = function() {
+    list(token = "ok")
+  })
   expect_equal(
     fabric_get_token(credential, .fabric_audience$sql),
     "ok"

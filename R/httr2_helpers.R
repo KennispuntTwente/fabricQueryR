@@ -92,7 +92,11 @@
     format = "%a, %d %b %Y %H:%M:%S",
     tz = "GMT"
   ))
-  if (is.na(when)) NULL else max(0, as.numeric(difftime(when, now, units = "secs")))
+  if (is.na(when)) {
+    NULL
+  } else {
+    max(0, as.numeric(difftime(when, now, units = "secs")))
+  }
 }
 
 .httr2_is_idempotent <- function(req, idempotent = NULL) {
@@ -177,7 +181,7 @@
     delay <- if (!is.null(retry_after)) {
       min(retry_after, 120)
     } else {
-      min(30, 0.5 * (2 ^ (attempt - 1L))) * .runif(1L, 0.5, 1.5)
+      min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
     }
     .sleep(delay)
   }
@@ -298,7 +302,10 @@
   deadline <- .now() + timeout
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
-      stop("Fabric long-running operation polling was cancelled.", call. = FALSE)
+      stop(
+        "Fabric long-running operation polling was cancelled.",
+        call. = FALSE
+      )
     }
     if (.now() > deadline) {
       stop("Timed out waiting for the Fabric operation.", call. = FALSE)
@@ -314,7 +321,11 @@
       return(body)
     }
     if (state %in% c("failed", "cancelled", "canceled")) {
-      detail <- unlist(body$error %||% body, recursive = TRUE, use.names = FALSE)
+      detail <- unlist(
+        body$error %||% body,
+        recursive = TRUE,
+        use.names = FALSE
+      )
       stop(
         paste0(
           "Fabric long-running operation ended with state ",

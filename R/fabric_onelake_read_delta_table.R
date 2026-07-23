@@ -200,10 +200,14 @@ fabric_onelake_read_delta_table <- function(
 
   staged <- fabric_delta_stage_paths(files$name, table_dir, dest_dir)
   if (!any(grepl("(^|/)_delta_log/", staged$relative))) {
-    cli::cli_abort("No {.path _delta_log} files found under {.path {table_dir}}.")
+    cli::cli_abort(
+      "No {.path _delta_log} files found under {.path {table_dir}}."
+    )
   }
 
-  inform("Downloading {nrow(staged)} Delta table file{?s} to {.path {dest_dir}} ...")
+  inform(
+    "Downloading {nrow(staged)} Delta table file{?s} to {.path {dest_dir}} ..."
+  )
   purrr::walk(
     unique(fs::path_dir(staged$destination)),
     fs::dir_create,
@@ -276,17 +280,18 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
   sources <- gsub("\\\\", "/", sources)
   table_dir <- sub("/+$", "", gsub("\\\\", "/", table_dir))
   prefix <- paste0(table_dir, "/")
-  if (!length(sources) || any(!startsWith(sources, prefix))) {
+  if (!length(sources) || !all(startsWith(sources, prefix))) {
     cli::cli_abort("OneLake returned a file outside the requested Delta table.")
   }
 
   relative <- substring(sources, nchar(prefix) + 1L)
   parts <- strsplit(relative, "/", fixed = TRUE)
-  unsafe <- !nzchar(relative) | vapply(
-    parts,
-    function(x) any(!nzchar(x) | x %in% c(".", "..")),
-    logical(1)
-  )
+  unsafe <- !nzchar(relative) |
+    vapply(
+      parts,
+      function(x) any(!nzchar(x) | x %in% c(".", "..")),
+      logical(1)
+    )
   if (any(unsafe)) {
     cli::cli_abort("OneLake returned an unsafe relative Delta table path.")
   }
@@ -414,7 +419,9 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
 
   first_json <- if (is.null(checkpoint_version)) 0 else checkpoint_version + 1
   needed <- if (first_json <= target) seq(first_json, target) else numeric()
-  present <- sort(json_versions[json_versions >= first_json & json_versions <= target])
+  present <- sort(json_versions[
+    json_versions >= first_json & json_versions <= target
+  ])
   if (!identical(as.numeric(present), as.numeric(needed))) {
     cli::cli_abort(
       "Delta log is incomplete for version {target}; a required commit is missing."
@@ -462,7 +469,7 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
 
   deletion_storage <- checkpoint$add$deletionVector$storageType
   state$has_deletion_vectors <- state$has_deletion_vectors ||
-    any(!is.na(deletion_storage))
+    !all(is.na(deletion_storage))
 
   protocol_rows <- which(!is.na(checkpoint$protocol$minReaderVersion))
   if (length(protocol_rows)) {
@@ -527,7 +534,10 @@ fabric_delta_validate_reader <- function(state) {
     cli::cli_abort("Delta snapshot does not contain a reader protocol action.")
   }
   reader_version <- as.numeric(state$protocol$minReaderVersion)
-  features <- unlist(state$protocol$readerFeatures %||% list(), use.names = FALSE)
+  features <- unlist(
+    state$protocol$readerFeatures %||% list(),
+    use.names = FALSE
+  )
   if (reader_version > 1 || length(features)) {
     detail <- if (length(features)) {
       paste0(" Reader features: ", paste(features, collapse = ", "), ".")

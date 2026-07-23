@@ -296,7 +296,10 @@ test_that("Power BI collection paging follows offsets and next links", {
     offset_pagination = TRUE,
     page_size = 2L
   )
-  expect_equal(vapply(values, `[[`, character(1), "id"), c("one", "two", "three"))
+  expect_equal(
+    vapply(values, `[[`, character(1), "id"),
+    c("one", "two", "three")
+  )
   expect_match(calls[[1]], "%24top=2")
   expect_match(calls[[1]], "%24skip=0")
   expect_match(calls[[2]], "%24skip=2")

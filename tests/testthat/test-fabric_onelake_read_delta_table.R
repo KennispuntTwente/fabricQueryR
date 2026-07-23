@@ -146,7 +146,10 @@ test_that("Delta checkpoints allow earlier JSON commits to be absent", {
         ),
         metaData = list(
           id = "table-id",
-          configuration = list(data.frame(key = character(), value = character()))
+          configuration = list(data.frame(
+            key = character(),
+            value = character()
+          ))
         )
       )
     }
