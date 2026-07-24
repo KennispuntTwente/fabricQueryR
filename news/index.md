@@ -2,6 +2,20 @@
 
 ## fabricQueryR (development version)
 
+- [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
+  now creates a stateful `FabricLivySession` R6 object for regular or
+  high-concurrency Fabric Spark sessions. Session objects can wait for
+  readiness, submit and reuse multiple statements, inspect output, reset
+  inactivity timeouts, cancel statements, and close deterministically.
+  Structured statement failures retain Livy error values and tracebacks.
+  [`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
+  adds batch status, logs, results, timeout, and cancellation through
+  `FabricLivyBatch`. The one-shot
+  [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md)
+  helper is now implemented on the session object. The integration
+  sandbox includes a real batch application covering successful, failed,
+  and cancelled jobs.
+
 - [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md)
   adds first-class, read-only Eventhouse/KQL querying through the Kusto
   v2 REST endpoint. It accepts direct query-service coordinates or

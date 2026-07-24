@@ -2,14 +2,24 @@
 
 ## All functions
 
+- [`FabricLivyBatch`](https://lukakoning.github.io/fabricQueryR/reference/FabricLivyBatch.md)
+  : A Microsoft Fabric Livy batch job
+- [`FabricLivySession`](https://lukakoning.github.io/fabricQueryR/reference/FabricLivySession.md)
+  : A Microsoft Fabric Livy session
+- [`FabricLivyStatement`](https://lukakoning.github.io/fabricQueryR/reference/FabricLivyStatement.md)
+  : A statement submitted to a Fabric Livy session
 - [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md)
   : Discover one Microsoft Fabric item
 - [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md)
   : Discover Microsoft Fabric items
 - [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Query a Microsoft Fabric Eventhouse with KQL
+- [`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
+  : Submit a Microsoft Fabric Livy batch job
 - [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md)
-  : Run a Livy API query (Spark code) in Microsoft Fabric
+  : Run Spark code in a temporary Microsoft Fabric Livy session
+- [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
+  : Create a Microsoft Fabric Livy session
 - [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 - [`fabric_pbi_dax_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)

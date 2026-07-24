@@ -1,8 +1,9 @@
-# Run a Livy API query (Spark code) in Microsoft Fabric
+# Run Spark code in a temporary Microsoft Fabric Livy session
 
-High-level helper that creates a Livy session in Microsoft Fabric, waits
-for it to become idle, submits a statement with Spark code for
-execution, retrieves the result, and closes the session.
+Creates a session, waits for it to become ready, runs one statement, and
+closes the session even when execution fails. For multiple statements or
+explicit lifecycle control, use
+[`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md).
 
 ## Usage
 
@@ -19,8 +20,8 @@ fabric_livy_query(
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
-  poll_interval = 2L,
-  timeout = 600L
+  poll_interval = 2,
+  timeout = 600
 )
 ```
 
@@ -28,126 +29,73 @@ fabric_livy_query(
 
 - livy_url:
 
-  Character Livy session job connection string or one Lakehouse record
-  returned by
+  A Livy connection URL or an enriched Lakehouse record from
   [`fabric_lakehouses()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
-  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md),
-  e.g.
-  `"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"`
-  (see details).
+  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md).
 
 - code:
 
-  Character. Code to run in the Livy session.
+  One non-empty string containing Spark code.
 
 - kind:
 
-  Character. One of `"spark"`, `"pyspark"`, `"sparkr"`, or `"sql"`.
-  Indicates the type of Spark code being submitted for evaluation.
+  Statement language: `"spark"`, `"pyspark"`, `"sparkr"`, or `"sql"`.
 
 - tenant_id:
 
-  Microsoft Azure tenant ID. Defaults to
-  `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
+  Microsoft Entra tenant ID.
 
 - client_id:
 
-  Microsoft Azure application (client) ID used to authenticate. Defaults
-  to `Sys.getenv("FABRICQUERYR_CLIENT_ID")`. You may be able to use the
-  Azure CLI app id `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"`, but may
-  want to make your own app registration in your tenant for better
-  control.
+  Microsoft Entra application ID.
 
 - access_token:
 
-  Optional character. If supplied, use this bearer token instead of
-  acquiring a new one via `{AzureAuth}`.
+  Optional Fabric bearer token.
 
 - token_provider:
 
-  Optional function returning a Fabric API bearer token. It may accept
-  `audience` and `force_refresh` arguments. Supply only one of
-  `access_token` and `token_provider`.
+  Optional callback returning a Fabric bearer token.
 
 - environment_id:
 
-  Optional character. Fabric Environment (pool) ID to use for the
-  session. If `NULL` (default), the default environment for the user
-  will be used.
+  Optional Fabric Environment ID.
 
 - conf:
 
-  Optional list. Spark configuration settings to apply to the session.
+  Optional named list of Spark configuration settings.
 
 - verbose:
 
-  Logical. Emit progress via `{cli}`. Default `TRUE`.
+  Logical. Emit lifecycle progress.
 
 - poll_interval:
 
-  Integer. Polling interval in seconds when waiting for
-  session/statement readiness.
+  Polling interval in seconds.
 
 - timeout:
 
-  Integer. Timeout in seconds when waiting for session/statement
-  readiness.
+  Maximum seconds for each readiness/execution wait.
 
 ## Value
 
-A list with statement details and results. The list contains:
-
-- `id`: Statement ID.
-
-- `state`: Final statement state (should be `"available"`).
-
-- `started_local`: Local timestamp when statement started running.
-
-- `completed_local`: Local timestamp when statement completed.
-
-- `duration_sec`: Duration in seconds (local).
-
-- `output`: A list with raw output details:
-
-  - `status`: Output status (e.g., `"ok"`).
-
-  - `execution_count`: Execution count (if applicable). The number of
-    statements that have been executed in the session.
-
-  - `data`: Raw data list with MIME types as keys (e.g. `"text/plain"`,
-    `"application/json"`).
-
-  - `parsed`: Parsed output, if possible. This may be a data frame
-    (tibble) if the output was JSON tabular data, or a character vector
-    if it was plain text. May be `NULL` if parsing was not possible.
-
-- `url`: URL of the statement resource in the Livy API.
+An invisible `fabric_livy_statement_result` list.
 
 ## Details
 
-- In Microsoft Fabric, you can find and copy the Livy session URL by
-  going to a 'Lakehouse' item, then go to 'Settings' -\> 'Livy Endpoint'
-  -\> 'Session job connection string'.
-
-- By default we request a token for
-  `https://api.fabric.microsoft.com/.default`.
-
-- AzureAuth is used to acquire the token. Be wary of caching behavior;
-  you may want to call
-  [`AzureAuth::clean_token_directory()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  to clear cached tokens if you run into issues
-
-- Requests use the `https://api.fabric.microsoft.com/.default` audience.
-  The identity must have access to the workspace and permission to run
-  Spark sessions on the target lakehouse.
+Requests use the `https://api.fabric.microsoft.com/.default` audience.
+Delegated authentication requires `Lakehouse.Execute.All`,
+`Lakehouse.Read.All`, `Code.AccessFabric.All`, and
+`Code.AccessStorage.All`; the caller also needs an appropriate workspace
+role.
 
 ## See also
 
-[Livy API overview - Microsoft Fabric - 'What is the Livy API for Data
-Engineering?'](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview);
-[Livy Docs - REST
-API](https://livy.apache.org/docs/latest/rest-api.html).
+[Microsoft Fabric Livy API
+overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
+[session
+jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
 
 ## Examples
 

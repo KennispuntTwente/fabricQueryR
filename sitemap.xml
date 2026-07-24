@@ -5,11 +5,16 @@
 <url><loc>https://lukakoning.github.io/fabricQueryR/authors.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/index.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/news/index.html</loc></url>
+<url><loc>https://lukakoning.github.io/fabricQueryR/reference/FabricLivyBatch.html</loc></url>
+<url><loc>https://lukakoning.github.io/fabricQueryR/reference/FabricLivySession.html</loc></url>
+<url><loc>https://lukakoning.github.io/fabricQueryR/reference/FabricLivyStatement.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabricQueryR-package.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_item.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_items.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.html</loc></url>
+<url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.html</loc></url>
+<url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.html</loc></url>
 <url><loc>https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.html</loc></url>

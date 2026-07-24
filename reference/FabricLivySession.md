@@ -1,0 +1,294 @@
+# A Microsoft Fabric Livy session
+
+`FabricLivySession` represents either a regular interactive Livy session
+or a high-concurrency (HC) session. Create instances with
+[`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
+rather than calling `$new()` directly.
+
+## Format
+
+An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
+
+## Public fields
+
+- `id`:
+
+  Fabric session or high-concurrency acquisition ID.
+
+- `url`:
+
+  Session lifecycle URL.
+
+- `state`:
+
+  Latest service state.
+
+- `response`:
+
+  Latest raw service response.
+
+- `closed`:
+
+  Whether `$close()` completed.
+
+- `high_concurrency`:
+
+  Whether this is a high-concurrency session.
+
+- `session_id`:
+
+  Underlying Livy session ID for HC sessions.
+
+- `repl_id`:
+
+  Isolated REPL ID for HC sessions.
+
+- `verbose`:
+
+  Whether lifecycle messages are enabled.
+
+## Methods
+
+### Public methods
+
+- [`FabricLivySession$new()`](#method-FabricLivySession-initialize)
+
+- [`FabricLivySession$print()`](#method-FabricLivySession-print)
+
+- [`FabricLivySession$status()`](#method-FabricLivySession-status)
+
+- [`FabricLivySession$wait()`](#method-FabricLivySession-wait)
+
+- [`FabricLivySession$submit()`](#method-FabricLivySession-submit)
+
+- [`FabricLivySession$run()`](#method-FabricLivySession-run)
+
+- [`FabricLivySession$statements()`](#method-FabricLivySession-statements)
+
+- [`FabricLivySession$reset_timeout()`](#method-FabricLivySession-reset_timeout)
+
+- [`FabricLivySession$close()`](#method-FabricLivySession-close)
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$new()`
+
+Internal constructor used by
+[`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md).
+
+#### Usage
+
+    FabricLivySession$new(
+      livy_url,
+      credential,
+      payload,
+      high_concurrency = FALSE,
+      verbose = TRUE
+    )
+
+#### Arguments
+
+- `livy_url`:
+
+  Livy API base or collection URL.
+
+- `credential`:
+
+  Internal authentication credential.
+
+- `payload`:
+
+  Session creation request body.
+
+- `high_concurrency`:
+
+  Whether to acquire an HC session.
+
+- `verbose`:
+
+  Whether to emit lifecycle messages.
+
+#### Returns
+
+A new session object.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$print()`
+
+Print a concise session summary.
+
+#### Usage
+
+    FabricLivySession$print(...)
+
+#### Arguments
+
+- `...`:
+
+  Unused.
+
+#### Returns
+
+`self`, invisibly.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$status()`
+
+Return the latest session response.
+
+#### Usage
+
+    FabricLivySession$status(refresh = TRUE)
+
+#### Arguments
+
+- `refresh`:
+
+  Whether to retrieve current state from Fabric.
+
+#### Returns
+
+The raw session response list.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$wait()`
+
+Wait until the session can accept statements.
+
+#### Usage
+
+    FabricLivySession$wait(timeout = 600, poll_interval = 3)
+
+#### Arguments
+
+- `timeout`:
+
+  Maximum wait in seconds.
+
+- `poll_interval`:
+
+  Polling interval in seconds.
+
+#### Returns
+
+`self`, invisibly.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$submit()`
+
+Submit code without waiting for completion.
+
+#### Usage
+
+    FabricLivySession$submit(
+      code,
+      kind = c("spark", "pyspark", "sparkr", "sql"),
+      source_id = NULL
+    )
+
+#### Arguments
+
+- `code`:
+
+  One string of Spark code.
+
+- `kind`:
+
+  Statement language.
+
+- `source_id`:
+
+  Optional caller-defined source identifier.
+
+#### Returns
+
+A
+[FabricLivyStatement](https://lukakoning.github.io/fabricQueryR/reference/FabricLivyStatement.md).
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$run()`
+
+Submit code, wait, and return its parsed result.
+
+#### Usage
+
+    FabricLivySession$run(
+      code,
+      kind = c("spark", "pyspark", "sparkr", "sql"),
+      source_id = NULL,
+      timeout = 600,
+      poll_interval = 2
+    )
+
+#### Arguments
+
+- `code`:
+
+  One string of Spark code.
+
+- `kind`:
+
+  Statement language.
+
+- `source_id`:
+
+  Optional caller-defined source identifier.
+
+- `timeout`:
+
+  Maximum wait in seconds.
+
+- `poll_interval`:
+
+  Polling interval in seconds.
+
+#### Returns
+
+A `fabric_livy_statement_result` list.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$statements()`
+
+List statements in this execution context.
+
+#### Usage
+
+    FabricLivySession$statements()
+
+#### Returns
+
+The raw Livy statements response.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$reset_timeout()`
+
+Reset a regular session's inactivity timeout.
+
+#### Usage
+
+    FabricLivySession$reset_timeout()
+
+#### Returns
+
+`self`, invisibly.
+
+------------------------------------------------------------------------
+
+### `FabricLivySession$close()`
+
+Release this session or high-concurrency context.
+
+#### Usage
+
+    FabricLivySession$close()
+
+#### Returns
+
+`TRUE` when closed or `FALSE` when already closed, invisibly.
