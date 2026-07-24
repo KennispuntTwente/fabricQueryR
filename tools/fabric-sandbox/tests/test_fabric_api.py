@@ -182,22 +182,24 @@ def test_wait_for_graphql_type_retries_until_schema_is_ready():
         nonlocal attempts
         attempts += 1
         payload = json.loads(request.content)
-        assert payload["variables"] == {"name": "fabricqueryr_basic"}
+        assert "__type" not in payload["query"]
+        assert "fabricqueryr_basic(first: 1)" in payload["query"]
+        assert "variables" not in payload
         if attempts == 1:
             return httpx.Response(503, json={"message": "schema is provisioning"})
         if attempts == 2:
             return httpx.Response(
                 200,
-                json={"data": {"__type": None}},
+                json={
+                    "data": {"fabricqueryr_basic": None},
+                    "errors": [{"message": "Schema is provisioning"}],
+                },
             )
         return httpx.Response(
             200,
             json={
                 "data": {
-                    "__type": {
-                        "name": "fabricqueryr_basic",
-                        "fields": [{"name": "id"}],
-                    }
+                    "fabricqueryr_basic": {"items": [{"id": 1}]}
                 }
             },
         )
@@ -216,6 +218,19 @@ def test_wait_for_graphql_type_retries_until_schema_is_ready():
     assert result["name"] == "fabricqueryr_basic"
     assert attempts == 3
     assert sleeps == [10, 10]
+
+
+def test_wait_for_graphql_type_rejects_unsafe_root_names():
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200)),
+    ) as api:
+        with pytest.raises(ValueError, match="valid GraphQL name"):
+            api.wait_for_graphql_type(
+                "workspace-id",
+                "graphql-api-id",
+                "root { __schema }",
+            )
 
 
 def test_run_notebook_reports_cancelled_job_trace_ids():

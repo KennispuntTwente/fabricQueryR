@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import time
 from collections.abc import Callable
 from typing import Any
@@ -201,6 +202,8 @@ class FabricApi:
         *,
         timeout: int = 600,
     ) -> dict[str, Any]:
+        if not re.fullmatch(r"[_A-Za-z][_0-9A-Za-z]*", graphql_type):
+            raise ValueError("graphql_type must be a valid GraphQL name")
         endpoint = (
             f"/workspaces/{workspace_id}/graphqlapis/"
             f"{graphql_api_id}/graphql"
@@ -209,16 +212,18 @@ class FabricApi:
         last_errors: Any = None
         while time.monotonic() < deadline:
             try:
+                # Fabric blocks introspection on this endpoint, so readiness
+                # must be proved by executing the known seeded schema.
                 response = self.request(
                     "POST",
                     endpoint,
                     headers={"Accept": "application/graphql-response+json"},
                     json={
                         "query": (
-                            "query SchemaReady($name: String!) { "
-                            "__type(name: $name) { name fields { name } } }"
+                            "query SchemaReady { "
+                            f"{graphql_type}(first: 1) {{ items {{ id }} }} "
+                            "}"
                         ),
-                        "variables": {"name": graphql_type},
                         "operationName": "SchemaReady",
                     },
                 ).json()
@@ -237,9 +242,12 @@ class FabricApi:
                 last_errors = error.response.text
                 self.sleep(10)
                 continue
-            found_type = response.get("data", {}).get("__type")
-            if found_type and found_type.get("name") == graphql_type:
-                return found_type
+            root_result = response.get("data", {}).get(graphql_type)
+            if (
+                isinstance(root_result, dict)
+                and isinstance(root_result.get("items"), list)
+            ):
+                return {"name": graphql_type}
             last_errors = response.get("errors")
             self.sleep(10)
         raise TimeoutError(
