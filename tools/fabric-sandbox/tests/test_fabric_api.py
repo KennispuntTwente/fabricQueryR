@@ -106,12 +106,33 @@ def test_update_graphql_definition_encodes_supported_public_definition():
         "/workspaces/workspace-id/graphQLApis/graphql-api-id/updateDefinition"
     )
     payload = json.loads(request.content)
-    assert payload["definition"]["format"] == "GraphQLApiV1"
+    assert "format" not in payload["definition"]
     part = payload["definition"]["parts"][0]
     assert part["path"] == "graphql-definition.json"
     assert part["payloadType"] == "InlineBase64"
     decoded = json.loads(base64.b64decode(part["payload"]))
     assert decoded == definition
+
+
+def test_request_preserves_fabric_error_details():
+    def handler(request):
+        return httpx.Response(
+            400,
+            headers={"x-ms-request-id": "request-id"},
+            json={
+                "errorCode": "InvalidDefinitionFormat",
+                "message": "Requested item definition format is invalid",
+            },
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        with pytest.raises(httpx.HTTPStatusError) as caught:
+            api.request("POST", "/workspaces/workspace-id/items")
+
+    message = str(caught.value)
+    assert "InvalidDefinitionFormat" in message
+    assert "Requested item definition format is invalid" in message
+    assert "Request ID: request-id" in message
 
 
 def test_wait_for_graphql_type_retries_until_schema_is_ready():

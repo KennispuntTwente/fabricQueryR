@@ -53,7 +53,23 @@ class FabricApi:
         headers = {"Authorization": f"Bearer {token}"}
         headers.update(kwargs.pop("headers", {}))
         response = self.client.request(method, url, headers=headers, **kwargs)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as error:
+            request_id = (
+                response.headers.get("x-ms-request-id")
+                or response.headers.get("request-id")
+            )
+            body = response.text.strip() or "<empty body>"
+            detail = (
+                f"{error}\nFabric response: {body}"
+                + (f"\nRequest ID: {request_id}" if request_id else "")
+            )
+            raise httpx.HTTPStatusError(
+                detail,
+                request=error.request,
+                response=response,
+            ) from error
         return response
 
     def list_items(self, workspace_id: str) -> list[dict[str, Any]]:
@@ -145,7 +161,6 @@ class FabricApi:
             ),
             json={
                 "definition": {
-                    "format": "GraphQLApiV1",
                     "parts": [
                         {
                             "path": "graphql-definition.json",
