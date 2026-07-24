@@ -3,17 +3,16 @@
 #'
 #' @description
 #' Authenticates to OneLake through the package's shared ADLS Gen2 transport,
-#' stages the complete Delta table while preserving its directory structure,
-#' and resolves the requested snapshot from Delta JSON commits and Parquet
-#' checkpoints.
+#' stages the Delta transaction log, resolves the requested snapshot, and then
+#' downloads only the data files active in that snapshot.
 #'
 #' @details
 #' - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 #'  filesystem. Within a Lakehouse item, Delta tables are stored under
 #'  `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
 #'  (schema-enabled lakehouse). The complete table is staged because Delta
-#'  checkpoints and table features can reference files that cannot be resolved
-#'  correctly by replaying JSON commit files alone.
+#'  checkpoints and table features are resolved before data files are
+#'  downloaded, so historical and tombstoned Parquet files are not staged.
 #' - Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
 #'  require reader protocol versions or reader features this package does not
 #'  implement are rejected before any data is returned.
@@ -52,8 +51,9 @@
 #'   one of `access_token` and `token_provider`.
 #' @param version Optional non-negative integer Delta table version to read.
 #'   Defaults to the latest version.
-#' @param dest_dir Character or `NULL`. Local staging directory for the complete
-#'   Delta table. If `NULL` (default), a temp dir is used and cleaned up on exit.
+#' @param dest_dir Character or `NULL`. Local staging directory for the Delta
+#'   log and active snapshot files. If `NULL` (default), a temp dir is used and
+#'   cleaned up on exit.
 #' @param verbose Logical. Print progress messages via `{cli}`. Default `TRUE`.
 #' @param dfs_base Character. OneLake DFS endpoint. Default
 #'   `"https://onelake.dfs.fabric.microsoft.com"`.
@@ -197,9 +197,11 @@ fabric_onelake_read_delta_table <- function(
 
   inform("Table root: {.path {table_dir}}")
 
-  # ---- list files once ----
+  # ---- list and stage the transaction log ----
+  log_target <- target
+  log_target$path <- paste0(table_dir, "/_delta_log")
   files <- onelake_list_target(
-    target,
+    log_target,
     credential,
     recursive = TRUE,
     page_size = 5000L
@@ -207,11 +209,10 @@ fabric_onelake_read_delta_table <- function(
   files <- fabric_delta_file_rows(files)
   if (NROW(files) == 0) {
     cli::cli_abort(
-      "Nothing found under {.path {table_dir}}. Check names/permissions."
+      "No {.path _delta_log} files found under {.path {table_dir}}."
     )
   }
 
-  # ---- stage complete Delta table ----
   auto_cleanup <- is.null(dest_dir)
   dest_dir <- dest_dir %||% fs::path_temp("onelake_tbl_")
   fs::dir_create(dest_dir, recurse = TRUE)
@@ -219,16 +220,57 @@ fabric_onelake_read_delta_table <- function(
     on.exit(try(fs::dir_delete(dest_dir), silent = TRUE), add = TRUE)
   }
 
-  staged <- fabric_delta_stage_paths(files$name, table_dir, dest_dir)
-  if (!any(grepl("(^|/)_delta_log/", staged$relative))) {
+  file_paths <- if ("path" %in% names(files)) files$path else files$name
+  log_staged <- fabric_delta_stage_paths(file_paths, table_dir, dest_dir)
+  if (!all(grepl("^_delta_log/", log_staged$relative))) {
     cli::cli_abort(
-      "No {.path _delta_log} files found under {.path {table_dir}}."
+      "OneLake returned a file outside the requested {.path _delta_log}."
     )
   }
 
   inform(
-    "Downloading {nrow(staged)} Delta table file{?s} to {.path {dest_dir}} ..."
+    "Downloading {nrow(log_staged)} Delta log file{?s} to {.path {dest_dir}} ..."
   )
+  fabric_delta_download_staged(
+    log_staged,
+    target,
+    credential
+  )
+
+  snapshot <- fabric_delta_resolve_snapshot(dest_dir, version = version)
+  if (length(snapshot$active)) {
+    data_sources <- paste0(
+      table_dir,
+      "/",
+      utils::URLdecode(snapshot$active)
+    )
+    data_staged <- fabric_delta_stage_paths(
+      unique(data_sources),
+      table_dir,
+      dest_dir
+    )
+    inform(
+      "Downloading {nrow(data_staged)} active data file{?s} ..."
+    )
+    fabric_delta_download_staged(
+      data_staged,
+      target,
+      credential
+    )
+  }
+
+  # ---- read the requested Delta snapshot ----
+  inform("Reading the Delta snapshot with {.pkg duckdb} ...")
+  df <- fabric_delta_read_staged(dest_dir, version = version)
+
+  inform("Loaded {nrow(df)} row{?s}.", type = "success")
+  tibble::as_tibble(df)
+}
+
+#' Download files into their validated Delta staging locations
+#' @keywords internal
+#' @noRd
+fabric_delta_download_staged <- function(staged, target, credential) {
   purrr::walk(
     unique(fs::path_dir(staged$destination)),
     fs::dir_create,
@@ -248,13 +290,7 @@ fabric_onelake_read_delta_table <- function(
       )
     }
   )
-
-  # ---- resolve and read the requested Delta snapshot ----
-  inform("Resolving and reading the Delta snapshot with {.pkg duckdb} ...")
-  df <- fabric_delta_read_staged(dest_dir, version = version)
-
-  inform("Loaded {nrow(df)} row{?s}.", type = "success")
-  tibble::as_tibble(df)
+  invisible(staged)
 }
 
 #' Keep downloadable files from a OneLake storage listing

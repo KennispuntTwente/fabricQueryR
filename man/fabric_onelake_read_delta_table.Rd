@@ -55,8 +55,9 @@ one of \code{access_token} and \code{token_provider}.}
 \item{version}{Optional non-negative integer Delta table version to read.
 Defaults to the latest version.}
 
-\item{dest_dir}{Character or \code{NULL}. Local staging directory for the complete
-Delta table. If \code{NULL} (default), a temp dir is used and cleaned up on exit.}
+\item{dest_dir}{Character or \code{NULL}. Local staging directory for the Delta
+log and active snapshot files. If \code{NULL} (default), a temp dir is used and
+cleaned up on exit.}
 
 \item{verbose}{Logical. Print progress messages via \code{{cli}}. Default \code{TRUE}.}
 
@@ -68,9 +69,8 @@ A tibble with the table's current rows (0 rows if the table is empty).
 }
 \description{
 Authenticates to OneLake through the package's shared ADLS Gen2 transport,
-stages the complete Delta table while preserving its directory structure,
-and resolves the requested snapshot from Delta JSON commits and Parquet
-checkpoints.
+stages the Delta transaction log, resolves the requested snapshot, and then
+downloads only the data files active in that snapshot.
 }
 \details{
 \itemize{
@@ -78,8 +78,8 @@ checkpoints.
 filesystem. Within a Lakehouse item, Delta tables are stored under
 \verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
 (schema-enabled lakehouse). The complete table is staged because Delta
-checkpoints and table features can reference files that cannot be resolved
-correctly by replaying JSON commit files alone.
+checkpoints and table features are resolved before data files are
+downloaded, so historical and tombstoned Parquet files are not staged.
 \item Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
 require reader protocol versions or reader features this package does not
 implement are rejected before any data is returned.

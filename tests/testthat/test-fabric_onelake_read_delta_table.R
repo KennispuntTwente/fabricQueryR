@@ -56,10 +56,7 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
       expect_true(recursive)
       expect_equal(page_size, 5000L)
       tibble::tibble(
-        path = c(
-          "Tables/dbo/table/_delta_log/00000000000000000000.json",
-          "Tables/dbo/table/category=A/part.parquet"
-        ),
+        path = "Tables/dbo/table/_delta_log/00000000000000000000.json",
         is_directory = FALSE
       )
     },
@@ -77,6 +74,11 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
       )
       writeBin(raw(), dest)
       invisible(dest)
+    },
+    fabric_delta_resolve_snapshot = function(table_dir, version = NULL) {
+      expect_null(version)
+      expect_true(dir.exists(table_dir))
+      list(active = "category=A/part.parquet", version = 0)
     },
     fabric_delta_read_staged = function(table_dir, version = NULL) {
       expect_null(version)
@@ -98,7 +100,7 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   )
 
   expect_equal(listed_target$item, "Curated.Lakehouse")
-  expect_equal(listed_target$path, "Tables/dbo/table")
+  expect_equal(listed_target$path, "Tables/dbo/table/_delta_log")
   expect_equal(
     vapply(downloaded, `[[`, character(1), "path"),
     c(
@@ -108,6 +110,60 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   )
   expect_true(all(vapply(downloaded, `[[`, logical(1), "overwrite")))
   expect_equal(result$id, 1L)
+})
+
+test_that("Delta reads do not download tombstoned or historical data files", {
+  downloaded <- character()
+  local_mocked_bindings(
+    onelake_list_target = function(target, credential, recursive, page_size) {
+      tibble::tibble(
+        path = c(
+          "Tables/table/_delta_log/00000000000000000000.json",
+          "Tables/table/_delta_log/00000000000000000001.json"
+        ),
+        is_directory = FALSE
+      )
+    },
+    onelake_download_target = function(
+      target,
+      credential,
+      dest,
+      overwrite,
+      ...
+    ) {
+      downloaded <<- c(downloaded, target$path)
+      fs::dir_create(fs::path_dir(dest))
+      writeBin(raw(), dest)
+      invisible(dest)
+    },
+    fabric_delta_resolve_snapshot = function(table_dir, version = NULL) {
+      list(active = "active.parquet", version = 1)
+    },
+    fabric_delta_read_staged = function(table_dir, version = NULL) {
+      data.frame(id = 1L)
+    }
+  )
+  dest <- tempfile("delta-active-only-")
+  on.exit(if (fs::dir_exists(dest)) fs::dir_delete(dest), add = TRUE)
+
+  fabric_onelake_read_delta_table(
+    table_path = "table",
+    workspace_name = "workspace",
+    lakehouse_name = "lakehouse",
+    access_token = "token",
+    dest_dir = dest,
+    verbose = FALSE
+  )
+
+  expect_setequal(
+    downloaded,
+    c(
+      "Tables/table/_delta_log/00000000000000000000.json",
+      "Tables/table/_delta_log/00000000000000000001.json",
+      "Tables/table/active.parquet"
+    )
+  )
+  expect_false("Tables/table/tombstoned.parquet" %in% downloaded)
 })
 
 test_that("Delta staging preserves paths beneath the table root", {

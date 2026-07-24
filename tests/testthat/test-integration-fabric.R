@@ -592,7 +592,15 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
     ))
   )
 
-  historical <- fabric_delta_read_staged(dest_dir, version = 10)
+  historical <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$partitioned,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    access_token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+    version = 10,
+    verbose = FALSE
+  )
   historical_beta <- historical[historical$id == 2L, ]
   expect_equal(historical_beta$name, "beta")
   expect_equal(historical_beta$amount, 20)
