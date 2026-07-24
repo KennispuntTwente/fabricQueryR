@@ -23,7 +23,8 @@
 #' [Livy API overview - Microsoft Fabric - 'What is the Livy API for Data Engineering?'](<https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview>);
 #' [Livy Docs - REST API](https://livy.apache.org/docs/latest/rest-api.html).
 #'
-#' @param livy_url Character. Livy session job connection string, e.g.
+#' @param livy_url Character Livy session job connection string or one
+#' Lakehouse record returned by [fabric_lakehouses()] or [fabric_item()], e.g.
 #' `"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"`
 #' (see details).
 #' @param code Character. Code to run in the Livy session.
@@ -84,6 +85,24 @@ fabric_livy_query <- function(
   poll_interval = 2L,
   timeout = 600L
 ) {
+  discovered <- fabric_as_record(livy_url)
+  if (!is.null(discovered)) {
+    if (!identical(tolower(fabric_record_value(discovered, "type") %||% ""), "lakehouse")) {
+      stop("livy_url discovery record must be a Lakehouse item.", call. = FALSE)
+    }
+    livy_url <- fabric_record_value(discovered, "livy_url")
+  }
+  if (
+    !is.character(livy_url) ||
+      length(livy_url) != 1L ||
+      is.na(livy_url) ||
+      !nzchar(livy_url)
+  ) {
+    stop(
+      "livy_url must be a Livy URL or an enriched Lakehouse record.",
+      call. = FALSE
+    )
+  }
   kind <- match.arg(kind)
   sess <- fabric_livy_session_create(
     livy_url = livy_url,

@@ -20,7 +20,11 @@
 #'  `Dataset.Read.All` (or `Dataset.ReadWrite.All`) plus dataset Read and Build
 #'  permissions. Name lookup also requires `Workspace.Read.All` or equivalent.
 #'
-#' @param connstr Optional character. Power BI connection string, e.g.
+#' @param connstr Optional character Power BI connection string or one
+#'   SemanticModel record returned by [fabric_semantic_models()] or
+#'   [fabric_item()]. For a discovered record, workspace and dataset IDs are
+#'   used directly.
+#'   A character connection string can be, e.g.
 #'   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
 #'   The function accepts either `Data Source=` and `Initial Catalog=` parts, or a
 #'   bare `powerbi://...` for the data source plus a `Dataset=`/`Catalog=`/`Initial Catalog=` key
@@ -80,6 +84,21 @@ fabric_pbi_dax_query <- function(
   impersonated_user = NULL
 ) {
   stopifnot(is.character(dax), length(dax) == 1L, nzchar(dax))
+  discovered <- fabric_as_record(connstr)
+  if (!is.null(discovered)) {
+    if (!identical(tolower(fabric_record_value(discovered, "type") %||% ""), "semanticmodel")) {
+      stop("connstr discovery record must be a SemanticModel item.", call. = FALSE)
+    }
+    workspace_id <- workspace_id %||% fabric_record_value(
+      discovered,
+      "workspaceId"
+    )
+    dataset_id <- dataset_id %||% fabric_record_value(discovered, "id")
+    connstr <- fabric_record_value(
+      discovered,
+      "dax_connection_string"
+    )
+  }
   if (!is.null(connstr)) {
     stopifnot(is.character(connstr), length(connstr) == 1L, nzchar(connstr))
   }

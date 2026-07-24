@@ -21,7 +21,8 @@ fabric_livy_query(
 )
 }
 \arguments{
-\item{livy_url}{Character. Livy session job connection string, e.g.
+\item{livy_url}{Character Livy session job connection string or one
+Lakehouse record returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}, e.g.
 \code{"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"}
 (see details).}
 

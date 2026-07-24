@@ -21,6 +21,13 @@
   Fabric long-running-operation polling helpers are covered by deterministic
   tests.
 
+* `fabric_workspaces()`, `fabric_items()`, and `fabric_item()` now provide
+  paginated, ambiguity-safe Fabric discovery. Typed helpers enrich Lakehouses,
+  Warehouses, SQL Databases, semantic models, Eventhouses/KQL databases,
+  notebooks, and GraphQL APIs with the workload properties available from
+  Fabric. Discovery records expose ready-to-use SQL, OneLake, DAX, Livy, and KQL
+  targets and can be passed directly to the corresponding query helpers.
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

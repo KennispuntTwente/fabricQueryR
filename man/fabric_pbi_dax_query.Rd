@@ -20,7 +20,11 @@ fabric_pbi_dax_query(
 )
 }
 \arguments{
-\item{connstr}{Optional character. Power BI connection string, e.g.
+\item{connstr}{Optional character Power BI connection string or one
+SemanticModel record returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}} or
+\code{\link[=fabric_item]{fabric_item()}}. For a discovered record, workspace and dataset IDs are
+used directly.
+A character connection string can be, e.g.
 \code{"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"}.
 The function accepts either \verb{Data Source=} and \verb{Initial Catalog=} parts, or a
 bare \verb{powerbi://...} for the data source plus a \verb{Dataset=}/\verb{Catalog=}/\verb{Initial Catalog=} key

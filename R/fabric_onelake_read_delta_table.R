@@ -97,6 +97,20 @@ fabric_onelake_read_delta_table <- function(
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  workspace_record <- fabric_as_record(workspace_name)
+  if (!is.null(workspace_record)) {
+    workspace_name <- fabric_record_value(workspace_record, "id", "workspaceId")
+  }
+  lakehouse_record <- fabric_as_record(lakehouse_name)
+  if (!is.null(lakehouse_record)) {
+    if (!identical(
+      tolower(fabric_record_value(lakehouse_record, "type") %||% ""),
+      "lakehouse"
+    )) {
+      stop("lakehouse_name discovery record must be a Lakehouse item.", call. = FALSE)
+    }
+    lakehouse_name <- fabric_record_value(lakehouse_record, "id")
+  }
   # ---- validate args ----
   stopifnot(
     is.character(table_path),
