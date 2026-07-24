@@ -15,7 +15,9 @@ Description:
     of 'Lakehouse', 'Data Warehouse', and 'SQL Database' items; submit
     'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft
     Fabric' and 'Power BI'; read 'Delta Lake' tables stored in 'OneLake'
-    ('Azure Data Lake Storage Gen2'); and execute 'Spark' code via the 'Livy API'. 
+    ('Azure Data Lake Storage Gen2'); execute 'Kusto Query Language' ('KQL')
+    queries against 'Eventhouse' databases; and execute 'Spark' code via the
+    'Livy API'.
 License: MIT + file LICENSE
 Suggests: 
     AzureStor,
@@ -32,6 +34,7 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports: 
     AzureAuth,
+    bit64,
     httr2,
     dplyr,
     tibble,

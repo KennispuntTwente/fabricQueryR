@@ -32,3 +32,13 @@ output "sql_database_id" {
   description = "ID of the SQL Database exercised by SQL integration tests."
   value       = fabric_sql_database.test.id
 }
+
+output "eventhouse_id" {
+  description = "ID of the Eventhouse exercised by KQL integration tests."
+  value       = fabric_eventhouse.test.id
+}
+
+output "kql_database_id" {
+  description = "ID of the KQL database exercised by KQL integration tests."
+  value       = fabric_kql_database.test.id
+}

@@ -60,6 +60,29 @@ def _wait_for_sql_properties(
     )
 
 
+def _wait_for_kql_properties(
+    api: FabricApi,
+    workspace_id: str,
+    item_id: str,
+    *,
+    item_type: str,
+    timeout: int = 900,
+) -> dict[str, Any]:
+    getters = {
+        "Eventhouse": api.get_eventhouse,
+        "KQLDatabase": api.get_kql_database,
+    }
+    getter = getters[item_type]
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        item = getter(workspace_id, item_id)
+        properties = item.get("properties", {})
+        if properties.get("queryServiceUri"):
+            return item
+        api.sleep(10)
+    raise TimeoutError(f"{item_type} Kusto query service URI was not ready in time")
+
+
 def discover(settings: SandboxSettings) -> SandboxManifest:
     workspace_id = settings.require_workspace()
     with FabricApi(get_credential()) as api:
@@ -70,6 +93,12 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         )
         sql_database_item = api.find_item(
             workspace_id, "TestSQLDatabase", "SQLDatabase"
+        )
+        eventhouse_item = api.find_item(
+            workspace_id, "TestEventhouse", "Eventhouse"
+        )
+        kql_database_item = api.find_item(
+            workspace_id, "TestKQLDatabase", "KQLDatabase"
         )
         lakehouse = _wait_for_lakehouse_sql_endpoint(
             api, workspace_id, lakehouse_item["id"]
@@ -86,6 +115,18 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             sql_database_item["id"],
             item_type="SQLDatabase",
         )
+        eventhouse = _wait_for_kql_properties(
+            api,
+            workspace_id,
+            eventhouse_item["id"],
+            item_type="Eventhouse",
+        )
+        kql_database = _wait_for_kql_properties(
+            api,
+            workspace_id,
+            kql_database_item["id"],
+            item_type="KQLDatabase",
+        )
         sql_endpoint_id = lakehouse["properties"]["sqlEndpointProperties"]["id"]
         api.refresh_sql_endpoint_metadata(workspace_id, sql_endpoint_id)
 
@@ -93,6 +134,8 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     sql_endpoint = properties["sqlEndpointProperties"]
     warehouse_properties = warehouse["properties"]
     sql_database_properties = sql_database["properties"]
+    eventhouse_properties = eventhouse["properties"]
+    kql_database_properties = kql_database["properties"]
     with PowerBiApi(get_credential()) as power_bi:
         semantic_model = power_bi.find_dataset(
             workspace_id,
@@ -139,6 +182,31 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "connection_string": sql_database_properties["connectionString"],
                 "server_fqdn": sql_database_properties["serverFqdn"],
                 "database_name": sql_database_properties["databaseName"],
+            },
+            "TestEventhouse": {
+                "id": eventhouse_item["id"],
+                "type": "Eventhouse",
+                "display_name": eventhouse_item["displayName"],
+                "query_service_uri": eventhouse_properties["queryServiceUri"],
+                "ingestion_service_uri": eventhouse_properties.get(
+                    "ingestionServiceUri"
+                ),
+            },
+            "TestKQLDatabase": {
+                "id": kql_database_item["id"],
+                "type": "KQLDatabase",
+                "display_name": kql_database_item["displayName"],
+                "database_name": kql_database_item["displayName"],
+                "parent_eventhouse_id": kql_database_properties.get(
+                    "parentEventhouseItemId"
+                ),
+                "query_service_uri": kql_database_properties["queryServiceUri"],
+                "ingestion_service_uri": kql_database_properties.get(
+                    "ingestionServiceUri"
+                ),
+                "tables": {
+                    "events": "fabricqueryr_events",
+                },
             },
             "TestSemanticModel": {
                 "id": semantic_model["id"],

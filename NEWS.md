@@ -1,5 +1,14 @@
 # fabricQueryR (development version)
 
+* `fabric_kql_query()` adds first-class, read-only Eventhouse/KQL querying
+  through the Kusto v2 REST endpoint. It accepts direct query-service
+  coordinates or discovered KQL database items, binds query parameters through
+  Kusto request properties, validates HTTP-200 partial failures, supports
+  multiple/progressive result tables, and maps Kusto schema types to stable R
+  columns. The integration sandbox now provisions and seeds an Eventhouse and
+  KQL database for live discovery, typing, parameterization, multi-table, and
+  service-error coverage.
+
 * `fabric_onelake_read_delta_table()` now preserves the full staged table layout
   and resolves snapshots from both JSON commits and Parquet checkpoints. It
   rejects unsupported Delta reader protocols, column mapping, and deletion

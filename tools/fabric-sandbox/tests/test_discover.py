@@ -1,4 +1,5 @@
 from fabricqueryr_sandbox.discover import (
+    _wait_for_kql_properties,
     _wait_for_sql_properties,
     discover,
 )
@@ -61,6 +62,28 @@ class FakeFabricApi:
             },
         }
 
+    def get_eventhouse(self, workspace_id, eventhouse_id):
+        return {
+            "id": eventhouse_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "queryServiceUri": "https://eventhouse.kusto.test",
+                "ingestionServiceUri": "https://ingest-eventhouse.kusto.test",
+            },
+        }
+
+    def get_kql_database(self, workspace_id, database_id):
+        return {
+            "id": database_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "parentEventhouseItemId": "TestEventhouse-id",
+                "queryServiceUri": "https://eventhouse.kusto.test",
+                "ingestionServiceUri": "https://ingest-eventhouse.kusto.test",
+                "databaseType": "ReadWrite",
+            },
+        }
+
     def refresh_sql_endpoint_metadata(self, workspace_id, endpoint_id):
         self.refreshed.append((workspace_id, endpoint_id))
         return {"status": "Succeeded"}
@@ -80,7 +103,7 @@ class FakePowerBiApi:
         return {"id": "semantic-model-id", "name": name, "workspaceId": workspace_id}
 
 
-def test_discover_requires_and_serializes_all_sql_targets(monkeypatch, tmp_path):
+def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     settings = SandboxSettings(
         workspace_id="workspace-id",
         lakehouse_id="TestLakehouse-id",
@@ -112,6 +135,8 @@ def test_discover_requires_and_serializes_all_sql_targets(monkeypatch, tmp_path)
         "SeedFixtures",
         "TestWarehouse",
         "TestSQLDatabase",
+        "TestEventhouse",
+        "TestKQLDatabase",
         "TestSemanticModel",
     }
     assert manifest.items["TestWarehouse"] == {
@@ -133,6 +158,23 @@ def test_discover_requires_and_serializes_all_sql_targets(monkeypatch, tmp_path)
         "database_name": "TestSQLDatabase-internal",
     }
     assert fabric_api.refreshed == [("workspace-id", "endpoint-id")]
+    assert manifest.items["TestEventhouse"] == {
+        "id": "TestEventhouse-id",
+        "type": "Eventhouse",
+        "display_name": "TestEventhouse",
+        "query_service_uri": "https://eventhouse.kusto.test",
+        "ingestion_service_uri": "https://ingest-eventhouse.kusto.test",
+    }
+    assert manifest.items["TestKQLDatabase"] == {
+        "id": "TestKQLDatabase-id",
+        "type": "KQLDatabase",
+        "display_name": "TestKQLDatabase",
+        "database_name": "TestKQLDatabase",
+        "parent_eventhouse_id": "TestEventhouse-id",
+        "query_service_uri": "https://eventhouse.kusto.test",
+        "ingestion_service_uri": "https://ingest-eventhouse.kusto.test",
+        "tables": {"events": "fabricqueryr_events"},
+    }
     assert settings.manifest_path.is_file()
 
 
@@ -161,5 +203,38 @@ def test_sql_property_readiness_retries_until_complete():
     )
 
     assert result["properties"]["connectionString"] == "warehouse.sql.test"
+    assert calls == 2
+    assert api.sleeps == [10]
+
+
+def test_kql_property_readiness_retries_until_query_uri_exists():
+    api = FakeFabricApi()
+    calls = 0
+
+    def get_kql_database(workspace_id, database_id):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {"properties": {}}
+        return {
+            "id": database_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "queryServiceUri": "https://eventhouse.kusto.test",
+            },
+        }
+
+    api.get_kql_database = get_kql_database
+
+    result = _wait_for_kql_properties(
+        api,
+        "workspace-id",
+        "database-id",
+        item_type="KQLDatabase",
+    )
+
+    assert result["properties"]["queryServiceUri"] == (
+        "https://eventhouse.kusto.test"
+    )
     assert calls == 2
     assert api.sleeps == [10]

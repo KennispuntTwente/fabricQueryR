@@ -96,6 +96,22 @@ class FabricApi:
             f"/workspaces/{workspace_id}/sqlDatabases/{sql_database_id}",
         ).json()
 
+    def get_eventhouse(
+        self, workspace_id: str, eventhouse_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            f"/workspaces/{workspace_id}/eventhouses/{eventhouse_id}",
+        ).json()
+
+    def get_kql_database(
+        self, workspace_id: str, kql_database_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            f"/workspaces/{workspace_id}/kqlDatabases/{kql_database_id}",
+        ).json()
+
     def refresh_sql_endpoint_metadata(
         self,
         workspace_id: str,

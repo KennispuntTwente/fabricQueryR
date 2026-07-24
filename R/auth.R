@@ -3,7 +3,7 @@
   power_bi = "https://analysis.windows.net/powerbi/api/.default",
   sql = "https://database.windows.net/.default",
   storage = "https://storage.azure.com/.default",
-  kusto = "https://kusto.kusto.windows.net/.default"
+  kusto = "https://api.kusto.windows.net/.default"
 )
 
 #' Create an internal audience-aware credential

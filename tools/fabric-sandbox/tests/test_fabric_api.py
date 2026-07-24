@@ -53,7 +53,7 @@ def test_find_item_rejects_ambiguous_names():
             raise AssertionError("ambiguous item lookup should fail")
 
 
-def test_get_sql_workload_items_uses_typed_routes():
+def test_get_workload_items_uses_typed_routes():
     paths = []
 
     def handler(request):
@@ -63,12 +63,18 @@ def test_get_sql_workload_items_uses_typed_routes():
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
         warehouse = api.get_warehouse("workspace-id", "warehouse-id")
         sql_database = api.get_sql_database("workspace-id", "database-id")
+        eventhouse = api.get_eventhouse("workspace-id", "eventhouse-id")
+        kql_database = api.get_kql_database("workspace-id", "kql-database-id")
 
     assert warehouse["id"] == "warehouse-id"
     assert sql_database["id"] == "database-id"
+    assert eventhouse["id"] == "eventhouse-id"
+    assert kql_database["id"] == "kql-database-id"
     assert paths == [
         "/v1/workspaces/workspace-id/warehouses/warehouse-id",
         "/v1/workspaces/workspace-id/sqlDatabases/database-id",
+        "/v1/workspaces/workspace-id/eventhouses/eventhouse-id",
+        "/v1/workspaces/workspace-id/kqlDatabases/kql-database-id",
     ]
 
 

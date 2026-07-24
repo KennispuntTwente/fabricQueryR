@@ -59,6 +59,39 @@ resource "fabric_sql_database" "test" {
   }
 }
 
+resource "fabric_eventhouse" "test" {
+  display_name = "TestEventhouse"
+  description  = "Ephemeral integration-test Eventhouse for fabricQueryR"
+  workspace_id = fabric_workspace.sandbox.id
+
+  configuration = {
+    minimum_consumption_units = 0
+  }
+
+  timeouts = {
+    create = "20m"
+    update = "15m"
+    delete = "20m"
+  }
+}
+
+resource "fabric_kql_database" "test" {
+  display_name = "TestKQLDatabase"
+  description  = "Ephemeral integration-test KQL database for fabricQueryR"
+  workspace_id = fabric_workspace.sandbox.id
+
+  configuration = {
+    database_type = "ReadWrite"
+    eventhouse_id = fabric_eventhouse.test.id
+  }
+
+  timeouts = {
+    create = "20m"
+    update = "15m"
+    delete = "20m"
+  }
+}
+
 resource "fabric_workspace_role_assignment" "test_principal" {
   count = var.test_principal_id == null ? 0 : 1
 

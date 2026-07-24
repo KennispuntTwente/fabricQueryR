@@ -52,7 +52,7 @@ jobs:
       - name: Validate Terraform
         run: terraform -chdir="$TF_DIR" validate
 
-      - name: Create workspace and SQL test targets
+      - name: Create workspace and test targets
         run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
 
       - name: Export Terraform outputs
@@ -61,6 +61,8 @@ jobs:
           echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -92,15 +94,18 @@ jobs:
           sql_token="$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)"
           api_token="$(az account get-access-token --resource https://api.fabric.microsoft.com/ --query accessToken -o tsv)"
           pbi_token="$(az account get-access-token --resource https://analysis.windows.net/powerbi/api --query accessToken -o tsv)"
+          kusto_token="$(az account get-access-token --resource https://api.kusto.windows.net --query accessToken -o tsv)"
           echo "::add-mask::$storage_token"
           echo "::add-mask::$sql_token"
           echo "::add-mask::$api_token"
           echo "::add-mask::$pbi_token"
+          echo "::add-mask::$kusto_token"
           {
             echo "FABRIC_TEST_STORAGE_TOKEN=$storage_token"
             echo "FABRIC_TEST_SQL_TOKEN=$sql_token"
             echo "FABRIC_TEST_API_TOKEN=$api_token"
             echo "FABRIC_TEST_PBI_TOKEN=$pbi_token"
+            echo "FABRIC_TEST_KUSTO_TOKEN=$kusto_token"
           } >> "$GITHUB_ENV"
 
       - name: Install Microsoft ODBC driver

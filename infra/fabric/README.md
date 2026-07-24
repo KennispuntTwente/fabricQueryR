@@ -2,9 +2,10 @@
 
 This directory contains the real-service test environment for `fabricQueryR`.
 Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse, SQL
-Database, and access assignments. `fabric-cicd` publishes the source-controlled
-seed notebook. The Python package uploads fixture files, runs the notebook, and
-writes the manifest consumed by R.
+Database, Eventhouse, KQL database, and access assignments. `fabric-cicd`
+publishes the source-controlled seed notebook. The Python package uploads fixture
+files, runs the notebook, seeds the KQL database, and writes the manifest
+consumed by R.
 
 An existing paid Fabric capacity is required. Trial-capacity lifecycle is not
 supported by the Microsoft Fabric Terraform provider.
@@ -16,6 +17,7 @@ supported by the Microsoft Fabric Terraform provider.
 - Azure CLI authenticated to the target tenant
 - A Fabric capacity ID
 - A capacity/region that supports Warehouse and SQL Database items
+- A capacity/region that supports Eventhouse and KQL Database items
 - Tenant settings that permit the executing identity to use Fabric APIs and create
   workspaces
 - Power BI tenant settings that permit service principals to use Power BI APIs
@@ -39,6 +41,8 @@ export FABRIC_WORKSPACE_NAME="$(terraform -chdir=infra/fabric/terraform output -
 export FABRIC_LAKEHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw lakehouse_id)"
 export FABRIC_WAREHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_id)"
 export FABRIC_SQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw sql_database_id)"
+export FABRIC_EVENTHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw eventhouse_id)"
+export FABRIC_KQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw kql_database_id)"
 
 uv --directory tools/fabric-sandbox sync --locked
 uv --directory tools/fabric-sandbox run pytest
@@ -86,12 +90,13 @@ high-frequency CI runs.
 
 ## Current fixture scope
 
-The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`, and
-`SeedFixtures`, then creates a small ephemeral Power BI semantic model through
-the supported push-dataset API. It creates basic and partitioned Delta tables,
-including a checkpoint-generating append and a subsequent partition replacement,
-and exposes OneLake, all three SQL surfaces, Livy, and DAX test coordinates
-through the generated manifest. Required SQL fixtures are not capability-gated:
-provisioning, discovery, or connectivity failures fail the integration job.
-Eventhouse/KQL and GraphQL fixtures remain deferred until package query functions
-for those services are added.
+The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
+`TestEventhouse`, `TestKQLDatabase`, and `SeedFixtures`, then creates a small
+ephemeral Power BI semantic model through the supported push-dataset API. It
+creates basic and partitioned Delta tables, including a checkpoint-generating
+append and a subsequent partition replacement, plus a deterministic typed Kusto
+table. The generated manifest exposes OneLake, all three SQL surfaces, Livy,
+DAX, Eventhouse, and KQL test coordinates. Required SQL and KQL fixtures are not
+capability-gated: provisioning, discovery, seeding, or connectivity failures fail
+the integration job. GraphQL remains deferred until its package query function is
+added.

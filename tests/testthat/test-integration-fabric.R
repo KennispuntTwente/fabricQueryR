@@ -15,6 +15,8 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_true(manifest$items$SeedFixtures$id %in% items$id)
   expect_true(manifest$items$TestWarehouse$id %in% items$id)
   expect_true(manifest$items$TestSQLDatabase$id %in% items$id)
+  expect_true(manifest$items$TestEventhouse$id %in% items$id)
+  expect_true(manifest$items$TestKQLDatabase$id %in% items$id)
 
   lakehouses <- fabric_lakehouses(workspace, access_token = token)
   lakehouse <- lakehouses[
@@ -72,6 +74,155 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_equal(model$id, manifest$items$TestSemanticModel$id)
   expect_equal(model$workspaceId, manifest$workspace_id)
   expect_match(model$dax_connection_string, "powerbi://", fixed = TRUE)
+
+  eventhouses <- fabric_eventhouses(workspace, access_token = token)
+  eventhouse <- eventhouses[
+    eventhouses$id == manifest$items$TestEventhouse$id,
+  ]
+  expect_equal(nrow(eventhouse), 1L)
+  expect_equal(
+    eventhouse$query_service_uri,
+    manifest$items$TestEventhouse$query_service_uri
+  )
+
+  kql_databases <- fabric_kql_databases(workspace, access_token = token)
+  kql_database <- kql_databases[
+    kql_databases$id == manifest$items$TestKQLDatabase$id,
+  ]
+  expect_equal(nrow(kql_database), 1L)
+  expect_equal(
+    kql_database$query_service_uri,
+    manifest$items$TestKQLDatabase$query_service_uri
+  )
+})
+
+test_that("fabric_kql_query returns typed seeded Eventhouse data", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  result <- fabric_kql_query(
+    database$query_service_uri,
+    query = paste(
+      database$tables$events,
+      "| order by id asc"
+    ),
+    database = database$database_name,
+    token_provider = function(audience, force_refresh = FALSE) {
+      expect_equal(audience, "https://api.kusto.windows.net/.default")
+      fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
+    }
+  )
+
+  expect_s3_class(result, "tbl_df")
+  expect_named(
+    result,
+    c(
+      "id", "name", "category", "amount", "observed_at",
+      "active", "correlation_id", "metadata"
+    )
+  )
+  expect_equal(result$id, c(1L, 2L, 3L))
+  expect_equal(result$name, c("alpha", "beta", "gamma"))
+  expect_equal(result$category, c("A", "B", "A"))
+  expect_equal(result$amount, c(10.5, 20, NA))
+  expect_s3_class(result$observed_at, "POSIXct")
+  expect_equal(
+    as.Date(result$observed_at),
+    as.Date(c("2026-01-01", "2026-01-02", "2026-01-03"))
+  )
+  expect_equal(result$active, c(TRUE, FALSE, TRUE))
+  expect_equal(
+    result$correlation_id,
+    c(
+      "11111111-1111-1111-1111-111111111111",
+      "22222222-2222-2222-2222-222222222222",
+      "33333333-3333-3333-3333-333333333333"
+    )
+  )
+  expect_equal(result$metadata[[1L]]$source, "sandbox")
+  expect_equal(result$metadata[[1L]]$rank, 1L)
+})
+
+test_that("fabric_kql_query discovers targets and binds safe parameters", {
+  manifest <- fabric_test_manifest()
+  provisioned <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  kusto_token <- fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
+  target <- fabric_item(
+    manifest$workspace_id,
+    provisioned$id,
+    type = "KQLDatabase",
+    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
+
+  selected <- fabric_kql_query(
+    target,
+    query = paste(
+      "declare query_parameters(selected_category:string);",
+      provisioned$tables$events,
+      "| where category == selected_category",
+      "| order by id asc"
+    ),
+    parameters = list(selected_category = "A"),
+    access_token = kusto_token
+  )
+  expect_equal(selected$id, c(1L, 3L))
+
+  hostile <- fabric_kql_query(
+    target,
+    query = paste(
+      "declare query_parameters(selected_name:string);",
+      provisioned$tables$events,
+      "| where name == selected_name"
+    ),
+    parameters = list(
+      selected_name = "alpha'; drop table fabricqueryr_events; --"
+    ),
+    access_token = kusto_token
+  )
+  expect_s3_class(hostile, "tbl_df")
+  expect_equal(nrow(hostile), 0L)
+
+  still_present <- fabric_kql_query(
+    target,
+    query = paste(provisioned$tables$events, "| count"),
+    access_token = kusto_token
+  )
+  expect_equal(as.numeric(still_present$Count), 3)
+})
+
+test_that("fabric_kql_query returns multiple live primary tables", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  table <- database$tables$events
+  result <- fabric_kql_query(
+    database$query_service_uri,
+    query = paste0(
+      table,
+      " | summarize row_count=count(); ",
+      table,
+      " | summarize amount_sum=sum(amount)"
+    ),
+    database = database$database_name,
+    access_token = fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
+  )
+
+  expect_s3_class(result, "fabric_kql_tables")
+  expect_length(result, 2L)
+  expect_equal(as.numeric(result[[1L]]$row_count), 3)
+  expect_equal(result[[2L]]$amount_sum, 30.5)
+})
+
+test_that("fabric_kql_query surfaces live Kusto service errors", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  expect_error(
+    fabric_kql_query(
+      database$query_service_uri,
+      query = "fabricqueryr_table_that_does_not_exist | take 1",
+      database = database$database_name,
+      access_token = fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
+    ),
+    "(?i)(failed|HTTP 4)"
+  )
 })
 
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
