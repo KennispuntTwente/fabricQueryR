@@ -136,11 +136,11 @@ needs an appropriate workspace role.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric.</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric</span></span></span>
 <span class="r-in"><span><span class="co"># This function is not called automatically because it requires credentials and</span></span></span>
-<span class="r-in"><span><span class="co"># a real Lakehouse Livy endpoint.</span></span></span>
+<span class="r-in"><span><span class="co"># a real Lakehouse Livy endpoint</span></span></span>
 <span class="r-in"><span><span class="va">fabric_livy_query_example</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="co"># Find the URL under Lakehouse &gt; Settings &gt; Livy Endpoint.</span></span></span>
+<span class="r-in"><span>  <span class="co"># Find the URL under Lakehouse &gt; Settings &gt; Livy Endpoint</span></span></span>
 <span class="r-in"><span>  <span class="va">session_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>    <span class="st">"https://api.fabric.microsoft.com/v1/workspaces/.../"</span>,</span></span>
 <span class="r-in"><span>    <span class="st">"lakehouses/.../livyapi/..."</span></span></span>
