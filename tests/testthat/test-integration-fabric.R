@@ -1,3 +1,45 @@
+test_that("Fabric discovery resolves sandbox workspaces and item targets", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+
+  workspaces <- fabric_workspaces(access_token = token)
+  workspace <- workspaces[workspaces$id == manifest$workspace_id, ]
+  expect_equal(nrow(workspace), 1L)
+  expect_equal(workspace$displayName, manifest$workspace_name)
+
+  items <- fabric_items(
+    workspace,
+    access_token = token
+  )
+  expect_true(manifest$items$TestLakehouse$id %in% items$id)
+  expect_true(manifest$items$SeedFixtures$id %in% items$id)
+
+  lakehouses <- fabric_lakehouses(workspace, access_token = token)
+  lakehouse <- lakehouses[
+    lakehouses$id == manifest$items$TestLakehouse$id,
+  ]
+  expect_equal(nrow(lakehouse), 1L)
+  expect_equal(
+    lakehouse$sql_server,
+    manifest$items$TestLakehouse$sql_endpoint
+  )
+  expect_equal(
+    lakehouse$one_lake_tables_path,
+    manifest$items$TestLakehouse$one_lake_tables_path
+  )
+  expect_equal(lakehouse$livy_url, manifest$items$TestLakehouse$livy_url)
+
+  model <- fabric_item(
+    workspace,
+    manifest$items$TestSemanticModel$id,
+    type = "SemanticModel",
+    access_token = token
+  )
+  expect_equal(model$id, manifest$items$TestSemanticModel$id)
+  expect_equal(model$workspaceId, manifest$workspace_id)
+  expect_match(model$dax_connection_string, "powerbi://", fixed = TRUE)
+})
+
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   skip_if_not_installed("AzureStor")
   skip_if_not_installed("duckdb")
@@ -99,10 +141,15 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
   skip_if_not_installed("odbc")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
+  target <- fabric_item(
+    manifest$workspace_id,
+    lakehouse$id,
+    type = "Lakehouse",
+    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
 
   con <- fabric_sql_connect(
-    server = paste0("Server=tcp:", lakehouse$sql_endpoint),
-    database = lakehouse$display_name,
+    server = target,
     tenant_id = "",
     client_id = "",
     token_provider = function(audience, force_refresh = FALSE) {
@@ -188,6 +235,72 @@ test_that("fabric_sql_query returns a tibble with aggregate results", {
   expect_s3_class(empty, "tbl_df")
   expect_equal(nrow(empty), 0L)
   expect_named(empty, c("id", "name"))
+
+  metacharacters <- "Robert'); DROP TABLE dbo.fabricqueryr_basic;--"
+  bound <- fabric_sql_query(
+    server = paste0(
+      "Server=tcp:",
+      lakehouse$sql_endpoint,
+      ";Initial Catalog=",
+      lakehouse$display_name,
+      ";MultipleActiveResultSets=False"
+    ),
+    sql = paste(
+      "SELECT CAST(? AS nvarchar(200)) AS text_value,",
+      "CAST(? AS date) AS date_value,",
+      "CAST(? AS nvarchar(20)) AS null_value"
+    ),
+    params = list(
+      metacharacters,
+      as.Date("2026-07-24"),
+      NA_character_
+    ),
+    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    verbose = FALSE
+  )
+  expect_equal(bound$text_value, metacharacters)
+  expect_equal(as.Date(bound$date_value), as.Date("2026-07-24"))
+  expect_true(is.na(bound$null_value))
+  still_present <- fabric_sql_query(
+    server = lakehouse$sql_endpoint,
+    database = lakehouse$display_name,
+    sql = "SELECT COUNT(*) AS row_count FROM dbo.fabricqueryr_basic",
+    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    verbose = FALSE
+  )
+  expect_equal(as.numeric(still_present$row_count), 3)
+})
+
+fabric_test_sql_item <- function(name) {
+  skip_if_not_installed("DBI")
+  skip_if_not_installed("odbc")
+  manifest <- fabric_test_manifest()
+  api_token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  sql_token <- fabric_test_token("FABRIC_TEST_SQL_TOKEN")
+
+  provisioned <- fabric_test_optional_item(manifest, name)
+  target <- fabric_item(
+    manifest$workspace_id,
+    provisioned$id,
+    type = provisioned$type,
+    access_token = api_token
+  )
+  result <- fabric_sql_query(
+    target,
+    "SELECT CAST(? AS int) AS bound_value",
+    params = list(42L),
+    access_token = sql_token,
+    verbose = FALSE
+  )
+  expect_equal(result$bound_value, 42L, info = name)
+}
+
+test_that("optional Warehouse target is connectable", {
+  fabric_test_sql_item("TestWarehouse")
+})
+
+test_that("optional SQL Database target is connectable", {
+  fabric_test_sql_item("TestSQLDatabase")
 })
 
 test_that("fabric_livy_query executes Spark and returns its output", {
@@ -307,9 +420,14 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   expect_s3_class(empty, "tbl_df")
   expect_equal(nrow(empty), 0L)
 
+  discovered_model <- fabric_item(
+    manifest$workspace_id,
+    semantic_model$id,
+    type = "SemanticModel",
+    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
   by_id <- fabric_pbi_dax_query(
-    workspace_id = manifest$workspace_id,
-    dataset_id = semantic_model$id,
+    connstr = discovered_model,
     dax = 'EVALUATE ROW("row_count", COUNTROWS(\'Facts\'))',
     access_token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
   )

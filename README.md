@@ -1,41 +1,40 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+
 
 # fabricQueryR
 
 <!-- badges: start -->
-
 [![R-CMD-check](https://github.com/kennispunttwente/fabricQueryR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/kennispunttwente/fabricQueryR/actions/workflows/R-CMD-check.yaml)
-[![CRAN
-status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-project.org/package=fabricQueryR)
+[![CRAN status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-project.org/package=fabricQueryR)
 <!-- badges: end -->
 
-‘fabricQueryR’ is an R package which helps you to query data from
-Microsoft Fabric in R. It comes with four methods which help you to get
-your Microsoft Fabric data into R:
+'fabricQueryR' is an R package which helps you discover and query data from Microsoft Fabric in R.
+It comes with discovery helpers and four methods which help you to get your Microsoft Fabric data into R:
 
-1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
-    `Data Warehouse` item): `fabric_sql_connect()`. This results in a
-    ‘DBI’ connection object which you can execute SQL queries with,
-    and/or use with ‘DBI’-compatible packages like ‘dbplyr’.
+1. Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or `Data Warehouse` item): `fabric_sql_connect()`.
+This results in a 'DBI' connection object which you can execute SQL queries with, and/or
+use with 'DBI'-compatible packages like 'dbplyr'.
 
-2.  Execute a DAX query against a Fabric/Power Bi `Semantic Model` item:
-    `fabric_pbi_dax_query()`. With this, you can run DAX queries against
-    a Fabric/Power Bi dataset and get the results as a ‘tibble’
-    dataframe.
+2. Execute a DAX query against a Fabric/Power Bi `Semantic Model` item: `fabric_pbi_dax_query()`.
+With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a 'tibble' dataframe.
 
-3.  Read a Delta table from a Fabric `Lakehouse` item:
-    `fabric_onelake_read_delta_table()`. This function downloads the
-    underlying Parquet files from the Delta table stored in OneLake
-    (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.
+3. Read a Delta table from a Fabric `Lakehouse` item: `fabric_onelake_read_delta_table()`.
+This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS
+Gen2) and returns the data as a 'tibble' dataframe.
 
-4.  Execute a Livy API query: `fabric_livy_query()`. With this, you can
-    remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft
-    Fabric and get a list with the results in your local R session.
+4. Execute a Livy API query: `fabric_livy_query()`.
+With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric
+and get a list with the results in your local R session.
 
 ## Installation
 
-You can install the development version of ‘fabricQueryR’ like so:
+You can install the development version of 'fabricQueryR' like so:
+
 
 ``` r
 if (!requireNamespace("remotes", quietly = TRUE)) {
@@ -47,18 +46,18 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 
 Or, install the latest release from CRAN:
 
+
 ``` r
 install.packages("fabricQueryR")
 ```
 
 ## Usage
 
-See the
-[reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
+See the [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
 
-Below is a code snippet showing how to use the four methods to get data
-from Fabric into R:
+Below is a code snippet showing how to discover targets and use the four methods to get data from Fabric into R:
+
 
 ``` r
 
@@ -73,17 +72,28 @@ library(fabricQueryR)
 # Sys.setenv(FABRICQUERYR_TENANT_ID = "...")
 # Sys.setenv(FABRICQUERYR_CLIENT_ID = "...")
 
-# SQL connection to Data Warehouse or Lakehouse --------------------------------
+# Discover workspaces and items ------------------------------------------------
 
-# Find your SQL connection string in Fabric by going to a Lakehouse or Data
-#   Warehouse item, then go to 'Settings' -> 'SQL analytics endpoint'
-# Ensure that the account/principal you authenticate with has access to
-#   the workspace 
+workspaces <- fabric_workspaces()
+workspace <- workspaces[workspaces$displayName == "ExampleWorkspace", ]
+
+# Typed helpers retrieve workload-specific properties and ready-to-use targets.
+lakehouse <- fabric_lakehouses(workspace)[1, ]
+semantic_model <- fabric_semantic_models(workspace)[1, ]
+
+# Other helpers include fabric_warehouses(), fabric_sql_databases(),
+# fabric_eventhouses(), fabric_kql_databases(), fabric_notebooks(), and
+# fabric_graphql_apis().
+
+
+# SQL connection to Warehouse, Lakehouse, or SQL Database ----------------------
+
+# A discovered item supplies both the server and required database/catalog.
+# You can alternatively provide a complete portal connection string, or a bare
+# endpoint together with database = "...".
 
 # Get connection
-con <- fabric_sql_connect(
-  server = "2gxz...4qiy.datawarehouse.fabric.microsoft.com"
-)
+con <- fabric_sql_connect(lakehouse)
 
 # List databases
 DBI::dbGetQuery(con, "SELECT name FROM sys.databases")
@@ -99,7 +109,11 @@ DBI::dbGetQuery(
 )
 
 # Read 'Customers' table
-df_sql <- DBI::dbReadTable(con, "Customers")
+df_sql <- fabric_sql_query(
+  lakehouse,
+  "SELECT * FROM dbo.Customers WHERE region = ?",
+  params = list("West")
+)
 
 # Close connection
 DBI::dbDisconnect(con)
@@ -112,53 +126,44 @@ DBI::dbDisconnect(con)
 
 df_onelake <- fabric_onelake_read_delta_table(
   table_path = "Customers",
-  workspace_name = "ExampleWorkspace",
-  lakehouse_name = "Lakehouse.Lakehouse",
+  workspace_name = workspace,
+  lakehouse_name = lakehouse
 )
 
 
 # DAX query against Semantic Model ---------------------------------------------
 
-# Find your connection string in Fabric by going to a 'Semantic Model' item,
-#   then go to 'File' -> 'Settings' -> 'Server settings'
 # Ensure that the account you use to authenticate has access to the workspace,
 #   or that you have been granted 'Build' permissions on the dataset (via share)
 
 df_dax <- fabric_pbi_dax_query(
-  connstr = paste0(
-    "Data Source=powerbi://api.powerbi.com/v1.0/myorg/",
-    "ExampleWorkspace;Initial Catalog=test data 1;"
-  ),
+  connstr = semantic_model,
   dax = "EVALUATE TOPN(100000, 'Sheet1')"
 )
 
 
 # Livy API query to execute Spark code -----------------------------------------
 
-# Find your connection string in Fabric by going to a 'Lakehouse' item,
-#   then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'
 # Ensure that the account you use to authenticate has access to the workspace
 
 # Run a Livy SparkR query
 livy_sparkr_result <- fabric_livy_query(
-  livy_url = "https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."
+  livy_url = lakehouse,
   kind = "sparkr",
   code = "print(1+2)"
 )
 
 # (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)
+
 ```
 
 ## Background
 
-Microsoft Fabric is a new data platform from Microsoft which combines
-various data services, including data warehousing, data lakes, and
-business intelligence. It is built on top of Azure Data Services and
-integrates with Power BI for analytics and reporting. Microsoft is
-actively promoting Fabric as the next-generation data platform for
-organizations using Microsoft Azure and Power BI.
+Microsoft Fabric is a new data platform from Microsoft which combines various data services,
+including data warehousing, data lakes, and business intelligence.
+It is built on top of Azure Data Services and integrates with Power BI for analytics and reporting.
+Microsoft is actively promoting Fabric as the next-generation data platform for organizations using Microsoft Azure and Power BI.
 
-As our organization started working with Microsoft Fabric, I found that
-that loading data into R from Fabric was not yet straightforward, and
-took some effort to get working. To help others in the same situation, I
-decided to share the functions I created to make this easier.
+As our organization started working with Microsoft Fabric, I found that that loading data into R from Fabric was not
+yet straightforward, and took some effort to get working. To help others in the same situation,
+I decided to share the functions I created to make this easier.

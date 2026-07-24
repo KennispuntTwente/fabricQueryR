@@ -6,7 +6,7 @@
 \alias{fabricQueryR-package}
 \title{fabricQueryR: Query Data in 'Microsoft Fabric'}
 \description{
-Query data hosted in 'Microsoft Fabric'. Provides helpers to open 'DBI' connections to 'SQL' endpoints of 'Lakehouse' and 'Data Warehouse' items; submit 'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft Fabric' and 'Power BI'; read 'Delta Lake' tables stored in 'OneLake' ('Azure Data Lake Storage Gen2'); and execute 'Spark' code via the 'Livy API'.
+Discover workspaces, items, and workload endpoints in 'Microsoft Fabric'. Provides helpers to open parameterized 'DBI' connections to 'SQL' endpoints of 'Lakehouse', 'Data Warehouse', and 'SQL Database' items; submit 'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft Fabric' and 'Power BI'; read 'Delta Lake' tables stored in 'OneLake' ('Azure Data Lake Storage Gen2'); and execute 'Spark' code via the 'Livy API'.
 }
 \seealso{
 Useful links:

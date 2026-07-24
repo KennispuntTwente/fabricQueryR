@@ -2,80 +2,87 @@
 % Please edit documentation in R/fabric_sql_connect.R
 \name{fabric_sql_query}
 \alias{fabric_sql_query}
-\title{Run a SQL query against a Microsoft Fabric SQL endpoint (opening & closing connection)}
+\title{Run a parameterized query against Microsoft Fabric SQL}
 \usage{
 fabric_sql_query(
   server,
   sql,
-  database = "Lakehouse",
+  params = NULL,
+  database = NULL,
+  target_type = c("auto", "lakehouse", "warehouse", "sql_database",
+    "sql_analytics_endpoint"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
   token_provider = NULL,
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
-  port = 1433L,
+  port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
   timeout = 30L,
+  read_only = FALSE,
   verbose = TRUE,
   ...
 )
 }
 \arguments{
-\item{server}{Character. Microsoft Fabric SQL connection string or \code{Server=...} string
-(see details).}
+\item{server}{A character endpoint/connection string, or one Lakehouse,
+Warehouse, or SQL Database record returned by a discovery function.}
 
-\item{sql}{Character scalar. The SQL to run.}
+\item{sql}{One SQL statement.}
 
-\item{database}{Character. Database name. Defaults to \code{"Lakehouse"}.}
+\item{params}{Optional list of values for DBI parameter placeholders (\verb{?}).
+Strings, dates, missing values, and values containing SQL metacharacters
+are passed unchanged to the driver.}
 
-\item{tenant_id}{Character. Entra ID (AAD) tenant GUID. Defaults to
-\code{Sys.getenv("FABRICQUERYR_TENANT_ID")}.}
+\item{database}{Optional catalog/database. An explicit value overrides a
+catalog found in \code{server}.}
 
-\item{client_id}{Character. App registration (client) ID. Defaults to
-\code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}, falling back to the Azure CLI app id
-\code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"} if unset.}
+\item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
+the endpoint hostname.}
 
-\item{access_token}{Optional character. If supplied, use this bearer token
-instead of acquiring a new one via \code{{AzureAuth}}.}
+\item{tenant_id}{Character. Entra tenant ID.}
 
-\item{token_provider}{Optional function returning a Fabric SQL bearer token.
-It may accept \code{audience} and \code{force_refresh} arguments. Supply only one of
-\code{access_token} and \code{token_provider}.}
+\item{client_id}{Character. Application/client ID.}
 
-\item{odbc_driver}{Character. ODBC driver name. Defaults to
-\code{getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server")}.}
+\item{access_token}{Optional pre-acquired SQL bearer token.}
 
-\item{port}{Integer. TCP port (default 1433).}
+\item{token_provider}{Optional refreshable SQL token callback.}
 
-\item{encrypt, trust_server_certificate}{Character flags passed to ODBC.
-Defaults \code{"yes"} and \code{"no"}, respectively.}
+\item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
+default.}
 
-\item{timeout}{Integer. Login/connect timeout in seconds. Default 30.}
+\item{port}{Optional TCP port. An explicit value overrides a port in
+\code{server}; otherwise port 1433 is used.}
 
-\item{verbose}{Logical. Emit progress via \code{{cli}}. Default \code{TRUE}.}
+\item{encrypt, trust_server_certificate}{ODBC encryption flags.}
+
+\item{timeout}{Login/connect timeout in seconds.}
+
+\item{read_only}{Logical. Set ODBC \code{ApplicationIntent=ReadOnly}.}
+
+\item{verbose}{Logical. Emit connection progress.}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.}
 }
 \value{
-A tibble with the query results (0 rows if none).
+A tibble containing the result.
 }
 \description{
-Convenience wrapper that opens a connection with
-\code{\link[=fabric_sql_connect]{fabric_sql_connect()}}, executes \code{sql}, and returns a tibble. The
-connection is closed on exit.
+Opens a connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}}, executes \code{sql}, and closes
+the connection. Values in \code{params} are bound by DBI; they are never
+interpolated into the SQL string.
 }
 \examples{
-# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
-df <- fabric_sql_query(
-  server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",
-  database  = "Lakehouse",
-  sql       = "SELECT TOP 100 * FROM sys.objects",
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
+result <- fabric_sql_query(
+  server = paste0(
+    "Server=example.datawarehouse.fabric.microsoft.com;",
+    "Database=SalesWarehouse;"
+  ),
+  sql = "SELECT * FROM dbo.Customers WHERE region = ?",
+  params = list("West")
 )
-dplyr::glimpse(df)
 }
 }

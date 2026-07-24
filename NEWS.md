@@ -28,6 +28,13 @@
   Fabric. Discovery records expose ready-to-use SQL, OneLake, DAX, Livy, and KQL
   targets and can be passed directly to the corresponding query helpers.
 
+* `fabric_sql_connect()` and `fabric_sql_query()` now support Fabric Warehouse,
+  Lakehouse SQL analytics endpoints, and Fabric SQL Database explicitly. They
+  parse complete portal connection strings, require or discover a catalog,
+  disable unsupported MARS behavior, expose read-only intent and connection
+  timeout, classify failures, and bind query parameters through DBI without SQL
+  interpolation. The former `"Lakehouse"` default catalog has been removed.
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

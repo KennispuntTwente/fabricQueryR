@@ -2,107 +2,91 @@
 % Please edit documentation in R/fabric_sql_connect.R
 \name{fabric_sql_connect}
 \alias{fabric_sql_connect}
-\title{Connect to a Microsoft Fabric SQL endpoint}
+\title{Connect to a Microsoft Fabric SQL target}
 \usage{
 fabric_sql_connect(
   server,
-  database = "Lakehouse",
+  database = NULL,
+  target_type = c("auto", "lakehouse", "warehouse", "sql_database",
+    "sql_analytics_endpoint"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
   token_provider = NULL,
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
-  port = 1433L,
+  port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
   timeout = 30L,
+  read_only = FALSE,
   verbose = TRUE,
   ...
 )
 }
 \arguments{
-\item{server}{Character. Microsoft Fabric SQL connection string or \code{Server=...} string
-(see details).}
+\item{server}{A character endpoint/connection string, or one Lakehouse,
+Warehouse, or SQL Database record returned by a discovery function.}
 
-\item{database}{Character. Database name. Defaults to \code{"Lakehouse"}.}
+\item{database}{Optional catalog/database. An explicit value overrides a
+catalog found in \code{server}.}
 
-\item{tenant_id}{Character. Entra ID (AAD) tenant GUID. Defaults to
-\code{Sys.getenv("FABRICQUERYR_TENANT_ID")}.}
+\item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
+the endpoint hostname.}
 
-\item{client_id}{Character. App registration (client) ID. Defaults to
-\code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}, falling back to the Azure CLI app id
-\code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"} if unset.}
+\item{tenant_id}{Character. Entra tenant ID.}
 
-\item{access_token}{Optional character. If supplied, use this bearer token
-instead of acquiring a new one via \code{{AzureAuth}}.}
+\item{client_id}{Character. Application/client ID.}
 
-\item{token_provider}{Optional function returning a Fabric SQL bearer token.
-It may accept \code{audience} and \code{force_refresh} arguments. Supply only one of
-\code{access_token} and \code{token_provider}.}
+\item{access_token}{Optional pre-acquired SQL bearer token.}
 
-\item{odbc_driver}{Character. ODBC driver name. Defaults to
-\code{getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server")}.}
+\item{token_provider}{Optional refreshable SQL token callback.}
 
-\item{port}{Integer. TCP port (default 1433).}
+\item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
+default.}
 
-\item{encrypt, trust_server_certificate}{Character flags passed to ODBC.
-Defaults \code{"yes"} and \code{"no"}, respectively.}
+\item{port}{Optional TCP port. An explicit value overrides a port in
+\code{server}; otherwise port 1433 is used.}
 
-\item{timeout}{Integer. Login/connect timeout in seconds. Default 30.}
+\item{encrypt, trust_server_certificate}{ODBC encryption flags.}
 
-\item{verbose}{Logical. Emit progress via \code{{cli}}. Default \code{TRUE}.}
+\item{timeout}{Login/connect timeout in seconds.}
+
+\item{read_only}{Logical. Set ODBC \code{ApplicationIntent=ReadOnly}.}
+
+\item{verbose}{Logical. Emit connection progress.}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.}
 }
 \value{
-A live \code{DBIConnection} object.
+A live \code{DBIConnection}.
 }
 \description{
-Opens a DBI/ODBC connection to a Microsoft Fabric \strong{Data Warehouse} or
-\strong{Lakehouse SQL endpoint}, authenticating with Azure AD (MSAL v2)
-and passing an access token to the ODBC driver.
+Opens a DBI/ODBC connection to a Fabric Warehouse, Lakehouse SQL analytics
+endpoint, or SQL Database using a Microsoft Entra access token.
 }
 \details{
-\itemize{
-\item \code{server} is the Microsoft Fabric SQL connection string, e.g.
-\code{"xxxx.datawarehouse.fabric.microsoft.com"}.
-You can find this by going to your \strong{Lakehouse} or \strong{Data Warehouse} item,
-then \strong{Settings} -> \strong{SQL analytics endpoint} -> \strong{SQL connection string}.
-You may also pass a DSN-less \code{Server=...} string; it will be normalized.
-\item By default we request a token for
-\verb{https://database.windows.net/.default}.
-The identity must have permission to connect to and query the target SQL
-analytics endpoint, Warehouse, or SQL database.
-\item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
-to clear cached tokens if you run into issues
-}
+Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
+newer. Multiple Active Result Sets (MARS) is disabled because Fabric
+Warehouse does not support it. A catalog is always required so a bare server
+must be paired with \code{database}; complete portal connection strings and
+enriched discovery records provide it automatically.
+
+The SQL audience is \verb{https://database.windows.net/.default}. The identity
+must have permission to connect to and query the target item.
 }
 \examples{
-# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
 con <- fabric_sql_connect(
-  server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",
-  database  = "Lakehouse",
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
+  server = paste0(
+    "Server=tcp:example.datawarehouse.fabric.microsoft.com,1433;",
+    "Initial Catalog=SalesWarehouse;"
+  )
 )
-
-# List databases
-DBI::dbGetQuery(con, "SELECT name FROM sys.databases")
-
-# List tables
-DBI::dbGetQuery(con, "
- SELECT TABLE_SCHEMA, TABLE_NAME
- FROM INFORMATION_SCHEMA.TABLES
- WHERE TABLE_TYPE = 'BASE TABLE'
-")
-
-# Get a table
-df <- DBI::dbReadTable(con, "Customers")
-dplyr::glimpse(df)
-
+DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.Customers")
 DBI::dbDisconnect(con)
+
+warehouse <- fabric_warehouses("Analytics")[1, ]
+con <- fabric_sql_connect(warehouse)
 }
 }

@@ -33,3 +33,12 @@ fabric_test_spark_table <- function(manifest, lakehouse) {
     collapse = "."
   )
 }
+
+fabric_test_optional_item <- function(manifest, name) {
+  item <- manifest$items[[name]]
+  testthat::skip_if(
+    is.null(item),
+    paste("Fabric integration manifest does not provision", name)
+  )
+  item
+}
