@@ -516,7 +516,7 @@ onelake_normalize_path <- function(path, allow_empty = FALSE) {
     stop("path must not be empty.", call. = FALSE)
   }
   pieces <- strsplit(path, "/", fixed = TRUE)[[1L]]
-  if (any(!nzchar(pieces) | pieces %in% c(".", ".."))) {
+  if (!all(nzchar(pieces)) || any(pieces %in% c(".", ".."))) {
     stop("path contains an empty or unsafe segment.", call. = FALSE)
   }
   if (any(grepl("[?#\r\n]", pieces))) {

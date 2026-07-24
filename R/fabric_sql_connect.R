@@ -399,11 +399,6 @@ fabric_parse_sql_connection_string <- function(server) {
   list(server = host, database = database, port = port, fields = fields)
 }
 
-# Kept for compatibility with callers that used the former internal helper.
-fabric_normalize_server <- function(server) {
-  fabric_parse_sql_connection_string(server)$server
-}
-
 fabric_infer_sql_target <- function(server) {
   if (
     grepl(

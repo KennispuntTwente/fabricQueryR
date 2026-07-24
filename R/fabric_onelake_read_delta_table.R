@@ -328,7 +328,7 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
   unsafe <- !nzchar(relative) |
     vapply(
       parts,
-      function(x) any(!nzchar(x) | x %in% c(".", "..")),
+      function(x) !all(nzchar(x)) || any(x %in% c(".", "..")),
       logical(1)
     )
   if (any(unsafe)) {
