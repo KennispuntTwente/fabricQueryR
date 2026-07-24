@@ -1,8 +1,9 @@
 # Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 
-Authenticates to OneLake (ADLS Gen2), stages the complete Delta table
-while preserving its directory structure, and resolves the requested
-snapshot from Delta JSON commits and Parquet checkpoints.
+Authenticates to OneLake through the package's shared ADLS Gen2
+transport, stages the complete Delta table while preserving its
+directory structure, and resolves the requested snapshot from Delta JSON
+commits and Parquet checkpoints.
 
 ## Usage
 

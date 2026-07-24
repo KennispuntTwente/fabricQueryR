@@ -4,10 +4,12 @@ Discover workspaces, items, and workload endpoints in 'Microsoft
 Fabric'. Provides helpers to open parameterized 'DBI' connections to
 'SQL' endpoints of 'Lakehouse', 'Data Warehouse', and 'SQL Database'
 items; submit 'Data Analysis Expressions' ('DAX') queries to semantic
-model datasets in 'Microsoft Fabric' and 'Power BI'; read 'Delta Lake'
-tables stored in 'OneLake' ('Azure Data Lake Storage Gen2'); execute
+model datasets in 'Microsoft Fabric' and 'Power BI'; list, inspect,
+download, upload, and delete files in 'OneLake' ('Azure Data Lake
+Storage Gen2'); read 'Delta Lake' tables stored in 'OneLake'; execute
 'Kusto Query Language' ('KQL') queries against 'Eventhouse' databases;
-and execute 'Spark' code via the 'Livy API'.
+call user-configured 'GraphQL' APIs over Fabric data; and execute
+'Spark' code via the 'Livy API'.
 
 ## See also
 

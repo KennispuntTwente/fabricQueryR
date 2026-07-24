@@ -381,6 +381,7 @@
 </div>
 <div class="section level2">
 <h2 id="priority-9-general-onelake-file-access">Priority 9: General OneLake file access<a class="anchor" aria-label="anchor" href="#priority-9-general-onelake-file-access"></a></h2>
+<p><strong>Status (July 2026): implemented.</strong> The package uses the ADLS Gen2-compatible OneLake DFS API with Storage-audience authentication. Fabric-managed item and first-level folders remain protected; mutable operations apply only beneath those roots, and deletion requires an explicit confirmation flag.</p>
 <div class="section level3">
 <h3 id="objective-4">Objective<a class="anchor" aria-label="anchor" href="#objective-4"></a></h3>
 <p>Expose OneLake as a general file system independently of the higher-level Delta reader.</p>

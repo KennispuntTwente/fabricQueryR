@@ -1,8 +1,8 @@
 # fabricQueryR
 
 ‘fabricQueryR’ is an R package which helps you discover and query data
-from Microsoft Fabric in R. It comes with discovery helpers and six
-methods which help you to get your Microsoft Fabric data into R:
+from Microsoft Fabric in R. It comes with discovery helpers and seven
+methods which help you to work with Microsoft Fabric data from R:
 
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
     `Data Warehouse` item):
@@ -22,18 +22,26 @@ methods which help you to get your Microsoft Fabric data into R:
     table stored in OneLake (ADLS Gen2) and returns the data as a
     ‘tibble’ dataframe.
 
-4.  Execute a Livy API query:
+4.  Work with general OneLake files using
+    [`fabric_onelake_list()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_metadata()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_download()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_upload()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    and the explicitly enabled
+    [`fabric_onelake_delete()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md).
+
+5.  Execute a Livy API query:
     [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md).
     With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark
     code in Microsoft Fabric and get a list with the results in your
     local R session.
 
-5.  Execute a KQL query against an `Eventhouse`/`KQL Database` item:
+6.  Execute a KQL query against an `Eventhouse`/`KQL Database` item:
     [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md).
     This returns typed Kusto query results as a tibble, or a named list
     of tibbles when KQL returns multiple primary result tables.
 
-6.  Execute a GraphQL document against an `API for GraphQL` item:
+7.  Execute a GraphQL document against an `API for GraphQL` item:
     [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md).
     This preserves GraphQL data, errors, and extensions independently,
     including valid responses containing partial data and errors.
@@ -64,8 +72,8 @@ See the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
 
-Below is a code snippet showing how to discover targets and use the six
-methods to get data from Fabric into R:
+Below is a code snippet showing how to discover targets and use the
+seven methods to work with Fabric data from R:
 
 ``` r
 
@@ -139,6 +147,21 @@ df_onelake <- fabric_onelake_read_delta_table(
   table_path = "Customers",
   workspace_name = workspace,
   lakehouse_name = lakehouse
+)
+
+# General OneLake files retain their complete paths and ETags. A direct
+# https:// or abfss:// OneLake path can be used instead of separate targets.
+fixture_files <- fabric_onelake_list(
+  workspace,
+  lakehouse,
+  path = "Files/fixtures",
+  recursive = TRUE
+)
+first_bytes <- fabric_onelake_download(
+  workspace,
+  lakehouse,
+  "Files/fixtures/basic.csv",
+  range = c(0, 99)
 )
 
 
@@ -266,6 +289,12 @@ decided to share the functions I created to make this easier.
   : Run Spark code in a temporary Microsoft Fabric Livy session
 - [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
   : Create a Microsoft Fabric Livy session
+- [`fabric_onelake_list()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_metadata()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_download()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_upload()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_delete()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  : Work with files in Microsoft Fabric OneLake
 - [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 - [`fabric_pbi_dax_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)

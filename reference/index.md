@@ -26,6 +26,12 @@
   : Run Spark code in a temporary Microsoft Fabric Livy session
 - [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
   : Create a Microsoft Fabric Livy session
+- [`fabric_onelake_list()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_metadata()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_download()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_upload()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  [`fabric_onelake_delete()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  : Work with files in Microsoft Fabric OneLake
 - [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 - [`fabric_pbi_dax_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
