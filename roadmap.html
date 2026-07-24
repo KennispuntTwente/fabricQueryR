@@ -402,13 +402,14 @@
 </div>
 <div class="section level2">
 <h2 id="priority-10-optional-item-job-execution">Priority 10: Optional item-job execution<a class="anchor" aria-label="anchor" href="#priority-10-optional-item-job-execution"></a></h2>
+<p><strong>Status (July 2026): implemented.</strong> On-demand notebook jobs use the current workload release endpoint, pipelines and other job types use the Core Job Scheduler API, and all routes return the same inspectable job handle. Polling honors Fabric’s service-provided delay and represents every documented terminal state explicitly.</p>
 <div class="section level3">
 <h3 id="objective-5">Objective<a class="anchor" aria-label="anchor" href="#objective-5"></a></h3>
 <p>Provide a focused common interface for invoking and monitoring Fabric item jobs, useful for notebooks, pipelines, Spark job definitions, and test-data setup.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-9">Direction<a class="anchor" aria-label="anchor" href="#direction-9"></a></h3>
-<ul><li>Add <code>fabric_job_run()</code>, <code>fabric_job_status()</code>, <code>fabric_job_cancel()</code>, and a wait helper over the Fabric Job Scheduler APIs.</li>
+<ul><li>Add <code><a href="reference/fabric_job_run.html">fabric_job_run()</a></code>, <code><a href="reference/fabric_job_run.html">fabric_job_status()</a></code>, <code><a href="reference/fabric_job_run.html">fabric_job_cancel()</a></code>, and a wait helper over the Fabric Job Scheduler APIs.</li>
 <li>Return structured job IDs, status, timestamps, failure reasons, and activity IDs.</li>
 <li>Reuse shared LRO/retry behavior and support caller-controlled polling intervals and timeouts.</li>
 <li>Keep workload-specific execution payloads typed or validated rather than exposing an unbounded JSON passthrough as the primary API.</li>
@@ -454,6 +455,9 @@
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/throttling" class="external-link">Fabric throttling</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/long-running-operation" class="external-link">Fabric long-running operations</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">Fabric identity support</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/" class="external-link">Fabric Job Scheduler API</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook" class="external-link">Run an on-demand notebook</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api" class="external-link">Notebook public API</a></li>
 <li><a href="https://registry.terraform.io/providers/microsoft/fabric/latest/docs" class="external-link">Microsoft Fabric Terraform provider</a></li>
 <li><a href="https://microsoft.github.io/fabric-cicd/" class="external-link"><code>fabric-cicd</code> documentation</a></li>
 <li><a href="https://microsoft.github.io/fabric-cli/" class="external-link">Microsoft Fabric CLI</a></li>

@@ -18,6 +18,11 @@
   : Discover one Microsoft Fabric item
 - [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md)
   : Discover Microsoft Fabric items
+- [`fabric_job_run()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md)
+  [`fabric_job_status()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md)
+  [`fabric_job_wait()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md)
+  [`fabric_job_cancel()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md)
+  : Run and monitor Microsoft Fabric item jobs
 - [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Query a Microsoft Fabric Eventhouse with KQL
 - [`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)

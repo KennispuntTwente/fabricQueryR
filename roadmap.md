@@ -588,6 +588,12 @@ higher-level Delta reader.
 
 ## Priority 10: Optional item-job execution
 
+**Status (July 2026): implemented.** On-demand notebook jobs use the
+current workload release endpoint, pipelines and other job types use the
+Core Job Scheduler API, and all routes return the same inspectable job
+handle. Polling honors Fabric’s service-provided delay and represents
+every documented terminal state explicitly.
+
 ### Objective
 
 Provide a focused common interface for invoking and monitoring Fabric
@@ -596,7 +602,10 @@ test-data setup.
 
 ### Direction
 
-- Add `fabric_job_run()`, `fabric_job_status()`, `fabric_job_cancel()`,
+- Add
+  [`fabric_job_run()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_status()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_cancel()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
   and a wait helper over the Fabric Job Scheduler APIs.
 - Return structured job IDs, status, timestamps, failure reasons, and
   activity IDs.
@@ -646,6 +655,12 @@ depend on every Fabric workload being available in the test capacity.
   operations](https://learn.microsoft.com/en-us/rest/api/fabric/articles/long-running-operation)
 - [Fabric identity
   support](https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support)
+- [Fabric Job Scheduler
+  API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+- [Run an on-demand
+  notebook](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook)
+- [Notebook public
+  API](https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api)
 - [Microsoft Fabric Terraform
   provider](https://registry.terraform.io/providers/microsoft/fabric/latest/docs)
 - [`fabric-cicd`

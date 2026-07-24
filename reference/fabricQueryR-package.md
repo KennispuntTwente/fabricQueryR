@@ -9,7 +9,9 @@ download, upload, and delete files in 'OneLake' ('Azure Data Lake
 Storage Gen2'); read 'Delta Lake' tables stored in 'OneLake'; execute
 'Kusto Query Language' ('KQL') queries against 'Eventhouse' databases;
 call user-configured 'GraphQL' APIs over Fabric data; and execute
-'Spark' code via the 'Livy API'.
+'Spark' code via the 'Livy API'. On-demand item jobs can be submitted,
+monitored, waited on, and cancelled through the Fabric Job Scheduler
+APIs.
 
 ## See also
 
