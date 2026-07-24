@@ -1,6 +1,8 @@
 name: Fabric integration
 
 on:
+  schedule:
+    - cron: "0 4 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +27,7 @@ jobs:
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
       FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
+      FABRIC_INTEGRATION_REQUIRED: "true"
 
     steps:
       - uses: actions/checkout@v4

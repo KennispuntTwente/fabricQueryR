@@ -365,8 +365,8 @@ test_that("Fabric GraphQL surfaces schema and authentication failures", {
 })
 
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
-  skip_if_not_installed("duckdb")
-  skip_if_not_installed("fs")
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
 
@@ -544,8 +544,8 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
 })
 
 test_that("fabric_onelake_read_delta_table resolves Delta removals and partitions", {
-  skip_if_not_installed("duckdb")
-  skip_if_not_installed("fs")
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   dest_dir <- tempfile("fabricqueryr-integration-")
@@ -607,8 +607,8 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
 })
 
 test_that("Delta reader covers schema evolution and rejects unsupported features", {
-  skip_if_not_installed("duckdb")
-  skip_if_not_installed("fs")
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
@@ -641,8 +641,8 @@ test_that("Delta reader covers schema evolution and rejects unsupported features
 })
 
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
-  skip_if_not_installed("DBI")
-  skip_if_not_installed("odbc")
+  fabric_test_require_package("DBI")
+  fabric_test_require_package("odbc")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   target <- fabric_item(
@@ -699,8 +699,8 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
 })
 
 test_that("fabric_sql_query returns a tibble with aggregate results", {
-  skip_if_not_installed("DBI")
-  skip_if_not_installed("odbc")
+  fabric_test_require_package("DBI")
+  fabric_test_require_package("odbc")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
 
@@ -776,8 +776,8 @@ test_that("fabric_sql_query returns a tibble with aggregate results", {
 })
 
 fabric_test_sql_item <- function(name) {
-  skip_if_not_installed("DBI")
-  skip_if_not_installed("odbc")
+  fabric_test_require_package("DBI")
+  fabric_test_require_package("odbc")
   manifest <- fabric_test_manifest()
   api_token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
   sql_token <- fabric_test_token("FABRIC_TEST_SQL_TOKEN")

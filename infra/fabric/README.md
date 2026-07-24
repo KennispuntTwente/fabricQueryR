@@ -86,7 +86,10 @@ required or expected.
 
 The workflow uses a repository-wide concurrency group so only one sandbox
 consumes the test capacity at a time, and runs Terraform destroy after success
-or failure. Because a canceled runner cannot guarantee that final step, a daily
+or failure. It runs weekly and can also be dispatched manually. CI enables
+required integration mode, so missing manifests, tokens, and test dependencies
+fail rather than silently skipping the live suite. Because a canceled runner
+cannot guarantee the destroy step, a daily
 janitor uses the same concurrency group and removes only workspaces carrying
 both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;` description
 marker. `fabric-sandbox cleanup` is a dry run unless `--confirm` is supplied.
