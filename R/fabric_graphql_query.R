@@ -272,7 +272,9 @@ fabric_graphql_cursor <- function(
   has_next = "hasNextPage",
   end_cursor = "endCursor"
 ) {
-  if (!is.character(path) || !length(path) || anyNA(path) || any(!nzchar(path))) {
+  if (
+    !is.character(path) || !length(path) || anyNA(path) || !all(nzchar(path))
+  ) {
     stop("path must contain one or more non-empty field names.", call. = FALSE)
   }
   has_next <- graphql_required_string(has_next, "has_next")
@@ -526,7 +528,7 @@ graphql_validate_variables <- function(variables) {
     length(variables) &&
       (is.null(names(variables)) ||
         anyNA(names(variables)) ||
-        any(!nzchar(names(variables))) ||
+        !all(nzchar(names(variables))) ||
         anyDuplicated(names(variables)))
   ) {
     stop(
@@ -544,7 +546,10 @@ graphql_required_string <- function(value, name) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    stop(sprintf("%s must be one non-empty character value.", name), call. = FALSE)
+    stop(
+      sprintf("%s must be one non-empty character value.", name),
+      call. = FALSE
+    )
   }
   value
 }

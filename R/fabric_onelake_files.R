@@ -115,13 +115,23 @@ fabric_onelake_list <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
-    workspace, item, path, item_type, dfs_base
+    workspace,
+    item,
+    path,
+    item_type,
+    dfs_base
   )
   credential <- fabric_credential(
-    tenant_id, client_id, access_token, token_provider
+    tenant_id,
+    client_id,
+    access_token,
+    token_provider
   )
   onelake_list_target(
-    target, credential, recursive = recursive, page_size = page_size
+    target,
+    credential,
+    recursive = recursive,
+    page_size = page_size
   )
 }
 
@@ -142,10 +152,17 @@ fabric_onelake_metadata <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
-    workspace, item, path, item_type, dfs_base
+    workspace,
+    item,
+    path,
+    item_type,
+    dfs_base
   )
   credential <- fabric_credential(
-    tenant_id, client_id, access_token, token_provider
+    tenant_id,
+    client_id,
+    access_token,
+    token_provider
   )
   onelake_metadata_target(target, credential)
 }
@@ -171,11 +188,18 @@ fabric_onelake_download <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
-    workspace, item, path, item_type, dfs_base
+    workspace,
+    item,
+    path,
+    item_type,
+    dfs_base
   )
   onelake_require_file_path(target, "download")
   credential <- fabric_credential(
-    tenant_id, client_id, access_token, token_provider
+    tenant_id,
+    client_id,
+    access_token,
+    token_provider
   )
   onelake_download_target(
     target,
@@ -209,7 +233,11 @@ fabric_onelake_upload <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
-    workspace, item, path, item_type, dfs_base
+    workspace,
+    item,
+    path,
+    item_type,
+    dfs_base
   )
   onelake_require_mutable_path(target, "upload")
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite)) {
@@ -219,7 +247,10 @@ fabric_onelake_upload <- function(
     stop("if_match requires overwrite = TRUE.", call. = FALSE)
   }
   credential <- fabric_credential(
-    tenant_id, client_id, access_token, token_provider
+    tenant_id,
+    client_id,
+    access_token,
+    token_provider
   )
   onelake_upload_target(
     target,
@@ -252,7 +283,11 @@ fabric_onelake_delete <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
-    workspace, item, path, item_type, dfs_base
+    workspace,
+    item,
+    path,
+    item_type,
+    dfs_base
   )
   onelake_require_mutable_path(target, "delete")
   if (!isTRUE(confirm)) {
@@ -262,7 +297,10 @@ fabric_onelake_delete <- function(
     )
   }
   credential <- fabric_credential(
-    tenant_id, client_id, access_token, token_provider
+    tenant_id,
+    client_id,
+    access_token,
+    token_provider
   )
   onelake_delete_target(
     target,
@@ -316,7 +354,10 @@ onelake_resolve_target <- function(
         fabric_is_guid(as.character(workspace_value)) &&
         !identical(tolower(workspace_value), tolower(item_workspace))
     ) {
-      stop("The discovered item belongs to a different workspace.", call. = FALSE)
+      stop(
+        "The discovered item belongs to a different workspace.",
+        call. = FALSE
+      )
     }
     workspace_value <- item_workspace
   }
@@ -367,13 +408,19 @@ onelake_parse_uri <- function(uri) {
   }
   onelake_validate_host(parsed$hostname)
   if (!is.null(parsed$query) || !is.null(parsed$fragment)) {
-    stop("A OneLake path must not contain a query string or fragment.", call. = FALSE)
+    stop(
+      "A OneLake path must not contain a query string or fragment.",
+      call. = FALSE
+    )
   }
 
   if (scheme == "https") {
     pieces <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
     if (length(pieces) < 2L) {
-      stop("A OneLake HTTPS path must include workspace and item.", call. = FALSE)
+      stop(
+        "A OneLake HTTPS path must include workspace and item.",
+        call. = FALSE
+      )
     }
     workspace <- pieces[[1L]]
     item <- pieces[[2L]]
@@ -398,7 +445,10 @@ onelake_parse_uri <- function(uri) {
     )
   }
   if (!item_guid && !grepl("\\.[^.]+$", item)) {
-    stop("A name-based OneLake item must include its type suffix.", call. = FALSE)
+    stop(
+      "A name-based OneLake item must include its type suffix.",
+      call. = FALSE
+    )
   }
   structure(
     list(
@@ -418,8 +468,13 @@ onelake_scalar <- function(value, name, allow_empty = FALSE) {
       is.na(value) ||
       (!allow_empty && !nzchar(value))
   ) {
-    stop(name, " must be one ", if (allow_empty) "" else "non-empty ",
-         "character value.", call. = FALSE)
+    stop(
+      name,
+      " must be one ",
+      if (allow_empty) "" else "non-empty ",
+      "character value.",
+      call. = FALSE
+    )
   }
   invisible(value)
 }
@@ -455,7 +510,9 @@ onelake_normalize_path <- function(path, allow_empty = FALSE) {
   path <- gsub("\\\\", "/", path)
   path <- sub("^/+", "", sub("/+$", "", path))
   if (!nzchar(path)) {
-    if (allow_empty) return("")
+    if (allow_empty) {
+      return("")
+    }
     stop("path must not be empty.", call. = FALSE)
   }
   pieces <- strsplit(path, "/", fixed = TRUE)[[1L]]
@@ -505,7 +562,9 @@ onelake_encode_path <- function(...) {
 
 onelake_path_url <- function(target) {
   values <- c(target$workspace, target$item)
-  if (nzchar(target$path)) values <- c(values, target$path)
+  if (nzchar(target$path)) {
+    values <- c(values, target$path)
+  }
   paste0(target$dfs_base, "/", onelake_encode_path(values))
 }
 
@@ -524,7 +583,9 @@ onelake_request <- function(url, method = "GET", headers = list()) {
 }
 
 onelake_if_match <- function(value) {
-  if (is.null(value)) return(NULL)
+  if (is.null(value)) {
+    return(NULL)
+  }
   onelake_scalar(value, "if_match")
   if (
     identical(value, "*") ||
@@ -569,7 +630,9 @@ onelake_list_target <- function(
       recursive = if (recursive) "true" else "false",
       maxResults = page_size
     )
-    if (!is.null(continuation)) query$continuation <- continuation
+    if (!is.null(continuation)) {
+      query$continuation <- continuation
+    }
     req <- do.call(httr2::req_url_query, query)
     response <- .httr2_perform(
       req,
@@ -596,7 +659,9 @@ onelake_list_tibble <- function(records, target) {
     group = character(),
     permissions = character()
   )
-  if (!length(records)) return(empty)
+  if (!length(records)) {
+    return(empty)
+  }
 
   item_prefix <- paste0(target$item, "/")
   rows <- lapply(records, function(record) {
@@ -626,14 +691,20 @@ onelake_list_tibble <- function(records, target) {
   tibble::as_tibble(do.call(rbind, rows))
 }
 
-onelake_metadata_target <- function(target, credential, accepted_status = integer()) {
+onelake_metadata_target <- function(
+  target,
+  credential,
+  accepted_status = integer()
+) {
   response <- .httr2_perform(
     onelake_request(onelake_path_url(target), "HEAD"),
     credential = credential,
     audience = .fabric_audience$storage,
     accepted_status = accepted_status
   )
-  if (httr2::resp_status(response) >= 400L) return(response)
+  if (httr2::resp_status(response) >= 400L) {
+    return(response)
+  }
   onelake_response_metadata(response, target)
 }
 
@@ -661,12 +732,14 @@ onelake_response_metadata <- function(
 }
 
 onelake_validate_range <- function(range) {
-  if (is.null(range)) return(NULL)
+  if (is.null(range)) {
+    return(NULL)
+  }
   if (
     !is.numeric(range) ||
       !length(range) %in% c(1L, 2L) ||
-      any(is.na(range)) ||
-      any(!is.finite(range)) ||
+      anyNA(range) ||
+      !all(is.finite(range)) ||
       any(range < 0) ||
       any(range != floor(range)) ||
       (length(range) == 2L && range[[2L]] < range[[1L]])
@@ -698,8 +771,12 @@ onelake_download_target <- function(
 ) {
   range_header <- onelake_validate_range(range)
   headers <- list()
-  if (!is.null(range_header)) headers$Range <- range_header
-  if (!is.null(if_match)) headers[["If-Match"]] <- onelake_if_match(if_match)
+  if (!is.null(range_header)) {
+    headers$Range <- range_header
+  }
+  if (!is.null(if_match)) {
+    headers[["If-Match"]] <- onelake_if_match(if_match)
+  }
   req <- onelake_request(onelake_path_url(target), headers = headers)
 
   if (is.null(dest)) {
@@ -745,16 +822,23 @@ onelake_upload_source <- function(source) {
   }
   onelake_scalar(source, "source")
   if (!file.exists(source) || dir.exists(source)) {
-    stop("source must be a raw vector or an existing local file.", call. = FALSE)
+    stop(
+      "source must be a raw vector or an existing local file.",
+      call. = FALSE
+    )
   }
   size <- file.info(source)$size
-  if (is.na(size)) stop("Could not determine source file size.", call. = FALSE)
+  if (is.na(size)) {
+    stop("Could not determine source file size.", call. = FALSE)
+  }
   list(kind = "file", value = source, size = as.numeric(size))
 }
 
 onelake_create_parents <- function(target, credential) {
   pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
-  if (length(pieces) <= 2L) return(invisible(TRUE))
+  if (length(pieces) <= 2L) {
+    return(invisible(TRUE))
+  }
   parent_paths <- vapply(
     seq.int(2L, length(pieces) - 1L),
     function(index) paste(pieces[seq_len(index)], collapse = "/"),
@@ -764,9 +848,13 @@ onelake_create_parents <- function(target, credential) {
     parent <- target
     parent$path <- parent_path
     status <- onelake_metadata_target(
-      parent, credential, accepted_status = 404L
+      parent,
+      credential,
+      accepted_status = 404L
     )
-    if (!inherits(status, "httr2_response")) next
+    if (!inherits(status, "httr2_response")) {
+      next
+    }
     req <- onelake_request(onelake_path_url(parent), "PUT") |>
       httr2::req_url_query(resource = "directory") |>
       httr2::req_body_raw(raw())
@@ -789,19 +877,34 @@ onelake_upload_target <- function(
   create_parents
 ) {
   upload <- onelake_upload_source(source)
-  if (!is.null(content_type)) onelake_scalar(content_type, "content_type")
-  if (!is.logical(create_parents) || length(create_parents) != 1L ||
-      is.na(create_parents)) {
+  if (!is.null(content_type)) {
+    onelake_scalar(content_type, "content_type")
+  }
+  if (
+    !is.logical(create_parents) ||
+      length(create_parents) != 1L ||
+      is.na(create_parents)
+  ) {
     stop("create_parents must be TRUE or FALSE.", call. = FALSE)
   }
-  if (create_parents) onelake_create_parents(target, credential)
+  if (create_parents) {
+    onelake_create_parents(target, credential)
+  }
 
   headers <- list()
-  if (!overwrite) headers[["If-None-Match"]] <- "*"
-  if (!is.null(if_match)) headers[["If-Match"]] <- onelake_if_match(if_match)
-  if (!is.null(content_type)) headers[["x-ms-content-type"]] <- content_type
+  if (!overwrite) {
+    headers[["If-None-Match"]] <- "*"
+  }
+  if (!is.null(if_match)) {
+    headers[["If-Match"]] <- onelake_if_match(if_match)
+  }
+  if (!is.null(content_type)) {
+    headers[["x-ms-content-type"]] <- content_type
+  }
   create <- onelake_request(
-    onelake_path_url(target), "PUT", headers = headers
+    onelake_path_url(target),
+    "PUT",
+    headers = headers
   ) |>
     httr2::req_url_query(resource = "file") |>
     httr2::req_body_raw(raw())
@@ -857,15 +960,23 @@ onelake_delete_target <- function(
     stop("recursive must be TRUE or FALSE.", call. = FALSE)
   }
   headers <- list()
-  if (!is.null(if_match)) headers[["If-Match"]] <- onelake_if_match(if_match)
+  if (!is.null(if_match)) {
+    headers[["If-Match"]] <- onelake_if_match(if_match)
+  }
   continuation <- NULL
   repeat {
     req <- onelake_request(
-      onelake_path_url(target), "DELETE", headers = headers
+      onelake_path_url(target),
+      "DELETE",
+      headers = headers
     )
     query <- list(req, recursive = if (recursive) "true" else "false")
-    if (recursive) query$paginated <- "true"
-    if (!is.null(continuation)) query$continuation <- continuation
+    if (recursive) {
+      query$paginated <- "true"
+    }
+    if (!is.null(continuation)) {
+      query$continuation <- continuation
+    }
     req <- do.call(httr2::req_url_query, query)
     response <- .httr2_perform(
       req,

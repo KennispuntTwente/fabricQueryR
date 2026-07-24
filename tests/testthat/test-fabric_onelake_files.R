@@ -21,14 +21,19 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
   item_id <- "22222222-2222-2222-2222-222222222222"
 
   named <- onelake_resolve_target(
-    "Analytics", "Curated", "Files/café 数据.csv", "Lakehouse"
+    "Analytics",
+    "Curated",
+    "Files/café 数据.csv",
+    "Lakehouse"
   )
   expect_equal(named$workspace, "Analytics")
   expect_equal(named$item, "Curated.Lakehouse")
   expect_match(onelake_path_url(named), "caf%C3%A9%20%E6%95%B0%E6%8D%AE.csv")
   expect_equal(
     onelake_resolve_target(
-      "Analytics", "Curated.v2", item_type = "Lakehouse"
+      "Analytics",
+      "Curated.v2",
+      item_type = "Lakehouse"
     )$item,
     "Curated.v2.Lakehouse"
   )
@@ -43,15 +48,22 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
 
   https <- onelake_resolve_target(paste0(
     "https://onelake.dfs.fabric.microsoft.com/",
-    workspace_id, "/", item_id, "/Files/nested/file.csv"
+    workspace_id,
+    "/",
+    item_id,
+    "/Files/nested/file.csv"
   ))
   abfss <- onelake_resolve_target(paste0(
-    "abfss://", workspace_id,
+    "abfss://",
+    workspace_id,
     "@onelake.dfs.fabric.microsoft.com/",
-    item_id, "/Files/nested/file.csv"
+    item_id,
+    "/Files/nested/file.csv"
   ))
-  expect_equal(https[c("workspace", "item", "path")],
-               abfss[c("workspace", "item", "path")])
+  expect_equal(
+    https[c("workspace", "item", "path")],
+    abfss[c("workspace", "item", "path")]
+  )
 
   expect_error(
     onelake_resolve_target(workspace_id, "Curated.Lakehouse"),
@@ -81,35 +93,41 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
   calls <- list()
   pages <- list(
     onelake_test_response(
-      body = list(paths = list(
-        list(
-          name = "Curated.Lakehouse/Files/a/duplicate.txt",
-          isDirectory = FALSE,
-          contentLength = "3",
-          etag = "\"one\"",
-          lastModified = "Fri, 24 Jul 2026 10:00:00 GMT"
-        ),
-        list(
-          name = "Curated.Lakehouse/Files/b",
-          isDirectory = TRUE,
-          contentLength = "0"
+      body = list(
+        paths = list(
+          list(
+            name = "Curated.Lakehouse/Files/a/duplicate.txt",
+            isDirectory = FALSE,
+            contentLength = "3",
+            etag = "\"one\"",
+            lastModified = "Fri, 24 Jul 2026 10:00:00 GMT"
+          ),
+          list(
+            name = "Curated.Lakehouse/Files/b",
+            isDirectory = TRUE,
+            contentLength = "0"
+          )
         )
-      )),
+      ),
       headers = list("x-ms-continuation" = "opaque+/= token")
     ),
-    onelake_test_response(body = list(paths = list(
-      list(
-        name = "Curated.Lakehouse/Files/b/duplicate.txt",
-        isDirectory = FALSE,
-        contentLength = "4",
-        etag = "\"two\""
-      ),
-      list(
-        name = "Curated.Lakehouse/Files/unicode/café-数据.txt",
-        isDirectory = FALSE,
-        contentLength = "5"
+    onelake_test_response(
+      body = list(
+        paths = list(
+          list(
+            name = "Curated.Lakehouse/Files/b/duplicate.txt",
+            isDirectory = FALSE,
+            contentLength = "4",
+            etag = "\"two\""
+          ),
+          list(
+            name = "Curated.Lakehouse/Files/unicode/café-数据.txt",
+            isDirectory = FALSE,
+            contentLength = "5"
+          )
+        )
       )
-    )))
+    )
   )
   httr2::local_mocked_responses(function(req) {
     calls[[length(calls) + 1L]] <<- req
@@ -329,7 +347,9 @@ test_that("OneLake upload preserves conflict errors and creates nested parents",
 test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
   expect_error(
     fabric_onelake_delete(
-      "Analytics", "Curated.Lakehouse", "Files/folder",
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/folder",
       access_token = "token"
     ),
     "disabled by default",
@@ -337,8 +357,11 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
   )
   expect_error(
     fabric_onelake_delete(
-      "Analytics", "Curated.Lakehouse", "Files",
-      confirm = TRUE, access_token = "token"
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files",
+      confirm = TRUE,
+      access_token = "token"
     ),
     "Fabric-managed first-level folder",
     fixed = TRUE
@@ -367,8 +390,9 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
     access_token = "token"
   ))
   expect_equal(length(calls), 2L)
-  expect_true(all(vapply(calls, function(req) req$method, character(1)) ==
-                    "DELETE"))
+  expect_true(all(
+    vapply(calls, function(req) req$method, character(1)) == "DELETE"
+  ))
   expect_match(calls[[1L]]$url, "recursive=true")
   expect_match(calls[[1L]]$url, "paginated=true")
   expect_match(calls[[2L]]$url, "continuation=delete-token")
@@ -380,15 +404,20 @@ test_that("OneLake validates ranges and protected paths before I/O", {
   expect_error(onelake_validate_range(c(3, 2)), "non-negative")
   expect_error(
     fabric_onelake_upload(
-      "Analytics", "Curated.Lakehouse", "Files",
-      source = raw(), access_token = "token"
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files",
+      source = raw(),
+      access_token = "token"
     ),
     "Fabric-managed first-level folder",
     fixed = TRUE
   )
   expect_error(
     onelake_resolve_target(
-      "Analytics", "Curated.Lakehouse", "Files/../Tables/data"
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/../Tables/data"
     ),
     "unsafe segment",
     fixed = TRUE

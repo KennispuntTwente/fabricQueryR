@@ -1025,12 +1025,15 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
     cancelled$result %||% "",
     cancelled$raw$fabricBatchStateInfo$state %||% ""
   ))
-  expect_true(any(terminal %in% c(
-    "killed",
-    "dead",
-    "cancelled",
-    "canceled"
-  )))
+  expect_true(any(
+    terminal %in%
+      c(
+        "killed",
+        "dead",
+        "cancelled",
+        "canceled"
+      )
+  ))
 })
 
 test_that("Fabric item jobs complete, fail, time out, and cancel", {

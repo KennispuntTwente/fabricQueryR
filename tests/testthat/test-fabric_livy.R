@@ -79,10 +79,13 @@ test_that("regular session runs multiple statements and closes", {
     verbose = FALSE
   )
   expect_s3_class(session, "FabricLivySession")
-  expect_equal(session$url, paste0(
-    "https://api.fabric.microsoft.com/livy/sessions/",
-    "session-1"
-  ))
+  expect_equal(
+    session$url,
+    paste0(
+      "https://api.fabric.microsoft.com/livy/sessions/",
+      "session-1"
+    )
+  )
   expect_false(calls[[1L]]$idempotent)
   expect_equal(
     calls[[1L]]$payload$conf[["spark.sql.shuffle.partitions"]],

@@ -96,9 +96,11 @@ FabricLivyBatch <- R6::R6Class(
         fabric_state <- tolower(
           response$fabricBatchStateInfo$state %||% ""
         )
-        succeeded <- state %in% .fabric_livy_batch_success_states ||
+        succeeded <- state %in%
+          .fabric_livy_batch_success_states ||
           identical(result, "succeeded")
-        failed <- state %in% .fabric_livy_batch_failure_states ||
+        failed <- state %in%
+          .fabric_livy_batch_failure_states ||
           result %in% c("failed", "cancelled", "canceled") ||
           fabric_state %in% c("error", "cancelled", "canceled", "expired")
         if (succeeded || failed) {
@@ -139,16 +141,16 @@ FabricLivyBatch <- R6::R6Class(
       )
       if (
         isTRUE(error_on_failure) &&
-          (
-            state %in% .fabric_livy_batch_failure_states ||
-              result %in% c("failed", "cancelled", "canceled") ||
-              fabric_state %in% c(
+          (state %in%
+            .fabric_livy_batch_failure_states ||
+            result %in% c("failed", "cancelled", "canceled") ||
+            fabric_state %in%
+              c(
                 "error",
                 "cancelled",
                 "canceled",
                 "expired"
-              )
-          )
+              ))
       ) {
         fabric_livy_abort_batch(response)
       }

@@ -232,17 +232,23 @@ test_that("GraphQL cursor helper follows arbitrary connection paths", {
 test_that("fabric_graphql_paginate passes opaque cursors and combines errors", {
   requests <- list()
   responses <- list(
-    list(data = list(products = list(
-      items = list(list(id = 1L), list(id = 2L)),
-      hasNextPage = TRUE,
-      endCursor = "page-one"
-    ))),
     list(
-      data = list(products = list(
-        items = list(list(id = 3L)),
-        hasNextPage = FALSE,
-        endCursor = NULL
-      )),
+      data = list(
+        products = list(
+          items = list(list(id = 1L), list(id = 2L)),
+          hasNextPage = TRUE,
+          endCursor = "page-one"
+        )
+      )
+    ),
+    list(
+      data = list(
+        products = list(
+          items = list(list(id = 3L)),
+          hasNextPage = FALSE,
+          endCursor = NULL
+        )
+      ),
       errors = list(list(message = "partial warning", path = list("products")))
     )
   )
@@ -289,10 +295,14 @@ test_that("fabric_graphql_paginate passes opaque cursors and combines errors", {
 test_that("GraphQL pagination prevents loops and enforces max_pages", {
   httr2::local_mocked_responses(function(req) {
     graphql_test_response(
-      list(data = list(products = list(
-        hasNextPage = TRUE,
-        endCursor = "same"
-      ))),
+      list(
+        data = list(
+          products = list(
+            hasNextPage = TRUE,
+            endCursor = "same"
+          )
+        )
+      ),
       url = req$url
     )
   })
@@ -312,10 +322,14 @@ test_that("GraphQL pagination prevents loops and enforces max_pages", {
   httr2::local_mocked_responses(function(req) {
     counter <<- counter + 1L
     graphql_test_response(
-      list(data = list(products = list(
-        hasNextPage = TRUE,
-        endCursor = paste0("cursor-", counter)
-      ))),
+      list(
+        data = list(
+          products = list(
+            hasNextPage = TRUE,
+            endCursor = paste0("cursor-", counter)
+          )
+        )
+      ),
       url = req$url
     )
   })

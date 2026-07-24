@@ -1,17 +1,28 @@
 # Shared Fabric Livy helpers ------------------------------------------------
 
 .fabric_livy_session_terminal_states <- c(
-  "dead", "error", "failed", "killed", "shutting_down", "cancelled"
+  "dead",
+  "error",
+  "failed",
+  "killed",
+  "shutting_down",
+  "cancelled"
 )
 
 .fabric_livy_statement_failure_states <- c(
-  "error", "cancelling", "cancelled"
+  "error",
+  "cancelling",
+  "cancelled"
 )
 
 .fabric_livy_batch_success_states <- c("success")
 
 .fabric_livy_batch_failure_states <- c(
-  "dead", "error", "failed", "killed", "cancelled"
+  "dead",
+  "error",
+  "failed",
+  "killed",
+  "cancelled"
 )
 
 fabric_livy_resolve_url <- function(livy_url) {
@@ -196,7 +207,11 @@ fabric_livy_error_text <- function(response, fallback) {
   )
   candidates <- as.character(candidates)
   candidates <- candidates[!is.na(candidates) & nzchar(candidates)]
-  if (!length(candidates)) fallback else paste(unique(candidates), collapse = "\n")
+  if (!length(candidates)) {
+    fallback
+  } else {
+    paste(unique(candidates), collapse = "\n")
+  }
 }
 
 fabric_livy_abort_statement <- function(response) {

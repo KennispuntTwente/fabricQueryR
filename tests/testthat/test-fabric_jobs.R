@@ -102,8 +102,7 @@ test_that("notebook run builds typed release payload and job handle", {
     )
   )
   expect_equal(
-    call$payload$executionData$computeConfiguration$
-      highConcurrencyModeOptions,
+    call$payload$executionData$computeConfiguration$highConcurrencyModeOptions,
     list(enabled = TRUE, sessionTag = "fabricqueryr-tests")
   )
   expect_equal(
@@ -118,7 +117,7 @@ test_that("notebook run builds typed release payload and job handle", {
   expect_equal(call$payload$parameters[[5L]]$value, "2026-07-24T00:00:00Z")
 })
 
-test_that("notebook run preserves configured compute when no override is given", {
+test_that("notebook run preserves configured compute without overrides", {
   payload <- "not called"
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -438,7 +437,9 @@ test_that("timeout can request cancellation and retains last status", {
       poll_interval = 2,
       timeout = 1,
       cancel_on_timeout = TRUE,
-      .sleep = function(seconds) elapsed <<- elapsed + seconds,
+      .sleep = function(seconds) {
+        elapsed <<- elapsed + seconds
+      },
       .now = function() {
         as.POSIXct("2026-01-01", tz = "UTC") + elapsed
       }
