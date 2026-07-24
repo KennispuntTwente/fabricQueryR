@@ -200,7 +200,7 @@ class FabricApi:
         graphql_api_id: str,
         graphql_type: str,
         *,
-        timeout: int = 600,
+        timeout: int = 180,
     ) -> dict[str, Any]:
         if not re.fullmatch(r"[_A-Za-z][_0-9A-Za-z]*", graphql_type):
             raise ValueError("graphql_type must be a valid GraphQL name")
@@ -261,6 +261,7 @@ class FabricApi:
         *,
         operation_name: str,
         timeout: int,
+        return_result: bool = False,
     ) -> dict[str, Any]:
         location = response.headers.get("Location")
         if not location:
@@ -277,6 +278,11 @@ class FabricApi:
                         f"{operation_name} ended in {status}: "
                         f"{operation.get('error')}"
                     )
+                if return_result:
+                    return self.request(
+                        "GET",
+                        f"{location.rstrip('/')}/result",
+                    ).json()
                 return operation
             self.sleep(10)
         raise TimeoutError(f"{operation_name} did not finish in time")
@@ -287,6 +293,7 @@ class FabricApi:
         sql_endpoint_id: str,
         *,
         timeout: int = 900,
+        recreate_tables: bool = False,
     ) -> dict[str, Any]:
         response = self.request(
             "POST",
@@ -294,7 +301,13 @@ class FabricApi:
                 f"/workspaces/{workspace_id}/sqlEndpoints/"
                 f"{sql_endpoint_id}/refreshMetadata"
             ),
-            json={"recreateTables": False},
+            json={
+                "recreateTables": recreate_tables,
+                "timeout": {
+                    "value": timeout,
+                    "timeUnit": "Seconds",
+                },
+            },
         )
         if response.status_code == 200:
             return response.json()
@@ -303,6 +316,72 @@ class FabricApi:
             response,
             operation_name="SQL endpoint metadata refresh",
             timeout=timeout,
+            return_result=True,
+        )
+
+    def wait_for_sql_endpoint_table(
+        self,
+        workspace_id: str,
+        sql_endpoint_id: str,
+        table_name: str,
+        *,
+        timeout: int = 300,
+    ) -> dict[str, Any]:
+        def normalize_table_name(value: object) -> str:
+            return str(value).replace("[", "").replace("]", "").casefold()
+
+        normalized_table = normalize_table_name(table_name)
+        expected_names = {
+            normalized_table,
+            normalized_table.rsplit(".", 1)[-1],
+        }
+        deadline = time.monotonic() + timeout
+        last_statuses: Any = None
+        attempt = 0
+        while time.monotonic() < deadline:
+            remaining = max(1, int(deadline - time.monotonic()))
+            result = self.refresh_sql_endpoint_metadata(
+                workspace_id,
+                sql_endpoint_id,
+                timeout=remaining,
+                recreate_tables=attempt > 0,
+            )
+            statuses = result.get("value")
+            if not isinstance(statuses, list):
+                raise RuntimeError(
+                    "SQL endpoint metadata refresh did not return table "
+                    f"sync statuses: {result!r}"
+                )
+            matching = [
+                status
+                for status in statuses
+                if normalize_table_name(status.get("tableName", ""))
+                in expected_names
+            ]
+            for status in matching:
+                sync_status = str(status.get("status", "")).casefold()
+                if sync_status == "success":
+                    return status
+                if sync_status == "failure":
+                    if attempt > 0:
+                        raise RuntimeError(
+                            "SQL endpoint failed to synchronize "
+                            f"{table_name!r} after a clean rebuild: "
+                            f"{status.get('error')!r}"
+                        )
+            last_statuses = matching or statuses
+            if attempt >= 2:
+                raise RuntimeError(
+                    f"SQL endpoint table {table_name!r} was not synchronized "
+                    f"after three refreshes; last statuses: {last_statuses!r}"
+                )
+            attempt += 1
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                self.sleep(min(15, remaining))
+        raise TimeoutError(
+            f"SQL endpoint table {table_name!r} was not synchronized in time; "
+            f"last statuses: {last_statuses!r}"
         )
 
     def run_notebook(

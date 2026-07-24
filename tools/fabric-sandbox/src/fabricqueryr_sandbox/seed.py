@@ -11,6 +11,7 @@ from .discover import (
 from .fabric_api import FabricApi
 from .graphql_api import (
     GRAPHQL_API_NAME,
+    GRAPHQL_SOURCE_OBJECT,
     GRAPHQL_TYPE,
     graphql_definition,
 )
@@ -89,7 +90,16 @@ def seed(settings: SandboxSettings) -> None:
             lakehouse["id"],
         )["properties"]
         sql_endpoint_id = lakehouse_properties["sqlEndpointProperties"]["id"]
-        api.refresh_sql_endpoint_metadata(workspace_id, sql_endpoint_id)
+        sync_status = api.wait_for_sql_endpoint_table(
+            workspace_id,
+            sql_endpoint_id,
+            GRAPHQL_SOURCE_OBJECT,
+        )
+        print(
+            "SQL endpoint fixture ready: "
+            f"{sync_status.get('tableName')} "
+            f"status={sync_status.get('status')!r}"
+        )
         api.update_graphql_definition(
             workspace_id,
             graphql_api["id"],

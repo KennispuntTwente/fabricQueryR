@@ -105,9 +105,12 @@ deletion-vector Delta tables. These cover checkpoint replay, partition
 replacement, schema merging, and explicit rejection of unsupported Delta
 protocol features. It also creates a deterministic typed Kusto table.
 
-After the seed table is available, the sandbox applies the supported GraphQL
-public definition and waits until the schema is executable. The generated
-manifest exposes OneLake, all three SQL surfaces, Livy session and batch
+After the seed table is available, the sandbox refreshes the SQL analytics
+endpoint and requires a successful per-table sync status before applying the
+supported GraphQL public definition. A missing or `NotRun` fixture is retried
+with a clean table rebuild. It then waits briefly for the schema to become
+executable. The generated manifest exposes OneLake, all three SQL surfaces,
+Livy session and batch
 coordinates, DAX, Eventhouse, KQL, GraphQL, pipeline, notebook, and Spark job
 coordinates. The job fixtures exercise all three job routes supported by the
 package; the notebook and uploaded `livy_batch.py` additionally expose

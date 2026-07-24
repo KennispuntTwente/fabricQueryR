@@ -466,6 +466,14 @@ def test_run_notebook_rejects_missing_success_marker():
 
 
 def test_refresh_sql_endpoint_metadata_waits_for_success():
+    statuses = {
+        "value": [
+            {
+                "tableName": "dbo.fabricqueryr_basic",
+                "status": "Success",
+            }
+        ]
+    }
     responses = iter(
         [
             httpx.Response(
@@ -474,6 +482,7 @@ def test_refresh_sql_endpoint_metadata_waits_for_success():
             ),
             httpx.Response(200, json={"status": "Running"}),
             httpx.Response(200, json={"status": "Succeeded"}),
+            httpx.Response(200, json=statuses),
         ]
     )
 
@@ -483,6 +492,13 @@ def test_refresh_sql_endpoint_metadata_waits_for_success():
             assert request.url.path.endswith(
                 "/workspaces/workspace-id/sqlEndpoints/endpoint-id/refreshMetadata"
             )
+            payload = json.loads(request.content)
+            assert payload == {
+                "recreateTables": True,
+                "timeout": {"value": 120, "timeUnit": "Seconds"},
+            }
+        elif request.url.path.endswith("/result"):
+            assert request.url.path == "/v1/operations/operation-id/result"
         else:
             assert request.url.path.endswith("/operations/operation-id")
         return response
@@ -493,7 +509,109 @@ def test_refresh_sql_endpoint_metadata_waits_for_success():
         sleep=lambda _: None,
     ) as api:
         result = api.refresh_sql_endpoint_metadata(
-            "workspace-id", "endpoint-id"
+            "workspace-id",
+            "endpoint-id",
+            timeout=120,
+            recreate_tables=True,
         )
 
-    assert result["status"] == "Succeeded"
+    assert result == statuses
+
+
+def test_wait_for_sql_endpoint_table_retries_not_run_then_succeeds():
+    requests = []
+    sleeps = []
+    responses = iter(
+        [
+            {
+                "value": [
+                    {
+                        "tableName": "dbo.fabricqueryr_basic",
+                        "status": "NotRun",
+                    }
+                ]
+            },
+            {
+                "value": [
+                    {
+                        "tableName": "[dbo].[fabricqueryr_basic]",
+                        "status": "Success",
+                    }
+                ]
+            },
+        ]
+    )
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(200, json=next(responses))
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        status = api.wait_for_sql_endpoint_table(
+            "workspace-id",
+            "endpoint-id",
+            "dbo.fabricqueryr_basic",
+        )
+
+    assert status["status"] == "Success"
+    assert requests[0]["recreateTables"] is False
+    assert requests[1]["recreateTables"] is True
+    assert sleeps == [15]
+
+
+def test_wait_for_sql_endpoint_table_surfaces_table_sync_failure():
+    requests = []
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "tableName": "dbo.fabricqueryr_basic",
+                        "status": "Failure",
+                        "error": {
+                            "errorCode": "TableSyncFailed",
+                            "message": "Delta metadata is invalid",
+                        },
+                    }
+                ]
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+    ) as api:
+        with pytest.raises(RuntimeError, match="clean rebuild.*TableSyncFailed"):
+            api.wait_for_sql_endpoint_table(
+                "workspace-id",
+                "endpoint-id",
+                "dbo.fabricqueryr_basic",
+            )
+
+    assert [request["recreateTables"] for request in requests] == [False, True]
+
+
+def test_wait_for_sql_endpoint_table_requires_documented_status_result():
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200,
+                json={"status": "Succeeded"},
+            )
+        ),
+    ) as api:
+        with pytest.raises(RuntimeError, match="sync statuses"):
+            api.wait_for_sql_endpoint_table(
+                "workspace-id",
+                "endpoint-id",
+                "dbo.fabricqueryr_basic",
+            )
