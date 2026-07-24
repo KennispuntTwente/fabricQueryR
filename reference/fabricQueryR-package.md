@@ -22,10 +22,6 @@ Useful links:
 
 **Maintainer**: Luka Koning <koningluka@gmail.com> \[copyright holder\]
 
-Authors:
-
-- Luka Koning <koningluka@gmail.com> \[copyright holder\]
-
 Other contributors:
 
 - Kennispunt Twente <info@kennispunttwente.nl> \[funder\]

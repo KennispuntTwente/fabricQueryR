@@ -7,7 +7,8 @@
   both JSON commits and Parquet checkpoints. It rejects unsupported
   Delta reader protocols, column mapping, and deletion vectors before
   returning data instead of risking incorrect results. The new `version`
-  argument supports versioned reads.
+  argument supports versioned reads. Directory entries returned by
+  OneLake are excluded from file downloads.
 
 - [`fabric_pbi_dax_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now rejects embedded response, query, and table errors—including HTTP
