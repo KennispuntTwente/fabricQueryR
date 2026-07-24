@@ -8,7 +8,7 @@ fabric_test_skip_or_fail <- function(condition, message) {
     return(invisible(FALSE))
   }
   if (fabric_test_required()) {
-    stop(message, call. = FALSE)
+    rlang::abort(message)
   }
   testthat::skip(message)
 }
@@ -60,12 +60,11 @@ fabric_test_spark_table <- function(manifest, lakehouse) {
 fabric_test_manifest_item <- function(manifest, name) {
   item <- manifest$items[[name]]
   if (is.null(item)) {
-    stop(
+    rlang::abort(
       sprintf(
         "Fabric integration manifest does not provision required item '%s'",
         name
-      ),
-      call. = FALSE
+      )
     )
   }
   item

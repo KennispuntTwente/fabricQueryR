@@ -147,7 +147,7 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
 test_that("SQL failures have actionable condition classes", {
   local_mocked_bindings(
     .fabric_sql_db_connect = function(...) {
-      stop("Login failed for user; error 18456")
+      rlang::abort("Login failed for user; error 18456")
     }
   )
   expect_error(
@@ -162,7 +162,7 @@ test_that("SQL failures have actionable condition classes", {
 
   local_mocked_bindings(
     fabric_sql_connect = function(...) structure(list(), class = "connection"),
-    .fabric_sql_db_get_query = function(...) stop("syntax error"),
+    .fabric_sql_db_get_query = function(...) rlang::abort("syntax error"),
     .fabric_sql_db_disconnect = function(...) invisible(TRUE)
   )
   expect_error(

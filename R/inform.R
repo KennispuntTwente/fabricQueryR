@@ -8,7 +8,7 @@ inform <- function(
   }
   type <- match.arg(type)
 
-  # evaluate { } in the caller of `inform()`
+  # Evaluate { } in the caller of `inform()`
   .envir <- rlang::caller_env()
 
   switch(

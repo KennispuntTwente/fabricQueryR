@@ -34,7 +34,7 @@ test_that("credential callbacks receive audiences and refresh after 401", {
     httr2::request("https://example.test/items"),
     credential = credential,
     audience = .fabric_audience$fabric,
-    .sleep = function(...) stop("unexpected sleep")
+    .sleep = function(...) rlang::abort("unexpected sleep")
   )
 
   expect_true(result$ok)

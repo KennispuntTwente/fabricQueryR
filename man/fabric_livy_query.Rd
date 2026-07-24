@@ -63,11 +63,11 @@ authentication requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
 needs an appropriate workspace role.
 }
 \examples{
-# Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric.
+# Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric
 # This function is not called automatically because it requires credentials and
-# a real Lakehouse Livy endpoint.
+# a real Lakehouse Livy endpoint
 fabric_livy_query_example <- function() {
-  # Find the URL under Lakehouse > Settings > Livy Endpoint.
+  # Find the URL under Lakehouse > Settings > Livy Endpoint
   session_url <- paste0(
     "https://api.fabric.microsoft.com/v1/workspaces/.../",
     "lakehouses/.../livyapi/..."

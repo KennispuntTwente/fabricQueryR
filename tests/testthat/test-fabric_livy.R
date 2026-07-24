@@ -52,7 +52,7 @@ test_that("regular session runs multiple statements and closes", {
           )
         ))
       }
-      stop("Unexpected mocked call: ", method, " ", url)
+      rlang::abort(paste("Unexpected mocked call:", method, url))
     },
     fabric_livy_ok = function(
       method,
@@ -159,7 +159,7 @@ test_that("submit returns an inspectable and cancellable statement", {
       if (method == "GET" && grepl("/statements$", url)) {
         return(list(statements = list(list(id = 9L, state = "waiting"))))
       }
-      stop("Unexpected mocked call")
+      rlang::abort("Unexpected mocked call")
     },
     fabric_livy_ok = function(...) TRUE
   )
@@ -308,7 +308,7 @@ test_that("high-concurrency sessions use HC and REPL endpoints", {
       if (method == "POST" && grepl("/statements$", url)) {
         return(list(id = 3L, state = "waiting"))
       }
-      stop("Unexpected mocked call: ", method, " ", url)
+      rlang::abort(paste("Unexpected mocked call:", method, url))
     },
     fabric_livy_ok = function(...) TRUE
   )
@@ -365,7 +365,7 @@ test_that("fabric_livy_query closes temporary session after failure", {
   closed <- FALSE
   fake_session <- new.env(parent = emptyenv())
   fake_session$wait <- function(...) invisible(fake_session)
-  fake_session$run <- function(...) stop("spark failed", call. = FALSE)
+  fake_session$run <- function(...) rlang::abort("spark failed")
   fake_session$close <- function() {
     closed <<- TRUE
     TRUE

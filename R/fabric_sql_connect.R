@@ -45,7 +45,7 @@ fabric_sql_connection_info <- function(
       rlang::abort(
         paste0(
           "SQL connections require a discovered Lakehouse, Warehouse, or ",
-          "SQLDatabase item."
+          "SQLDatabase item"
         ),
         class = "fabric_sql_target_error"
       )
@@ -82,7 +82,7 @@ fabric_sql_connection_info <- function(
       paste0(
         "A Fabric SQL catalog is required. Supply database, use a complete ",
         "connection string containing Initial Catalog/Database, or pass an ",
-        "enriched discovery record."
+        "enriched discovery record"
       ),
       class = c("fabric_sql_database_error", "fabric_sql_target_error")
     )
@@ -188,11 +188,9 @@ fabric_sql_connect <- function(
   ...
 ) {
   target_type <- match.arg(target_type)
-  stopifnot(
-    is.logical(read_only),
-    length(read_only) == 1L,
-    !is.na(read_only)
-  )
+  if (!is.logical(read_only) || length(read_only) != 1L || is.na(read_only)) {
+    rlang::abort("read_only must be TRUE or FALSE")
+  }
   fabric_sql_port(timeout, "timeout", allow_zero = TRUE)
   rlang::check_installed(
     c("DBI", "odbc"),
@@ -208,7 +206,7 @@ fabric_sql_connect <- function(
   if (is.null(access_token) && is.null(token_provider)) {
     inform(
       verbose,
-      "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL ..."
+      "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL"
     )
   }
   credential <- fabric_credential(
@@ -221,7 +219,7 @@ fabric_sql_connect <- function(
     fabric_get_token(credential, .fabric_audience$sql),
     error = function(error) {
       rlang::abort(
-        "Fabric SQL authentication failed while acquiring an access token.",
+        "Fabric SQL authentication failed while acquiring an access token",
         class = "fabric_sql_authentication_error",
         parent = error
       )
@@ -230,7 +228,7 @@ fabric_sql_connect <- function(
 
   inform(
     verbose,
-    "Opening ODBC connection to {info$server} / DB '{info$database}' ..."
+    "Opening ODBC connection to {info$server} / DB '{info$database}'"
   )
   args <- c(
     list(
@@ -251,7 +249,7 @@ fabric_sql_connect <- function(
     do.call(.fabric_sql_db_connect, args),
     error = fabric_sql_connection_error
   )
-  inform(verbose, "Connected.", type = "success")
+  inform(verbose, "Connected", type = "success")
   con
 }
 
@@ -315,7 +313,7 @@ fabric_sql_query <- function(
   fabric_sql_scalar(sql, "sql")
   if (!is.null(params) && !is.list(params)) {
     rlang::abort(
-      "params must be NULL or a list.",
+      "params must be NULL or a list",
       class = "fabric_sql_execution_error"
     )
   }
@@ -341,7 +339,7 @@ fabric_sql_query <- function(
     .fabric_sql_db_get_query(con, sql, params = params),
     error = function(error) {
       rlang::abort(
-        "Fabric SQL query execution failed.",
+        "Fabric SQL query execution failed",
         class = "fabric_sql_execution_error",
         parent = error
       )
@@ -373,7 +371,7 @@ fabric_parse_sql_connection_string <- function(server) {
     bare <- tokens[!grepl("=", tokens, fixed = TRUE)]
     if (length(bare) != 1L) {
       rlang::abort(
-        "Could not find a unique Server/Data Source in the SQL target.",
+        "Could not find a unique Server/Data Source in the SQL target",
         class = "fabric_sql_target_error"
       )
     }
@@ -389,7 +387,7 @@ fabric_parse_sql_connection_string <- function(server) {
   }
   if (!nzchar(host)) {
     rlang::abort(
-      "Fabric SQL server is empty.",
+      "Fabric SQL server is empty",
       class = "fabric_sql_target_error"
     )
   }
@@ -429,7 +427,7 @@ fabric_sql_scalar <- function(value, argument) {
       !nzchar(trimws(value))
   ) {
     rlang::abort(
-      sprintf("%s must be one non-empty character value.", argument),
+      sprintf("%s must be one non-empty character value", argument),
       class = "fabric_sql_target_error"
     )
   }
@@ -452,7 +450,7 @@ fabric_sql_port <- function(
   ) {
     rlang::abort(
       sprintf(
-        "%s must be one integer between %d and 65535.",
+        "%s must be one integer between %d and 65535",
         argument,
         minimum
       ),

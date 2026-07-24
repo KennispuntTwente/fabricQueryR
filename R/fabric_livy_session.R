@@ -59,7 +59,7 @@ FabricLivySession <- R6::R6Class(
         "sessions"
       }
       private$collection_url <- fabric_livy_endpoint(livy_url, type)
-      inform(verbose, "Creating Fabric Livy session ...")
+      inform(verbose, "Creating Fabric Livy session")
       response <- fabric_livy_json(
         "POST",
         private$collection_url,
@@ -151,7 +151,7 @@ FabricLivySession <- R6::R6Class(
           fabric_livy_abort_session(response)
         }
         if (Sys.time() >= deadline) {
-          stop("Timed out waiting for the Livy session.", call. = FALSE)
+          rlang::abort("Timed out waiting for the Livy session")
         }
         Sys.sleep(poll_interval)
       }
@@ -174,9 +174,8 @@ FabricLivySession <- R6::R6Class(
         fabric_livy_check_string(source_id, "source_id")
       }
       if (!identical(tolower(self$state %||% ""), "idle")) {
-        stop(
-          "The Livy session is not ready; call session$wait() first.",
-          call. = FALSE
+        rlang::abort(
+          "The Livy session is not ready; call session$wait() first"
         )
       }
       endpoint <- private$statement_collection()
@@ -242,9 +241,8 @@ FabricLivySession <- R6::R6Class(
     reset_timeout = function() {
       private$assert_open()
       if (self$high_concurrency) {
-        stop(
-          "reset_timeout() is not supported for high-concurrency sessions.",
-          call. = FALSE
+        rlang::abort(
+          "reset_timeout() is not supported for high-concurrency sessions"
         )
       }
       fabric_livy_ok(
@@ -262,7 +260,7 @@ FabricLivySession <- R6::R6Class(
       if (isTRUE(self$closed)) {
         return(invisible(FALSE))
       }
-      inform(self$verbose, "Closing Fabric Livy session ...")
+      inform(self$verbose, "Closing Fabric Livy session")
       fabric_livy_ok(
         "DELETE",
         self$url,
@@ -286,7 +284,7 @@ FabricLivySession <- R6::R6Class(
 
     assert_open = function() {
       if (isTRUE(self$closed)) {
-        stop("The Livy session is closed.", call. = FALSE)
+        rlang::abort("The Livy session is closed")
       }
     },
 
@@ -306,11 +304,10 @@ FabricLivySession <- R6::R6Class(
         !nzchar(self$session_id %||% "") ||
           !nzchar(self$repl_id %||% "")
       ) {
-        stop(
+        rlang::abort(paste0(
           "The high-concurrency session has no sessionId/replId yet; ",
-          "call session$wait().",
-          call. = FALSE
-        )
+          "call session$wait()"
+        ))
       }
       paste0(
         private$collection_url,
@@ -433,7 +430,7 @@ FabricLivyStatement <- R6::R6Class(
           return(invisible(self))
         }
         if (Sys.time() >= deadline) {
-          stop("Timed out waiting for the Livy statement.", call. = FALSE)
+          rlang::abort("Timed out waiting for the Livy statement")
         }
         Sys.sleep(poll_interval)
       }
@@ -451,9 +448,8 @@ FabricLivyStatement <- R6::R6Class(
         !identical(state, "available") &&
           !state %in% .fabric_livy_statement_failure_states
       ) {
-        stop(
-          "The Livy statement is not complete; call statement$wait().",
-          call. = FALSE
+        rlang::abort(
+          "The Livy statement is not complete; call statement$wait()"
         )
       }
       output_error <- identical(
@@ -568,9 +564,8 @@ fabric_livy_session <- function(
 ) {
   fabric_livy_check_flag(high_concurrency, "high_concurrency")
   if (!is.null(session_tag) && !isTRUE(high_concurrency)) {
-    stop(
-      "session_tag is only available for high-concurrency sessions.",
-      call. = FALSE
+    rlang::abort(
+      "session_tag is only available for high-concurrency sessions"
     )
   }
   hc_values <- list(
@@ -583,11 +578,10 @@ fabric_livy_session <- function(
     py_files
   )
   if (!high_concurrency && !all(vapply(hc_values, is.null, logical(1)))) {
-    stop(
+    rlang::abort(paste0(
       "artifact_name, file, class_name, args, jars, files, and py_files ",
-      "are only available for high-concurrency sessions.",
-      call. = FALSE
-    )
+      "are only available for high-concurrency sessions"
+    ))
   }
   tags <- fabric_livy_normalize_named_list(tags, "tags")
   payload <- fabric_livy_payload(

@@ -34,9 +34,8 @@ fabric_livy_resolve_url <- function(livy_url) {
         "lakehouse"
       )
     ) {
-      stop(
-        "livy_url discovery record must be a Lakehouse item.",
-        call. = FALSE
+      rlang::abort(
+        "livy_url discovery record must be a Lakehouse item"
       )
     }
     livy_url <- fabric_record_value(discovered, "livy_url")
@@ -55,7 +54,7 @@ fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    stop(name, " must be one non-empty string.", call. = FALSE)
+    rlang::abort(cli::format_inline("{name} must be one non-empty string"))
   }
   invisible(value)
 }
@@ -68,20 +67,18 @@ fabric_livy_check_number <- function(value, name, minimum = 0) {
       !is.finite(value) ||
       value < minimum
   ) {
-    stop(
+    rlang::abort(paste0(
       name,
       " must be one finite number greater than or equal to ",
-      minimum,
-      ".",
-      call. = FALSE
-    )
+      minimum
+    ))
   }
   invisible(value)
 }
 
 fabric_livy_check_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    stop(name, " must be TRUE or FALSE.", call. = FALSE)
+    rlang::abort(cli::format_inline("{name} must be TRUE or FALSE"))
   }
   invisible(value)
 }
@@ -91,7 +88,7 @@ fabric_livy_normalize_named_list <- function(value, name) {
     return(NULL)
   }
   if (!is.list(value) || is.null(names(value)) || !all(nzchar(names(value)))) {
-    stop(name, " must be a named list.", call. = FALSE)
+    rlang::abort(cli::format_inline("{name} must be a named list"))
   }
   value
 }
@@ -168,7 +165,7 @@ fabric_livy_ok <- function(
   )
 }
 
-# Normalize a copied session/batch URL to a collection endpoint.
+# Normalize a copied session/batch URL to a collection endpoint
 fabric_livy_endpoint <- function(
   url,
   type = c("sessions", "batches", "highConcurrencySessions")
@@ -219,7 +216,7 @@ fabric_livy_abort_statement <- function(response) {
   rlang::abort(
     fabric_livy_error_text(
       response,
-      paste0("Livy statement ended with state ", state, ".")
+      paste0("Livy statement ended with state ", state)
     ),
     class = "fabric_livy_statement_error",
     statement = response,
@@ -233,7 +230,7 @@ fabric_livy_abort_session <- function(response) {
   rlang::abort(
     fabric_livy_error_text(
       response,
-      paste0("Livy session ended with state ", state, ".")
+      paste0("Livy session ended with state ", state)
     ),
     class = "fabric_livy_session_error",
     session = response
@@ -245,7 +242,7 @@ fabric_livy_abort_batch <- function(response) {
   rlang::abort(
     fabric_livy_error_text(
       response,
-      paste0("Livy batch ended with state ", state, ".")
+      paste0("Livy batch ended with state ", state)
     ),
     class = "fabric_livy_batch_error",
     batch = response,

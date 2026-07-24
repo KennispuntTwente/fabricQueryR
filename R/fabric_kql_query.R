@@ -85,7 +85,7 @@ fabric_kql_query <- function(
       is.na(query) ||
       !nzchar(trimws(query))
   ) {
-    stop("query must be one non-empty character value.", call. = FALSE)
+    rlang::abort("query must be one non-empty character value")
   }
   target <- kusto_resolve_target(cluster, database)
   parameters <- kusto_encode_parameters(parameters)
@@ -100,7 +100,7 @@ fabric_kql_query <- function(
       !is.finite(timeout) ||
       timeout <= 0
   ) {
-    stop("timeout must be one positive number of seconds.", call. = FALSE)
+    rlang::abort("timeout must be one positive number of seconds")
   }
 
   credential <- fabric_credential(
@@ -125,9 +125,8 @@ kusto_resolve_target <- function(cluster, database = NULL) {
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
     if (!type %in% c("eventhouse", "kqldatabase")) {
-      stop(
-        "cluster discovery record must be an Eventhouse or KQLDatabase item.",
-        call. = FALSE
+      rlang::abort(
+        "cluster discovery record must be an Eventhouse or KQLDatabase item"
       )
     }
     cluster <- fabric_record_value(
@@ -145,9 +144,8 @@ kusto_resolve_target <- function(cluster, database = NULL) {
       is.na(cluster) ||
       !nzchar(trimws(cluster))
   ) {
-    stop(
-      "cluster must supply one non-empty Kusto query-service URI.",
-      call. = FALSE
+    rlang::abort(
+      "cluster must supply one non-empty Kusto query-service URI"
     )
   }
   if (
@@ -156,9 +154,8 @@ kusto_resolve_target <- function(cluster, database = NULL) {
       is.na(database) ||
       !nzchar(trimws(database))
   ) {
-    stop(
-      "database is required unless cluster is a discovered KQLDatabase item.",
-      call. = FALSE
+    rlang::abort(
+      "database is required unless cluster is a discovered KQLDatabase item"
     )
   }
 
@@ -170,16 +167,15 @@ kusto_resolve_target <- function(cluster, database = NULL) {
       is.null(parsed$hostname) ||
       !nzchar(parsed$hostname)
   ) {
-    stop("cluster must be a valid HTTPS query-service URI.", call. = FALSE)
+    rlang::abort("cluster must be a valid HTTPS query-service URI")
   }
   path <- parsed$path %||% ""
   if (
     !path %in% c("", "/") &&
       !grepl("/v[12]/rest/query/?$", path, ignore.case = TRUE)
   ) {
-    stop(
-      "cluster URI must be a service root or a Kusto REST query endpoint.",
-      call. = FALSE
+    rlang::abort(
+      "cluster URI must be a service root or a Kusto REST query endpoint"
     )
   }
   url <- if (grepl("/v2/rest/query$", cluster, ignore.case = TRUE)) {
@@ -197,7 +193,7 @@ kusto_named_list <- function(value, name) {
     return(list())
   }
   if (!is.list(value)) {
-    stop(name, " must be a named list.", call. = FALSE)
+    rlang::abort(cli::format_inline("{name} must be a named list"))
   }
   if (
     length(value) &&
@@ -205,7 +201,9 @@ kusto_named_list <- function(value, name) {
         !all(nzchar(names(value))) ||
         anyDuplicated(names(value)))
   ) {
-    stop(name, " must have unique, non-empty names.", call. = FALSE)
+    rlang::abort(
+      cli::format_inline("{name} must have unique, non-empty names")
+    )
   }
   value
 }
@@ -216,28 +214,26 @@ kusto_encode_parameters <- function(parameters) {
     length(parameters) &&
       !all(grepl("^[A-Za-z_][A-Za-z0-9_]*$", names(parameters)))
   ) {
-    stop("parameters names must be valid KQL identifiers.", call. = FALSE)
+    rlang::abort("parameters names must be valid KQL identifiers")
   }
   lapply(parameters, kusto_encode_parameter)
 }
 
 kusto_encode_parameter <- function(value) {
   if (is.null(value) || !length(value) || anyNA(value)) {
-    stop(
+    rlang::abort(
       paste0(
         "KQL parameter values cannot be NULL, empty, or NA. ",
-        "Use an explicit typed KQL null literal such as 'long(null)'."
-      ),
-      call. = FALSE
+        "Use an explicit typed KQL null literal such as 'long(null)'"
+      )
     )
   }
   if (
     inherits(value, c("POSIXt", "Date", "difftime", "integer64")) &&
       length(value) != 1L
   ) {
-    stop(
-      "Date, time, difftime, and integer64 KQL parameters must be scalar.",
-      call. = FALSE
+    rlang::abort(
+      "Date, time, difftime, and integer64 KQL parameters must be scalar"
     )
   }
   if (inherits(value, "POSIXt")) {
@@ -388,7 +384,7 @@ kusto_frame_type <- function(frame) {
 
 kusto_parse_response <- function(frames) {
   if (!is.list(frames)) {
-    stop("Kusto returned a malformed v2 response.", call. = FALSE)
+    rlang::abort("Kusto returned a malformed v2 response")
   }
   completion <- NULL
   tables <- list()
@@ -409,9 +405,8 @@ kusto_parse_response <- function(frames) {
     } else if (identical(type, "TableFragment")) {
       key <- as.character(frame$TableId)
       if (is.null(tables[[key]])) {
-        stop(
-          "Kusto returned a table fragment without a table header.",
-          call. = FALSE
+        rlang::abort(
+          "Kusto returned a table fragment without a table header"
         )
       }
       if (identical(frame$TableFragmentType, "DataReplace")) {
@@ -425,9 +420,8 @@ kusto_parse_response <- function(frames) {
     }
   }
   if (is.null(completion)) {
-    stop(
-      "Kusto v2 response did not include a DataSetCompletion frame.",
-      call. = FALSE
+    rlang::abort(
+      "Kusto v2 response did not include a DataSetCompletion frame"
     )
   }
   kusto_check_completion(completion)
@@ -462,7 +456,7 @@ kusto_parse_response <- function(frames) {
 
 kusto_check_completion <- function(completion) {
   if (isTRUE(completion$Cancelled)) {
-    stop("Kusto query was cancelled before completion.", call. = FALSE)
+    rlang::abort("Kusto query was cancelled before completion")
   }
   if (!isTRUE(completion$HasErrors)) {
     return(invisible())
@@ -471,14 +465,13 @@ kusto_check_completion <- function(completion) {
   detail <- unlist(errors, recursive = TRUE, use.names = TRUE)
   detail <- unique(as.character(detail[!is.na(detail) & nzchar(detail)]))
   if (!length(detail)) {
-    detail <- "The service reported an unspecified partial query failure."
+    detail <- "The service reported an unspecified partial query failure"
   }
-  stop(
+  rlang::abort(
     paste0(
       "Kusto query failed after HTTP success: ",
       paste(detail, collapse = ": ")
-    ),
-    call. = FALSE
+    )
   )
 }
 
@@ -538,9 +531,8 @@ kusto_numeric_column <- function(values, integer = FALSE) {
   }
   invalid <- !is.na(text) & is.na(out)
   if (any(invalid)) {
-    stop(
-      "Kusto returned an invalid numeric value for its declared type.",
-      call. = FALSE
+    rlang::abort(
+      "Kusto returned an invalid numeric value for its declared type"
     )
   }
   out
@@ -555,7 +547,7 @@ kusto_datetime_column <- function(values) {
   )
   invalid <- !is.na(text) & is.na(out)
   if (any(invalid)) {
-    stop("Kusto returned an invalid datetime value.", call. = FALSE)
+    rlang::abort("Kusto returned an invalid datetime value")
   }
   out
 }
@@ -570,7 +562,7 @@ kusto_timespan_seconds <- function(value) {
   )
   parts <- regmatches(value, match)[[1L]]
   if (!length(parts)) {
-    stop("Kusto returned an invalid timespan value.", call. = FALSE)
+    rlang::abort("Kusto returned an invalid timespan value")
   }
   sign <- if (identical(parts[[2L]], "-")) -1 else 1
   days <- if (nzchar(parts[[3L]])) as.numeric(parts[[3L]]) else 0

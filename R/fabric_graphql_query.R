@@ -102,13 +102,13 @@ fabric_graphql_query <- function(
   graphql_validate_scalar(
     timeout,
     is.numeric,
-    "timeout must be one positive number of seconds.",
+    "timeout must be one positive number of seconds",
     function(value) is.finite(value) && value > 0
   )
   graphql_validate_scalar(
     idempotent,
     is.logical,
-    "idempotent must be TRUE or FALSE."
+    "idempotent must be TRUE or FALSE"
   )
   endpoint <- graphql_resolve_endpoint(
     api,
@@ -189,7 +189,7 @@ fabric_graphql_paginate <- function(
   api_base = .fabric_api_base
 ) {
   if (!is.function(next_cursor)) {
-    stop("next_cursor must be a function.", call. = FALSE)
+    rlang::abort("next_cursor must be a function")
   }
   cursor_variable <- graphql_required_string(
     cursor_variable,
@@ -203,7 +203,7 @@ fabric_graphql_paginate <- function(
       max_pages < 1 ||
       max_pages != as.integer(max_pages)
   ) {
-    stop("max_pages must be one positive integer.", call. = FALSE)
+    rlang::abort("max_pages must be one positive integer")
   }
   variables <- graphql_validate_variables(variables)
   error_policy <- match.arg(error_policy)
@@ -234,9 +234,8 @@ fabric_graphql_paginate <- function(
     }
     cursor <- graphql_required_string(cursor, "next_cursor result")
     if (cursor %in% seen) {
-      stop(
-        "next_cursor returned a cursor that was already used.",
-        call. = FALSE
+      rlang::abort(
+        "next_cursor returned a cursor that was already used"
       )
     }
     seen <- c(seen, cursor)
@@ -246,7 +245,7 @@ fabric_graphql_paginate <- function(
   structure(
     list(
       message = sprintf(
-        "GraphQL pagination exceeded max_pages (%d).",
+        "GraphQL pagination exceeded max_pages (%d)",
         as.integer(max_pages)
       ),
       call = NULL,
@@ -254,7 +253,7 @@ fabric_graphql_paginate <- function(
     ),
     class = c("fabric_graphql_pagination_error", "error", "condition")
   ) |>
-    stop()
+    rlang::cnd_signal()
 }
 
 #' Build a Fabric GraphQL cursor extractor
@@ -275,36 +274,33 @@ fabric_graphql_cursor <- function(
   if (
     !is.character(path) || !length(path) || anyNA(path) || !all(nzchar(path))
   ) {
-    stop("path must contain one or more non-empty field names.", call. = FALSE)
+    rlang::abort("path must contain one or more non-empty field names")
   }
   has_next <- graphql_required_string(has_next, "has_next")
   end_cursor <- graphql_required_string(end_cursor, "end_cursor")
 
   function(result) {
     if (!inherits(result, "fabric_graphql_result")) {
-      stop(
-        "The cursor extractor requires a fabric_graphql_result.",
-        call. = FALSE
+      rlang::abort(
+        "The cursor extractor requires a fabric_graphql_result"
       )
     }
     connection <- graphql_at_path(result$data, path)
     if (is.null(connection)) {
-      stop(
+      rlang::abort(
         sprintf(
-          "GraphQL pagination path '%s' was not found.",
+          "GraphQL pagination path '%s' was not found",
           paste(path, collapse = ".")
-        ),
-        call. = FALSE
+        )
       )
     }
     more <- connection[[has_next]]
     if (!is.logical(more) || length(more) != 1L || is.na(more)) {
-      stop(
+      rlang::abort(
         sprintf(
-          "GraphQL pagination field '%s' must be TRUE or FALSE.",
+          "GraphQL pagination field '%s' must be TRUE or FALSE",
           has_next
-        ),
-        call. = FALSE
+        )
       )
     }
     if (!more) {
@@ -355,24 +351,22 @@ graphql_parse_response <- function(
 ) {
   error_policy <- match.arg(error_policy)
   if (!is.list(response) || is.null(names(response))) {
-    stop(
-      "The GraphQL endpoint returned a malformed response object.",
-      call. = FALSE
+    rlang::abort(
+      "The GraphQL endpoint returned a malformed response object"
     )
   }
   has_data <- "data" %in% names(response)
   has_errors <- "errors" %in% names(response)
   if (!has_data && !has_errors) {
-    stop(
-      "The GraphQL response contains neither data nor errors.",
-      call. = FALSE
+    rlang::abort(
+      "The GraphQL response contains neither data nor errors"
     )
   }
   errors <- response$errors
   if (is.null(errors)) {
     errors <- list()
   } else if (!is.list(errors)) {
-    stop("GraphQL response errors must be a list.", call. = FALSE)
+    rlang::abort("GraphQL response errors must be a list")
   } else if (
     length(errors) &&
       !is.null(names(errors)) &&
@@ -393,13 +387,13 @@ graphql_parse_response <- function(
   if (length(errors)) {
     message <- graphql_error_message(errors)
     if (identical(error_policy, "warn")) {
-      warning(message, call. = FALSE)
+      rlang::warn(message)
     } else if (identical(error_policy, "error")) {
       condition <- structure(
         list(message = message, call = NULL, result = result, errors = errors),
         class = c("fabric_graphql_error", "error", "condition")
       )
-      stop(condition)
+      rlang::cnd_signal(condition)
     }
   }
   result
@@ -453,9 +447,8 @@ graphql_resolve_endpoint <- function(
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
     if (!identical(type, "graphqlapi")) {
-      stop(
-        "api discovery record must be a GraphQLApi item.",
-        call. = FALSE
+      rlang::abort(
+        "api discovery record must be a GraphQLApi item"
       )
     }
     endpoint <- fabric_record_value(
@@ -483,9 +476,8 @@ graphql_resolve_endpoint <- function(
         is.na(workspace_id) ||
         !fabric_is_guid(workspace_id)
     ) {
-      stop(
-        "workspace_id must be a GUID when api is a GraphQL API GUID.",
-        call. = FALSE
+      rlang::abort(
+        "workspace_id must be a GUID when api is a GraphQL API GUID"
       )
     }
     return(paste0(
@@ -510,7 +502,7 @@ graphql_validate_endpoint <- function(endpoint) {
       is.null(parsed$hostname) ||
       !nzchar(parsed$hostname)
   ) {
-    stop("api must be a valid HTTPS GraphQL endpoint.", call. = FALSE)
+    rlang::abort("api must be a valid HTTPS GraphQL endpoint")
   }
   endpoint
 }
@@ -522,7 +514,7 @@ graphql_validate_query <- function(query) {
 
 graphql_validate_variables <- function(variables) {
   if (!is.list(variables)) {
-    stop("variables must be a list.", call. = FALSE)
+    rlang::abort("variables must be a list")
   }
   if (
     length(variables) &&
@@ -531,9 +523,8 @@ graphql_validate_variables <- function(variables) {
         !all(nzchar(names(variables))) ||
         anyDuplicated(names(variables)))
   ) {
-    stop(
-      "variables must have unique, non-empty names.",
-      call. = FALSE
+    rlang::abort(
+      "variables must have unique, non-empty names"
     )
   }
   variables
@@ -546,9 +537,8 @@ graphql_required_string <- function(value, name) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    stop(
-      sprintf("%s must be one non-empty character value.", name),
-      call. = FALSE
+    rlang::abort(
+      sprintf("%s must be one non-empty character value", name)
     )
   }
   value
@@ -573,7 +563,7 @@ graphql_validate_scalar <- function(
       is.na(value) ||
       !value_predicate(value)
   ) {
-    stop(message, call. = FALSE)
+    rlang::abort(message)
   }
   invisible(TRUE)
 }

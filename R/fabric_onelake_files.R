@@ -241,10 +241,10 @@ fabric_onelake_upload <- function(
   )
   onelake_require_mutable_path(target, "upload")
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite)) {
-    stop("overwrite must be TRUE or FALSE.", call. = FALSE)
+    rlang::abort("overwrite must be TRUE or FALSE")
   }
   if (!is.null(if_match) && !isTRUE(overwrite)) {
-    stop("if_match requires overwrite = TRUE.", call. = FALSE)
+    rlang::abort("if_match requires overwrite = TRUE")
   }
   credential <- fabric_credential(
     tenant_id,
@@ -291,9 +291,8 @@ fabric_onelake_delete <- function(
   )
   onelake_require_mutable_path(target, "delete")
   if (!isTRUE(confirm)) {
-    stop(
-      "Deletion is disabled by default; set confirm = TRUE explicitly.",
-      call. = FALSE
+    rlang::abort(
+      "Deletion is disabled by default; set confirm = TRUE explicitly"
     )
   }
   credential <- fabric_credential(
@@ -323,10 +322,14 @@ onelake_resolve_target <- function(
       grepl("^(?:https|abfss?)://", workspace, ignore.case = TRUE)
   ) {
     if (!is.null(item)) {
-      stop("item must be NULL when workspace is a complete OneLake path.")
+      rlang::abort(
+        "item must be NULL when workspace is a complete OneLake path"
+      )
     }
     if (!identical(path, "")) {
-      stop("path must be empty when workspace is a complete OneLake path.")
+      rlang::abort(
+        "path must be empty when workspace is a complete OneLake path"
+      )
     }
     return(onelake_parse_uri(workspace))
   }
@@ -354,9 +357,8 @@ onelake_resolve_target <- function(
         fabric_is_guid(as.character(workspace_value)) &&
         !identical(tolower(workspace_value), tolower(item_workspace))
     ) {
-      stop(
-        "The discovered item belongs to a different workspace.",
-        call. = FALSE
+      rlang::abort(
+        "The discovered item belongs to a different workspace"
       )
     }
     workspace_value <- item_workspace
@@ -368,9 +370,8 @@ onelake_resolve_target <- function(
   workspace_guid <- fabric_is_guid(workspace_value)
   item_guid <- fabric_is_guid(item_value)
   if (!identical(workspace_guid, item_guid)) {
-    stop(
-      "OneLake requires workspace and item GUIDs to be used together.",
-      call. = FALSE
+    rlang::abort(
+      "OneLake requires workspace and item GUIDs to be used together"
     )
   }
   if (!item_guid) {
@@ -381,9 +382,8 @@ onelake_resolve_target <- function(
         item_value <- paste0(item_value, ".", item_type)
       }
     } else if (!grepl("\\.[^.]+$", item_value)) {
-      stop(
-        "A name-based item needs its type suffix or item_type.",
-        call. = FALSE
+      rlang::abort(
+        "A name-based item needs its type suffix or item_type"
       )
     }
   }
@@ -404,22 +404,20 @@ onelake_parse_uri <- function(uri) {
   parsed <- httr2::url_parse(uri)
   scheme <- tolower(parsed$scheme %||% "")
   if (!scheme %in% c("https", "abfs", "abfss")) {
-    stop("OneLake paths must use HTTPS, ABFS, or ABFSS.", call. = FALSE)
+    rlang::abort("OneLake paths must use HTTPS, ABFS, or ABFSS")
   }
   onelake_validate_host(parsed$hostname)
   if (!is.null(parsed$query) || !is.null(parsed$fragment)) {
-    stop(
-      "A OneLake path must not contain a query string or fragment.",
-      call. = FALSE
+    rlang::abort(
+      "A OneLake path must not contain a query string or fragment"
     )
   }
 
   if (scheme == "https") {
     pieces <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
     if (length(pieces) < 2L) {
-      stop(
-        "A OneLake HTTPS path must include workspace and item.",
-        call. = FALSE
+      rlang::abort(
+        "A OneLake HTTPS path must include workspace and item"
       )
     }
     workspace <- pieces[[1L]]
@@ -429,7 +427,7 @@ onelake_parse_uri <- function(uri) {
     workspace <- parsed$username
     pieces <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
     if (is.null(workspace) || !nzchar(workspace) || !length(pieces)) {
-      stop("An ABFS path must include workspace and item.", call. = FALSE)
+      rlang::abort("An ABFS path must include workspace and item")
     }
     item <- pieces[[1L]]
     path <- paste(utils::tail(pieces, -1L), collapse = "/")
@@ -439,15 +437,13 @@ onelake_parse_uri <- function(uri) {
   workspace_guid <- fabric_is_guid(workspace)
   item_guid <- fabric_is_guid(item)
   if (!identical(workspace_guid, item_guid)) {
-    stop(
-      "OneLake requires workspace and item GUIDs to be used together.",
-      call. = FALSE
+    rlang::abort(
+      "OneLake requires workspace and item GUIDs to be used together"
     )
   }
   if (!item_guid && !grepl("\\.[^.]+$", item)) {
-    stop(
-      "A name-based OneLake item must include its type suffix.",
-      call. = FALSE
+    rlang::abort(
+      "A name-based OneLake item must include its type suffix"
     )
   }
   structure(
@@ -468,13 +464,12 @@ onelake_scalar <- function(value, name, allow_empty = FALSE) {
       is.na(value) ||
       (!allow_empty && !nzchar(value))
   ) {
-    stop(
+    rlang::abort(paste0(
       name,
       " must be one ",
       if (allow_empty) "" else "non-empty ",
-      "character value.",
-      call. = FALSE
-    )
+      "character value"
+    ))
   }
   invisible(value)
 }
@@ -483,14 +478,14 @@ onelake_validate_endpoint <- function(endpoint) {
   onelake_scalar(endpoint, "dfs_base")
   parsed <- httr2::url_parse(endpoint)
   if (!identical(tolower(parsed$scheme %||% ""), "https")) {
-    stop("dfs_base must use HTTPS.", call. = FALSE)
+    rlang::abort("dfs_base must use HTTPS")
   }
   onelake_validate_host(parsed$hostname)
   if (
     !identical(parsed$path %||% "", "") &&
       !identical(parsed$path %||% "", "/")
   ) {
-    stop("dfs_base must not include a path.", call. = FALSE)
+    rlang::abort("dfs_base must not include a path")
   }
   invisible(endpoint)
 }
@@ -500,7 +495,7 @@ onelake_validate_host <- function(host) {
   valid <- grepl("(^|\\.)dfs\\.fabric\\.microsoft\\.com$", host) ||
     grepl("(^|[-.])api\\.onelake\\.fabric\\.microsoft\\.com$", host)
   if (!valid) {
-    stop("The endpoint is not a Microsoft Fabric OneLake host.", call. = FALSE)
+    rlang::abort("The endpoint is not a Microsoft Fabric OneLake host")
   }
   invisible(host)
 }
@@ -513,21 +508,23 @@ onelake_normalize_path <- function(path, allow_empty = FALSE) {
     if (allow_empty) {
       return("")
     }
-    stop("path must not be empty.", call. = FALSE)
+    rlang::abort("path must not be empty")
   }
   pieces <- strsplit(path, "/", fixed = TRUE)[[1L]]
   if (!all(nzchar(pieces)) || any(pieces %in% c(".", ".."))) {
-    stop("path contains an empty or unsafe segment.", call. = FALSE)
+    rlang::abort("path contains an empty or unsafe segment")
   }
   if (any(grepl("[?#\r\n]", pieces))) {
-    stop("path contains a query, fragment, or line break.", call. = FALSE)
+    rlang::abort("path contains a query, fragment, or line break")
   }
   paste(pieces, collapse = "/")
 }
 
 onelake_require_file_path <- function(target, operation) {
   if (!nzchar(target$path)) {
-    stop(operation, " requires a path below the item.", call. = FALSE)
+    rlang::abort(
+      cli::format_inline("{operation} requires a path below the item")
+    )
   }
   invisible(target)
 }
@@ -536,11 +533,10 @@ onelake_require_mutable_path <- function(target, operation) {
   onelake_require_file_path(target, operation)
   pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
   if (length(pieces) < 2L) {
-    stop(
+    rlang::abort(paste0(
       operation,
-      " is not allowed on a Fabric-managed first-level folder.",
-      call. = FALSE
-    )
+      " is not allowed on a Fabric-managed first-level folder"
+    ))
   }
   invisible(target)
 }
@@ -608,11 +604,11 @@ onelake_list_target <- function(
       length(recursive) != 1L ||
       is.na(recursive)
   ) {
-    stop("recursive must be TRUE or FALSE.", call. = FALSE)
+    rlang::abort("recursive must be TRUE or FALSE")
   }
   page_size <- as.integer(page_size)
   if (is.na(page_size) || page_size < 1L || page_size > 5000L) {
-    stop("page_size must be between 1 and 5000.", call. = FALSE)
+    rlang::abort("page_size must be between 1 and 5000")
   }
 
   directory <- paste(
@@ -671,7 +667,7 @@ onelake_list_tibble <- function(records, target) {
     } else if (startsWith(full_path, item_prefix)) {
       substring(full_path, nchar(item_prefix) + 1L)
     } else {
-      stop("OneLake returned a path outside the requested item.", call. = FALSE)
+      rlang::abort("OneLake returned a path outside the requested item")
     }
     data.frame(
       path = relative,
@@ -744,9 +740,8 @@ onelake_validate_range <- function(range) {
       any(range != floor(range)) ||
       (length(range) == 2L && range[[2L]] < range[[1L]])
   ) {
-    stop(
-      "range must contain one or two non-negative whole byte offsets.",
-      call. = FALSE
+    rlang::abort(
+      "range must contain one or two non-negative whole byte offsets"
     )
   }
   paste0(
@@ -793,10 +788,10 @@ onelake_download_target <- function(
       length(overwrite) != 1L ||
       is.na(overwrite)
   ) {
-    stop("overwrite must be TRUE or FALSE.", call. = FALSE)
+    rlang::abort("overwrite must be TRUE or FALSE")
   }
   if (file.exists(dest) && !overwrite) {
-    stop("Destination already exists; set overwrite = TRUE.", call. = FALSE)
+    rlang::abort("Destination already exists; set overwrite = TRUE")
   }
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   temporary <- tempfile(".fabricqueryr-download-", tmpdir = dirname(dest))
@@ -808,10 +803,10 @@ onelake_download_target <- function(
     download_path = temporary
   )
   if (file.exists(dest) && !unlink(dest)) {
-    stop("Could not replace the existing destination.", call. = FALSE)
+    rlang::abort("Could not replace the existing destination")
   }
   if (!file.rename(temporary, dest)) {
-    stop("Could not commit the downloaded file.", call. = FALSE)
+    rlang::abort("Could not commit the downloaded file")
   }
   invisible(normalizePath(dest, winslash = "/", mustWork = TRUE))
 }
@@ -822,14 +817,13 @@ onelake_upload_source <- function(source) {
   }
   onelake_scalar(source, "source")
   if (!file.exists(source) || dir.exists(source)) {
-    stop(
-      "source must be a raw vector or an existing local file.",
-      call. = FALSE
+    rlang::abort(
+      "source must be a raw vector or an existing local file"
     )
   }
   size <- file.info(source)$size
   if (is.na(size)) {
-    stop("Could not determine source file size.", call. = FALSE)
+    rlang::abort("Could not determine source file size")
   }
   list(kind = "file", value = source, size = as.numeric(size))
 }
@@ -885,7 +879,7 @@ onelake_upload_target <- function(
       length(create_parents) != 1L ||
       is.na(create_parents)
   ) {
-    stop("create_parents must be TRUE or FALSE.", call. = FALSE)
+    rlang::abort("create_parents must be TRUE or FALSE")
   }
   if (create_parents) {
     onelake_create_parents(target, credential)
@@ -957,7 +951,7 @@ onelake_delete_target <- function(
       length(recursive) != 1L ||
       is.na(recursive)
   ) {
-    stop("recursive must be TRUE or FALSE.", call. = FALSE)
+    rlang::abort("recursive must be TRUE or FALSE")
   }
   headers <- list()
   if (!is.null(if_match)) {

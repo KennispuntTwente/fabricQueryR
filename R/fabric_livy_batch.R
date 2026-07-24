@@ -114,7 +114,7 @@ FabricLivyBatch <- R6::R6Class(
           if (isTRUE(cancel_on_timeout)) {
             try(self$cancel(), silent = TRUE)
           }
-          stop("Timed out waiting for the Livy batch.", call. = FALSE)
+          rlang::abort("Timed out waiting for the Livy batch")
         }
         Sys.sleep(poll_interval)
       }
@@ -296,7 +296,7 @@ fabric_livy_batch_submit <- function(
     fabric_livy_resolve_url(livy_url),
     "batches"
   )
-  inform(verbose, "Submitting Fabric Livy batch ...")
+  inform(verbose, "Submitting Fabric Livy batch")
   response <- fabric_livy_json(
     "POST",
     collection,

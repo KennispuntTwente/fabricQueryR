@@ -157,7 +157,7 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
   local_mocked_bindings(
     pbi_resolve_ids_from_connstr = function(...) {
       looked_up <<- TRUE
-      stop("unexpected lookup")
+      rlang::abort("unexpected lookup")
     },
     pbi_execute_dax = function(
       credential,

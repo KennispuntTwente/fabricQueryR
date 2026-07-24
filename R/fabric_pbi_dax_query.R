@@ -93,7 +93,9 @@ fabric_pbi_dax_query <- function(
   token_provider = NULL,
   impersonated_user = NULL
 ) {
-  stopifnot(is.character(dax), length(dax) == 1L, nzchar(dax))
+  if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
+    rlang::abort("dax must be one non-empty string")
+  }
   discovered <- fabric_as_record(connstr)
   if (!is.null(discovered)) {
     if (
@@ -102,9 +104,8 @@ fabric_pbi_dax_query <- function(
         "semanticmodel"
       )
     ) {
-      stop(
-        "connstr discovery record must be a SemanticModel item.",
-        call. = FALSE
+      rlang::abort(
+        "connstr discovery record must be a SemanticModel item"
       )
     }
     workspace_id <- workspace_id %||%
@@ -118,35 +119,46 @@ fabric_pbi_dax_query <- function(
       "dax_connection_string"
     )
   }
-  if (!is.null(connstr)) {
-    stopifnot(is.character(connstr), length(connstr) == 1L, nzchar(connstr))
+  if (
+    !is.null(connstr) &&
+      (!is.character(connstr) ||
+        length(connstr) != 1L ||
+        is.na(connstr) ||
+        !nzchar(connstr))
+  ) {
+    rlang::abort("connstr must be one non-empty string")
   }
-  if (!is.null(workspace_id)) {
-    stopifnot(
-      is.character(workspace_id),
-      length(workspace_id) == 1L,
-      nzchar(workspace_id)
-    )
+  if (
+    !is.null(workspace_id) &&
+      (!is.character(workspace_id) ||
+        length(workspace_id) != 1L ||
+        is.na(workspace_id) ||
+        !nzchar(workspace_id))
+  ) {
+    rlang::abort("workspace_id must be one non-empty string")
   }
-  if (!is.null(dataset_id)) {
-    stopifnot(
-      is.character(dataset_id),
-      length(dataset_id) == 1L,
-      nzchar(dataset_id)
-    )
+  if (
+    !is.null(dataset_id) &&
+      (!is.character(dataset_id) ||
+        length(dataset_id) != 1L ||
+        is.na(dataset_id) ||
+        !nzchar(dataset_id))
+  ) {
+    rlang::abort("dataset_id must be one non-empty string")
   }
   if (is.null(dataset_id) && is.null(connstr)) {
-    stop(
-      "Supply either connstr or dataset_id.",
-      call. = FALSE
+    rlang::abort(
+      "Supply either connstr or dataset_id"
     )
   }
-  if (!is.null(impersonated_user)) {
-    stopifnot(
-      is.character(impersonated_user),
-      length(impersonated_user) == 1L,
-      nzchar(impersonated_user)
-    )
+  if (
+    !is.null(impersonated_user) &&
+      (!is.character(impersonated_user) ||
+        length(impersonated_user) != 1L ||
+        is.na(impersonated_user) ||
+        !nzchar(impersonated_user))
+  ) {
+    rlang::abort("impersonated_user must be one non-empty string")
   }
 
   credential <- fabric_credential(
@@ -184,7 +196,9 @@ fabric_pbi_dax_query <- function(
 #' @keywords internal
 #' @noRd
 pbi_parse_connstr <- function(conn) {
-  stopifnot(is.character(conn), length(conn) == 1L)
+  if (!is.character(conn) || length(conn) != 1L || is.na(conn)) {
+    rlang::abort("conn must be one string")
+  }
   toks <- strsplit(conn, ";", fixed = TRUE)[[1]]
   toks <- trimws(toks)
   toks <- toks[nzchar(toks)]
@@ -200,9 +214,8 @@ pbi_parse_connstr <- function(conn) {
     ds <- toks[grepl("(?i)^powerbi://", toks)]
   }
   if (length(ds) != 1) {
-    stop(
-      "Could not find a unique Data Source in connection string.",
-      call. = FALSE
+    rlang::abort(
+      "Could not find a unique Data Source in connection string"
     )
   }
   ds <- trimws(ds[[1]])
@@ -213,12 +226,11 @@ pbi_parse_connstr <- function(conn) {
       ignore.case = TRUE
     )
   ) {
-    stop(
+    rlang::abort(
       paste0(
         "Data Source must be a Power BI XMLA workspace URL like ",
-        "'powerbi://api.powerbi.com/v1.0/myorg/Workspace'."
-      ),
-      call. = FALSE
+        "'powerbi://api.powerbi.com/v1.0/myorg/Workspace'"
+      )
     )
   }
 
@@ -231,12 +243,11 @@ pbi_parse_connstr <- function(conn) {
   )
   catv <- trimws(catv)
   if (length(catv) != 1L || !nzchar(catv[[1L]])) {
-    stop(
+    rlang::abort(
       paste0(
         "Connection string must contain exactly one non-empty ",
-        "Initial Catalog, Catalog, Database, or Dataset value."
-      ),
-      call. = FALSE
+        "Initial Catalog, Catalog, Database, or Dataset value"
+      )
     )
   }
   dataset_name <- catv[[1L]]
@@ -246,9 +257,8 @@ pbi_parse_connstr <- function(conn) {
   segs <- strsplit(ds_clean, "/", fixed = TRUE)[[1]]
   workspace_name <- utils::URLdecode(utils::tail(segs, 1))
   if (!nzchar(workspace_name)) {
-    stop(
-      "Power BI Data Source does not contain a workspace name.",
-      call. = FALSE
+    rlang::abort(
+      "Power BI Data Source does not contain a workspace name"
     )
   }
 
@@ -376,12 +386,11 @@ pbi_parse_dax_response <- function(out) {
     }
   }
   if (length(results) != 1L) {
-    stop(
+    rlang::abort(
       sprintf(
-        "Power BI returned %d query results; exactly one is supported.",
+        "Power BI returned %d query results; exactly one is supported",
         length(results)
-      ),
-      call. = FALSE
+      )
     )
   }
 
@@ -390,12 +399,11 @@ pbi_parse_dax_response <- function(out) {
     return(tibble::tibble())
   }
   if (length(tables) != 1L) {
-    stop(
+    rlang::abort(
       sprintf(
-        "Power BI returned %d result tables; exactly one is supported.",
+        "Power BI returned %d result tables; exactly one is supported",
         length(tables)
-      ),
-      call. = FALSE
+      )
     )
   }
 
@@ -404,7 +412,7 @@ pbi_parse_dax_response <- function(out) {
     return(tibble::tibble())
   }
 
-  # bind_rows preserves qualified and bracketed Power BI column names.
+  # bind_rows preserves qualified and bracketed Power BI column names
   dplyr::bind_rows(rows)
 }
 
@@ -438,20 +446,18 @@ pbi_check_dax_error <- function(error, level) {
     ignore.case = TRUE
   )
   if (is_partial) {
-    stop(
+    rlang::abort(
       paste0(
         "Power BI returned an incomplete DAX ",
         level,
         ": ",
         detail,
-        ". Reduce the selected rows/columns or page the query in DAX."
-      ),
-      call. = FALSE
+        ". Reduce the selected rows/columns or page the query in DAX"
+      )
     )
   }
-  stop(
-    paste0("Power BI DAX ", level, " failed: ", detail),
-    call. = FALSE
+  rlang::abort(
+    paste0("Power BI DAX ", level, " failed: ", detail)
   )
 }
 
@@ -480,16 +486,15 @@ pbi_get_group_id_by_name <- function(
     logical(1)
   )]
   if (length(hits) == 0) {
-    stop(sprintf("Workspace '%s' not found.", workspace_name), call. = FALSE)
+    rlang::abort(sprintf("Workspace '%s' not found", workspace_name))
   }
   if (length(hits) > 1L) {
-    stop(
+    rlang::abort(
       sprintf(
-        "Workspace name '%s' is ambiguous (%d case-insensitive matches). Use workspace_id.",
+        "Workspace name '%s' is ambiguous (%d case-insensitive matches). Use workspace_id",
         workspace_name,
         length(hits)
-      ),
-      call. = FALSE
+      )
     )
   }
   hits[[1]]$id
@@ -518,19 +523,15 @@ pbi_get_dataset_id_by_name <- function(
     logical(1)
   )]
   if (length(hits) == 0) {
-    stop(
-      sprintf("Dataset '%s' not found in workspace.", dataset_name),
-      call. = FALSE
-    )
+    rlang::abort(sprintf("Dataset '%s' not found in workspace", dataset_name))
   }
   if (length(hits) > 1L) {
-    stop(
+    rlang::abort(
       sprintf(
-        "Dataset name '%s' is ambiguous in the workspace (%d case-insensitive matches). Use dataset_id.",
+        "Dataset name '%s' is ambiguous in the workspace (%d case-insensitive matches). Use dataset_id",
         dataset_name,
         length(hits)
-      ),
-      call. = FALSE
+      )
     )
   }
   hits[[1]]$id

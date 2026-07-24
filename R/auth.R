@@ -27,17 +27,19 @@ fabric_credential <- function(
   token_provider = NULL
 ) {
   if (!is.null(access_token) && !is.null(token_provider)) {
-    stop(
-      "Supply only one of access_token and token_provider.",
-      call. = FALSE
+    rlang::abort(
+      "Supply only one of access_token and token_provider"
     )
   }
   if (!is.null(access_token)) {
-    stopifnot(
-      is.character(access_token),
-      length(access_token) == 1L,
-      nzchar(access_token)
-    )
+    if (
+      !is.character(access_token) ||
+        length(access_token) != 1L ||
+        is.na(access_token) ||
+        !nzchar(access_token)
+    ) {
+      rlang::abort("access_token must be one non-empty string")
+    }
     return(structure(
       list(
         provider = function(audience, force_refresh = FALSE) access_token,
@@ -49,7 +51,7 @@ fabric_credential <- function(
   }
   if (!is.null(token_provider)) {
     if (!is.function(token_provider)) {
-      stop("token_provider must be a function.", call. = FALSE)
+      rlang::abort("token_provider must be a function")
     }
     return(structure(
       list(
@@ -68,15 +70,13 @@ fabric_credential <- function(
   }
 
   if (is.null(tenant_id) || !nzchar(tenant_id)) {
-    stop(
-      "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var).",
-      call. = FALSE
+    rlang::abort(
+      "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var)"
     )
   }
   if (is.null(client_id) || !nzchar(client_id)) {
-    stop(
-      "client_id is required (or set FABRICQUERYR_CLIENT_ID env var).",
-      call. = FALSE
+    rlang::abort(
+      "client_id is required (or set FABRICQUERYR_CLIENT_ID env var)"
     )
   }
 
@@ -138,9 +138,8 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
       is.na(token) ||
       !nzchar(token)
   ) {
-    stop(
-      "token_provider must return one non-empty bearer token.",
-      call. = FALSE
+    rlang::abort(
+      "token_provider must return one non-empty bearer token"
     )
   }
   token
@@ -151,7 +150,7 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
 #' @noRd
 fabric_get_token <- function(credential, audience, force_refresh = FALSE) {
   if (!inherits(credential, "fabric_credential")) {
-    stop("Invalid Fabric credential.", call. = FALSE)
+    rlang::abort("Invalid Fabric credential")
   }
   credential$provider(audience, force_refresh = force_refresh)
 }

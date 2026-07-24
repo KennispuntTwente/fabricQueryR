@@ -30,14 +30,22 @@ fabric_workspaces <- function(
   token_provider = NULL,
   api_base = .fabric_api_base
 ) {
-  if (!is.null(roles)) {
-    stopifnot(is.character(roles), length(roles) > 0L, all(nzchar(roles)))
+  if (
+    !is.null(roles) &&
+      (!is.character(roles) ||
+        !length(roles) ||
+        anyNA(roles) ||
+        !all(nzchar(roles)))
+  ) {
+    rlang::abort("roles must contain one or more non-empty strings")
   }
-  stopifnot(
-    is.logical(prefer_workspace_endpoints),
-    length(prefer_workspace_endpoints) == 1L,
-    !is.na(prefer_workspace_endpoints)
-  )
+  if (
+    !is.logical(prefer_workspace_endpoints) ||
+      length(prefer_workspace_endpoints) != 1L ||
+      is.na(prefer_workspace_endpoints)
+  ) {
+    rlang::abort("prefer_workspace_endpoints must be TRUE or FALSE")
+  }
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -99,17 +107,21 @@ fabric_items <- function(
   token_provider = NULL,
   api_base = .fabric_api_base
 ) {
-  if (!is.null(type)) {
-    stopifnot(is.character(type), length(type) == 1L, nzchar(type))
+  if (
+    !is.null(type) &&
+      (!is.character(type) ||
+        length(type) != 1L ||
+        is.na(type) ||
+        !nzchar(type))
+  ) {
+    rlang::abort("type must be one non-empty string")
   }
-  stopifnot(
-    is.logical(detail),
-    length(detail) == 1L,
-    !is.na(detail),
-    is.logical(recursive),
-    length(recursive) == 1L,
-    !is.na(recursive)
-  )
+  if (!is.logical(detail) || length(detail) != 1L || is.na(detail)) {
+    rlang::abort("detail must be TRUE or FALSE")
+  }
+  if (!is.logical(recursive) || length(recursive) != 1L || is.na(recursive)) {
+    rlang::abort("recursive must be TRUE or FALSE")
+  }
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -181,7 +193,11 @@ fabric_item <- function(
   if (!is.null(supplied)) {
     record <- supplied
   } else {
-    stopifnot(is.character(item), length(item) == 1L, nzchar(item))
+    if (
+      !is.character(item) || length(item) != 1L || is.na(item) || !nzchar(item)
+    ) {
+      rlang::abort("item must be one non-empty string or a discovered item")
+    }
     if (fabric_is_guid(item)) {
       record <- .httr2_json(
         httr2::request(
@@ -209,14 +225,13 @@ fabric_item <- function(
   record$workspaceDisplayName <- record$workspaceDisplayName %||%
     ws$displayName
   if (!is.null(type) && !identical(tolower(record$type), tolower(type))) {
-    stop(
+    rlang::abort(
       sprintf(
-        "Item '%s' has type '%s', not '%s'.",
+        "Item '%s' has type '%s', not '%s'",
         record$displayName %||% record$id,
         record$type,
         type
-      ),
-      call. = FALSE
+      )
     )
   }
   structure(
@@ -238,9 +253,8 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
         tolower(as.character(workspace_id))
       )
   ) {
-    stop(
-      "The discovered item belongs to a different workspace.",
-      call. = FALSE
+    rlang::abort(
+      "The discovered item belongs to a different workspace"
     )
   }
   invisible(TRUE)
@@ -307,11 +321,14 @@ fabric_graphql_apis <- function(workspace, ...) {
 }
 
 fabric_api_base <- function(api_base) {
-  stopifnot(
-    is.character(api_base),
-    length(api_base) == 1L,
-    nzchar(api_base)
-  )
+  if (
+    !is.character(api_base) ||
+      length(api_base) != 1L ||
+      is.na(api_base) ||
+      !nzchar(api_base)
+  ) {
+    rlang::abort("api_base must be one non-empty string")
+  }
   sub("/+$", "", api_base)
 }
 
@@ -326,7 +343,7 @@ fabric_is_guid <- function(value) {
 fabric_as_record <- function(value) {
   if (inherits(value, "data.frame")) {
     if (nrow(value) != 1L) {
-      stop("A discovered object must contain exactly one row.", call. = FALSE)
+      rlang::abort("A discovered object must contain exactly one row")
     }
     return(lapply(value, function(column) {
       if (is.list(column)) column[[1L]] else column[[1L]]
@@ -370,11 +387,16 @@ fabric_resolve_workspace <- function(workspace, credential, api_base) {
       raw = supplied
     ))
   }
-  stopifnot(
-    is.character(workspace),
-    length(workspace) == 1L,
-    nzchar(workspace)
-  )
+  if (
+    !is.character(workspace) ||
+      length(workspace) != 1L ||
+      is.na(workspace) ||
+      !nzchar(workspace)
+  ) {
+    rlang::abort(
+      "workspace must be one non-empty string or a discovered workspace"
+    )
+  }
   if (fabric_is_guid(workspace)) {
     record <- .httr2_json(
       httr2::request(paste0(api_base, "/workspaces/", workspace)),
@@ -404,20 +426,18 @@ fabric_unique_name <- function(records, name, kind) {
     matches <- which(tolower(names) == tolower(name))
   }
   if (!length(matches)) {
-    stop(
-      sprintf("%s '%s' was not found.", tools::toTitleCase(kind), name),
-      call. = FALSE
+    rlang::abort(
+      sprintf("%s '%s' was not found", tools::toTitleCase(kind), name)
     )
   }
   if (length(matches) > 1L) {
-    stop(
+    rlang::abort(
       sprintf(
-        "%s name '%s' is ambiguous (%d matches). Use its GUID.",
+        "%s name '%s' is ambiguous (%d matches). Use its GUID",
         tools::toTitleCase(kind),
         name,
         length(matches)
-      ),
-      call. = FALSE
+      )
     )
   }
   records[[matches]]

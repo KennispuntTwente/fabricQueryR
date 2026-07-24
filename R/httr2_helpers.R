@@ -45,13 +45,13 @@
   if (identical(txt, "")) {
     "<empty body>"
   } else if (nchar(txt) > max_chars) {
-    paste0(substr(txt, 1L, max_chars), "\n... <truncated> ...")
+    paste0(substr(txt, 1L, max_chars), "\n<truncated>")
   } else {
     txt
   }
 }
 
-# Compose a helpful error with endpoint, status, request IDs, and body.
+# Compose a helpful error with endpoint, status, request IDs, and body
 .httr2_stop_http <- function(resp, prefix = "HTTP request failed") {
   status <- httr2::resp_status(resp)
   reason <- httr2::resp_status_desc(resp)
@@ -75,7 +75,7 @@
     "\n--- Response body ---\n",
     body
   )
-  stop(msg, call. = FALSE)
+  rlang::abort(msg)
 }
 
 .httr2_retry_after <- function(resp, now = Sys.time()) {
@@ -107,7 +107,7 @@
   method %in% c("GET", "HEAD", "OPTIONS", "PUT", "DELETE")
 }
 
-# Perform an authenticated request with bounded service-aware retries.
+# Perform an authenticated request with bounded service-aware retries
 .httr2_perform <- function(
   req,
   credential = NULL,
@@ -122,7 +122,7 @@
 ) {
   max_tries <- as.integer(max_tries)
   if (is.na(max_tries) || max_tries < 1L) {
-    stop("max_tries must be at least 1.", call. = FALSE)
+    rlang::abort("max_tries must be at least 1")
   }
   can_retry <- .httr2_is_idempotent(req, idempotent)
   refresh_attempted <- FALSE
@@ -159,7 +159,7 @@
     if (inherits(response, "error")) {
       last_failure <- response
       if (!can_retry || attempt == max_tries) {
-        stop(response)
+        rlang::cnd_signal(response)
       }
     } else {
       status <- httr2::resp_status(response)
@@ -191,10 +191,10 @@
     }
     .sleep(delay)
   }
-  stop(last_failure)
+  rlang::cnd_signal(last_failure)
 }
 
-# Perform a request and parse JSON after applying shared auth/retry behavior.
+# Perform a request and parse JSON after applying shared auth/retry behavior
 .httr2_json <- function(
   req,
   simplifyVector = TRUE,
@@ -213,7 +213,7 @@
   httr2::resp_body_json(resp, simplifyVector = simplifyVector)
 }
 
-# Perform a request where no response body is needed.
+# Perform a request where no response body is needed
 .httr2_ok <- function(
   req,
   credential = NULL,
@@ -231,7 +231,7 @@
   invisible(TRUE)
 }
 
-# Read a complete paged REST collection.
+# Read a complete paged REST collection
 .httr2_collection <- function(
   url,
   credential,
@@ -294,7 +294,7 @@
   values
 }
 
-# Poll a Fabric long-running operation until it reaches a terminal state.
+# Poll a Fabric long-running operation until it reaches a terminal state
 .httr2_poll_lro <- function(
   operation_url,
   credential,
@@ -308,13 +308,12 @@
   deadline <- .now() + timeout
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
-      stop(
-        "Fabric long-running operation polling was cancelled.",
-        call. = FALSE
+      rlang::abort(
+        "Fabric long-running operation polling was cancelled"
       )
     }
     if (.now() > deadline) {
-      stop("Timed out waiting for the Fabric operation.", call. = FALSE)
+      rlang::abort("Timed out waiting for the Fabric operation")
     }
     body <- .httr2_json(
       httr2::request(operation_url),
@@ -332,14 +331,13 @@
         recursive = TRUE,
         use.names = FALSE
       )
-      stop(
+      rlang::abort(
         paste0(
           "Fabric long-running operation ended with state ",
           state,
           ": ",
           paste(detail, collapse = ": ")
-        ),
-        call. = FALSE
+        )
       )
     }
     .sleep(poll_interval)

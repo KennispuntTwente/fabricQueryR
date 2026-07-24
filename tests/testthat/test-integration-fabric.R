@@ -1056,7 +1056,7 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
       break
     }
     if (Sys.time() >= deadline) {
-      stop("Slow Livy batch did not start in time.", call. = FALSE)
+      rlang::abort("Slow Livy batch did not start in time")
     }
     Sys.sleep(5)
   }

@@ -110,25 +110,37 @@ fabric_onelake_read_delta_table <- function(
         "lakehouse"
       )
     ) {
-      stop(
-        "lakehouse_name discovery record must be a Lakehouse item.",
-        call. = FALSE
+      rlang::abort(
+        "lakehouse_name discovery record must be a Lakehouse item"
       )
     }
     lakehouse_name <- fabric_record_value(lakehouse_record, "id")
   }
   # ---- validate args ----
-  stopifnot(
-    is.character(table_path),
-    length(table_path) == 1L,
-    nzchar(table_path),
-    is.character(workspace_name),
-    length(workspace_name) == 1L,
-    nzchar(workspace_name),
-    is.character(lakehouse_name),
-    length(lakehouse_name) == 1L,
-    nzchar(lakehouse_name)
-  )
+  if (
+    !is.character(table_path) ||
+      length(table_path) != 1L ||
+      is.na(table_path) ||
+      !nzchar(table_path)
+  ) {
+    rlang::abort("table_path must be one non-empty string")
+  }
+  if (
+    !is.character(workspace_name) ||
+      length(workspace_name) != 1L ||
+      is.na(workspace_name) ||
+      !nzchar(workspace_name)
+  ) {
+    rlang::abort("workspace_name must be one non-empty string or record")
+  }
+  if (
+    !is.character(lakehouse_name) ||
+      length(lakehouse_name) != 1L ||
+      is.na(lakehouse_name) ||
+      !nzchar(lakehouse_name)
+  ) {
+    rlang::abort("lakehouse_name must be one non-empty string or record")
+  }
   if (!is.null(version)) {
     if (
       length(version) != 1L ||
@@ -137,7 +149,7 @@ fabric_onelake_read_delta_table <- function(
         version < 0 ||
         version != floor(version)
     ) {
-      stop("version must be a single non-negative integer.", call. = FALSE)
+      rlang::abort("version must be a single non-negative integer")
     }
     version <- as.integer(version)
   }
@@ -152,24 +164,9 @@ fabric_onelake_read_delta_table <- function(
     reason = "to read OneLake Delta tables"
   )
 
-  inform <- function(msg, type = c("info", "warning", "danger", "success")) {
-    if (!isTRUE(verbose)) {
-      return(invisible())
-    }
-    type <- match.arg(type)
-    switch(
-      type,
-      info = cli::cli_alert_info(msg),
-      warning = cli::cli_alert_warning(msg),
-      danger = cli::cli_alert_danger(msg),
-      success = cli::cli_alert_success(msg)
-    )
-    invisible()
-  }
-
   # ---- auth (MSAL v2 + refresh) ----
   if (is.null(access_token) && is.null(token_provider)) {
-    inform("Authenticating with {.pkg AzureAuth} (MSAL v2)...")
+    inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2)")
   }
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -182,7 +179,14 @@ fabric_onelake_read_delta_table <- function(
   table_name <- parts[length(parts)]
 
   if (!is.null(schema)) {
-    stopifnot(is.character(schema), length(schema) == 1L, nzchar(schema))
+    if (
+      !is.character(schema) ||
+        length(schema) != 1L ||
+        is.na(schema) ||
+        !nzchar(schema)
+    ) {
+      rlang::abort("schema must be one non-empty string")
+    }
     table_dir <- paste("Tables", schema, table_name, sep = "/")
   } else {
     table_dir <- paste("Tables", table_name, sep = "/")
@@ -195,7 +199,7 @@ fabric_onelake_read_delta_table <- function(
     dfs_base = dfs_base
   )
 
-  inform("Table root: {.path {table_dir}}")
+  inform(verbose, "Table root: {.path {table_dir}}")
 
   # ---- list and stage the transaction log ----
   log_target <- target
@@ -208,9 +212,9 @@ fabric_onelake_read_delta_table <- function(
   )
   files <- fabric_delta_file_rows(files)
   if (NROW(files) == 0) {
-    cli::cli_abort(
-      "No {.path _delta_log} files found under {.path {table_dir}}."
-    )
+    rlang::abort(cli::format_inline(
+      "No {.path _delta_log} files found under {.path {table_dir}}"
+    ))
   }
 
   auto_cleanup <- is.null(dest_dir)
@@ -223,13 +227,14 @@ fabric_onelake_read_delta_table <- function(
   file_paths <- if ("path" %in% names(files)) files$path else files$name
   log_staged <- fabric_delta_stage_paths(file_paths, table_dir, dest_dir)
   if (!all(grepl("^_delta_log/", log_staged$relative))) {
-    cli::cli_abort(
-      "OneLake returned a file outside the requested {.path _delta_log}."
-    )
+    rlang::abort(cli::format_inline(
+      "OneLake returned a file outside the requested {.path _delta_log}"
+    ))
   }
 
   inform(
-    "Downloading {nrow(log_staged)} Delta log file{?s} to {.path {dest_dir}} ..."
+    verbose,
+    "Downloading {nrow(log_staged)} Delta log file{?s} to {.path {dest_dir}}"
   )
   fabric_delta_download_staged(
     log_staged,
@@ -250,7 +255,8 @@ fabric_onelake_read_delta_table <- function(
       dest_dir
     )
     inform(
-      "Downloading {nrow(data_staged)} active data file{?s} ..."
+      verbose,
+      "Downloading {nrow(data_staged)} active data file{?s}"
     )
     fabric_delta_download_staged(
       data_staged,
@@ -260,10 +266,10 @@ fabric_onelake_read_delta_table <- function(
   }
 
   # ---- read the requested Delta snapshot ----
-  inform("Reading the Delta snapshot with {.pkg duckdb} ...")
+  inform(verbose, "Reading the Delta snapshot with {.pkg duckdb}")
   df <- fabric_delta_read_staged(dest_dir, version = version)
 
-  inform("Loaded {nrow(df)} row{?s}.", type = "success")
+  inform(verbose, "Loaded {nrow(df)} row{?s}", type = "success")
   tibble::as_tibble(df)
 }
 
@@ -300,7 +306,7 @@ fabric_delta_download_staged <- function(staged, target, credential) {
 #' @noRd
 fabric_delta_file_rows <- function(files) {
   if (!is.data.frame(files) || !any(c("name", "path") %in% names(files))) {
-    cli::cli_abort("OneLake returned an invalid storage listing.")
+    rlang::abort("OneLake returned an invalid storage listing")
   }
   if (!"name" %in% names(files)) {
     files$name <- files$path
@@ -356,7 +362,7 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
   table_dir <- sub("/+$", "", gsub("\\\\", "/", table_dir))
   prefix <- paste0(table_dir, "/")
   if (!length(sources) || !all(startsWith(sources, prefix))) {
-    cli::cli_abort("OneLake returned a file outside the requested Delta table.")
+    rlang::abort("OneLake returned a file outside the requested Delta table")
   }
 
   relative <- substring(sources, nchar(prefix) + 1L)
@@ -368,7 +374,7 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
       logical(1)
     )
   if (any(unsafe)) {
-    cli::cli_abort("OneLake returned an unsafe relative Delta table path.")
+    rlang::abort("OneLake returned an unsafe relative Delta table path")
   }
 
   data.frame(
@@ -397,14 +403,16 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
     any(grepl("^[/\\\\]", relative)) ||
       any(vapply(parts, function(x) any(x %in% c("", ".", "..")), logical(1)))
   ) {
-    cli::cli_abort("Delta log contains an unsafe data-file path.")
+    rlang::abort("Delta log contains an unsafe data-file path")
   }
   paths <- fs::path(table_dir, relative)
   missing <- !fs::file_exists(paths)
   if (any(missing)) {
-    cli::cli_abort(c(
-      "Delta snapshot references data files that were not staged.",
-      "x" = "{.path {paths[which(missing)[1L]]}} is missing."
+    rlang::abort(c(
+      "Delta snapshot references data files that were not staged",
+      "x" = cli::format_inline(
+        "{.path {paths[which(missing)[1L]]}} is missing"
+      )
     ))
   }
 
@@ -434,7 +442,9 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
 fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
   log_dir <- fs::path(table_dir, "_delta_log")
   if (!fs::dir_exists(log_dir)) {
-    cli::cli_abort("No {.path _delta_log} directory found in the staged table.")
+    rlang::abort(cli::format_inline(
+      "No {.path _delta_log} directory found in the staged table"
+    ))
   }
 
   logs <- fs::dir_ls(log_dir, type = "file")
@@ -460,14 +470,14 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
 
   available <- c(json_versions, checkpoint_versions)
   if (!length(available)) {
-    cli::cli_abort("No Delta commits or checkpoints were found.")
+    rlang::abort("No Delta commits or checkpoints were found")
   }
   latest <- max(available)
   target <- version %||% latest
   if (target > latest) {
-    cli::cli_abort(
-      "Delta version {target} does not exist; the latest staged version is {latest}."
-    )
+    rlang::abort(cli::format_inline(
+      "Delta version {target} does not exist; the latest staged version is {latest}"
+    ))
   }
 
   eligible <- unique(checkpoint_versions[checkpoint_versions <= target])
@@ -493,9 +503,9 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
     json_versions >= first_json & json_versions <= target
   ])
   if (!identical(as.numeric(present), as.numeric(needed))) {
-    cli::cli_abort(
-      "Delta log is incomplete for version {target}; a required commit is missing."
-    )
+    rlang::abort(cli::format_inline(
+      "Delta log is incomplete for version {target}; a required commit is missing"
+    ))
   }
   if (length(present)) {
     ordered_paths <- json_paths[match(present, json_versions)]
@@ -652,8 +662,10 @@ fabric_delta_apply_json_log <- function(state, path) {
     action <- tryCatch(
       jsonlite::fromJSON(line, simplifyVector = FALSE),
       error = function(e) {
-        cli::cli_abort(
-          "Could not parse Delta commit {.path {basename(path)}}.",
+        rlang::abort(
+          cli::format_inline(
+            "Could not parse Delta commit {.path {basename(path)}}"
+          ),
           parent = e
         )
       }
@@ -681,7 +693,7 @@ fabric_delta_apply_json_log <- function(state, path) {
 #' @noRd
 fabric_delta_validate_reader <- function(state) {
   if (is.null(state$protocol$minReaderVersion)) {
-    cli::cli_abort("Delta snapshot does not contain a reader protocol action.")
+    rlang::abort("Delta snapshot does not contain a reader protocol action")
   }
   reader_version <- as.numeric(state$protocol$minReaderVersion)
   features <- unlist(
@@ -690,15 +702,15 @@ fabric_delta_validate_reader <- function(state) {
   )
   if (reader_version > 1 || length(features)) {
     detail <- if (length(features)) {
-      paste0(" Reader features: ", paste(features, collapse = ", "), ".")
+      paste0(". Reader features: ", paste(features, collapse = ", "))
     } else {
       ""
     }
-    cli::cli_abort(
+    rlang::abort(
       paste0(
         "Unsupported Delta reader protocol version ",
         reader_version,
-        ". This reader safely supports protocol version 1 only.",
+        ". This reader safely supports protocol version 1 only",
         detail
       )
     )
@@ -707,13 +719,13 @@ fabric_delta_validate_reader <- function(state) {
   configuration <- state$metadata$configuration %||% list()
   mapping <- configuration[["delta.columnMapping.mode"]] %||% "none"
   if (!identical(tolower(as.character(mapping)), "none")) {
-    cli::cli_abort(
-      "Delta column mapping mode {.val {mapping}} is not supported by this reader."
-    )
+    rlang::abort(cli::format_inline(
+      "Delta column mapping mode {.val {mapping}} is not supported by this reader"
+    ))
   }
   if (isTRUE(state$has_deletion_vectors)) {
-    cli::cli_abort(
-      "Delta deletion vectors are not supported by this reader."
+    rlang::abort(
+      "Delta deletion vectors are not supported by this reader"
     )
   }
   invisible(state)

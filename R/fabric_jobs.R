@@ -134,14 +134,14 @@ fabric_job_run <- function(
   location <- result$location
   if (is.null(location) || !nzchar(location)) {
     rlang::abort(
-      "Fabric accepted the job but did not return a Location header.",
+      "Fabric accepted the job but did not return a Location header",
       class = "fabric_job_protocol_error"
     )
   }
   instance_id <- .fabric_job_id_from_location(location)
   if (!fabric_is_guid(instance_id)) {
     rlang::abort(
-      "Fabric returned a Location header without a valid job instance ID.",
+      "Fabric returned a Location header without a valid job instance ID",
       class = "fabric_job_protocol_error"
     )
   }
@@ -234,7 +234,7 @@ fabric_job_wait <- function(
   .now = Sys.time
 ) {
   if (!inherits(job, "fabric_job")) {
-    rlang::abort("`job` must be a `fabric_job` returned by fabric_job_run().")
+    rlang::abort("`job` must be a `fabric_job` returned by fabric_job_run()")
   }
   .fabric_job_scalar_number(timeout, "timeout", minimum = 0)
   if (!is.null(poll_interval)) {
@@ -249,17 +249,17 @@ fabric_job_wait <- function(
       length(error_on_failure) != 1L ||
       is.na(error_on_failure)
   ) {
-    rlang::abort("`error_on_failure` must be TRUE or FALSE.")
+    rlang::abort("`error_on_failure` must be TRUE or FALSE")
   }
   if (
     !is.logical(cancel_on_timeout) ||
       length(cancel_on_timeout) != 1L ||
       is.na(cancel_on_timeout)
   ) {
-    rlang::abort("`cancel_on_timeout` must be TRUE or FALSE.")
+    rlang::abort("`cancel_on_timeout` must be TRUE or FALSE")
   }
   if (!is.null(cancel) && !is.function(cancel)) {
-    rlang::abort("`cancel` must be a function or NULL.")
+    rlang::abort("`cancel` must be a function or NULL")
   }
 
   context <- .fabric_job_context(
@@ -278,7 +278,7 @@ fabric_job_wait <- function(
     if (!is.null(cancel) && isTRUE(cancel())) {
       try(fabric_job_cancel(context$job), silent = TRUE)
       rlang::abort(
-        "Fabric job polling was cancelled by the caller.",
+        "Fabric job polling was cancelled by the caller",
         class = c("fabric_job_cancelled_by_caller", "fabric_job_error"),
         job = job,
         last_status = last
@@ -291,7 +291,7 @@ fabric_job_wait <- function(
       }
       rlang::abort(
         sprintf(
-          "Timed out after %s seconds waiting for Fabric job %s.",
+          "Timed out after %s seconds waiting for Fabric job %s",
           format(timeout, trim = TRUE),
           job$id
         ),
@@ -512,7 +512,7 @@ print.fabric_job_instance <- function(x, ...) {
     workspace_id <- item_workspace_id
     if (is.null(workspace_id)) {
       rlang::abort(
-        "`workspace` is required unless `item` contains `workspaceId`."
+        "`workspace` is required unless `item` contains `workspaceId`"
       )
     }
   }
@@ -570,7 +570,7 @@ print.fabric_job_instance <- function(x, ...) {
           c("runnotebook", "execute")
     ) {
       rlang::abort(
-        "Notebook jobs use job_type = \"RunNotebook\"."
+        "Notebook jobs use job_type = \"RunNotebook\""
       )
     }
     return(list(route = "notebook", job_type = expected))
@@ -578,7 +578,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (identical(normalized, "sparkjobdefinition")) {
     if (!is.null(job_type) && !identical(tolower(job_type), "sparkjob")) {
       rlang::abort(
-        "SparkJobDefinition jobs use job_type = \"SparkJob\"."
+        "SparkJobDefinition jobs use job_type = \"SparkJob\""
       )
     }
     return(list(route = "spark_job_definition", job_type = "SparkJob"))
@@ -586,7 +586,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (normalized %in% c("datapipeline", "pipeline")) {
     if (!is.null(job_type) && !identical(tolower(job_type), "pipeline")) {
       rlang::abort(
-        "DataPipeline jobs use job_type = \"Pipeline\"."
+        "DataPipeline jobs use job_type = \"Pipeline\""
       )
     }
     expected <- "Pipeline"
@@ -595,7 +595,7 @@ print.fabric_job_instance <- function(x, ...) {
   }
   if (is.null(expected)) {
     rlang::abort(
-      "`job_type` is required for item types without a known default."
+      "`job_type` is required for item types without a known default"
     )
   }
   .fabric_job_path_segment(expected, "job_type")
@@ -702,7 +702,7 @@ print.fabric_job_instance <- function(x, ...) {
       ))
   ) {
     rlang::abort(
-      "Supply either `execution_data` or the notebook convenience arguments."
+      "Supply either `execution_data` or the notebook convenience arguments"
     )
   }
   if (!identical(route$route, "notebook")) {
@@ -719,15 +719,15 @@ print.fabric_job_instance <- function(x, ...) {
       ))
     ) {
       rlang::abort(
-        "Notebook compute arguments can only be used with Notebook items."
+        "Notebook compute arguments can only be used with Notebook items"
       )
     }
     if (!is.null(execution_data)) {
       if (identical(route$route, "core")) {
-        rlang::abort(
+        rlang::abort(paste0(
           "`execution_data` is not supported for generic item jobs; use the ",
-          "typed Notebook or SparkJobDefinition route."
-        )
+          "typed Notebook or SparkJobDefinition route"
+        ))
       }
       .fabric_job_named_list(execution_data, "execution_data")
       .fabric_job_validate_spark_definition(execution_data)
@@ -740,7 +740,7 @@ print.fabric_job_instance <- function(x, ...) {
       is.null(default_lakehouse)
   ) {
     rlang::abort(
-      "`default_lakehouse_workspace` requires `default_lakehouse`."
+      "`default_lakehouse_workspace` requires `default_lakehouse`"
     )
   }
   if (
@@ -812,8 +812,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (length(unknown)) {
     rlang::abort(paste0(
       "Unsupported notebook execution_data field(s): ",
-      paste(unknown, collapse = ", "),
-      "."
+      paste(unknown, collapse = ", ")
     ))
   }
   compute <- execution_data$compute %||% "Spark"
@@ -821,7 +820,7 @@ print.fabric_job_instance <- function(x, ...) {
   match <- match(tolower(compute), tolower(allowed_compute))
   if (is.na(match)) {
     rlang::abort(
-      "Notebook `compute` must be Spark, Jupyter, or DataWarehouse."
+      "Notebook `compute` must be Spark, Jupyter, or DataWarehouse"
     )
   }
   execution_data$compute <- allowed_compute[[match]]
@@ -840,7 +839,7 @@ print.fabric_job_instance <- function(x, ...) {
       !is.null(execution_data$computeConfiguration)
   ) {
     rlang::abort(
-      "DataWarehouse notebooks do not support `computeConfiguration`."
+      "DataWarehouse notebooks do not support `computeConfiguration`"
     )
   }
   execution_data
@@ -880,8 +879,7 @@ print.fabric_job_instance <- function(x, ...) {
       "Unsupported ",
       compute,
       " notebook compute configuration field(s): ",
-      paste(unknown, collapse = ", "),
-      "."
+      paste(unknown, collapse = ", ")
     ))
   }
   for (name in intersect(
@@ -897,10 +895,10 @@ print.fabric_job_instance <- function(x, ...) {
     options <- configuration$highConcurrencyModeOptions
     .fabric_job_named_list(options, "highConcurrencyModeOptions")
     if (length(setdiff(names(options), c("enabled", "sessionTag")))) {
-      rlang::abort(
+      rlang::abort(paste0(
         "`highConcurrencyModeOptions` only supports `enabled` and ",
-        "`sessionTag`."
-      )
+        "`sessionTag`"
+      ))
     }
     if (
       !is.null(options$enabled) &&
@@ -908,7 +906,7 @@ print.fabric_job_instance <- function(x, ...) {
           length(options$enabled) != 1L ||
           is.na(options$enabled))
     ) {
-      rlang::abort("`highConcurrencyModeOptions$enabled` must be logical.")
+      rlang::abort("`highConcurrencyModeOptions$enabled` must be logical")
     }
     if (!is.null(options$sessionTag)) {
       .fabric_job_nonempty(options$sessionTag, "sessionTag")
@@ -930,8 +928,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (length(unknown)) {
     rlang::abort(paste0(
       "Unsupported SparkJobDefinition execution_data field(s): ",
-      paste(unknown, collapse = ", "),
-      "."
+      paste(unknown, collapse = ", ")
     ))
   }
   for (name in intersect(
@@ -948,7 +945,7 @@ print.fabric_job_instance <- function(x, ...) {
         !all(nzchar(execution_data$additionalLibraryUris)))
   ) {
     rlang::abort(
-      "`additionalLibraryUris` must be a non-empty character vector."
+      "`additionalLibraryUris` must be a non-empty character vector"
     )
   }
   for (name in intersect(
@@ -965,12 +962,12 @@ print.fabric_job_instance <- function(x, ...) {
   required <- c("referenceType", "itemId", "workspaceId")
   if (!setequal(names(reference), required)) {
     rlang::abort(sprintf(
-      "`%s` must contain only referenceType, itemId, and workspaceId.",
+      "`%s` must contain only referenceType, itemId, and workspaceId",
       name
     ))
   }
   if (!identical(reference$referenceType, "ById")) {
-    rlang::abort(sprintf("`%s$referenceType` must be \"ById\".", name))
+    rlang::abort(sprintf("`%s$referenceType` must be \"ById\"", name))
   }
   .fabric_job_nonempty(reference$itemId, paste0(name, "$itemId"))
   .fabric_job_nonempty(
@@ -988,12 +985,12 @@ print.fabric_job_instance <- function(x, ...) {
 .fabric_job_parameters <- function(parameters, parameter_types = NULL) {
   if (is.null(parameters)) {
     if (!is.null(parameter_types) && length(parameter_types)) {
-      rlang::abort("`parameter_types` requires `parameters`.")
+      rlang::abort("`parameter_types` requires `parameters`")
     }
     return(list())
   }
   if (!is.list(parameters)) {
-    rlang::abort("`parameters` must be a named list or list of records.")
+    rlang::abort("`parameters` must be a named list or list of records")
   }
   record_form <- length(parameters) > 0L &&
     all(vapply(
@@ -1006,7 +1003,7 @@ print.fabric_job_instance <- function(x, ...) {
     ))
   if (record_form && !is.null(parameter_types)) {
     rlang::abort(
-      "`parameter_types` cannot be combined with parameter records."
+      "`parameter_types` cannot be combined with parameter records"
     )
   }
 
@@ -1014,7 +1011,7 @@ print.fabric_job_instance <- function(x, ...) {
     records <- lapply(parameters, function(record) {
       if (!setequal(names(record), c("name", "value", "type"))) {
         rlang::abort(
-          "Parameter records must contain only `name`, `value`, and `type`."
+          "Parameter records must contain only `name`, `value`, and `type`"
         )
       }
       .fabric_job_parameter(
@@ -1026,7 +1023,7 @@ print.fabric_job_instance <- function(x, ...) {
   } else {
     parameter_names <- names(parameters)
     if (is.null(parameter_names) || !all(nzchar(parameter_names))) {
-      rlang::abort("Scalar `parameters` must have non-empty names.")
+      rlang::abort("Scalar `parameters` must have non-empty names")
     }
     if (!is.null(parameter_types)) {
       if (
@@ -1035,12 +1032,12 @@ print.fabric_job_instance <- function(x, ...) {
           !all(nzchar(names(parameter_types)))
       ) {
         rlang::abort(
-          "`parameter_types` must be a named character vector."
+          "`parameter_types` must be a named character vector"
         )
       }
       if (anyDuplicated(tolower(names(parameter_types)))) {
         rlang::abort(
-          "`parameter_types` names must be unique ignoring case."
+          "`parameter_types` names must be unique ignoring case"
         )
       }
       unknown <- setdiff(
@@ -1048,7 +1045,7 @@ print.fabric_job_instance <- function(x, ...) {
         tolower(parameter_names)
       )
       if (length(unknown)) {
-        rlang::abort("`parameter_types` contains an unknown parameter name.")
+        rlang::abort("`parameter_types` contains an unknown parameter name")
       }
     }
     records <- Map(
@@ -1072,7 +1069,7 @@ print.fabric_job_instance <- function(x, ...) {
   record_names <- vapply(records, `[[`, character(1), "name")
   if (anyDuplicated(tolower(record_names))) {
     rlang::abort(
-      "Fabric parameter names must be unique ignoring case."
+      "Fabric parameter names must be unique ignoring case"
     )
   }
   records
@@ -1081,17 +1078,17 @@ print.fabric_job_instance <- function(x, ...) {
 .fabric_job_parameter <- function(name, value, type) {
   .fabric_job_nonempty(name, "parameter name")
   if (nchar(name) > 256L) {
-    rlang::abort("Fabric parameter names cannot exceed 256 characters.")
+    rlang::abort("Fabric parameter names cannot exceed 256 characters")
   }
   if (!is.character(type) || length(type) != 1L || is.na(type)) {
-    rlang::abort("Every Fabric parameter must have one supported type.")
+    rlang::abort("Every Fabric parameter must have one supported type")
   }
   type_index <- match(tolower(type), tolower(.fabric_job_parameter_types))
   if (is.na(type_index)) {
     rlang::abort(paste0(
       "Unsupported Fabric parameter type `",
       type,
-      "`."
+      "`"
     ))
   }
   type <- .fabric_job_parameter_types[[type_index]]
@@ -1101,7 +1098,7 @@ print.fabric_job_instance <- function(x, ...) {
       is.na(value)
   ) {
     rlang::abort(
-      sprintf("Fabric parameter `%s` must be one non-missing scalar.", name)
+      sprintf("Fabric parameter `%s` must be one non-missing scalar", name)
     )
   }
   if (inherits(value, c("POSIXct", "POSIXlt"))) {
@@ -1121,7 +1118,7 @@ print.fabric_job_instance <- function(x, ...) {
         )
     ) {
       rlang::abort(sprintf(
-        "DateTime parameter `%s` must use YYYY-MM-DDTHH:mm:ssZ.",
+        "DateTime parameter `%s` must use YYYY-MM-DDTHH:mm:ssZ",
         name
       ))
     }
@@ -1133,31 +1130,31 @@ print.fabric_job_instance <- function(x, ...) {
         value > .Machine$integer.max
     ) {
       rlang::abort(sprintf(
-        "Integer parameter `%s` must be a whole 32-bit number.",
+        "Integer parameter `%s` must be a whole 32-bit number",
         name
       ))
     }
     value <- as.integer(value)
   } else if (identical(type, "Number")) {
     if (!is.numeric(value) || !is.finite(value)) {
-      rlang::abort(sprintf("Number parameter `%s` must be numeric.", name))
+      rlang::abort(sprintf("Number parameter `%s` must be numeric", name))
     }
     value <- as.numeric(value)
   } else if (identical(type, "Boolean")) {
     if (!is.logical(value)) {
-      rlang::abort(sprintf("Boolean parameter `%s` must be logical.", name))
+      rlang::abort(sprintf("Boolean parameter `%s` must be logical", name))
     }
   } else if (identical(type, "Guid")) {
     if (!is.character(value) || !fabric_is_guid(value)) {
       rlang::abort(sprintf(
-        "Guid parameter `%s` must use the canonical GUID format.",
+        "Guid parameter `%s` must use the canonical GUID format",
         name
       ))
     }
   } else if (type %in% c("Text", "VariableReference")) {
     if (!is.character(value)) {
       rlang::abort(sprintf(
-        "%s parameter `%s` must be character.",
+        "%s parameter `%s` must be character",
         type,
         name
       ))
@@ -1178,10 +1175,10 @@ print.fabric_job_instance <- function(x, ...) {
   } else if (is.character(value)) {
     "Text"
   } else {
-    rlang::abort(
+    rlang::abort(paste0(
       "Fabric parameter types can only be inferred from scalar logical, ",
-      "integer, numeric, character, Date, or POSIXt values."
-    )
+      "integer, numeric, character, Date, or POSIXt values"
+    ))
   }
 }
 
@@ -1201,7 +1198,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (inherits(job, "fabric_job")) {
     if (!is.null(job_instance_id)) {
       rlang::abort(
-        "`job_instance_id` cannot be combined with a `fabric_job`."
+        "`job_instance_id` cannot be combined with a `fabric_job`"
       )
     }
     override_auth <- !is.null(access_token) || !is.null(token_provider)
@@ -1229,7 +1226,7 @@ print.fabric_job_instance <- function(x, ...) {
   .fabric_job_guid(id, "job instance ID")
   if (is.null(item)) {
     rlang::abort(
-      "`item` is required with a job instance ID."
+      "`item` is required with a job instance ID"
     )
   }
   credential <- fabric_credential(
@@ -1316,7 +1313,7 @@ print.fabric_job_instance <- function(x, ...) {
       } else {
         ""
       },
-      if (nzchar(detail)) paste0(": ", detail) else "."
+      if (nzchar(detail)) paste0(": ", detail) else ""
     ),
     class = c(class, "fabric_job_error"),
     job = job,
@@ -1358,7 +1355,7 @@ print.fabric_job_instance <- function(x, ...) {
       (!length(value) && !identical(value, list())) ||
       (length(value) && (is.null(names(value)) || !all(nzchar(names(value)))))
   ) {
-    rlang::abort(sprintf("`%s` must be a named list.", name))
+    rlang::abort(sprintf("`%s` must be a named list", name))
   }
   invisible(TRUE)
 }
@@ -1370,7 +1367,7 @@ print.fabric_job_instance <- function(x, ...) {
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(sprintf("`%s` must be one non-empty string.", name))
+    rlang::abort(sprintf("`%s` must be one non-empty string", name))
   }
   invisible(TRUE)
 }
@@ -1379,7 +1376,7 @@ print.fabric_job_instance <- function(x, ...) {
   .fabric_job_nonempty(value, name)
   if (!grepl("^[A-Za-z0-9._-]+$", value)) {
     rlang::abort(sprintf(
-      "`%s` may contain only letters, numbers, dot, underscore, and hyphen.",
+      "`%s` may contain only letters, numbers, dot, underscore, and hyphen",
       name
     ))
   }
@@ -1390,7 +1387,7 @@ print.fabric_job_instance <- function(x, ...) {
   .fabric_job_nonempty(value, name)
   if (!fabric_is_guid(value)) {
     rlang::abort(sprintf(
-      "`%s` must use the canonical GUID format.",
+      "`%s` must use the canonical GUID format",
       name
     ))
   }
@@ -1406,7 +1403,7 @@ print.fabric_job_instance <- function(x, ...) {
       value < minimum
   ) {
     rlang::abort(sprintf(
-      "`%s` must be one finite number greater than or equal to %s.",
+      "`%s` must be one finite number greater than or equal to %s",
       name,
       minimum
     ))
