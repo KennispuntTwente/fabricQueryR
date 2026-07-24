@@ -1,5 +1,9 @@
 .fabric_audience <- list(
   fabric = "https://api.fabric.microsoft.com/.default",
+  graphql = paste0(
+    "https://analysis.windows.net/powerbi/api/",
+    "GraphQLApi.Execute.All"
+  ),
   power_bi = "https://analysis.windows.net/powerbi/api/.default",
   sql = "https://database.windows.net/.default",
   storage = "https://storage.azure.com/.default",

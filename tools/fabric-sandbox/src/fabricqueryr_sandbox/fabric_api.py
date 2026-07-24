@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import base64
+import json
 import time
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
 
@@ -112,6 +114,136 @@ class FabricApi:
             f"/workspaces/{workspace_id}/kqlDatabases/{kql_database_id}",
         ).json()
 
+    def get_graphql_api(
+        self, workspace_id: str, graphql_api_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            f"/workspaces/{workspace_id}/graphQLApis/{graphql_api_id}",
+        ).json()
+
+    def update_graphql_definition(
+        self,
+        workspace_id: str,
+        graphql_api_id: str,
+        definition: dict[str, Any],
+        *,
+        timeout: int = 900,
+    ) -> dict[str, Any]:
+        payload = base64.b64encode(
+            json.dumps(
+                definition,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        ).decode("ascii")
+        response = self.request(
+            "POST",
+            (
+                f"/workspaces/{workspace_id}/graphQLApis/"
+                f"{graphql_api_id}/updateDefinition"
+            ),
+            json={
+                "definition": {
+                    "format": "GraphQLApiV1",
+                    "parts": [
+                        {
+                            "path": "graphql-definition.json",
+                            "payload": payload,
+                            "payloadType": "InlineBase64",
+                        }
+                    ],
+                }
+            },
+        )
+        if response.status_code == 200:
+            return {"status": "Succeeded"}
+        return self._wait_for_operation(
+            response,
+            operation_name="GraphQL definition update",
+            timeout=timeout,
+        )
+
+    def wait_for_graphql_type(
+        self,
+        workspace_id: str,
+        graphql_api_id: str,
+        graphql_type: str,
+        *,
+        timeout: int = 600,
+    ) -> dict[str, Any]:
+        endpoint = (
+            f"/workspaces/{workspace_id}/graphqlapis/"
+            f"{graphql_api_id}/graphql"
+        )
+        deadline = time.monotonic() + timeout
+        last_errors: Any = None
+        while time.monotonic() < deadline:
+            try:
+                response = self.request(
+                    "POST",
+                    endpoint,
+                    headers={"Accept": "application/graphql-response+json"},
+                    json={
+                        "query": (
+                            "query SchemaReady($name: String!) { "
+                            "__type(name: $name) { name fields { name } } }"
+                        ),
+                        "variables": {"name": graphql_type},
+                        "operationName": "SchemaReady",
+                    },
+                ).json()
+            except httpx.HTTPStatusError as error:
+                if error.response.status_code not in {
+                    404,
+                    408,
+                    409,
+                    429,
+                    500,
+                    502,
+                    503,
+                    504,
+                }:
+                    raise
+                last_errors = error.response.text
+                self.sleep(10)
+                continue
+            found_type = response.get("data", {}).get("__type")
+            if found_type and found_type.get("name") == graphql_type:
+                return found_type
+            last_errors = response.get("errors")
+            self.sleep(10)
+        raise TimeoutError(
+            f"GraphQL type {graphql_type!r} was not ready in time; "
+            f"last errors: {last_errors!r}"
+        )
+
+    def _wait_for_operation(
+        self,
+        response: httpx.Response,
+        *,
+        operation_name: str,
+        timeout: int,
+    ) -> dict[str, Any]:
+        location = response.headers.get("Location")
+        if not location:
+            raise RuntimeError(
+                f"{operation_name} did not include a Location header"
+            )
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            operation = self.request("GET", location).json()
+            status = operation.get("status")
+            if status in TERMINAL_OPERATION_STATES:
+                if status != "Succeeded":
+                    raise RuntimeError(
+                        f"{operation_name} ended in {status}: "
+                        f"{operation.get('error')}"
+                    )
+                return operation
+            self.sleep(10)
+        raise TimeoutError(f"{operation_name} did not finish in time")
+
     def refresh_sql_endpoint_metadata(
         self,
         workspace_id: str,
@@ -130,25 +262,11 @@ class FabricApi:
         if response.status_code == 200:
             return response.json()
 
-        location = response.headers.get("Location")
-        if not location:
-            raise RuntimeError(
-                "SQL endpoint metadata refresh did not include a Location header"
-            )
-
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            operation = self.request("GET", location).json()
-            status = operation.get("status")
-            if status in TERMINAL_OPERATION_STATES:
-                if status != "Succeeded":
-                    raise RuntimeError(
-                        f"SQL endpoint metadata refresh ended in {status}: "
-                        f"{operation.get('error')}"
-                    )
-                return operation
-            self.sleep(10)
-        raise TimeoutError("SQL endpoint metadata refresh did not finish in time")
+        return self._wait_for_operation(
+            response,
+            operation_name="SQL endpoint metadata refresh",
+            timeout=timeout,
+        )
 
     def run_notebook(
         self,

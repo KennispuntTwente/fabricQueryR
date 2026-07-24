@@ -92,6 +92,18 @@ resource "fabric_kql_database" "test" {
   }
 }
 
+resource "fabric_graphql_api" "test" {
+  display_name = "TestGraphQL"
+  description  = "Ephemeral GraphQL API for fabricQueryR integration tests"
+  workspace_id = fabric_workspace.sandbox.id
+
+  timeouts = {
+    create = "15m"
+    update = "15m"
+    delete = "15m"
+  }
+}
+
 resource "fabric_workspace_role_assignment" "test_principal" {
   count = var.test_principal_id == null ? 0 : 1
 

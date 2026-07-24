@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from .credentials import get_credential
 from .fabric_api import FabricApi
+from .graphql_api import GRAPHQL_API_NAME, GRAPHQL_TYPE
 from .manifest import SandboxManifest
 from .power_bi_api import PowerBiApi, SEMANTIC_MODEL_NAME
 from .settings import SandboxSettings
@@ -99,6 +100,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         )
         kql_database_item = api.find_item(
             workspace_id, "TestKQLDatabase", "KQLDatabase"
+        )
+        graphql_api_item = api.find_item(
+            workspace_id, GRAPHQL_API_NAME, "GraphQLApi"
         )
         lakehouse = _wait_for_lakehouse_sql_endpoint(
             api, workspace_id, lakehouse_item["id"]
@@ -221,6 +225,16 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     f"{quote(settings.workspace_name, safe='')};"
                     f"Initial Catalog={SEMANTIC_MODEL_NAME};"
                 ),
+            },
+            "TestGraphQL": {
+                "id": graphql_api_item["id"],
+                "type": "GraphQLApi",
+                "display_name": graphql_api_item["displayName"],
+                "endpoint": (
+                    f"https://api.fabric.microsoft.com/v1/workspaces/"
+                    f"{workspace_id}/graphqlapis/{graphql_api_item['id']}/graphql"
+                ),
+                "root_field": GRAPHQL_TYPE,
             },
         },
     )

@@ -11,7 +11,7 @@ status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-proje
 <!-- badges: end -->
 
 ‘fabricQueryR’ is an R package which helps you discover and query data
-from Microsoft Fabric in R. It comes with discovery helpers and five
+from Microsoft Fabric in R. It comes with discovery helpers and six
 methods which help you to get your Microsoft Fabric data into R:
 
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
@@ -38,6 +38,11 @@ methods which help you to get your Microsoft Fabric data into R:
     tibble, or a named list of tibbles when KQL returns multiple primary
     result tables.
 
+6.  Execute a GraphQL document against an `API for GraphQL` item:
+    `fabric_graphql_query()`. This preserves GraphQL data, errors, and
+    extensions independently, including valid responses containing
+    partial data and errors.
+
 ## Installation
 
 You can install the development version of ‘fabricQueryR’ like so:
@@ -62,7 +67,7 @@ See the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
 
-Below is a code snippet showing how to discover targets and use the five
+Below is a code snippet showing how to discover targets and use the six
 methods to get data from Fabric into R:
 
 ``` r
@@ -87,6 +92,7 @@ workspace <- workspaces[workspaces$displayName == "ExampleWorkspace", ]
 lakehouse <- fabric_lakehouses(workspace)[1, ]
 semantic_model <- fabric_semantic_models(workspace)[1, ]
 kql_database <- fabric_kql_databases(workspace)[1, ]
+graphql_api <- fabric_graphql_apis(workspace)[1, ]
 
 # Other helpers include fabric_warehouses(), fabric_sql_databases(),
 # fabric_eventhouses(), fabric_kql_databases(), fabric_notebooks(), and
@@ -198,6 +204,26 @@ df_kql <- fabric_kql_query(
   ),
   parameters = list(selected_type = "Warning")
 )
+
+
+# GraphQL API ---------------------------------------------------------------
+
+# Variables are encoded separately from the GraphQL document. The result keeps
+# partial data and GraphQL-level errors in separate fields.
+graphql_result <- fabric_graphql_query(
+  graphql_api,
+  query = paste(
+    "query Customers($region: String!) {",
+    "  customers(filter: {region: {eq: $region}}) {",
+    "    items { id name region }",
+    "  }",
+    "}"
+  ),
+  variables = list(region = "West"),
+  operation_name = "Customers"
+)
+graphql_result$data$customers$items
+graphql_result$errors
 ```
 
 ## Background

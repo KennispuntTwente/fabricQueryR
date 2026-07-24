@@ -2,7 +2,7 @@
 
 This directory contains the real-service test environment for `fabricQueryR`.
 Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse, SQL
-Database, Eventhouse, KQL database, and access assignments. `fabric-cicd`
+Database, Eventhouse, KQL database, GraphQL API, and access assignments. `fabric-cicd`
 publishes the source-controlled seed notebook. The Python package uploads fixture
 files, runs the notebook, seeds the KQL database, and writes the manifest
 consumed by R.
@@ -18,6 +18,7 @@ supported by the Microsoft Fabric Terraform provider.
 - A Fabric capacity ID
 - A capacity/region that supports Warehouse and SQL Database items
 - A capacity/region that supports Eventhouse and KQL Database items
+- A capacity/region that supports API for GraphQL items
 - Tenant settings that permit the executing identity to use Fabric APIs and create
   workspaces
 - Power BI tenant settings that permit service principals to use Power BI APIs
@@ -43,6 +44,7 @@ export FABRIC_WAREHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -ra
 export FABRIC_SQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw sql_database_id)"
 export FABRIC_EVENTHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw eventhouse_id)"
 export FABRIC_KQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw kql_database_id)"
+export FABRIC_GRAPHQL_API_ID="$(terraform -chdir=infra/fabric/terraform output -raw graphql_api_id)"
 
 uv --directory tools/fabric-sandbox sync --locked
 uv --directory tools/fabric-sandbox run pytest
@@ -91,14 +93,16 @@ high-frequency CI runs.
 ## Current fixture scope
 
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
-`TestEventhouse`, `TestKQLDatabase`, and `SeedFixtures`, then creates a small
+`TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, and `SeedFixtures`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. It
 creates basic and partitioned Delta tables, including a checkpoint-generating
 append and a subsequent partition replacement, plus a deterministic typed Kusto
-table. The generated manifest exposes OneLake, all three SQL surfaces, Livy
-session and batch coordinates, DAX, Eventhouse, and KQL test coordinates. The
+table. After the seed table is available, the sandbox applies the supported
+GraphQL public definition and waits until the schema is executable. The
+generated manifest exposes OneLake, all three SQL surfaces, Livy session and
+batch coordinates, DAX, Eventhouse, KQL, and GraphQL test coordinates. The
 uploaded `livy_batch.py` fixture has deterministic success, failure, and
 slow/cancellation modes. Required SQL, Livy, and KQL fixtures are not
 capability-gated: provisioning, discovery, seeding, or connectivity failures
-fail the integration job. GraphQL remains deferred until its package query
-function is added.
+fail the integration job. GraphQL is likewise mandatory and is exercised with
+the same service-principal Fabric API token used by the sandbox.

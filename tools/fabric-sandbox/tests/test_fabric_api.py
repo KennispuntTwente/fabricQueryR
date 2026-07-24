@@ -1,3 +1,4 @@
+import base64
 import json
 
 from azure.core.credentials import AccessToken
@@ -65,17 +66,96 @@ def test_get_workload_items_uses_typed_routes():
         sql_database = api.get_sql_database("workspace-id", "database-id")
         eventhouse = api.get_eventhouse("workspace-id", "eventhouse-id")
         kql_database = api.get_kql_database("workspace-id", "kql-database-id")
+        graphql_api = api.get_graphql_api("workspace-id", "graphql-api-id")
 
     assert warehouse["id"] == "warehouse-id"
     assert sql_database["id"] == "database-id"
     assert eventhouse["id"] == "eventhouse-id"
     assert kql_database["id"] == "kql-database-id"
+    assert graphql_api["id"] == "graphql-api-id"
     assert paths == [
         "/v1/workspaces/workspace-id/warehouses/warehouse-id",
         "/v1/workspaces/workspace-id/sqlDatabases/database-id",
         "/v1/workspaces/workspace-id/eventhouses/eventhouse-id",
         "/v1/workspaces/workspace-id/kqlDatabases/kql-database-id",
+        "/v1/workspaces/workspace-id/graphQLApis/graphql-api-id",
     ]
+
+
+def test_update_graphql_definition_encodes_supported_public_definition():
+    requests = []
+    definition = {
+        "$schema": "https://example.test/schema.json",
+        "datasources": [{"sourceItemId": "sql-endpoint-id"}],
+    }
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200)
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        result = api.update_graphql_definition(
+            "workspace-id",
+            "graphql-api-id",
+            definition,
+        )
+
+    assert result == {"status": "Succeeded"}
+    request = requests[0]
+    assert request.url.path.endswith(
+        "/workspaces/workspace-id/graphQLApis/graphql-api-id/updateDefinition"
+    )
+    payload = json.loads(request.content)
+    assert payload["definition"]["format"] == "GraphQLApiV1"
+    part = payload["definition"]["parts"][0]
+    assert part["path"] == "graphql-definition.json"
+    assert part["payloadType"] == "InlineBase64"
+    decoded = json.loads(base64.b64decode(part["payload"]))
+    assert decoded == definition
+
+
+def test_wait_for_graphql_type_retries_until_schema_is_ready():
+    attempts = 0
+    sleeps = []
+
+    def handler(request):
+        nonlocal attempts
+        attempts += 1
+        payload = json.loads(request.content)
+        assert payload["variables"] == {"name": "fabricqueryr_basic"}
+        if attempts == 1:
+            return httpx.Response(503, json={"message": "schema is provisioning"})
+        if attempts == 2:
+            return httpx.Response(
+                200,
+                json={"data": {"__type": None}},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "__type": {
+                        "name": "fabricqueryr_basic",
+                        "fields": [{"name": "id"}],
+                    }
+                }
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        result = api.wait_for_graphql_type(
+            "workspace-id",
+            "graphql-api-id",
+            "fabricqueryr_basic",
+        )
+
+    assert result["name"] == "fabricqueryr_basic"
+    assert attempts == 3
+    assert sleeps == [10, 10]
 
 
 def test_run_notebook_reports_cancelled_job_trace_ids():

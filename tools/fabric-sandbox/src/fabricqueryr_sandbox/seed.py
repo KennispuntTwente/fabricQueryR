@@ -3,8 +3,16 @@
 from azure.storage.filedatalake import DataLakeServiceClient
 
 from .credentials import get_credential
-from .discover import _wait_for_kql_properties
+from .discover import (
+    _wait_for_kql_properties,
+    _wait_for_lakehouse_sql_endpoint,
+)
 from .fabric_api import FabricApi
+from .graphql_api import (
+    GRAPHQL_API_NAME,
+    GRAPHQL_TYPE,
+    graphql_definition,
+)
 from .kusto_api import KustoApi, SEED_TABLE
 from .power_bi_api import seed_test_semantic_model
 from .settings import SandboxSettings
@@ -32,6 +40,11 @@ def seed(settings: SandboxSettings) -> None:
     with FabricApi(get_credential()) as api:
         lakehouse = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook = api.find_item(workspace_id, "SeedFixtures", "Notebook")
+        graphql_api = api.find_item(
+            workspace_id,
+            GRAPHQL_API_NAME,
+            "GraphQLApi",
+        )
         kql_database_item = api.find_item(
             workspace_id,
             "TestKQLDatabase",
@@ -52,6 +65,27 @@ def seed(settings: SandboxSettings) -> None:
         print(
             f"seed notebook completed: {job.get('id')} "
             f"exitValue={job.get('exitValue')!r}"
+        )
+        lakehouse_properties = _wait_for_lakehouse_sql_endpoint(
+            api,
+            workspace_id,
+            lakehouse["id"],
+        )["properties"]
+        sql_endpoint_id = lakehouse_properties["sqlEndpointProperties"]["id"]
+        api.refresh_sql_endpoint_metadata(workspace_id, sql_endpoint_id)
+        api.update_graphql_definition(
+            workspace_id,
+            graphql_api["id"],
+            graphql_definition(workspace_id, sql_endpoint_id),
+        )
+        ready_type = api.wait_for_graphql_type(
+            workspace_id,
+            graphql_api["id"],
+            GRAPHQL_TYPE,
+        )
+        print(
+            "GraphQL fixture ready: "
+            f"{graphql_api['displayName']}.{ready_type['name']}"
         )
 
     query_service_uri = kql_database.get("properties", {}).get("queryServiceUri")

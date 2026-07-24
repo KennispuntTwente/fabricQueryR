@@ -11,12 +11,15 @@ def test_terraform_owns_all_integration_targets():
     assert 'resource "fabric_sql_database" "test"' in main
     assert 'resource "fabric_eventhouse" "test"' in main
     assert 'resource "fabric_kql_database" "test"' in main
+    assert 'resource "fabric_graphql_api" "test"' in main
     assert 'display_name = "TestWarehouse"' in main
     assert 'display_name = "TestSQLDatabase"' in main
     assert 'display_name = "TestEventhouse"' in main
     assert 'display_name = "TestKQLDatabase"' in main
+    assert 'display_name = "TestGraphQL"' in main
     assert "eventhouse_id = fabric_eventhouse.test.id" in main
     assert 'output "warehouse_id"' in outputs
     assert 'output "sql_database_id"' in outputs
     assert 'output "eventhouse_id"' in outputs
     assert 'output "kql_database_id"' in outputs
+    assert 'output "graphql_api_id"' in outputs

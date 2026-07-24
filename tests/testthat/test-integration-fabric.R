@@ -231,6 +231,130 @@ test_that("fabric_kql_query surfaces live Kusto service errors", {
   )
 })
 
+test_that("fabric_graphql_query executes variables and preserves nulls", {
+  manifest <- fabric_test_manifest()
+  provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  api <- fabric_item(
+    manifest$workspace_id,
+    provisioned$id,
+    type = "GraphQLApi",
+    access_token = token
+  )
+  expect_equal(api$graphql_endpoint, provisioned$endpoint)
+
+  result <- fabric_graphql_query(
+    api,
+    query = paste(
+      "query Filtered($category: String!) {",
+      "  fabricqueryr_basic(",
+      "    filter: {category: {eq: $category}},",
+      "    orderBy: {id: ASC}",
+      "  ) {",
+      "    items { id name category amount loaded_at }",
+      "    hasNextPage",
+      "    endCursor",
+      "  }",
+      "}"
+    ),
+    variables = list(category = "A"),
+    operation_name = "Filtered",
+    error_policy = "error",
+    access_token = token,
+    audience = "https://api.fabric.microsoft.com/.default"
+  )
+
+  expect_s3_class(result, "fabric_graphql_result")
+  expect_length(result$errors, 0L)
+  expect_length(result$data$fabricqueryr_basic$items, 2L)
+  expect_equal(
+    vapply(
+      result$data$fabricqueryr_basic$items,
+      `[[`,
+      integer(1),
+      "id"
+    ),
+    c(1L, 3L)
+  )
+  expect_equal(
+    vapply(
+      result$data$fabricqueryr_basic$items,
+      `[[`,
+      character(1),
+      "name"
+    ),
+    c("alpha", "gamma")
+  )
+  expect_equal(result$data$fabricqueryr_basic$items[[1L]]$amount, 10.5)
+  expect_null(result$data$fabricqueryr_basic$items[[2L]]$amount)
+})
+
+test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
+  manifest <- fabric_test_manifest()
+  api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  pages <- fabric_graphql_paginate(
+    api$endpoint,
+    query = paste(
+      "query Paged($first: Int!, $after: String) {",
+      "  fabricqueryr_basic(",
+      "    first: $first, after: $after, orderBy: {id: ASC}",
+      "  ) {",
+      "    items { id name amount }",
+      "    hasNextPage",
+      "    endCursor",
+      "  }",
+      "}"
+    ),
+    variables = list(first = 2L, after = NULL),
+    operation_name = "Paged",
+    next_cursor = fabric_graphql_cursor("fabricqueryr_basic"),
+    error_policy = "error",
+    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    audience = "https://api.fabric.microsoft.com/.default"
+  )
+  items <- unlist(
+    lapply(
+      pages$pages,
+      function(page) page$data$fabricqueryr_basic$items
+    ),
+    recursive = FALSE
+  )
+
+  expect_s3_class(pages, "fabric_graphql_pages")
+  expect_true(pages$complete)
+  expect_length(pages$pages, 2L)
+  expect_equal(vapply(items, `[[`, integer(1), "id"), c(1L, 2L, 3L))
+  expect_equal(
+    vapply(items, `[[`, character(1), "name"),
+    c("alpha", "beta", "gamma")
+  )
+})
+
+test_that("Fabric GraphQL surfaces schema and authentication failures", {
+  manifest <- fabric_test_manifest()
+  api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+
+  invalid_query <- fabric_graphql_query(
+    api$endpoint,
+    query = "{ fabricqueryr_field_that_does_not_exist }",
+    access_token = token,
+    audience = "https://api.fabric.microsoft.com/.default"
+  )
+  expect_null(invalid_query$data)
+  expect_gt(length(invalid_query$errors), 0L)
+  expect_match(invalid_query$errors[[1L]]$message, "(?i)(field|query)")
+
+  expect_error(
+    fabric_graphql_query(
+      api$endpoint,
+      query = "{ __typename }",
+      access_token = "fabricqueryr-invalid-token"
+    ),
+    "HTTP (401|403)"
+  )
+})
+
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   skip_if_not_installed("AzureStor")
   skip_if_not_installed("duckdb")

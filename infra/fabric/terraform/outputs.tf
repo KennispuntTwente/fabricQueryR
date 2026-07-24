@@ -42,3 +42,8 @@ output "kql_database_id" {
   description = "ID of the KQL database exercised by KQL integration tests."
   value       = fabric_kql_database.test.id
 }
+
+output "graphql_api_id" {
+  description = "ID of the GraphQL API exercised by integration tests."
+  value       = fabric_graphql_api.test.id
+}

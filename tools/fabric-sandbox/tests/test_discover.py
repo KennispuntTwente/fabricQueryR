@@ -138,6 +138,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "TestEventhouse",
         "TestKQLDatabase",
         "TestSemanticModel",
+        "TestGraphQL",
     }
     assert manifest.items["TestWarehouse"] == {
         "id": "TestWarehouse-id",
@@ -174,6 +175,16 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "query_service_uri": "https://eventhouse.kusto.test",
         "ingestion_service_uri": "https://ingest-eventhouse.kusto.test",
         "tables": {"events": "fabricqueryr_events"},
+    }
+    assert manifest.items["TestGraphQL"] == {
+        "id": "TestGraphQL-id",
+        "type": "GraphQLApi",
+        "display_name": "TestGraphQL",
+        "endpoint": (
+            "https://api.fabric.microsoft.com/v1/workspaces/workspace-id/"
+            "graphqlapis/TestGraphQL-id/graphql"
+        ),
+        "root_field": "fabricqueryr_basic",
     }
     lakehouse = manifest.items["TestLakehouse"]
     assert lakehouse["livy_batch_file"] == (

@@ -80,7 +80,7 @@ fabric_workspaces <- function(
 #'
 #' @return A tibble with one row per item. `properties` and `raw` are list
 #'   columns. Enriched rows also contain directly usable SQL, OneLake, DAX,
-#'   Livy, and KQL fields where Fabric exposes them.
+#'   Livy, KQL, and GraphQL fields where Fabric exposes or identifies them.
 #' @details Workload enrichment requires `Item.Read.All`/`Item.ReadWrite.All`
 #'   or the corresponding workload-specific read scope in addition to access
 #'   to the item.
@@ -482,6 +482,15 @@ fabric_add_derived_targets <- function(record, api_base) {
   } else if (type %in% c("eventhouse", "kqldatabase")) {
     record$query_service_uri <- properties$queryServiceUri
     record$ingestion_service_uri <- properties$ingestionServiceUri
+  } else if (type == "graphqlapi") {
+    record$graphql_endpoint <- paste0(
+      api_base,
+      "/workspaces/",
+      record$workspaceId,
+      "/graphqlapis/",
+      record$id,
+      "/graphql"
+    )
   }
   record
 }
@@ -576,7 +585,8 @@ fabric_item_tbl <- function(records) {
     "dax_connection_string",
     "livy_url",
     "query_service_uri",
-    "ingestion_service_uri"
+    "ingestion_service_uri",
+    "graphql_endpoint"
   )
   if (!length(records)) {
     out <- stats::setNames(

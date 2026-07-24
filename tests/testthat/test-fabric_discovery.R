@@ -321,3 +321,26 @@ test_that("discovered semantic models bypass name lookup for DAX", {
   expect_equal(captured$dataset_id, "dataset-id")
   expect_equal(result$value, 1)
 })
+
+test_that("GraphQL discovery derives an executable endpoint", {
+  record <- fabric_add_derived_targets(
+    list(
+      id = "5b218778-e7a5-4d73-8187-f10824047715",
+      displayName = "Products API",
+      type = "GraphQLApi",
+      workspaceId = "cfafbeb1-8037-4d0c-896e-a46fb27ff229"
+    ),
+    "https://api.fabric.microsoft.com/v1"
+  )
+
+  expect_equal(
+    record$graphql_endpoint,
+    paste0(
+      "https://api.fabric.microsoft.com/v1/workspaces/",
+      "cfafbeb1-8037-4d0c-896e-a46fb27ff229/graphqlapis/",
+      "5b218778-e7a5-4d73-8187-f10824047715/graphql"
+    )
+  )
+  table <- fabric_item_tbl(list(record))
+  expect_equal(table$graphql_endpoint, record$graphql_endpoint)
+})

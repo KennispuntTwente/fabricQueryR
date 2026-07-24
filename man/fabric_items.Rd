@@ -39,7 +39,7 @@ arguments. Discovery uses the
 \value{
 A tibble with one row per item. \code{properties} and \code{raw} are list
 columns. Enriched rows also contain directly usable SQL, OneLake, DAX,
-Livy, and KQL fields where Fabric exposes them.
+Livy, KQL, and GraphQL fields where Fabric exposes or identifies them.
 }
 \description{
 Lists items in a workspace with optional server-side item-type filtering.

@@ -16,8 +16,8 @@ Description:
     'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft
     Fabric' and 'Power BI'; read 'Delta Lake' tables stored in 'OneLake'
     ('Azure Data Lake Storage Gen2'); execute 'Kusto Query Language' ('KQL')
-    queries against 'Eventhouse' databases; and execute 'Spark' code via the
-    'Livy API'.
+    queries against 'Eventhouse' databases; call user-configured 'GraphQL'
+    APIs over Fabric data; and execute 'Spark' code via the 'Livy API'.
 License: MIT + file LICENSE
 Suggests: 
     AzureStor,
