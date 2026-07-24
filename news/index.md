@@ -26,6 +26,28 @@
   long-running-operation polling helpers are covered by deterministic
   tests.
 
+- [`fabric_workspaces()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_workspaces.md),
+  [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md),
+  and
+  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md)
+  now provide paginated, ambiguity-safe Fabric discovery. Typed helpers
+  enrich Lakehouses, Warehouses, SQL Databases, semantic models,
+  Eventhouses/KQL databases, notebooks, and GraphQL APIs with the
+  workload properties available from Fabric. Discovery records expose
+  ready-to-use SQL, OneLake, DAX, Livy, and KQL targets and can be
+  passed directly to the corresponding query helpers.
+
+- [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  and
+  [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  now support Fabric Warehouse, Lakehouse SQL analytics endpoints, and
+  Fabric SQL Database explicitly. They parse complete portal connection
+  strings, require or discover a catalog, disable unsupported MARS
+  behavior, expose read-only intent and connection timeout, classify
+  failures, and bind query parameters through DBI without SQL
+  interpolation. The former `"Lakehouse"` default catalog has been
+  removed.
+
 ## fabricQueryR 0.2.1
 
 CRAN release: 2026-04-03

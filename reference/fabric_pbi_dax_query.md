@@ -28,7 +28,13 @@ fabric_pbi_dax_query(
 
 - connstr:
 
-  Optional character. Power BI connection string, e.g.
+  Optional character Power BI connection string or one SemanticModel
+  record returned by
+  [`fabric_semantic_models()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  or
+  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md).
+  For a discovered record, workspace and dataset IDs are used directly.
+  A character connection string can be, e.g.
   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
   The function accepts either `Data Source=` and `Initial Catalog=`
   parts, or a bare `powerbi://...` for the data source plus a

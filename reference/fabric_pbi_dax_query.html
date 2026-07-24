@@ -69,7 +69,11 @@ returns a tibble with the resulting data.</p>
 
 
 <dl><dt id="arg-connstr">connstr<a class="anchor" aria-label="anchor" href="#arg-connstr"></a></dt>
-<dd><p>Optional character. Power BI connection string, e.g.
+<dd><p>Optional character Power BI connection string or one
+SemanticModel record returned by <code><a href="fabric_typed_items.html">fabric_semantic_models()</a></code> or
+<code><a href="fabric_item.html">fabric_item()</a></code>. For a discovered record, workspace and dataset IDs are
+used directly.
+A character connection string can be, e.g.
 <code>"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"</code>.
 The function accepts either <code>Data Source=</code> and <code>Initial Catalog=</code> parts, or a
 bare <code>powerbi://...</code> for the data source plus a <code>Dataset=</code>/<code>Catalog=</code>/<code>Initial Catalog=</code> key

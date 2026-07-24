@@ -389,8 +389,12 @@ function to fragile display-name resolution.
 
 ### Direction
 
-- Add functions such as `fabric_workspaces()`, `fabric_items()`, and
-  `fabric_item()` over the Fabric Core REST APIs.
+- Add functions such as
+  [`fabric_workspaces()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_workspaces.md),
+  [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md),
+  and
+  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md)
+  over the Fabric Core REST APIs.
 - Support item-type filtering and complete pagination.
 - Add typed convenience discovery for lakehouses, Warehouses, SQL
   Databases, semantic models, Eventhouses/KQL databases, notebooks, and

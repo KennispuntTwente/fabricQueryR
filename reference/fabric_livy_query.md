@@ -28,7 +28,12 @@ fabric_livy_query(
 
 - livy_url:
 
-  Character. Livy session job connection string, e.g.
+  Character Livy session job connection string or one Lakehouse record
+  returned by
+  [`fabric_lakehouses()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  or
+  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md),
+  e.g.
   `"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"`
   (see details).
 

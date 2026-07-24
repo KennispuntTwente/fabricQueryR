@@ -1,8 +1,9 @@
-# Run a SQL query against a Microsoft Fabric SQL endpoint (opening & closing connection)
+# Run a parameterized query against Microsoft Fabric SQL
 
-Convenience wrapper that opens a connection with
+Opens a connection with
 [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md),
-executes `sql`, and returns a tibble. The connection is closed on exit.
+executes `sql`, and closes the connection. Values in `params` are bound
+by DBI; they are never interpolated into the SQL string.
 
 ## Usage
 
@@ -10,17 +11,21 @@ executes `sql`, and returns a tibble. The connection is closed on exit.
 fabric_sql_query(
   server,
   sql,
-  database = "Lakehouse",
+  params = NULL,
+  database = NULL,
+  target_type = c("auto", "lakehouse", "warehouse", "sql_database",
+    "sql_analytics_endpoint"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   access_token = NULL,
   token_provider = NULL,
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
-  port = 1433L,
+  port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
   timeout = 30L,
+  read_only = FALSE,
   verbose = TRUE,
   ...
 )
@@ -30,60 +35,69 @@ fabric_sql_query(
 
 - server:
 
-  Character. Microsoft Fabric SQL connection string or `Server=...`
-  string (see details).
+  A character endpoint/connection string, or one Lakehouse, Warehouse,
+  or SQL Database record returned by a discovery function.
 
 - sql:
 
-  Character scalar. The SQL to run.
+  One SQL statement.
+
+- params:
+
+  Optional list of values for DBI parameter placeholders (`?`). Strings,
+  dates, missing values, and values containing SQL metacharacters are
+  passed unchanged to the driver.
 
 - database:
 
-  Character. Database name. Defaults to `"Lakehouse"`.
+  Optional catalog/database. An explicit value overrides a catalog found
+  in `server`.
+
+- target_type:
+
+  Target kind. `"auto"` infers it from discovery metadata or the
+  endpoint hostname.
 
 - tenant_id:
 
-  Character. Entra ID (AAD) tenant GUID. Defaults to
-  `Sys.getenv("FABRICQUERYR_TENANT_ID")`.
+  Character. Entra tenant ID.
 
 - client_id:
 
-  Character. App registration (client) ID. Defaults to
-  `Sys.getenv("FABRICQUERYR_CLIENT_ID")`, falling back to the Azure CLI
-  app id `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if unset.
+  Character. Application/client ID.
 
 - access_token:
 
-  Optional character. If supplied, use this bearer token instead of
-  acquiring a new one via `{AzureAuth}`.
+  Optional pre-acquired SQL bearer token.
 
 - token_provider:
 
-  Optional function returning a Fabric SQL bearer token. It may accept
-  `audience` and `force_refresh` arguments. Supply only one of
-  `access_token` and `token_provider`.
+  Optional refreshable SQL token callback.
 
 - odbc_driver:
 
-  Character. ODBC driver name. Defaults to
-  `getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server")`.
+  ODBC driver name. ODBC Driver 18 for SQL Server is the default.
 
 - port:
 
-  Integer. TCP port (default 1433).
+  Optional TCP port. An explicit value overrides a port in `server`;
+  otherwise port 1433 is used.
 
 - encrypt, trust_server_certificate:
 
-  Character flags passed to ODBC. Defaults `"yes"` and `"no"`,
-  respectively.
+  ODBC encryption flags.
 
 - timeout:
 
-  Integer. Login/connect timeout in seconds. Default 30.
+  Login/connect timeout in seconds.
+
+- read_only:
+
+  Logical. Set ODBC `ApplicationIntent=ReadOnly`.
 
 - verbose:
 
-  Logical. Emit progress via `{cli}`. Default `TRUE`.
+  Logical. Emit connection progress.
 
 - ...:
 
@@ -92,20 +106,19 @@ fabric_sql_query(
 
 ## Value
 
-A tibble with the query results (0 rows if none).
+A tibble containing the result.
 
 ## Examples
 
 ``` r
-# Example is not executed since it requires configured credentials for Fabric
 if (FALSE) { # \dontrun{
-df <- fabric_sql_query(
-  server    = "2gxz...qiy.datawarehouse.fabric.microsoft.com",
-  database  = "Lakehouse",
-  sql       = "SELECT TOP 100 * FROM sys.objects",
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
+result <- fabric_sql_query(
+  server = paste0(
+    "Server=example.datawarehouse.fabric.microsoft.com;",
+    "Database=SalesWarehouse;"
+  ),
+  sql = "SELECT * FROM dbo.Customers WHERE region = ?",
+  params = list("West")
 )
-dplyr::glimpse(df)
 } # }
 ```
