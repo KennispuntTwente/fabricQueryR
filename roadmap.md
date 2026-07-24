@@ -1,7 +1,7 @@
 # fabricQueryR roadmap
 
 This roadmap is based on the current `fabricQueryR` implementation and the
-Microsoft Fabric documentation reviewed in March 2026. Priorities favor testable
+Microsoft Fabric documentation reviewed in July 2026. Priorities favor testable
 correctness and shared infrastructure before expanding the public API.
 
 ## Guiding principles
@@ -20,6 +20,11 @@ correctness and shared infrastructure before expanding the public API.
   documented identity/scope requirements.
 
 ## Priority 0: Real Fabric integration-test environment
+
+**Status (July 2026): implemented.** The sandbox is provisioned with Terraform,
+deploys source-controlled items with `fabric-cicd`, seeds deterministic fixtures,
+runs a required weekly live suite, always attempts Terraform teardown, and has a
+scheduled stale-workspace janitor for canceled runners.
 
 ### Objective
 
@@ -97,6 +102,8 @@ infra/fabric/
     TestEventhouse.Eventhouse/
     TestKQLDatabase.KQLDatabase/
     TestGraphQL.GraphQLApi/
+    TestPipeline.DataPipeline/
+    TestSparkJob.SparkJobDefinition/
     parameter.yml
   fixtures/
     basic.csv
@@ -109,16 +116,12 @@ tools/fabric-sandbox/
     deploy.py
     seed.py
     discover.py
-    destroy.py
-tests/testthat/integration/
-  helper-fabric.R
-  test-integration-sql.R
-  test-integration-onelake.R
-  test-integration-dax.R
-  test-integration-livy.R
+    cleanup.py
+tests/testthat/
+  helper-fabric-integration.R
+  test-integration-fabric.R
 ```
 
-Add KQL and GraphQL integration files when those package features are implemented.
 The exact Fabric item directories should be produced from definitions exported by
 Fabric source control and kept separate from Terraform state.
 
@@ -178,8 +181,9 @@ Start with small fixtures that deliberately cover behavior rather than volume:
 | Livy | Lakehouse and seed notebook/session | Session lifecycle, statement success/failure, cleanup, and batch execution |
 | Discovery | More than one page where practical and deliberately ambiguous names | Complete pagination, stable ID lookup, and ambiguity errors |
 | Reliability | Controlled stubs plus selected live calls | `Retry-After`, transient failures, long-running operations, and request IDs |
-| KQL (later) | Eventhouse and KQL database | Query schema/types, multiple tables, and service errors |
-| GraphQL (later) | GraphQL API backed by seeded data | Variables, pagination, GraphQL errors, and delegated-auth limitations |
+| KQL | Eventhouse and KQL database | Query schema/types, multiple tables, and service errors |
+| GraphQL | GraphQL API backed by seeded data | Variables, pagination, GraphQL errors, and authentication failures |
+| Jobs | Notebook, data pipeline, and Spark job definition | Successful workload routes plus notebook failure, timeout, and cancellation |
 
 Keep most retry/throttling cases as deterministic HTTP-stub tests; inducing real
 throttling in a shared capacity is slow and disruptive.
@@ -189,12 +193,10 @@ throttling in a shared capacity is slow and disruptive.
 1. **Unit and contract tests:** run on every push and pull request without Fabric
    credentials. Use `testthat`, mocked HTTP responses, recorded response shapes
    without tokens or tenant data, and static fixture files.
-2. **Fabric smoke tests:** run through manual dispatch and on trusted internal pull
-   requests after approval. Deploy the smallest lakehouse/semantic-model surface and
-   validate one happy path for each current exported function.
-3. **Full compatibility suite:** run nightly and before releases. Provision all
-   supported items and cover protocol edge cases and future KQL/GraphQL paths.
-4. **External pull requests:** never expose the OIDC-enabled environment directly.
+2. **Fabric compatibility suite:** run weekly, by manual dispatch, and before
+   releases. Provision all supported items and cover happy paths, protocol edge
+   cases, and failure behavior for each package surface.
+3. **External pull requests:** never expose the OIDC-enabled environment directly.
    Run only offline tests until a maintainer approves code in a trusted context.
 
 Use a concurrency group so only an appropriate number of sandbox jobs target the
@@ -204,7 +206,8 @@ description.
 
 ### Initial deliverables
 
-- [ ] Expand unit coverage for all five exported functions and their HTTP helpers.
+- [x] Expand unit and contract coverage across all exported package surfaces and
+  their HTTP helpers.
 - [x] Add Terraform for an ephemeral capacity-bound workspace and CI role
   assignment, with remote or per-run isolated state.
 - [x] Add the `uv` project and commit `uv.lock`.
@@ -216,10 +219,10 @@ description.
 - [x] Add integration-test helpers that skip with a precise reason when no
   manifest is available, but fail when a required provisioned workload is absent.
 - [x] Add an OIDC-based GitHub Actions smoke workflow.
-- [ ] Schedule the full compatibility workflow after the stale-workspace janitor
+- [x] Schedule the full compatibility workflow after the stale-workspace janitor
   is available.
 - [x] Add unconditional Terraform teardown to the integration workflow.
-- [ ] Add a scheduled stale-workspace janitor for canceled runners.
+- [x] Add a scheduled stale-workspace janitor for canceled runners.
 - [x] Document one-command local deploy, test, and destroy workflows.
 
 ### Acceptance criteria
@@ -238,18 +241,22 @@ description.
 
 ## Priority 1: Make Delta table reads protocol-correct
 
+**Status (July 2026): implemented for the supported reader contract.** The reader
+stages the transaction log, supports classic and complete multipart checkpoints,
+preserves relative paths, downloads only active snapshot files, supports version
+selection, and rejects unsupported reader features before returning data.
+
 ### Problem
 
-`fabric_onelake_read_delta_table()` currently reconstructs a snapshot by replaying
-only twenty-digit JSON transaction-log files. That can return incorrect data once a
-table uses checkpoints or newer Delta features. Downloading files by `basename()`
-also discards partition paths and can overwrite files with equal names.
+The original implementation replayed only JSON transaction-log files and staged
+data by basename, which was unsafe for checkpoints, newer Delta features, and
+duplicate partition filenames.
 
 ### Direction
 
-- Replace manual log replay with a maintained Delta reader that supports OneLake,
-  preferably through `arrow`/`deltalake` capabilities available to R or a narrowly
-  scoped supported backend.
+- Continue evaluating maintained Delta backends that support OneLake directly;
+  retain the narrowly scoped DuckDB-backed reader until one meets the package's
+  authentication and portability requirements.
 - Preserve complete relative paths during any local staging.
 - Read `_last_checkpoint` and checkpoints if a direct backend is unavoidable.
 - Inspect protocol versions and table features before reading; reject unsupported
@@ -271,12 +278,17 @@ also discards partition paths and can overwrite files with equal names.
 
 ## Priority 2: Validate complete DAX responses
 
+**Status (July 2026): implemented.** All documented error levels and unsupported
+response multiplicity are validated, direct IDs avoid name lookup, pagination and
+ambiguity are handled, and current Execute Queries limits and tenant prerequisites
+are documented.
+
 ### Problem
 
 The Power BI Execute Queries API can return HTTP 200 while embedding query or table
-errors in the JSON body, including partial-result/truncation conditions. The current
-parser reads only the first result/table rows and can silently present incomplete
-data as success.
+errors in the JSON body, including partial-result/truncation conditions. The
+original parser read only the first result/table rows and could silently present
+incomplete data as success.
 
 ### Direction
 
@@ -543,11 +555,9 @@ useful for notebooks, pipelines, Spark job definitions, and test-data setup.
 | M4 | Livy sessions/batches and GraphQL | Lifecycle, partial-error, and identity constraints tested |
 | M5 | General OneLake access and item jobs | Shared storage/job APIs stable and documented |
 
-Priorities 1 and 2 may begin while the full M0 fixture set is being assembled, but
-they should not be released until their corresponding real-service tests are in
-place. KQL, GraphQL, and other future fixtures should be added incrementally so the
-first sandbox release does not depend on every Fabric workload being available in
-the test capacity.
+The live fixture set now covers SQL, DAX, OneLake/Delta, Livy, KQL, GraphQL,
+discovery, and notebook/pipeline/Spark job execution. New public surfaces should
+extend the same fixture and required-CI contract before release.
 
 ## Documentation references
 

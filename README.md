@@ -281,6 +281,6 @@ actively promoting Fabric as the next-generation data platform for
 organizations using Microsoft Azure and Power BI.
 
 As our organization started working with Microsoft Fabric, I found that
-that loading data into R from Fabric was not yet straightforward, and
-took some effort to get working. To help others in the same situation, I
+loading data into R from Fabric was not yet straightforward, and took
+some effort to get working. To help others in the same situation, I
 decided to share the functions I created to make this easier.

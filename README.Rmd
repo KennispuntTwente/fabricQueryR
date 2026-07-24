@@ -282,6 +282,6 @@ including data warehousing, data lakes, and business intelligence.
 It is built on top of Azure Data Services and integrates with Power BI for analytics and reporting.
 Microsoft is actively promoting Fabric as the next-generation data platform for organizations using Microsoft Azure and Power BI.
 
-As our organization started working with Microsoft Fabric, I found that that loading data into R from Fabric was not
+As our organization started working with Microsoft Fabric, I found that loading data into R from Fabric was not
 yet straightforward, and took some effort to get working. To help others in the same situation,
 I decided to share the functions I created to make this easier.
