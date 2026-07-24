@@ -55,16 +55,18 @@ fabric_sql_connection_info <- function(
       "sql_connection_string",
       "connectionString"
     )
-    server_value <- connection_string %||% fabric_record_value(
-      record,
-      "sql_server",
-      "serverFqdn"
-    )
-    database <- database %||% fabric_record_value(
-      record,
-      "sql_database",
-      "databaseName"
-    )
+    server_value <- connection_string %||%
+      fabric_record_value(
+        record,
+        "sql_server",
+        "serverFqdn"
+      )
+    database <- database %||%
+      fabric_record_value(
+        record,
+        "sql_database",
+        "databaseName"
+      )
     if (is.null(database) && discovered_type %in% c("lakehouse", "warehouse")) {
       database <- fabric_record_value(record, "displayName")
     }
@@ -88,7 +90,8 @@ fabric_sql_connection_info <- function(
 
   resolved_type <- target_type
   if (identical(target_type, "auto")) {
-    resolved_type <- switch(discovered_type %||% "",
+    resolved_type <- switch(
+      discovered_type %||% "",
       lakehouse = "lakehouse",
       warehouse = "warehouse",
       sqldatabase = "sql_database",
@@ -385,7 +388,10 @@ fabric_parse_sql_connection_string <- function(server) {
     port <- as.integer(parts[[3L]])
   }
   if (!nzchar(host)) {
-    rlang::abort("Fabric SQL server is empty.", class = "fabric_sql_target_error")
+    rlang::abort(
+      "Fabric SQL server is empty.",
+      class = "fabric_sql_target_error"
+    )
   }
   database <- fields$initialcatalog %||%
     fields$database %||%
@@ -399,10 +405,20 @@ fabric_normalize_server <- function(server) {
 }
 
 fabric_infer_sql_target <- function(server) {
-  if (grepl("\\.datawarehouse\\.fabric\\.microsoft\\.com$", server, ignore.case = TRUE)) {
+  if (
+    grepl(
+      "\\.datawarehouse\\.fabric\\.microsoft\\.com$",
+      server,
+      ignore.case = TRUE
+    )
+  ) {
     "sql_analytics_endpoint"
   } else if (
-    grepl("\\.(?:database\\.fabric|database\\.windows)\\.microsoft\\.com$", server, ignore.case = TRUE)
+    grepl(
+      "\\.(?:database\\.fabric|database\\.windows)\\.microsoft\\.com$",
+      server,
+      ignore.case = TRUE
+    )
   ) {
     "sql_database"
   } else {
@@ -440,7 +456,11 @@ fabric_sql_port <- function(
       value != floor(value)
   ) {
     rlang::abort(
-      sprintf("%s must be one integer between %d and 65535.", argument, minimum),
+      sprintf(
+        "%s must be one integer between %d and 65535.",
+        argument,
+        minimum
+      ),
       class = "fabric_sql_target_error"
     )
   }
@@ -449,17 +469,21 @@ fabric_sql_port <- function(
 
 fabric_sql_connection_error <- function(error) {
   message <- conditionMessage(error)
-  class <- if (grepl(
-    "token|authentication|login failed|18456",
-    message,
-    ignore.case = TRUE
-  )) {
+  class <- if (
+    grepl(
+      "token|authentication|login failed|18456",
+      message,
+      ignore.case = TRUE
+    )
+  ) {
     "fabric_sql_authentication_error"
-  } else if (grepl(
-    "cannot open database|catalog|database .* (?:not|doesn't) exist",
-    message,
-    ignore.case = TRUE
-  )) {
+  } else if (
+    grepl(
+      "cannot open database|catalog|database .* (?:not|doesn't) exist",
+      message,
+      ignore.case = TRUE
+    )
+  ) {
     "fabric_sql_database_error"
   } else {
     "fabric_sql_endpoint_error"

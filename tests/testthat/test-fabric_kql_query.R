@@ -1,4 +1,8 @@
-kusto_test_response <- function(body, status = 200L, url = "https://cluster.test") {
+kusto_test_response <- function(
+  body,
+  status = 200L,
+  url = "https://cluster.test"
+) {
   if (!is.raw(body)) {
     body <- charToRaw(jsonlite::toJSON(
       body,
@@ -96,7 +100,9 @@ test_that("KQL parameter values are encoded without query interpolation", {
   expect_error(kusto_encode_parameters(list(missing = NA)), "cannot be NULL")
   expect_error(kusto_encode_parameters(list(1)), "unique, non-empty names")
   expect_error(
-    kusto_encode_parameters(list(days = as.Date(c("2026-01-01", "2026-01-02")))),
+    kusto_encode_parameters(list(
+      days = as.Date(c("2026-01-01", "2026-01-02"))
+    )),
     "must be scalar",
     fixed = TRUE
   )
@@ -225,8 +231,16 @@ test_that("Kusto v2 type metadata produces stable R columns", {
   expect_equal(
     attr(result, "kusto_schema")$type,
     c(
-      "bool", "datetime", "decimal", "dynamic", "guid",
-      "int", "long", "real", "string", "timespan"
+      "bool",
+      "datetime",
+      "decimal",
+      "dynamic",
+      "guid",
+      "int",
+      "long",
+      "real",
+      "string",
+      "timespan"
     )
   )
 })

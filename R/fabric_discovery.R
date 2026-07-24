@@ -343,7 +343,8 @@ fabric_resolve_workspace <- function(workspace, credential, api_base) {
     return(list(
       id = supplied$id,
       displayName = supplied$displayName %||%
-        supplied$workspaceDisplayName %||% NA_character_,
+        supplied$workspaceDisplayName %||%
+        NA_character_,
       raw = supplied
     ))
   }
@@ -558,11 +559,23 @@ fabric_item_tbl <- function(records) {
     }
   }
   columns <- c(
-    "id", "displayName", "description", "type", "workspaceId",
-    "workspaceDisplayName", "folderId", "sql_connection_string",
-    "sql_server", "sql_database", "sql_endpoint_id",
-    "sql_endpoint_status", "one_lake_tables_path", "one_lake_files_path",
-    "dax_connection_string", "livy_url", "query_service_uri",
+    "id",
+    "displayName",
+    "description",
+    "type",
+    "workspaceId",
+    "workspaceDisplayName",
+    "folderId",
+    "sql_connection_string",
+    "sql_server",
+    "sql_database",
+    "sql_endpoint_id",
+    "sql_endpoint_status",
+    "one_lake_tables_path",
+    "one_lake_files_path",
+    "dax_connection_string",
+    "livy_url",
+    "query_service_uri",
     "ingestion_service_uri"
   )
   if (!length(records)) {

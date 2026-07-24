@@ -36,14 +36,14 @@ fabric_test_spark_table <- function(manifest, lakehouse) {
 
 fabric_test_manifest_item <- function(manifest, name) {
   item <- manifest$items[[name]]
-    if (is.null(item)) {
-      stop(
-        sprintf(
-          "Fabric integration manifest does not provision required item '%s'",
-          name
-        ),
-        call. = FALSE
-      )
+  if (is.null(item)) {
+    stop(
+      sprintf(
+        "Fabric integration manifest does not provision required item '%s'",
+        name
+      ),
+      call. = FALSE
+    )
   }
   item
 }

@@ -79,8 +79,12 @@ fabric_kql_query <- function(
   access_token = NULL,
   token_provider = NULL
 ) {
-  if (!is.character(query) || length(query) != 1L || is.na(query) ||
-      !nzchar(trimws(query))) {
+  if (
+    !is.character(query) ||
+      length(query) != 1L ||
+      is.na(query) ||
+      !nzchar(trimws(query))
+  ) {
     stop("query must be one non-empty character value.", call. = FALSE)
   }
   target <- kusto_resolve_target(cluster, database)
@@ -89,8 +93,13 @@ fabric_kql_query <- function(
     request_properties,
     "request_properties"
   )
-  if (!is.numeric(timeout) || length(timeout) != 1L || is.na(timeout) ||
-      !is.finite(timeout) || timeout <= 0) {
+  if (
+    !is.numeric(timeout) ||
+      length(timeout) != 1L ||
+      is.na(timeout) ||
+      !is.finite(timeout) ||
+      timeout <= 0
+  ) {
     stop("timeout must be one positive number of seconds.", call. = FALSE)
   }
 
@@ -130,15 +139,23 @@ kusto_resolve_target <- function(cluster, database = NULL) {
       database <- fabric_record_value(record, "displayName", "display_name")
     }
   }
-  if (!is.character(cluster) || length(cluster) != 1L || is.na(cluster) ||
-      !nzchar(trimws(cluster))) {
+  if (
+    !is.character(cluster) ||
+      length(cluster) != 1L ||
+      is.na(cluster) ||
+      !nzchar(trimws(cluster))
+  ) {
     stop(
       "cluster must supply one non-empty Kusto query-service URI.",
       call. = FALSE
     )
   }
-  if (!is.character(database) || length(database) != 1L || is.na(database) ||
-      !nzchar(trimws(database))) {
+  if (
+    !is.character(database) ||
+      length(database) != 1L ||
+      is.na(database) ||
+      !nzchar(trimws(database))
+  ) {
     stop(
       "database is required unless cluster is a discovered KQLDatabase item.",
       call. = FALSE
@@ -147,13 +164,19 @@ kusto_resolve_target <- function(cluster, database = NULL) {
 
   cluster <- sub("/+$", "", trimws(cluster))
   parsed <- try(httr2::url_parse(cluster), silent = TRUE)
-  if (inherits(parsed, "try-error") || !identical(parsed$scheme, "https") ||
-      is.null(parsed$hostname) || !nzchar(parsed$hostname)) {
+  if (
+    inherits(parsed, "try-error") ||
+      !identical(parsed$scheme, "https") ||
+      is.null(parsed$hostname) ||
+      !nzchar(parsed$hostname)
+  ) {
     stop("cluster must be a valid HTTPS query-service URI.", call. = FALSE)
   }
   path <- parsed$path %||% ""
-  if (!path %in% c("", "/") &&
-      !grepl("/v[12]/rest/query/?$", path, ignore.case = TRUE)) {
+  if (
+    !path %in% c("", "/") &&
+      !grepl("/v[12]/rest/query/?$", path, ignore.case = TRUE)
+  ) {
     stop(
       "cluster URI must be a service root or a Kusto REST query endpoint.",
       call. = FALSE
@@ -176,9 +199,12 @@ kusto_named_list <- function(value, name) {
   if (!is.list(value)) {
     stop(name, " must be a named list.", call. = FALSE)
   }
-  if (length(value) &&
-      (is.null(names(value)) || any(!nzchar(names(value))) ||
-        anyDuplicated(names(value)))) {
+  if (
+    length(value) &&
+      (is.null(names(value)) ||
+        !all(nzchar(names(value))) ||
+        anyDuplicated(names(value)))
+  ) {
     stop(name, " must have unique, non-empty names.", call. = FALSE)
   }
   value
@@ -186,8 +212,10 @@ kusto_named_list <- function(value, name) {
 
 kusto_encode_parameters <- function(parameters) {
   parameters <- kusto_named_list(parameters, "parameters")
-  if (length(parameters) &&
-      any(!grepl("^[A-Za-z_][A-Za-z0-9_]*$", names(parameters)))) {
+  if (
+    length(parameters) &&
+      !all(grepl("^[A-Za-z_][A-Za-z0-9_]*$", names(parameters)))
+  ) {
     stop("parameters names must be valid KQL identifiers.", call. = FALSE)
   }
   lapply(parameters, kusto_encode_parameter)
@@ -203,8 +231,10 @@ kusto_encode_parameter <- function(value) {
       call. = FALSE
     )
   }
-  if (inherits(value, c("POSIXt", "Date", "difftime", "integer64")) &&
-      length(value) != 1L) {
+  if (
+    inherits(value, c("POSIXt", "Date", "difftime", "integer64")) &&
+      length(value) != 1L
+  ) {
     stop(
       "Date, time, difftime, and integer64 KQL parameters must be scalar.",
       call. = FALSE
@@ -223,7 +253,11 @@ kusto_encode_parameter <- function(value) {
   if (inherits(value, "difftime")) {
     return(paste0(
       "timespan(",
-      format(as.numeric(value, units = "secs"), scientific = FALSE, trim = TRUE),
+      format(
+        as.numeric(value, units = "secs"),
+        scientific = FALSE,
+        trim = TRUE
+      ),
       "s)"
     ))
   }
@@ -325,12 +359,16 @@ kusto_frame_type <- function(frame) {
   if (!is.null(frame$Version) && !is.null(frame$IsProgressive)) {
     return("DataSetHeader")
   }
-  if (!is.null(frame$HasErrors) || !is.null(frame$Cancelled) ||
-      !is.null(frame$OneApiErrors)) {
+  if (
+    !is.null(frame$HasErrors) ||
+      !is.null(frame$Cancelled) ||
+      !is.null(frame$OneApiErrors)
+  ) {
     return("DataSetCompletion")
   }
-  if (!is.null(frame$TableKind) && !is.null(frame$Columns) &&
-      !is.null(frame$Rows)) {
+  if (
+    !is.null(frame$TableKind) && !is.null(frame$Columns) && !is.null(frame$Rows)
+  ) {
     return("DataTable")
   }
   if (!is.null(frame$TableKind) && !is.null(frame$Columns)) {
@@ -398,10 +436,12 @@ kusto_parse_response <- function(frames) {
   primary <- tables[table_order]
   primary <- primary[vapply(
     primary,
-    function(table) identical(
-      tolower(table$TableKind %||% ""),
-      "primaryresult"
-    ),
+    function(table) {
+      identical(
+        tolower(table$TableKind %||% ""),
+        "primaryresult"
+      )
+    },
     logical(1)
   )]
   if (!length(primary)) {
@@ -434,7 +474,10 @@ kusto_check_completion <- function(completion) {
     detail <- "The service reported an unspecified partial query failure."
   }
   stop(
-    paste0("Kusto query failed after HTTP success: ", paste(detail, collapse = ": ")),
+    paste0(
+      "Kusto query failed after HTTP success: ",
+      paste(detail, collapse = ": ")
+    ),
     call. = FALSE
   )
 }
@@ -467,9 +510,13 @@ kusto_parse_table <- function(table) {
 }
 
 kusto_character_column <- function(values) {
-  vapply(values, function(value) {
-    if (is.null(value)) NA_character_ else as.character(value)
-  }, character(1))
+  vapply(
+    values,
+    function(value) {
+      if (is.null(value)) NA_character_ else as.character(value)
+    },
+    character(1)
+  )
 }
 
 kusto_numeric_column <- function(values, integer = FALSE) {
@@ -491,7 +538,10 @@ kusto_numeric_column <- function(values, integer = FALSE) {
   }
   invalid <- !is.na(text) & is.na(out)
   if (any(invalid)) {
-    stop("Kusto returned an invalid numeric value for its declared type.", call. = FALSE)
+    stop(
+      "Kusto returned an invalid numeric value for its declared type.",
+      call. = FALSE
+    )
   }
   out
 }
@@ -524,12 +574,12 @@ kusto_timespan_seconds <- function(value) {
   }
   sign <- if (identical(parts[[2L]], "-")) -1 else 1
   days <- if (nzchar(parts[[3L]])) as.numeric(parts[[3L]]) else 0
-  sign * (
-    days * 86400 +
+  sign *
+    (days *
+      86400 +
       as.numeric(parts[[4L]]) * 3600 +
       as.numeric(parts[[5L]]) * 60 +
-      as.numeric(parts[[6L]])
-  )
+      as.numeric(parts[[6L]]))
 }
 
 kusto_dynamic_value <- function(value) {
@@ -551,9 +601,13 @@ kusto_convert_column <- function(values, type) {
     return(kusto_character_column(values))
   }
   if (type %in% c("bool", "boolean")) {
-    return(vapply(values, function(value) {
-      if (is.null(value)) NA else isTRUE(value)
-    }, logical(1)))
+    return(vapply(
+      values,
+      function(value) {
+        if (is.null(value)) NA else isTRUE(value)
+      },
+      logical(1)
+    ))
   }
   if (type == "int") {
     return(kusto_numeric_column(values, integer = TRUE))

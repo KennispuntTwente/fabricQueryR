@@ -87,7 +87,12 @@ fabric_livy_query <- function(
 ) {
   discovered <- fabric_as_record(livy_url)
   if (!is.null(discovered)) {
-    if (!identical(tolower(fabric_record_value(discovered, "type") %||% ""), "lakehouse")) {
+    if (
+      !identical(
+        tolower(fabric_record_value(discovered, "type") %||% ""),
+        "lakehouse"
+      )
+    ) {
       stop("livy_url discovery record must be a Lakehouse item.", call. = FALSE)
     }
     livy_url <- fabric_record_value(discovered, "livy_url")

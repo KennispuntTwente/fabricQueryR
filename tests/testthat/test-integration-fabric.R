@@ -116,8 +116,14 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   expect_named(
     result,
     c(
-      "id", "name", "category", "amount", "observed_at",
-      "active", "correlation_id", "metadata"
+      "id",
+      "name",
+      "category",
+      "amount",
+      "observed_at",
+      "active",
+      "correlation_id",
+      "metadata"
     )
   )
   expect_equal(result$id, c(1L, 2L, 3L))

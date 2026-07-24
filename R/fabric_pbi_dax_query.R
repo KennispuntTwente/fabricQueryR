@@ -86,13 +86,22 @@ fabric_pbi_dax_query <- function(
   stopifnot(is.character(dax), length(dax) == 1L, nzchar(dax))
   discovered <- fabric_as_record(connstr)
   if (!is.null(discovered)) {
-    if (!identical(tolower(fabric_record_value(discovered, "type") %||% ""), "semanticmodel")) {
-      stop("connstr discovery record must be a SemanticModel item.", call. = FALSE)
+    if (
+      !identical(
+        tolower(fabric_record_value(discovered, "type") %||% ""),
+        "semanticmodel"
+      )
+    ) {
+      stop(
+        "connstr discovery record must be a SemanticModel item.",
+        call. = FALSE
+      )
     }
-    workspace_id <- workspace_id %||% fabric_record_value(
-      discovered,
-      "workspaceId"
-    )
+    workspace_id <- workspace_id %||%
+      fabric_record_value(
+        discovered,
+        "workspaceId"
+      )
     dataset_id <- dataset_id %||% fabric_record_value(discovered, "id")
     connstr <- fabric_record_value(
       discovered,

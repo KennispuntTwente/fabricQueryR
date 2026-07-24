@@ -1,4 +1,7 @@
-discovery_response <- function(body, url = "https://api.fabric.microsoft.com/v1") {
+discovery_response <- function(
+  body,
+  url = "https://api.fabric.microsoft.com/v1"
+) {
   httr2::response(
     status_code = 200L,
     url = url,
@@ -27,11 +30,13 @@ test_that("fabric_workspaces follows pagination and returns stable columns", {
       )
     } else {
       discovery_response(
-        list(value = list(list(
-          id = "22222222-2222-4222-8222-222222222222",
-          displayName = "Research",
-          type = "Workspace"
-        ))),
+        list(
+          value = list(list(
+            id = "22222222-2222-4222-8222-222222222222",
+            displayName = "Research",
+            type = "Workspace"
+          ))
+        ),
         req$url
       )
     }
@@ -136,56 +141,77 @@ test_that("typed routes and derived targets cover supported workloads", {
   expect_equal(
     unname(vapply(
       c(
-        "Lakehouse", "Warehouse", "SQLDatabase", "SemanticModel",
-        "Eventhouse", "KQLDatabase", "Notebook", "GraphQLApi"
+        "Lakehouse",
+        "Warehouse",
+        "SQLDatabase",
+        "SemanticModel",
+        "Eventhouse",
+        "KQLDatabase",
+        "Notebook",
+        "GraphQLApi"
       ),
       fabric_item_route,
       character(1)
     )),
     c(
-      "lakehouses", "warehouses", "sqlDatabases", "semanticModels",
-      "eventhouses", "kqlDatabases", "notebooks", "graphQLApis"
+      "lakehouses",
+      "warehouses",
+      "sqlDatabases",
+      "semanticModels",
+      "eventhouses",
+      "kqlDatabases",
+      "notebooks",
+      "graphQLApis"
     )
   )
 
-  sql_database <- fabric_add_derived_targets(list(
-    id = "sql-id",
-    type = "SQLDatabase",
-    displayName = "Orders",
-    properties = list(
-      connectionString = "Server=sql;Initial Catalog=orders-id",
-      serverFqdn = "sql.database.fabric.microsoft.com,1433",
-      databaseName = "orders-id"
-    )
-  ), .fabric_api_base)
+  sql_database <- fabric_add_derived_targets(
+    list(
+      id = "sql-id",
+      type = "SQLDatabase",
+      displayName = "Orders",
+      properties = list(
+        connectionString = "Server=sql;Initial Catalog=orders-id",
+        serverFqdn = "sql.database.fabric.microsoft.com,1433",
+        databaseName = "orders-id"
+      )
+    ),
+    .fabric_api_base
+  )
   expect_equal(sql_database$sql_database, "orders-id")
   expect_equal(
     sql_database$sql_server,
     "sql.database.fabric.microsoft.com,1433"
   )
 
-  semantic_model <- fabric_add_derived_targets(list(
-    id = "model-id",
-    workspaceId = "workspace-id",
-    workspaceDisplayName = "Data & AI",
-    type = "SemanticModel",
-    displayName = "Sales Model"
-  ), .fabric_api_base)
+  semantic_model <- fabric_add_derived_targets(
+    list(
+      id = "model-id",
+      workspaceId = "workspace-id",
+      workspaceDisplayName = "Data & AI",
+      type = "SemanticModel",
+      displayName = "Sales Model"
+    ),
+    .fabric_api_base
+  )
   expect_match(
     semantic_model$dax_connection_string,
     "Data%20%26%20AI",
     fixed = TRUE
   )
 
-  eventhouse <- fabric_add_derived_targets(list(
-    id = "event-id",
-    type = "Eventhouse",
-    displayName = "Events",
-    properties = list(
-      queryServiceUri = "https://cluster.kusto.fabric.microsoft.com",
-      ingestionServiceUri = "https://ingest-cluster.kusto.fabric.microsoft.com"
-    )
-  ), .fabric_api_base)
+  eventhouse <- fabric_add_derived_targets(
+    list(
+      id = "event-id",
+      type = "Eventhouse",
+      displayName = "Events",
+      properties = list(
+        queryServiceUri = "https://cluster.kusto.fabric.microsoft.com",
+        ingestionServiceUri = "https://ingest-cluster.kusto.fabric.microsoft.com"
+      )
+    ),
+    .fabric_api_base
+  )
   expect_equal(
     eventhouse$query_service_uri,
     "https://cluster.kusto.fabric.microsoft.com"
@@ -222,7 +248,9 @@ test_that("typed convenience helpers forward their workload types", {
     unname(unlist(helpers))
   )
   expect_true(all(vapply(calls, `[[`, logical(1), "detail")))
-  expect_true(all(vapply(calls, `[[`, character(1), "workspace") == "Workspace"))
+  expect_true(all(
+    vapply(calls, `[[`, character(1), "workspace") == "Workspace"
+  ))
 })
 
 test_that("empty discovery results retain their public schema", {
