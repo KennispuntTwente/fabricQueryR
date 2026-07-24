@@ -12,6 +12,29 @@ test_that("Lakehouse item identifiers are normalized for OneLake", {
   )
 })
 
+test_that("Delta staging excludes directories from storage listings", {
+  files <- data.frame(
+    name = c(
+      "Lakehouse/Tables/dbo/table/_delta_log",
+      "Lakehouse/Tables/dbo/table/_delta_log/00000000000000000000.json",
+      "Lakehouse/Tables/dbo/table/category=A",
+      "Lakehouse/Tables/dbo/table/category=A/part.parquet"
+    ),
+    isdir = c(TRUE, FALSE, TRUE, FALSE)
+  )
+
+  downloadable <- fabric_delta_file_rows(files)
+
+  expect_equal(
+    downloadable$name,
+    c(
+      "Lakehouse/Tables/dbo/table/_delta_log/00000000000000000000.json",
+      "Lakehouse/Tables/dbo/table/category=A/part.parquet"
+    )
+  )
+  expect_false(any(downloadable$isdir))
+})
+
 test_that("Delta staging preserves paths beneath the table root", {
   staged <- fabric_delta_stage_paths(
     c(

@@ -5,6 +5,7 @@
   rejects unsupported Delta reader protocols, column mapping, and deletion
   vectors before returning data instead of risking incorrect results. The new
   `version` argument supports versioned reads.
+  Directory entries returned by OneLake are excluded from file downloads.
 
 * `fabric_pbi_dax_query()` now rejects embedded response, query, and table
   errors—including HTTP 200 partial-result responses—rather than returning

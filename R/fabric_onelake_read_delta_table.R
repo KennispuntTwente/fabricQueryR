@@ -184,6 +184,7 @@ fabric_onelake_read_delta_table <- function(
     dir = table_dir,
     recursive = TRUE
   )
+  files <- fabric_delta_file_rows(files)
   if (NROW(files) == 0) {
     cli::cli_abort(
       "Nothing found under {.path {table_dir}}. Check names/permissions."
@@ -226,6 +227,21 @@ fabric_onelake_read_delta_table <- function(
 
   inform("Loaded {nrow(df)} row{?s}.", type = "success")
   tibble::as_tibble(df)
+}
+
+#' Keep downloadable files from an Azure storage listing
+#' @param files Data frame returned by `list_storage_files()`.
+#' @return The rows that represent files rather than directories.
+#' @keywords internal
+#' @noRd
+fabric_delta_file_rows <- function(files) {
+  if (!is.data.frame(files) || !"name" %in% names(files)) {
+    cli::cli_abort("OneLake returned an invalid storage listing.")
+  }
+  if ("isdir" %in% names(files)) {
+    files <- files[is.na(files$isdir) | !files$isdir, , drop = FALSE]
+  }
+  files
 }
 
 #' Normalize a Lakehouse item name to include the `.Lakehouse` suffix
