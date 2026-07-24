@@ -26,8 +26,38 @@ def _wait_for_lakehouse_sql_endpoint(
         endpoint = lakehouse.get("properties", {}).get("sqlEndpointProperties", {})
         if endpoint.get("provisioningStatus") == "Success":
             return lakehouse
-        time.sleep(10)
+        api.sleep(10)
     raise TimeoutError("lakehouse SQL analytics endpoint was not ready in time")
+
+
+def _wait_for_sql_properties(
+    api: FabricApi,
+    workspace_id: str,
+    item_id: str,
+    *,
+    item_type: str,
+    timeout: int = 900,
+) -> dict[str, Any]:
+    getters = {
+        "Warehouse": api.get_warehouse,
+        "SQLDatabase": api.get_sql_database,
+    }
+    required_properties = {
+        "Warehouse": ("connectionString",),
+        "SQLDatabase": ("connectionString", "serverFqdn", "databaseName"),
+    }
+    getter = getters[item_type]
+    required = required_properties[item_type]
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        item = getter(workspace_id, item_id)
+        properties = item.get("properties", {})
+        if all(properties.get(name) for name in required):
+            return item
+        api.sleep(10)
+    raise TimeoutError(
+        f"{item_type} SQL connection properties were not ready in time"
+    )
 
 
 def discover(settings: SandboxSettings) -> SandboxManifest:
@@ -35,14 +65,34 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     with FabricApi(get_credential()) as api:
         lakehouse_item = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook_item = api.find_item(workspace_id, "SeedFixtures", "Notebook")
+        warehouse_item = api.find_item(
+            workspace_id, "TestWarehouse", "Warehouse"
+        )
+        sql_database_item = api.find_item(
+            workspace_id, "TestSQLDatabase", "SQLDatabase"
+        )
         lakehouse = _wait_for_lakehouse_sql_endpoint(
             api, workspace_id, lakehouse_item["id"]
+        )
+        warehouse = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            warehouse_item["id"],
+            item_type="Warehouse",
+        )
+        sql_database = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            sql_database_item["id"],
+            item_type="SQLDatabase",
         )
         sql_endpoint_id = lakehouse["properties"]["sqlEndpointProperties"]["id"]
         api.refresh_sql_endpoint_metadata(workspace_id, sql_endpoint_id)
 
     properties = lakehouse["properties"]
     sql_endpoint = properties["sqlEndpointProperties"]
+    warehouse_properties = warehouse["properties"]
+    sql_database_properties = sql_database["properties"]
     with PowerBiApi(get_credential()) as power_bi:
         semantic_model = power_bi.find_dataset(
             workspace_id,
@@ -74,6 +124,21 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             "SeedFixtures": {
                 "id": notebook_item["id"],
                 "type": "Notebook",
+            },
+            "TestWarehouse": {
+                "id": warehouse_item["id"],
+                "type": "Warehouse",
+                "display_name": warehouse_item["displayName"],
+                "connection_string": warehouse_properties["connectionString"],
+                "database_name": warehouse_item["displayName"],
+            },
+            "TestSQLDatabase": {
+                "id": sql_database_item["id"],
+                "type": "SQLDatabase",
+                "display_name": sql_database_item["displayName"],
+                "connection_string": sql_database_properties["connectionString"],
+                "server_fqdn": sql_database_properties["serverFqdn"],
+                "database_name": sql_database_properties["databaseName"],
             },
             "TestSemanticModel": {
                 "id": semantic_model["id"],

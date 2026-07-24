@@ -16,7 +16,7 @@ jobs:
     name: Ephemeral Fabric sandbox
     runs-on: ubuntu-latest
     environment: fabric-integration
-    timeout-minutes: 90
+    timeout-minutes: 110
     env:
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
@@ -52,13 +52,15 @@ jobs:
       - name: Validate Terraform
         run: terraform -chdir="$TF_DIR" validate
 
-      - name: Create workspace and Lakehouse
+      - name: Create workspace and SQL test targets
         run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
 
       - name: Export Terraform outputs
         run: |
           echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
           echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -68,6 +70,9 @@ jobs:
 
       - name: Install locked sandbox environment
         run: uv --directory tools/fabric-sandbox sync --locked
+
+      - name: Test sandbox tooling
+        run: uv --directory tools/fabric-sandbox run pytest
 
       - name: Validate local sandbox configuration
         run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor

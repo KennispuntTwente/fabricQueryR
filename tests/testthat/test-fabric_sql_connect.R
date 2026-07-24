@@ -182,3 +182,18 @@ test_that("SQL failures have actionable condition classes", {
     "params must be NULL or a list"
   )
 })
+
+test_that("the Fabric integration manifest requires every SQL fixture", {
+  manifest <- list(items = list(
+    TestWarehouse = list(id = "warehouse-id")
+  ))
+
+  expect_identical(
+    fabric_test_manifest_item(manifest, "TestWarehouse")$id,
+    "warehouse-id"
+  )
+  expect_error(
+    fabric_test_manifest_item(manifest, "TestSQLDatabase"),
+    "does not provision required item 'TestSQLDatabase'"
+  )
+})

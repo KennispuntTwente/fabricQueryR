@@ -83,6 +83,19 @@ class FabricApi:
             "GET", f"/workspaces/{workspace_id}/lakehouses/{lakehouse_id}"
         ).json()
 
+    def get_warehouse(self, workspace_id: str, warehouse_id: str) -> dict[str, Any]:
+        return self.request(
+            "GET", f"/workspaces/{workspace_id}/warehouses/{warehouse_id}"
+        ).json()
+
+    def get_sql_database(
+        self, workspace_id: str, sql_database_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            f"/workspaces/{workspace_id}/sqlDatabases/{sql_database_id}",
+        ).json()
+
     def refresh_sql_endpoint_metadata(
         self,
         workspace_id: str,

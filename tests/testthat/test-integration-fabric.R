@@ -13,6 +13,8 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   )
   expect_true(manifest$items$TestLakehouse$id %in% items$id)
   expect_true(manifest$items$SeedFixtures$id %in% items$id)
+  expect_true(manifest$items$TestWarehouse$id %in% items$id)
+  expect_true(manifest$items$TestSQLDatabase$id %in% items$id)
 
   lakehouses <- fabric_lakehouses(workspace, access_token = token)
   lakehouse <- lakehouses[
@@ -28,6 +30,38 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestLakehouse$one_lake_tables_path
   )
   expect_equal(lakehouse$livy_url, manifest$items$TestLakehouse$livy_url)
+
+  warehouses <- fabric_warehouses(workspace, access_token = token)
+  warehouse <- warehouses[
+    warehouses$id == manifest$items$TestWarehouse$id,
+  ]
+  expect_equal(nrow(warehouse), 1L)
+  expect_equal(
+    warehouse$sql_server,
+    manifest$items$TestWarehouse$connection_string
+  )
+  expect_equal(
+    warehouse$sql_database,
+    manifest$items$TestWarehouse$database_name
+  )
+
+  sql_databases <- fabric_sql_databases(workspace, access_token = token)
+  sql_database <- sql_databases[
+    sql_databases$id == manifest$items$TestSQLDatabase$id,
+  ]
+  expect_equal(nrow(sql_database), 1L)
+  expect_equal(
+    sql_database$sql_connection_string,
+    manifest$items$TestSQLDatabase$connection_string
+  )
+  expect_equal(
+    sql_database$sql_server,
+    manifest$items$TestSQLDatabase$server_fqdn
+  )
+  expect_equal(
+    sql_database$sql_database,
+    manifest$items$TestSQLDatabase$database_name
+  )
 
   model <- fabric_item(
     workspace,
@@ -278,7 +312,7 @@ fabric_test_sql_item <- function(name) {
   api_token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
   sql_token <- fabric_test_token("FABRIC_TEST_SQL_TOKEN")
 
-  provisioned <- fabric_test_optional_item(manifest, name)
+  provisioned <- fabric_test_manifest_item(manifest, name)
   target <- fabric_item(
     manifest$workspace_id,
     provisioned$id,
@@ -293,13 +327,35 @@ fabric_test_sql_item <- function(name) {
     verbose = FALSE
   )
   expect_equal(result$bound_value, 42L, info = name)
+
+  info <- fabric_sql_connection_info(target)
+  expect_equal(info$database, provisioned$database_name, info = name)
+  expect_equal(
+    info$target_type,
+    if (identical(name, "TestWarehouse")) "warehouse" else "sql_database",
+    info = name
+  )
+
+  from_manifest <- fabric_sql_query(
+    provisioned$connection_string,
+    "SELECT CAST(? AS nvarchar(100)) AS bound_value",
+    params = list("safe ' value; --"),
+    database = if (identical(name, "TestWarehouse")) {
+      provisioned$database_name
+    } else {
+      NULL
+    },
+    access_token = sql_token,
+    verbose = FALSE
+  )
+  expect_equal(from_manifest$bound_value, "safe ' value; --", info = name)
 }
 
-test_that("optional Warehouse target is connectable", {
+test_that("provisioned Warehouse target is discoverable and connectable", {
   fabric_test_sql_item("TestWarehouse")
 })
 
-test_that("optional SQL Database target is connectable", {
+test_that("provisioned SQL Database target is discoverable and connectable", {
   fabric_test_sql_item("TestSQLDatabase")
 })
 

@@ -53,6 +53,25 @@ def test_find_item_rejects_ambiguous_names():
             raise AssertionError("ambiguous item lookup should fail")
 
 
+def test_get_sql_workload_items_uses_typed_routes():
+    paths = []
+
+    def handler(request):
+        paths.append(request.url.path)
+        return httpx.Response(200, json={"id": request.url.path.rsplit("/", 1)[-1]})
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        warehouse = api.get_warehouse("workspace-id", "warehouse-id")
+        sql_database = api.get_sql_database("workspace-id", "database-id")
+
+    assert warehouse["id"] == "warehouse-id"
+    assert sql_database["id"] == "database-id"
+    assert paths == [
+        "/v1/workspaces/workspace-id/warehouses/warehouse-id",
+        "/v1/workspaces/workspace-id/sqlDatabases/database-id",
+    ]
+
+
 def test_run_notebook_reports_cancelled_job_trace_ids():
     def handler(request):
         if request.method == "POST":

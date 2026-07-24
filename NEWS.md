@@ -34,6 +34,9 @@
   disable unsupported MARS behavior, expose read-only intent and connection
   timeout, classify failures, and bind query parameters through DBI without SQL
   interpolation. The former `"Lakehouse"` default catalog has been removed.
+  The Fabric integration sandbox now provisions mandatory Warehouse and SQL
+  Database fixtures and validates discovery, connection strings, token login,
+  and parameter binding against all three Fabric SQL surfaces.
 
 # fabricQueryR 0.2.1
 
