@@ -475,6 +475,11 @@ shared authentication and discovery layers are in place.
 
 ## Priority 9: General OneLake file access
 
+**Status (July 2026): implemented.** The package uses the ADLS Gen2-compatible
+OneLake DFS API with Storage-audience authentication. Fabric-managed item and
+first-level folders remain protected; mutable operations apply only beneath
+those roots, and deletion requires an explicit confirmation flag.
+
 ### Objective
 
 Expose OneLake as a general file system independently of the higher-level Delta

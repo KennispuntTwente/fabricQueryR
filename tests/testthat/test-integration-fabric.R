@@ -356,7 +356,6 @@ test_that("Fabric GraphQL surfaces schema and authentication failures", {
 })
 
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
-  skip_if_not_installed("AzureStor")
   skip_if_not_installed("duckdb")
   skip_if_not_installed("fs")
   manifest <- fabric_test_manifest()
@@ -395,8 +394,147 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   )
 })
 
+test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+
+  fixtures <- fabric_onelake_list(
+    manifest$workspace_id,
+    lakehouse$id,
+    path = "Files/fixtures/nested",
+    recursive = TRUE,
+    page_size = 2L,
+    access_token = token
+  )
+  duplicate_paths <- fixtures$path[fixtures$name == "duplicate.txt"]
+  expect_setequal(
+    duplicate_paths,
+    c(
+      "Files/fixtures/nested/a/duplicate.txt",
+      "Files/fixtures/nested/b/duplicate.txt"
+    )
+  )
+  unicode_path <- "Files/fixtures/nested/unicode/café-数据.txt"
+  expect_true(unicode_path %in% fixtures$path)
+
+  unicode_metadata <- fabric_onelake_metadata(
+    paste0(
+      "abfss://",
+      manifest$workspace_id,
+      "@onelake.dfs.fabric.microsoft.com/",
+      lakehouse$id,
+      "/",
+      unicode_path
+    ),
+    access_token = token
+  )
+  expect_false(unicode_metadata$is_directory)
+  expect_true(nzchar(unicode_metadata$etag))
+  expect_gt(unicode_metadata$content_length, 0)
+
+  ranged <- fabric_onelake_download(
+    manifest$workspace_id,
+    lakehouse$id,
+    "Files/fixtures/nested/a/duplicate.txt",
+    range = c(0, 4),
+    access_token = token
+  )
+  expect_identical(rawToChar(ranged), "alpha")
+
+  test_root <- paste0(
+    "Files/fabricqueryr-tests/one-lake-",
+    gsub("[^A-Za-z0-9]", "", manifest$workspace_id),
+    "-",
+    format(Sys.time(), "%Y%m%d%H%M%S"),
+    "-",
+    Sys.getpid()
+  )
+  test_path <- paste0(test_root, "/nested/échantillon-数据.txt")
+  on.exit(
+    try(
+      fabric_onelake_delete(
+        manifest$workspace_id,
+        lakehouse$id,
+        test_root,
+        recursive = TRUE,
+        confirm = TRUE,
+        access_token = token
+      ),
+      silent = TRUE
+    ),
+    add = TRUE
+  )
+
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    test_path,
+    source = charToRaw("first-version"),
+    content_type = "text/plain; charset=utf-8",
+    access_token = token
+  )
+  first <- fabric_onelake_metadata(
+    manifest$workspace_id,
+    lakehouse$id,
+    test_path,
+    access_token = token
+  )
+  expect_equal(first$content_length, nchar("first-version", type = "bytes"))
+  expect_true(nzchar(first$etag))
+
+  expect_error(
+    fabric_onelake_upload(
+      manifest$workspace_id,
+      lakehouse$id,
+      test_path,
+      source = charToRaw("conflict"),
+      access_token = token
+    ),
+    "HTTP (409|412)"
+  )
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    test_path,
+    source = charToRaw("second-version"),
+    overwrite = TRUE,
+    if_match = first$etag,
+    access_token = token
+  )
+  expect_identical(
+    rawToChar(fabric_onelake_download(
+      manifest$workspace_id,
+      lakehouse$id,
+      test_path,
+      range = c(7, 13),
+      access_token = token
+    )),
+    "version"
+  )
+
+  expect_error(
+    fabric_onelake_delete(
+      manifest$workspace_id,
+      lakehouse$id,
+      test_root,
+      recursive = TRUE,
+      access_token = token
+    ),
+    "disabled by default",
+    fixed = TRUE
+  )
+  expect_true(fabric_onelake_delete(
+    manifest$workspace_id,
+    lakehouse$id,
+    test_root,
+    recursive = TRUE,
+    confirm = TRUE,
+    access_token = token
+  ))
+})
+
 test_that("fabric_onelake_read_delta_table resolves Delta removals and partitions", {
-  skip_if_not_installed("AzureStor")
   skip_if_not_installed("duckdb")
   skip_if_not_installed("fs")
   manifest <- fabric_test_manifest()

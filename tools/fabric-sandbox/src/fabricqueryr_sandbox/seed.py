@@ -1,5 +1,6 @@
 """Upload fixture files and run the deterministic seed notebook."""
 
+from azure.core.exceptions import ResourceExistsError
 from azure.storage.filedatalake import DataLakeServiceClient
 
 from .credentials import get_credential
@@ -26,9 +27,25 @@ def upload_fixtures(
         credential=get_credential(),
     )
     filesystem = service.get_file_system_client(workspace_id)
-    for local_path in settings.fixture_dir.rglob("*"):
-        if not local_path.is_file():
-            continue
+    fixture_files = sorted(
+        path for path in settings.fixture_dir.rglob("*") if path.is_file()
+    )
+    directories = {f"{lakehouse_id}/Files/fixtures"}
+    for local_path in fixture_files:
+        relative = local_path.relative_to(settings.fixture_dir)
+        parent = relative.parent
+        while parent != parent.parent and parent.as_posix() != ".":
+            directories.add(
+                f"{lakehouse_id}/Files/fixtures/{parent.as_posix()}"
+            )
+            parent = parent.parent
+    for directory in sorted(directories, key=lambda value: value.count("/")):
+        try:
+            filesystem.get_directory_client(directory).create_directory()
+        except ResourceExistsError:
+            pass
+
+    for local_path in fixture_files:
         relative_path = local_path.relative_to(settings.fixture_dir).as_posix()
         remote_path = f"{lakehouse_id}/Files/fixtures/{relative_path}"
         with local_path.open("rb") as source:

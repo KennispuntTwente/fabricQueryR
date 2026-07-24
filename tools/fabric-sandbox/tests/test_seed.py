@@ -14,9 +14,19 @@ class FakeFileClient:
 class FakeFileSystem:
     def __init__(self, uploaded):
         self.uploaded = uploaded
+        self.directories = []
 
     def get_file_client(self, path):
         return FakeFileClient(path, self.uploaded)
+
+    def get_directory_client(self, path):
+        filesystem = self
+
+        class FakeDirectoryClient:
+            def create_directory(self):
+                filesystem.directories.append(path)
+
+        return FakeDirectoryClient()
 
 
 class FakeDataLakeServiceClient:
@@ -24,6 +34,7 @@ class FakeDataLakeServiceClient:
     account_url = None
     credential = None
     filesystem = None
+    file_system_client = None
 
     def __init__(self, *, account_url, credential):
         type(self).account_url = account_url
@@ -31,14 +42,18 @@ class FakeDataLakeServiceClient:
 
     def get_file_system_client(self, filesystem):
         type(self).filesystem = filesystem
-        return FakeFileSystem(type(self).uploaded)
+        type(self).file_system_client = FakeFileSystem(type(self).uploaded)
+        return type(self).file_system_client
 
 
-def test_upload_fixtures_includes_livy_batch_application(monkeypatch, tmp_path):
+def test_upload_fixtures_preserves_nested_and_unicode_paths(monkeypatch, tmp_path):
     fixture_dir = tmp_path / "infra/fabric/fixtures"
     fixture_dir.mkdir(parents=True)
     (fixture_dir / "basic.csv").write_text("id,name\n1,alpha\n")
     (fixture_dir / "livy_batch.py").write_text("print('batch')\n")
+    nested = fixture_dir / "nested/a"
+    nested.mkdir(parents=True)
+    (nested / "café-数据.txt").write_text("unicode\n", encoding="utf-8")
     settings = SandboxSettings(
         workspace_id="workspace-id",
         lakehouse_id="lakehouse-id",
@@ -65,12 +80,23 @@ def test_upload_fixtures_includes_livy_batch_application(monkeypatch, tmp_path):
         "https://onelake.dfs.fabric.microsoft.com"
     )
     assert FakeDataLakeServiceClient.filesystem == "workspace-id"
+    assert FakeDataLakeServiceClient.file_system_client.directories == [
+        "lakehouse-id/Files/fixtures",
+        "lakehouse-id/Files/fixtures/nested",
+        "lakehouse-id/Files/fixtures/nested/a",
+    ]
     assert set(FakeDataLakeServiceClient.uploaded) == {
         "lakehouse-id/Files/fixtures/basic.csv",
         "lakehouse-id/Files/fixtures/livy_batch.py",
+        "lakehouse-id/Files/fixtures/nested/a/café-数据.txt",
     }
     batch = FakeDataLakeServiceClient.uploaded[
         "lakehouse-id/Files/fixtures/livy_batch.py"
     ]
     assert batch[0].replace(b"\r\n", b"\n") == b"print('batch')\n"
     assert batch[1] is True
+    unicode_file = FakeDataLakeServiceClient.uploaded[
+        "lakehouse-id/Files/fixtures/nested/a/café-数据.txt"
+    ]
+    assert unicode_file[0].replace(b"\r\n", b"\n") == b"unicode\n"
+    assert unicode_file[1] is True

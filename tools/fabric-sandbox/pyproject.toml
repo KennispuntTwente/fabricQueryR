@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Provision and seed the fabricQueryR integration-test sandbox"
 requires-python = ">=3.11,<3.14"
 dependencies = [
+    "azure-core>=1.35,<2",
     "azure-identity>=1.23,<2",
     "azure-storage-file-datalake>=12.20,<13",
     "fabric-cicd>=1.2,<2",

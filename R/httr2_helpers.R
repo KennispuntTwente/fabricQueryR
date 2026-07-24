@@ -113,6 +113,8 @@
   credential = NULL,
   audience = NULL,
   idempotent = NULL,
+  accepted_status = integer(),
+  download_path = NULL,
   max_tries = 4L,
   .sleep = Sys.sleep,
   .runif = stats::runif,
@@ -147,7 +149,11 @@
       is_error = function(resp) FALSE
     )
     response <- tryCatch(
-      httr2::req_perform(attempt_req),
+      if (is.null(download_path)) {
+        httr2::req_perform(attempt_req)
+      } else {
+        httr2::req_perform(attempt_req, path = download_path)
+      },
       error = function(error) error
     )
     if (inherits(response, "error")) {
@@ -157,7 +163,7 @@
       }
     } else {
       status <- httr2::resp_status(response)
-      if (status < 400L) {
+      if (status < 400L || status %in% accepted_status) {
         return(response)
       }
       if (

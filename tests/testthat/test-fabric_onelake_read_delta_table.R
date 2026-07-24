@@ -33,6 +33,81 @@ test_that("Delta staging excludes directories from storage listings", {
     )
   )
   expect_false(any(downloadable$isdir))
+
+  shared <- fabric_delta_file_rows(tibble::tibble(
+    path = c(
+      "Tables/dbo/table/_delta_log",
+      "Tables/dbo/table/_delta_log/00000000000000000000.json"
+    ),
+    is_directory = c(TRUE, FALSE)
+  ))
+  expect_equal(
+    shared$name,
+    "Tables/dbo/table/_delta_log/00000000000000000000.json"
+  )
+})
+
+test_that("Delta reads consume the shared OneLake filesystem transport", {
+  listed_target <- NULL
+  downloaded <- list()
+  local_mocked_bindings(
+    onelake_list_target = function(target, credential, recursive, page_size) {
+      listed_target <<- target
+      expect_true(recursive)
+      expect_equal(page_size, 5000L)
+      tibble::tibble(
+        path = c(
+          "Tables/dbo/table/_delta_log/00000000000000000000.json",
+          "Tables/dbo/table/category=A/part.parquet"
+        ),
+        is_directory = FALSE
+      )
+    },
+    onelake_download_target = function(
+      target,
+      credential,
+      dest,
+      overwrite,
+      ...
+    ) {
+      downloaded[[length(downloaded) + 1L]] <<- list(
+        path = target$path,
+        dest = dest,
+        overwrite = overwrite
+      )
+      writeBin(raw(), dest)
+      invisible(dest)
+    },
+    fabric_delta_read_staged = function(table_dir, version = NULL) {
+      expect_null(version)
+      expect_true(dir.exists(table_dir))
+      data.frame(id = 1L)
+    }
+  )
+  dest <- tempfile("delta-shared-transport-")
+  on.exit(if (fs::dir_exists(dest)) fs::dir_delete(dest), add = TRUE)
+
+  result <- fabric_onelake_read_delta_table(
+    table_path = "table",
+    workspace_name = "Analytics",
+    lakehouse_name = "Curated",
+    schema = "dbo",
+    access_token = "token",
+    dest_dir = dest,
+    verbose = FALSE
+  )
+
+  expect_equal(listed_target$item, "Curated.Lakehouse")
+  expect_equal(listed_target$path, "Tables/dbo/table")
+  expect_equal(
+    vapply(downloaded, `[[`, character(1), "path"),
+    c(
+      "Tables/dbo/table/_delta_log/00000000000000000000.json",
+      "Tables/dbo/table/category=A/part.parquet"
+    )
+  )
+  expect_true(all(vapply(downloaded, `[[`, logical(1), "overwrite")))
+  expect_equal(result$id, 1L)
 })
 
 test_that("Delta staging preserves paths beneath the table root", {

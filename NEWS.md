@@ -1,5 +1,15 @@
 # fabricQueryR (development version)
 
+* General OneLake filesystem access is now available through
+  `fabric_onelake_list()`, `fabric_onelake_metadata()`,
+  `fabric_onelake_download()`, `fabric_onelake_upload()`, and
+  `fabric_onelake_delete()`. The helpers support names, paired workspace/item
+  GUIDs, discovery records, and HTTPS/ABFSS paths; preserve nested and Unicode
+  paths; follow ADLS continuation tokens; expose ETags; support byte ranges and
+  conditional overwrite; and require explicit confirmation for deletion.
+  Downloads stream atomically to local destinations, and the Delta reader now
+  uses the same authenticated listing/download transport.
+
 * `fabric_graphql_query()` adds authenticated Fabric API for GraphQL execution
   from direct endpoints, workspace/API IDs, or discovered GraphQL API items.
   Results preserve `data`, `errors`, and `extensions` independently, with

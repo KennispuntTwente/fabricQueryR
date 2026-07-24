@@ -2,9 +2,10 @@
 #' Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 #'
 #' @description
-#' Authenticates to OneLake (ADLS Gen2), stages the complete Delta table while
-#' preserving its directory structure, and resolves the requested snapshot from
-#' Delta JSON commits and Parquet checkpoints.
+#' Authenticates to OneLake through the package's shared ADLS Gen2 transport,
+#' stages the complete Delta table while preserving its directory structure,
+#' and resolves the requested snapshot from Delta JSON commits and Parquet
+#' checkpoints.
 #'
 #' @details
 #' - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
@@ -144,7 +145,6 @@ fabric_onelake_read_delta_table <- function(
   # ---- deps ----
   rlang::check_installed(
     c(
-      "AzureStor",
       "DBI",
       "duckdb",
       "fs"
@@ -177,31 +177,32 @@ fabric_onelake_read_delta_table <- function(
     access_token = access_token,
     token_provider = token_provider
   )
-  token <- fabric_get_token(credential, .fabric_audience$storage)
-
-  # ---- DFS endpoint + filesystem (workspace) ----
-  ep <- AzureStor::adls_endpoint(dfs_base, token = token)
-  fs_cont <- AzureStor::storage_container(ep, workspace_name)
-
   # ---- normalize lakehouse item + table dir ----
-  lakehouse_item <- fabric_normalize_lakehouse_item(lakehouse_name)
   parts <- strsplit(table_path, "/", fixed = TRUE)[[1]]
   table_name <- parts[length(parts)]
 
   if (!is.null(schema)) {
     stopifnot(is.character(schema), length(schema) == 1L, nzchar(schema))
-    table_dir <- fs::path(lakehouse_item, "Tables", schema, table_name)
+    table_dir <- paste("Tables", schema, table_name, sep = "/")
   } else {
-    table_dir <- fs::path(lakehouse_item, "Tables", table_name)
+    table_dir <- paste("Tables", table_name, sep = "/")
   }
+  target <- onelake_resolve_target(
+    workspace_name,
+    lakehouse_name,
+    path = table_dir,
+    item_type = "Lakehouse",
+    dfs_base = dfs_base
+  )
 
   inform("Table root: {.path {table_dir}}")
 
   # ---- list files once ----
-  files <- AzureStor::list_storage_files(
-    fs_cont,
-    dir = table_dir,
-    recursive = TRUE
+  files <- onelake_list_target(
+    target,
+    credential,
+    recursive = TRUE,
+    page_size = 5000L
   )
   files <- fabric_delta_file_rows(files)
   if (NROW(files) == 0) {
@@ -233,11 +234,19 @@ fabric_onelake_read_delta_table <- function(
     fs::dir_create,
     recurse = TRUE
   )
-  AzureStor::storage_multidownload(
-    fs_cont,
-    src = staged$source,
-    dest = staged$destination,
-    overwrite = TRUE
+  purrr::walk2(
+    staged$source,
+    staged$destination,
+    function(source, destination) {
+      file_target <- target
+      file_target$path <- source
+      onelake_download_target(
+        file_target,
+        credential,
+        dest = destination,
+        overwrite = TRUE
+      )
+    }
   )
 
   # ---- resolve and read the requested Delta snapshot ----
@@ -248,17 +257,26 @@ fabric_onelake_read_delta_table <- function(
   tibble::as_tibble(df)
 }
 
-#' Keep downloadable files from an Azure storage listing
-#' @param files Data frame returned by `list_storage_files()`.
+#' Keep downloadable files from a OneLake storage listing
+#' @param files Data frame returned by the shared OneLake transport.
 #' @return The rows that represent files rather than directories.
 #' @keywords internal
 #' @noRd
 fabric_delta_file_rows <- function(files) {
-  if (!is.data.frame(files) || !"name" %in% names(files)) {
+  if (!is.data.frame(files) || !any(c("name", "path") %in% names(files))) {
     cli::cli_abort("OneLake returned an invalid storage listing.")
+  }
+  if (!"name" %in% names(files)) {
+    files$name <- files$path
   }
   if ("isdir" %in% names(files)) {
     files <- files[is.na(files$isdir) | !files$isdir, , drop = FALSE]
+  } else if ("is_directory" %in% names(files)) {
+    files <- files[
+      is.na(files$is_directory) | !files$is_directory,
+      ,
+      drop = FALSE
+    ]
   }
   files
 }

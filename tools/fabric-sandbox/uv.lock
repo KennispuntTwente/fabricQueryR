@@ -264,6 +264,7 @@ name = "fabricqueryr-sandbox"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "azure-core" },
     { name = "azure-identity" },
     { name = "azure-storage-file-datalake" },
     { name = "fabric-cicd" },
@@ -277,6 +278,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "azure-core", specifier = ">=1.35,<2" },
     { name = "azure-identity", specifier = ">=1.23,<2" },
     { name = "azure-storage-file-datalake", specifier = ">=12.20,<13" },
     { name = "fabric-cicd", specifier = ">=1.2,<2" },

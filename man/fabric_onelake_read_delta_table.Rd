@@ -67,9 +67,10 @@ Delta table. If \code{NULL} (default), a temp dir is used and cleaned up on exit
 A tibble with the table's current rows (0 rows if the table is empty).
 }
 \description{
-Authenticates to OneLake (ADLS Gen2), stages the complete Delta table while
-preserving its directory structure, and resolves the requested snapshot from
-Delta JSON commits and Parquet checkpoints.
+Authenticates to OneLake through the package's shared ADLS Gen2 transport,
+stages the complete Delta table while preserving its directory structure,
+and resolves the requested snapshot from Delta JSON commits and Parquet
+checkpoints.
 }
 \details{
 \itemize{
