@@ -1,9 +1,9 @@
 # Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
 
 Authenticates to OneLake through the package's shared ADLS Gen2
-transport, stages the complete Delta table while preserving its
-directory structure, and resolves the requested snapshot from Delta JSON
-commits and Parquet checkpoints.
+transport, stages the Delta transaction log, resolves the requested
+snapshot, and then downloads only the data files active in that
+snapshot.
 
 ## Usage
 
@@ -81,8 +81,9 @@ fabric_onelake_read_delta_table(
 
 - dest_dir:
 
-  Character or `NULL`. Local staging directory for the complete Delta
-  table. If `NULL` (default), a temp dir is used and cleaned up on exit.
+  Character or `NULL`. Local staging directory for the Delta log and
+  active snapshot files. If `NULL` (default), a temp dir is used and
+  cleaned up on exit.
 
 - verbose:
 
@@ -103,8 +104,8 @@ A tibble with the table's current rows (0 rows if the table is empty).
   filesystem. Within a Lakehouse item, Delta tables are stored under
   `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
   (schema-enabled lakehouse). The complete table is staged because Delta
-  checkpoints and table features can reference files that cannot be
-  resolved correctly by replaying JSON commit files alone.
+  checkpoints and table features are resolved before data files are
+  downloaded, so historical and tombstoned Parquet files are not staged.
 
 - Checkpoint Parquet and data Parquet files are read with DuckDB. Tables
   that require reader protocol versions or reader features this package

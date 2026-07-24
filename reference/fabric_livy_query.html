@@ -136,83 +136,30 @@ needs an appropriate workspace role.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Find your session URL in Fabric by going to a 'Lakehouse' item,</span></span></span>
-<span class="r-in"><span><span class="co">#   then go to 'Settings' -&gt; 'Livy Endpoint' -&gt; 'Session job connection string'</span></span></span>
-<span class="r-in"><span><span class="va">sess_url</span> <span class="op">&lt;-</span> <span class="st">"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/..."</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Livy API can run SQL, SparkR, PySpark, &amp; Spark</span></span></span>
-<span class="r-in"><span><span class="co"># Below are examples of 1) SQL &amp; 2) SparkR usage</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Example is not executed since it requires configured credentials for Fabric</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co">## 1 Livy &amp; SQL</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Here we run SQL remotely in Microsoft Fabric with Spark, to get data to local R</span></span></span>
-<span class="r-in"><span><span class="co"># Since Livy API cannot directly give back a proper DF, we build it from returned schema &amp; matrix</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Run Livy SQL query</span></span></span>
-<span class="r-in"><span><span class="va">livy_sql_result</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_query</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  livy_url <span class="op">=</span> <span class="va">sess_url</span>,</span></span>
-<span class="r-in"><span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span></span>
-<span class="r-in"><span>  code <span class="op">=</span> <span class="st">"SELECT * FROM Patienten LIMIT 1000"</span>,</span></span>
-<span class="r-in"><span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># '$schema$fields' contains column info, &amp; '$data' contains data as matrix without column names</span></span></span>
-<span class="r-in"><span><span class="va">payload</span> <span class="op">&lt;-</span> <span class="va">livy_sql_result</span><span class="op">$</span><span class="va">output</span><span class="op">$</span><span class="va">data</span><span class="op">[[</span><span class="st">"application/json"</span><span class="op">]</span><span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">schema</span>  <span class="op">&lt;-</span> <span class="fu">as_tibble</span><span class="op">(</span><span class="va">payload</span><span class="op">$</span><span class="va">schema</span><span class="op">$</span><span class="va">fields</span><span class="op">)</span> <span class="co"># has columns: name, type, nullable</span></span></span>
-<span class="r-in"><span><span class="va">col_nms</span> <span class="op">&lt;-</span> <span class="va">schema</span><span class="op">$</span><span class="va">name</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Build dataframe (tibble) from the Livy result</span></span></span>
-<span class="r-in"><span><span class="va">df_livy_sql</span> <span class="op">&lt;-</span> <span class="va">payload</span><span class="op">$</span><span class="va">data</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu">as_tibble</span><span class="op">(</span>.name_repair <span class="op">=</span> <span class="st">"minimal"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu">set_names</span><span class="op">(</span><span class="va">col_nms</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu">mutate</span><span class="op">(</span></span></span>
-<span class="r-in"><span>    <span class="co"># cast by schema$type (add more cases if your schema includes them)</span></span></span>
-<span class="r-in"><span>    <span class="fu">across</span><span class="op">(</span><span class="fu">all_of</span><span class="op">(</span><span class="va">schema</span><span class="op">$</span><span class="va">name</span><span class="op">[</span><span class="va">schema</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"long"</span><span class="op">]</span><span class="op">)</span>,    <span class="fu">readr</span><span class="fu">::</span><span class="va"><a href="https://readr.tidyverse.org/reference/parse_atomic.html" class="external-link">parse_integer</a></span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>    <span class="fu">across</span><span class="op">(</span><span class="fu">all_of</span><span class="op">(</span><span class="va">schema</span><span class="op">$</span><span class="va">name</span><span class="op">[</span><span class="va">schema</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"double"</span><span class="op">]</span><span class="op">)</span>,  <span class="fu">readr</span><span class="fu">::</span><span class="va"><a href="https://readr.tidyverse.org/reference/parse_atomic.html" class="external-link">parse_double</a></span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>    <span class="fu">across</span><span class="op">(</span><span class="fu">all_of</span><span class="op">(</span><span class="va">schema</span><span class="op">$</span><span class="va">name</span><span class="op">[</span><span class="va">schema</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"boolean"</span><span class="op">]</span><span class="op">)</span>, <span class="fu">readr</span><span class="fu">::</span><span class="va"><a href="https://readr.tidyverse.org/reference/parse_atomic.html" class="external-link">parse_logical</a></span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>    <span class="fu">across</span><span class="op">(</span><span class="fu">all_of</span><span class="op">(</span><span class="va">schema</span><span class="op">$</span><span class="va">name</span><span class="op">[</span><span class="va">schema</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"string"</span><span class="op">]</span><span class="op">)</span>,  <span class="va">as.character</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric.</span></span></span>
+<span class="r-in"><span><span class="co"># This function is not called automatically because it requires credentials and</span></span></span>
+<span class="r-in"><span><span class="co"># a real Lakehouse Livy endpoint.</span></span></span>
+<span class="r-in"><span><span class="va">fabric_livy_query_example</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="co"># Find the URL under Lakehouse &gt; Settings &gt; Livy Endpoint.</span></span></span>
+<span class="r-in"><span>  <span class="va">session_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="st">"https://api.fabric.microsoft.com/v1/workspaces/.../"</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"lakehouses/.../livyapi/..."</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co">## 2 Livy &amp; SparkR</span></span></span>
+<span class="r-in"><span>  <span class="va">sql_result</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_query</span><span class="op">(</span></span></span>
+<span class="r-in"><span>    livy_url <span class="op">=</span> <span class="va">session_url</span>,</span></span>
+<span class="r-in"><span>    kind <span class="op">=</span> <span class="st">"sql"</span>,</span></span>
+<span class="r-in"><span>    code <span class="op">=</span> <span class="st">"SELECT COUNT(*) AS row_count FROM dbo.example_table"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Here we run R code remotely in Microsoft Fabric with SparkR, to get data to local R</span></span></span>
-<span class="r-in"><span><span class="co"># Since Livy API cannot directly give back a proper DF, we encode/decode B64 in SparkR/local R</span></span></span>
+<span class="r-in"><span>  <span class="va">sparkr_result</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_query</span><span class="op">(</span></span></span>
+<span class="r-in"><span>    livy_url <span class="op">=</span> <span class="va">session_url</span>,</span></span>
+<span class="r-in"><span>    kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span></span>
+<span class="r-in"><span>    code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Run Livy SparkR query</span></span></span>
-<span class="r-in"><span><span class="va">livy_sparkr_result</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_query</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  livy_url <span class="op">=</span> <span class="va">sess_url</span>,</span></span>
-<span class="r-in"><span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span></span>
-<span class="r-in"><span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>    <span class="co"># Obtain data in remote R (SparkR)</span></span></span>
-<span class="r-in"><span>    <span class="st">'library(SparkR); library(base64enc)'</span>,</span></span>
-<span class="r-in"><span>    <span class="st">'df &lt;- sql("SELECT * FROM Patienten") |&gt; limit(1000L) |&gt; collect()'</span>,</span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span>    <span class="co"># serialize -&gt; gzip -&gt; base64</span></span></span>
-<span class="r-in"><span>    <span class="st">'r_raw &lt;- serialize(df, connection = NULL)'</span>,</span></span>
-<span class="r-in"><span>    <span class="st">'raw_gz &lt;- memCompress(r_raw, type = "gzip")'</span>,</span></span>
-<span class="r-in"><span>    <span class="st">'b64 &lt;- base64enc::base64encode(raw_gz)'</span>,</span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span>    <span class="co"># output marked B64 string</span></span></span>
-<span class="r-in"><span>    <span class="st">'cat("&lt;&lt;B64RDS&gt;&gt;", b64, "&lt;&lt;END&gt;&gt;", sep = "")'</span>,</span></span>
-<span class="r-in"><span>    sep <span class="op">=</span> <span class="st">"\n"</span></span></span>
-<span class="r-in"><span>  <span class="op">)</span>,</span></span>
-<span class="r-in"><span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Extract marked B64 string from Livy output</span></span></span>
-<span class="r-in"><span><span class="va">txt</span> <span class="op">&lt;-</span> <span class="va">livy_sparkr_result</span><span class="op">$</span><span class="va">output</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">`text/plain`</span></span></span>
-<span class="r-in"><span><span class="va">b64</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">'.*&lt;&lt;B64RDS&gt;&gt;'</span>, <span class="st">''</span>, <span class="va">txt</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">b64</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">'&lt;&lt;END&gt;&gt;.*'</span>, <span class="st">''</span>, <span class="va">b64</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Decode to dataframe</span></span></span>
-<span class="r-in"><span><span class="va">raw_gz</span> <span class="op">&lt;-</span> <span class="fu">base64enc</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/base64enc/man/base64.html" class="external-link">base64decode</a></span><span class="op">(</span><span class="va">b64</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">r_raw</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/memCompress.html" class="external-link">memDecompress</a></span><span class="op">(</span><span class="va">raw_gz</span>, type <span class="op">=</span> <span class="st">"gzip"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">df_livy_sparkr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/serialize.html" class="external-link">unserialize</a></span><span class="op">(</span><span class="va">r_raw</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sql <span class="op">=</span> <span class="va">sql_result</span>, sparkr <span class="op">=</span> <span class="va">sparkr_result</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

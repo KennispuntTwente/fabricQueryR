@@ -150,7 +150,19 @@ to clear cached tokens if you run into issues</p></li>
 <code>https://analysis.windows.net/powerbi/api/.default</code> and require
 <code>Dataset.Read.All</code> (or <code>Dataset.ReadWrite.All</code>) plus dataset Read and Build
 permissions. Name lookup also requires <code>Workspace.Read.All</code> or equivalent.</p></li>
+<li><p>The Power BI tenant setting <strong>Dataset Execute Queries REST API</strong> must be
+enabled. Service-principal authentication also requires <strong>Allow service
+principals to use Power BI APIs</strong>. Service principals are not supported for
+semantic models with row-level security or single sign-on enabled.</p></li>
+<li><p>The Execute Queries API accepts one DAX query and one result table per
+request. Results are limited to 100,000 rows or 1,000,000 values (whichever
+is reached first), 15 MB, and 120 requests per minute per user. Partial
+results reported by Power BI are treated as errors by this function.</p></li>
 </ul></div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries" class="external-link">Power BI Execute Queries REST API</a></p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

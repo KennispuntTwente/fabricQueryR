@@ -34,7 +34,7 @@
 
 <div id="fabricqueryr-roadmap" class="section level1">
 
-<p>This roadmap is based on the current <code>fabricQueryR</code> implementation and the Microsoft Fabric documentation reviewed in March 2026. Priorities favor testable correctness and shared infrastructure before expanding the public API.</p>
+<p>This roadmap is based on the current <code>fabricQueryR</code> implementation and the Microsoft Fabric documentation reviewed in July 2026. Priorities favor testable correctness and shared infrastructure before expanding the public API.</p>
 <div class="section level2">
 <h2 id="guiding-principles">Guiding principles<a class="anchor" aria-label="anchor" href="#guiding-principles"></a></h2>
 <ul><li>Exercise every supported connection path against real Microsoft Fabric, while keeping fast offline tests available on every pull request.</li>
@@ -46,6 +46,7 @@
 </ul></div>
 <div class="section level2">
 <h2 id="priority-0-real-fabric-integration-test-environment">Priority 0: Real Fabric integration-test environment<a class="anchor" aria-label="anchor" href="#priority-0-real-fabric-integration-test-environment"></a></h2>
+<p><strong>Status (July 2026): implemented.</strong> The sandbox is provisioned with Terraform, deploys source-controlled items with <code>fabric-cicd</code>, seeds deterministic fixtures, runs a required weekly live suite, always attempts Terraform teardown, and has a scheduled stale-workspace janitor for canceled runners.</p>
 <div class="section level3">
 <h3 id="objective">Objective<a class="anchor" aria-label="anchor" href="#objective"></a></h3>
 <p>Build a reproducible sandbox that deploys real Fabric items, seeds deterministic test data, runs the R integration suite, and removes the sandbox even when a test fails. This is the first deliverable because every later roadmap item depends on being able to verify behavior against the service rather than mocks alone.</p>
@@ -89,6 +90,8 @@
 <span>    <span class="va">TestEventhouse.Eventhouse</span><span class="op">/</span></span>
 <span>    <span class="va">TestKQLDatabase.KQLDatabase</span><span class="op">/</span></span>
 <span>    <span class="va">TestGraphQL.GraphQLApi</span><span class="op">/</span></span>
+<span>    <span class="va">TestPipeline.DataPipeline</span><span class="op">/</span></span>
+<span>    <span class="va">TestSparkJob.SparkJobDefinition</span><span class="op">/</span></span>
 <span>    <span class="va">parameter.yml</span></span>
 <span>  <span class="va">fixtures</span><span class="op">/</span></span>
 <span>    <span class="va">basic.csv</span></span>
@@ -101,14 +104,11 @@
 <span>    <span class="va">deploy.py</span></span>
 <span>    <span class="va">seed.py</span></span>
 <span>    <span class="va">discover.py</span></span>
-<span>    <span class="va">destroy.py</span></span>
-<span><span class="va">tests</span><span class="op">/</span><span class="va">testthat</span><span class="op">/</span><span class="va">integration</span><span class="op">/</span></span>
-<span>  <span class="va">helper</span><span class="op">-</span><span class="va">fabric.R</span></span>
-<span>  <span class="va">test</span><span class="op">-</span><span class="va">integration</span><span class="op">-</span><span class="va">sql.R</span></span>
-<span>  <span class="va">test</span><span class="op">-</span><span class="va">integration</span><span class="op">-</span><span class="va">onelake.R</span></span>
-<span>  <span class="va">test</span><span class="op">-</span><span class="va">integration</span><span class="op">-</span><span class="va">dax.R</span></span>
-<span>  <span class="va">test</span><span class="op">-</span><span class="va">integration</span><span class="op">-</span><span class="va">livy.R</span></span></code></pre>
-<p>Add KQL and GraphQL integration files when those package features are implemented. The exact Fabric item directories should be produced from definitions exported by Fabric source control and kept separate from Terraform state.</p>
+<span>    <span class="va">cleanup.py</span></span>
+<span><span class="va">tests</span><span class="op">/</span><span class="va">testthat</span><span class="op">/</span></span>
+<span>  <span class="va">helper</span><span class="op">-</span><span class="va">fabric</span><span class="op">-</span><span class="va">integration.R</span></span>
+<span>  <span class="va">test</span><span class="op">-</span><span class="va">integration</span><span class="op">-</span><span class="va">fabric.R</span></span></code></pre>
+<p>The exact Fabric item directories should be produced from definitions exported by Fabric source control and kept separate from Terraform state.</p>
 </div>
 <div class="section level3">
 <h3 id="python-and-uv">Python and <code>uv</code>
@@ -160,12 +160,15 @@
 <td>Controlled stubs plus selected live calls</td>
 <td>
 <code>Retry-After</code>, transient failures, long-running operations, and request IDs</td>
-</tr><tr><td>KQL (later)</td>
+</tr><tr><td>KQL</td>
 <td>Eventhouse and KQL database</td>
 <td>Query schema/types, multiple tables, and service errors</td>
-</tr><tr><td>GraphQL (later)</td>
+</tr><tr><td>GraphQL</td>
 <td>GraphQL API backed by seeded data</td>
-<td>Variables, pagination, GraphQL errors, and delegated-auth limitations</td>
+<td>Variables, pagination, GraphQL errors, and authentication failures</td>
+</tr><tr><td>Jobs</td>
+<td>Notebook, data pipeline, and Spark job definition</td>
+<td>Successful workload routes plus notebook failure, timeout, and cancellation</td>
 </tr></tbody></table><p>Keep most retry/throttling cases as deterministic HTTP-stub tests; inducing real throttling in a shared capacity is slow and disruptive.</p>
 </div>
 <div class="section level3">
@@ -173,25 +176,23 @@
 <ol style="list-style-type: decimal"><li>
 <strong>Unit and contract tests:</strong> run on every push and pull request without Fabric credentials. Use <code>testthat</code>, mocked HTTP responses, recorded response shapes without tokens or tenant data, and static fixture files.</li>
 <li>
-<strong>Fabric smoke tests:</strong> run through manual dispatch and on trusted internal pull requests after approval. Deploy the smallest lakehouse/semantic-model surface and validate one happy path for each current exported function.</li>
-<li>
-<strong>Full compatibility suite:</strong> run nightly and before releases. Provision all supported items and cover protocol edge cases and future KQL/GraphQL paths.</li>
+<strong>Fabric compatibility suite:</strong> run weekly, by manual dispatch, and before releases. Provision all supported items and cover happy paths, protocol edge cases, and failure behavior for each package surface.</li>
 <li>
 <strong>External pull requests:</strong> never expose the OIDC-enabled environment directly. Run only offline tests until a maintainer approves code in a trusted context.</li>
 </ol><p>Use a concurrency group so only an appropriate number of sandbox jobs target the test capacity at once. Give every workspace a unique, recognizable name such as <code>fabricqueryr-ci-&lt;run-id&gt;-&lt;attempt&gt;</code> plus a creation timestamp or expiry tag in its description.</p>
 </div>
 <div class="section level3">
 <h3 id="initial-deliverables">Initial deliverables<a class="anchor" aria-label="anchor" href="#initial-deliverables"></a></h3>
-<ul class="task-list"><li><label><input type="checkbox">Expand unit coverage for all five exported functions and their HTTP helpers.</label></li>
+<ul class="task-list"><li><label><input type="checkbox" checked>Expand unit and contract coverage across all exported package surfaces and their HTTP helpers.</label></li>
 <li><label><input type="checkbox" checked>Add Terraform for an ephemeral capacity-bound workspace and CI role assignment, with remote or per-run isolated state.</label></li>
 <li><label><input type="checkbox" checked>Add the <code>uv</code> project and commit <code>uv.lock</code>.</label></li>
 <li><label><input type="checkbox" checked>Add source-controlled provisioning for the Lakehouse, notebook, Warehouse, SQL Database, and semantic model using Terraform, <code>fabric-cicd</code>, and the supported Power BI API according to lifecycle ownership.</label></li>
 <li><label><input type="checkbox" checked>Add deterministic fixture upload, seeding, readiness polling, and manifest generation.</label></li>
 <li><label><input type="checkbox" checked>Add integration-test helpers that skip with a precise reason when no manifest is available, but fail when a required provisioned workload is absent.</label></li>
 <li><label><input type="checkbox" checked>Add an OIDC-based GitHub Actions smoke workflow.</label></li>
-<li><label><input type="checkbox">Schedule the full compatibility workflow after the stale-workspace janitor is available.</label></li>
+<li><label><input type="checkbox" checked>Schedule the full compatibility workflow after the stale-workspace janitor is available.</label></li>
 <li><label><input type="checkbox" checked>Add unconditional Terraform teardown to the integration workflow.</label></li>
-<li><label><input type="checkbox">Add a scheduled stale-workspace janitor for canceled runners.</label></li>
+<li><label><input type="checkbox" checked>Add a scheduled stale-workspace janitor for canceled runners.</label></li>
 <li><label><input type="checkbox" checked>Document one-command local deploy, test, and destroy workflows.</label></li>
 </ul></div>
 <div class="section level3">
@@ -206,13 +207,14 @@
 </div>
 <div class="section level2">
 <h2 id="priority-1-make-delta-table-reads-protocol-correct">Priority 1: Make Delta table reads protocol-correct<a class="anchor" aria-label="anchor" href="#priority-1-make-delta-table-reads-protocol-correct"></a></h2>
+<p><strong>Status (July 2026): implemented for the supported reader contract.</strong> The reader stages the transaction log, supports classic and complete multipart checkpoints, preserves relative paths, downloads only active snapshot files, supports version selection, and rejects unsupported reader features before returning data.</p>
 <div class="section level3">
 <h3 id="problem">Problem<a class="anchor" aria-label="anchor" href="#problem"></a></h3>
-<p><code><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> currently reconstructs a snapshot by replaying only twenty-digit JSON transaction-log files. That can return incorrect data once a table uses checkpoints or newer Delta features. Downloading files by <code><a href="https://rdrr.io/r/base/basename.html" class="external-link">basename()</a></code> also discards partition paths and can overwrite files with equal names.</p>
+<p>The original implementation replayed only JSON transaction-log files and staged data by basename, which was unsafe for checkpoints, newer Delta features, and duplicate partition filenames.</p>
 </div>
 <div class="section level3">
 <h3 id="direction">Direction<a class="anchor" aria-label="anchor" href="#direction"></a></h3>
-<ul><li>Replace manual log replay with a maintained Delta reader that supports OneLake, preferably through <code>arrow</code>/<code>deltalake</code> capabilities available to R or a narrowly scoped supported backend.</li>
+<ul><li>Continue evaluating maintained Delta backends that support OneLake directly; retain the narrowly scoped DuckDB-backed reader until one meets the package’s authentication and portability requirements.</li>
 <li>Preserve complete relative paths during any local staging.</li>
 <li>Read <code>_last_checkpoint</code> and checkpoints if a direct backend is unavoidable.</li>
 <li>Inspect protocol versions and table features before reading; reject unsupported deletion vectors, column mapping, or other features explicitly rather than returning plausible but wrong rows.</li>
@@ -229,9 +231,10 @@
 </div>
 <div class="section level2">
 <h2 id="priority-2-validate-complete-dax-responses">Priority 2: Validate complete DAX responses<a class="anchor" aria-label="anchor" href="#priority-2-validate-complete-dax-responses"></a></h2>
+<p><strong>Status (July 2026): implemented.</strong> All documented error levels and unsupported response multiplicity are validated, direct IDs avoid name lookup, pagination and ambiguity are handled, and current Execute Queries limits and tenant prerequisites are documented.</p>
 <div class="section level3">
 <h3 id="problem-1">Problem<a class="anchor" aria-label="anchor" href="#problem-1"></a></h3>
-<p>The Power BI Execute Queries API can return HTTP 200 while embedding query or table errors in the JSON body, including partial-result/truncation conditions. The current parser reads only the first result/table rows and can silently present incomplete data as success.</p>
+<p>The Power BI Execute Queries API can return HTTP 200 while embedding query or table errors in the JSON body, including partial-result/truncation conditions. The original parser read only the first result/table rows and could silently present incomplete data as success.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-1">Direction<a class="anchor" aria-label="anchor" href="#direction-1"></a></h3>
@@ -444,7 +447,7 @@
 </tr><tr><td>M5</td>
 <td>General OneLake access and item jobs</td>
 <td>Shared storage/job APIs stable and documented</td>
-</tr></tbody></table><p>Priorities 1 and 2 may begin while the full M0 fixture set is being assembled, but they should not be released until their corresponding real-service tests are in place. KQL, GraphQL, and other future fixtures should be added incrementally so the first sandbox release does not depend on every Fabric workload being available in the test capacity.</p>
+</tr></tbody></table><p>The live fixture set now covers SQL, DAX, OneLake/Delta, Livy, KQL, GraphQL, discovery, and notebook/pipeline/Spark job execution. New public surfaces should extend the same fixture and required-CI contract before release.</p>
 </div>
 <div class="section level2">
 <h2 id="documentation-references">Documentation references<a class="anchor" aria-label="anchor" href="#documentation-references"></a></h2>
