@@ -265,6 +265,76 @@ test_that("Delta checkpoints allow earlier JSON commits to be absent", {
   )
 })
 
+test_that("Delta multipart checkpoints require every declared part", {
+  log_dir <- fs::path_temp(
+    paste0("delta-multipart-", sample.int(1e9, 1))
+  )
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(log_dir), add = TRUE)
+
+  complete <- fs::path(
+    log_dir,
+    sprintf(
+      "00000000000000000010.checkpoint.%010d.0000000003.parquet",
+      c(3L, 1L, 2L)
+    )
+  )
+  purrr::walk(complete, function(path) writeBin(raw(), path))
+  incomplete <- fs::path(
+    log_dir,
+    c(
+      "00000000000000000011.checkpoint.0000000001.0000000003.parquet",
+      "00000000000000000011.checkpoint.0000000003.0000000003.parquet"
+    )
+  )
+  purrr::walk(incomplete, function(path) writeBin(raw(), path))
+
+  sets <- fabric_delta_checkpoint_sets(c(incomplete, complete))
+
+  expect_length(sets, 1L)
+  expect_equal(sets[[1L]]$version, 10)
+  expect_equal(
+    basename(sets[[1L]]$paths),
+    sprintf(
+      "00000000000000000010.checkpoint.%010d.0000000003.parquet",
+      1:3
+    )
+  )
+})
+
+test_that("Delta snapshot ignores an incomplete multipart checkpoint", {
+  table_dir <- fs::path_temp(
+    paste0("delta-incomplete-checkpoint-", sample.int(1e9, 1))
+  )
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      '{"metaData":{"id":"table","configuration":{}}}',
+      '{"add":{"path":"part.parquet"}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+  parts <- fs::path(
+    log_dir,
+    c(
+      "00000000000000000010.checkpoint.0000000001.0000000003.parquet",
+      "00000000000000000010.checkpoint.0000000003.0000000003.parquet"
+    )
+  )
+  purrr::walk(parts, function(path) writeBin(raw(), path))
+
+  snapshot <- fabric_delta_resolve_snapshot(table_dir)
+
+  expect_equal(snapshot$version, 0)
+  expect_null(snapshot$checkpoint_version)
+  expect_equal(snapshot$active, "part.parquet")
+})
+
 test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
   state <- list(
     protocol = list(

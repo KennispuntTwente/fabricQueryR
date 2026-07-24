@@ -414,19 +414,13 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
   ))
   json_paths <- logs[json_keep]
 
-  checkpoint_match <- regexec(
-    "^([0-9]{20})\\.checkpoint(?:\\.([0-9]{10})\\.([0-9]{10}))?\\.parquet$",
-    names
-  )
-  checkpoint_parts <- regmatches(names, checkpoint_match)
-  checkpoint_keep <- lengths(checkpoint_parts) > 0L
-  checkpoint_versions <- as.numeric(vapply(
-    checkpoint_parts[checkpoint_keep],
+  checkpoint_sets <- fabric_delta_checkpoint_sets(logs)
+  checkpoint_versions <- vapply(
+    checkpoint_sets,
     `[[`,
-    character(1),
-    2L
-  ))
-  checkpoint_paths <- logs[checkpoint_keep]
+    numeric(1),
+    "version"
+  )
 
   available <- c(json_versions, checkpoint_versions)
   if (!length(available)) {
@@ -450,8 +444,9 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
   )
 
   if (!is.null(checkpoint_version)) {
+    checkpoint_index <- match(checkpoint_version, checkpoint_versions)
     checkpoint <- fabric_delta_read_checkpoint(
-      checkpoint_paths[checkpoint_versions == checkpoint_version]
+      checkpoint_sets[[checkpoint_index]]$paths
     )
     state <- fabric_delta_apply_checkpoint(state, checkpoint)
   }
@@ -475,6 +470,86 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
 
   fabric_delta_validate_reader(state)
   c(state, list(version = target, checkpoint_version = checkpoint_version))
+}
+
+#' Find complete classic or multipart Delta checkpoints
+#' @param paths Paths in a Delta log directory.
+#' @return A list of complete checkpoint records with `version` and `paths`.
+#' @keywords internal
+#' @noRd
+fabric_delta_checkpoint_sets <- function(paths) {
+  filenames <- basename(paths)
+  matches <- regexec(
+    "^([0-9]{20})\\.checkpoint(?:\\.([0-9]{10})\\.([0-9]{10}))?\\.parquet$",
+    filenames
+  )
+  parts <- regmatches(filenames, matches)
+  keep <- lengths(parts) > 0L
+  if (!any(keep)) {
+    return(list())
+  }
+
+  records <- Map(
+    function(match, path) {
+      multipart <- length(match) >= 4L &&
+        nzchar(match[[3L]]) &&
+        nzchar(match[[4L]])
+      list(
+        version_text = match[[2L]],
+        version = as.numeric(match[[2L]]),
+        part = if (multipart) as.integer(match[[3L]]) else NA_integer_,
+        total = if (multipart) as.integer(match[[4L]]) else NA_integer_,
+        path = path
+      )
+    },
+    parts[keep],
+    as.list(paths[keep])
+  )
+
+  by_version <- split(
+    records,
+    vapply(records, `[[`, character(1), "version_text")
+  )
+  complete <- lapply(by_version, function(version_records) {
+    classic <- Filter(
+      function(record) is.na(record$part),
+      version_records
+    )
+    if (length(classic)) {
+      return(list(
+        version = classic[[1L]]$version,
+        paths = classic[[1L]]$path
+      ))
+    }
+
+    totals <- sort(unique(vapply(
+      version_records,
+      `[[`,
+      integer(1),
+      "total"
+    )))
+    for (total in totals) {
+      candidates <- Filter(
+        function(record) identical(record$total, total),
+        version_records
+      )
+      part_numbers <- vapply(candidates, `[[`, integer(1), "part")
+      if (
+        total > 1L &&
+          !anyDuplicated(part_numbers) &&
+          identical(sort(part_numbers), seq_len(total))
+      ) {
+        ordered <- candidates[order(part_numbers)]
+        return(list(
+          version = ordered[[1L]]$version,
+          paths = vapply(ordered, `[[`, character(1), "path")
+        ))
+      }
+    }
+    NULL
+  })
+  complete <- Filter(Negate(is.null), complete)
+  complete[order(vapply(complete, `[[`, numeric(1), "version"))]
 }
 
 #' Read Delta checkpoint rows with DuckDB's built-in Parquet reader
