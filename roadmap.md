@@ -518,6 +518,13 @@ patterns.
 
 ## Priority 8: Add Fabric API for GraphQL
 
+**Status (July 2026): implemented.** The current Microsoft documentation
+now confirms service-principal execution in addition to delegated user
+execution. Delegated applications require the Power BI
+`GraphQLApi.Execute.All` scope; service principals use a Fabric API
+token and Fabric API/workspace permissions, with data-source access also
+required for SSO-backed APIs.
+
 ### Objective
 
 Offer GraphQL as a user-configured application API over Fabric data
@@ -525,22 +532,25 @@ after the shared authentication and discovery layers are in place.
 
 ### Direction
 
-- Add `fabric_graphql_query()` accepting API endpoint/ID, query
-  document, variables, and operation name.
+- Add
+  [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+  accepting API endpoint/ID, query document, variables, and operation
+  name.
 - Parse GraphQL `data` and `errors` independently because valid HTTP
   responses can contain partial data and GraphQL errors.
 - Provide optional cursor pagination helpers without assuming one schema
   shape.
 - Discover GraphQL API items and endpoints through Fabric APIs.
-- Clearly document the delegated `GraphQLApi.Execute.All` scope and
-  current identity limitations; do not imply service-principal support
-  unless the live API and current documentation confirm it.
+- Clearly document the delegated `GraphQLApi.Execute.All` scope and the
+  distinct service-principal token/permission flow confirmed by current
+  documentation.
 
 ### Acceptance criteria
 
 - Tests cover variables, partial data/errors, nulls, pagination, and
   authentication failures against a deterministic sandbox schema.
-- Preview or identity limitations are visible in function documentation.
+- Delegated and service-principal authentication requirements are
+  visible in function documentation.
 
 ## Priority 9: General OneLake file access
 

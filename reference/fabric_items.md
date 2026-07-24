@@ -53,8 +53,8 @@ fabric_items(
 ## Value
 
 A tibble with one row per item. `properties` and `raw` are list columns.
-Enriched rows also contain directly usable SQL, OneLake, DAX, Livy, and
-KQL fields where Fabric exposes them.
+Enriched rows also contain directly usable SQL, OneLake, DAX, Livy, KQL,
+and GraphQL fields where Fabric exposes or identifies them.
 
 ## Details
 

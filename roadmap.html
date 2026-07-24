@@ -360,22 +360,23 @@
 </div>
 <div class="section level2">
 <h2 id="priority-8-add-fabric-api-for-graphql">Priority 8: Add Fabric API for GraphQL<a class="anchor" aria-label="anchor" href="#priority-8-add-fabric-api-for-graphql"></a></h2>
+<p><strong>Status (July 2026): implemented.</strong> The current Microsoft documentation now confirms service-principal execution in addition to delegated user execution. Delegated applications require the Power BI <code>GraphQLApi.Execute.All</code> scope; service principals use a Fabric API token and Fabric API/workspace permissions, with data-source access also required for SSO-backed APIs.</p>
 <div class="section level3">
 <h3 id="objective-3">Objective<a class="anchor" aria-label="anchor" href="#objective-3"></a></h3>
 <p>Offer GraphQL as a user-configured application API over Fabric data after the shared authentication and discovery layers are in place.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-7">Direction<a class="anchor" aria-label="anchor" href="#direction-7"></a></h3>
-<ul><li>Add <code>fabric_graphql_query()</code> accepting API endpoint/ID, query document, variables, and operation name.</li>
+<ul><li>Add <code><a href="reference/fabric_graphql_query.html">fabric_graphql_query()</a></code> accepting API endpoint/ID, query document, variables, and operation name.</li>
 <li>Parse GraphQL <code>data</code> and <code>errors</code> independently because valid HTTP responses can contain partial data and GraphQL errors.</li>
 <li>Provide optional cursor pagination helpers without assuming one schema shape.</li>
 <li>Discover GraphQL API items and endpoints through Fabric APIs.</li>
-<li>Clearly document the delegated <code>GraphQLApi.Execute.All</code> scope and current identity limitations; do not imply service-principal support unless the live API and current documentation confirm it.</li>
+<li>Clearly document the delegated <code>GraphQLApi.Execute.All</code> scope and the distinct service-principal token/permission flow confirmed by current documentation.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-8">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-8"></a></h3>
 <ul><li>Tests cover variables, partial data/errors, nulls, pagination, and authentication failures against a deterministic sandbox schema.</li>
-<li>Preview or identity limitations are visible in function documentation.</li>
+<li>Delegated and service-principal authentication requirements are visible in function documentation.</li>
 </ul></div>
 </div>
 <div class="section level2">

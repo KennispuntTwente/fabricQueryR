@@ -2,6 +2,20 @@
 
 ## fabricQueryR (development version)
 
+- [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+  adds authenticated Fabric API for GraphQL execution from direct
+  endpoints, workspace/API IDs, or discovered GraphQL API items. Results
+  preserve `data`, `errors`, and `extensions` independently, with
+  configurable return/warn/error behavior for partial GraphQL failures.
+  [`fabric_graphql_paginate()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
+  and
+  [`fabric_graphql_cursor()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
+  provide schema-neutral cursor traversal. Discovery now exposes
+  executable GraphQL endpoints. The real Fabric sandbox provisions a
+  GraphQL item over the seeded Lakehouse table and covers variables,
+  nulls, cursor pagination, schema errors, authentication failures, and
+  service-principal execution.
+
 - [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
   now creates a stateful `FabricLivySession` R6 object for regular or
   high-concurrency Fabric Spark sessions. Session objects can wait for

@@ -8,6 +8,12 @@
   : A Microsoft Fabric Livy session
 - [`FabricLivyStatement`](https://lukakoning.github.io/fabricQueryR/reference/FabricLivyStatement.md)
   : A statement submitted to a Fabric Livy session
+- [`fabric_graphql_cursor()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
+  : Build a Fabric GraphQL cursor extractor
+- [`fabric_graphql_paginate()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
+  : Paginate a Microsoft Fabric GraphQL operation
+- [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+  : Query a Microsoft Fabric API for GraphQL
 - [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md)
   : Discover one Microsoft Fabric item
 - [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md)
