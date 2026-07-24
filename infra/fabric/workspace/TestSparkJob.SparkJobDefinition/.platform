@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SparkJobDefinition",
+    "displayName": "TestSparkJob",
+    "description": "Runs a deterministic Spark job for fabricQueryR tests"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "577d973e-629e-49bc-bd5c-c990a9660b7c"
+  }
+}

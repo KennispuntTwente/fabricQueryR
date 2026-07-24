@@ -2,8 +2,16 @@ from os import environ
 from pathlib import Path
 import re
 
+from azure.core.credentials import AccessToken
+from fabric_cicd import FabricWorkspace
+
 from fabricqueryr_sandbox.deploy import deploy
 from fabricqueryr_sandbox.settings import SandboxSettings
+
+
+class StaticCredential:
+    def get_token(self, *_scopes, **_kwargs):
+        return AccessToken("test-token", 4_102_444_800)
 
 
 def test_seed_notebook_ids_are_parameterized():
@@ -62,6 +70,39 @@ def test_pipeline_and_spark_job_fixtures_are_deployable():
     assert "fabricqueryr-spark-job-success" in spark_main
     assert 'item_type: "SparkJobDefinition"' in parameters
     assert '"defaultLakehouseArtifactId"' in parameters
+
+
+def test_workspace_repository_is_discoverable_by_fabric_cicd(monkeypatch):
+    repository_root = Path(__file__).parents[3]
+    workspace_directory = repository_root / "infra/fabric/workspace"
+    monkeypatch.setenv(
+        "$ENV:FABRIC_TEST_LAKEHOUSE_ID",
+        "00000000-0000-0000-0000-000000000001",
+    )
+
+    workspace = FabricWorkspace(
+        workspace_id="00000000-0000-0000-0000-000000000002",
+        repository_directory=str(workspace_directory),
+        environment="TEST",
+        item_type_in_scope=[
+            "Notebook",
+            "DataPipeline",
+            "SparkJobDefinition",
+        ],
+        token_credential=StaticCredential(),
+    )
+    workspace._refresh_repository_items()
+
+    assert set(workspace.repository_items["Notebook"]) == {
+        "JobFixtures",
+        "SeedFixtures",
+    }
+    assert set(workspace.repository_items["DataPipeline"]) == {
+        "TestPipeline",
+    }
+    assert set(workspace.repository_items["SparkJobDefinition"]) == {
+        "TestSparkJob",
+    }
 
 
 def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):

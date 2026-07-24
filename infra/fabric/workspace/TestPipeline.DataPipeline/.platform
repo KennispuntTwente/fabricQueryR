@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "TestPipeline",
+    "description": "Runs a deterministic pipeline for fabricQueryR tests"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "bf8bd251-4266-43bd-822a-58f71f5eb596"
+  }
+}
