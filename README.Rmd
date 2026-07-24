@@ -180,8 +180,14 @@ first_bytes <- fabric_onelake_download(
 
 df_dax <- fabric_pbi_dax_query(
   connstr = semantic_model,
-  dax = "EVALUATE TOPN(100000, 'Sheet1')"
+  dax = "EVALUATE TOPN(1000, 'Sheet1')"
 )
+
+# The Power BI "Dataset Execute Queries REST API" tenant setting must be
+# enabled. Each request returns one table and is limited to 100,000 rows or
+# 1,000,000 values, 15 MB, and 120 requests per minute per user. Service
+# principals cannot query semantic models with RLS or SSO enabled.
+# https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries
 
 
 # Livy API query to execute Spark code -----------------------------------------

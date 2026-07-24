@@ -13,14 +13,38 @@ test_that("pbi_parse_connstr parses full conn str", {
 })
 
 test_that("pbi_parse_connstr supports bare powerbi:// and Catalog alias", {
-  conn <- "powerbi://api.powerbi.com/v1.0/myorg/Another%20WS;Catalog=MyData;"
+  conn <- "powerbi://api.powerbi.com/v1.0/myorg/Another%20WS/;Catalog=MyData;"
   p <- fabricQueryR:::pbi_parse_connstr(conn)
   expect_equal(p$workspace, "Another WS")
   expect_equal(p$dataset, "MyData")
 })
 
-test_that("pbi_parse_connstr errors when Data Source missing", {
-  expect_error(fabricQueryR:::pbi_parse_connstr("Initial Catalog=OnlyDataset;"))
+test_that("pbi_parse_connstr rejects incomplete and non-Power-BI strings", {
+  expect_error(
+    fabricQueryR:::pbi_parse_connstr("Initial Catalog=OnlyDataset;"),
+    "unique Data Source"
+  )
+  expect_error(
+    fabricQueryR:::pbi_parse_connstr(
+      "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;"
+    ),
+    "exactly one non-empty"
+  )
+  expect_error(
+    fabricQueryR:::pbi_parse_connstr(
+      paste0(
+        "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;",
+        "Catalog=One;Dataset=Two;"
+      )
+    ),
+    "exactly one non-empty"
+  )
+  expect_error(
+    fabricQueryR:::pbi_parse_connstr(
+      "Data Source=https://api.powerbi.com/Workspace;Catalog=Dataset;"
+    ),
+    "Power BI XMLA workspace URL"
+  )
 })
 
 

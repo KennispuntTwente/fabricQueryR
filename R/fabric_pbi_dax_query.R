@@ -19,6 +19,14 @@
 #'  `https://analysis.windows.net/powerbi/api/.default` and require
 #'  `Dataset.Read.All` (or `Dataset.ReadWrite.All`) plus dataset Read and Build
 #'  permissions. Name lookup also requires `Workspace.Read.All` or equivalent.
+#' - The Power BI tenant setting **Dataset Execute Queries REST API** must be
+#'  enabled. Service-principal authentication also requires **Allow service
+#'  principals to use Power BI APIs**. Service principals are not supported for
+#'  semantic models with row-level security or single sign-on enabled.
+#' - The Execute Queries API accepts one DAX query and one result table per
+#'  request. Results are limited to 100,000 rows or 1,000,000 values (whichever
+#'  is reached first), 15 MB, and 120 requests per minute per user. Partial
+#'  results reported by Power BI are treated as errors by this function.
 #'
 #' @param connstr Optional character Power BI connection string or one
 #'   SemanticModel record returned by [fabric_semantic_models()] or
@@ -53,6 +61,8 @@
 #'   `impersonatedUserName` for supported row-level security scenarios.
 #'
 #' @return A tibble with the query result (0 rows if the DAX query returned no rows).
+#' @references
+#' [Power BI Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries)
 #' @export
 #'
 #' @examples
@@ -177,6 +187,7 @@ pbi_parse_connstr <- function(conn) {
   stopifnot(is.character(conn), length(conn) == 1L)
   toks <- strsplit(conn, ";", fixed = TRUE)[[1]]
   toks <- trimws(toks)
+  toks <- toks[nzchar(toks)]
 
   # Data Source can be present as key=value or as a bare powerbi:// URL token
   ds <- sub(
@@ -194,7 +205,22 @@ pbi_parse_connstr <- function(conn) {
       call. = FALSE
     )
   }
-  ds <- ds[[1]]
+  ds <- trimws(ds[[1]])
+  if (
+    !grepl(
+      "^powerbi://api\\.powerbi\\.com/v1\\.0/[^/]+/[^/]+/?$",
+      ds,
+      ignore.case = TRUE
+    )
+  ) {
+    stop(
+      paste0(
+        "Data Source must be a Power BI XMLA workspace URL like ",
+        "'powerbi://api.powerbi.com/v1.0/myorg/Workspace'."
+      ),
+      call. = FALSE
+    )
+  }
 
   # Dataset name can be specified using several synonyms
   catv <- sub(
@@ -203,12 +229,28 @@ pbi_parse_connstr <- function(conn) {
     toks[grepl("(?i)^(Initial Catalog|Catalog|Database|Dataset)=", toks)],
     perl = TRUE
   )
-  dataset_name <- if (length(catv)) catv[[1]] else NA_character_
+  catv <- trimws(catv)
+  if (length(catv) != 1L || !nzchar(catv[[1L]])) {
+    stop(
+      paste0(
+        "Connection string must contain exactly one non-empty ",
+        "Initial Catalog, Catalog, Database, or Dataset value."
+      ),
+      call. = FALSE
+    )
+  }
+  dataset_name <- catv[[1L]]
 
   # Workspace is the last segment of the Data Source URL
-  ds_clean <- sub("(?i)^powerbi://", "", ds)
+  ds_clean <- sub("/+$", "", sub("(?i)^powerbi://", "", ds))
   segs <- strsplit(ds_clean, "/", fixed = TRUE)[[1]]
   workspace_name <- utils::URLdecode(utils::tail(segs, 1))
+  if (!nzchar(workspace_name)) {
+    stop(
+      "Power BI Data Source does not contain a workspace name.",
+      call. = FALSE
+    )
+  }
 
   list(server = ds, workspace = workspace_name, dataset = dataset_name)
 }

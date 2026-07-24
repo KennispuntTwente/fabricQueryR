@@ -84,6 +84,14 @@ to clear cached tokens if you run into issues
 \verb{https://analysis.windows.net/powerbi/api/.default} and require
 \code{Dataset.Read.All} (or \code{Dataset.ReadWrite.All}) plus dataset Read and Build
 permissions. Name lookup also requires \code{Workspace.Read.All} or equivalent.
+\item The Power BI tenant setting \strong{Dataset Execute Queries REST API} must be
+enabled. Service-principal authentication also requires \strong{Allow service
+principals to use Power BI APIs}. Service principals are not supported for
+semantic models with row-level security or single sign-on enabled.
+\item The Execute Queries API accepts one DAX query and one result table per
+request. Results are limited to 100,000 rows or 1,000,000 values (whichever
+is reached first), 15 MB, and 120 requests per minute per user. Partial
+results reported by Power BI are treated as errors by this function.
 }
 }
 \examples{
@@ -98,4 +106,7 @@ df <- fabric_pbi_dax_query(
 )
 dplyr::glimpse(df)
 }
+}
+\references{
+\href{https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries}{Power BI Execute Queries REST API}
 }
