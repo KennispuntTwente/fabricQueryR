@@ -175,6 +175,11 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "ingestion_service_uri": "https://ingest-eventhouse.kusto.test",
         "tables": {"events": "fabricqueryr_events"},
     }
+    lakehouse = manifest.items["TestLakehouse"]
+    assert lakehouse["livy_batch_file"] == (
+        "abfss://workspace-id@onelake.dfs.fabric.microsoft.com/"
+        "TestLakehouse-id/Files/fixtures/livy_batch.py"
+    )
     assert settings.manifest_path.is_file()
 
 

@@ -571,6 +571,205 @@ test_that("fabric_livy_query executes Spark and returns its output", {
   expect_true(is.numeric(result$output$execution_count))
 })
 
+test_that("FabricLivySession shares state and preserves statement failures", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  session <- fabric_livy_session(
+    lakehouse$livy_url,
+    access_token = token,
+    name = "fabricqueryr-integration-session",
+    tags = list(test = "multiple-statements"),
+    conf = list("spark.sql.shuffle.partitions" = "2"),
+    verbose = FALSE
+  )
+  session_url <- session$url
+  on.exit(try(session$close(), silent = TRUE), add = TRUE)
+  session$wait(timeout = 900, poll_interval = 5)
+
+  assignment <- session$run(
+    "fabricqueryr_shared_value = 40",
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_equal(assignment$output$status, "ok")
+
+  reused <- session$run(
+    "print('FABRICQUERYR_SHARED_VALUE=' + str(fabricqueryr_shared_value + 2))",
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_match(
+    paste(reused$output$parsed, collapse = "\n"),
+    "FABRICQUERYR_SHARED_VALUE=42",
+    fixed = TRUE
+  )
+
+  failed <- session$submit(
+    "raise RuntimeError('FABRICQUERYR_INTENTIONAL_STATEMENT_FAILURE')",
+    kind = "pyspark"
+  )
+  error <- expect_error(
+    failed$wait(timeout = 300, poll_interval = 2),
+    class = "fabric_livy_statement_error"
+  )
+  expect_match(
+    paste(
+      conditionMessage(error),
+      error$output$evalue %||% "",
+      error$traceback,
+      collapse = "\n"
+    ),
+    "FABRICQUERYR_INTENTIONAL_STATEMENT_FAILURE",
+    fixed = TRUE
+  )
+  raw_failure <- failed$result(
+    refresh = FALSE,
+    error_on_failure = FALSE
+  )
+  expect_equal(raw_failure$output$status, "error")
+  expect_gt(length(raw_failure$output$traceback), 0L)
+
+  expect_true(session$close())
+  credential <- fabric_credential(access_token = token)
+  expect_error(
+    .httr2_json(
+      httr2::request(session_url),
+      credential = credential,
+      audience = .fabric_audience$fabric
+    ),
+    "HTTP 404"
+  )
+})
+
+test_that("high-concurrency Livy session runs through its isolated REPL", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  session <- fabric_livy_session(
+    lakehouse$livy_url,
+    high_concurrency = TRUE,
+    session_tag = paste0("fabricqueryr-", manifest$workspace_id),
+    artifact_name = lakehouse$display_name,
+    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    verbose = FALSE
+  )
+  on.exit(try(session$close(), silent = TRUE), add = TRUE)
+  session$wait(timeout = 900, poll_interval = 5)
+
+  expect_true(nzchar(session$session_id))
+  expect_true(nzchar(session$repl_id))
+  result <- session$run(
+    "print('FABRICQUERYR_HIGH_CONCURRENCY_OK')",
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_equal(result$output$status, "ok")
+  expect_match(
+    paste(result$output$parsed, collapse = "\n"),
+    "FABRICQUERYR_HIGH_CONCURRENCY_OK",
+    fixed = TRUE
+  )
+  expect_true(session$close())
+})
+
+test_that("Livy batches cover success, failure, logs, and cancellation", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+
+  success <- fabric_livy_batch_submit(
+    lakehouse$livy_url,
+    file = lakehouse$livy_batch_file,
+    name = "fabricqueryr-batch-success",
+    args = "success",
+    target_lakehouse_id = lakehouse$id,
+    access_token = token,
+    verbose = FALSE
+  )
+  success$wait(timeout = 1200, poll_interval = 5)
+  success_result <- success$result(refresh = FALSE)
+  expect_equal(tolower(success_result$result), "succeeded")
+  expect_equal(tolower(success_result$state), "success")
+  expect_match(
+    paste(success$logs(refresh = FALSE), collapse = "\n"),
+    "FABRICQUERYR_BATCH_ROW_COUNT=3",
+    fixed = TRUE
+  )
+
+  failure <- fabric_livy_batch_submit(
+    lakehouse$livy_url,
+    file = lakehouse$livy_batch_file,
+    name = "fabricqueryr-batch-failure",
+    args = "failure",
+    target_lakehouse_id = lakehouse$id,
+    access_token = token,
+    verbose = FALSE
+  )
+  failure_error <- expect_error(
+    failure$wait(timeout = 1200, poll_interval = 5),
+    class = "fabric_livy_batch_error"
+  )
+  expect_true(
+    length(failure_error$logs) > 0L ||
+      length(failure_error$error_info) > 0L
+  )
+  expect_match(
+    paste(
+      conditionMessage(failure_error),
+      failure_error$logs,
+      collapse = "\n"
+    ),
+    "FABRICQUERYR_INTENTIONAL_BATCH_FAILURE",
+    fixed = TRUE
+  )
+
+  slow <- fabric_livy_batch_submit(
+    lakehouse$livy_url,
+    file = lakehouse$livy_batch_file,
+    name = "fabricqueryr-batch-cancel",
+    args = "slow",
+    target_lakehouse_id = lakehouse$id,
+    access_token = token,
+    verbose = FALSE
+  )
+  on.exit(try(slow$cancel(), silent = TRUE), add = TRUE)
+  deadline <- Sys.time() + 900
+  repeat {
+    slow_status <- slow$status()
+    if (tolower(slow_status$state %||% "") == "running") {
+      break
+    }
+    if (Sys.time() >= deadline) {
+      stop("Slow Livy batch did not start in time.", call. = FALSE)
+    }
+    Sys.sleep(5)
+  }
+  expect_true(slow$cancel())
+  slow$wait(
+    timeout = 600,
+    poll_interval = 5,
+    error_on_failure = FALSE
+  )
+  cancelled <- slow$result(
+    refresh = FALSE,
+    error_on_failure = FALSE
+  )
+  terminal <- tolower(c(
+    cancelled$state,
+    cancelled$result %||% "",
+    cancelled$raw$fabricBatchStateInfo$state %||% ""
+  ))
+  expect_true(any(terminal %in% c(
+    "killed",
+    "dead",
+    "cancelled",
+    "canceled"
+  )))
+})
+
 test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   manifest <- fabric_test_manifest()
   semantic_model <- manifest$items$TestSemanticModel

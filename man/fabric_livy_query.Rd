@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_livy.R
 \name{fabric_livy_query}
 \alias{fabric_livy_query}
-\title{Run a Livy API query (Spark code) in Microsoft Fabric}
+\title{Run Spark code in a temporary Microsoft Fabric Livy session}
 \usage{
 fabric_livy_query(
   livy_url,
@@ -16,86 +16,51 @@ fabric_livy_query(
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
-  poll_interval = 2L,
-  timeout = 600L
+  poll_interval = 2,
+  timeout = 600
 )
 }
 \arguments{
-\item{livy_url}{Character Livy session job connection string or one
-Lakehouse record returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}, e.g.
-\code{"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"}
-(see details).}
+\item{livy_url}{A Livy connection URL or an enriched Lakehouse record from
+\code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.}
 
-\item{code}{Character. Code to run in the Livy session.}
+\item{code}{One non-empty string containing Spark code.}
 
-\item{kind}{Character. One of \code{"spark"}, \code{"pyspark"}, \code{"sparkr"}, or \code{"sql"}.
-Indicates the type of Spark code being submitted for evaluation.}
+\item{kind}{Statement language: \code{"spark"}, \code{"pyspark"}, \code{"sparkr"}, or
+\code{"sql"}.}
 
-\item{tenant_id}{Microsoft Azure tenant ID. Defaults to \code{Sys.getenv("FABRICQUERYR_TENANT_ID")} if missing.}
+\item{tenant_id}{Microsoft Entra tenant ID.}
 
-\item{client_id}{Microsoft Azure application (client) ID used to authenticate. Defaults to
-\code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}. You may be able to use the Azure CLI app id
-\code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"}, but may want to make your own
-app registration in your tenant for better control.}
+\item{client_id}{Microsoft Entra application ID.}
 
-\item{access_token}{Optional character. If supplied, use this bearer token
-instead of acquiring a new one via \code{{AzureAuth}}.}
+\item{access_token}{Optional Fabric bearer token.}
 
-\item{token_provider}{Optional function returning a Fabric API bearer token.
-It may accept \code{audience} and \code{force_refresh} arguments. Supply only one of
-\code{access_token} and \code{token_provider}.}
+\item{token_provider}{Optional callback returning a Fabric bearer token.}
 
-\item{environment_id}{Optional character. Fabric Environment (pool) ID to use
-for the session. If \code{NULL} (default), the default environment for the user
-will be used.}
+\item{environment_id}{Optional Fabric Environment ID.}
 
-\item{conf}{Optional list. Spark configuration settings to apply to the session.}
+\item{conf}{Optional named list of Spark configuration settings.}
 
-\item{verbose}{Logical. Emit progress via \code{{cli}}. Default \code{TRUE}.}
+\item{verbose}{Logical. Emit lifecycle progress.}
 
-\item{poll_interval}{Integer. Polling interval in seconds when waiting for session/statement readiness.}
+\item{poll_interval}{Polling interval in seconds.}
 
-\item{timeout}{Integer. Timeout in seconds when waiting for session/statement readiness.}
+\item{timeout}{Maximum seconds for each readiness/execution wait.}
 }
 \value{
-A list with statement details and results. The list contains:
-\itemize{
-\item \code{id}: Statement ID.
-\item \code{state}: Final statement state (should be \code{"available"}).
-\item \code{started_local}: Local timestamp when statement started running.
-\item \code{completed_local}: Local timestamp when statement completed.
-\item \code{duration_sec}: Duration in seconds (local).
-\item \code{output}: A list with raw output details:
-\itemize{
-\item \code{status}: Output status (e.g., \code{"ok"}).
-\item \code{execution_count}: Execution count (if applicable). The number of
-statements that have been executed in the session.
-\item \code{data}: Raw data list with MIME types as keys (e.g.
-\code{"text/plain"}, \code{"application/json"}).
-\item \code{parsed}: Parsed output, if possible. This may be a data frame (tibble)
-if the output was JSON tabular data, or a character vector if it was
-plain text. May be \code{NULL} if parsing was not possible.
-}
-\item \code{url}: URL of the statement resource in the Livy API.
-}
+An invisible \code{fabric_livy_statement_result} list.
 }
 \description{
-High-level helper that creates a Livy session in Microsoft Fabric, waits for
-it to become idle, submits a statement with Spark code for execution, retrieves
-the result, and closes the session.
+Creates a session, waits for it to become ready, runs one statement, and
+closes the session even when execution fails. For multiple statements or
+explicit lifecycle control, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}.
 }
 \details{
-\itemize{
-\item In Microsoft Fabric, you can find and copy the Livy session URL by going
-to a 'Lakehouse' item, then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'.
-\item By default we request a token for \verb{https://api.fabric.microsoft.com/.default}.
-\item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
-to clear cached tokens if you run into issues
-\item Requests use the \verb{https://api.fabric.microsoft.com/.default} audience.
-The identity must have access to the workspace and permission to run Spark
-sessions on the target lakehouse.
-}
+Requests use the
+\verb{https://api.fabric.microsoft.com/.default} audience. Delegated
+authentication requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
+\code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All}; the caller also
+needs an appropriate workspace role.
 }
 \examples{
 # Find your session URL in Fabric by going to a 'Lakehouse' item,
@@ -177,6 +142,6 @@ df_livy_sparkr <- unserialize(r_raw)
 }
 }
 \seealso{
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview}{Livy API overview - Microsoft Fabric - 'What is the Livy API for Data Engineering?'};
-\href{https://livy.apache.org/docs/latest/rest-api.html}{Livy Docs - REST API}.
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview}{Microsoft Fabric Livy API overview},
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session}{session jobs}
 }

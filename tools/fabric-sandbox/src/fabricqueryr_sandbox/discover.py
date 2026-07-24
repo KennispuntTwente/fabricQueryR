@@ -159,6 +159,10 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     f"/lakehouses/{lakehouse_item['id']}"
                     "/livyapi/versions/2023-12-01/sessions"
                 ),
+                "livy_batch_file": (
+                    f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+                    f"{lakehouse_item['id']}/Files/fixtures/livy_batch.py"
+                ),
                 "tables": {
                     "basic": "fabricqueryr_basic",
                     "partitioned": "fabricqueryr_partitioned",

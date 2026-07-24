@@ -1,27 +1,561 @@
-test_that("Livy statement output errors are raised", {
+livy_test_credential <- function() {
+  fabric_credential(access_token = "token")
+}
+
+test_that("regular session runs multiple statements and closes", {
+  calls <- list()
+  session_gets <- 0L
+  statement_gets <- new.env(parent = emptyenv())
+
   local_mocked_bindings(
-    .httr2_json = function(request, ...) {
-      list(
-        id = 1L,
-        state = "available",
-        output = list(
-          status = "error",
-          evalue = "table was not found"
-        )
+    fabric_livy_json = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      idempotent = NULL
+    ) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        payload = payload,
+        idempotent = idempotent
       )
+      if (method == "POST" && grepl("/sessions$", url)) {
+        return(list(id = "session-1", state = "starting"))
+      }
+      if (method == "GET" && grepl("/sessions/session-1$", url)) {
+        session_gets <<- session_gets + 1L
+        return(list(
+          id = "session-1",
+          state = if (session_gets == 1L) "starting" else "idle"
+        ))
+      }
+      if (method == "POST" && grepl("/statements$", url)) {
+        id <- if (grepl("first", payload$code)) 1L else 2L
+        return(list(id = id, state = "waiting", code = payload$code))
+      }
+      if (method == "GET" && grepl("/statements/[12]$", url)) {
+        id <- sub(".*/", "", url)
+        count <- statement_gets[[id]] %||% 0L
+        statement_gets[[id]] <- count + 1L
+        if (count == 0L) {
+          return(list(id = as.integer(id), state = "running"))
+        }
+        return(list(
+          id = as.integer(id),
+          state = "available",
+          output = list(
+            status = "ok",
+            execution_count = as.integer(id),
+            data = list("text/plain" = paste("result", id))
+          )
+        ))
+      }
+      stop("Unexpected mocked call: ", method, " ", url)
+    },
+    fabric_livy_ok = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      idempotent = NULL
+    ) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        idempotent = idempotent
+      )
+      TRUE
     }
   )
 
+  session <- fabric_livy_session(
+    "https://api.fabric.microsoft.com/livy/batches",
+    access_token = "token",
+    conf = list("spark.sql.shuffle.partitions" = "2"),
+    environment_id = "environment-id",
+    tags = list(owner = "unit-test"),
+    verbose = FALSE
+  )
+  expect_s3_class(session, "FabricLivySession")
+  expect_equal(session$url, paste0(
+    "https://api.fabric.microsoft.com/livy/sessions/",
+    "session-1"
+  ))
+  expect_false(calls[[1L]]$idempotent)
+  expect_equal(
+    calls[[1L]]$payload$conf[["spark.sql.shuffle.partitions"]],
+    "2"
+  )
+  expect_match(
+    calls[[1L]]$payload$conf[["spark.fabric.environmentDetails"]],
+    "environment-id",
+    fixed = TRUE
+  )
+  expect_equal(calls[[1L]]$payload$tags$owner, "unit-test")
+
+  session$wait(timeout = 1, poll_interval = 0)
+  first <- session$run(
+    "print('first')",
+    kind = "pyspark",
+    timeout = 1,
+    poll_interval = 0
+  )
+  second <- session$run(
+    "print('second')",
+    kind = "pyspark",
+    timeout = 1,
+    poll_interval = 0
+  )
+
+  expect_s3_class(first, "fabric_livy_statement_result")
+  expect_equal(first$id, 1L)
+  expect_equal(first$output$parsed, "result 1")
+  expect_equal(second$id, 2L)
+  expect_equal(second$output$execution_count, 2L)
+  expect_true(is.finite(first$duration_sec))
+  expect_gte(first$duration_sec, 0)
+
+  expect_true(session$close())
+  expect_false(session$close())
+  expect_true(session$closed)
+  expect_error(session$status(), "closed")
+  delete_calls <- Filter(
+    function(call) identical(call$method, "DELETE"),
+    calls
+  )
+  expect_length(delete_calls, 1L)
+  expect_true(delete_calls[[1L]]$idempotent)
+})
+
+test_that("submit returns an inspectable and cancellable statement", {
+  calls <- list()
+  local_mocked_bindings(
+    fabric_livy_json = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      idempotent = NULL
+    ) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        payload = payload
+      )
+      if (method == "POST" && grepl("/sessions$", url)) {
+        return(list(id = "s", state = "idle"))
+      }
+      if (method == "POST" && grepl("/statements$", url)) {
+        return(list(id = 9L, state = "waiting"))
+      }
+      if (method == "POST" && grepl("/cancel$", url)) {
+        return(list(msg = "canceled"))
+      }
+      if (method == "GET" && grepl("/statements$", url)) {
+        return(list(statements = list(list(id = 9L, state = "waiting"))))
+      }
+      stop("Unexpected mocked call")
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    access_token = "token",
+    verbose = FALSE
+  )
+  statement <- session$submit(
+    "1 + 1",
+    kind = "spark",
+    source_id = "request-42"
+  )
+  expect_s3_class(statement, "FabricLivyStatement")
+  expect_equal(
+    calls[[2L]]$payload,
+    list(code = "1 + 1", kind = "spark", sourceId = "request-42")
+  )
+  expect_equal(statement$cancel()$msg, "canceled")
+  expect_match(calls[[3L]]$url, "/statements/9/cancel$")
+  expect_length(session$statements()$statements, 1L)
+  session$close()
+})
+
+test_that("statement errors preserve output and traceback", {
+  responses <- list(
+    list(id = "s", state = "idle"),
+    list(id = 1L, state = "waiting"),
+    list(
+      id = 1L,
+      state = "available",
+      output = list(
+        status = "error",
+        ename = "AnalysisException",
+        evalue = "table was not found",
+        traceback = c("line one", "line two")
+      )
+    )
+  )
+  local_mocked_bindings(
+    fabric_livy_json = function(...) {
+      response <- responses[[1L]]
+      responses <<- responses[-1L]
+      response
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    access_token = "token",
+    verbose = FALSE
+  )
+  statement <- session$submit("spark.table('missing')", "pyspark")
+  error <- expect_error(
+    statement$wait(timeout = 1, poll_interval = 0),
+    class = "fabric_livy_statement_error"
+  )
+  expect_match(conditionMessage(error), "table was not found", fixed = TRUE)
+  expect_equal(error$output$ename, "AnalysisException")
+  expect_equal(error$traceback, c("line one", "line two"))
+
+  result <- statement$result(refresh = FALSE, error_on_failure = FALSE)
+  expect_equal(result$output$status, "error")
+  expect_equal(result$output$evalue, "table was not found")
+  expect_equal(result$output$traceback, c("line one", "line two"))
+  session$close()
+})
+
+test_that("statement JSON output is parsed independently of lifecycle", {
+  result <- fabric_livy_output(
+    response = list(
+      id = 4L,
+      state = "available",
+      output = list(
+        status = "ok",
+        data = list(
+          "application/json" = list(
+            list(id = 1L, value = "alpha"),
+            list(id = 2L, value = "beta")
+          )
+        )
+      )
+    ),
+    started_local = as.POSIXct("2026-01-01", tz = "UTC"),
+    completed_local = as.POSIXct("2026-01-01 00:00:02", tz = "UTC"),
+    url = "https://example.test/statements/4"
+  )
+  expect_s3_class(result$output$parsed, "tbl_df")
+  expect_equal(result$output$parsed$id, c(1L, 2L))
+  expect_equal(result$output$parsed$value, c("alpha", "beta"))
+  expect_equal(result$duration_sec, 2)
+})
+
+test_that("session finalizer attempts cleanup of open sessions", {
+  deleted <- character()
+  local_mocked_bindings(
+    fabric_livy_json = function(...) list(id = "finalize-me", state = "idle"),
+    fabric_livy_ok = function(method, url, ...) {
+      if (method == "DELETE") {
+        deleted <<- c(deleted, url)
+      }
+      TRUE
+    }
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    access_token = "token",
+    verbose = FALSE
+  )
+  session$.__enclos_env__$private$finalize()
+  expect_true(session$closed)
+  expect_equal(deleted, session$url)
+  session$.__enclos_env__$private$finalize()
+  expect_length(deleted, 1L)
+})
+
+test_that("high-concurrency sessions use HC and REPL endpoints", {
+  calls <- list()
+  local_mocked_bindings(
+    fabric_livy_json = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      idempotent = NULL
+    ) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        payload = payload,
+        idempotent = idempotent
+      )
+      if (method == "POST" && grepl("highConcurrencySessions$", url)) {
+        return(list(id = "hc-id", state = "NotStarted"))
+      }
+      if (method == "GET" && grepl("highConcurrencySessions/hc-id$", url)) {
+        return(list(
+          id = "hc-id",
+          state = "Idle",
+          sessionId = "shared-session",
+          replId = "isolated-repl"
+        ))
+      }
+      if (method == "POST" && grepl("/statements$", url)) {
+        return(list(id = 3L, state = "waiting"))
+      }
+      stop("Unexpected mocked call: ", method, " ", url)
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    high_concurrency = TRUE,
+    session_tag = "packed-work",
+    artifact_name = "TestLakehouse",
+    tags = list(run = "42"),
+    access_token = "token",
+    verbose = FALSE
+  )
+  expect_equal(calls[[1L]]$payload$sessionTag, "packed-work")
+  expect_equal(calls[[1L]]$payload$artifactName, "TestLakehouse")
+  expect_false(calls[[1L]]$idempotent)
+
+  session$wait(timeout = 1, poll_interval = 0)
+  statement <- session$submit("print(1)", "pyspark")
+  expect_s3_class(statement, "FabricLivyStatement")
+  expect_match(
+    calls[[3L]]$url,
+    paste0(
+      "/highConcurrencySessions/shared-session/",
+      "repls/isolated-repl/statements$"
+    )
+  )
+  expect_error(session$reset_timeout(), "not supported")
+  session$close()
+})
+
+test_that("session reset timeout uses its documented endpoint", {
+  reset_url <- NULL
+  local_mocked_bindings(
+    fabric_livy_json = function(...) list(id = "s", state = "idle"),
+    fabric_livy_ok = function(method, url, ...) {
+      if (method == "POST") {
+        reset_url <<- url
+      }
+      TRUE
+    }
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    access_token = "token",
+    verbose = FALSE
+  )
+  expect_identical(session$reset_timeout(), session)
+  expect_equal(reset_url, paste0(session$url, "/reset-timeout"))
+  session$close()
+})
+
+test_that("fabric_livy_query closes temporary session after failure", {
+  closed <- FALSE
+  fake_session <- new.env(parent = emptyenv())
+  fake_session$wait <- function(...) invisible(fake_session)
+  fake_session$run <- function(...) stop("spark failed", call. = FALSE)
+  fake_session$close <- function() {
+    closed <<- TRUE
+    TRUE
+  }
+  local_mocked_bindings(
+    fabric_livy_session = function(...) fake_session
+  )
+
   expect_error(
-    fabric_livy_statement(
-      session = list(
-        url = "https://api.fabric.microsoft.com/sessions/1",
-        token = "token"
-      ),
-      code = "spark.sql('SELECT 1')",
+    fabric_livy_query(
+      "https://example.test/livy/sessions",
+      "raise Exception()",
+      access_token = "token",
       verbose = FALSE
     ),
-    "table was not found",
+    "spark failed",
     fixed = TRUE
+  )
+  expect_true(closed)
+})
+
+test_that("batch jobs expose success logs and structured results", {
+  calls <- list()
+  gets <- 0L
+  local_mocked_bindings(
+    fabric_livy_json = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      idempotent = NULL
+    ) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        payload = payload,
+        idempotent = idempotent
+      )
+      if (method == "POST") {
+        return(list(id = "batch-1", state = "starting"))
+      }
+      gets <<- gets + 1L
+      if (gets == 1L) {
+        return(list(id = "batch-1", state = "running", log = "starting"))
+      }
+      list(
+        id = "batch-1",
+        state = "success",
+        result = "Succeeded",
+        appId = "application-1",
+        log = c("starting", "FABRICQUERYR_BATCH_SUCCESS")
+      )
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+
+  batch <- fabric_livy_batch_submit(
+    "https://example.test/livy/sessions",
+    file = "abfss://workspace/lakehouse/Files/fixture.py",
+    name = "unit-batch",
+    args = c("success"),
+    conf = list("spark.test" = "yes"),
+    environment_id = "environment-id",
+    target_lakehouse_id = "lakehouse-id",
+    access_token = "token",
+    verbose = FALSE
+  )
+  expect_s3_class(batch, "FabricLivyBatch")
+  expect_match(calls[[1L]]$url, "/batches$")
+  expect_false(calls[[1L]]$idempotent)
+  expect_equal(calls[[1L]]$payload$args, "success")
+  expect_equal(
+    calls[[1L]]$payload$conf[["spark.targetLakehouse"]],
+    "lakehouse-id"
+  )
+
+  batch$wait(timeout = 1, poll_interval = 0)
+  result <- batch$result(refresh = FALSE)
+  expect_s3_class(result, "fabric_livy_batch_result")
+  expect_equal(result$result, "Succeeded")
+  expect_equal(result$app_id, "application-1")
+  expect_match(
+    paste(batch$logs(refresh = FALSE), collapse = "\n"),
+    "FABRICQUERYR_BATCH_SUCCESS"
+  )
+})
+
+test_that("batch failures and cancellation preserve service details", {
+  mode <- "failure"
+  local_mocked_bindings(
+    fabric_livy_json = function(method, ...) {
+      if (method == "POST") {
+        return(list(id = "batch-2", state = "starting"))
+      }
+      list(
+        id = "batch-2",
+        state = "dead",
+        result = "Failed",
+        log = c("driver log", "intentional batch failure"),
+        errorInfo = list(list(message = "python exited with status 1"))
+      )
+    },
+    fabric_livy_ok = function(method, url, ...) {
+      mode <<- paste(method, url)
+      TRUE
+    }
+  )
+  batch <- fabric_livy_batch_submit(
+    "https://example.test/livy/batches",
+    file = "abfss://workspace/lakehouse/Files/failure.py",
+    access_token = "token",
+    verbose = FALSE
+  )
+  error <- expect_error(
+    batch$wait(timeout = 1, poll_interval = 0),
+    class = "fabric_livy_batch_error"
+  )
+  expect_match(conditionMessage(error), "intentional batch failure")
+  expect_equal(error$logs[[1L]], "driver log")
+  expect_length(error$error_info, 1L)
+
+  expect_true(batch$cancel())
+  expect_true(batch$cancel_requested)
+  expect_match(mode, paste0("^DELETE ", batch$url, "$"))
+})
+
+test_that("batch timeout can request cancellation", {
+  cancelled <- FALSE
+  local_mocked_bindings(
+    fabric_livy_json = function(method, ...) {
+      if (method == "POST") {
+        list(id = "slow-batch", state = "starting")
+      } else {
+        list(id = "slow-batch", state = "running")
+      }
+    },
+    fabric_livy_ok = function(...) {
+      cancelled <<- TRUE
+      TRUE
+    }
+  )
+  batch <- fabric_livy_batch_submit(
+    "https://example.test/livy/batches",
+    file = "abfss://workspace/lakehouse/Files/slow.py",
+    access_token = "token",
+    verbose = FALSE
+  )
+  expect_error(
+    batch$wait(
+      timeout = 0,
+      poll_interval = 0,
+      cancel_on_timeout = TRUE
+    ),
+    "Timed out"
+  )
+  expect_true(cancelled)
+  expect_true(batch$cancel_requested)
+})
+
+test_that("Livy input and endpoint validation is explicit", {
+  expect_equal(
+    fabric_livy_endpoint("https://example.test/base/sessions/", "batches"),
+    "https://example.test/base/batches"
+  )
+  expect_equal(
+    fabric_livy_endpoint(
+      "https://example.test/base/batches",
+      "highConcurrencySessions"
+    ),
+    "https://example.test/base/highConcurrencySessions"
+  )
+  expect_error(
+    fabric_livy_session(
+      "https://example.test/base",
+      session_tag = "not-hc",
+      access_token = "token"
+    ),
+    "only available"
+  )
+  expect_error(
+    fabric_livy_session(
+      "https://example.test/base",
+      tags = list("missing name"),
+      access_token = "token"
+    ),
+    "named list"
+  )
+  expect_error(
+    fabric_livy_batch_submit(
+      "https://example.test/base",
+      file = "",
+      access_token = "token"
+    ),
+    "file must"
   )
 })

@@ -1,90 +1,20 @@
-# Manage Livy session + statements ----------------------------------------
+# Shared Fabric Livy helpers ------------------------------------------------
 
-#' @title
-#' Run a Livy API query (Spark code) in Microsoft Fabric
-#'
-#' @description
-#' High-level helper that creates a Livy session in Microsoft Fabric, waits for
-#' it to become idle, submits a statement with Spark code for execution, retrieves
-#' the result, and closes the session.
-#'
-#' @details
-#' - In Microsoft Fabric, you can find and copy the Livy session URL by going
-#' to a 'Lakehouse' item, then go to 'Settings' -> 'Livy Endpoint' -> 'Session job connection string'.
-#' - By default we request a token for `https://api.fabric.microsoft.com/.default`.
-#' - \pkg{AzureAuth} is used to acquire the token. Be wary of
-#' caching behavior; you may want to call [AzureAuth::clean_token_directory()]
-#' to clear cached tokens if you run into issues
-#' - Requests use the `https://api.fabric.microsoft.com/.default` audience.
-#'   The identity must have access to the workspace and permission to run Spark
-#'   sessions on the target lakehouse.
-#'
-#' @seealso
-#' [Livy API overview - Microsoft Fabric - 'What is the Livy API for Data Engineering?'](<https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview>);
-#' [Livy Docs - REST API](https://livy.apache.org/docs/latest/rest-api.html).
-#'
-#' @param livy_url Character Livy session job connection string or one
-#' Lakehouse record returned by [fabric_lakehouses()] or [fabric_item()], e.g.
-#' `"https://api.fabric.microsoft.com/v1/workspaces/.../lakehouses/.../livyapi/versions/2023-12-01/sessions"`
-#' (see details).
-#' @param code Character. Code to run in the Livy session.
-#' @param kind Character. One of `"spark"`, `"pyspark"`, `"sparkr"`, or `"sql"`.
-#' Indicates the type of Spark code being submitted for evaluation.
-#' @param tenant_id Microsoft Azure tenant ID. Defaults to `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
-#' @param client_id Microsoft Azure application (client) ID used to authenticate. Defaults to
-#'   `Sys.getenv("FABRICQUERYR_CLIENT_ID")`. You may be able to use the Azure CLI app id
-#'   `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"`, but may want to make your own
-#'   app registration in your tenant for better control.
-#' @param access_token Optional character. If supplied, use this bearer token
-#'   instead of acquiring a new one via `{AzureAuth}`.
-#' @param token_provider Optional function returning a Fabric API bearer token.
-#'   It may accept `audience` and `force_refresh` arguments. Supply only one of
-#'   `access_token` and `token_provider`.
-#' @param environment_id Optional character. Fabric Environment (pool) ID to use
-#' for the session. If `NULL` (default), the default environment for the user
-#'  will be used.
-#' @param conf Optional list. Spark configuration settings to apply to the session.
-#' @param verbose Logical. Emit progress via `{cli}`. Default `TRUE`.
-#' @param poll_interval Integer. Polling interval in seconds when waiting for session/statement readiness.
-#' @param timeout Integer. Timeout in seconds when waiting for session/statement readiness.
-#'
-#' @return A list with statement details and results. The list contains:
-#' - `id`: Statement ID.
-#' - `state`: Final statement state (should be `"available"`).
-#' - `started_local`: Local timestamp when statement started running.
-#' - `completed_local`: Local timestamp when statement completed.
-#' - `duration_sec`: Duration in seconds (local).
-#' - `output`: A list with raw output details:
-#'     - `status`: Output status (e.g., `"ok"`).
-#'     - `execution_count`: Execution count (if applicable). The number of
-#'       statements that have been executed in the session.
-#'     - `data`: Raw data list with MIME types as keys (e.g.
-#'       `"text/plain"`, `"application/json"`).
-#'     - `parsed`: Parsed output, if possible. This may be a data frame (tibble)
-#'       if the output was JSON tabular data, or a character vector if it was
-#'       plain text. May be `NULL` if parsing was not possible.
-#' - `url`: URL of the statement resource in the Livy API.
-#'
-#' @export
-#'
-#' @example inst/examples/fabric_livy_query.R
-fabric_livy_query <- function(
-  livy_url, # <- paste your sessions/batches/base URL
-  code,
-  kind = c("spark", "pyspark", "sparkr", "sql"),
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv(
-    "FABRICQUERYR_CLIENT_ID",
-    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
-  ),
-  access_token = NULL,
-  token_provider = NULL,
-  environment_id = NULL,
-  conf = NULL,
-  verbose = TRUE,
-  poll_interval = 2L,
-  timeout = 600L
-) {
+.fabric_livy_session_terminal_states <- c(
+  "dead", "error", "failed", "killed", "shutting_down", "cancelled"
+)
+
+.fabric_livy_statement_failure_states <- c(
+  "error", "cancelling", "cancelled"
+)
+
+.fabric_livy_batch_success_states <- c("success")
+
+.fabric_livy_batch_failure_states <- c(
+  "dead", "error", "failed", "killed", "cancelled"
+)
+
+fabric_livy_resolve_url <- function(livy_url) {
   discovered <- fabric_as_record(livy_url)
   if (!is.null(discovered)) {
     if (
@@ -93,210 +23,225 @@ fabric_livy_query <- function(
         "lakehouse"
       )
     ) {
-      stop("livy_url discovery record must be a Lakehouse item.", call. = FALSE)
+      stop(
+        "livy_url discovery record must be a Lakehouse item.",
+        call. = FALSE
+      )
     }
     livy_url <- fabric_record_value(discovered, "livy_url")
   }
+  fabric_livy_check_string(livy_url, "livy_url")
+  livy_url
+}
+
+fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
+  if (is.null(value) && isTRUE(allow_null)) {
+    return(invisible(value))
+  }
   if (
-    !is.character(livy_url) ||
-      length(livy_url) != 1L ||
-      is.na(livy_url) ||
-      !nzchar(livy_url)
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(trimws(value))
+  ) {
+    stop(name, " must be one non-empty string.", call. = FALSE)
+  }
+  invisible(value)
+}
+
+fabric_livy_check_number <- function(value, name, minimum = 0) {
+  if (
+    length(value) != 1L ||
+      is.na(value) ||
+      !is.numeric(value) ||
+      !is.finite(value) ||
+      value < minimum
   ) {
     stop(
-      "livy_url must be a Livy URL or an enriched Lakehouse record.",
+      name,
+      " must be one finite number greater than or equal to ",
+      minimum,
+      ".",
       call. = FALSE
     )
   }
-  kind <- match.arg(kind)
-  sess <- fabric_livy_session_create(
-    livy_url = livy_url,
+  invisible(value)
+}
+
+fabric_livy_check_flag <- function(value, name) {
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    stop(name, " must be TRUE or FALSE.", call. = FALSE)
+  }
+  invisible(value)
+}
+
+fabric_livy_normalize_named_list <- function(value, name) {
+  if (is.null(value)) {
+    return(NULL)
+  }
+  if (!is.list(value) || is.null(names(value)) || !all(nzchar(names(value)))) {
+    stop(name, " must be a named list.", call. = FALSE)
+  }
+  value
+}
+
+fabric_livy_conf <- function(conf = NULL, environment_id = NULL) {
+  conf <- fabric_livy_normalize_named_list(conf, "conf")
+  if (!is.null(environment_id)) {
+    fabric_livy_check_string(environment_id, "environment_id")
+    conf <- conf %||% list()
+    conf[["spark.fabric.environmentDetails"]] <- jsonlite::toJSON(
+      list(id = environment_id),
+      auto_unbox = TRUE
+    )
+  }
+  conf
+}
+
+fabric_livy_payload <- function(...) {
+  Filter(Negate(is.null), list(...))
+}
+
+fabric_livy_credential <- function(
+  tenant_id,
+  client_id,
+  access_token,
+  token_provider
+) {
+  fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
     access_token = access_token,
-    token_provider = token_provider,
-    kind = NULL, # let statements specify kind (0.5+ behavior)
-    conf = conf,
-    environment_id = environment_id,
-    verbose = verbose,
-    timeout = timeout
-  )
-  on.exit(
-    try(fabric_livy_session_close(sess, verbose), silent = TRUE),
-    add = TRUE
-  )
-  fabric_livy_session_wait(
-    sess,
-    poll_interval = poll_interval,
-    timeout = timeout,
-    verbose = verbose
-  )
-  fabric_livy_statement(
-    sess,
-    code = code,
-    kind = kind,
-    poll_interval = poll_interval,
-    timeout = timeout,
-    verbose = verbose
+    token_provider = token_provider
   )
 }
 
-# Submit ANY code (spark | pyspark | sparkr | sql)
-fabric_livy_statement <- function(
-  session,
-  code,
-  kind = NULL, # optional override
-  poll_interval = 2L,
-  timeout = 600L,
-  verbose = TRUE
+fabric_livy_json <- function(
+  method,
+  url,
+  credential,
+  payload = NULL,
+  idempotent = NULL
 ) {
-  rlang::check_installed(
-    c("httr2", "jsonlite", "tibble"),
-    reason = "to call the Livy REST API"
+  req <- httr2::request(url) |>
+    httr2::req_method(method)
+  if (!is.null(payload)) {
+    req <- httr2::req_body_json(req, payload)
+  }
+  .httr2_json(
+    req,
+    simplifyVector = FALSE,
+    credential = credential,
+    audience = .fabric_audience$fabric,
+    idempotent = idempotent
   )
-  stopifnot(is.list(session), nzchar(session$url))
-  stopifnot(is.character(code), length(code) == 1L, nzchar(code))
+}
 
-  stmts_url <- paste0(session$url, "/statements")
-  payload <- list(code = code)
-  if (!is.null(kind)) {
-    payload$kind <- kind
+fabric_livy_ok <- function(
+  method,
+  url,
+  credential,
+  payload = NULL,
+  idempotent = NULL
+) {
+  req <- httr2::request(url) |>
+    httr2::req_method(method)
+  if (!is.null(payload)) {
+    req <- httr2::req_body_json(req, payload)
   }
+  .httr2_ok(
+    req,
+    credential = credential,
+    audience = .fabric_audience$fabric,
+    idempotent = idempotent
+  )
+}
 
-  inform(verbose, "Submitting statement ...")
-  t_submit <- Sys.time()
-  st <- httr2::request(stmts_url) |>
-    httr2::req_body_json(payload) |>
-    httr2::req_method("POST") |>
-    .httr2_json(
-      credential = fabric_livy_session_credential(session),
-      audience = .fabric_audience$fabric
-    )
-
-  stmt_url <- paste0(stmts_url, "/", st$id)
-  deadline <- Sys.time() + timeout
-  state <- st$state %||% "running"
-
-  # Local timing (Fabric often omits server-side started/completed)
-  started_local <- if (state %in% c("running", "waiting")) t_submit else NULL
-  completed_local <- NULL
-
-  # Pretty CLI progress (single updating line)
-  use_cli <- isTRUE(verbose) && rlang::is_installed("cli")
-  if (use_cli) {
-    guard <- ..local_cli_opts(list(cli.progress_show_after = 0))
-    on.exit(try(guard$reset(), silent = TRUE), add = TRUE)
-
-    first_line <- trimws(strsplit(code, "\n", fixed = TRUE)[[1]][1])
-    if (nchar(first_line) > 60) {
-      first_line <- paste0(substr(first_line, 1, 57), "...")
-    }
-
-    bar_id <- cli::cli_progress_bar(
-      name = paste0("Statement ", st$id, " - ", first_line),
-      total = NA,
-      clear = FALSE,
-      format = "{cli::pb_spin} {cli::pb_name}| time: {cli::pb_elapsed_clock} | status: {cli::pb_status}",
-      format_done = "{cli::col_green(cli::symbol$tick)} {cli::pb_name}| time: {cli::pb_elapsed_clock} | status: done"
-    )
-    show_state <- function(prev, cur) {
-      if (is.null(prev)) {
-        cli::cli_progress_update(
-          id = bar_id,
-          status = sprintf("%s", cur)
-        )
-        return(cur)
-      }
-      if (identical(prev, cur)) {
-        return(prev)
-      }
-      cli::cli_progress_update(
-        id = bar_id,
-        status = sprintf("%s \u2192 %s", prev, cur)
-      )
-      cur
-    }
+# Normalize a copied session/batch URL to a collection endpoint.
+fabric_livy_endpoint <- function(
+  url,
+  type = c("sessions", "batches", "highConcurrencySessions")
+) {
+  fabric_livy_check_string(url, "url")
+  type <- match.arg(type)
+  value <- sub("/+$", "", trimws(url))
+  collection_pattern <- paste0(
+    "(?i)/(sessions|batches|highConcurrencySessions)$"
+  )
+  if (grepl(collection_pattern, value, perl = TRUE)) {
+    sub(collection_pattern, paste0("/", type), value, perl = TRUE)
   } else {
-    show_state <- function(prev, cur) {
-      if (is.null(prev) || !identical(prev, cur)) {
-        inform(TRUE, sprintf("Statement state: %s", cur))
-      }
-      cur
-    }
+    paste0(value, "/", type)
   }
+}
 
-  prev <- NULL
-  prev <- show_state(prev, state)
+fabric_livy_state <- function(response) {
+  tolower(response$state %||% "")
+}
 
-  while (!identical(state, "available")) {
-    if (Sys.time() > deadline) {
-      stop("Timed out waiting for statement.", call. = FALSE)
-    }
-    Sys.sleep(poll_interval)
+fabric_livy_error_text <- function(response, fallback) {
+  output <- response$output %||% list()
+  data <- output$data %||% list()
+  fabric_state <- response$fabricSessionStateInfo %||%
+    response$fabricBatchStateInfo %||%
+    list()
+  candidates <- c(
+    output$evalue,
+    output$error,
+    fabric_state$errorMessage,
+    response$cancellationReason,
+    unlist(response$errorInfo %||% list(), recursive = TRUE),
+    data[["text/plain"]],
+    response$log
+  )
+  candidates <- as.character(candidates)
+  candidates <- candidates[!is.na(candidates) & nzchar(candidates)]
+  if (!length(candidates)) fallback else paste(unique(candidates), collapse = "\n")
+}
 
-    st <- httr2::request(stmt_url) |>
-      .httr2_json(
-        credential = fabric_livy_session_credential(session),
-        audience = .fabric_audience$fabric
-      )
+fabric_livy_abort_statement <- function(response) {
+  state <- response$state %||% "unknown"
+  rlang::abort(
+    fabric_livy_error_text(
+      response,
+      paste0("Livy statement ended with state ", state, ".")
+    ),
+    class = "fabric_livy_statement_error",
+    statement = response,
+    output = response$output %||% list(),
+    traceback = response$output$traceback %||% character()
+  )
+}
 
-    state <- st$state %||% "unknown"
-    prev <- show_state(prev, state)
+fabric_livy_abort_session <- function(response) {
+  state <- response$state %||% "unknown"
+  rlang::abort(
+    fabric_livy_error_text(
+      response,
+      paste0("Livy session ended with state ", state, ".")
+    ),
+    class = "fabric_livy_session_error",
+    session = response
+  )
+}
 
-    if (is.null(started_local) && state %in% c("running", "waiting")) {
-      started_local <- Sys.time()
-    }
+fabric_livy_abort_batch <- function(response) {
+  state <- response$state %||% "unknown"
+  rlang::abort(
+    fabric_livy_error_text(
+      response,
+      paste0("Livy batch ended with state ", state, ".")
+    ),
+    class = "fabric_livy_batch_error",
+    batch = response,
+    logs = response$log %||% character(),
+    error_info = response$errorInfo %||% list()
+  )
+}
 
-    if (state %in% c("error", "cancelling", "cancelled")) {
-      completed_local <- Sys.time()
-      if (use_cli) {
-        cli::cli_progress_done(id = bar_id)
-      }
-      # Try to surface any message if present
-      msg <- tryCatch(
-        {
-          o <- st$output
-          if (is.list(o) && !is.null(o$error)) {
-            as.character(o$error)
-          } else if (is.list(o) && !is.null(o$data$`text/plain`)) {
-            as.character(o$data$`text/plain`)
-          } else {
-            NULL
-          }
-        },
-        error = function(e) NULL
-      )
-      if (nzchar(msg %||% "")) {
-        stop(
-          sprintf("Statement ended with state: %s\n%s", state, msg),
-          call. = FALSE
-        )
-      } else {
-        stop(sprintf("Statement ended with state: %s", state), call. = FALSE)
-      }
-    } else {
-      if (use_cli) cli::cli_progress_update(id = bar_id, status = state)
-    }
-  }
-
-  # Final timestamp when we reach 'available'
-  completed_local <- completed_local %||% Sys.time()
-  started_local <- started_local %||% t_submit
-
-  if (use_cli) {
-    cli::cli_progress_update(id = bar_id, status = "available")
-    cli::cli_progress_done(id = bar_id)
-  }
-
-  out <- st$output %||% list()
+fabric_livy_output <- function(response, started_local, completed_local, url) {
+  out <- response$output %||% list()
   data <- out$data %||% list()
-  if (identical(out$status, "error")) {
-    msg <- out$evalue %||%
-      out$error %||%
-      data[["text/plain"]] %||%
-      "Livy statement failed."
-    stop(as.character(msg), call. = FALSE)
-  }
   parsed <- NULL
   if (!is.null(data[["application/json"]])) {
     obj <- try(
@@ -312,32 +257,73 @@ fabric_livy_statement <- function(
   } else if (!is.null(data[["text/plain"]])) {
     parsed <- as.character(data[["text/plain"]])
   }
-
-  duration_sec <- as.numeric(difftime(
-    completed_local,
-    started_local,
-    units = "secs"
-  ))
-
-  invisible(list(
-    id = st$id,
-    state = st$state,
-    started_local = started_local,
-    completed_local = completed_local,
-    duration_sec = duration_sec,
-    output = list(
-      status = out$status %||% NULL,
-      execution_count = out$execution_count %||% NULL,
-      data = data,
-      parsed = parsed
+  structure(
+    list(
+      id = response$id,
+      state = response$state,
+      started_local = started_local,
+      completed_local = completed_local,
+      duration_sec = as.numeric(difftime(
+        completed_local,
+        started_local,
+        units = "secs"
+      )),
+      output = list(
+        status = out$status %||% NULL,
+        execution_count = out$execution_count %||% NULL,
+        data = data,
+        parsed = parsed,
+        ename = out$ename %||% NULL,
+        evalue = out$evalue %||% NULL,
+        traceback = out$traceback %||% character()
+      ),
+      code = response$code %||% NULL,
+      source_id = response$sourceId %||% NULL,
+      url = url,
+      raw = response
     ),
-    url = stmt_url
-  ))
+    class = c("fabric_livy_statement_result", "list")
+  )
 }
 
-# Create a Livy session (kind optional; per-statement is allowed)
-fabric_livy_session_create <- function(
-  livy_url, # <- the URL you copy from Fabric
+#' Run Spark code in a temporary Microsoft Fabric Livy session
+#'
+#' Creates a session, waits for it to become ready, runs one statement, and
+#' closes the session even when execution fails. For multiple statements or
+#' explicit lifecycle control, use [fabric_livy_session()].
+#'
+#' @param livy_url A Livy connection URL or an enriched Lakehouse record from
+#'   [fabric_lakehouses()] or [fabric_item()].
+#' @param code One non-empty string containing Spark code.
+#' @param kind Statement language: `"spark"`, `"pyspark"`, `"sparkr"`, or
+#'   `"sql"`.
+#' @param tenant_id Microsoft Entra tenant ID.
+#' @param client_id Microsoft Entra application ID.
+#' @param access_token Optional Fabric bearer token.
+#' @param token_provider Optional callback returning a Fabric bearer token.
+#' @param environment_id Optional Fabric Environment ID.
+#' @param conf Optional named list of Spark configuration settings.
+#' @param verbose Logical. Emit lifecycle progress.
+#' @param poll_interval Polling interval in seconds.
+#' @param timeout Maximum seconds for each readiness/execution wait.
+#'
+#' @return An invisible `fabric_livy_statement_result` list.
+#' @details Requests use the
+#'   `https://api.fabric.microsoft.com/.default` audience. Delegated
+#'   authentication requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
+#'   `Code.AccessFabric.All`, and `Code.AccessStorage.All`; the caller also
+#'   needs an appropriate workspace role.
+#'
+#' @seealso
+#' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
+#' [session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
+#'
+#' @export
+#' @example inst/examples/fabric_livy_query.R
+fabric_livy_query <- function(
+  livy_url,
+  code,
+  kind = c("spark", "pyspark", "sparkr", "sql"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -345,240 +331,32 @@ fabric_livy_session_create <- function(
   ),
   access_token = NULL,
   token_provider = NULL,
-  kind = NULL, # "spark","pyspark","sparkr","sql" (optional)
-  name = NULL,
+  environment_id = NULL,
   conf = NULL,
-  environment_id = NULL, # Fabric Environment (pool) id
-  jars = NULL,
-  pyFiles = NULL,
-  files = NULL,
-  driverMemory = NULL,
-  driverCores = NULL,
-  executorMemory = NULL,
-  executorCores = NULL,
-  numExecutors = NULL,
-  archives = NULL,
-  queue = NULL,
-  proxyUser = NULL,
-  heartbeatTimeoutInSecond = NULL,
-  ttl = NULL,
   verbose = TRUE,
-  timeout = 600L
+  poll_interval = 2,
+  timeout = 600
 ) {
-  rlang::check_installed(c("httr2"), reason = "to call the Livy REST API")
-  if (is.null(access_token) && is.null(token_provider)) {
-    inform(verbose, "Authenticating for Fabric Livy API ...")
-  }
-  credential <- fabric_credential(
+  kind <- match.arg(kind)
+  session <- fabric_livy_session(
+    livy_url = livy_url,
     tenant_id = tenant_id,
     client_id = client_id,
     access_token = access_token,
-    token_provider = token_provider
+    token_provider = token_provider,
+    environment_id = environment_id,
+    conf = conf,
+    verbose = verbose
   )
-
-  sessions_url <- fabric_livy_endpoint(livy_url, "sessions")
-
-  payload <- Filter(
-    Negate(is.null),
-    list(
-      kind = kind,
-      name = name,
-      conf = conf,
-      jars = jars,
-      pyFiles = pyFiles,
-      files = files,
-      driverMemory = driverMemory,
-      driverCores = driverCores,
-      executorMemory = executorMemory,
-      executorCores = executorCores,
-      numExecutors = numExecutors,
-      archives = archives,
-      queue = queue,
-      proxyUser = proxyUser,
-      heartbeatTimeoutInSecond = heartbeatTimeoutInSecond,
-      ttl = ttl
-    )
+  on.exit(try(session$close(), silent = TRUE), add = TRUE)
+  session$wait(
+    poll_interval = poll_interval,
+    timeout = timeout
   )
-  if (!is.null(environment_id) && nzchar(environment_id)) {
-    payload$conf <- payload$conf %||% list()
-    payload$conf[["spark.fabric.environmentDetails"]] <- jsonlite::toJSON(
-      list(id = environment_id),
-      auto_unbox = TRUE
-    )
-  }
-
-  inform(verbose, "Creating Livy session ...")
-  resp <- httr2::request(sessions_url) |>
-    httr2::req_body_json(payload) |>
-    httr2::req_method("POST") |>
-    .httr2_json(
-      credential = credential,
-      audience = .fabric_audience$fabric
-    )
-
-  session_id <- as.character(resp$id %||% NA)
-  if (!nzchar(session_id)) {
-    stop("Failed to create Livy session.", call. = FALSE)
-  }
-  invisible(list(
-    id = session_id,
-    url = paste0(sessions_url, "/", session_id),
-    token = access_token,
-    credential = credential
+  invisible(session$run(
+    code = code,
+    kind = kind,
+    poll_interval = poll_interval,
+    timeout = timeout
   ))
-}
-
-fabric_livy_session_wait <- function(
-  session,
-  poll_interval = 3L,
-  timeout = 600L,
-  verbose = TRUE
-) {
-  rlang::check_installed("httr2")
-  stopifnot(is.list(session), nzchar(session$url))
-  deadline <- Sys.time() + timeout
-
-  use_cli <- isTRUE(verbose) && rlang::is_installed("cli")
-  if (use_cli) {
-    guard <- ..local_cli_opts(list(cli.progress_show_after = 0))
-    on.exit(try(guard$reset(), silent = TRUE), add = TRUE)
-    bar_id <- cli::cli_progress_bar(
-      name = "Livy session",
-      total = NA,
-      clear = FALSE,
-      format = "{cli::pb_spin} {cli::pb_name}| time: {cli::pb_elapsed_clock} | status: {cli::pb_status}",
-      format_done = "{cli::col_green(cli::symbol$tick)} {cli::pb_name}| time: {cli::pb_elapsed_clock} | status: ready"
-    )
-    update_status <- function(prev, cur) {
-      if (is.null(prev)) {
-        cli::cli_progress_update(
-          id = bar_id,
-          status = sprintf("%s", cur)
-        )
-        return(cur)
-      }
-      if (identical(prev, cur)) {
-        return(prev)
-      }
-      cli::cli_progress_update(
-        id = bar_id,
-        status = sprintf("%s \u2192 %s", prev, cur)
-      )
-      cur
-    }
-  } else {
-    inform(TRUE, "Waiting for Livy session to become idle ...")
-    update_status <- function(prev, cur) {
-      if (is.null(prev) || !identical(prev, cur)) {
-        inform(TRUE, sprintf("Session state: %s", cur))
-      }
-      cur
-    }
-  }
-
-  prev <- NULL
-  repeat {
-    if (Sys.time() > deadline) {
-      stop("Timed out waiting for session to become idle.", call. = FALSE)
-    }
-
-    s <- httr2::request(session$url) |>
-      .httr2_json(
-        credential = fabric_livy_session_credential(session),
-        audience = .fabric_audience$fabric
-      )
-
-    st <- s$state %||% "unknown"
-    prev <- update_status(prev, st)
-
-    if (st == "idle") {
-      break
-    }
-    if (st %in% c("error", "dead", "killed", "shutting_down")) {
-      if (use_cli) {
-        cli::cli_progress_done(id = bar_id)
-      }
-      stop(paste("Session failed:", st), call. = FALSE)
-    }
-    Sys.sleep(poll_interval)
-  }
-
-  if (use_cli) {
-    cli::cli_progress_update(id = bar_id, status = "idle")
-    cli::cli_progress_done(id = bar_id)
-  }
-  invisible(session)
-}
-
-fabric_livy_session_close <- function(session, verbose = TRUE) {
-  rlang::check_installed("httr2")
-  inform(verbose, "Closing Livy session ...")
-
-  closed <- FALSE
-  try(
-    {
-      httr2::request(session$url) |>
-        httr2::req_method("DELETE") |>
-        .httr2_ok(
-          credential = fabric_livy_session_credential(session),
-          audience = .fabric_audience$fabric
-        )
-      closed <- TRUE
-    },
-    silent = TRUE
-  )
-
-  if (verbose) {
-    if (closed) {
-      inform(verbose, "Livy session closed", type = "success")
-    } else {
-      inform(verbose, "Livy session not closed", type = "warning")
-    }
-  }
-
-  return(invisible(closed))
-}
-
-# Get token ---------------------------------------------------------------
-
-fabric_livy_session_credential <- function(session) {
-  if (inherits(session$credential, "fabric_credential")) {
-    return(session$credential)
-  }
-  fabric_credential(access_token = session$token)
-}
-
-
-# Normalize endpoint from URL ---------------------------------------------
-
-# Normalize /sessions or /batches URLs to a standard form endpoint
-fabric_livy_endpoint <- function(url, type = c("sessions", "batches")) {
-  stopifnot(is.character(url), length(url) == 1L, nzchar(url))
-  type <- match.arg(type)
-  u <- trimws(url)
-  # strip trailing slash
-  u <- sub("/+$", "", u)
-  # If already ends with sessions/batches (case-insensitive), replace as needed
-  if (grepl("(?i)/(sessions|batches)$", u, perl = TRUE)) {
-    u <- sub("(?i)/(sessions|batches)$", paste0("/", type), u, perl = TRUE)
-  } else {
-    # otherwise assume user gave the livy base; append the type
-    # (works for .../livyapi/versions/2023-12-01 and similar)
-    u <- paste0(u, "/", type)
-  }
-  u
-}
-
-
-# Miscellaneous -----------------------------------------------------------
-
-# CLI progress bar options
-..local_cli_opts <- function(opts) {
-  old <- options(opts)
-  structure(
-    list(
-      reset = function() options(old)
-    ),
-    class = "cli_opt_guard"
-  )
 }

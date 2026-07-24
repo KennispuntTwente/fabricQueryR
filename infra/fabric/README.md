@@ -95,8 +95,10 @@ The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
 ephemeral Power BI semantic model through the supported push-dataset API. It
 creates basic and partitioned Delta tables, including a checkpoint-generating
 append and a subsequent partition replacement, plus a deterministic typed Kusto
-table. The generated manifest exposes OneLake, all three SQL surfaces, Livy,
-DAX, Eventhouse, and KQL test coordinates. Required SQL and KQL fixtures are not
-capability-gated: provisioning, discovery, seeding, or connectivity failures fail
-the integration job. GraphQL remains deferred until its package query function is
-added.
+table. The generated manifest exposes OneLake, all three SQL surfaces, Livy
+session and batch coordinates, DAX, Eventhouse, and KQL test coordinates. The
+uploaded `livy_batch.py` fixture has deterministic success, failure, and
+slow/cancellation modes. Required SQL, Livy, and KQL fixtures are not
+capability-gated: provisioning, discovery, seeding, or connectivity failures
+fail the integration job. GraphQL remains deferred until its package query
+function is added.

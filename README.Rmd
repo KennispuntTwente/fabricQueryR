@@ -163,7 +163,31 @@ livy_sparkr_result <- fabric_livy_query(
   code = "print(1+2)"
 )
 
-# (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)
+# Reuse Spark state across multiple statements with an R6 session.
+livy <- fabric_livy_session(lakehouse)
+on.exit(livy$close())
+livy$wait()
+livy$run("shared_value = 40", kind = "pyspark")
+livy_result <- livy$run(
+  "print(shared_value + 2)",
+  kind = "pyspark"
+)
+
+# Use high_concurrency = TRUE and session_tag = "..." for an isolated REPL
+# in Fabric's shared high-concurrency session pool.
+
+# Submit a standalone Spark application from OneLake.
+batch <- fabric_livy_batch_submit(
+  lakehouse,
+  file = paste0(
+    "abfss://<workspace-id>@onelake.dfs.fabric.microsoft.com/",
+    "<lakehouse-id>/Files/jobs/example.py"
+  )
+)
+batch$wait()
+batch$logs(refresh = FALSE)
+
+# (See `?fabric_livy_session` and `?fabric_livy_batch_submit`.)
 
 
 # KQL query against an Eventhouse database ------------------------------------

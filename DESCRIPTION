@@ -35,6 +35,7 @@ Imports:
     AzureAuth,
     bit64,
     httr2,
+    R6,
     dplyr,
     tibble,
     purrr,
