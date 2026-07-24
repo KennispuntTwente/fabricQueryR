@@ -463,7 +463,9 @@ meaningful connection surface not represented by the current package.
 
 ### Direction
 
-- Add `fabric_kql_query()` using the Kusto query REST endpoint and the
+- Add
+  [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  using the Kusto query REST endpoint and the
   `https://api.kusto.windows.net` token resource.
 - Accept cluster/query-service URI and database directly, with optional
   discovery from Eventhouse and KQL database items.

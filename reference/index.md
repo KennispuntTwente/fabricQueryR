@@ -6,6 +6,8 @@
   : Discover one Microsoft Fabric item
 - [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md)
   : Discover Microsoft Fabric items
+- [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  : Query a Microsoft Fabric Eventhouse with KQL
 - [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md)
   : Run a Livy API query (Spark code) in Microsoft Fabric
 - [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)

@@ -1,7 +1,7 @@
 # fabricQueryR
 
 ‘fabricQueryR’ is an R package which helps you discover and query data
-from Microsoft Fabric in R. It comes with discovery helpers and four
+from Microsoft Fabric in R. It comes with discovery helpers and five
 methods which help you to get your Microsoft Fabric data into R:
 
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
@@ -27,6 +27,11 @@ methods which help you to get your Microsoft Fabric data into R:
     With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark
     code in Microsoft Fabric and get a list with the results in your
     local R session.
+
+5.  Execute a KQL query against an `Eventhouse`/`KQL Database` item:
+    [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md).
+    This returns typed Kusto query results as a tibble, or a named list
+    of tibbles when KQL returns multiple primary result tables.
 
 ## Installation
 
@@ -54,7 +59,7 @@ See the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
 
-Below is a code snippet showing how to discover targets and use the four
+Below is a code snippet showing how to discover targets and use the five
 methods to get data from Fabric into R:
 
 ``` r
@@ -79,6 +84,7 @@ workspace <- workspaces[workspaces$displayName == "ExampleWorkspace", ]
 # Typed helpers retrieve workload-specific properties and ready-to-use targets.
 lakehouse <- fabric_lakehouses(workspace)[1, ]
 semantic_model <- fabric_semantic_models(workspace)[1, ]
+kql_database <- fabric_kql_databases(workspace)[1, ]
 
 # Other helpers include fabric_warehouses(), fabric_sql_databases(),
 # fabric_eventhouses(), fabric_kql_databases(), fabric_notebooks(), and
@@ -153,6 +159,19 @@ livy_sparkr_result <- fabric_livy_query(
 )
 
 # (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)
+
+
+# KQL query against an Eventhouse database ------------------------------------
+
+# Query parameters are bound separately from the KQL query text.
+df_kql <- fabric_kql_query(
+  kql_database,
+  query = paste(
+    "declare query_parameters(selected_type:string);",
+    "Events | where EventType == selected_type | take 100"
+  ),
+  parameters = list(selected_type = "Warning")
+)
 ```
 
 ## Background

@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Query Data in Microsoft Fabric">
-<meta name="description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2); and execute Spark code via the Livy API.">
-<meta property="og:description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2); and execute Spark code via the Livy API.">
+<meta name="description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2); execute Kusto Query Language (KQL) queries against Eventhouse databases; and execute Spark code via the Livy API.">
+<meta property="og:description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; read Delta Lake tables stored in OneLake (Azure Data Lake Storage Gen2); execute Kusto Query Language (KQL) queries against Eventhouse databases; and execute Spark code via the Livy API.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -51,12 +51,13 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>‘fabricQueryR’ is an R package which helps you discover and query data from Microsoft Fabric in R. It comes with discovery helpers and four methods which help you to get your Microsoft Fabric data into R:</p>
+<p>‘fabricQueryR’ is an R package which helps you discover and query data from Microsoft Fabric in R. It comes with discovery helpers and five methods which help you to get your Microsoft Fabric data into R:</p>
 <ol style="list-style-type: decimal">
 <li><p>Create a connection to a SQL endpoint (e.g., from a <code>Lakehouse</code> or <code>Data Warehouse</code> item): <code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>. This results in a ‘DBI’ connection object which you can execute SQL queries with, and/or use with ‘DBI’-compatible packages like ‘dbplyr’.</p></li>
 <li><p>Execute a DAX query against a Fabric/Power Bi <code>Semantic Model</code> item: <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>. With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a ‘tibble’ dataframe.</p></li>
 <li><p>Read a Delta table from a Fabric <code>Lakehouse</code> item: <code><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code>. This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.</p></li>
 <li><p>Execute a Livy API query: <code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code>. With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric and get a list with the results in your local R session.</p></li>
+<li><p>Execute a KQL query against an <code>Eventhouse</code>/<code>KQL Database</code> item: <code><a href="reference/fabric_kql_query.html">fabric_kql_query()</a></code>. This returns typed Kusto query results as a tibble, or a named list of tibbles when KQL returns multiple primary result tables.</p></li>
 </ol>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -76,7 +77,7 @@
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
 <p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html" class="external-link">reference</a> for the full documentation of all functions.</p>
-<p>Below is a code snippet showing how to discover targets and use the four methods to get data from Fabric into R:</p>
+<p>Below is a code snippet showing how to discover targets and use the five methods to get data from Fabric into R:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># First find your 'tenant' ID &amp; 'client' ID (app registration) in Azure/Entra</span></span>
@@ -98,6 +99,7 @@
 <span><span class="co"># Typed helpers retrieve workload-specific properties and ready-to-use targets.</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
+<span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span></span>
 <span><span class="co"># Other helpers include fabric_warehouses(), fabric_sql_databases(),</span></span>
 <span><span class="co"># fabric_eventhouses(), fabric_kql_databases(), fabric_notebooks(), and</span></span>
@@ -171,7 +173,20 @@
 <span>  code <span class="op">=</span> <span class="st">"print(1+2)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)</span></span></code></pre></div>
+<span><span class="co"># (See example in `?fabric_livy_query` for how to get data from the Lakehouse to R with Spark)</span></span>
+<span></span>
+<span></span>
+<span><span class="co"># KQL query against an Eventhouse database ------------------------------------</span></span>
+<span></span>
+<span><span class="co"># Query parameters are bound separately from the KQL query text.</span></span>
+<span><span class="va">df_kql</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">kql_database</span>,</span>
+<span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
+<span>    <span class="st">"declare query_parameters(selected_type:string);"</span>,</span>
+<span>    <span class="st">"Events | where EventType == selected_type | take 100"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>selected_type <span class="op">=</span> <span class="st">"Warning"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="background">Background<a class="anchor" aria-label="anchor" href="#background"></a>
