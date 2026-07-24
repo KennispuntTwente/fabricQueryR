@@ -25,6 +25,21 @@ def test_seed_notebook_ids_are_parameterized():
     assert '"beta-updated"' in notebook
 
 
+def test_job_notebook_exposes_deterministic_job_modes():
+    repository_root = Path(__file__).parents[3]
+    notebook = (
+        repository_root
+        / "infra/fabric/workspace/JobFixtures.Notebook/notebook-content.py"
+    ).read_text()
+
+    assert '"parameters"' in notebook
+    assert 'mode = "success"' in notebook
+    assert 'if mode == "failure":' in notebook
+    assert 'if mode == "slow":' in notebook
+    assert "FABRICQUERYR_INTENTIONAL_JOB_FAILURE" in notebook
+    assert "fabricqueryr-job-success:" in notebook
+
+
 def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
     settings = SandboxSettings(
         workspace_id="workspace-id",

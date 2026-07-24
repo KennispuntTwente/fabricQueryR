@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "JobFixtures",
+    "description": "Exercises completed, failed, cancelled, and timed-out Fabric jobs"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "83c3a29a-29f4-4984-a2a6-40909e91d0fb"
+  }
+}

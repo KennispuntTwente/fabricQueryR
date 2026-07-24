@@ -1,5 +1,17 @@
 # fabricQueryR (development version)
 
+* `fabric_job_run()`, `fabric_job_status()`, `fabric_job_wait()`, and
+  `fabric_job_cancel()` add a common on-demand item-job interface. Notebook
+  jobs use Fabric's current release submission API and richer status API;
+  pipelines and other item jobs use the Core Job Scheduler. Runs expose IDs,
+  status, timestamps, failure reasons, exit values, activity IDs, and polling
+  hints. Typed parameter inference, validated workload configuration,
+  non-idempotent submission safety, explicit completed/failed/cancelled/
+  deduplicated conditions, caller cancellation, and optional cancellation on
+  timeout are covered by deterministic tests. The Fabric sandbox now deploys a
+  parameterized job notebook for live success, failure, timeout, and
+  cancellation coverage.
+
 * General OneLake filesystem access is now available through
   `fabric_onelake_list()`, `fabric_onelake_metadata()`,
   `fabric_onelake_download()`, `fabric_onelake_upload()`, and

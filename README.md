@@ -11,7 +11,7 @@ status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-proje
 <!-- badges: end -->
 
 ‘fabricQueryR’ is an R package which helps you discover and query data
-from Microsoft Fabric in R. It comes with discovery helpers and seven
+from Microsoft Fabric in R. It comes with discovery helpers and eight
 methods which help you to work with Microsoft Fabric data from R:
 
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
@@ -48,6 +48,11 @@ methods which help you to work with Microsoft Fabric data from R:
     extensions independently, including valid responses containing
     partial data and errors.
 
+8.  Run and monitor on-demand Fabric item jobs with `fabric_job_run()`,
+    `fabric_job_status()`, `fabric_job_wait()`, and
+    `fabric_job_cancel()`. Notebook, pipeline, and Spark job definition
+    runs share one structured job interface.
+
 ## Installation
 
 You can install the development version of ‘fabricQueryR’ like so:
@@ -72,8 +77,8 @@ See the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
 
-Below is a code snippet showing how to discover targets and use the seven
-methods to work with Fabric data from R:
+Below is a code snippet showing how to discover targets and use the
+eight methods to work with Fabric data from R:
 
 ``` r
 
@@ -98,6 +103,7 @@ lakehouse <- fabric_lakehouses(workspace)[1, ]
 semantic_model <- fabric_semantic_models(workspace)[1, ]
 kql_database <- fabric_kql_databases(workspace)[1, ]
 graphql_api <- fabric_graphql_apis(workspace)[1, ]
+notebook <- fabric_notebooks(workspace)[1, ]
 
 # Other helpers include fabric_warehouses(), fabric_sql_databases(),
 # fabric_eventhouses(), fabric_kql_databases(), fabric_notebooks(), and
@@ -244,6 +250,19 @@ graphql_result <- fabric_graphql_query(
 )
 graphql_result$data$customers$items
 graphql_result$errors
+
+
+# On-demand item jobs -------------------------------------------------------
+
+# A discovered notebook record already contains its item type and workspace.
+job <- fabric_job_run(
+  notebook,
+  parameters = list(mode = "incremental", batch_size = 100L),
+  default_lakehouse = lakehouse
+)
+result <- fabric_job_wait(job, timeout = 900)
+result$status
+result$exit_value
 ```
 
 ## Background

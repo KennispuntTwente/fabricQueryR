@@ -133,12 +133,18 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     assert set(manifest.items) == {
         "TestLakehouse",
         "SeedFixtures",
+        "JobFixtures",
         "TestWarehouse",
         "TestSQLDatabase",
         "TestEventhouse",
         "TestKQLDatabase",
         "TestSemanticModel",
         "TestGraphQL",
+    }
+    assert manifest.items["JobFixtures"] == {
+        "id": "JobFixtures-id",
+        "type": "Notebook",
+        "display_name": "JobFixtures",
     }
     assert manifest.items["TestWarehouse"] == {
         "id": "TestWarehouse-id",

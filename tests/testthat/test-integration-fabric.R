@@ -13,6 +13,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   )
   expect_true(manifest$items$TestLakehouse$id %in% items$id)
   expect_true(manifest$items$SeedFixtures$id %in% items$id)
+  expect_true(manifest$items$JobFixtures$id %in% items$id)
   expect_true(manifest$items$TestWarehouse$id %in% items$id)
   expect_true(manifest$items$TestSQLDatabase$id %in% items$id)
   expect_true(manifest$items$TestEventhouse$id %in% items$id)
@@ -1030,6 +1031,85 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
     "cancelled",
     "canceled"
   )))
+})
+
+test_that("Fabric item jobs complete, fail, time out, and cancel", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  notebook <- fabric_test_manifest_item(manifest, "JobFixtures")
+  item <- list(
+    id = notebook$id,
+    workspaceId = manifest$workspace_id,
+    type = notebook$type,
+    displayName = notebook$display_name
+  )
+  session_tag <- paste0(
+    "fabricqueryr-job-integration-",
+    substr(notebook$id, 1L, 8L)
+  )
+
+  completed_job <- fabric_job_run(
+    item,
+    parameters = list(mode = "success", marker = "integration"),
+    session_tag = session_tag,
+    access_token = token
+  )
+  expect_s3_class(completed_job, "fabric_job")
+  completed <- fabric_job_wait(
+    completed_job,
+    timeout = 900
+  )
+  expect_s3_class(completed, "fabric_job_instance")
+  expect_equal(completed$status, "Completed")
+  expect_equal(
+    completed$exit_value,
+    "fabricqueryr-job-success:integration"
+  )
+  expect_true(nzchar(completed$root_activity_id))
+  expect_s3_class(completed$start_time, "POSIXct")
+  expect_s3_class(completed$end_time, "POSIXct")
+
+  failed_job <- fabric_job_run(
+    item,
+    parameters = list(mode = "failure"),
+    session_tag = session_tag,
+    access_token = token
+  )
+  failed <- rlang::catch_cnd(
+    fabric_job_wait(failed_job, timeout = 900)
+  )
+  expect_s3_class(failed, "fabric_job_failed")
+  expect_equal(failed$job_status$status, "Failed")
+  expect_true(nzchar(failed$job_status$root_activity_id))
+  expect_true(nzchar(
+    .fabric_job_failure_text(failed$job_status$failure_reason)
+  ))
+
+  slow_job <- fabric_job_run(
+    item,
+    parameters = list(mode = "slow", delay_seconds = 600L),
+    session_tag = session_tag,
+    access_token = token
+  )
+  on.exit(try(fabric_job_cancel(slow_job), silent = TRUE), add = TRUE)
+  timed_out <- rlang::catch_cnd(
+    fabric_job_wait(
+      slow_job,
+      timeout = 2,
+      cancel_on_timeout = TRUE
+    )
+  )
+  expect_s3_class(timed_out, "fabric_job_timeout")
+
+  slow_job$retry_after <- 2
+  cancelled <- fabric_job_wait(
+    slow_job,
+    poll_interval = 2,
+    timeout = 600,
+    error_on_failure = FALSE
+  )
+  expect_equal(cancelled$status, "Cancelled")
+  expect_true(nzchar(cancelled$root_activity_id))
 })
 
 test_that("fabric_pbi_dax_query resolves and queries a semantic model", {

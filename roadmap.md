@@ -504,6 +504,12 @@ reader.
 
 ## Priority 10: Optional item-job execution
 
+**Status (July 2026): implemented.** On-demand notebook jobs use the current
+workload release endpoint, pipelines and other job types use the Core Job
+Scheduler API, and all routes return the same inspectable job handle. Polling
+honors Fabric's service-provided delay and represents every documented terminal
+state explicitly.
+
 ### Objective
 
 Provide a focused common interface for invoking and monitoring Fabric item jobs,
@@ -552,6 +558,9 @@ the test capacity.
 - [Fabric throttling](https://learn.microsoft.com/en-us/rest/api/fabric/articles/throttling)
 - [Fabric long-running operations](https://learn.microsoft.com/en-us/rest/api/fabric/articles/long-running-operation)
 - [Fabric identity support](https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support)
+- [Fabric Job Scheduler API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+- [Run an on-demand notebook](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook)
+- [Notebook public API](https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api)
 - [Microsoft Fabric Terraform provider](https://registry.terraform.io/providers/microsoft/fabric/latest/docs)
 - [`fabric-cicd` documentation](https://microsoft.github.io/fabric-cicd/)
 - [Microsoft Fabric CLI](https://microsoft.github.io/fabric-cli/)

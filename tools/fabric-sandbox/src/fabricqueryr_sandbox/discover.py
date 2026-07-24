@@ -89,6 +89,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     with FabricApi(get_credential()) as api:
         lakehouse_item = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook_item = api.find_item(workspace_id, "SeedFixtures", "Notebook")
+        job_notebook_item = api.find_item(
+            workspace_id, "JobFixtures", "Notebook"
+        )
         warehouse_item = api.find_item(
             workspace_id, "TestWarehouse", "Warehouse"
         )
@@ -175,6 +178,11 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             "SeedFixtures": {
                 "id": notebook_item["id"],
                 "type": "Notebook",
+            },
+            "JobFixtures": {
+                "id": job_notebook_item["id"],
+                "type": "Notebook",
+                "display_name": job_notebook_item["displayName"],
             },
             "TestWarehouse": {
                 "id": warehouse_item["id"],
