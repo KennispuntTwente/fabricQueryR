@@ -1,0 +1,43 @@
+name: Clean up Fabric integration sandboxes
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: fabric-integration-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Remove leaked CI workspaces
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+
+      - name: Install locked sandbox environment
+        run: uv --directory tools/fabric-sandbox sync --locked
+
+      - name: Delete leaked Fabric CI workspaces
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox cleanup --confirm

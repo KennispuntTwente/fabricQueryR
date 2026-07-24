@@ -81,6 +81,20 @@ class FabricApi:
             url = payload.get("continuationUri")
         return items
 
+    def list_workspaces(self, *, roles: str = "Admin") -> list[dict[str, Any]]:
+        url: str | None = "/workspaces"
+        params: dict[str, str] | None = {"roles": roles}
+        workspaces: list[dict[str, Any]] = []
+        while url:
+            payload = self.request("GET", url, params=params).json()
+            workspaces.extend(payload.get("value", []))
+            url = payload.get("continuationUri")
+            params = None
+        return workspaces
+
+    def delete_workspace(self, workspace_id: str) -> None:
+        self.request("DELETE", f"/workspaces/{workspace_id}")
+
     def find_item(
         self, workspace_id: str, display_name: str, item_type: str
     ) -> dict[str, Any]:
@@ -313,7 +327,9 @@ class FabricApi:
         )
         location = response.headers.get("Location")
         if not location:
-            raise RuntimeError("notebook job response did not include a Location header")
+            raise RuntimeError(
+                "notebook job response did not include a Location header"
+            )
         job_instance_id = urlparse(location).path.rstrip("/").rsplit("/", 1)[-1]
         job_url = (
             f"/workspaces/{workspace_id}/notebooks/{notebook_id}"

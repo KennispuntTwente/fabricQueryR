@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from .cleanup import cleanup_ci_workspaces
 from .deploy import deploy
 from .discover import discover
 from .seed import seed
@@ -29,6 +30,15 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("deploy", help="publish Fabric workspace items")
     subparsers.add_parser("seed", help="upload fixtures and run the seed notebook")
     subparsers.add_parser("discover", help="write the R integration-test manifest")
+    cleanup_parser = subparsers.add_parser(
+        "cleanup",
+        help="find CI workspaces left by interrupted integration runs",
+    )
+    cleanup_parser.add_argument(
+        "--confirm",
+        action="store_true",
+        help="delete matching workspaces; without this flag, only list them",
+    )
     return parser
 
 
@@ -45,6 +55,14 @@ def main() -> int:
         return 0
     if args.command == "discover":
         manifest = discover(settings)
-        print(f"wrote manifest for {len(manifest.items)} items: {settings.manifest_path}")
+        print(
+            f"wrote manifest for {len(manifest.items)} items: "
+            f"{settings.manifest_path}"
+        )
+        return 0
+    if args.command == "cleanup":
+        workspaces = cleanup_ci_workspaces(confirm=args.confirm)
+        verb = "deleted" if args.confirm else "found"
+        print(f"{verb} {len(workspaces)} CI sandbox workspace(s)")
         return 0
     raise AssertionError(f"unhandled command: {args.command}")

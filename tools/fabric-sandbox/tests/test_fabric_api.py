@@ -33,6 +33,45 @@ def test_list_items_follows_continuation_uri():
     assert [item["id"] for item in items] == ["one", "two"]
 
 
+def test_list_workspaces_filters_admin_role_and_follows_continuation():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if "page=2" in str(request.url):
+            return httpx.Response(200, json={"value": [{"id": "two"}]})
+        return httpx.Response(
+            200,
+            json={
+                "value": [{"id": "one"}],
+                "continuationUri": (
+                    "https://api.fabric.microsoft.com/v1/workspaces?page=2"
+                ),
+            },
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        workspaces = api.list_workspaces()
+
+    assert [workspace["id"] for workspace in workspaces] == ["one", "two"]
+    assert requests[0].url.params["roles"] == "Admin"
+    assert "roles" not in requests[1].url.params
+
+
+def test_delete_workspace_uses_core_workspace_route():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200)
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        api.delete_workspace("workspace-id")
+
+    assert requests[0].method == "DELETE"
+    assert requests[0].url.path == "/v1/workspaces/workspace-id"
+
+
 def test_find_item_rejects_ambiguous_names():
     def handler(_request):
         return httpx.Response(
@@ -197,7 +236,10 @@ def test_run_notebook_reports_cancelled_job_trace_ids():
         )
 
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
-        with pytest.raises(RuntimeError, match="job-id.*activity-id.*cancelled by Fabric"):
+        with pytest.raises(
+            RuntimeError,
+            match="job-id.*activity-id.*cancelled by Fabric",
+        ):
             api.run_notebook(
                 "workspace-id",
                 "notebook-id",

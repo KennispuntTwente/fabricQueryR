@@ -84,11 +84,12 @@ must be permitted by the Fabric tenant settings, be allowed to create workspaces
 and have sufficient access to assign the configured capacity. No client secret is
 required or expected.
 
-The workflow is manually dispatched. It uses a repository-wide concurrency group
-so only one sandbox consumes the test capacity at a time, and runs Terraform
-destroy after success or failure. A canceled runner cannot guarantee that final
-step; a separate stale-workspace janitor remains a follow-up before enabling
-high-frequency CI runs.
+The workflow uses a repository-wide concurrency group so only one sandbox
+consumes the test capacity at a time, and runs Terraform destroy after success
+or failure. Because a canceled runner cannot guarantee that final step, a daily
+janitor uses the same concurrency group and removes only workspaces carrying
+both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;` description
+marker. `fabric-sandbox cleanup` is a dry run unless `--confirm` is supplied.
 
 ## Current fixture scope
 
