@@ -185,10 +185,11 @@
 <ul class="task-list"><li><label><input type="checkbox">Expand unit coverage for all five exported functions and their HTTP helpers.</label></li>
 <li><label><input type="checkbox" checked>Add Terraform for an ephemeral capacity-bound workspace and CI role assignment, with remote or per-run isolated state.</label></li>
 <li><label><input type="checkbox" checked>Add the <code>uv</code> project and commit <code>uv.lock</code>.</label></li>
-<li><label><input type="checkbox">Add source-controlled lakehouse, notebook, Warehouse, and semantic-model definitions deployable with <code>fabric-cicd</code>.</label></li>
+<li><label><input type="checkbox" checked>Add source-controlled provisioning for the Lakehouse, notebook, Warehouse, SQL Database, and semantic model using Terraform, <code>fabric-cicd</code>, and the supported Power BI API according to lifecycle ownership.</label></li>
 <li><label><input type="checkbox" checked>Add deterministic fixture upload, seeding, readiness polling, and manifest generation.</label></li>
-<li><label><input type="checkbox" checked>Add integration-test helpers that skip with a precise reason when no manifest or workload capability is available.</label></li>
-<li><label><input type="checkbox" checked>Add OIDC-based GitHub Actions smoke and scheduled workflows.</label></li>
+<li><label><input type="checkbox" checked>Add integration-test helpers that skip with a precise reason when no manifest is available, but fail when a required provisioned workload is absent.</label></li>
+<li><label><input type="checkbox" checked>Add an OIDC-based GitHub Actions smoke workflow.</label></li>
+<li><label><input type="checkbox">Schedule the full compatibility workflow after the stale-workspace janitor is available.</label></li>
 <li><label><input type="checkbox" checked>Add unconditional Terraform teardown to the integration workflow.</label></li>
 <li><label><input type="checkbox">Add a scheduled stale-workspace janitor for canceled runners.</label></li>
 <li><label><input type="checkbox" checked>Document one-command local deploy, test, and destroy workflows.</label></li>

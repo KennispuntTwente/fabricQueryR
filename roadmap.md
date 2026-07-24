@@ -236,16 +236,22 @@ assignment, with remote or per-run isolated state.
 
 Add the `uv` project and commit `uv.lock`.
 
-Add source-controlled lakehouse, notebook, Warehouse, and semantic-model
-definitions deployable with `fabric-cicd`.
+Add source-controlled provisioning for the Lakehouse, notebook,
+Warehouse, SQL Database, and semantic model using Terraform,
+`fabric-cicd`, and the supported Power BI API according to lifecycle
+ownership.
 
 Add deterministic fixture upload, seeding, readiness polling, and
 manifest generation.
 
 Add integration-test helpers that skip with a precise reason when no
-manifest or workload capability is available.
+manifest is available, but fail when a required provisioned workload is
+absent.
 
-Add OIDC-based GitHub Actions smoke and scheduled workflows.
+Add an OIDC-based GitHub Actions smoke workflow.
+
+Schedule the full compatibility workflow after the stale-workspace
+janitor is available.
 
 Add unconditional Terraform teardown to the integration workflow.
 
