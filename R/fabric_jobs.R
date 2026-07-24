@@ -481,21 +481,21 @@ print.fabric_job_instance <- function(x, ...) {
 ) {
   item_record <- fabric_as_record(item)
   workspace_record <- fabric_as_record(workspace)
-  workspace_id <- fabric_record_value(
+  item_workspace_id <- fabric_record_value(
     item_record %||% list(),
     "workspaceId",
     "workspace_id"
-  ) %||%
-    fabric_record_value(workspace_record %||% list(), "id")
-
-  if (is.null(workspace_id)) {
-    if (is.null(workspace)) {
-      rlang::abort(
-        "`workspace` is required unless `item` contains `workspaceId`."
-      )
-    }
+  )
+  if (!is.null(workspace)) {
+    workspace_id <- fabric_record_value(
+      workspace_record %||% list(),
+      "id",
+      "workspaceId",
+      "workspace_id"
+    )
     if (
-      is.character(workspace) &&
+      is.null(workspace_id) &&
+        is.character(workspace) &&
         length(workspace) == 1L &&
         fabric_is_guid(workspace)
     ) {
@@ -506,6 +506,14 @@ print.fabric_job_instance <- function(x, ...) {
         credential,
         api_base
       )$id
+    }
+    fabric_validate_item_workspace(item_record %||% list(), workspace_id)
+  } else {
+    workspace_id <- item_workspace_id
+    if (is.null(workspace_id)) {
+      rlang::abort(
+        "`workspace` is required unless `item` contains `workspaceId`."
+      )
     }
   }
   .fabric_job_nonempty(workspace_id, "workspace ID")

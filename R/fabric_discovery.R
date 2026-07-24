@@ -204,6 +204,7 @@ fabric_item <- function(
       record <- fabric_unique_name(candidates, item, "item")
     }
   }
+  fabric_validate_item_workspace(record, ws$id)
   record$workspaceId <- record$workspaceId %||% ws$id
   record$workspaceDisplayName <- record$workspaceDisplayName %||%
     ws$displayName
@@ -222,6 +223,27 @@ fabric_item <- function(
     fabric_enrich_item(record, credential, base),
     class = c("fabric_item", "list")
   )
+}
+
+fabric_validate_item_workspace <- function(item, workspace_id) {
+  item_workspace <- fabric_record_value(
+    item,
+    "workspaceId",
+    "workspace_id"
+  )
+  if (
+    !is.null(item_workspace) &&
+      !identical(
+        tolower(as.character(item_workspace)),
+        tolower(as.character(workspace_id))
+      )
+  ) {
+    stop(
+      "The discovered item belongs to a different workspace.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }
 
 #' Typed Microsoft Fabric item discovery

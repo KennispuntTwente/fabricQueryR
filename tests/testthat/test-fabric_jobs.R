@@ -31,6 +31,19 @@ job_test_handle <- function(
   )
 }
 
+test_that("job submission rejects a contradictory explicit workspace", {
+  expect_error(
+    fabric_job_run(
+      job_test_item(),
+      workspace = "99999999-9999-9999-9999-999999999999",
+      access_token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    ),
+    "belongs to a different workspace",
+    fixed = TRUE
+  )
+})
+
 test_that("notebook run builds typed release payload and job handle", {
   call <- NULL
   local_mocked_bindings(

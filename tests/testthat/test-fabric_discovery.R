@@ -295,6 +295,30 @@ test_that("fabric_item resolves names and rejects type mismatches", {
   )
 })
 
+test_that("fabric_item rejects an item record from another workspace", {
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = "11111111-1111-1111-1111-111111111111",
+        displayName = "Workspace"
+      )
+    },
+    fabric_enrich_item = function(record, ...) record
+  )
+  item <- list(
+    id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    workspaceId = "22222222-2222-2222-2222-222222222222",
+    displayName = "Elsewhere",
+    type = "Notebook"
+  )
+
+  expect_error(
+    fabric_item("Workspace", item, access_token = "token"),
+    "belongs to a different workspace",
+    fixed = TRUE
+  )
+})
+
 test_that("discovered semantic models bypass name lookup for DAX", {
   captured <- NULL
   local_mocked_bindings(
