@@ -51,15 +51,15 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>‘fabricQueryR’ is an R package which helps you discover and query data from Microsoft Fabric in R. It comes with discovery helpers and eight methods which help you to work with Microsoft Fabric data from R:</p>
+<p>‘fabricQueryR’ is an R package which helps you discover and query data from Microsoft Fabric in R. It comes with discovery helpers and eight methods which help you work with Microsoft Fabric from R:</p>
 <ol style="list-style-type: decimal">
 <li><p>Create a connection to a SQL endpoint (e.g., from a <code>Lakehouse</code> or <code>Data Warehouse</code> item): <code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>. This results in a ‘DBI’ connection object which you can execute SQL queries with, and/or use with ‘DBI’-compatible packages like ‘dbplyr’.</p></li>
 <li><p>Execute a DAX query against a Fabric/Power Bi <code>Semantic Model</code> item: <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>. With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a ‘tibble’ dataframe.</p></li>
+<li><p>Execute a Livy API query: <code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code>. Use <code><a href="reference/fabric_livy_session.html">fabric_livy_session()</a></code> to create a reusable Livy session, and <code><a href="reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code> to submit a standalone Spark application. With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric and get a list with the results in your local R session.</p></li>
 <li><p>Read a Delta table from a Fabric <code>Lakehouse</code> item: <code><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code>. This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.</p></li>
-<li><p>Work with general OneLake files using <code><a href="reference/fabric_onelake_files.html">fabric_onelake_list()</a></code>, <code><a href="reference/fabric_onelake_files.html">fabric_onelake_metadata()</a></code>, <code><a href="reference/fabric_onelake_files.html">fabric_onelake_download()</a></code>, <code><a href="reference/fabric_onelake_files.html">fabric_onelake_upload()</a></code>, and the explicitly enabled <code><a href="reference/fabric_onelake_files.html">fabric_onelake_delete()</a></code>.</p></li>
-<li><p>Execute a Livy API query: <code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code>. With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric and get a list with the results in your local R session.</p></li>
+<li><p>Work with OneLake files using <code><a href="reference/fabric_onelake_files.html">fabric_onelake_list()</a></code>, <code><a href="reference/fabric_onelake_files.html">fabric_onelake_metadata()</a></code>, <code><a href="reference/fabric_onelake_files.html">fabric_onelake_download()</a></code>, <code><a href="reference/fabric_onelake_files.html">fabric_onelake_upload()</a></code>, and <code><a href="reference/fabric_onelake_files.html">fabric_onelake_delete()</a></code>.</p></li>
 <li><p>Execute a KQL query against an <code>Eventhouse</code>/<code>KQL Database</code> item: <code><a href="reference/fabric_kql_query.html">fabric_kql_query()</a></code>. This returns typed Kusto query results as a tibble, or a named list of tibbles when KQL returns multiple primary result tables.</p></li>
-<li><p>Execute a GraphQL document against an <code>API for GraphQL</code> item: <code><a href="reference/fabric_graphql_query.html">fabric_graphql_query()</a></code>. This preserves GraphQL data, errors, and extensions independently, including valid responses containing partial data and errors.</p></li>
+<li><p>Execute a GraphQL query against an <code>API for GraphQL</code> item: <code><a href="reference/fabric_graphql_query.html">fabric_graphql_query()</a></code>. This preserves GraphQL data, errors, and extensions independently, including valid responses containing partial data and errors.</p></li>
 <li><p>Run and monitor on-demand Fabric item jobs with <code><a href="reference/fabric_job_run.html">fabric_job_run()</a></code>, <code><a href="reference/fabric_job_run.html">fabric_job_status()</a></code>, <code><a href="reference/fabric_job_run.html">fabric_job_wait()</a></code>, and <code><a href="reference/fabric_job_run.html">fabric_job_cancel()</a></code>. Notebook, pipeline, and Spark job definition runs share one structured job interface.</p></li>
 </ol>
 <div class="section level2">
@@ -82,8 +82,7 @@
 <p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html" class="external-link">reference</a> for the full documentation of all functions.</p>
 <p>Below is a code snippet showing how to discover targets and use the eight methods to work with Fabric data from R:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span><span class="co"># First find your 'tenant' ID &amp; 'client' ID (app registration) in Azure/Entra</span></span>
+<code class="sourceCode R"><span><span class="co"># First find your 'tenant' ID &amp; 'client' ID (app registration) in Azure/Entra</span></span>
 <span><span class="co"># You may be able to use the default Azure CLI app id;</span></span>
 <span><span class="co">#   this will be automatically used if you do not set 'FABRICQUERYR_CLIENT_ID'</span></span>
 <span><span class="co"># The AzureAuth package is used to acquire tokens; you may be redirected</span></span>
@@ -94,12 +93,13 @@
 <span><span class="co"># Sys.setenv(FABRICQUERYR_TENANT_ID = "...")</span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "...")</span></span>
 <span></span>
+<span></span>
 <span><span class="co"># Discover workspaces and items ------------------------------------------------</span></span>
 <span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[</span><span class="va">workspaces</span><span class="op">$</span><span class="va">displayName</span> <span class="op">==</span> <span class="st">"ExampleWorkspace"</span>, <span class="op">]</span></span>
 <span></span>
-<span><span class="co"># Typed helpers retrieve workload-specific properties and ready-to-use targets.</span></span>
+<span><span class="co"># Retrieve workload-specific properties and ready-to-use targets</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
@@ -108,14 +108,14 @@
 <span></span>
 <span><span class="co"># Other helpers include fabric_warehouses(), fabric_sql_databases(),</span></span>
 <span><span class="co"># fabric_eventhouses(), fabric_kql_databases(), fabric_notebooks(), and</span></span>
-<span><span class="co"># fabric_graphql_apis().</span></span>
+<span><span class="co"># fabric_graphql_apis()</span></span>
 <span></span>
 <span></span>
 <span><span class="co"># SQL connection to Warehouse, Lakehouse, or SQL Database ----------------------</span></span>
 <span></span>
 <span><span class="co"># A discovered item supplies both the server and required database/catalog.</span></span>
 <span><span class="co"># You can alternatively provide a complete portal connection string, or a bare</span></span>
-<span><span class="co"># endpoint together with database = "...".</span></span>
+<span><span class="co"># endpoint together with `database = "..."`</span></span>
 <span></span>
 <span><span class="co"># Get connection</span></span>
 <span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
@@ -147,16 +147,16 @@
 <span><span class="co"># Table from Lakehouse via OneLake data access ---------------------------------</span></span>
 <span></span>
 <span><span class="co"># Ensure that the account/principal you authenticate with has access via</span></span>
-<span><span class="co">#   being part of the workspace, or via Lakehouse -&gt; Manage OneLake data access</span></span>
+<span><span class="co"># being part of the workspace, or via Lakehouse -&gt; Manage OneLake data access</span></span>
 <span></span>
 <span><span class="va">df_onelake</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table</a></span><span class="op">(</span></span>
 <span>  table_path <span class="op">=</span> <span class="st">"Customers"</span>,</span>
-<span>  workspace_name <span class="op">=</span> <span class="va">workspace</span>,</span>
-<span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span></span>
+<span>  workspace_name <span class="op">=</span> <span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span>,</span>
+<span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span><span class="op">$</span><span class="va">displayName</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># General OneLake files retain their complete paths and ETags. A direct</span></span>
-<span><span class="co"># https:// or abfss:// OneLake path can be used instead of separate targets.</span></span>
+<span><span class="co"># https:// or abfss:// OneLake path can be used instead of separate targets</span></span>
 <span><span class="va">fixture_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_files.html">fabric_onelake_list</a></span><span class="op">(</span></span>
 <span>  <span class="va">workspace</span>,</span>
 <span>  <span class="va">lakehouse</span>,</span>
@@ -174,23 +174,15 @@
 <span><span class="co"># DAX query against Semantic Model ---------------------------------------------</span></span>
 <span></span>
 <span><span class="co"># Ensure that the account you use to authenticate has access to the workspace,</span></span>
-<span><span class="co">#   or that you have been granted 'Build' permissions on the dataset (via share)</span></span>
+<span><span class="co"># or that you have been granted 'Build' permissions on the dataset (via share)</span></span>
 <span></span>
 <span><span class="va">df_dax</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
 <span>  connstr <span class="op">=</span> <span class="va">semantic_model</span>,</span>
 <span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(1000, 'Sheet1')"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># The Power BI "Dataset Execute Queries REST API" tenant setting must be</span></span>
-<span><span class="co"># enabled. Each request returns one table and is limited to 100,000 rows or</span></span>
-<span><span class="co"># 1,000,000 values, 15 MB, and 120 requests per minute per user. Service</span></span>
-<span><span class="co"># principals cannot query semantic models with RLS or SSO enabled.</span></span>
-<span><span class="co"># https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries</span></span>
-<span></span>
 <span></span>
 <span><span class="co"># Livy API query to execute Spark code -----------------------------------------</span></span>
-<span></span>
-<span><span class="co"># Ensure that the account you use to authenticate has access to the workspace</span></span>
 <span></span>
 <span><span class="co"># Run a Livy SparkR query</span></span>
 <span><span class="va">livy_sparkr_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
@@ -199,7 +191,7 @@
 <span>  code <span class="op">=</span> <span class="st">"print(1+2)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Reuse Spark state across multiple statements with an R6 session.</span></span>
+<span><span class="co"># Reuse Spark state across multiple statements with an R6 session</span></span>
 <span><span class="va">livy</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_session.html">fabric_livy_session</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">livy</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">livy</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="op">)</span></span>
@@ -210,9 +202,9 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Use high_concurrency = TRUE and session_tag = "..." for an isolated REPL</span></span>
-<span><span class="co"># in Fabric's shared high-concurrency session pool.</span></span>
+<span><span class="co"># in Fabric's shared high-concurrency session pool</span></span>
 <span></span>
-<span><span class="co"># Submit a standalone Spark application from OneLake.</span></span>
+<span><span class="co"># Submit a standalone Spark application from OneLake</span></span>
 <span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
@@ -223,12 +215,12 @@
 <span><span class="va">batch</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">batch</span><span class="op">$</span><span class="fu">logs</span><span class="op">(</span>refresh <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># (See `?fabric_livy_session` and `?fabric_livy_batch_submit`.)</span></span>
+<span><span class="co"># (See `?fabric_livy_session` and `?fabric_livy_batch_submit`)</span></span>
 <span></span>
 <span></span>
 <span><span class="co"># KQL query against an Eventhouse database ------------------------------------</span></span>
 <span></span>
-<span><span class="co"># Query parameters are bound separately from the KQL query text.</span></span>
+<span><span class="co"># Query parameters are bound separately from the KQL query text</span></span>
 <span><span class="va">df_kql</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">kql_database</span>,</span>
 <span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -242,7 +234,7 @@
 <span><span class="co"># GraphQL API ---------------------------------------------------------------</span></span>
 <span></span>
 <span><span class="co"># Variables are encoded separately from the GraphQL document. The result keeps</span></span>
-<span><span class="co"># partial data and GraphQL-level errors in separate fields.</span></span>
+<span><span class="co"># partial data and GraphQL-level errors in separate fields</span></span>
 <span><span class="va">graphql_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">graphql_api</span>,</span>
 <span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -261,7 +253,7 @@
 <span></span>
 <span><span class="co"># On-demand item jobs -------------------------------------------------------</span></span>
 <span></span>
-<span><span class="co"># A discovered notebook record already contains its item type and workspace.</span></span>
+<span><span class="co"># A discovered notebook record already contains its item type and workspace</span></span>
 <span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span></span>
 <span>  <span class="va">notebook</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"incremental"</span>, batch_size <span class="op">=</span> <span class="fl">100L</span><span class="op">)</span>,</span>
@@ -276,6 +268,11 @@
 </h2>
 <p>Microsoft Fabric is a new data platform from Microsoft which combines various data services, including data warehousing, data lakes, and business intelligence. It is built on top of Azure Data Services and integrates with Power BI for analytics and reporting. Microsoft is actively promoting Fabric as the next-generation data platform for organizations using Microsoft Azure and Power BI.</p>
 <p>As our organization started working with Microsoft Fabric, I found that loading data into R from Fabric was not yet straightforward, and took some effort to get working. To help others in the same situation, I decided to share the functions I created to make this easier.</p>
+<div class="section level3">
+<h3 id="about-the-maintainer">About the maintainer<a class="anchor" aria-label="anchor" href="#about-the-maintainer"></a>
+</h3>
+<p>Luka Koning is no longer associated with Kennispunt Twente. He maintains this open-source R package in his personal capacity.</p>
+</div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
