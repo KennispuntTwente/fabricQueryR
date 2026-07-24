@@ -11,8 +11,8 @@ from .discover import (
 from .fabric_api import FabricApi
 from .graphql_api import (
     GRAPHQL_API_NAME,
+    GRAPHQL_ROOT_FIELD,
     GRAPHQL_SOURCE_OBJECT,
-    GRAPHQL_TYPE,
     graphql_definition,
 )
 from .kusto_api import KustoApi, SEED_TABLE
@@ -105,14 +105,14 @@ def seed(settings: SandboxSettings) -> None:
             graphql_api["id"],
             graphql_definition(workspace_id, sql_endpoint_id),
         )
-        ready_type = api.wait_for_graphql_type(
+        ready_field = api.wait_for_graphql_root_field(
             workspace_id,
             graphql_api["id"],
-            GRAPHQL_TYPE,
+            GRAPHQL_ROOT_FIELD,
         )
         print(
             "GraphQL fixture ready: "
-            f"{graphql_api['displayName']}.{ready_type['name']}"
+            f"{graphql_api['displayName']}.{ready_field['name']}"
         )
 
     query_service_uri = kql_database.get("properties", {}).get("queryServiceUri")

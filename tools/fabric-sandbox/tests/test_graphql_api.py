@@ -1,4 +1,5 @@
 from fabricqueryr_sandbox.graphql_api import (
+    GRAPHQL_ROOT_FIELD,
     GRAPHQL_SOURCE_OBJECT,
     GRAPHQL_TYPE,
     graphql_definition,
@@ -29,3 +30,4 @@ def test_graphql_definition_exposes_the_seeded_table_read_only():
         "amount",
         "loaded_at",
     }
+    assert GRAPHQL_ROOT_FIELD == "fabricqueryr_basics"

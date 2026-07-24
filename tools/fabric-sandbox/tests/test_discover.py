@@ -202,7 +202,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
             "https://api.fabric.microsoft.com/v1/workspaces/workspace-id/"
             "graphqlapis/TestGraphQL-id/graphql"
         ),
-        "root_field": "fabricqueryr_basic",
+        "root_field": "fabricqueryr_basics",
     }
     lakehouse = manifest.items["TestLakehouse"]
     assert lakehouse["tables"] == {

@@ -251,12 +251,13 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     access_token = token
   )
   expect_equal(api$graphql_endpoint, provisioned$endpoint)
+  root_field <- provisioned$root_field
 
   result <- fabric_graphql_query(
     api,
     query = paste(
       "query Filtered($category: String!) {",
-      "  fabricqueryr_basic(",
+      paste0("  ", root_field, "("),
       "    filter: {category: {eq: $category}},",
       "    orderBy: {id: ASC}",
       "  ) {",
@@ -275,10 +276,10 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
 
   expect_s3_class(result, "fabric_graphql_result")
   expect_length(result$errors, 0L)
-  expect_length(result$data$fabricqueryr_basic$items, 2L)
+  expect_length(result$data[[root_field]]$items, 2L)
   expect_equal(
     vapply(
-      result$data$fabricqueryr_basic$items,
+      result$data[[root_field]]$items,
       `[[`,
       integer(1),
       "id"
@@ -287,25 +288,26 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
   )
   expect_equal(
     vapply(
-      result$data$fabricqueryr_basic$items,
+      result$data[[root_field]]$items,
       `[[`,
       character(1),
       "name"
     ),
     c("alpha", "gamma")
   )
-  expect_equal(result$data$fabricqueryr_basic$items[[1L]]$amount, 10.5)
-  expect_null(result$data$fabricqueryr_basic$items[[2L]]$amount)
+  expect_equal(result$data[[root_field]]$items[[1L]]$amount, 10.5)
+  expect_null(result$data[[root_field]]$items[[2L]]$amount)
 })
 
 test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  root_field <- api$root_field
   pages <- fabric_graphql_paginate(
     api$endpoint,
     query = paste(
       "query Paged($first: Int!, $after: String) {",
-      "  fabricqueryr_basic(",
+      paste0("  ", root_field, "("),
       "    first: $first, after: $after, orderBy: {id: ASC}",
       "  ) {",
       "    items { id name amount }",
@@ -316,7 +318,7 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
     ),
     variables = list(first = 2L, after = NULL),
     operation_name = "Paged",
-    next_cursor = fabric_graphql_cursor("fabricqueryr_basic"),
+    next_cursor = fabric_graphql_cursor(root_field),
     error_policy = "error",
     access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
     audience = "https://api.fabric.microsoft.com/.default"
@@ -324,7 +326,7 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
   items <- unlist(
     lapply(
       pages$pages,
-      function(page) page$data$fabricqueryr_basic$items
+      function(page) page$data[[root_field]]$items
     ),
     recursive = FALSE
   )

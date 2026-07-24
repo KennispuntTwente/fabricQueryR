@@ -194,16 +194,16 @@ class FabricApi:
             timeout=timeout,
         )
 
-    def wait_for_graphql_type(
+    def wait_for_graphql_root_field(
         self,
         workspace_id: str,
         graphql_api_id: str,
-        graphql_type: str,
+        root_field: str,
         *,
         timeout: int = 180,
     ) -> dict[str, Any]:
-        if not re.fullmatch(r"[_A-Za-z][_0-9A-Za-z]*", graphql_type):
-            raise ValueError("graphql_type must be a valid GraphQL name")
+        if not re.fullmatch(r"[_A-Za-z][_0-9A-Za-z]*", root_field):
+            raise ValueError("root_field must be a valid GraphQL name")
         endpoint = (
             f"/workspaces/{workspace_id}/graphqlapis/"
             f"{graphql_api_id}/graphql"
@@ -221,7 +221,7 @@ class FabricApi:
                     json={
                         "query": (
                             "query SchemaReady { "
-                            f"{graphql_type}(first: 1) {{ items {{ id }} }} "
+                            f"{root_field}(first: 1) {{ items {{ id }} }} "
                             "}"
                         ),
                         "operationName": "SchemaReady",
@@ -242,16 +242,16 @@ class FabricApi:
                 last_errors = error.response.text
                 self.sleep(10)
                 continue
-            root_result = response.get("data", {}).get(graphql_type)
+            root_result = response.get("data", {}).get(root_field)
             if (
                 isinstance(root_result, dict)
                 and isinstance(root_result.get("items"), list)
             ):
-                return {"name": graphql_type}
+                return {"name": root_field}
             last_errors = response.get("errors")
             self.sleep(10)
         raise TimeoutError(
-            f"GraphQL type {graphql_type!r} was not ready in time; "
+            f"GraphQL root field {root_field!r} was not ready in time; "
             f"last errors: {last_errors!r}"
         )
 

@@ -174,7 +174,7 @@ def test_request_preserves_fabric_error_details():
     assert "Request ID: request-id" in message
 
 
-def test_wait_for_graphql_type_retries_until_schema_is_ready():
+def test_wait_for_graphql_root_field_retries_until_schema_is_ready():
     attempts = 0
     sleeps = []
 
@@ -183,7 +183,7 @@ def test_wait_for_graphql_type_retries_until_schema_is_ready():
         attempts += 1
         payload = json.loads(request.content)
         assert "__type" not in payload["query"]
-        assert "fabricqueryr_basic(first: 1)" in payload["query"]
+        assert "fabricqueryr_basics(first: 1)" in payload["query"]
         assert "variables" not in payload
         if attempts == 1:
             return httpx.Response(503, json={"message": "schema is provisioning"})
@@ -191,7 +191,7 @@ def test_wait_for_graphql_type_retries_until_schema_is_ready():
             return httpx.Response(
                 200,
                 json={
-                    "data": {"fabricqueryr_basic": None},
+                    "data": {"fabricqueryr_basics": None},
                     "errors": [{"message": "Schema is provisioning"}],
                 },
             )
@@ -199,7 +199,7 @@ def test_wait_for_graphql_type_retries_until_schema_is_ready():
             200,
             json={
                 "data": {
-                    "fabricqueryr_basic": {"items": [{"id": 1}]}
+                    "fabricqueryr_basics": {"items": [{"id": 1}]}
                 }
             },
         )
@@ -209,24 +209,24 @@ def test_wait_for_graphql_type_retries_until_schema_is_ready():
         transport=httpx.MockTransport(handler),
         sleep=sleeps.append,
     ) as api:
-        result = api.wait_for_graphql_type(
+        result = api.wait_for_graphql_root_field(
             "workspace-id",
             "graphql-api-id",
-            "fabricqueryr_basic",
+            "fabricqueryr_basics",
         )
 
-    assert result["name"] == "fabricqueryr_basic"
+    assert result["name"] == "fabricqueryr_basics"
     assert attempts == 3
     assert sleeps == [10, 10]
 
 
-def test_wait_for_graphql_type_rejects_unsafe_root_names():
+def test_wait_for_graphql_root_field_rejects_unsafe_names():
     with FabricApi(
         StaticCredential(),
         transport=httpx.MockTransport(lambda _request: httpx.Response(200)),
     ) as api:
-        with pytest.raises(ValueError, match="valid GraphQL name"):
-            api.wait_for_graphql_type(
+        with pytest.raises(ValueError, match="root_field.*valid GraphQL name"):
+            api.wait_for_graphql_root_field(
                 "workspace-id",
                 "graphql-api-id",
                 "root { __schema }",

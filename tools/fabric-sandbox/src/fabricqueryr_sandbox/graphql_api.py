@@ -7,6 +7,7 @@ from typing import Any
 
 GRAPHQL_API_NAME = "TestGraphQL"
 GRAPHQL_TYPE = "fabricqueryr_basic"
+GRAPHQL_ROOT_FIELD = "fabricqueryr_basics"
 GRAPHQL_SOURCE_OBJECT = "dbo.fabricqueryr_basic"
 
 
