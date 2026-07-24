@@ -134,6 +134,8 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "TestLakehouse",
         "SeedFixtures",
         "JobFixtures",
+        "TestPipeline",
+        "TestSparkJob",
         "TestWarehouse",
         "TestSQLDatabase",
         "TestEventhouse",
@@ -145,6 +147,16 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "id": "JobFixtures-id",
         "type": "Notebook",
         "display_name": "JobFixtures",
+    }
+    assert manifest.items["TestPipeline"] == {
+        "id": "TestPipeline-id",
+        "type": "DataPipeline",
+        "display_name": "TestPipeline",
+    }
+    assert manifest.items["TestSparkJob"] == {
+        "id": "TestSparkJob-id",
+        "type": "SparkJobDefinition",
+        "display_name": "TestSparkJob",
     }
     assert manifest.items["TestWarehouse"] == {
         "id": "TestWarehouse-id",
@@ -193,6 +205,13 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "root_field": "fabricqueryr_basic",
     }
     lakehouse = manifest.items["TestLakehouse"]
+    assert lakehouse["tables"] == {
+        "basic": "fabricqueryr_basic",
+        "partitioned": "fabricqueryr_partitioned",
+        "schema_evolved": "fabricqueryr_schema_evolved",
+        "column_mapped": "fabricqueryr_column_mapped",
+        "deletion_vectors": "fabricqueryr_deletion_vectors",
+    }
     assert lakehouse["livy_batch_file"] == (
         "abfss://workspace-id@onelake.dfs.fabric.microsoft.com/"
         "TestLakehouse-id/Files/fixtures/livy_batch.py"

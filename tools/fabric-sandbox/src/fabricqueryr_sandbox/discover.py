@@ -92,6 +92,12 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         job_notebook_item = api.find_item(
             workspace_id, "JobFixtures", "Notebook"
         )
+        pipeline_item = api.find_item(
+            workspace_id, "TestPipeline", "DataPipeline"
+        )
+        spark_job_item = api.find_item(
+            workspace_id, "TestSparkJob", "SparkJobDefinition"
+        )
         warehouse_item = api.find_item(
             workspace_id, "TestWarehouse", "Warehouse"
         )
@@ -173,6 +179,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "tables": {
                     "basic": "fabricqueryr_basic",
                     "partitioned": "fabricqueryr_partitioned",
+                    "schema_evolved": "fabricqueryr_schema_evolved",
+                    "column_mapped": "fabricqueryr_column_mapped",
+                    "deletion_vectors": "fabricqueryr_deletion_vectors",
                 },
             },
             "SeedFixtures": {
@@ -183,6 +192,16 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "id": job_notebook_item["id"],
                 "type": "Notebook",
                 "display_name": job_notebook_item["displayName"],
+            },
+            "TestPipeline": {
+                "id": pipeline_item["id"],
+                "type": "DataPipeline",
+                "display_name": pipeline_item["displayName"],
+            },
+            "TestSparkJob": {
+                "id": spark_job_item["id"],
+                "type": "SparkJobDefinition",
+                "display_name": spark_job_item["displayName"],
             },
             "TestWarehouse": {
                 "id": warehouse_item["id"],

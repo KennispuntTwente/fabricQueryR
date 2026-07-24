@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "description": "fabricQueryR deterministic pipeline job fixture",
+    "activities": [
+      {
+        "name": "WaitOneSecond",
+        "type": "Wait",
+        "dependsOn": [],
+        "typeProperties": {
+          "waitTimeInSeconds": 1
+        }
+      }
+    ]
+  }
+}

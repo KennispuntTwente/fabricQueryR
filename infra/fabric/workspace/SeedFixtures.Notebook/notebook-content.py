@@ -74,6 +74,44 @@ try:
         .option("replaceWhere", "category = 'B'")
         .saveAsTable("dbo.fabricqueryr_partitioned")
     )
+
+    stage = "write schema-evolution Delta table"
+    (
+        fixture.filter(F.col("id") < 3)
+        .select("id", "name")
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_schema_evolved")
+    )
+    (
+        fixture.filter(F.col("id") == 3)
+        .select("id", "name")
+        .withColumn("evolved_value", F.lit("introduced"))
+        .write.format("delta")
+        .mode("append")
+        .option("mergeSchema", True)
+        .saveAsTable("dbo.fabricqueryr_schema_evolved")
+    )
+
+    stage = "write column-mapping Delta table"
+    (
+        fixture.write.format("delta")
+        .mode("overwrite")
+        .option("delta.columnMapping.mode", "name")
+        .saveAsTable("dbo.fabricqueryr_column_mapped")
+    )
+
+    stage = "write deletion-vector Delta table"
+    (
+        fixture.write.format("delta")
+        .mode("overwrite")
+        .option("delta.enableDeletionVectors", "true")
+        .saveAsTable("dbo.fabricqueryr_deletion_vectors")
+    )
+    spark.sql(
+        "DELETE FROM dbo.fabricqueryr_deletion_vectors WHERE id = 1"
+    )
 except Exception:
     mssparkutils.notebook.exit(
         f"fabricqueryr-seed-error: {stage}\n{traceback.format_exc()}"

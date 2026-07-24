@@ -1,0 +1,11 @@
+{
+  "executableFile": "main.py",
+  "defaultLakehouseArtifactId": "00000000-0000-0000-0000-000000000001",
+  "mainClass": "",
+  "additionalLakehouseIds": [],
+  "retryPolicy": null,
+  "commandLineArguments": "",
+  "additionalLibraryUris": [],
+  "language": "Python",
+  "environmentArtifactId": null
+}

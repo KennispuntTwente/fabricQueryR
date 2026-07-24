@@ -38,4 +38,8 @@ def test_paths_are_derived_from_repository_root(tmp_path):
 
     assert settings.workspace_definition_dir == tmp_path / "infra/fabric/workspace"
     assert settings.fixture_dir == tmp_path / "infra/fabric/fixtures"
-    assert settings.item_types == ["Notebook"]
+    assert settings.item_types == [
+        "Notebook",
+        "DataPipeline",
+        "SparkJobDefinition",
+    ]

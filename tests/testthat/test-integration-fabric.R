@@ -14,6 +14,8 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_true(manifest$items$TestLakehouse$id %in% items$id)
   expect_true(manifest$items$SeedFixtures$id %in% items$id)
   expect_true(manifest$items$JobFixtures$id %in% items$id)
+  expect_true(manifest$items$TestPipeline$id %in% items$id)
+  expect_true(manifest$items$TestSparkJob$id %in% items$id)
   expect_true(manifest$items$TestWarehouse$id %in% items$id)
   expect_true(manifest$items$TestSQLDatabase$id %in% items$id)
   expect_true(manifest$items$TestEventhouse$id %in% items$id)
@@ -66,15 +68,21 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestSQLDatabase$database_name
   )
 
-  model <- fabric_item(
-    workspace,
-    manifest$items$TestSemanticModel$id,
-    type = "SemanticModel",
-    access_token = token
-  )
+  semantic_models <- fabric_semantic_models(workspace, access_token = token)
+  model <- semantic_models[
+    semantic_models$id == manifest$items$TestSemanticModel$id,
+  ]
+  expect_equal(nrow(model), 1L)
   expect_equal(model$id, manifest$items$TestSemanticModel$id)
   expect_equal(model$workspaceId, manifest$workspace_id)
   expect_match(model$dax_connection_string, "powerbi://", fixed = TRUE)
+
+  notebooks <- fabric_notebooks(workspace, access_token = token)
+  expect_true(manifest$items$SeedFixtures$id %in% notebooks$id)
+  expect_true(manifest$items$JobFixtures$id %in% notebooks$id)
+
+  graphql_apis <- fabric_graphql_apis(workspace, access_token = token)
+  expect_true(manifest$items$TestGraphQL$id %in% graphql_apis$id)
 
   eventhouses <- fabric_eventhouses(workspace, access_token = token)
   eventhouse <- eventhouses[
@@ -590,6 +598,40 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
   expect_equal(historical_beta$amount, 20)
 })
 
+test_that("Delta reader covers schema evolution and rejects unsupported features", {
+  skip_if_not_installed("duckdb")
+  skip_if_not_installed("fs")
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  read_table <- function(table) {
+    fabric_onelake_read_delta_table(
+      table_path = table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      access_token = token,
+      verbose = FALSE
+    )
+  }
+
+  evolved <- read_table(lakehouse$tables$schema_evolved)
+  evolved <- evolved[order(evolved$id), ]
+  expect_equal(evolved$id, 1:3)
+  expect_true("evolved_value" %in% names(evolved))
+  expect_true(all(is.na(evolved$evolved_value[1:2])))
+  expect_equal(evolved$evolved_value[[3L]], "introduced")
+
+  expect_error(
+    read_table(lakehouse$tables$column_mapped),
+    "column mapping mode"
+  )
+  expect_error(
+    read_table(lakehouse$tables$deletion_vectors),
+    "deletion vectors"
+  )
+})
+
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
   skip_if_not_installed("DBI")
   skip_if_not_installed("odbc")
@@ -1071,6 +1113,10 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   expect_true(nzchar(completed$root_activity_id))
   expect_s3_class(completed$start_time, "POSIXct")
   expect_s3_class(completed$end_time, "POSIXct")
+  status <- fabric_job_status(completed_job)
+  expect_s3_class(status, "fabric_job_instance")
+  expect_equal(status$id, completed$id)
+  expect_equal(status$status, "Completed")
 
   failed_job <- fabric_job_run(
     item,
@@ -1113,6 +1159,28 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   )
   expect_equal(cancelled$status, "Cancelled")
   expect_true(nzchar(cancelled$root_activity_id))
+})
+
+test_that("Fabric pipeline and Spark job definition jobs complete", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  fixtures <- c("TestPipeline", "TestSparkJob")
+
+  for (name in fixtures) {
+    fixture <- fabric_test_manifest_item(manifest, name)
+    item <- list(
+      id = fixture$id,
+      workspaceId = manifest$workspace_id,
+      type = fixture$type,
+      displayName = fixture$display_name
+    )
+    job <- fabric_job_run(item, access_token = token)
+    result <- fabric_job_wait(job, timeout = 1200)
+
+    expect_s3_class(result, "fabric_job_instance", info = name)
+    expect_equal(result$status, "Completed", info = name)
+    expect_equal(result$item_id, fixture$id, info = name)
+  }
 })
 
 test_that("fabric_pbi_dax_query resolves and queries a semantic model", {

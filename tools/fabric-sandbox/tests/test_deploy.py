@@ -40,6 +40,30 @@ def test_job_notebook_exposes_deterministic_job_modes():
     assert "fabricqueryr-job-success:" in notebook
 
 
+def test_pipeline_and_spark_job_fixtures_are_deployable():
+    repository_root = Path(__file__).parents[3]
+    workspace = repository_root / "infra/fabric/workspace"
+    pipeline = (
+        workspace / "TestPipeline.DataPipeline/pipeline-content.json"
+    ).read_text()
+    spark_definition = (
+        workspace
+        / "TestSparkJob.SparkJobDefinition/SparkJobDefinitionV1.json"
+    ).read_text()
+    spark_main = (
+        workspace / "TestSparkJob.SparkJobDefinition/Main/main.py"
+    ).read_text()
+    parameters = (workspace / "parameter.yml").read_text()
+
+    assert '"type": "Wait"' in pipeline
+    assert '"waitTimeInSeconds": 1' in pipeline
+    assert '"executableFile": "main.py"' in spark_definition
+    assert '"defaultLakehouseArtifactId"' in spark_definition
+    assert "fabricqueryr-spark-job-success" in spark_main
+    assert 'item_type: "SparkJobDefinition"' in parameters
+    assert '"defaultLakehouseArtifactId"' in parameters
+
+
 def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
     settings = SandboxSettings(
         workspace_id="workspace-id",
@@ -76,6 +100,10 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
 
     assert flags == ["enable_environment_variable_replacement"]
     assert environ["$ENV:FABRIC_TEST_LAKEHOUSE_ID"] == "lakehouse-id"
-    assert workspaces[0]["item_type_in_scope"] == ["Notebook"]
+    assert workspaces[0]["item_type_in_scope"] == [
+        "Notebook",
+        "DataPipeline",
+        "SparkJobDefinition",
+    ]
     assert workspaces[0]["workspace_id"] == "workspace-id"
     assert published == [workspaces[0]]

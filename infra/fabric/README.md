@@ -93,16 +93,20 @@ high-frequency CI runs.
 ## Current fixture scope
 
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
-`TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, and `SeedFixtures`, then creates a small
+`TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, `SeedFixtures`,
+`JobFixtures`, `TestPipeline`, and `TestSparkJob`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. It
-creates basic and partitioned Delta tables, including a checkpoint-generating
-append and a subsequent partition replacement, plus a deterministic typed Kusto
-table. After the seed table is available, the sandbox applies the supported
-GraphQL public definition and waits until the schema is executable. The
-generated manifest exposes OneLake, all three SQL surfaces, Livy session and
-batch coordinates, DAX, Eventhouse, KQL, and GraphQL test coordinates. The
-uploaded `livy_batch.py` fixture has deterministic success, failure, and
-slow/cancellation modes. Required SQL, Livy, and KQL fixtures are not
-capability-gated: provisioning, discovery, seeding, or connectivity failures
-fail the integration job. GraphQL is likewise mandatory and is exercised with
-the same service-principal Fabric API token used by the sandbox.
+creates basic, partitioned, schema-evolved, column-mapped, and
+deletion-vector Delta tables. These cover checkpoint replay, partition
+replacement, schema merging, and explicit rejection of unsupported Delta
+protocol features. It also creates a deterministic typed Kusto table.
+
+After the seed table is available, the sandbox applies the supported GraphQL
+public definition and waits until the schema is executable. The generated
+manifest exposes OneLake, all three SQL surfaces, Livy session and batch
+coordinates, DAX, Eventhouse, KQL, GraphQL, pipeline, notebook, and Spark job
+coordinates. The job fixtures exercise all three job routes supported by the
+package; the notebook and uploaded `livy_batch.py` additionally expose
+deterministic success, failure, timeout, and cancellation modes. Required
+fixtures are not capability-gated: provisioning, discovery, seeding, or
+connectivity failures fail the integration job.
