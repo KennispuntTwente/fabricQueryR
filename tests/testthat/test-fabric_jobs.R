@@ -88,7 +88,7 @@ test_that("notebook run builds typed release payload and job handle", {
       id = "55555555-5555-5555-5555-555555555555",
       workspaceId = "66666666-6666-6666-6666-666666666666"
     ),
-    session_tag = "fabricqueryr-tests",
+    session_tag = "fabricqueryr_tests",
     token = "test-token",
     api_base = "https://api.fabric.test/v1/"
   )
@@ -116,7 +116,7 @@ test_that("notebook run builds typed release payload and job handle", {
   )
   expect_equal(
     call$payload$executionData$computeConfiguration$highConcurrencyModeOptions,
-    list(enabled = TRUE, sessionTag = "fabricqueryr-tests")
+    list(enabled = TRUE, sessionTag = "fabricqueryr_tests")
   )
   expect_equal(
     unname(vapply(
@@ -666,6 +666,30 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
       "Spark"
     ),
     "Unsupported Spark"
+  )
+  expect_error(
+    .fabric_job_execution_data(
+      target = list(workspace_id = "workspace"),
+      route = list(route = "notebook"),
+      execution_data = NULL,
+      default_lakehouse = NULL,
+      default_lakehouse_workspace = NULL,
+      compute = NULL,
+      session_tag = "invalid-tag"
+    ),
+    "letters, numbers, and underscores"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(
+      list(
+        highConcurrencyModeOptions = list(
+          enabled = TRUE,
+          sessionTag = "invalid tag"
+        )
+      ),
+      "Spark"
+    ),
+    "letters, numbers, and underscores"
   )
 })
 
