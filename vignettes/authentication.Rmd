@@ -126,19 +126,22 @@ function:
 | GraphQL as a delegated user | `https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All` |
 | GraphQL as a service principal | `https://api.fabric.microsoft.com/.default` |
 
-For a GraphQL service principal, also set the function's audience:
+For a GraphQL service principal acquired by the package, the Fabric API
+audience is selected automatically:
 
 ```{r, eval = FALSE}
 result <- fabric_graphql_query(
   api,
   query,
-  audience = "https://api.fabric.microsoft.com/.default",
   auth_args = list(
     password = Sys.getenv("FABRIC_CLIENT_SECRET"),
     auth_type = "client_credentials"
   )
 )
 ```
+
+Set `audience = "https://api.fabric.microsoft.com/.default"` explicitly when a
+custom token-provider function obtains the service-principal token.
 
 ## Non-interactive authentication
 

@@ -19,9 +19,10 @@
 #' caller also needs the required access to the underlying data source.
 #' Saved-credential APIs use the configured connection instead.
 #'
-#' The default `audience` is the delegated GraphQL scope. Set it to
-#' `https://api.fabric.microsoft.com/.default` when a custom provider obtains
-#' service-principal tokens. The value is ignored for a static token string.
+#' When `audience = NULL`, the package selects the Fabric API scope for an
+#' AzureAuth client-credentials flow and the delegated GraphQL scope otherwise.
+#' Set `audience` explicitly when a custom token provider uses a
+#' service-principal flow. The value is ignored for a static token string.
 #'
 #' GraphQL POST requests are not retried by default because a document can
 #' contain mutations. Set `idempotent = TRUE` only when the operation is safe
@@ -48,7 +49,8 @@
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
-#' @param audience OAuth audience/scope passed to the credential.
+#' @param audience OAuth audience/scope passed to the credential. `NULL`
+#'   selects the scope from the authentication flow.
 #' @param api_base Fabric REST API base URL, used to derive endpoints from IDs.
 #'
 #' @return A `fabric_graphql_result` list with `data`, `errors`, `extensions`,
@@ -90,7 +92,7 @@ fabric_graphql_query <- function(
   ),
   token = NULL,
   auth_args = list(),
-  audience = .fabric_audience$graphql,
+  audience = NULL,
   api_base = .fabric_api_base
 ) {
   graphql_validate_query(query)
@@ -119,6 +121,11 @@ fabric_graphql_query <- function(
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  audience <- graphql_resolve_audience(
+    audience,
     token = token,
     auth_args = auth_args
   )
@@ -186,7 +193,7 @@ fabric_graphql_paginate <- function(
   ),
   token = NULL,
   auth_args = list(),
-  audience = .fabric_audience$graphql,
+  audience = NULL,
   api_base = .fabric_api_base
 ) {
   if (!is.function(next_cursor)) {
@@ -255,6 +262,17 @@ fabric_graphql_paginate <- function(
     class = c("fabric_graphql_pagination_error", "error", "condition")
   ) |>
     rlang::cnd_signal()
+}
+
+graphql_resolve_audience <- function(audience, token, auth_args) {
+  if (!is.null(audience)) {
+    return(graphql_required_string(audience, "audience"))
+  }
+  if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
+    .fabric_audience$fabric
+  } else {
+    .fabric_audience$graphql
+  }
 }
 
 #' Build a Fabric GraphQL cursor extractor

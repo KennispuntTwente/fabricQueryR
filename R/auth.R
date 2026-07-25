@@ -212,19 +212,25 @@ fabric_validate_auth_args <- function(auth_args) {
 #' @keywords internal
 #' @noRd
 fabric_azure_scopes <- function(audience, auth_args) {
-  auth_type <- auth_args$auth_type
-  inferred_client_credentials <- is.null(auth_type) &&
-    (!is.null(auth_args$password) || !is.null(auth_args$certificate)) &&
-    is.null(auth_args$username) &&
-    is.null(auth_args$on_behalf_of)
-  if (
-    identical(auth_type, "client_credentials") ||
-      inferred_client_credentials
-  ) {
+  if (fabric_uses_client_credentials(auth_args)) {
     audience
   } else {
     c(audience, "offline_access")
   }
+}
+
+#' Detect an AzureAuth client-credentials flow
+#' @keywords internal
+#' @noRd
+fabric_uses_client_credentials <- function(auth_args) {
+  auth_type <- auth_args$auth_type
+  identical(auth_type, "client_credentials") ||
+    (
+      is.null(auth_type) &&
+        (!is.null(auth_args$password) || !is.null(auth_args$certificate)) &&
+        is.null(auth_args$username) &&
+        is.null(auth_args$on_behalf_of)
+    )
 }
 
 #' Adapt a refreshable AzureAuth token

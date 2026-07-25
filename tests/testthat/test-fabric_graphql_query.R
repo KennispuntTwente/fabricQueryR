@@ -18,6 +18,21 @@ graphql_test_response <- function(
   )
 }
 
+graphql_fake_azure_token <- function() {
+  class <- R6::R6Class(
+    "GraphQLFakeAzureToken",
+    inherit = AzureAuth::AzureToken,
+    public = list(
+      initialize = function() {
+        self$credentials <- list(access_token = "azure-token")
+      },
+      validate = function() TRUE,
+      refresh = function() invisible(self)
+    )
+  )
+  class$new()
+}
+
 test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
   workspace_id <- "cfafbeb1-8037-4d0c-896e-a46fb27ff229"
   api_id <- "5b218778-e7a5-4d73-8187-f10824047715"
@@ -127,6 +142,60 @@ test_that("fabric_graphql_query sends variables and operation names unchanged", 
   expect_equal(captured$body$data$variables$category, "B")
   expect_null(captured$body$data$variables$nullable)
   expect_equal(captured$body$data$operationName, "Products")
+})
+
+test_that("GraphQL selects the audience from the AzureAuth flow", {
+  calls <- list()
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      calls[[length(calls) + 1L]] <<- list(...)
+      graphql_fake_azure_token()
+    },
+    .package = "AzureAuth"
+  )
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(list(data = list(typename = "Query")), url = req$url)
+  })
+
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ typename: __typename }",
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(password = "secret", auth_type = "client_credentials")
+  )
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ typename: __typename }",
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(auth_type = "device_code", use_cache = FALSE)
+  )
+
+  expect_identical(calls[[1L]]$resource, .fabric_audience$fabric)
+  expect_equal(
+    calls[[2L]]$resource,
+    c(.fabric_audience$graphql, "offline_access")
+  )
+})
+
+test_that("GraphQL permits an explicit custom-provider audience", {
+  audience <- NULL
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(list(data = list(typename = "Query")), url = req$url)
+  })
+
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ typename: __typename }",
+    token = function(value) {
+      audience <<- value
+      "token"
+    },
+    audience = .fabric_audience$fabric
+  )
+
+  expect_identical(audience, .fabric_audience$fabric)
 })
 
 test_that("GraphQL partial data and errors are independently preserved", {

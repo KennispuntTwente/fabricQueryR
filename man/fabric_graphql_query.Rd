@@ -18,7 +18,7 @@ fabric_graphql_query(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  audience = .fabric_audience$graphql,
+  audience = NULL,
   api_base = .fabric_api_base
 )
 }
@@ -56,7 +56,8 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
-\item{audience}{OAuth audience/scope passed to the credential.}
+\item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
+selects the scope from the authentication flow.}
 
 \item{api_base}{Fabric REST API base URL, used to derive endpoints from IDs.}
 }
@@ -84,9 +85,10 @@ Execute access or a suitable workspace role. With SSO connectivity, the
 caller also needs the required access to the underlying data source.
 Saved-credential APIs use the configured connection instead.
 
-The default \code{audience} is the delegated GraphQL scope. Set it to
-\verb{https://api.fabric.microsoft.com/.default} when a custom provider obtains
-service-principal tokens. The value is ignored for a static token string.
+When \code{audience = NULL}, the package selects the Fabric API scope for an
+AzureAuth client-credentials flow and the delegated GraphQL scope otherwise.
+Set \code{audience} explicitly when a custom token provider uses a
+service-principal flow. The value is ignored for a static token string.
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set \code{idempotent = TRUE} only when the operation is safe
