@@ -114,6 +114,12 @@ A tibble with the table's current rows (0 rows if the table is empty).
   that require reader protocol versions or reader features this package
   does not implement are rejected before any data is returned.
 
+- The returned columns follow the logical schema in the selected Delta
+  snapshot. Schema additions are filled with typed missing values,
+  removed physical columns are omitted, and partition values come from
+  Delta add-file actions rather than being inferred from directory
+  names.
+
 - Schema-enabled lakehouses (the default for new lakehouses) organise
   tables into named schemas. Supply the `schema` argument (e.g. `"dbo"`)
   to read a table stored under a specific schema.

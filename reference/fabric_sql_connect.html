@@ -77,9 +77,7 @@ Warehouse, or SQL Database record returned by a discovery function.</p></dd>
 <dd><p>Optional catalog/database. An explicit value overrides a
 catalog found in <code>server</code>. <code>fabric_sql_connect()</code> and <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>
 infer complete connection strings and discovery records when this argument
-is omitted; bare endpoints retain the legacy <code>"Lakehouse"</code> default.
-<code><a href="fabric_sql_connection_info.html">fabric_sql_connection_info()</a></code> uses <code>NULL</code> by default and therefore
-requires an explicit catalog for bare endpoints.</p></dd>
+is omitted. Bare endpoints require an explicit catalog.</p></dd>
 
 
 <dt id="arg-target-type">target_type<a class="anchor" aria-label="anchor" href="#arg-target-type"></a></dt>
@@ -147,9 +145,8 @@ named <code>access_token</code> argument is consumed here as a deprecated alias 
     <p>Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
 newer. Multiple Active Result Sets (MARS) is disabled because Fabric
 Warehouse does not support it. Complete portal connection strings and
-enriched discovery records provide a catalog automatically. For
-compatibility with fabricQueryR 0.2.1, a bare endpoint still defaults to
-the <code>"Lakehouse"</code> catalog; specify <code>database</code> for other catalogs.</p>
+enriched discovery records provide a catalog automatically. Bare endpoints
+must be paired with <code>database</code>; the package never guesses a catalog name.</p>
 <p>The SQL audience is <code>https://database.windows.net/.default</code>. The identity
 must have permission to connect to and query the target item.</p>
     </div>

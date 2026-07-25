@@ -22,7 +22,7 @@ fabric_graphql_query(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  audience = .fabric_audience$graphql,
+  audience = NULL,
   api_base = .fabric_api_base
 )
 ```
@@ -91,7 +91,8 @@ fabric_graphql_query(
 
 - audience:
 
-  OAuth audience/scope passed to the credential.
+  OAuth audience/scope passed to the credential. `NULL` selects the
+  scope from the authentication flow.
 
 - api_base:
 
@@ -122,10 +123,10 @@ connectivity, the caller also needs the required access to the
 underlying data source. Saved-credential APIs use the configured
 connection instead.
 
-The default `audience` is the delegated GraphQL scope. Set it to
-`https://api.fabric.microsoft.com/.default` when a custom provider
-obtains service-principal tokens. The value is ignored for a static
-token string.
+When `audience = NULL`, the package selects the Fabric API scope for an
+AzureAuth client-credentials flow and the delegated GraphQL scope
+otherwise. Set `audience` explicitly when a custom token provider uses a
+service-principal flow. The value is ignored for a static token string.
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set `idempotent = TRUE` only when the operation is

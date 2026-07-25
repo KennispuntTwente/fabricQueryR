@@ -60,7 +60,7 @@ callback makes pagination independent of the user's schema shape.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  audience <span class="op">=</span> <span class="va">.fabric_audience</span><span class="op">$</span><span class="va">graphql</span>,</span>
+<span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -141,7 +141,8 @@ token or starts its normal interactive login flow.</p></dd>
 
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
-<dd><p>OAuth audience/scope passed to the credential.</p></dd>
+<dd><p>OAuth audience/scope passed to the credential. <code>NULL</code>
+selects the scope from the authentication flow.</p></dd>
 
 
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>

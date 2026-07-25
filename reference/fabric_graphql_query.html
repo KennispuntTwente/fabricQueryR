@@ -60,7 +60,7 @@ a successful HTTP response can contain both partial data and GraphQL errors.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  audience <span class="op">=</span> <span class="va">.fabric_audience</span><span class="op">$</span><span class="va">graphql</span>,</span>
+<span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -127,7 +127,8 @@ token or starts its normal interactive login flow.</p></dd>
 
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
-<dd><p>OAuth audience/scope passed to the credential.</p></dd>
+<dd><p>OAuth audience/scope passed to the credential. <code>NULL</code>
+selects the scope from the authentication flow.</p></dd>
 
 
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
@@ -153,9 +154,10 @@ principals for Fabric APIs in the tenant, and grant the principal API
 Execute access or a suitable workspace role. With SSO connectivity, the
 caller also needs the required access to the underlying data source.
 Saved-credential APIs use the configured connection instead.</p>
-<p>The default <code>audience</code> is the delegated GraphQL scope. Set it to
-<code>https://api.fabric.microsoft.com/.default</code> when a custom provider obtains
-service-principal tokens. The value is ignored for a static token string.</p>
+<p>When <code>audience = NULL</code>, the package selects the Fabric API scope for an
+AzureAuth client-credentials flow and the delegated GraphQL scope otherwise.
+Set <code>audience</code> explicitly when a custom token provider uses a
+service-principal flow. The value is ignored for a static token string.</p>
 <p>GraphQL POST requests are not retried by default because a document can
 contain mutations. Set <code>idempotent = TRUE</code> only when the operation is safe
 to repeat.</p>

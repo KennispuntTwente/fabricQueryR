@@ -32,9 +32,7 @@ fabric_sql_connection_info(
   and
   [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
   infer complete connection strings and discovery records when this
-  argument is omitted; bare endpoints retain the legacy `"Lakehouse"`
-  default. `fabric_sql_connection_info()` uses `NULL` by default and
-  therefore requires an explicit catalog for bare endpoints.
+  argument is omitted. Bare endpoints require an explicit catalog.
 
 - target_type:
 

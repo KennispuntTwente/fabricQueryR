@@ -25,7 +25,7 @@ fabric_graphql_paginate(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  audience = .fabric_audience$graphql,
+  audience = NULL,
   api_base = .fabric_api_base
 )
 ```
@@ -109,7 +109,8 @@ fabric_graphql_paginate(
 
 - audience:
 
-  OAuth audience/scope passed to the credential.
+  OAuth audience/scope passed to the credential. `NULL` selects the
+  scope from the authentication flow.
 
 - api_base:
 
