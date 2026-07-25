@@ -11,20 +11,19 @@ methods which help you work with Microsoft Fabric from R:
     queries with, and/or use with ‘DBI’-compatible packages like
     ‘dbplyr’.
 
-2.  Execute a DAX query against a Fabric/Power Bi `Semantic Model` item:
+2.  Execute a DAX query against a Fabric or Power Bi `Semantic Model`
+    item:
     [`fabric_pbi_dax_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md).
     With this, you can run DAX queries against a Fabric/Power Bi dataset
     and get the results as a ‘tibble’ dataframe.
 
-3.  Execute a Livy API query:
-    [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md).
-    Use
-    [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
-    to create a reusable Livy session, and
-    [`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
-    to submit a standalone Spark application. With this, you can
-    remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft
-    Fabric and get a list with the results in your local R session.
+3.  Execute Livy API queries: with
+    [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md),
+    [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md),
+    and
+    [`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md),
+    you can remotely run Spark/Spark SQL/SparkR/PySpark in Microsoft
+    Fabric and get the results in your local R session.
 
 4.  Read a Delta table from a Fabric `Lakehouse` item:
     [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md).
@@ -42,8 +41,8 @@ methods which help you work with Microsoft Fabric from R:
 
 6.  Execute a KQL query against an `Eventhouse`/`KQL Database` item:
     [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md).
-    This returns typed Kusto query results as a tibble, or a named list
-    of tibbles when KQL returns multiple primary result tables.
+    This returns typed Kusto query results as a ‘tibble’ dataframe, or a
+    named list of tibbles when KQL returns multiple result tables.
 
 7.  Execute a GraphQL query against an `API for GraphQL` item:
     [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md).
@@ -56,8 +55,8 @@ methods which help you work with Microsoft Fabric from R:
     [`fabric_job_wait()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
     and
     [`fabric_job_cancel()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md).
-    Notebook, pipeline, and Spark job definition runs share one
-    structured job interface.
+    These functions support notebooks, pipelines, and Spark job
+    definitions.
 
 ## Installation
 
