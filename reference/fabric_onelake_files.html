@@ -121,7 +121,8 @@ applying Delta Lake transaction semantics:</p><ul><li><p><code>fabric_onelake_li
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span></span>
+<span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
+<span>  chunk_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"fabricqueryr.onelake.chunk_size"</span>, <span class="fl">8</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_onelake_delete</span><span class="op">(</span></span>
@@ -233,6 +234,11 @@ values are quoted as required by ADLS.</p></dd>
 Fabric-managed first-level folder.</p></dd>
 
 
+<dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
+<dd><p>Positive upload chunk size in bytes. Defaults to 8 MiB;
+local files are streamed without being loaded into memory.</p></dd>
+
+
 <dt id="arg-confirm">confirm<a class="anchor" aria-label="anchor" href="#arg-confirm"></a></dt>
 <dd><p>Must be <code>TRUE</code> to enable deletion.</p></dd>
 
@@ -257,6 +263,9 @@ OneLake path, in which case <code>item</code> must be <code>NULL</code>.</p>
 first-level folders (such as <code>Files</code> and <code>Tables</code>), so upload and delete
 operations are limited to descendants of a managed folder. Deletion also
 requires <code>confirm = TRUE</code>.</p>
+<p>Uploads are streamed in chunks to a temporary sibling file. The completed
+file is atomically renamed to its destination with the requested overwrite
+or ETag precondition, so failed transfers do not truncate an existing file.</p>
     </div>
 
     <div class="section level2">
