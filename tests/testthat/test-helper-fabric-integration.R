@@ -39,3 +39,20 @@ test_that("required Fabric integration mode fails instead of skipping", {
     fixed = TRUE
   )
 })
+
+test_that("live token providers acquire by audience and cache until refresh", {
+  calls <- character()
+  provider <- fabric_test_token_provider(function(audience) {
+    calls <<- c(calls, audience)
+    paste0("token-", length(calls))
+  })
+
+  expect_identical(provider("scope-a"), "token-1")
+  expect_identical(provider("scope-a"), "token-1")
+  expect_identical(provider("scope-b"), "token-2")
+  expect_identical(
+    provider("scope-a", force_refresh = TRUE),
+    "token-3"
+  )
+  expect_identical(calls, c("scope-a", "scope-b", "scope-a"))
+})

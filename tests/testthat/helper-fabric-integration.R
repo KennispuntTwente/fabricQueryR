@@ -34,6 +34,57 @@ fabric_test_token <- function(variable) {
   token
 }
 
+fabric_test_azure_cli_token <- function(audience) {
+  fabric_test_skip_or_fail(
+    nzchar(Sys.which("az")),
+    "Azure CLI is required for live package-managed authentication tests"
+  )
+  output <- suppressWarnings(system2(
+    "az",
+    c(
+      "account",
+      "get-access-token",
+      "--scope",
+      shQuote(audience),
+      "--query",
+      "accessToken",
+      "--output",
+      "tsv",
+      "--only-show-errors"
+    ),
+    stdout = TRUE,
+    stderr = TRUE
+  ))
+  status <- attr(output, "status") %||% 0L
+  fabric_test_skip_or_fail(
+    identical(as.integer(status), 0L),
+    paste(
+      "Azure CLI could not acquire a Fabric integration token for",
+      audience,
+      paste(output, collapse = "\n")
+    )
+  )
+  token <- trimws(paste(output, collapse = ""))
+  fabric_test_skip_or_fail(
+    nzchar(token),
+    paste("Azure CLI returned an empty integration token for", audience)
+  )
+  token
+}
+
+fabric_test_token_provider <- function(
+  acquire = fabric_test_azure_cli_token
+) {
+  cache <- new.env(parent = emptyenv())
+  function(audience, force_refresh = FALSE) {
+    key <- gsub("[^A-Za-z0-9]", "_", audience)
+    if (isTRUE(force_refresh) || is.null(cache[[key]])) {
+      cache[[key]] <- acquire(audience)
+    }
+    cache[[key]]
+  }
+}
+
 fabric_test_require_package <- function(package) {
   fabric_test_skip_or_fail(
     !requireNamespace(package, quietly = TRUE),

@@ -1,6 +1,6 @@
 test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
 
   workspaces <- fabric_workspaces(token = token)
   workspace <- workspaces[workspaces$id == manifest$workspace_id, ]
@@ -108,6 +108,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
 test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   manifest <- fabric_test_manifest()
   database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  token <- fabric_test_token_provider()
   result <- fabric_kql_query(
     database$query_service_uri,
     query = paste(
@@ -115,10 +116,7 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
       "| order by id asc"
     ),
     database = database$database_name,
-    token = function(audience, force_refresh = FALSE) {
-      expect_equal(audience, "https://api.kusto.windows.net/.default")
-      fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
-    }
+    token = token
   )
 
   expect_s3_class(result, "tbl_df")
@@ -243,7 +241,7 @@ test_that("fabric_kql_query surfaces live Kusto service errors", {
 test_that("fabric_graphql_query executes variables and preserves nulls", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
   api <- fabric_item(
     manifest$workspace_id,
     provisioned$id,
@@ -302,6 +300,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
 test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  token <- fabric_test_token_provider()
   root_field <- api$root_field
   pages <- fabric_graphql_paginate(
     api$endpoint,
@@ -320,7 +319,7 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
     operation_name = "Paged",
     next_cursor = fabric_graphql_cursor(root_field),
     error_policy = "error",
-    token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    token = token,
     audience = "https://api.fabric.microsoft.com/.default"
   )
   items <- unlist(
@@ -344,7 +343,7 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
 test_that("Fabric GraphQL surfaces schema and authentication failures", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
 
   invalid_query <- fabric_graphql_query(
     api$endpoint,
@@ -371,6 +370,7 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   fabric_test_require_package("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token_provider()
 
   result <- fabric_onelake_read_delta_table(
     table_path = lakehouse$tables$basic,
@@ -379,10 +379,7 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     schema = lakehouse$schema,
     tenant_id = "",
     client_id = "",
-    token = function(audience, force_refresh = FALSE) {
-      expect_equal(audience, "https://storage.azure.com/.default")
-      fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
-    },
+    token = token,
     verbose = FALSE
   )
   result <- result[order(result$id), ]
@@ -408,7 +405,7 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
 test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  token <- fabric_test_token_provider()
 
   fixtures <- fabric_onelake_list(
     manifest$workspace_id,
@@ -647,6 +644,7 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
   fabric_test_require_package("odbc")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token_provider()
   target <- fabric_item(
     manifest$workspace_id,
     lakehouse$id,
@@ -658,10 +656,7 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
     server = target,
     tenant_id = "",
     client_id = "",
-    token = function(audience, force_refresh = FALSE) {
-      expect_equal(audience, "https://database.windows.net/.default")
-      fabric_test_token("FABRIC_TEST_SQL_TOKEN")
-    },
+    token = token,
     verbose = FALSE
   )
   on.exit(
@@ -835,6 +830,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   table_name <- fabric_test_spark_table(manifest, lakehouse)
+  token <- fabric_test_token_provider()
 
   result <- fabric_livy_query(
     livy_url = lakehouse$livy_url,
@@ -850,10 +846,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
     kind = "pyspark",
     tenant_id = "",
     client_id = "",
-    token = function(audience, force_refresh = FALSE) {
-      expect_equal(audience, "https://api.fabric.microsoft.com/.default")
-      fabric_test_token("FABRIC_TEST_API_TOKEN")
-    },
+    token = token,
     conf = list("spark.sql.shuffle.partitions" = "2"),
     verbose = FALSE
   )
@@ -1241,6 +1234,7 @@ test_that("Fabric pipeline and Spark job definition jobs complete", {
 test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   manifest <- fabric_test_manifest()
   semantic_model <- manifest$items$TestSemanticModel
+  token <- fabric_test_token_provider()
 
   result <- fabric_pbi_dax_query(
     connstr = semantic_model$connection_string,
@@ -1250,13 +1244,7 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
     ),
     tenant_id = "",
     client_id = "",
-    token = function(audience, force_refresh = FALSE) {
-      expect_equal(
-        audience,
-        "https://analysis.windows.net/powerbi/api/.default"
-      )
-      fabric_test_token("FABRIC_TEST_PBI_TOKEN")
-    }
+    token = token
   )
 
   expect_s3_class(result, "tbl_df")
