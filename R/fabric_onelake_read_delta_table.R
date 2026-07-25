@@ -413,7 +413,11 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
   if (!length(snapshot$active)) {
     return(DBI::dbGetQuery(
       con,
-      paste0("SELECT ", paste(projection$empty, collapse = ", "), " WHERE FALSE")
+      paste0(
+        "SELECT ",
+        paste(projection$empty, collapse = ", "),
+        " WHERE FALSE"
+      )
     ))
   }
 
@@ -448,17 +452,24 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
       source_column <- paste0(source_column, "_")
     }
     quoted_source <- as.character(DBI::dbQuoteIdentifier(con, source_column))
-    parquet <- paste(vapply(seq_along(literals), function(index) {
-      paste0(
-        "SELECT *, ",
-        literals[[index]],
-        " AS ",
-        quoted_source,
-        " FROM read_parquet(",
-        literals[[index]],
-        ", hive_partitioning = false)"
-      )
-    }, character(1)), collapse = " UNION ALL BY NAME ")
+    parquet <- paste(
+      vapply(
+        seq_along(literals),
+        function(index) {
+          paste0(
+            "SELECT *, ",
+            literals[[index]],
+            " AS ",
+            quoted_source,
+            " FROM read_parquet(",
+            literals[[index]],
+            ", hive_partitioning = false)"
+          )
+        },
+        character(1)
+      ),
+      collapse = " UNION ALL BY NAME "
+    )
     parquet <- paste0("(", parquet, ")")
   } else {
     parquet <- paste0(
@@ -509,12 +520,17 @@ fabric_delta_schema <- function(metadata) {
       is.na(schema_string) ||
       !nzchar(schema_string)
   ) {
-    rlang::abort("Delta snapshot does not contain a valid metadata schemaString")
+    rlang::abort(
+      "Delta snapshot does not contain a valid metadata schemaString"
+    )
   }
   schema <- tryCatch(
     jsonlite::fromJSON(schema_string, simplifyVector = FALSE),
     error = function(error) {
-      rlang::abort("Could not parse the Delta metadata schemaString", parent = error)
+      rlang::abort(
+        "Could not parse the Delta metadata schemaString",
+        parent = error
+      )
     }
   )
   if (!identical(schema$type, "struct") || !is.list(schema$fields)) {
@@ -525,8 +541,10 @@ fabric_delta_schema <- function(metadata) {
     function(field) as.character(field$name %||% ""),
     character(1)
   )
-  if (any(!nzchar(field_names)) || anyDuplicated(tolower(field_names))) {
-    rlang::abort("Delta metadata schema contains missing or duplicate field names")
+  if (!all(nzchar(field_names)) || anyDuplicated(tolower(field_names))) {
+    rlang::abort(
+      "Delta metadata schema contains missing or duplicate field names"
+    )
   }
   schema$partitionColumns <- unlist(
     metadata$partitionColumns %||% list(),
@@ -579,12 +597,16 @@ fabric_delta_duckdb_type <- function(con, type) {
     if (!length(fields)) {
       rlang::abort("Empty Delta struct fields are not supported")
     }
-    definitions <- vapply(fields, function(field) {
-      paste(
-        as.character(DBI::dbQuoteIdentifier(con, field$name)),
-        fabric_delta_duckdb_type(con, field$type)
-      )
-    }, character(1))
+    definitions <- vapply(
+      fields,
+      function(field) {
+        paste(
+          as.character(DBI::dbQuoteIdentifier(con, field$name)),
+          fabric_delta_duckdb_type(con, field$type)
+        )
+      },
+      character(1)
+    )
     return(paste0("STRUCT(", paste(definitions, collapse = ", "), ")"))
   }
   if (identical(kind, "array")) {
@@ -696,29 +718,33 @@ fabric_delta_read_projection <- function(
   source_column
 ) {
   projection <- fabric_delta_schema_projection(con, schema)
-  vapply(seq_along(projection$names), function(index) {
-    name <- projection$names[[index]]
-    type <- projection$types[[index]]
-    alias <- as.character(DBI::dbQuoteIdentifier(con, name))
-    if (name %in% schema$partitionColumns) {
-      partition_index <- match(name, schema$partitionColumns)
-      expression <- paste0(
-        "delta_partitions.",
-        as.character(DBI::dbQuoteIdentifier(
-          con,
-          paste0("fabric_delta_partition_", partition_index)
-        ))
-      )
-    } else if (name %in% physical) {
-      expression <- paste0(
-        "delta_source.",
-        as.character(DBI::dbQuoteIdentifier(con, name))
-      )
-    } else {
-      expression <- "NULL"
-    }
-    paste0("CAST(", expression, " AS ", type, ") AS ", alias)
-  }, character(1))
+  vapply(
+    seq_along(projection$names),
+    function(index) {
+      name <- projection$names[[index]]
+      type <- projection$types[[index]]
+      alias <- as.character(DBI::dbQuoteIdentifier(con, name))
+      if (name %in% schema$partitionColumns) {
+        partition_index <- match(name, schema$partitionColumns)
+        expression <- paste0(
+          "delta_partitions.",
+          as.character(DBI::dbQuoteIdentifier(
+            con,
+            paste0("fabric_delta_partition_", partition_index)
+          ))
+        )
+      } else if (name %in% physical) {
+        expression <- paste0(
+          "delta_source.",
+          as.character(DBI::dbQuoteIdentifier(con, name))
+        )
+      } else {
+        expression <- "NULL"
+      }
+      paste0("CAST(", expression, " AS ", type, ") AS ", alias)
+    },
+    character(1)
+  )
 }
 
 #' Resolve a Delta snapshot from checkpoints and JSON commits
@@ -967,7 +993,8 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
         checkpoint$metaData$partitionColumns %||% NULL,
         i,
         length(checkpoint$metaData$id)
-      ) %||% list(),
+      ) %||%
+        list(),
       configuration = configuration
     )
   }

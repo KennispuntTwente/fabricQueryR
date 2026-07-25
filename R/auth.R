@@ -225,12 +225,10 @@ fabric_azure_scopes <- function(audience, auth_args) {
 fabric_uses_client_credentials <- function(auth_args) {
   auth_type <- auth_args$auth_type
   identical(auth_type, "client_credentials") ||
-    (
-      is.null(auth_type) &&
-        (!is.null(auth_args$password) || !is.null(auth_args$certificate)) &&
-        is.null(auth_args$username) &&
-        is.null(auth_args$on_behalf_of)
-    )
+    (is.null(auth_type) &&
+      (!is.null(auth_args$password) || !is.null(auth_args$certificate)) &&
+      is.null(auth_args$username) &&
+      is.null(auth_args$on_behalf_of))
 }
 
 #' Adapt a refreshable AzureAuth token

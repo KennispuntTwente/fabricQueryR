@@ -387,12 +387,15 @@ test_that("OneLake upload removes temporary files after transfer failure", {
     c("PUT", "PATCH", "DELETE")
   )
   expect_match(calls[[3L]]$url, "fabricqueryr-upload")
-  expect_false(any(grepl("Files/failure.txt\\?mode=posix", vapply(
-    calls,
-    `[[`,
-    character(1),
-    "url"
-  ))))
+  expect_false(any(grepl(
+    "Files/failure.txt\\?mode=posix",
+    vapply(
+      calls,
+      `[[`,
+      character(1),
+      "url"
+    )
+  )))
 })
 
 test_that("OneLake upload preserves conflict errors and creates nested parents", {

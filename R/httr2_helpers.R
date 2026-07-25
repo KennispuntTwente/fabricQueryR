@@ -127,13 +127,11 @@
   }
   if (
     !is.null(request_timeout) &&
-      (
-        length(request_timeout) != 1L ||
-          is.na(request_timeout) ||
-          !is.numeric(request_timeout) ||
-          !is.finite(request_timeout) ||
-          request_timeout <= 0
-      )
+      (length(request_timeout) != 1L ||
+        is.na(request_timeout) ||
+        !is.numeric(request_timeout) ||
+        !is.finite(request_timeout) ||
+        request_timeout <= 0)
   ) {
     rlang::abort("request_timeout must be NULL or one positive number")
   }

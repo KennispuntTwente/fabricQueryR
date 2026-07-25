@@ -298,12 +298,14 @@ test_that("Delta reader preserves the logical schema for empty tables", {
     c(
       '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
       jsonlite::toJSON(
-        list(metaData = list(
-          id = "table",
-          schemaString = schema,
-          partitionColumns = list(),
-          configuration = list()
-        )),
+        list(
+          metaData = list(
+            id = "table",
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
         auto_unbox = TRUE
       )
     ),
@@ -366,19 +368,23 @@ test_that("Delta reader applies schema projection and log partition values", {
     c(
       '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
       jsonlite::toJSON(
-        list(metaData = list(
-          id = "table",
-          schemaString = schema,
-          partitionColumns = list("category"),
-          configuration = list()
-        )),
+        list(
+          metaData = list(
+            id = "table",
+            schemaString = schema,
+            partitionColumns = list("category"),
+            configuration = list()
+          )
+        ),
         auto_unbox = TRUE
       ),
       jsonlite::toJSON(
-        list(add = list(
-          path = "not-a-hive-partition/part.parquet",
-          partitionValues = list(category = "from-log")
-        )),
+        list(
+          add = list(
+            path = "not-a-hive-partition/part.parquet",
+            partitionValues = list(category = "from-log")
+          )
+        ),
         auto_unbox = TRUE
       )
     ),
@@ -431,12 +437,14 @@ test_that("Delta reader supports a physical filename column", {
     c(
       '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
       jsonlite::toJSON(
-        list(metaData = list(
-          id = "table",
-          schemaString = schema,
-          partitionColumns = list(),
-          configuration = list()
-        )),
+        list(
+          metaData = list(
+            id = "table",
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
         auto_unbox = TRUE
       ),
       '{"add":{"path":"part.parquet","partitionValues":{}}}'
