@@ -90,7 +90,11 @@ are passed unchanged to the driver.</p></dd>
 
 <dt id="arg-database">database<a class="anchor" aria-label="anchor" href="#arg-database"></a></dt>
 <dd><p>Optional catalog/database. An explicit value overrides a
-catalog found in <code>server</code>.</p></dd>
+catalog found in <code>server</code>. <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> and <code>fabric_sql_query()</code>
+infer complete connection strings and discovery records when this argument
+is omitted; bare endpoints retain the legacy <code>"Lakehouse"</code> default.
+<code><a href="fabric_sql_connection_info.html">fabric_sql_connection_info()</a></code> uses <code>NULL</code> by default and therefore
+requires an explicit catalog for bare endpoints.</p></dd>
 
 
 <dt id="arg-target-type">target_type<a class="anchor" aria-label="anchor" href="#arg-target-type"></a></dt>
@@ -144,7 +148,9 @@ default.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments forwarded to <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>.</p></dd>
+<dd><p>Additional arguments forwarded to <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>. The former
+named <code>access_token</code> argument is consumed here as a deprecated alias for
+<code>token</code> and is not forwarded.</p></dd>
 
 </dl></div>
     <div class="section level2">

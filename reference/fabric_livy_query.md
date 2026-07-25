@@ -21,7 +21,8 @@ fabric_livy_query(
   conf = NULL,
   verbose = TRUE,
   poll_interval = 2,
-  timeout = 600
+  timeout = 600,
+  ...
 )
 ```
 
@@ -82,6 +83,12 @@ fabric_livy_query(
 - timeout:
 
   Maximum seconds for each readiness/execution wait.
+
+- ...:
+
+  Compatibility arguments. The former named `access_token` argument is
+  accepted here as a deprecated alias for `token`; all other arguments
+  are rejected.
 
 ## Value
 

@@ -38,7 +38,14 @@ fabric_sql_connect(
 - database:
 
   Optional catalog/database. An explicit value overrides a catalog found
-  in `server`.
+  in `server`. `fabric_sql_connect()` and
+  [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  infer complete connection strings and discovery records when this
+  argument is omitted; bare endpoints retain the legacy `"Lakehouse"`
+  default.
+  [`fabric_sql_connection_info()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connection_info.md)
+  uses `NULL` by default and therefore requires an explicit catalog for
+  bare endpoints.
 
 - target_type:
 
@@ -95,6 +102,8 @@ fabric_sql_connect(
 
   Additional arguments forwarded to
   [`DBI::dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
+  The former named `access_token` argument is consumed here as a
+  deprecated alias for `token` and is not forwarded.
 
 ## Value
 
@@ -104,9 +113,10 @@ A live `DBIConnection`.
 
 Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
 newer. Multiple Active Result Sets (MARS) is disabled because Fabric
-Warehouse does not support it. A catalog is always required so a bare
-server must be paired with `database`; complete portal connection
-strings and enriched discovery records provide it automatically.
+Warehouse does not support it. Complete portal connection strings and
+enriched discovery records provide a catalog automatically. For
+compatibility with fabricQueryR 0.2.1, a bare endpoint still defaults to
+the `"Lakehouse"` catalog; specify `database` for other catalogs.
 
 The SQL audience is `https://database.windows.net/.default`. The
 identity must have permission to connect to and query the target item.

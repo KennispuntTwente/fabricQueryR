@@ -13,15 +13,18 @@
   functions. New code can pass an
   [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
   object, bearer token, or provider through `token`, and can configure
-  any supported AzureAuth flow through `auth_args`. The former
-  `access_token` and `token_provider` arguments are replaced by this
-  single polymorphic `token` argument. With `token = NULL`, AzureAuth
-  reuses its cache before starting interactive login. AzureAuth tokens
-  are expiry-checked and refreshed, and client-credential requests omit
-  delegated-only `offline_access`. A new authentication vignette covers
-  interactive and device login, service principals with secrets or
-  certificates, managed identities, token audiences, cache behavior, and
-  Fabric tenant/workspace/workload permissions.
+  any supported AzureAuth flow through `auth_args`. Functions that
+  exposed `access_token` in version 0.2.1 consume that former name from
+  `...` as a deprecated alias without restoring it to their formal
+  arguments; supplying both names is an error. The single polymorphic
+  `token` argument replaces it for new code. With `token = NULL`,
+  AzureAuth reuses its cache before starting interactive login.
+  AzureAuth tokens are expiry-checked and refreshed, and
+  client-credential requests omit delegated-only `offline_access`. A new
+  authentication vignette covers interactive and device login, service
+  principals with secrets or certificates, managed identities, token
+  audiences, cache behavior, and Fabric tenant/workspace/workload
+  permissions.
 
 - [`fabric_job_run()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
   [`fabric_job_status()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
@@ -134,11 +137,12 @@
   strings, require or discover a catalog, disable unsupported MARS
   behavior, expose read-only intent and connection timeout, classify
   failures, and bind query parameters through DBI without SQL
-  interpolation. The former `"Lakehouse"` default catalog has been
-  removed. The Fabric integration sandbox now provisions mandatory
-  Warehouse and SQL Database fixtures and validates discovery,
-  connection strings, token login, and parameter binding against all
-  three Fabric SQL surfaces.
+  interpolation. Complete connection strings and discovery records infer
+  their catalog; bare endpoints retain the version 0.2.1 `"Lakehouse"`
+  default for compatibility. The Fabric integration sandbox now
+  provisions mandatory Warehouse and SQL Database fixtures and validates
+  discovery, connection strings, token login, and parameter binding
+  against all three Fabric SQL surfaces.
 
 ## fabricQueryR 0.2.1
 

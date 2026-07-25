@@ -28,6 +28,13 @@ fabric_sql_connection_info(
 
   Optional catalog/database. An explicit value overrides a catalog found
   in `server`.
+  [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  and
+  [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  infer complete connection strings and discovery records when this
+  argument is omitted; bare endpoints retain the legacy `"Lakehouse"`
+  default. `fabric_sql_connection_info()` uses `NULL` by default and
+  therefore requires an explicit catalog for bare endpoints.
 
 - target_type:
 

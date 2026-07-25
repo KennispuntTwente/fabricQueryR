@@ -59,7 +59,8 @@ explicit lifecycle control, use <code><a href="fabric_livy_session.html">fabric_
 <span>  conf <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  poll_interval <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  timeout <span class="op">=</span> <span class="fl">600</span></span>
+<span>  timeout <span class="op">=</span> <span class="fl">600</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -118,6 +119,12 @@ token or starts its normal interactive login flow.</p></dd>
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
 <dd><p>Maximum seconds for each readiness/execution wait.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Compatibility arguments. The former named <code>access_token</code>
+argument is accepted here as a deprecated alias for <code>token</code>; all other
+arguments are rejected.</p></dd>
 
 </dl></div>
     <div class="section level2">
