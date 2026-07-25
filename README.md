@@ -1,5 +1,3 @@
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # fabricQueryR
 
 <!-- badges: start -->
@@ -106,7 +104,7 @@ notebook <- fabric_notebooks(workspace)[1, ]
 
 # A discovered item supplies both the server and required database/catalog.
 # You can alternatively provide a complete portal connection string, or a bare
-# endpoint together with `database = "..."`; omit it to use Fabric `master`
+# endpoint together with `database = "..."`; omit it to use Fabric `master`.
 
 # Get connection
 con <- fabric_sql_connect(lakehouse)

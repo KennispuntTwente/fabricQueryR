@@ -19,6 +19,8 @@
   interactive and device login, service principals with secrets or
   certificates, managed identities, token audiences, cache behavior, and
   Fabric tenant/workspace/workload permissions.
+  GraphQL selects the Fabric API audience automatically for package-managed
+  client credentials and retains the delegated GraphQL scope for user flows.
 
 * `fabric_job_run()`, `fabric_job_status()`, `fabric_job_wait()`, and
   `fabric_job_cancel()` add a common on-demand item-job interface. Notebook
@@ -39,8 +41,10 @@
   GUIDs, discovery records, and HTTPS/ABFSS paths; preserve nested and Unicode
   paths; follow ADLS continuation tokens; expose ETags; support byte ranges and
   conditional overwrite; and require explicit confirmation for deletion.
-  Downloads stream atomically to local destinations, and the Delta reader now
-  uses the same authenticated listing/download transport.
+  Downloads stream atomically to local destinations. Uploads stream bounded
+  chunks to temporary sibling files and atomically rename only after a complete
+  flush, so failed overwrites do not truncate existing data. The Delta reader
+  now uses the same authenticated listing/download transport.
 
 * `fabric_graphql_query()` adds authenticated Fabric API for GraphQL execution
   from direct endpoints, workspace/API IDs, or discovered GraphQL API items.
@@ -74,6 +78,9 @@
 
 * `fabric_onelake_read_delta_table()` now preserves the full staged table layout
   and resolves snapshots from both JSON commits and Parquet checkpoints. It
+  projects the selected snapshot's logical schema, fills evolved columns with
+  typed missing values, omits removed physical columns, and reads partition
+  values from Delta add-file metadata instead of directory-name heuristics. It
   rejects unsupported Delta reader protocols, column mapping, and deletion
   vectors before returning data instead of risking incorrect results. The new
   `version` argument supports versioned reads.
@@ -87,11 +94,11 @@
 
 * Authentication and REST behavior are now shared across Fabric surfaces.
   Exported functions accept refreshable provider callbacks through `token` in
-  addition to static tokens and interactive `AzureAuth`; REST calls use bounded retries
-  for throttling/transient failures, honor `Retry-After`, refresh after 401,
-  and include redacted endpoint/request diagnostics. Shared pagination and
-  Fabric long-running-operation polling helpers are covered by deterministic
-  tests.
+  addition to static tokens and interactive `AzureAuth`; REST calls use bounded
+  request timeouts and retries for throttling/transient failures, honor
+  `Retry-After`, refresh after 401, and include redacted endpoint/request
+  diagnostics. Shared pagination and Fabric long-running-operation polling
+  helpers are covered by deterministic tests.
 
 * `fabric_workspaces()`, `fabric_items()`, and `fabric_item()` now provide
   paginated, ambiguity-safe Fabric discovery. Typed helpers enrich Lakehouses,
@@ -102,15 +109,21 @@
 
 * `fabric_sql_connect()` and `fabric_sql_query()` now support Fabric Warehouse,
   Lakehouse SQL analytics endpoints, and Fabric SQL Database explicitly. They
-  parse complete portal connection strings, require or discover a catalog,
-  disable unsupported MARS behavior, expose read-only intent and connection
-  timeout, classify failures, and bind query parameters through DBI without SQL
-  interpolation. Complete connection strings and discovery records infer their
-  catalog; bare endpoints retain the version 0.2.1 `"Lakehouse"` default for
-  compatibility. The Fabric integration sandbox now provisions mandatory
-  Warehouse and SQL Database fixtures and validates discovery, connection
-  strings, token login, and parameter binding against all three Fabric SQL
-  surfaces.
+  parse complete portal connection strings, disable unsupported MARS behavior,
+  expose read-only intent and connection timeout, classify failures, and bind
+  query parameters through DBI without SQL interpolation. Complete connection
+  strings and discovery records infer their catalog. Bare endpoints no longer
+  guess `"Lakehouse"` and can omit the catalog to use Fabric's documented
+  `master` context. Transient opens retry with refreshed tokens and bounded
+  backoff; transient query execution retries only when explicitly marked
+  idempotent and always uses a fresh connection. The Fabric integration sandbox
+  now provisions mandatory Warehouse and SQL Database fixtures and validates
+  discovery, connection strings, token login, and parameter binding against all
+  three Fabric SQL surfaces.
+
+* The real-service sandbox resolves its manifest consistently from the
+  repository root and exercises audience-aware package token providers against
+  Fabric API, GraphQL, Kusto, OneLake, SQL, Livy, and Power BI endpoints.
 
 # fabricQueryR 0.2.1
 
