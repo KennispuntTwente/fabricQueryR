@@ -66,6 +66,14 @@ test_that("SQL targets require a catalog and validate malformed inputs", {
     class = "fabric_sql_database_error"
   )
   expect_error(
+    fabric_sql_connect(
+      "server.datawarehouse.fabric.microsoft.com",
+      token = "token",
+      verbose = FALSE
+    ),
+    class = "fabric_sql_database_error"
+  )
+  expect_error(
     fabric_sql_connection_info("Server=;Database=Sales"),
     "server is empty"
   )

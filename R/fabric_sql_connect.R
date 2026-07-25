@@ -9,9 +9,7 @@
 #' @param database Optional catalog/database. An explicit value overrides a
 #'   catalog found in `server`. [fabric_sql_connect()] and [fabric_sql_query()]
 #'   infer complete connection strings and discovery records when this argument
-#'   is omitted; bare endpoints retain the legacy `"Lakehouse"` default.
-#'   [fabric_sql_connection_info()] uses `NULL` by default and therefore
-#'   requires an explicit catalog for bare endpoints.
+#'   is omitted. Bare endpoints require an explicit catalog.
 #' @param target_type Target kind. `"auto"` infers it from discovery metadata or
 #'   the endpoint hostname.
 #' @param port Optional TCP port. An explicit value overrides a port in
@@ -126,9 +124,8 @@ fabric_sql_connection_info <- function(
 #' Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
 #' newer. Multiple Active Result Sets (MARS) is disabled because Fabric
 #' Warehouse does not support it. Complete portal connection strings and
-#' enriched discovery records provide a catalog automatically. For
-#' compatibility with fabricQueryR 0.2.1, a bare endpoint still defaults to
-#' the `"Lakehouse"` catalog; specify `database` for other catalogs.
+#' enriched discovery records provide a catalog automatically. Bare endpoints
+#' must be paired with `database`; the package never guesses a catalog name.
 #'
 #' The SQL audience is `https://database.windows.net/.default`. The identity
 #' must have permission to connect to and query the target item.
@@ -197,11 +194,6 @@ fabric_sql_connect <- function(
   verbose = TRUE,
   ...
 ) {
-  database <- fabric_sql_database_argument(
-    server = server,
-    database = database,
-    was_missing = missing(database)
-  )
   resolved <- fabric_resolve_token_alias(
     token = token,
     dots = list(...),
@@ -331,11 +323,6 @@ fabric_sql_query <- function(
   verbose = TRUE,
   ...
 ) {
-  database <- fabric_sql_database_argument(
-    server = server,
-    database = database,
-    was_missing = missing(database)
-  )
   resolved <- fabric_resolve_token_alias(
     token = token,
     dots = list(...),
@@ -383,28 +370,6 @@ fabric_sql_query <- function(
     }
   )
   tibble::as_tibble(result)
-}
-
-fabric_sql_database_argument <- function(server, database, was_missing) {
-  if (!isTRUE(was_missing)) {
-    return(database)
-  }
-  if (!is.null(fabric_as_record(server))) {
-    return(NULL)
-  }
-  if (
-    is.character(server) &&
-      length(server) == 1L &&
-      !is.na(server) &&
-      grepl(
-        "(?i)(?:initial\\s+catalog|database|catalog)\\s*=",
-        server,
-        perl = TRUE
-      )
-  ) {
-    return(NULL)
-  }
-  "Lakehouse"
 }
 
 fabric_parse_sql_connection_string <- function(server) {

@@ -39,9 +39,7 @@ are passed unchanged to the driver.}
 \item{database}{Optional catalog/database. An explicit value overrides a
 catalog found in \code{server}. \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and \code{\link[=fabric_sql_query]{fabric_sql_query()}}
 infer complete connection strings and discovery records when this argument
-is omitted; bare endpoints retain the legacy \code{"Lakehouse"} default.
-\code{\link[=fabric_sql_connection_info]{fabric_sql_connection_info()}} uses \code{NULL} by default and therefore
-requires an explicit catalog for bare endpoints.}
+is omitted. Bare endpoints require an explicit catalog.}
 
 \item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
 the endpoint hostname.}
