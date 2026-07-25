@@ -24,6 +24,10 @@
 #' operations are limited to descendants of a managed folder. Deletion also
 #' requires `confirm = TRUE`.
 #'
+#' Uploads are streamed in chunks to a temporary sibling file. The completed
+#' file is atomically renamed to its destination with the requested overwrite
+#' or ETag precondition, so failed transfers do not truncate an existing file.
+#'
 #' @param workspace Workspace name, GUID, discovered workspace, or complete
 #'   OneLake HTTPS/ABFSS path.
 #' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
@@ -55,6 +59,8 @@
 #'   by `fabric_onelake_metadata()` can be passed back unchanged; unquoted
 #'   values are quoted as required by ADLS.
 #' @param source A local file path or raw vector to upload.
+#' @param chunk_size Positive upload chunk size in bytes. Defaults to 8 MiB;
+#'   local files are streamed without being loaded into memory.
 #' @param content_type Optional MIME type stored with an uploaded file.
 #' @param create_parents Logical. Create missing parent directories below the
 #'   Fabric-managed first-level folder.
@@ -232,7 +238,11 @@ fabric_onelake_upload <- function(
   ),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  chunk_size = getOption(
+    "fabricqueryr.onelake.chunk_size",
+    8 * 1024^2
+  )
 ) {
   target <- onelake_resolve_target(
     workspace,
@@ -260,6 +270,7 @@ fabric_onelake_upload <- function(
     source = source,
     overwrite = overwrite,
     if_match = if_match,
+    chunk_size = chunk_size,
     content_type = content_type,
     create_parents = create_parents
   )
@@ -879,10 +890,12 @@ onelake_upload_target <- function(
   source,
   overwrite,
   if_match,
+  chunk_size,
   content_type,
   create_parents
 ) {
   upload <- onelake_upload_source(source)
+  chunk_size <- onelake_upload_chunk_size(chunk_size)
   if (!is.null(content_type)) {
     onelake_scalar(content_type, "content_type")
   }
@@ -897,18 +910,25 @@ onelake_upload_target <- function(
     onelake_create_parents(target, credential)
   }
 
-  headers <- list()
-  if (!overwrite) {
-    headers[["If-None-Match"]] <- "*"
-  }
-  if (!is.null(if_match)) {
-    headers[["If-Match"]] <- onelake_if_match(if_match)
-  }
+  temporary <- onelake_upload_temporary_target(target)
+  committed <- FALSE
+  temporary_created <- FALSE
+  on.exit(
+    if (temporary_created && !committed) {
+      try(
+        onelake_delete_target(temporary, credential),
+        silent = TRUE
+      )
+    },
+    add = TRUE
+  )
+
+  headers <- list(`If-None-Match` = "*")
   if (!is.null(content_type)) {
     headers[["x-ms-content-type"]] <- content_type
   }
   create <- onelake_request(
-    onelake_path_url(target),
+    onelake_path_url(temporary),
     "PUT",
     headers = headers
   ) |>
@@ -917,39 +937,131 @@ onelake_upload_target <- function(
   .httr2_perform(
     create,
     credential = credential,
-    audience = .fabric_audience$storage
+    audience = .fabric_audience$storage,
+    idempotent = FALSE
   )
+  temporary_created <- TRUE
 
-  if (upload$size > 0) {
-    append <- onelake_request(onelake_path_url(target), "PATCH") |>
-      httr2::req_url_query(action = "append", position = 0)
-    append <- if (identical(upload$kind, "raw")) {
-      httr2::req_body_raw(append, upload$value)
-    } else {
-      httr2::req_body_file(append, upload$value)
-    }
+  onelake_upload_chunks(upload, chunk_size, function(bytes, position) {
+    append <- onelake_request(onelake_path_url(temporary), "PATCH") |>
+      httr2::req_url_query(
+        action = "append",
+        position = format(position, scientific = FALSE, trim = TRUE)
+      ) |>
+      httr2::req_body_raw(bytes)
     .httr2_perform(
       append,
       credential = credential,
       audience = .fabric_audience$storage,
       idempotent = FALSE
     )
-  }
+  })
 
-  flush <- onelake_request(onelake_path_url(target), "PATCH") |>
+  flush <- onelake_request(onelake_path_url(temporary), "PATCH") |>
     httr2::req_url_query(
       action = "flush",
       position = format(upload$size, scientific = FALSE, trim = TRUE),
       close = "true"
     ) |>
     httr2::req_body_raw(raw())
-  response <- .httr2_perform(
+  .httr2_perform(
     flush,
     credential = credential,
     audience = .fabric_audience$storage,
     idempotent = FALSE
   )
+
+  rename_headers <- list(
+    `x-ms-rename-source` = onelake_rename_source(temporary)
+  )
+  if (!overwrite) {
+    rename_headers[["If-None-Match"]] <- "*"
+  }
+  if (!is.null(if_match)) {
+    rename_headers[["If-Match"]] <- onelake_if_match(if_match)
+  }
+  rename <- onelake_request(
+    onelake_path_url(target),
+    "PUT",
+    headers = rename_headers
+  ) |>
+    httr2::req_url_query(mode = "posix") |>
+    httr2::req_body_raw(raw())
+  response <- .httr2_perform(
+    rename,
+    credential = credential,
+    audience = .fabric_audience$storage,
+    idempotent = FALSE
+  )
+  committed <- TRUE
   onelake_response_metadata(response, target, content_length = upload$size)
+}
+
+onelake_upload_chunk_size <- function(value) {
+  if (
+    length(value) != 1L ||
+      is.na(value) ||
+      !is.numeric(value) ||
+      !is.finite(value) ||
+      value < 1 ||
+      value > 100 * 1024^2 ||
+      value != floor(value)
+  ) {
+    rlang::abort(
+      "chunk_size must be one whole number between 1 and 104857600 bytes"
+    )
+  }
+  as.numeric(value)
+}
+
+onelake_upload_chunks <- function(upload, chunk_size, callback) {
+  if (upload$size == 0) {
+    return(invisible(TRUE))
+  }
+  if (identical(upload$kind, "raw")) {
+    position <- 0
+    while (position < upload$size) {
+      end <- min(position + chunk_size, upload$size)
+      callback(upload$value[seq.int(position + 1, end)], position)
+      position <- end
+    }
+    return(invisible(TRUE))
+  }
+
+  connection <- file(upload$value, open = "rb")
+  on.exit(close(connection), add = TRUE)
+  position <- 0
+  while (position < upload$size) {
+    bytes <- readBin(
+      connection,
+      what = "raw",
+      n = min(chunk_size, upload$size - position)
+    )
+    if (!length(bytes)) {
+      rlang::abort("Local upload source ended before its reported size")
+    }
+    callback(bytes, position)
+    position <- position + length(bytes)
+  }
+  invisible(TRUE)
+}
+
+onelake_upload_temporary_target <- function(target) {
+  temporary <- target
+  parent <- dirname(target$path)
+  temporary_name <- basename(tempfile(".fabricqueryr-upload-"))
+  temporary$path <- paste(
+    c(if (!identical(parent, ".")) parent, temporary_name),
+    collapse = "/"
+  )
+  temporary
+}
+
+onelake_rename_source <- function(target) {
+  paste0(
+    "/",
+    onelake_encode_path(c(target$workspace, target$item, target$path))
+  )
 }
 
 onelake_delete_target <- function(

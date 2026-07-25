@@ -69,7 +69,8 @@ fabric_onelake_upload(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2)
 )
 
 fabric_onelake_delete(
@@ -141,6 +142,9 @@ values are quoted as required by ADLS.}
 \item{create_parents}{Logical. Create missing parent directories below the
 Fabric-managed first-level folder.}
 
+\item{chunk_size}{Positive upload chunk size in bytes. Defaults to 8 MiB;
+local files are streamed without being loaded into memory.}
+
 \item{confirm}{Must be \code{TRUE} to enable deletion.}
 }
 \value{
@@ -173,6 +177,10 @@ OneLake uses the Storage token audience
 first-level folders (such as \code{Files} and \code{Tables}), so upload and delete
 operations are limited to descendants of a managed folder. Deletion also
 requires \code{confirm = TRUE}.
+
+Uploads are streamed in chunks to a temporary sibling file. The completed
+file is atomically renamed to its destination with the requested overwrite
+or ETag precondition, so failed transfers do not truncate an existing file.
 }
 \examples{
 \dontrun{

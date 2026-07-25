@@ -250,7 +250,7 @@ test_that("OneLake download supports ranges, ETags, and atomic destinations", {
   )
 })
 
-test_that("OneLake upload uses create, append, flush and overwrite preconditions", {
+test_that("OneLake upload chunks to a temporary path and renames atomically", {
   captured <- list()
   httr2::local_mocked_responses(function(req) {
     captured[[length(captured) + 1L]] <<- req
@@ -275,9 +275,10 @@ test_that("OneLake upload uses create, append, flush and overwrite preconditions
 
   expect_equal(
     vapply(captured, function(req) req$method, character(1)),
-    c("PUT", "PATCH", "PATCH")
+    c("PUT", "PATCH", "PATCH", "PUT")
   )
   expect_match(captured[[1L]]$url, "resource=file")
+  expect_match(captured[[1L]]$url, "fabricqueryr-upload")
   expect_equal(captured[[1L]]$headers[["If-None-Match"]], "*")
   expect_equal(
     captured[[1L]]$headers[["x-ms-content-type"]],
@@ -288,6 +289,12 @@ test_that("OneLake upload uses create, append, flush and overwrite preconditions
   expect_identical(captured[[2L]]$body$data, charToRaw("hello"))
   expect_match(captured[[3L]]$url, "action=flush")
   expect_match(captured[[3L]]$url, "position=5")
+  expect_match(captured[[4L]]$url, "Files/file.txt\\?mode=posix")
+  expect_match(
+    captured[[4L]]$headers[["x-ms-rename-source"]],
+    "^/Analytics/Curated.Lakehouse/Files/\\.fabricqueryr-upload-"
+  )
+  expect_equal(captured[[4L]]$headers[["If-None-Match"]], "*")
   expect_equal(uploaded$content_length, 5)
   expect_equal(uploaded$etag, "\"uploaded\"")
 
@@ -301,10 +308,91 @@ test_that("OneLake upload uses create, append, flush and overwrite preconditions
     if_match = "\"old\"",
     token = "token"
   )
-  expect_equal(length(captured), 2L)
-  expect_null(captured[[1L]]$headers[["If-None-Match"]])
-  expect_equal(captured[[1L]]$headers[["If-Match"]], "\"old\"")
+  expect_equal(length(captured), 3L)
+  expect_equal(captured[[1L]]$headers[["If-None-Match"]], "*")
   expect_match(captured[[2L]]$url, "position=0")
+  expect_equal(captured[[3L]]$headers[["If-Match"]], "\"old\"")
+  expect_null(captured[[3L]]$headers[["If-None-Match"]])
+})
+
+test_that("OneLake upload streams local files in configured chunks", {
+  captured <- list()
+  httr2::local_mocked_responses(function(req) {
+    captured[[length(captured) + 1L]] <<- req
+    onelake_test_response(
+      status = if (identical(req$method, "PUT")) 201L else 200L,
+      url = req$url
+    )
+  })
+  source <- tempfile("onelake-upload-")
+  on.exit(unlink(source), add = TRUE)
+  writeBin(charToRaw("abcdefgh"), source)
+
+  fabric_onelake_upload(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/chunked.txt",
+    source = source,
+    chunk_size = 3,
+    token = "token"
+  )
+
+  appends <- captured[vapply(
+    captured,
+    function(req) grepl("action=append", req$url, fixed = TRUE),
+    logical(1)
+  )]
+  expect_length(appends, 3L)
+  expect_match(appends[[1L]]$url, "position=0")
+  expect_match(appends[[2L]]$url, "position=3")
+  expect_match(appends[[3L]]$url, "position=6")
+  expect_identical(
+    lapply(appends, function(req) rawToChar(req$body$data)),
+    list("abc", "def", "gh")
+  )
+  expect_match(captured[[5L]]$url, "position=8")
+  expect_equal(captured[[6L]]$method, "PUT")
+})
+
+test_that("OneLake upload removes temporary files after transfer failure", {
+  calls <- list()
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      calls[[length(calls) + 1L]] <<- req
+      if (grepl("action=append", req$url, fixed = TRUE)) {
+        rlang::abort("simulated append failure")
+      }
+      onelake_test_response(
+        status = if (identical(req$method, "PUT")) 201L else 200L,
+        url = req$url
+      )
+    }
+  )
+
+  expect_error(
+    fabric_onelake_upload(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/failure.txt",
+      source = charToRaw("content"),
+      chunk_size = 3,
+      token = "token"
+    ),
+    "simulated append failure",
+    fixed = TRUE
+  )
+
+  expect_equal(
+    vapply(calls, function(req) req$method, character(1)),
+    c("PUT", "PATCH", "DELETE")
+  )
+  expect_match(calls[[3L]]$url, "fabricqueryr-upload")
+  expect_false(any(grepl("Files/failure.txt\\?mode=posix", vapply(
+    calls,
+    `[[`,
+    character(1),
+    "url"
+  ))))
 })
 
 test_that("OneLake upload preserves conflict errors and creates nested parents", {
@@ -314,7 +402,10 @@ test_that("OneLake upload preserves conflict errors and creates nested parents",
     if (identical(req$method, "HEAD")) {
       return(onelake_test_response(404L, url = req$url))
     }
-    if (identical(req$method, "PUT") && grepl("resource=file", req$url)) {
+    if (
+      identical(req$method, "PUT") &&
+        !is.null(req$headers[["x-ms-rename-source"]])
+    ) {
       return(onelake_test_response(
         412L,
         body = list(error = list(code = "PathAlreadyExists")),
