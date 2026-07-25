@@ -15,6 +15,49 @@
   c("resource", "tenant", "app", "version")
 )
 
+#' Consume the legacy static-token argument from dots
+#'
+#' `access_token` was the public argument name used by `fabric_livy_query()`,
+#' `fabric_sql_connect()`, and `fabric_sql_query()` through version 0.2.1.
+#' Accept its named form through `...` without restoring it to public formals.
+#'
+#' @keywords internal
+#' @noRd
+fabric_resolve_token_alias <- function(
+  token = NULL,
+  dots = list(),
+  caller
+) {
+  dot_names <- names(dots)
+  if (is.null(dot_names)) {
+    dot_names <- rep("", length(dots))
+  }
+  positions <- which(dot_names == "access_token")
+  if (length(positions) > 1L) {
+    rlang::abort(
+      paste0(caller, " received access_token more than once")
+    )
+  }
+  access_token <- if (length(positions)) {
+    dots[[positions]]
+  } else {
+    NULL
+  }
+  if (!is.null(token) && !is.null(access_token)) {
+    rlang::abort(
+      paste0(
+        caller,
+        " received both token and the deprecated access_token alias; ",
+        "supply only token"
+      )
+    )
+  }
+  if (length(positions)) {
+    dots <- dots[-positions]
+  }
+  list(token = token %||% access_token, dots = dots)
+}
+
 #' Create an internal audience-aware credential
 #'
 #' @param tenant_id Entra tenant ID.

@@ -9,8 +9,10 @@
 * Authentication is now consistent across all authenticated exported
   functions. New code can pass an `AzureAuth::AzureToken` object, bearer token,
   or provider through `token`, and can configure any supported AzureAuth flow
-  through `auth_args`. The former `access_token` and `token_provider` arguments
-  are replaced by this single polymorphic `token` argument. With `token = NULL`,
+  through `auth_args`. Functions that exposed `access_token` in version 0.2.1
+  consume that former name from `...` as a deprecated alias without restoring
+  it to their formal arguments; supplying both names is an error. The single
+  polymorphic `token` argument replaces it for new code. With `token = NULL`,
   AzureAuth reuses its cache before starting interactive login. AzureAuth
   tokens are expiry-checked and refreshed, and client-credential requests omit
   delegated-only `offline_access`. A new authentication vignette covers
@@ -103,10 +105,12 @@
   parse complete portal connection strings, require or discover a catalog,
   disable unsupported MARS behavior, expose read-only intent and connection
   timeout, classify failures, and bind query parameters through DBI without SQL
-  interpolation. The former `"Lakehouse"` default catalog has been removed.
-  The Fabric integration sandbox now provisions mandatory Warehouse and SQL
-  Database fixtures and validates discovery, connection strings, token login,
-  and parameter binding against all three Fabric SQL surfaces.
+  interpolation. Complete connection strings and discovery records infer their
+  catalog; bare endpoints retain the version 0.2.1 `"Lakehouse"` default for
+  compatibility. The Fabric integration sandbox now provisions mandatory
+  Warehouse and SQL Database fixtures and validates discovery, connection
+  strings, token login, and parameter binding against all three Fabric SQL
+  surfaces.
 
 # fabricQueryR 0.2.1
 

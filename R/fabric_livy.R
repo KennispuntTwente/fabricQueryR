@@ -338,6 +338,9 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 #' @param verbose Logical. Emit lifecycle progress.
 #' @param poll_interval Polling interval in seconds.
 #' @param timeout Maximum seconds for each readiness/execution wait.
+#' @param ... Compatibility arguments. The former named `access_token`
+#'   argument is accepted here as a deprecated alias for `token`; all other
+#'   arguments are rejected.
 #'
 #' @return An invisible `fabric_livy_statement_result` list.
 #' @details Requests use the
@@ -367,9 +370,19 @@ fabric_livy_query <- function(
   conf = NULL,
   verbose = TRUE,
   poll_interval = 2,
-  timeout = 600
+  timeout = 600,
+  ...
 ) {
   kind <- match.arg(kind)
+  resolved <- fabric_resolve_token_alias(
+    token = token,
+    dots = list(...),
+    caller = "fabric_livy_query()"
+  )
+  token <- resolved$token
+  if (length(resolved$dots)) {
+    rlang::abort("fabric_livy_query() received unused arguments in ...")
+  }
   session <- fabric_livy_session(
     livy_url = livy_url,
     tenant_id = tenant_id,

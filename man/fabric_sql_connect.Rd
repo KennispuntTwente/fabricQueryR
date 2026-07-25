@@ -29,7 +29,11 @@ fabric_sql_connect(
 Warehouse, or SQL Database record returned by a discovery function.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
-catalog found in \code{server}.}
+catalog found in \code{server}. \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and \code{\link[=fabric_sql_query]{fabric_sql_query()}}
+infer complete connection strings and discovery records when this argument
+is omitted; bare endpoints retain the legacy \code{"Lakehouse"} default.
+\code{\link[=fabric_sql_connection_info]{fabric_sql_connection_info()}} uses \code{NULL} by default and therefore
+requires an explicit catalog for bare endpoints.}
 
 \item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
 the endpoint hostname.}
@@ -59,7 +63,9 @@ default.}
 
 \item{verbose}{Logical. Emit connection progress.}
 
-\item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.}
+\item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
+named \code{access_token} argument is consumed here as a deprecated alias for
+\code{token} and is not forwarded.}
 }
 \value{
 A live \code{DBIConnection}.
@@ -71,9 +77,10 @@ endpoint, or SQL Database using a Microsoft Entra access token.
 \details{
 Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
 newer. Multiple Active Result Sets (MARS) is disabled because Fabric
-Warehouse does not support it. A catalog is always required so a bare server
-must be paired with \code{database}; complete portal connection strings and
-enriched discovery records provide it automatically.
+Warehouse does not support it. Complete portal connection strings and
+enriched discovery records provide a catalog automatically. For
+compatibility with fabricQueryR 0.2.1, a bare endpoint still defaults to
+the \code{"Lakehouse"} catalog; specify \code{database} for other catalogs.
 
 The SQL audience is \verb{https://database.windows.net/.default}. The identity
 must have permission to connect to and query the target item.

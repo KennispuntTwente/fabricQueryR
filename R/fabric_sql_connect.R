@@ -7,7 +7,11 @@
 #' @param server A character endpoint/connection string, or one Lakehouse,
 #'   Warehouse, or SQL Database record returned by a discovery function.
 #' @param database Optional catalog/database. An explicit value overrides a
-#'   catalog found in `server`.
+#'   catalog found in `server`. [fabric_sql_connect()] and [fabric_sql_query()]
+#'   infer complete connection strings and discovery records when this argument
+#'   is omitted; bare endpoints retain the legacy `"Lakehouse"` default.
+#'   [fabric_sql_connection_info()] uses `NULL` by default and therefore
+#'   requires an explicit catalog for bare endpoints.
 #' @param target_type Target kind. `"auto"` infers it from discovery metadata or
 #'   the endpoint hostname.
 #' @param port Optional TCP port. An explicit value overrides a port in
@@ -121,9 +125,10 @@ fabric_sql_connection_info <- function(
 #' @details
 #' Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
 #' newer. Multiple Active Result Sets (MARS) is disabled because Fabric
-#' Warehouse does not support it. A catalog is always required so a bare server
-#' must be paired with `database`; complete portal connection strings and
-#' enriched discovery records provide it automatically.
+#' Warehouse does not support it. Complete portal connection strings and
+#' enriched discovery records provide a catalog automatically. For
+#' compatibility with fabricQueryR 0.2.1, a bare endpoint still defaults to
+#' the `"Lakehouse"` catalog; specify `database` for other catalogs.
 #'
 #' The SQL audience is `https://database.windows.net/.default`. The identity
 #' must have permission to connect to and query the target item.
@@ -142,7 +147,9 @@ fabric_sql_connection_info <- function(
 #' @param timeout Login/connect timeout in seconds.
 #' @param read_only Logical. Set ODBC `ApplicationIntent=ReadOnly`.
 #' @param verbose Logical. Emit connection progress.
-#' @param ... Additional arguments forwarded to [DBI::dbConnect()].
+#' @param ... Additional arguments forwarded to [DBI::dbConnect()]. The former
+#'   named `access_token` argument is consumed here as a deprecated alias for
+#'   `token` and is not forwarded.
 #'
 #' @return A live `DBIConnection`.
 #' @export
@@ -190,6 +197,17 @@ fabric_sql_connect <- function(
   verbose = TRUE,
   ...
 ) {
+  database <- fabric_sql_database_argument(
+    server = server,
+    database = database,
+    was_missing = missing(database)
+  )
+  resolved <- fabric_resolve_token_alias(
+    token = token,
+    dots = list(...),
+    caller = "fabric_sql_connect()"
+  )
+  token <- resolved$token
   target_type <- match.arg(target_type)
   if (!is.logical(read_only) || length(read_only) != 1L || is.na(read_only)) {
     rlang::abort("read_only must be TRUE or FALSE")
@@ -246,7 +264,7 @@ fabric_sql_connect <- function(
       attributes = list(azure_token = token)
     ),
     if (isTRUE(read_only)) list(ApplicationIntent = "ReadOnly") else list(),
-    list(...)
+    resolved$dots
   )
   con <- tryCatch(
     do.call(.fabric_sql_db_connect, args),
@@ -313,6 +331,17 @@ fabric_sql_query <- function(
   verbose = TRUE,
   ...
 ) {
+  database <- fabric_sql_database_argument(
+    server = server,
+    database = database,
+    was_missing = missing(database)
+  )
+  resolved <- fabric_resolve_token_alias(
+    token = token,
+    dots = list(...),
+    caller = "fabric_sql_query()"
+  )
+  token <- resolved$token
   fabric_sql_scalar(sql, "sql")
   if (!is.null(params) && !is.list(params)) {
     rlang::abort(
@@ -320,22 +349,27 @@ fabric_sql_query <- function(
       class = "fabric_sql_execution_error"
     )
   }
-  con <- fabric_sql_connect(
-    server = server,
-    database = database,
-    target_type = match.arg(target_type),
-    tenant_id = tenant_id,
-    client_id = client_id,
-    token = token,
-    auth_args = auth_args,
-    odbc_driver = odbc_driver,
-    port = port,
-    encrypt = encrypt,
-    trust_server_certificate = trust_server_certificate,
-    timeout = timeout,
-    read_only = read_only,
-    verbose = verbose,
-    ...
+  con <- do.call(
+    fabric_sql_connect,
+    c(
+      list(
+        server = server,
+        database = database,
+        target_type = match.arg(target_type),
+        tenant_id = tenant_id,
+        client_id = client_id,
+        token = token,
+        auth_args = auth_args,
+        odbc_driver = odbc_driver,
+        port = port,
+        encrypt = encrypt,
+        trust_server_certificate = trust_server_certificate,
+        timeout = timeout,
+        read_only = read_only,
+        verbose = verbose
+      ),
+      resolved$dots
+    )
   )
   on.exit(try(.fabric_sql_db_disconnect(con), silent = TRUE), add = TRUE)
   result <- tryCatch(
@@ -349,6 +383,28 @@ fabric_sql_query <- function(
     }
   )
   tibble::as_tibble(result)
+}
+
+fabric_sql_database_argument <- function(server, database, was_missing) {
+  if (!isTRUE(was_missing)) {
+    return(database)
+  }
+  if (!is.null(fabric_as_record(server))) {
+    return(NULL)
+  }
+  if (
+    is.character(server) &&
+      length(server) == 1L &&
+      !is.na(server) &&
+      grepl(
+        "(?i)(?:initial\\s+catalog|database|catalog)\\s*=",
+        server,
+        perl = TRUE
+      )
+  ) {
+    return(NULL)
+  }
+  "Lakehouse"
 }
 
 fabric_parse_sql_connection_string <- function(server) {

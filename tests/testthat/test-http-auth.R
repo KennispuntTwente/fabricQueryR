@@ -176,15 +176,13 @@ test_that("all exported authenticated functions share auth arguments", {
     "auth_args"
   )
   for (name in authenticated) {
+    args <- names(formals(getExportedValue("fabricQueryR", name)))
     expect_true(
-      all(expected %in% names(formals(getExportedValue("fabricQueryR", name)))),
+      all(expected %in% args),
       info = name
     )
     expect_false(
-      any(
-        c("access_token", "token_provider") %in%
-          names(formals(getExportedValue("fabricQueryR", name)))
-      ),
+      any(c("access_token", "token_provider") %in% args),
       info = name
     )
   }

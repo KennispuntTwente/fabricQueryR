@@ -17,7 +17,8 @@ fabric_livy_query(
   conf = NULL,
   verbose = TRUE,
   poll_interval = 2,
-  timeout = 600
+  timeout = 600,
+  ...
 )
 }
 \arguments{
@@ -49,6 +50,10 @@ token or starts its normal interactive login flow.}
 \item{poll_interval}{Polling interval in seconds.}
 
 \item{timeout}{Maximum seconds for each readiness/execution wait.}
+
+\item{...}{Compatibility arguments. The former named \code{access_token}
+argument is accepted here as a deprecated alias for \code{token}; all other
+arguments are rejected.}
 }
 \value{
 An invisible \code{fabric_livy_statement_result} list.
