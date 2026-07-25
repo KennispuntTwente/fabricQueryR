@@ -41,7 +41,8 @@ fabric_sql_connect(
   in `server`. `fabric_sql_connect()` and
   [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
   infer complete connection strings and discovery records when this
-  argument is omitted. Bare endpoints require an explicit catalog.
+  argument is omitted. A bare Warehouse or SQL analytics endpoint
+  without a catalog connects to Fabric's `master` context.
 
 - target_type:
 
@@ -111,8 +112,8 @@ Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
 newer. Multiple Active Result Sets (MARS) is disabled because Fabric
 Warehouse does not support it. Complete portal connection strings and
 enriched discovery records provide a catalog automatically. Bare
-endpoints must be paired with `database`; the package never guesses a
-catalog name.
+endpoints may omit `database` to use Fabric's `master` context; the
+package never guesses a catalog name.
 
 The SQL audience is `https://database.windows.net/.default`. The
 identity must have permission to connect to and query the target item.

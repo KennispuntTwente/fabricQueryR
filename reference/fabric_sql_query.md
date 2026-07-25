@@ -54,8 +54,9 @@ fabric_sql_query(
   in `server`.
   [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   and `fabric_sql_query()` infer complete connection strings and
-  discovery records when this argument is omitted. Bare endpoints
-  require an explicit catalog.
+  discovery records when this argument is omitted. A bare Warehouse or
+  SQL analytics endpoint without a catalog connects to Fabric's `master`
+  context.
 
 - target_type:
 

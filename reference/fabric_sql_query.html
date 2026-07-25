@@ -92,7 +92,8 @@ are passed unchanged to the driver.</p></dd>
 <dd><p>Optional catalog/database. An explicit value overrides a
 catalog found in <code>server</code>. <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> and <code>fabric_sql_query()</code>
 infer complete connection strings and discovery records when this argument
-is omitted. Bare endpoints require an explicit catalog.</p></dd>
+is omitted. A bare Warehouse or SQL analytics endpoint without a catalog
+connects to Fabric's <code>master</code> context.</p></dd>
 
 
 <dt id="arg-target-type">target_type<a class="anchor" aria-label="anchor" href="#arg-target-type"></a></dt>
