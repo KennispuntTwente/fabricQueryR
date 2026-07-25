@@ -58,21 +58,30 @@ test_that("SQL connection info consumes discovered item rows", {
   )
 })
 
-test_that("SQL targets require a catalog and validate malformed inputs", {
-  expect_error(
-    fabric_sql_connection_info(
-      "server.datawarehouse.fabric.microsoft.com"
-    ),
-    class = "fabric_sql_database_error"
+test_that("SQL targets allow Fabric master and validate malformed inputs", {
+  master <- fabric_sql_connection_info(
+    "server.datawarehouse.fabric.microsoft.com"
   )
-  expect_error(
+  expect_null(master$database)
+  expect_equal(master$target_type, "sql_analytics_endpoint")
+
+  captured <- NULL
+  connection <- structure(list(), class = "test_connection")
+  local_mocked_bindings(
+    .fabric_sql_db_connect = function(...) {
+      captured <<- list(...)
+      connection
+    }
+  )
+  expect_identical(
     fabric_sql_connect(
       "server.datawarehouse.fabric.microsoft.com",
       token = "token",
       verbose = FALSE
     ),
-    class = "fabric_sql_database_error"
+    connection
   )
+  expect_false("database" %in% names(captured))
   expect_error(
     fabric_sql_connection_info("Server=;Database=Sales"),
     "server is empty"

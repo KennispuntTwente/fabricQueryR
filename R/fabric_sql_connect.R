@@ -9,7 +9,8 @@
 #' @param database Optional catalog/database. An explicit value overrides a
 #'   catalog found in `server`. [fabric_sql_connect()] and [fabric_sql_query()]
 #'   infer complete connection strings and discovery records when this argument
-#'   is omitted. Bare endpoints require an explicit catalog.
+#'   is omitted. A bare Warehouse or SQL analytics endpoint without a catalog
+#'   connects to Fabric's `master` context.
 #' @param target_type Target kind. `"auto"` infers it from discovery metadata or
 #'   the endpoint hostname.
 #' @param port Optional TCP port. An explicit value overrides a port in
@@ -79,13 +80,9 @@ fabric_sql_connection_info <- function(
   fabric_sql_scalar(server_value, "server")
   parsed <- fabric_parse_sql_connection_string(server_value)
   database <- database %||% parsed$database
-  if (is.null(database) || !nzchar(trimws(database))) {
+  if (!is.null(database) && !nzchar(trimws(database))) {
     rlang::abort(
-      paste0(
-        "A Fabric SQL catalog is required. Supply database, use a complete ",
-        "connection string containing Initial Catalog/Database, or pass an ",
-        "enriched discovery record"
-      ),
+      "database must be one non-empty character value when supplied",
       class = c("fabric_sql_database_error", "fabric_sql_target_error")
     )
   }
@@ -106,7 +103,7 @@ fabric_sql_connection_info <- function(
   structure(
     list(
       server = parsed$server,
-      database = trimws(database),
+      database = if (is.null(database)) NULL else trimws(database),
       port = as.integer(resolved_port),
       target_type = resolved_type,
       source = if (is.null(record)) "character" else "discovery"
@@ -125,7 +122,8 @@ fabric_sql_connection_info <- function(
 #' newer. Multiple Active Result Sets (MARS) is disabled because Fabric
 #' Warehouse does not support it. Complete portal connection strings and
 #' enriched discovery records provide a catalog automatically. Bare endpoints
-#' must be paired with `database`; the package never guesses a catalog name.
+#' may omit `database` to use Fabric's `master` context; the package never
+#' guesses a catalog name.
 #'
 #' The SQL audience is `https://database.windows.net/.default`. The identity
 #' must have permission to connect to and query the target item.
@@ -239,15 +237,16 @@ fabric_sql_connect <- function(
     }
   )
 
-  inform(
-    verbose,
+  message <- if (is.null(info$database)) {
+    "Opening ODBC connection to {info$server} / Fabric master context"
+  } else {
     "Opening ODBC connection to {info$server} / DB '{info$database}'"
-  )
+  }
+  inform(verbose, message)
   args <- c(
     list(
       driver = odbc_driver,
       server = info$server,
-      database = info$database,
       Port = info$port,
       Encrypt = encrypt,
       TrustServerCertificate = trust_server_certificate,
@@ -255,6 +254,7 @@ fabric_sql_connect <- function(
       timeout = as.integer(timeout),
       attributes = list(azure_token = token)
     ),
+    if (!is.null(info$database)) list(database = info$database) else list(),
     if (isTRUE(read_only)) list(ApplicationIntent = "ReadOnly") else list(),
     resolved$dots
   )
