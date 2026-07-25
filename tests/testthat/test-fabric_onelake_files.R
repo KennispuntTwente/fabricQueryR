@@ -104,7 +104,7 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
           ),
           list(
             name = "Curated.Lakehouse/Files/b",
-            isDirectory = TRUE,
+            isDirectory = "true",
             contentLength = "0"
           )
         )

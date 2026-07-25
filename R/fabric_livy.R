@@ -110,6 +110,17 @@ fabric_livy_payload <- function(...) {
   Filter(Negate(is.null), list(...))
 }
 
+fabric_livy_json_payload <- function(payload) {
+  array_fields <- intersect(
+    names(payload),
+    c("args", "jars", "files", "pyFiles", "archives")
+  )
+  for (field in array_fields) {
+    payload[[field]] <- I(payload[[field]])
+  }
+  payload
+}
+
 fabric_livy_credential <- function(
   tenant_id,
   client_id,
@@ -134,7 +145,10 @@ fabric_livy_json <- function(
   req <- httr2::request(url) |>
     httr2::req_method(method)
   if (!is.null(payload)) {
-    req <- httr2::req_body_json(req, payload)
+    req <- httr2::req_body_json(
+      req,
+      fabric_livy_json_payload(payload)
+    )
   }
   .httr2_json(
     req,
@@ -155,7 +169,10 @@ fabric_livy_ok <- function(
   req <- httr2::request(url) |>
     httr2::req_method(method)
   if (!is.null(payload)) {
-    req <- httr2::req_body_json(req, payload)
+    req <- httr2::req_body_json(
+      req,
+      fabric_livy_json_payload(payload)
+    )
   }
   .httr2_ok(
     req,

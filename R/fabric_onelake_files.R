@@ -672,7 +672,7 @@ onelake_list_tibble <- function(records, target) {
     data.frame(
       path = relative,
       name = if (nzchar(relative)) basename(relative) else "",
-      is_directory = isTRUE(record$isDirectory),
+      is_directory = onelake_directory_flag(record$isDirectory),
       content_length = suppressWarnings(as.numeric(
         record$contentLength %||% NA_real_
       )),
@@ -685,6 +685,16 @@ onelake_list_tibble <- function(records, target) {
     )
   })
   tibble::as_tibble(do.call(rbind, rows))
+}
+
+onelake_directory_flag <- function(value) {
+  if (isTRUE(value)) {
+    return(TRUE)
+  }
+  is.character(value) &&
+    length(value) == 1L &&
+    !is.na(value) &&
+    identical(tolower(value), "true")
 }
 
 onelake_metadata_target <- function(

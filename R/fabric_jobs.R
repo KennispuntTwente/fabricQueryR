@@ -446,6 +446,8 @@ print.fabric_job_instance <- function(x, ...) {
       auto_unbox = TRUE,
       null = "null"
     )
+  } else if (toupper(method) %in% c("POST", "PUT", "PATCH")) {
+    request <- httr2::req_body_raw(request, raw())
   }
   response <- .httr2_perform(
     request,
@@ -1072,7 +1074,7 @@ print.fabric_job_instance <- function(x, ...) {
       "Fabric parameter names must be unique ignoring case"
     )
   }
-  records
+  unname(records)
 }
 
 .fabric_job_parameter <- function(name, value, type) {

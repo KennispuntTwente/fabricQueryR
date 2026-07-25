@@ -453,6 +453,38 @@ test_that("batch jobs expose success logs and structured results", {
   )
 })
 
+test_that("Livy vector fields remain JSON arrays when length one", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      request <<- req
+      list(id = "batch-1", state = "starting")
+    }
+  )
+
+  fabric_livy_json(
+    "POST",
+    "https://example.test/batches",
+    livy_test_credential(),
+    payload = list(
+      file = "fixture.py",
+      args = "success",
+      jars = "dependency.jar"
+    )
+  )
+
+  expect_s3_class(request$body$data$args, "AsIs")
+  expect_s3_class(request$body$data$jars, "AsIs")
+  expect_false(inherits(request$body$data$file, "AsIs"))
+  expect_equal(
+    as.character(jsonlite::toJSON(
+      request$body$data,
+      auto_unbox = request$body$params$auto_unbox
+    )),
+    '{"file":"fixture.py","args":["success"],"jars":["dependency.jar"]}'
+  )
+})
+
 test_that("batch failures and cancellation preserve service details", {
   mode <- "failure"
   local_mocked_bindings(

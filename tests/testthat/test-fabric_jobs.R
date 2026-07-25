@@ -127,6 +127,7 @@ test_that("notebook run builds typed release payload and job handle", {
     )),
     c("Integer", "Number", "Boolean", "Text", "DateTime", "Guid")
   )
+  expect_null(names(call$payload$parameters))
   expect_equal(call$payload$parameters[[5L]]$value, "2026-07-24T00:00:00Z")
 })
 
@@ -161,7 +162,7 @@ test_that("notebook run preserves configured compute without overrides", {
   expect_null(payload)
 })
 
-test_that("pipeline run uses current core path without an empty body", {
+test_that("pipeline run uses current core path without a JSON payload", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -204,6 +205,27 @@ test_that("pipeline run uses current core path without an empty body", {
   )
   expect_null(call$payload)
   expect_false(call$idempotent)
+})
+
+test_that("job POST requests carry an explicit zero-length body", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      request <<- req
+      httr2::response(status_code = 202L)
+    }
+  )
+
+  .fabric_job_request(
+    "POST",
+    "https://api.fabric.test/v1/jobs",
+    fabric_credential(access_token = "test-token"),
+    payload = NULL,
+    parse_json = FALSE
+  )
+
+  expect_identical(request$body$type, "raw")
+  expect_length(request$body$data, 0L)
 })
 
 test_that("Spark job definition execution data uses its typed route", {
