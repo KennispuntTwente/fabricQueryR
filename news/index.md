@@ -2,9 +2,10 @@
 
 ## fabricQueryR (development version)
 
-- Delta reader errors now prioritize known unsupported features, Fabric
-  job waits tolerate notebook status propagation for their full timeout,
-  and live Livy integration coverage no longer assumes optional driver
+- Delta reader errors now prioritize known unsupported features. Fabric
+  job status falls back to the Core scheduler while notebook-specific
+  state is unavailable, and timeouts now report the last observed state.
+  Live Spark coverage verifies durable Delta effects instead of optional
   diagnostics.
 
 - Authentication is now consistent across all authenticated exported
