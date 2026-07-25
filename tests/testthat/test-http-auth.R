@@ -251,6 +251,35 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
+test_that("shared HTTP requests have bounded overridable timeouts", {
+  captured <- list()
+  httr2::local_mocked_responses(function(req) {
+    captured[[length(captured) + 1L]] <<- req
+    json_response(url = req$url)
+  })
+
+  .httr2_perform(
+    httr2::request("https://example.test/default"),
+    request_timeout = 45
+  )
+  .httr2_perform(
+    httr2::request("https://example.test/explicit") |>
+      httr2::req_timeout(12),
+    request_timeout = 45
+  )
+
+  expect_equal(captured[[1L]]$options$timeout_ms, 45000)
+  expect_equal(captured[[2L]]$options$timeout_ms, 12000)
+  expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/invalid"),
+      request_timeout = 0
+    ),
+    "request_timeout",
+    fixed = TRUE
+  )
+})
+
 test_that("POST requests retry only with an explicit idempotency decision", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

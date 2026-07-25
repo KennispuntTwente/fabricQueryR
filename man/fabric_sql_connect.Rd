@@ -21,6 +21,8 @@ fabric_sql_connect(
   timeout = 30L,
   read_only = FALSE,
   verbose = TRUE,
+  max_tries = 3L,
+  retry_delay = 5,
   ...
 )
 }
@@ -62,6 +64,14 @@ default.}
 
 \item{verbose}{Logical. Emit connection progress.}
 
+\item{max_tries}{Positive maximum number of attempts for transient Fabric SQL
+failures. Connections are always safe to retry. In
+\code{fabric_sql_query()}, execution failures are retried only when
+\code{idempotent = TRUE}.}
+
+\item{retry_delay}{Non-negative initial retry delay in seconds. Subsequent
+delays use exponential backoff with jitter, capped at 60 seconds.}
+
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded.}
@@ -80,6 +90,9 @@ Warehouse does not support it. Complete portal connection strings and
 enriched discovery records provide a catalog automatically. Bare endpoints
 may omit \code{database} to use Fabric's \code{master} context; the package never
 guesses a catalog name.
+
+Transient Fabric connection failures are retried on fresh connections with
+refreshed tokens and bounded exponential backoff.
 
 The SQL audience is \verb{https://database.windows.net/.default}. The identity
 must have permission to connect to and query the target item.

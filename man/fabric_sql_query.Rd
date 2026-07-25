@@ -23,6 +23,9 @@ fabric_sql_query(
   timeout = 30L,
   read_only = FALSE,
   verbose = TRUE,
+  max_tries = 3L,
+  retry_delay = 5,
+  idempotent = FALSE,
   ...
 )
 }
@@ -70,6 +73,17 @@ default.}
 
 \item{verbose}{Logical. Emit connection progress.}
 
+\item{max_tries}{Positive maximum number of attempts for transient Fabric SQL
+failures. Connections are always safe to retry. In
+\code{fabric_sql_query()}, execution failures are retried only when
+\code{idempotent = TRUE}.}
+
+\item{retry_delay}{Non-negative initial retry delay in seconds. Subsequent
+delays use exponential backoff with jitter, capped at 60 seconds.}
+
+\item{idempotent}{Logical. Whether the SQL statement may safely rerun on a
+fresh connection after a transient execution failure.}
+
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded.}
@@ -80,7 +94,9 @@ A tibble containing the result.
 \description{
 Opens a connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}}, executes \code{sql}, and closes
 the connection. Values in \code{params} are bound by DBI; they are never
-interpolated into the SQL string.
+interpolated into the SQL string. Transient connection failures are safe to
+retry. Set \code{idempotent = TRUE} only when the complete SQL statement may be
+rerun after an ambiguous transient execution failure.
 }
 \examples{
 \dontrun{

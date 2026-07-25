@@ -116,6 +116,7 @@
   accepted_status = integer(),
   download_path = NULL,
   max_tries = 4L,
+  request_timeout = getOption("fabricqueryr.http.timeout", 300),
   .sleep = Sys.sleep,
   .runif = stats::runif,
   .now = Sys.time
@@ -123,6 +124,24 @@
   max_tries <- as.integer(max_tries)
   if (is.na(max_tries) || max_tries < 1L) {
     rlang::abort("max_tries must be at least 1")
+  }
+  if (
+    !is.null(request_timeout) &&
+      (
+        length(request_timeout) != 1L ||
+          is.na(request_timeout) ||
+          !is.numeric(request_timeout) ||
+          !is.finite(request_timeout) ||
+          request_timeout <= 0
+      )
+  ) {
+    rlang::abort("request_timeout must be NULL or one positive number")
+  }
+  if (
+    !is.null(request_timeout) &&
+      is.null(req$options$timeout_ms)
+  ) {
+    req <- httr2::req_timeout(req, request_timeout)
   }
   can_retry <- .httr2_is_idempotent(req, idempotent)
   refresh_attempted <- FALSE

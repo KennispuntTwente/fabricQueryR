@@ -125,6 +125,42 @@ test_that("SQL connections enforce Fabric ODBC options", {
   expect_equal(captured$attributes$azure_token, "sql-token")
 })
 
+test_that("SQL connections retry transient Fabric failures with fresh tokens", {
+  attempts <- 0L
+  refreshes <- logical()
+  delays <- numeric()
+  connection <- structure(list(), class = "test_connection")
+  local_mocked_bindings(
+    .fabric_sql_db_connect = function(...) {
+      attempts <<- attempts + 1L
+      if (attempts < 3L) {
+        rlang::abort("Error 6008: Workspace is temporarily unavailable")
+      }
+      connection
+    },
+    .fabric_sql_sleep = function(delay) {
+      delays <<- c(delays, delay)
+    },
+    .fabric_sql_runif = function(...) 1
+  )
+
+  result <- fabric_sql_connect(
+    "server.datawarehouse.fabric.microsoft.com",
+    token = function(audience, force_refresh = FALSE) {
+      refreshes <<- c(refreshes, force_refresh)
+      "token"
+    },
+    max_tries = 3L,
+    retry_delay = 5,
+    verbose = FALSE
+  )
+
+  expect_identical(result, connection)
+  expect_equal(attempts, 3L)
+  expect_identical(refreshes, c(FALSE, TRUE, TRUE))
+  expect_equal(delays, c(5, 10))
+})
+
 test_that("fabric_sql_query passes bound parameters unchanged", {
   connection <- structure(list(), class = "test_connection")
   captured <- NULL
@@ -159,6 +195,104 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   expect_identical(captured$params, values)
   expect_identical(captured$sql, "SELECT ?, ?, ?, ?")
   expect_true(disconnected)
+})
+
+test_that("SQL query retries require idempotency and use fresh connections", {
+  connections <- 0L
+  queries <- 0L
+  disconnected <- integer()
+  delays <- numeric()
+  local_mocked_bindings(
+    fabric_sql_connect = function(...) {
+      connections <<- connections + 1L
+      structure(list(id = connections), class = "test_connection")
+    },
+    .fabric_sql_db_get_query = function(con, sql, params = NULL) {
+      queries <<- queries + 1L
+      if (queries == 1L) {
+        rlang::abort("Error 24804: operation interrupted by a system update")
+      }
+      data.frame(connection_id = con$id)
+    },
+    .fabric_sql_db_disconnect = function(con) {
+      disconnected <<- c(disconnected, con$id)
+      invisible(TRUE)
+    },
+    .fabric_sql_sleep = function(delay) {
+      delays <<- c(delays, delay)
+    },
+    .fabric_sql_runif = function(...) 1
+  )
+
+  result <- fabric_sql_query(
+    "server",
+    "SELECT 1",
+    token = "token",
+    idempotent = TRUE,
+    max_tries = 3L,
+    retry_delay = 5,
+    verbose = FALSE
+  )
+
+  expect_equal(result$connection_id, 2L)
+  expect_equal(connections, 2L)
+  expect_identical(disconnected, c(1L, 2L))
+  expect_equal(delays, 5)
+
+  connections <- 0L
+  queries <- 0L
+  disconnected <- integer()
+  delays <- numeric()
+  expect_error(
+    fabric_sql_query(
+      "server",
+      "UPDATE dbo.items SET value = 1",
+      token = "token",
+      max_tries = 3L,
+      retry_delay = 5,
+      verbose = FALSE
+    ),
+    class = "fabric_sql_execution_error"
+  )
+  expect_equal(connections, 1L)
+  expect_equal(queries, 1L)
+  expect_identical(disconnected, 1L)
+  expect_length(delays, 0L)
+})
+
+test_that("SQL retry controls reject invalid values", {
+  expect_error(
+    fabric_sql_connect(
+      "server",
+      token = "token",
+      max_tries = 0,
+      verbose = FALSE
+    ),
+    "max_tries",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_sql_query(
+      "server",
+      "SELECT 1",
+      token = "token",
+      retry_delay = -1,
+      verbose = FALSE
+    ),
+    "retry_delay",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_sql_query(
+      "server",
+      "SELECT 1",
+      token = "token",
+      idempotent = NA,
+      verbose = FALSE
+    ),
+    "idempotent",
+    fixed = TRUE
+  )
 })
 
 test_that("SQL failures have actionable condition classes", {

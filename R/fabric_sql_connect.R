@@ -125,6 +125,9 @@ fabric_sql_connection_info <- function(
 #' may omit `database` to use Fabric's `master` context; the package never
 #' guesses a catalog name.
 #'
+#' Transient Fabric connection failures are retried on fresh connections with
+#' refreshed tokens and bounded exponential backoff.
+#'
 #' The SQL audience is `https://database.windows.net/.default`. The identity
 #' must have permission to connect to and query the target item.
 #'
@@ -141,6 +144,12 @@ fabric_sql_connection_info <- function(
 #' @param encrypt,trust_server_certificate ODBC encryption flags.
 #' @param timeout Login/connect timeout in seconds.
 #' @param read_only Logical. Set ODBC `ApplicationIntent=ReadOnly`.
+#' @param max_tries Positive maximum number of attempts for transient Fabric SQL
+#'   failures. Connections are always safe to retry. In
+#'   `fabric_sql_query()`, execution failures are retried only when
+#'   `idempotent = TRUE`.
+#' @param retry_delay Non-negative initial retry delay in seconds. Subsequent
+#'   delays use exponential backoff with jitter, capped at 60 seconds.
 #' @param verbose Logical. Emit connection progress.
 #' @param ... Additional arguments forwarded to [DBI::dbConnect()]. The former
 #'   named `access_token` argument is consumed here as a deprecated alias for
@@ -190,6 +199,8 @@ fabric_sql_connect <- function(
   timeout = 30L,
   read_only = FALSE,
   verbose = TRUE,
+  max_tries = 3L,
+  retry_delay = 5,
   ...
 ) {
   resolved <- fabric_resolve_token_alias(
@@ -203,6 +214,7 @@ fabric_sql_connect <- function(
     rlang::abort("read_only must be TRUE or FALSE")
   }
   fabric_sql_port(timeout, "timeout", allow_zero = TRUE)
+  fabric_sql_retry_settings(max_tries, retry_delay)
   rlang::check_installed(
     c("DBI", "odbc"),
     reason = "to open a Fabric SQL connection"
@@ -226,17 +238,6 @@ fabric_sql_connect <- function(
     token = token,
     auth_args = auth_args
   )
-  token <- tryCatch(
-    fabric_get_token(credential, .fabric_audience$sql),
-    error = function(error) {
-      rlang::abort(
-        "Fabric SQL authentication failed while acquiring an access token",
-        class = "fabric_sql_authentication_error",
-        parent = error
-      )
-    }
-  )
-
   message <- if (is.null(info$database)) {
     "Opening ODBC connection to {info$server} / Fabric master context"
   } else {
@@ -251,32 +252,69 @@ fabric_sql_connect <- function(
       Encrypt = encrypt,
       TrustServerCertificate = trust_server_certificate,
       MARS_Connection = "no",
-      timeout = as.integer(timeout),
-      attributes = list(azure_token = token)
+      timeout = as.integer(timeout)
     ),
     if (!is.null(info$database)) list(database = info$database) else list(),
     if (isTRUE(read_only)) list(ApplicationIntent = "ReadOnly") else list(),
     resolved$dots
   )
-  con <- tryCatch(
-    do.call(.fabric_sql_db_connect, args),
-    error = fabric_sql_connection_error
-  )
-  inform(verbose, "Connected", type = "success")
-  con
+  for (attempt in seq_len(as.integer(max_tries))) {
+    token_value <- tryCatch(
+      fabric_get_token(
+        credential,
+        .fabric_audience$sql,
+        force_refresh = attempt > 1L
+      ),
+      error = function(error) {
+        rlang::abort(
+          "Fabric SQL authentication failed while acquiring an access token",
+          class = "fabric_sql_authentication_error",
+          parent = error
+        )
+      }
+    )
+    connection <- tryCatch(
+      do.call(
+        .fabric_sql_db_connect,
+        c(args, list(attributes = list(azure_token = token_value)))
+      ),
+      error = function(error) error
+    )
+    if (!inherits(connection, "error")) {
+      inform(verbose, "Connected", type = "success")
+      return(connection)
+    }
+    if (
+      attempt == as.integer(max_tries) ||
+        !fabric_sql_transient_error(connection)
+    ) {
+      fabric_sql_connection_error(connection)
+    }
+    delay <- fabric_sql_retry_delay(attempt, retry_delay)
+    inform(
+      verbose,
+      "Transient SQL connection failure; retrying in {delay} seconds"
+    )
+    .fabric_sql_sleep(delay)
+  }
+  rlang::abort("Fabric SQL connection retry loop ended unexpectedly")
 }
 
 #' Run a parameterized query against Microsoft Fabric SQL
 #'
 #' Opens a connection with [fabric_sql_connect()], executes `sql`, and closes
 #' the connection. Values in `params` are bound by DBI; they are never
-#' interpolated into the SQL string.
+#' interpolated into the SQL string. Transient connection failures are safe to
+#' retry. Set `idempotent = TRUE` only when the complete SQL statement may be
+#' rerun after an ambiguous transient execution failure.
 #'
 #' @inheritParams fabric_sql_connect
 #' @param sql One SQL statement.
 #' @param params Optional list of values for DBI parameter placeholders (`?`).
 #'   Strings, dates, missing values, and values containing SQL metacharacters
 #'   are passed unchanged to the driver.
+#' @param idempotent Logical. Whether the SQL statement may safely rerun on a
+#'   fresh connection after a transient execution failure.
 #'
 #' @return A tibble containing the result.
 #' @export
@@ -321,6 +359,9 @@ fabric_sql_query <- function(
   timeout = 30L,
   read_only = FALSE,
   verbose = TRUE,
+  max_tries = 3L,
+  retry_delay = 5,
+  idempotent = FALSE,
   ...
 ) {
   resolved <- fabric_resolve_token_alias(
@@ -336,40 +377,131 @@ fabric_sql_query <- function(
       class = "fabric_sql_execution_error"
     )
   }
-  con <- do.call(
-    fabric_sql_connect,
-    c(
-      list(
-        server = server,
-        database = database,
-        target_type = match.arg(target_type),
-        tenant_id = tenant_id,
-        client_id = client_id,
-        token = token,
-        auth_args = auth_args,
-        odbc_driver = odbc_driver,
-        port = port,
-        encrypt = encrypt,
-        trust_server_certificate = trust_server_certificate,
-        timeout = timeout,
-        read_only = read_only,
-        verbose = verbose
-      ),
-      resolved$dots
-    )
+  if (
+    !is.logical(idempotent) ||
+      length(idempotent) != 1L ||
+      is.na(idempotent)
+  ) {
+    rlang::abort("idempotent must be TRUE or FALSE")
+  }
+  fabric_sql_retry_settings(max_tries, retry_delay)
+  connect_args <- c(
+    list(
+      server = server,
+      database = database,
+      target_type = match.arg(target_type),
+      tenant_id = tenant_id,
+      client_id = client_id,
+      token = token,
+      auth_args = auth_args,
+      odbc_driver = odbc_driver,
+      port = port,
+      encrypt = encrypt,
+      trust_server_certificate = trust_server_certificate,
+      timeout = timeout,
+      read_only = read_only,
+      verbose = verbose,
+      max_tries = 1L,
+      retry_delay = retry_delay
+    ),
+    resolved$dots
   )
-  on.exit(try(.fabric_sql_db_disconnect(con), silent = TRUE), add = TRUE)
-  result <- tryCatch(
-    .fabric_sql_db_get_query(con, sql, params = params),
-    error = function(error) {
+  for (attempt in seq_len(as.integer(max_tries))) {
+    con <- NULL
+    outcome <- tryCatch(
+      {
+        con <- do.call(fabric_sql_connect, connect_args)
+        list(
+          value = .fabric_sql_db_get_query(con, sql, params = params),
+          error = NULL
+        )
+      },
+      error = function(error) list(value = NULL, error = error),
+      finally = {
+        if (!is.null(con)) {
+          try(.fabric_sql_db_disconnect(con), silent = TRUE)
+        }
+      }
+    )
+    if (is.null(outcome$error)) {
+      return(tibble::as_tibble(outcome$value))
+    }
+    connection_failure <- inherits(
+      outcome$error,
+      "fabric_sql_connection_error"
+    )
+    retryable <- fabric_sql_transient_error(outcome$error) &&
+      (connection_failure || isTRUE(idempotent))
+    if (attempt == as.integer(max_tries) || !retryable) {
+      if (connection_failure) {
+        rlang::cnd_signal(outcome$error)
+      }
       rlang::abort(
         "Fabric SQL query execution failed",
         class = "fabric_sql_execution_error",
-        parent = error
+        parent = outcome$error
       )
     }
+    delay <- fabric_sql_retry_delay(attempt, retry_delay)
+    inform(
+      verbose,
+      "Transient SQL query failure; retrying on a new connection in {delay} seconds"
+    )
+    .fabric_sql_sleep(delay)
+  }
+  rlang::abort("Fabric SQL query retry loop ended unexpectedly")
+}
+
+fabric_sql_retry_settings <- function(max_tries, retry_delay) {
+  if (
+    length(max_tries) != 1L ||
+      is.na(max_tries) ||
+      !is.numeric(max_tries) ||
+      !is.finite(max_tries) ||
+      max_tries < 1 ||
+      max_tries != floor(max_tries)
+  ) {
+    rlang::abort("max_tries must be one positive integer")
+  }
+  if (
+    length(retry_delay) != 1L ||
+      is.na(retry_delay) ||
+      !is.numeric(retry_delay) ||
+      !is.finite(retry_delay) ||
+      retry_delay < 0
+  ) {
+    rlang::abort("retry_delay must be one non-negative number")
+  }
+  invisible(TRUE)
+}
+
+fabric_sql_retry_delay <- function(attempt, retry_delay) {
+  base <- min(60, retry_delay * 2^(attempt - 1L))
+  base * .fabric_sql_runif(1L, 0.8, 1.2)
+}
+
+fabric_sql_transient_error <- function(error) {
+  messages <- character()
+  current <- error
+  while (inherits(current, "condition")) {
+    messages <- c(messages, conditionMessage(current))
+    current <- current$parent %||% NULL
+  }
+  grepl(
+    paste0(
+      "(?i)(",
+      "\\b(?:24804|6005|6008|40197|40501|40613|49918|49919|49920|",
+      "10053|10054|10060|11001)\\b|",
+      "temporar(?:y|ily)|timed?\\s*out|timeout|",
+      "transport-level|communication link failure|",
+      "connection.{0,30}(?:reset|closed|broken|forcibly)|",
+      "network-related|service unavailable|server is not currently available|",
+      "shutdown is in progress|system update",
+      ")"
+    ),
+    paste(messages, collapse = "\n"),
+    perl = TRUE
   )
-  tibble::as_tibble(result)
 }
 
 fabric_parse_sql_connection_string <- function(server) {
@@ -522,4 +654,12 @@ fabric_sql_connection_error <- function(error) {
 
 .fabric_sql_db_disconnect <- function(con) {
   DBI::dbDisconnect(con)
+}
+
+.fabric_sql_sleep <- function(delay) {
+  Sys.sleep(delay)
+}
+
+.fabric_sql_runif <- function(n, min, max) {
+  stats::runif(n, min, max)
 }
