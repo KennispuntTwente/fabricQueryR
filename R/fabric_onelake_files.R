@@ -38,9 +38,11 @@
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Entra application ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
-#' @param access_token Optional Storage-audience bearer token.
-#' @param token_provider Optional function returning a Storage-audience token.
-#'   It may accept `audience` and `force_refresh`.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param dfs_base OneLake DFS endpoint. Regional and workspace-private DFS
 #'   endpoints are supported.
 #' @param range Optional inclusive zero-based byte range. Supply one value for
@@ -110,8 +112,8 @@ fabric_onelake_list <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
@@ -122,10 +124,10 @@ fabric_onelake_list <- function(
     dfs_base
   )
   credential <- fabric_credential(
-    tenant_id,
-    client_id,
-    access_token,
-    token_provider
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
   )
   onelake_list_target(
     target,
@@ -147,8 +149,8 @@ fabric_onelake_metadata <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
@@ -159,10 +161,10 @@ fabric_onelake_metadata <- function(
     dfs_base
   )
   credential <- fabric_credential(
-    tenant_id,
-    client_id,
-    access_token,
-    token_provider
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
   )
   onelake_metadata_target(target, credential)
 }
@@ -183,8 +185,8 @@ fabric_onelake_download <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
@@ -196,10 +198,10 @@ fabric_onelake_download <- function(
   )
   onelake_require_file_path(target, "download")
   credential <- fabric_credential(
-    tenant_id,
-    client_id,
-    access_token,
-    token_provider
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
   )
   onelake_download_target(
     target,
@@ -228,8 +230,8 @@ fabric_onelake_upload <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
@@ -247,10 +249,10 @@ fabric_onelake_upload <- function(
     rlang::abort("if_match requires overwrite = TRUE")
   }
   credential <- fabric_credential(
-    tenant_id,
-    client_id,
-    access_token,
-    token_provider
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
   )
   onelake_upload_target(
     target,
@@ -278,8 +280,8 @@ fabric_onelake_delete <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   target <- onelake_resolve_target(
@@ -296,10 +298,10 @@ fabric_onelake_delete <- function(
     )
   }
   credential <- fabric_credential(
-    tenant_id,
-    client_id,
-    access_token,
-    token_provider
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
   )
   onelake_delete_target(
     target,

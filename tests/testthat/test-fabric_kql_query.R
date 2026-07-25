@@ -138,7 +138,7 @@ test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {
     parameters = list(input = "not interpolated ' ; --"),
     request_properties = list(servertimeout = "30s"),
     timeout = 17,
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       audiences <<- c(audiences, audience)
       "kusto-token"
     }
@@ -326,7 +326,7 @@ test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
       "https://cluster.test",
       query = "missing_table | take 1",
       database = "Events",
-      access_token = "token"
+      token = "token"
     ),
     "HTTP 400.*invalid KQL"
   )
@@ -338,7 +338,7 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
       "https://cluster.test",
       query = "",
       database = "Events",
-      access_token = "token"
+      token = "token"
     ),
     "query must",
     fixed = TRUE
@@ -349,7 +349,7 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
       query = "print 1",
       database = "Events",
       timeout = 0,
-      access_token = "token"
+      token = "token"
     ),
     "timeout",
     fixed = TRUE
@@ -363,7 +363,7 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
       ),
       query = "print 1",
       database = "Events",
-      access_token = "token"
+      token = "token"
     ),
     "Eventhouse or KQLDatabase",
     fixed = TRUE

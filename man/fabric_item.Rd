@@ -11,8 +11,8 @@ fabric_item(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 }
@@ -26,8 +26,20 @@ by a discovery function.}
 \item{type}{Optional Fabric item type, for example \code{"Lakehouse"} or
 \code{"Warehouse"}.}
 
-\item{tenant_id, client_id, access_token, token_provider}{Authentication
-arguments. Discovery uses the
+\item{tenant_id}{Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
+
+\item{client_id}{Entra application ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+
+\item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
+bearer-token string, or token-provider function. With \code{NULL} (the
+default), \code{AzureAuth} reuses a matching cached token or starts its normal
+interactive login flow when a new token is required.}
+
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.
+Discovery uses the
 \verb{https://api.fabric.microsoft.com/.default} audience and requires
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 

@@ -13,10 +13,187 @@ json_response <- function(
   )
 }
 
+fake_azure_token <- function(access_token = "azure-token") {
+  class <- R6::R6Class(
+    "FabricQueryRFakeAzureToken",
+    inherit = AzureAuth::AzureToken,
+    public = list(
+      refreshes = 0L,
+      initialize = function() {
+        self$credentials <- list(access_token = access_token)
+      },
+      validate = function() TRUE,
+      refresh = function() {
+        self$refreshes <- self$refreshes + 1L
+        self$credentials$access_token <- paste0(
+          access_token,
+          "-refreshed"
+        )
+        invisible(self)
+      }
+    )
+  )
+  class$new()
+}
+
+test_that("AzureAuth token objects are accepted and refreshed", {
+  token <- fake_azure_token()
+  expect_true(AzureAuth::is_azure_token(token))
+  credential <- fabric_credential(token = token)
+
+  expect_equal(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "azure-token"
+  )
+  expect_equal(
+    fabric_get_token(
+      credential,
+      .fabric_audience$fabric,
+      force_refresh = TRUE
+    ),
+    "azure-token-refreshed"
+  )
+  expect_equal(token$refreshes, 1L)
+})
+
+test_that("public functions accept AzureAuth token objects", {
+  token <- fake_azure_token()
+  httr2::local_mocked_responses(function(req) {
+    json_response(body = list(value = list()), url = req$url)
+  })
+
+  result <- fabric_workspaces(
+    token = token,
+    api_base = "https://fabric.test/v1"
+  )
+
+  expect_s3_class(result, "tbl_df")
+  expect_equal(nrow(result), 0L)
+})
+
+test_that("token NULL delegates acquisition and caching to AzureAuth", {
+  calls <- list()
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      calls[[length(calls) + 1L]] <<- list(...)
+      fake_azure_token()
+    },
+    .package = "AzureAuth"
+  )
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(auth_type = "device_code", use_cache = TRUE)
+  )
+
+  expect_equal(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "azure-token"
+  )
+  expect_equal(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "azure-token"
+  )
+  expect_length(calls, 1L)
+  expect_equal(
+    calls[[1L]]$resource,
+    c(.fabric_audience$fabric, "offline_access")
+  )
+  expect_equal(calls[[1L]]$tenant, "tenant")
+  expect_equal(calls[[1L]]$app, "client")
+  expect_equal(calls[[1L]]$version, 2)
+  expect_equal(calls[[1L]]$auth_type, "device_code")
+  expect_true(calls[[1L]]$use_cache)
+})
+
+test_that("client credentials omit offline_access", {
+  calls <- list()
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      calls[[1L]] <<- list(...)
+      fake_azure_token()
+    },
+    .package = "AzureAuth"
+  )
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(password = "secret")
+  )
+  fabric_get_token(credential, .fabric_audience$storage)
+
+  expect_identical(calls[[1L]]$resource, .fabric_audience$storage)
+  expect_equal(calls[[1L]]$password, "secret")
+})
+
+test_that("authentication inputs are validated consistently", {
+  expect_error(
+    fabric_credential(token = list(value = "not-a-token")),
+    "token must be"
+  )
+  expect_error(
+    fabric_credential(
+      token = "one",
+      auth_args = list(use_cache = FALSE)
+    ),
+    "auth_args can only be used"
+  )
+  expect_error(
+    fabric_credential(
+      tenant_id = "tenant",
+      client_id = "client",
+      auth_args = list(resource = "other")
+    ),
+    "cannot override resource"
+  )
+  expect_error(
+    fabric_credential(
+      tenant_id = "tenant",
+      client_id = "client",
+      auth_args = list(not_an_azureauth_argument = TRUE)
+    ),
+    "Unknown AzureAuth argument"
+  )
+})
+
+test_that("all exported authenticated functions share auth arguments", {
+  exports <- getNamespaceExports("fabricQueryR")
+  authenticated <- Filter(
+    function(name) {
+      value <- getExportedValue("fabricQueryR", name)
+      if (!is.function(value)) {
+        return(FALSE)
+      }
+      args <- names(formals(value))
+      any(c("tenant_id", "client_id") %in% args)
+    },
+    exports
+  )
+  expected <- c(
+    "tenant_id",
+    "client_id",
+    "token",
+    "auth_args"
+  )
+  for (name in authenticated) {
+    expect_true(
+      all(expected %in% names(formals(getExportedValue("fabricQueryR", name)))),
+      info = name
+    )
+    expect_false(
+      any(
+        c("access_token", "token_provider") %in%
+          names(formals(getExportedValue("fabricQueryR", name)))
+      ),
+      info = name
+    )
+  }
+})
+
 test_that("credential callbacks receive audiences and refresh after 401", {
   provider_calls <- list()
   credential <- fabric_credential(
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       provider_calls[[length(provider_calls) + 1L]] <<- list(
         audience = audience,
         force_refresh = force_refresh
@@ -149,7 +326,7 @@ test_that("HTTP errors include diagnostics and redact secrets", {
 })
 
 test_that("shared pagination follows continuation URIs and tokens", {
-  credential <- fabric_credential(access_token = "token")
+  credential <- fabric_credential(token = "token")
   urls <- character()
   pages <- list(
     list(
@@ -183,7 +360,7 @@ test_that("shared pagination follows continuation URIs and tokens", {
 })
 
 test_that("long-running operation polling handles terminal states", {
-  credential <- fabric_credential(access_token = "token")
+  credential <- fabric_credential(token = "token")
   responses <- list(
     list(status = "Running"),
     list(status = "Succeeded", result = list(id = "item"))
@@ -249,16 +426,12 @@ test_that("long-running operation polling handles terminal states", {
   )
 })
 
-test_that("credential validation rejects conflicting or invalid providers", {
+test_that("token accepts strings and validates provider results", {
   expect_error(
-    fabric_credential(
-      access_token = "token",
-      token_provider = function() "other"
-    ),
-    "only one",
-    fixed = TRUE
+    fabric_credential(token = ""),
+    "token must be one non-empty string"
   )
-  credential <- fabric_credential(token_provider = function() {
+  credential <- fabric_credential(token = function() {
     list(token = "ok")
   })
   expect_equal(
@@ -267,7 +440,7 @@ test_that("credential validation rejects conflicting or invalid providers", {
   )
   expect_error(
     fabric_get_token(
-      fabric_credential(token_provider = function() ""),
+      fabric_credential(token = function() ""),
       .fabric_audience$sql
     ),
     "must return one non-empty bearer token",

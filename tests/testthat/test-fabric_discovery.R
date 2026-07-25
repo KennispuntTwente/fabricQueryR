@@ -45,7 +45,7 @@ test_that("fabric_workspaces follows pagination and returns stable columns", {
   result <- fabric_workspaces(
     roles = c("Admin", "Member"),
     prefer_workspace_endpoints = TRUE,
-    access_token = "token"
+    token = "token"
   )
 
   expect_s3_class(result, "tbl_df")
@@ -113,7 +113,7 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
 
   result <- fabric_lakehouses(
     "Analytics",
-    access_token = "token",
+    token = "token",
     api_base = "https://fabric.test/v1/"
   )
 
@@ -241,7 +241,7 @@ test_that("typed convenience helpers forward their workload types", {
     fabric_graphql_apis = "GraphQLApi"
   )
   for (name in names(helpers)) {
-    get(name, mode = "function")("Workspace", access_token = "token")
+    get(name, mode = "function")("Workspace", token = "token")
   }
   expect_equal(
     vapply(calls, `[[`, character(1), "type"),
@@ -279,7 +279,7 @@ test_that("fabric_item resolves names and rejects type mismatches", {
     "Workspace",
     "Sales",
     type = "Warehouse",
-    access_token = "token"
+    token = "token"
   )
   expect_s3_class(result, "fabric_item")
   expect_equal(result$workspaceId, "workspace-id")
@@ -289,7 +289,7 @@ test_that("fabric_item resolves names and rejects type mismatches", {
       "Workspace",
       "Sales",
       type = "Lakehouse",
-      access_token = "token"
+      token = "token"
     ),
     "not 'Lakehouse'"
   )
@@ -313,7 +313,7 @@ test_that("fabric_item rejects an item record from another workspace", {
   )
 
   expect_error(
-    fabric_item("Workspace", item, access_token = "token"),
+    fabric_item("Workspace", item, token = "token"),
     "belongs to a different workspace",
     fixed = TRUE
   )
@@ -339,7 +339,7 @@ test_that("discovered semantic models bypass name lookup for DAX", {
   result <- fabric_pbi_dax_query(
     connstr = model,
     dax = 'EVALUATE ROW("value", 1)',
-    access_token = "token"
+    token = "token"
   )
   expect_equal(captured$group_id, "workspace-id")
   expect_equal(captured$dataset_id, "dataset-id")

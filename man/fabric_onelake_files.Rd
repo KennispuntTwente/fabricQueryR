@@ -19,8 +19,8 @@ fabric_onelake_list(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -32,8 +32,8 @@ fabric_onelake_metadata(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -49,8 +49,8 @@ fabric_onelake_download(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -67,8 +67,8 @@ fabric_onelake_upload(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -83,8 +83,8 @@ fabric_onelake_delete(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 }
@@ -111,10 +111,12 @@ that name already ends in the same suffix, for example \code{"Lakehouse"}.}
 \item{client_id}{Entra application ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{access_token}{Optional Storage-audience bearer token.}
+\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
+token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
+token or starts its normal interactive login flow.}
 
-\item{token_provider}{Optional function returning a Storage-audience token.
-It may accept \code{audience} and \code{force_refresh}.}
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{dfs_base}{OneLake DFS endpoint. Regional and workspace-private DFS
 endpoints are supported.}

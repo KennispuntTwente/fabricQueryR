@@ -16,8 +16,8 @@ fabric_graphql_query(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   audience = .fabric_audience$graphql,
   api_base = .fabric_api_base
 )
@@ -49,11 +49,12 @@ preserves them in the result, \code{"warn"} also emits a warning, and
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
 
-\item{access_token}{Optional bearer token. Supply only one of
-\code{access_token} and \code{token_provider}.}
+\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
+token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
+token or starts its normal interactive login flow.}
 
-\item{token_provider}{Optional callback returning a bearer token. It may
-accept \code{audience} and \code{force_refresh} arguments.}
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
 \item{audience}{OAuth audience/scope passed to the credential.}
 
@@ -76,16 +77,16 @@ You can instead pass a GraphQL API GUID with \code{workspace_id}, or one row fro
 
 Interactive/delegated authentication requires the Power BI delegated scope
 \code{GraphQLApi.Execute.All}, plus \strong{Run Queries and Mutations} permission on
-the API. Service principals are also supported by Fabric: use a Fabric API
-token from a \code{token_provider} or \code{access_token}, enable service principals
-for Fabric APIs in the tenant, and grant the principal API Execute access or
-a suitable workspace role. With SSO connectivity, the caller also needs the
-required access to the underlying data source. Saved-credential APIs use the
-configured connection instead.
+the API. Service principals are also supported by Fabric: request a Fabric
+API token with \code{auth_args} or pass one through \code{token}, enable service
+principals for Fabric APIs in the tenant, and grant the principal API
+Execute access or a suitable workspace role. With SSO connectivity, the
+caller also needs the required access to the underlying data source.
+Saved-credential APIs use the configured connection instead.
 
 The default \code{audience} is the delegated GraphQL scope. Set it to
 \verb{https://api.fabric.microsoft.com/.default} when a custom provider obtains
-service-principal tokens. The value is ignored for a static \code{access_token}.
+service-principal tokens. The value is ignored for a static token string.
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set \code{idempotent = TRUE} only when the operation is safe

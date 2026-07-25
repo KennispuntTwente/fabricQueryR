@@ -52,11 +52,11 @@
 #' If TRUE, null values are included in the response; if FALSE, they are omitted.
 #' @param api_base API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
 #' 'myorg' is appropriate for most use cases and does not necessarily need to be changed.
-#' @param access_token Optional character. If supplied, use this bearer token
-#' instead of acquiring a new one via `{AzureAuth}`.
-#' @param token_provider Optional function that returns a Power BI bearer token.
-#'   It may accept `audience` and `force_refresh` arguments and is called again
-#'   after an HTTP 401. Supply only one of `access_token` and `token_provider`.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param impersonated_user Optional user principal name sent as
 #'   `impersonatedUserName` for supported row-level security scenarios.
 #'
@@ -87,10 +87,10 @@ fabric_pbi_dax_query <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
+  token = NULL,
+  auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  access_token = NULL,
-  token_provider = NULL,
   impersonated_user = NULL
 ) {
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
@@ -164,8 +164,8 @@ fabric_pbi_dax_query <- function(
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
 
   if (is.null(dataset_id)) {
@@ -316,7 +316,7 @@ pbi_get_token <- function(tenant_id, client_id) {
 
 #' Execute a DAX query against a dataset
 #'
-#' @param access_token OAuth2 bearer token.
+#' @param credential Internal audience-aware credential.
 #' @param dataset_id Dataset GUID.
 #' @param dax DAX query.
 #' @param group_id Optional workspace (group) GUID. If supplied, the request is made to the group-scoped endpoint.
@@ -463,7 +463,7 @@ pbi_check_dax_error <- function(error, level) {
 
 #' Get a workspace (group) GUID by its name
 #'
-#' @param access_token OAuth2 bearer token.
+#' @param credential Internal audience-aware credential.
 #' @param workspace_name Character; workspace display name (case-insensitive).
 #' @param api_base API base URL.
 #' @return Group GUID as a string.
@@ -502,7 +502,7 @@ pbi_get_group_id_by_name <- function(
 
 #' Get a dataset GUID by its name in a workspace
 #'
-#' @param access_token OAuth2 bearer token.
+#' @param credential Internal audience-aware credential.
 #' @param group_id Workspace (group) GUID.
 #' @param dataset_name Dataset display name (case-insensitive).
 #' @param api_base API base URL.
@@ -539,7 +539,7 @@ pbi_get_dataset_id_by_name <- function(
 
 #' Read a complete Power BI collection
 #' @param url Initial collection URL.
-#' @param access_token OAuth2 bearer token.
+#' @param credential Internal audience-aware credential.
 #' @param offset_pagination Whether to use documented `$top`/`$skip` paging.
 #' @param page_size Page size for offset pagination.
 #' @return A list containing every returned value.
@@ -552,7 +552,7 @@ pbi_get_collection <- function(
   page_size = 5000L
 ) {
   if (is.character(credential)) {
-    credential <- fabric_credential(access_token = credential)
+    credential <- fabric_credential(token = credential)
   }
   .httr2_collection(
     url,

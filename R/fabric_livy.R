@@ -124,14 +124,14 @@ fabric_livy_json_payload <- function(payload) {
 fabric_livy_credential <- function(
   tenant_id,
   client_id,
-  access_token,
-  token_provider
+  token = NULL,
+  auth_args = list()
 ) {
   fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
 }
 
@@ -328,8 +328,11 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 #'   `"sql"`.
 #' @param tenant_id Microsoft Entra tenant ID.
 #' @param client_id Microsoft Entra application ID.
-#' @param access_token Optional Fabric bearer token.
-#' @param token_provider Optional callback returning a Fabric bearer token.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param environment_id Optional Fabric Environment ID.
 #' @param conf Optional named list of Spark configuration settings.
 #' @param verbose Logical. Emit lifecycle progress.
@@ -358,8 +361,8 @@ fabric_livy_query <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
@@ -371,8 +374,8 @@ fabric_livy_query <- function(
     livy_url = livy_url,
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider,
+    token = token,
+    auth_args = auth_args,
     environment_id = environment_id,
     conf = conf,
     verbose = verbose

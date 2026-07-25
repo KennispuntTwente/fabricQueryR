@@ -141,7 +141,7 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
     path = "Files",
     recursive = TRUE,
     page_size = 2L,
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       audiences <<- c(audiences, audience)
       "storage-token"
     }
@@ -183,7 +183,7 @@ test_that("OneLake metadata exposes properties and ETags", {
     "Analytics",
     "Curated.Lakehouse",
     "Files/café.txt",
-    access_token = "token"
+    token = "token"
   )
 
   expect_equal(captured$method, "HEAD")
@@ -212,7 +212,7 @@ test_that("OneLake download supports ranges, ETags, and atomic destinations", {
     "Files/a.txt",
     range = c(1, 3),
     if_match = "\"etag\"",
-    access_token = "token"
+    token = "token"
   )
   expect_identical(rawToChar(value), "alpha")
   expect_equal(captured[[1L]]$headers$Range, "bytes=1-3")
@@ -232,7 +232,7 @@ test_that("OneLake download supports ranges, ETags, and atomic destinations", {
     "Curated.Lakehouse",
     "Files/a.txt",
     dest = dest,
-    access_token = "token"
+    token = "token"
   )
   expect_true(file.exists(dest))
   expect_equal(readChar(dest, nchars = 5L, useBytes = TRUE), "alpha")
@@ -243,7 +243,7 @@ test_that("OneLake download supports ranges, ETags, and atomic destinations", {
       "Curated.Lakehouse",
       "Files/a.txt",
       dest = dest,
-      access_token = "token"
+      token = "token"
     ),
     "Destination already exists",
     fixed = TRUE
@@ -270,7 +270,7 @@ test_that("OneLake upload uses create, append, flush and overwrite preconditions
     "Files/file.txt",
     source = charToRaw("hello"),
     content_type = "text/plain; charset=utf-8",
-    access_token = "token"
+    token = "token"
   )
 
   expect_equal(
@@ -299,7 +299,7 @@ test_that("OneLake upload uses create, append, flush and overwrite preconditions
     source = raw(),
     overwrite = TRUE,
     if_match = "\"old\"",
-    access_token = "token"
+    token = "token"
   )
   expect_equal(length(captured), 2L)
   expect_null(captured[[1L]]$headers[["If-None-Match"]])
@@ -330,7 +330,7 @@ test_that("OneLake upload preserves conflict errors and creates nested parents",
       "Curated.Lakehouse",
       "Files/nested/deeper/file.txt",
       source = charToRaw("content"),
-      access_token = "token"
+      token = "token"
     ),
     "HTTP 412",
     fixed = TRUE
@@ -350,7 +350,7 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
       "Analytics",
       "Curated.Lakehouse",
       "Files/folder",
-      access_token = "token"
+      token = "token"
     ),
     "disabled by default",
     fixed = TRUE
@@ -361,7 +361,7 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
       "Curated.Lakehouse",
       "Files",
       confirm = TRUE,
-      access_token = "token"
+      token = "token"
     ),
     "Fabric-managed first-level folder",
     fixed = TRUE
@@ -387,7 +387,7 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
     recursive = TRUE,
     confirm = TRUE,
     if_match = "\"etag\"",
-    access_token = "token"
+    token = "token"
   ))
   expect_equal(length(calls), 2L)
   expect_true(all(
@@ -408,7 +408,7 @@ test_that("OneLake validates ranges and protected paths before I/O", {
       "Curated.Lakehouse",
       "Files",
       source = raw(),
-      access_token = "token"
+      token = "token"
     ),
     "Fabric-managed first-level folder",
     fixed = TRUE

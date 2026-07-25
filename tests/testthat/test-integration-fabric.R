@@ -2,14 +2,14 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
 
-  workspaces <- fabric_workspaces(access_token = token)
+  workspaces <- fabric_workspaces(token = token)
   workspace <- workspaces[workspaces$id == manifest$workspace_id, ]
   expect_equal(nrow(workspace), 1L)
   expect_equal(workspace$displayName, manifest$workspace_name)
 
   items <- fabric_items(
     workspace,
-    access_token = token
+    token = token
   )
   expect_true(manifest$items$TestLakehouse$id %in% items$id)
   expect_true(manifest$items$SeedFixtures$id %in% items$id)
@@ -21,7 +21,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_true(manifest$items$TestEventhouse$id %in% items$id)
   expect_true(manifest$items$TestKQLDatabase$id %in% items$id)
 
-  lakehouses <- fabric_lakehouses(workspace, access_token = token)
+  lakehouses <- fabric_lakehouses(workspace, token = token)
   lakehouse <- lakehouses[
     lakehouses$id == manifest$items$TestLakehouse$id,
   ]
@@ -36,7 +36,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   )
   expect_equal(lakehouse$livy_url, manifest$items$TestLakehouse$livy_url)
 
-  warehouses <- fabric_warehouses(workspace, access_token = token)
+  warehouses <- fabric_warehouses(workspace, token = token)
   warehouse <- warehouses[
     warehouses$id == manifest$items$TestWarehouse$id,
   ]
@@ -50,7 +50,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestWarehouse$database_name
   )
 
-  sql_databases <- fabric_sql_databases(workspace, access_token = token)
+  sql_databases <- fabric_sql_databases(workspace, token = token)
   sql_database <- sql_databases[
     sql_databases$id == manifest$items$TestSQLDatabase$id,
   ]
@@ -68,7 +68,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestSQLDatabase$database_name
   )
 
-  semantic_models <- fabric_semantic_models(workspace, access_token = token)
+  semantic_models <- fabric_semantic_models(workspace, token = token)
   model <- semantic_models[
     semantic_models$id == manifest$items$TestSemanticModel$id,
   ]
@@ -77,14 +77,14 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_equal(model$workspaceId, manifest$workspace_id)
   expect_match(model$dax_connection_string, "powerbi://", fixed = TRUE)
 
-  notebooks <- fabric_notebooks(workspace, access_token = token)
+  notebooks <- fabric_notebooks(workspace, token = token)
   expect_true(manifest$items$SeedFixtures$id %in% notebooks$id)
   expect_true(manifest$items$JobFixtures$id %in% notebooks$id)
 
-  graphql_apis <- fabric_graphql_apis(workspace, access_token = token)
+  graphql_apis <- fabric_graphql_apis(workspace, token = token)
   expect_true(manifest$items$TestGraphQL$id %in% graphql_apis$id)
 
-  eventhouses <- fabric_eventhouses(workspace, access_token = token)
+  eventhouses <- fabric_eventhouses(workspace, token = token)
   eventhouse <- eventhouses[
     eventhouses$id == manifest$items$TestEventhouse$id,
   ]
@@ -94,7 +94,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestEventhouse$query_service_uri
   )
 
-  kql_databases <- fabric_kql_databases(workspace, access_token = token)
+  kql_databases <- fabric_kql_databases(workspace, token = token)
   kql_database <- kql_databases[
     kql_databases$id == manifest$items$TestKQLDatabase$id,
   ]
@@ -115,7 +115,7 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
       "| order by id asc"
     ),
     database = database$database_name,
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       expect_equal(audience, "https://api.kusto.windows.net/.default")
       fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
     }
@@ -165,7 +165,7 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
     manifest$workspace_id,
     provisioned$id,
     type = "KQLDatabase",
-    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
   )
 
   selected <- fabric_kql_query(
@@ -177,7 +177,7 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
       "| order by id asc"
     ),
     parameters = list(selected_category = "A"),
-    access_token = kusto_token
+    token = kusto_token
   )
   expect_equal(selected$id, c(1L, 3L))
 
@@ -191,7 +191,7 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
     parameters = list(
       selected_name = "alpha'; drop table fabricqueryr_events; --"
     ),
-    access_token = kusto_token
+    token = kusto_token
   )
   expect_s3_class(hostile, "tbl_df")
   expect_equal(nrow(hostile), 0L)
@@ -199,7 +199,7 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
   still_present <- fabric_kql_query(
     target,
     query = paste(provisioned$tables$events, "| count"),
-    access_token = kusto_token
+    token = kusto_token
   )
   expect_equal(as.numeric(still_present$Count), 3)
 })
@@ -217,7 +217,7 @@ test_that("fabric_kql_query returns multiple live primary tables", {
       " | summarize amount_sum=sum(amount)"
     ),
     database = database$database_name,
-    access_token = fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
   )
 
   expect_s3_class(result, "fabric_kql_tables")
@@ -234,7 +234,7 @@ test_that("fabric_kql_query surfaces live Kusto service errors", {
       database$query_service_uri,
       query = "fabricqueryr_table_that_does_not_exist | take 1",
       database = database$database_name,
-      access_token = fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
+      token = fabric_test_token("FABRIC_TEST_KUSTO_TOKEN")
     ),
     "(?i)(failed|HTTP 4)"
   )
@@ -248,7 +248,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     manifest$workspace_id,
     provisioned$id,
     type = "GraphQLApi",
-    access_token = token
+    token = token
   )
   expect_equal(api$graphql_endpoint, provisioned$endpoint)
   root_field <- provisioned$root_field
@@ -270,7 +270,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     variables = list(category = "A"),
     operation_name = "Filtered",
     error_policy = "error",
-    access_token = token,
+    token = token,
     audience = "https://api.fabric.microsoft.com/.default"
   )
 
@@ -320,7 +320,7 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
     operation_name = "Paged",
     next_cursor = fabric_graphql_cursor(root_field),
     error_policy = "error",
-    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
     audience = "https://api.fabric.microsoft.com/.default"
   )
   items <- unlist(
@@ -349,7 +349,7 @@ test_that("Fabric GraphQL surfaces schema and authentication failures", {
   invalid_query <- fabric_graphql_query(
     api$endpoint,
     query = "{ fabricqueryr_field_that_does_not_exist }",
-    access_token = token,
+    token = token,
     audience = "https://api.fabric.microsoft.com/.default"
   )
   expect_null(invalid_query$data)
@@ -360,7 +360,7 @@ test_that("Fabric GraphQL surfaces schema and authentication failures", {
     fabric_graphql_query(
       api$endpoint,
       query = "{ __typename }",
-      access_token = "fabricqueryr-invalid-token"
+      token = "fabricqueryr-invalid-token"
     ),
     "HTTP (401|403)"
   )
@@ -379,7 +379,7 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     schema = lakehouse$schema,
     tenant_id = "",
     client_id = "",
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       expect_equal(audience, "https://storage.azure.com/.default")
       fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
     },
@@ -416,7 +416,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     path = "Files/fixtures/nested",
     recursive = TRUE,
     page_size = 2L,
-    access_token = token
+    token = token
   )
   duplicate_paths <- fixtures$path[fixtures$name == "duplicate.txt"]
   expect_setequal(
@@ -438,7 +438,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
       "/",
       unicode_path
     ),
-    access_token = token
+    token = token
   )
   expect_false(unicode_metadata$is_directory)
   expect_true(nzchar(unicode_metadata$etag))
@@ -449,7 +449,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     lakehouse$id,
     "Files/fixtures/nested/a/duplicate.txt",
     range = c(0, 4),
-    access_token = token
+    token = token
   )
   expect_identical(rawToChar(ranged), "alpha")
 
@@ -470,7 +470,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
         test_root,
         recursive = TRUE,
         confirm = TRUE,
-        access_token = token
+        token = token
       ),
       silent = TRUE
     ),
@@ -483,13 +483,13 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     test_path,
     source = charToRaw("first-version"),
     content_type = "text/plain; charset=utf-8",
-    access_token = token
+    token = token
   )
   first <- fabric_onelake_metadata(
     manifest$workspace_id,
     lakehouse$id,
     test_path,
-    access_token = token
+    token = token
   )
   expect_equal(first$content_length, nchar("first-version", type = "bytes"))
   expect_true(nzchar(first$etag))
@@ -500,7 +500,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
       lakehouse$id,
       test_path,
       source = charToRaw("conflict"),
-      access_token = token
+      token = token
     ),
     "HTTP (409|412)"
   )
@@ -511,7 +511,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     source = charToRaw("second-version"),
     overwrite = TRUE,
     if_match = first$etag,
-    access_token = token
+    token = token
   )
   expect_identical(
     rawToChar(fabric_onelake_download(
@@ -519,7 +519,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
       lakehouse$id,
       test_path,
       range = c(7, 13),
-      access_token = token
+      token = token
     )),
     "version"
   )
@@ -530,7 +530,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
       lakehouse$id,
       test_root,
       recursive = TRUE,
-      access_token = token
+      token = token
     ),
     "disabled by default",
     fixed = TRUE
@@ -541,7 +541,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     test_root,
     recursive = TRUE,
     confirm = TRUE,
-    access_token = token
+    token = token
   ))
 })
 
@@ -565,7 +565,7 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
     schema = lakehouse$schema,
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
     dest_dir = dest_dir,
     verbose = FALSE
   )
@@ -599,7 +599,7 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
     schema = lakehouse$schema,
-    access_token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
     version = 10,
     verbose = FALSE
   )
@@ -620,7 +620,7 @@ test_that("Delta reader covers schema evolution and rejects unsupported features
       workspace_name = manifest$workspace_id,
       lakehouse_name = lakehouse$id,
       schema = lakehouse$schema,
-      access_token = token,
+      token = token,
       verbose = FALSE
     )
   }
@@ -651,14 +651,14 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
     manifest$workspace_id,
     lakehouse$id,
     type = "Lakehouse",
-    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
   )
 
   con <- fabric_sql_connect(
     server = target,
     tenant_id = "",
     client_id = "",
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       expect_equal(audience, "https://database.windows.net/.default")
       fabric_test_token("FABRIC_TEST_SQL_TOKEN")
     },
@@ -716,7 +716,7 @@ test_that("fabric_sql_query returns a tibble with aggregate results", {
     ),
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
     verbose = FALSE
   )
 
@@ -735,7 +735,7 @@ test_that("fabric_sql_query returns a tibble with aggregate results", {
     ),
     tenant_id = "",
     client_id = "",
-    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
     verbose = FALSE
   )
   expect_s3_class(empty, "tbl_df")
@@ -761,7 +761,7 @@ test_that("fabric_sql_query returns a tibble with aggregate results", {
       as.Date("2026-07-24"),
       NA_character_
     ),
-    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
     verbose = FALSE
   )
   expect_equal(bound$text_value, metacharacters)
@@ -771,7 +771,7 @@ test_that("fabric_sql_query returns a tibble with aggregate results", {
     server = lakehouse$sql_endpoint,
     database = lakehouse$display_name,
     sql = "SELECT COUNT(*) AS row_count FROM dbo.fabricqueryr_basic",
-    access_token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
     verbose = FALSE
   )
   expect_equal(as.numeric(still_present$row_count), 3)
@@ -789,13 +789,13 @@ fabric_test_sql_item <- function(name) {
     manifest$workspace_id,
     provisioned$id,
     type = provisioned$type,
-    access_token = api_token
+    token = api_token
   )
   result <- fabric_sql_query(
     target,
     "SELECT CAST(? AS int) AS bound_value",
     params = list(42L),
-    access_token = sql_token,
+    token = sql_token,
     verbose = FALSE
   )
   expect_equal(result$bound_value, 42L, info = name)
@@ -817,7 +817,7 @@ fabric_test_sql_item <- function(name) {
     } else {
       NULL
     },
-    access_token = sql_token,
+    token = sql_token,
     verbose = FALSE
   )
   expect_equal(from_manifest$bound_value, "safe ' value; --", info = name)
@@ -850,7 +850,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
     kind = "pyspark",
     tenant_id = "",
     client_id = "",
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       expect_equal(audience, "https://api.fabric.microsoft.com/.default")
       fabric_test_token("FABRIC_TEST_API_TOKEN")
     },
@@ -892,7 +892,7 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
   session <- fabric_livy_session(
     lakehouse$livy_url,
-    access_token = token,
+    token = token,
     name = "fabricqueryr-integration-session",
     tags = list(test = "multiple-statements"),
     conf = list("spark.sql.shuffle.partitions" = "2"),
@@ -959,7 +959,7 @@ test_that("high-concurrency Livy session runs through its isolated REPL", {
     high_concurrency = TRUE,
     session_tag = paste0("fabricqueryr-", manifest$workspace_id),
     artifact_name = lakehouse$display_name,
-    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
     verbose = FALSE
   )
   on.exit(try(session$close(), silent = TRUE), add = TRUE)
@@ -993,7 +993,7 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
     name = "fabricqueryr-batch-success",
     args = "success",
     target_lakehouse_id = lakehouse$id,
-    access_token = token,
+    token = token,
     verbose = FALSE
   )
   success$wait(timeout = 1200, poll_interval = 5)
@@ -1011,7 +1011,7 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
     name = "fabricqueryr-batch-failure",
     args = "failure",
     target_lakehouse_id = lakehouse$id,
-    access_token = token,
+    token = token,
     verbose = FALSE
   )
   failure_error <- expect_error(
@@ -1038,7 +1038,7 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
     name = "fabricqueryr-batch-cancel",
     args = "slow",
     target_lakehouse_id = lakehouse$id,
-    access_token = token,
+    token = token,
     verbose = FALSE
   )
   on.exit(try(slow$cancel(), silent = TRUE), add = TRUE)
@@ -1098,7 +1098,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     item,
     parameters = list(mode = "success", marker = "integration"),
     session_tag = session_tag,
-    access_token = token
+    token = token
   )
   expect_s3_class(completed_job, "fabric_job")
   completed <- fabric_job_wait(
@@ -1123,7 +1123,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     item,
     parameters = list(mode = "failure"),
     session_tag = session_tag,
-    access_token = token
+    token = token
   )
   failed <- rlang::catch_cnd(
     fabric_job_wait(failed_job, timeout = 900)
@@ -1139,7 +1139,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     item,
     parameters = list(mode = "slow", delay_seconds = 600L),
     session_tag = session_tag,
-    access_token = token
+    token = token
   )
   on.exit(try(fabric_job_cancel(slow_job), silent = TRUE), add = TRUE)
   timed_out <- rlang::catch_cnd(
@@ -1175,7 +1175,7 @@ test_that("Fabric pipeline and Spark job definition jobs complete", {
       type = fixture$type,
       displayName = fixture$display_name
     )
-    job <- fabric_job_run(item, access_token = token)
+    job <- fabric_job_run(item, token = token)
     result <- fabric_job_wait(job, timeout = 1200)
 
     expect_s3_class(result, "fabric_job_instance", info = name)
@@ -1196,7 +1196,7 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
     ),
     tenant_id = "",
     client_id = "",
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       expect_equal(
         audience,
         "https://analysis.windows.net/powerbi/api/.default"
@@ -1224,7 +1224,7 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
       "ORDER BY [id]",
       sep = "\n"
     ),
-    access_token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
   )
   expect_s3_class(rows, "tbl_df")
   expect_equal(nrow(rows), 3L)
@@ -1241,7 +1241,7 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
       "SELECTCOLUMNS('Facts', \"id\", 'Facts'[id]), ",
       "[id] > 100)"
     ),
-    access_token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
   )
   expect_s3_class(empty, "tbl_df")
   expect_equal(nrow(empty), 0L)
@@ -1250,12 +1250,12 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
     manifest$workspace_id,
     semantic_model$id,
     type = "SemanticModel",
-    access_token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
   )
   by_id <- fabric_pbi_dax_query(
     connstr = discovered_model,
     dax = 'EVALUATE ROW("row_count", COUNTROWS(\'Facts\'))',
-    access_token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
   )
   expect_s3_class(by_id, "tbl_df")
   expect_equal(as.numeric(by_id[["[row_count]"]]), 3)

@@ -41,10 +41,11 @@
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback.
-#' @param access_token Optional Kusto bearer token. Supply only one of
-#'   `access_token` and `token_provider`.
-#' @param token_provider Optional callback returning a Kusto bearer token. It
-#'   may accept `audience` and `force_refresh` arguments.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #'
 #' @return A typed tibble for one primary result, a `fabric_kql_tables` list for
 #'   multiple primary results, or an empty tibble when there is no primary
@@ -76,8 +77,8 @@ fabric_kql_query <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL
+  token = NULL,
+  auth_args = list()
 ) {
   if (
     !is.character(query) ||
@@ -106,8 +107,8 @@ fabric_kql_query <- function(
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   kusto_execute_query(
     target$url,

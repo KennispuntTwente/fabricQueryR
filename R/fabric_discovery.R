@@ -9,8 +9,17 @@
 #'   response.
 #' @param prefer_workspace_endpoints Logical. Ask Fabric to include a
 #'   workspace-specific API endpoint, when available.
-#' @param tenant_id,client_id,access_token,token_provider Authentication
-#'   arguments. Discovery uses the
+#' @param tenant_id Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Entra application ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Preferred token input: an `AzureAuth::AzureToken` object,
+#'   bearer-token string, or token-provider function. With `NULL` (the
+#'   default), `AzureAuth` reuses a matching cached token or starts its normal
+#'   interactive login flow when a new token is required.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#'   Discovery uses the
 #'   `https://api.fabric.microsoft.com/.default` audience and requires
 #'   `Workspace.Read.All` or `Workspace.ReadWrite.All`.
 #' @param api_base Fabric REST API base URL.
@@ -26,8 +35,8 @@ fabric_workspaces <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   if (
@@ -49,8 +58,8 @@ fabric_workspaces <- function(
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   url <- paste0(fabric_api_base(api_base), "/workspaces")
   req <- httr2::request(url)
@@ -103,8 +112,8 @@ fabric_items <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   if (
@@ -125,8 +134,8 @@ fabric_items <- function(
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   base <- fabric_api_base(api_base)
   ws <- fabric_resolve_workspace(workspace, credential, base)
@@ -176,15 +185,15 @@ fabric_item <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   base <- fabric_api_base(api_base)
   ws <- fabric_resolve_workspace(workspace, credential, base)

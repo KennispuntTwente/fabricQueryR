@@ -92,7 +92,7 @@ test_that("SQL connections enforce Fabric ODBC options", {
   result <- fabric_sql_connect(
     server = "server.datawarehouse.fabric.microsoft.com",
     database = "Warehouse",
-    access_token = "sql-token",
+    token = "sql-token",
     read_only = TRUE,
     timeout = 17L,
     verbose = FALSE
@@ -134,7 +134,7 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
     "unused",
     "SELECT ?, ?, ?, ?",
     params = values,
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
 
@@ -154,7 +154,7 @@ test_that("SQL failures have actionable condition classes", {
     fabric_sql_connect(
       "server",
       database = "db",
-      access_token = "token",
+      token = "token",
       verbose = FALSE
     ),
     class = "fabric_sql_authentication_error"
@@ -170,7 +170,7 @@ test_that("SQL failures have actionable condition classes", {
       "server",
       "SELECT bad",
       database = "db",
-      access_token = "token",
+      token = "token",
       verbose = FALSE
     ),
     class = "fabric_sql_execution_error"
@@ -181,7 +181,7 @@ test_that("SQL failures have actionable condition classes", {
       "SELECT ?",
       params = "not-a-list",
       database = "db",
-      access_token = "token",
+      token = "token",
       verbose = FALSE
     ),
     "params must be NULL or a list"

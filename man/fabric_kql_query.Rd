@@ -14,8 +14,8 @@ fabric_kql_query(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL
+  token = NULL,
+  auth_args = list()
 )
 }
 \arguments{
@@ -43,11 +43,12 @@ Eventhouse record; inferred from a KQLDatabase record.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
 
-\item{access_token}{Optional Kusto bearer token. Supply only one of
-\code{access_token} and \code{token_provider}.}
+\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
+token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
+token or starts its normal interactive login flow.}
 
-\item{token_provider}{Optional callback returning a Kusto bearer token. It
-may accept \code{audience} and \code{force_refresh} arguments.}
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 }
 \value{
 A typed tibble for one primary result, a \code{fabric_kql_tables} list for

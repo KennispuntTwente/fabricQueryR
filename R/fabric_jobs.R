@@ -50,8 +50,16 @@
 #' @param compute Notebook compute kind: `"Spark"`, `"Jupyter"`, or
 #'   `"DataWarehouse"`.
 #' @param session_tag Optional Spark high-concurrency session tag.
-#' @param tenant_id,client_id,access_token,token_provider Authentication
-#'   arguments. Job submission and cancellation require `Item.Execute.All` or
+#' @param tenant_id Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Entra application ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Preferred token input: an `AzureAuth::AzureToken` object,
+#'   bearer-token string, or token-provider function. With `NULL`, `AzureAuth`
+#'   reuses a matching cached token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#'   Job submission and cancellation require `Item.Execute.All` or
 #'   the corresponding workload-specific execute permission.
 #' @param api_base Fabric REST API base URL.
 #' @references
@@ -83,15 +91,15 @@ fabric_job_run <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   base <- fabric_api_base(api_base)
   target <- .fabric_job_target(
@@ -182,8 +190,8 @@ fabric_job_status <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   context <- .fabric_job_context(
@@ -195,8 +203,8 @@ fabric_job_status <- function(
     job_type = job_type,
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider,
+    token = token,
+    auth_args = auth_args,
     api_base = api_base
   )
   .fabric_job_get_status(context, allow_not_found = FALSE)
@@ -227,8 +235,8 @@ fabric_job_wait <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -266,8 +274,8 @@ fabric_job_wait <- function(
     job = job,
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider,
+    token = token,
+    auth_args = auth_args,
     api_base = api_base
   )
   started <- .now()
@@ -347,8 +355,8 @@ fabric_job_cancel <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   context <- .fabric_job_context(
@@ -360,8 +368,8 @@ fabric_job_cancel <- function(
     job_type = job_type,
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider,
+    token = token,
+    auth_args = auth_args,
     api_base = api_base
   )
   url <- paste0(
@@ -1193,8 +1201,8 @@ print.fabric_job_instance <- function(x, ...) {
   job_type = NULL,
   tenant_id = NULL,
   client_id = NULL,
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 ) {
   if (inherits(job, "fabric_job")) {
@@ -1203,13 +1211,14 @@ print.fabric_job_instance <- function(x, ...) {
         "`job_instance_id` cannot be combined with a `fabric_job`"
       )
     }
-    override_auth <- !is.null(access_token) || !is.null(token_provider)
+    override_auth <- !is.null(token) ||
+      length(auth_args) > 0L
     credential <- if (override_auth) {
       fabric_credential(
         tenant_id = tenant_id,
         client_id = client_id,
-        access_token = access_token,
-        token_provider = token_provider
+        token = token,
+        auth_args = auth_args
       )
     } else {
       job$credential
@@ -1234,8 +1243,8 @@ print.fabric_job_instance <- function(x, ...) {
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   base <- fabric_api_base(api_base)
   target <- .fabric_job_target(

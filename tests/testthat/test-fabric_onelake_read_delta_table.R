@@ -94,7 +94,7 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
     workspace_name = "Analytics",
     lakehouse_name = "Curated",
     schema = "dbo",
-    access_token = "token",
+    token = "token",
     dest_dir = dest,
     verbose = FALSE
   )
@@ -150,7 +150,7 @@ test_that("Delta reads do not download tombstoned or historical data files", {
     table_path = "table",
     workspace_name = "workspace",
     lakehouse_name = "lakehouse",
-    access_token = "token",
+    token = "token",
     dest_dir = dest,
     verbose = FALSE
   )
@@ -220,7 +220,7 @@ test_that("Delta versions must be non-negative integers", {
         table_path = "table",
         workspace_name = "workspace",
         lakehouse_name = "lakehouse",
-        access_token = "token",
+        token = "token",
         version = version,
         verbose = FALSE
       ),

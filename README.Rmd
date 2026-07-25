@@ -1,7 +1,3 @@
----
-output: github_document
----
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, include = FALSE}
@@ -31,7 +27,7 @@ use with 'DBI'-compatible packages like 'dbplyr'.
 With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a 'tibble' dataframe.
 
 3. Execute a Livy API query: `fabric_livy_query()`.
-Use `fabric_livy_session()` to create a reusable Livy session, 
+Use `fabric_livy_session()` to create a reusable Livy session,
 and `fabric_livy_batch_submit()` to submit a standalone Spark application.
 With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric
 and get a list with the results in your local R session.
@@ -81,6 +77,9 @@ install.packages("fabricQueryR")
 
 See the [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
+See the [authentication vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
+for interactive login, cached tokens, service principals, certificates,
+managed identities, and the permissions each Fabric workload requires.
 
 Below is a code snippet showing how to discover targets and use the eight methods to work with Fabric data from R:
 

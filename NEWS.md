@@ -1,5 +1,17 @@
 # fabricQueryR (development version)
 
+* Authentication is now consistent across all authenticated exported
+  functions. New code can pass an `AzureAuth::AzureToken` object, bearer token,
+  or provider through `token`, and can configure any supported AzureAuth flow
+  through `auth_args`. The former `access_token` and `token_provider` arguments
+  are replaced by this single polymorphic `token` argument. With `token = NULL`,
+  AzureAuth reuses its cache before starting interactive login. AzureAuth
+  tokens are expiry-checked and refreshed, and client-credential requests omit
+  delegated-only `offline_access`. A new authentication vignette covers
+  interactive and device login, service principals with secrets or
+  certificates, managed identities, token audiences, cache behavior, and
+  Fabric tenant/workspace/workload permissions.
+
 * `fabric_job_run()`, `fabric_job_status()`, `fabric_job_wait()`, and
   `fabric_job_cancel()` add a common on-demand item-job interface. Notebook
   jobs use Fabric's current release submission API and richer status API;
@@ -66,8 +78,8 @@
   errors for duplicate names.
 
 * Authentication and REST behavior are now shared across Fabric surfaces.
-  Exported functions accept refreshable `token_provider` callbacks in addition
-  to static tokens and interactive `AzureAuth`; REST calls use bounded retries
+  Exported functions accept refreshable provider callbacks through `token` in
+  addition to static tokens and interactive `AzureAuth`; REST calls use bounded retries
   for throttling/transient failures, honor `Retry-After`, refresh after 401,
   and include redacted endpoint/request diagnostics. Shared pagination and
   Fabric long-running-operation polling helpers are covered by deterministic

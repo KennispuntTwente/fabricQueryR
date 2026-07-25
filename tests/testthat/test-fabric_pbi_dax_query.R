@@ -51,7 +51,7 @@ test_that("pbi_parse_connstr rejects incomplete and non-Power-BI strings", {
 # pbi_resolve_ids_from_connstr() ------------------------------------------
 
 test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
-  fake_credential <- fabric_credential(access_token = "tok")
+  fake_credential <- fabric_credential(token = "tok")
   conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/WS;Initial Catalog=DS;"
 
   got_group <- NULL
@@ -143,7 +143,7 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
         dax = 'EVALUATE ROW("result", 3)',
         tenant_id = "",
         client_id = "",
-        access_token = "supplied-token"
+        token = "supplied-token"
       )
     }
   )
@@ -183,14 +183,14 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
     dax = 'EVALUATE ROW("value", 42)',
     workspace_id = "workspace-id",
     dataset_id = "dataset-id",
-    access_token = "token",
+    token = "token",
     impersonated_user = "reader@example.com"
   )
 
   expect_false(looked_up)
   expect_equal(result$value, 42L)
   expect_error(
-    fabric_pbi_dax_query(dax = "EVALUATE ROW()", access_token = "token"),
+    fabric_pbi_dax_query(dax = "EVALUATE ROW()", token = "token"),
     "Supply either connstr or dataset_id",
     fixed = TRUE
   )
@@ -292,7 +292,7 @@ test_that("DAX execution sends impersonation and parses one table", {
   )
 
   result <- pbi_execute_dax(
-    credential = fabric_credential(access_token = "token"),
+    credential = fabric_credential(token = "token"),
     dataset_id = "dataset",
     group_id = "workspace",
     dax = 'EVALUATE ROW("value", 7)',

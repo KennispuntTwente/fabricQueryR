@@ -1,5 +1,5 @@
 livy_test_credential <- function() {
-  fabric_credential(access_token = "token")
+  fabric_credential(token = "token")
 }
 
 test_that("regular session runs multiple statements and closes", {
@@ -72,7 +72,7 @@ test_that("regular session runs multiple statements and closes", {
 
   session <- fabric_livy_session(
     "https://api.fabric.microsoft.com/livy/batches",
-    access_token = "token",
+    token = "token",
     conf = list("spark.sql.shuffle.partitions" = "2"),
     environment_id = "environment-id",
     tags = list(owner = "unit-test"),
@@ -166,7 +166,7 @@ test_that("submit returns an inspectable and cancellable statement", {
 
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   statement <- session$submit(
@@ -211,7 +211,7 @@ test_that("statement errors preserve output and traceback", {
 
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   statement <- session$submit("spark.table('missing')", "pyspark")
@@ -268,7 +268,7 @@ test_that("session finalizer attempts cleanup of open sessions", {
   )
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   session$.__enclos_env__$private$finalize()
@@ -319,7 +319,7 @@ test_that("high-concurrency sessions use HC and REPL endpoints", {
     session_tag = "packed-work",
     artifact_name = "TestLakehouse",
     tags = list(run = "42"),
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   expect_equal(calls[[1L]]$payload$sessionTag, "packed-work")
@@ -353,7 +353,7 @@ test_that("session reset timeout uses its documented endpoint", {
   )
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   expect_identical(session$reset_timeout(), session)
@@ -378,7 +378,7 @@ test_that("fabric_livy_query closes temporary session after failure", {
     fabric_livy_query(
       "https://example.test/livy/sessions",
       "raise Exception()",
-      access_token = "token",
+      token = "token",
       verbose = FALSE
     ),
     "spark failed",
@@ -430,7 +430,7 @@ test_that("batch jobs expose success logs and structured results", {
     conf = list("spark.test" = "yes"),
     environment_id = "environment-id",
     target_lakehouse_id = "lakehouse-id",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   expect_s3_class(batch, "FabricLivyBatch")
@@ -508,7 +508,7 @@ test_that("batch failures and cancellation preserve service details", {
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/batches",
     file = "abfss://workspace/lakehouse/Files/failure.py",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   error <- expect_error(
@@ -542,7 +542,7 @@ test_that("batch timeout can request cancellation", {
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/batches",
     file = "abfss://workspace/lakehouse/Files/slow.py",
-    access_token = "token",
+    token = "token",
     verbose = FALSE
   )
   expect_error(
@@ -573,7 +573,7 @@ test_that("Livy input and endpoint validation is explicit", {
     fabric_livy_session(
       "https://example.test/base",
       session_tag = "not-hc",
-      access_token = "token"
+      token = "token"
     ),
     "only available"
   )
@@ -581,7 +581,7 @@ test_that("Livy input and endpoint validation is explicit", {
     fabric_livy_session(
       "https://example.test/base",
       tags = list("missing name"),
-      access_token = "token"
+      token = "token"
     ),
     "named list"
   )
@@ -589,7 +589,7 @@ test_that("Livy input and endpoint validation is explicit", {
     fabric_livy_batch_submit(
       "https://example.test/base",
       file = "",
-      access_token = "token"
+      token = "token"
     ),
     "file must"
   )

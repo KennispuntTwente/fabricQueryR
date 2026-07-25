@@ -131,8 +131,11 @@ fabric_sql_connection_info <- function(
 #' @inheritParams fabric_sql_connection_info
 #' @param tenant_id Character. Entra tenant ID.
 #' @param client_id Character. Application/client ID.
-#' @param access_token Optional pre-acquired SQL bearer token.
-#' @param token_provider Optional refreshable SQL token callback.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param odbc_driver ODBC driver name. ODBC Driver 18 for SQL Server is the
 #'   default.
 #' @param encrypt,trust_server_certificate ODBC encryption flags.
@@ -173,8 +176,8 @@ fabric_sql_connect <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   odbc_driver = getOption(
     "fabricqueryr.sql.driver",
     "ODBC Driver 18 for SQL Server"
@@ -203,7 +206,7 @@ fabric_sql_connect <- function(
     target_type = target_type,
     port = port
   )
-  if (is.null(access_token) && is.null(token_provider)) {
+  if (is.null(token)) {
     inform(
       verbose,
       "Authenticating with {.pkg AzureAuth} (MSAL v2) for SQL"
@@ -212,8 +215,8 @@ fabric_sql_connect <- function(
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   token <- tryCatch(
     fabric_get_token(credential, .fabric_audience$sql),
@@ -296,8 +299,8 @@ fabric_sql_query <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   odbc_driver = getOption(
     "fabricqueryr.sql.driver",
     "ODBC Driver 18 for SQL Server"
@@ -323,8 +326,8 @@ fabric_sql_query <- function(
     target_type = match.arg(target_type),
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider,
+    token = token,
+    auth_args = auth_args,
     odbc_driver = odbc_driver,
     port = port,
     encrypt = encrypt,

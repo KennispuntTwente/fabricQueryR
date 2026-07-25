@@ -213,8 +213,11 @@ FabricLivyBatch <- R6::R6Class(
 #'   counts.
 #' @param tenant_id Microsoft Entra tenant ID.
 #' @param client_id Microsoft Entra application ID.
-#' @param access_token Optional Fabric bearer token.
-#' @param token_provider Optional callback returning a Fabric bearer token.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param verbose Logical. Emit lifecycle messages.
 #' @param wait Logical. Wait for the job to finish before returning.
 #' @param timeout,poll_interval Wait controls in seconds.
@@ -253,8 +256,8 @@ fabric_livy_batch_submit <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
@@ -289,8 +292,8 @@ fabric_livy_batch_submit <- function(
   credential <- fabric_livy_credential(
     tenant_id,
     client_id,
-    access_token,
-    token_provider
+    token,
+    auth_args
   )
   collection <- fabric_livy_endpoint(
     fabric_livy_resolve_url(livy_url),

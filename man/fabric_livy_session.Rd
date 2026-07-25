@@ -28,8 +28,8 @@ fabric_livy_session(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   verbose = TRUE
 )
 }
@@ -66,9 +66,12 @@ hub label.}
 
 \item{client_id}{Microsoft Entra application ID.}
 
-\item{access_token}{Optional Fabric bearer token.}
+\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
+token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
+token or starts its normal interactive login flow.}
 
-\item{token_provider}{Optional callback returning a Fabric bearer token.}
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{verbose}{Logical. Emit lifecycle messages.}
 }

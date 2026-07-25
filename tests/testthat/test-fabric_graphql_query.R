@@ -103,7 +103,7 @@ test_that("fabric_graphql_query sends variables and operation names unchanged", 
     variables = list(category = "B", nullable = NULL),
     operation_name = "Products",
     timeout = 17,
-    token_provider = function(audience, force_refresh = FALSE) {
+    token = function(audience, force_refresh = FALSE) {
       audiences <<- c(audiences, audience)
       "graphql-token"
     }
@@ -192,7 +192,7 @@ test_that("empty GraphQL variables are omitted instead of encoded as an array", 
   fabric_graphql_query(
     "https://api.fabric.microsoft.com/graphql",
     query = "{ typename: __typename }",
-    access_token = "token"
+    token = "token"
   )
 
   expect_false("variables" %in% names(captured$body$data))
@@ -272,7 +272,7 @@ test_that("fabric_graphql_paginate passes opaque cursors and combines errors", {
     variables = list(first = 2L, after = NULL),
     operation_name = "Page",
     next_cursor = fabric_graphql_cursor("products"),
-    access_token = "token"
+    token = "token"
   )
 
   expect_s3_class(pages, "fabric_graphql_pages")
@@ -312,7 +312,7 @@ test_that("GraphQL pagination prevents loops and enforces max_pages", {
       query = "{ products { hasNextPage endCursor } }",
       next_cursor = fabric_graphql_cursor("products"),
       max_pages = 3L,
-      access_token = "token"
+      token = "token"
     ),
     "already used",
     fixed = TRUE
@@ -339,7 +339,7 @@ test_that("GraphQL pagination prevents loops and enforces max_pages", {
       query = "{ products { hasNextPage endCursor } }",
       next_cursor = fabric_graphql_cursor("products"),
       max_pages = 2L,
-      access_token = "token"
+      token = "token"
     ),
     class = "fabric_graphql_pagination_error"
   )
@@ -362,7 +362,7 @@ test_that("fabric_graphql_query surfaces authentication and validates inputs", {
     fabric_graphql_query(
       "https://api.fabric.microsoft.com/graphql",
       query = "{ __typename }",
-      access_token = "invalid-token"
+      token = "invalid-token"
     ),
     "HTTP 401.*Token is invalid"
   )
@@ -371,7 +371,7 @@ test_that("fabric_graphql_query surfaces authentication and validates inputs", {
     fabric_graphql_query(
       "https://api.fabric.microsoft.com/graphql",
       query = "",
-      access_token = "token"
+      token = "token"
     ),
     "query must be one non-empty",
     fixed = TRUE
@@ -381,7 +381,7 @@ test_that("fabric_graphql_query surfaces authentication and validates inputs", {
       "https://api.fabric.microsoft.com/graphql",
       query = "{ __typename }",
       variables = list(1L),
-      access_token = "token"
+      token = "token"
     ),
     "variables must have unique",
     fixed = TRUE
@@ -391,7 +391,7 @@ test_that("fabric_graphql_query surfaces authentication and validates inputs", {
       "https://api.fabric.microsoft.com/graphql",
       query = "{ __typename }",
       timeout = 0,
-      access_token = "token"
+      token = "token"
     ),
     "timeout",
     fixed = TRUE

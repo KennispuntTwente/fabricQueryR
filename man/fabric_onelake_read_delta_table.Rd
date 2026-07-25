@@ -12,8 +12,8 @@ fabric_onelake_read_delta_table(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
@@ -45,12 +45,12 @@ argument is experimental.)}
 \code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}, falling back to the Azure CLI app id
 \code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"} if not set.}
 
-\item{access_token}{Optional character. If supplied, use this bearer token
-instead of acquiring a new one via \code{{AzureAuth}}.}
+\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
+token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
+token or starts its normal interactive login flow.}
 
-\item{token_provider}{Optional function returning a OneLake Storage bearer
-token. It may accept \code{audience} and \code{force_refresh} arguments. Supply only
-one of \code{access_token} and \code{token_provider}.}
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
 \item{version}{Optional non-negative integer Delta table version to read.
 Defaults to the latest version.}

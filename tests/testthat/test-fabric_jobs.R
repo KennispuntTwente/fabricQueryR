@@ -24,7 +24,7 @@ job_test_handle <- function(
       submitted_at = as.POSIXct("2026-01-01", tz = "UTC"),
       api_base = "https://api.fabric.test/v1",
       route = if (item_type == "Notebook") "notebook" else "core",
-      credential = fabric_credential(access_token = "test-token"),
+      credential = fabric_credential(token = "test-token"),
       status_result = status_result
     ),
     class = "fabric_job"
@@ -36,7 +36,7 @@ test_that("job submission rejects a contradictory explicit workspace", {
     fabric_job_run(
       job_test_item(),
       workspace = "99999999-9999-9999-9999-999999999999",
-      access_token = "test-token",
+      token = "test-token",
       api_base = "https://api.fabric.test/v1"
     ),
     "belongs to a different workspace",
@@ -89,7 +89,7 @@ test_that("notebook run builds typed release payload and job handle", {
       workspaceId = "66666666-6666-6666-6666-666666666666"
     ),
     session_tag = "fabricqueryr-tests",
-    access_token = "test-token",
+    token = "test-token",
     api_base = "https://api.fabric.test/v1/"
   )
 
@@ -155,7 +155,7 @@ test_that("notebook run preserves configured compute without overrides", {
 
   fabric_job_run(
     job_test_item(),
-    access_token = "test-token",
+    token = "test-token",
     api_base = "https://api.fabric.test/v1"
   )
 
@@ -192,7 +192,7 @@ test_that("pipeline run uses current core path without a JSON payload", {
 
   job <- fabric_job_run(
     job_test_item("DataPipeline"),
-    access_token = "test-token",
+    token = "test-token",
     api_base = "https://api.fabric.test/v1"
   )
 
@@ -219,7 +219,7 @@ test_that("job POST requests carry an explicit zero-length body", {
   .fabric_job_request(
     "POST",
     "https://api.fabric.test/v1/jobs",
-    fabric_credential(access_token = "test-token"),
+    fabric_credential(token = "test-token"),
     payload = NULL,
     parse_json = FALSE
   )
@@ -265,7 +265,7 @@ test_that("Spark job definition execution data uses its typed route", {
       ),
       defaultLakehouseId = reference
     ),
-    access_token = "test-token",
+    token = "test-token",
     api_base = "https://api.fabric.test/v1"
   )
 

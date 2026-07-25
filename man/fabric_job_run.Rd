@@ -22,8 +22,8 @@ fabric_job_run(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 
@@ -37,8 +37,8 @@ fabric_job_status(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 
@@ -52,8 +52,8 @@ fabric_job_wait(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -69,8 +69,8 @@ fabric_job_cancel(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 }
@@ -112,8 +112,19 @@ record for \code{default_lakehouse}; defaults to the job workspace.}
 
 \item{session_tag}{Optional Spark high-concurrency session tag.}
 
-\item{tenant_id, client_id, access_token, token_provider}{Authentication
-arguments. Job submission and cancellation require \code{Item.Execute.All} or
+\item{tenant_id}{Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
+
+\item{client_id}{Entra application ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+
+\item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
+bearer-token string, or token-provider function. With \code{NULL}, \code{AzureAuth}
+reuses a matching cached token or starts its normal interactive login flow.}
+
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.
+Job submission and cancellation require \code{Item.Execute.All} or
 the corresponding workload-specific execute permission.}
 
 \item{api_base}{Fabric REST API base URL.}

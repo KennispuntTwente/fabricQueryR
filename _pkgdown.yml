@@ -2,6 +2,11 @@ url: https://lukakoning.github.io/fabricQueryR/
 template:
   bootstrap: 5
 
+articles:
+  - title: Authentication
+    contents:
+      - authentication
+
 reference:
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details

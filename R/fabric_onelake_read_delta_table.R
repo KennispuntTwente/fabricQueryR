@@ -44,11 +44,11 @@
 #' @param client_id Character. App registration (client) ID. Defaults to
 #'   `Sys.getenv("FABRICQUERYR_CLIENT_ID")`, falling back to the Azure CLI app id
 #'   `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if not set.
-#' @param access_token Optional character. If supplied, use this bearer token
-#'   instead of acquiring a new one via `{AzureAuth}`.
-#' @param token_provider Optional function returning a OneLake Storage bearer
-#'   token. It may accept `audience` and `force_refresh` arguments. Supply only
-#'   one of `access_token` and `token_provider`.
+#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
+#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
+#'   token or starts its normal interactive login flow.
+#' @param auth_args Named list of additional arguments passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param version Optional non-negative integer Delta table version to read.
 #'   Defaults to the latest version.
 #' @param dest_dir Character or `NULL`. Local staging directory for the Delta
@@ -91,8 +91,8 @@ fabric_onelake_read_delta_table <- function(
     "FABRICQUERYR_CLIENT_ID",
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
@@ -165,14 +165,14 @@ fabric_onelake_read_delta_table <- function(
   )
 
   # ---- auth (MSAL v2 + refresh) ----
-  if (is.null(access_token) && is.null(token_provider)) {
+  if (is.null(token)) {
     inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2)")
   }
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
-    access_token = access_token,
-    token_provider = token_provider
+    token = token,
+    auth_args = auth_args
   )
   # ---- normalize lakehouse item + table dir ----
   parts <- strsplit(table_path, "/", fixed = TRUE)[[1]]

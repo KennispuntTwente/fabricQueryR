@@ -1,63 +1,55 @@
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # fabricQueryR
 
 <!-- badges: start -->
-
 [![R-CMD-check](https://github.com/kennispunttwente/fabricQueryR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/kennispunttwente/fabricQueryR/actions/workflows/R-CMD-check.yaml)
-[![CRAN
-status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-project.org/package=fabricQueryR)
+[![CRAN status](https://www.r-pkg.org/badges/version/fabricQueryR)](https://CRAN.R-project.org/package=fabricQueryR)
 <!-- badges: end -->
 
-‘fabricQueryR’ is an R package which helps you discover and query data
-from Microsoft Fabric in R. It comes with discovery helpers and eight
-methods which help you work with Microsoft Fabric from R:
+'fabricQueryR' is an R package which helps you discover and query data from Microsoft Fabric in R.
+It comes with discovery helpers and eight methods which help you work with Microsoft Fabric from R:
 
-1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
-    `Data Warehouse` item): `fabric_sql_connect()`. This results in a
-    ‘DBI’ connection object which you can execute SQL queries with,
-    and/or use with ‘DBI’-compatible packages like ‘dbplyr’.
+1. Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or `Data Warehouse` item): `fabric_sql_connect()`.
+This results in a 'DBI' connection object which you can execute SQL queries with, and/or
+use with 'DBI'-compatible packages like 'dbplyr'.
 
-2.  Execute a DAX query against a Fabric/Power Bi `Semantic Model` item:
-    `fabric_pbi_dax_query()`. With this, you can run DAX queries against
-    a Fabric/Power Bi dataset and get the results as a ‘tibble’
-    dataframe.
+2. Execute a DAX query against a Fabric/Power Bi `Semantic Model` item: `fabric_pbi_dax_query()`.
+With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a 'tibble' dataframe.
 
-3.  Execute a Livy API query: `fabric_livy_query()`. Use
-    `fabric_livy_session()` to create a reusable Livy session, and
-    `fabric_livy_batch_submit()` to submit a standalone Spark
-    application. With this, you can remotely execute Spark/Spark
-    SQL/SparkR/PySpark code in Microsoft Fabric and get a list with the
-    results in your local R session.
+3. Execute a Livy API query: `fabric_livy_query()`.
+Use `fabric_livy_session()` to create a reusable Livy session,
+and `fabric_livy_batch_submit()` to submit a standalone Spark application.
+With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric
+and get a list with the results in your local R session.
 
-4.  Read a Delta table from a Fabric `Lakehouse` item:
-    `fabric_onelake_read_delta_table()`. This function downloads the
-    underlying Parquet files from the Delta table stored in OneLake
-    (ADLS Gen2) and returns the data as a ‘tibble’ dataframe.
+4. Read a Delta table from a Fabric `Lakehouse` item: `fabric_onelake_read_delta_table()`.
+This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS
+Gen2) and returns the data as a 'tibble' dataframe.
 
-5.  Work with OneLake files using `fabric_onelake_list()`,
-    `fabric_onelake_metadata()`, `fabric_onelake_download()`,
-    `fabric_onelake_upload()`, and `fabric_onelake_delete()`.
+5. Work with OneLake files using `fabric_onelake_list()`,
+`fabric_onelake_metadata()`, `fabric_onelake_download()`,
+`fabric_onelake_upload()`, and `fabric_onelake_delete()`.
 
-6.  Execute a KQL query against an `Eventhouse`/`KQL Database` item:
-    `fabric_kql_query()`. This returns typed Kusto query results as a
-    tibble, or a named list of tibbles when KQL returns multiple primary
-    result tables.
+6. Execute a KQL query against an `Eventhouse`/`KQL Database` item:
+`fabric_kql_query()`.
+This returns typed Kusto query results as a tibble, or a named list of tibbles
+when KQL returns multiple primary result tables.
 
-7.  Execute a GraphQL query against an `API for GraphQL` item:
-    `fabric_graphql_query()`. This preserves GraphQL data, errors, and
-    extensions independently, including valid responses containing
-    partial data and errors.
+7. Execute a GraphQL query against an `API for GraphQL` item:
+`fabric_graphql_query()`.
+This preserves GraphQL data, errors, and extensions independently, including
+valid responses containing partial data and errors.
 
-8.  Run and monitor on-demand Fabric item jobs with `fabric_job_run()`,
-    `fabric_job_status()`, `fabric_job_wait()`, and
-    `fabric_job_cancel()`. Notebook, pipeline, and Spark job definition
-    runs share one structured job interface.
+8. Run and monitor on-demand Fabric item jobs with `fabric_job_run()`,
+`fabric_job_status()`, `fabric_job_wait()`, and `fabric_job_cancel()`.
+Notebook, pipeline, and Spark job definition runs share one structured job
+interface.
 
 ## Installation
 
-You can install the development version of ‘fabricQueryR’ like so:
+You can install the development version of 'fabricQueryR' like so:
+
 
 ``` r
 if (!requireNamespace("remotes", quietly = TRUE)) {
@@ -69,18 +61,21 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 
 Or, install the latest release from CRAN:
 
+
 ``` r
 install.packages("fabricQueryR")
 ```
 
 ## Usage
 
-See the
-[reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
+See the [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for the full documentation of all functions.
+See the [authentication vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
+for interactive login, cached tokens, service principals, certificates,
+managed identities, and the permissions each Fabric workload requires.
 
-Below is a code snippet showing how to discover targets and use the
-eight methods to work with Fabric data from R:
+Below is a code snippet showing how to discover targets and use the eight methods to work with Fabric data from R:
+
 
 ``` r
 # First find your 'tenant' ID & 'client' ID (app registration) in Azure/Entra
@@ -267,19 +262,16 @@ result$exit_value
 
 ## Background
 
-Microsoft Fabric is a new data platform from Microsoft which combines
-various data services, including data warehousing, data lakes, and
-business intelligence. It is built on top of Azure Data Services and
-integrates with Power BI for analytics and reporting. Microsoft is
-actively promoting Fabric as the next-generation data platform for
-organizations using Microsoft Azure and Power BI.
+Microsoft Fabric is a new data platform from Microsoft which combines various data services,
+including data warehousing, data lakes, and business intelligence.
+It is built on top of Azure Data Services and integrates with Power BI for analytics and reporting.
+Microsoft is actively promoting Fabric as the next-generation data platform for organizations using Microsoft Azure and Power BI.
 
-As our organization started working with Microsoft Fabric, I found that
-loading data into R from Fabric was not yet straightforward, and took
-some effort to get working. To help others in the same situation, I
-decided to share the functions I created to make this easier.
+As our organization started working with Microsoft Fabric, I found that loading data into R from Fabric was not
+yet straightforward, and took some effort to get working. To help others in the same situation,
+I decided to share the functions I created to make this easier.
 
 ### About the maintainer
 
-Luka Koning is no longer associated with Kennispunt Twente. He maintains
-this open-source R package in his personal capacity.
+Luka Koning is no longer associated with Kennispunt Twente.
+He maintains this open-source R package in his personal capacity.

@@ -14,8 +14,8 @@ fabric_sql_query(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
   port = NULL,
   encrypt = "yes",
@@ -46,9 +46,12 @@ the endpoint hostname.}
 
 \item{client_id}{Character. Application/client ID.}
 
-\item{access_token}{Optional pre-acquired SQL bearer token.}
+\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
+token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
+token or starts its normal interactive login flow.}
 
-\item{token_provider}{Optional refreshable SQL token callback.}
+\item{auth_args}{Named list of additional arguments passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
 default.}
