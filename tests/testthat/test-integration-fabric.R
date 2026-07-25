@@ -1107,6 +1107,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
   notebook <- fabric_test_manifest_item(manifest, "JobFixtures")
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   item <- list(
     id = notebook$id,
     workspaceId = manifest$workspace_id,
@@ -1117,17 +1118,18 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     "fabricqueryr-job-integration-",
     substr(notebook$id, 1L, 8L)
   )
-
   completed_job <- fabric_job_run(
     item,
     parameters = list(mode = "success", marker = "integration"),
+    default_lakehouse = lakehouse$id,
     session_tag = session_tag,
     token = token
   )
   expect_s3_class(completed_job, "fabric_job")
   completed <- fabric_job_wait(
     completed_job,
-    timeout = 900
+    timeout = 900,
+    cancel_on_timeout = TRUE
   )
   expect_s3_class(completed, "fabric_job_instance")
   expect_equal(completed$status, "Completed")
@@ -1146,11 +1148,16 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   failed_job <- fabric_job_run(
     item,
     parameters = list(mode = "failure"),
+    default_lakehouse = lakehouse$id,
     session_tag = session_tag,
     token = token
   )
   failed <- rlang::catch_cnd(
-    fabric_job_wait(failed_job, timeout = 900)
+    fabric_job_wait(
+      failed_job,
+      timeout = 900,
+      cancel_on_timeout = TRUE
+    )
   )
   expect_s3_class(failed, "fabric_job_failed")
   expect_equal(failed$job_status$status, "Failed")
@@ -1158,10 +1165,16 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   expect_true(nzchar(
     .fabric_job_failure_text(failed$job_status$failure_reason)
   ))
+  expect_match(
+    .fabric_job_failure_text(failed$job_status$failure_reason),
+    "FABRICQUERYR_INTENTIONAL_JOB_FAILURE",
+    fixed = TRUE
+  )
 
   slow_job <- fabric_job_run(
     item,
     parameters = list(mode = "slow", delay_seconds = 600L),
+    default_lakehouse = lakehouse$id,
     session_tag = session_tag,
     token = token
   )
@@ -1189,6 +1202,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
 test_that("Fabric pipeline and Spark job definition jobs complete", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  storage_token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   fixtures <- c("TestPipeline", "TestSparkJob")
 
   for (name in fixtures) {
@@ -1205,6 +1219,20 @@ test_that("Fabric pipeline and Spark job definition jobs complete", {
     expect_s3_class(result, "fabric_job_instance")
     expect_equal(result$status, "Completed", info = name)
     expect_equal(result$item_id, fixture$id, info = name)
+
+    if (identical(name, "TestSparkJob")) {
+      lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+      marker <- fabric_onelake_read_delta_table(
+        table_path = lakehouse$tables$spark_job_result,
+        workspace_name = manifest$workspace_id,
+        lakehouse_name = lakehouse$id,
+        schema = lakehouse$schema,
+        token = storage_token,
+        verbose = FALSE
+      )
+      expect_equal(marker$mode, "success")
+      expect_equal(as.numeric(marker$row_count), 3)
+    }
   }
 })
 

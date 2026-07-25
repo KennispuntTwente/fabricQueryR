@@ -1,5 +1,6 @@
 from os import environ
 from pathlib import Path
+import json
 import re
 
 from azure.core.credentials import AccessToken
@@ -71,10 +72,11 @@ def test_pipeline_and_spark_job_fixtures_are_deployable():
     pipeline = (
         workspace / "TestPipeline.DataPipeline/pipeline-content.json"
     ).read_text()
-    spark_definition = (
+    spark_definition_text = (
         workspace
         / "TestSparkJob.SparkJobDefinition/SparkJobDefinitionV1.json"
     ).read_text()
+    spark_definition = json.loads(spark_definition_text)
     spark_main = (
         workspace / "TestSparkJob.SparkJobDefinition/Main/main.py"
     ).read_text()
@@ -82,9 +84,18 @@ def test_pipeline_and_spark_job_fixtures_are_deployable():
 
     assert '"type": "Wait"' in pipeline
     assert '"waitTimeInSeconds": 1' in pipeline
-    assert '"executableFile": "main.py"' in spark_definition
-    assert '"defaultLakehouseArtifactId"' in spark_definition
-    assert "fabricqueryr-spark-job-success" in spark_main
+    assert spark_definition["executableFile"] == "main.py"
+    assert spark_definition["defaultLakehouseArtifactId"]
+    assert spark_definition["retryPolicy"] == {
+        "policyType": "SimpleRetry",
+        "policyProperties": {
+            "retryCount": 1,
+            "intervalBetweenRetriesInSeconds": 30,
+        },
+    }
+    assert 'saveAsTable("dbo.fabricqueryr_spark_job_result")' in spark_main
+    assert "SELECT COUNT(*) FROM dbo.fabricqueryr_basic" in spark_main
+    assert "fabricqueryr-spark-job-success:" in spark_main
     assert 'item_type: "SparkJobDefinition"' in parameters
     assert '"defaultLakehouseArtifactId"' in parameters
 

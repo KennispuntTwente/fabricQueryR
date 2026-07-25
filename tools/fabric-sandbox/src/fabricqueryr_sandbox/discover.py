@@ -183,6 +183,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "column_mapped": "fabricqueryr_column_mapped",
                     "deletion_vectors": "fabricqueryr_deletion_vectors",
                     "livy_batch_result": "fabricqueryr_livy_batch_result",
+                    "spark_job_result": "fabricqueryr_spark_job_result",
                 },
             },
             "SeedFixtures": {

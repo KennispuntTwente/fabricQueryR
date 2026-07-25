@@ -332,9 +332,44 @@ test_that("core timestamps without an explicit UTC suffix are parsed as UTC", {
   expect_equal(format(parsed, tz = "UTC"), "2023-04-22 06:35:00")
 })
 
-test_that("status can represent initial notebook visibility delay", {
+test_that("notebook status falls back to the core scheduler", {
+  urls <- character()
+  local_mocked_bindings(
+    .fabric_job_request = function(
+      method,
+      url,
+      ...,
+      accepted_status = integer()
+    ) {
+      urls <<- c(urls, url)
+      expect_equal(method, "GET")
+      if (length(urls) == 1L) {
+        expect_equal(accepted_status, 404L)
+        return(list(status_code = 404L, retry_after = 5, body = list()))
+      }
+      expect_length(accepted_status, 0L)
+      list(
+        status_code = 200L,
+        retry_after = 3,
+        body = list(id = "job", status = "InProgress")
+      )
+    }
+  )
+
+  result <- fabric_job_status(job_test_handle())
+
+  expect_equal(result$status, "InProgress")
+  expect_true(result$visible)
+  expect_equal(result$retry_after, 3)
+  expect_match(urls[[1L]], "/notebooks/", fixed = TRUE)
+  expect_match(urls[[2L]], "/items/", fixed = TRUE)
+})
+
+test_that("status represents delays in both notebook job stores", {
+  calls <- 0L
   local_mocked_bindings(
     .fabric_job_request = function(..., accepted_status = integer()) {
+      calls <<- calls + 1L
       expect_equal(accepted_status, 404L)
       list(status_code = 404L, retry_after = 5, body = list())
     }
@@ -348,6 +383,7 @@ test_that("status can represent initial notebook visibility delay", {
   expect_equal(result$status, "NotStarted")
   expect_false(result$visible)
   expect_equal(result$retry_after, 5)
+  expect_equal(calls, 2L)
 })
 
 test_that("wait honors Retry-After and returns a completed result", {
@@ -391,13 +427,26 @@ test_that("wait honors Retry-After and returns a completed result", {
 })
 
 test_that("wait tolerates visibility delays until its timeout", {
-  calls <- 0L
+  polls <- 0L
   elapsed <- 0
   local_mocked_bindings(
-    .fabric_job_request = function(..., accepted_status = integer()) {
-      calls <<- calls + 1L
+    .fabric_job_request = function(
+      method,
+      url,
+      ...,
+      accepted_status = integer()
+    ) {
+      expect_equal(method, "GET")
       expect_equal(accepted_status, 404L)
-      if (calls <= 15L) {
+      if (grepl("/notebooks/", url, fixed = TRUE)) {
+        return(list(
+          status_code = 404L,
+          retry_after = NULL,
+          body = list()
+        ))
+      }
+      polls <<- polls + 1L
+      if (polls <= 15L) {
         return(list(
           status_code = 404L,
           retry_after = NULL,
@@ -425,7 +474,7 @@ test_that("wait tolerates visibility delays until its timeout", {
   )
 
   expect_equal(result$status, "Completed")
-  expect_equal(calls, 16L)
+  expect_equal(polls, 16L)
 })
 
 test_that("failed, cancelled, and deduped jobs have distinct conditions", {
@@ -507,7 +556,7 @@ test_that("timeout can request cancellation and retains last status", {
   condition <- rlang::catch_cnd(
     fabric_job_wait(
       job_test_handle(),
-      poll_interval = 2,
+      poll_interval = 0.5,
       timeout = 1,
       cancel_on_timeout = TRUE,
       .sleep = function(seconds) {
@@ -521,6 +570,7 @@ test_that("timeout can request cancellation and retains last status", {
 
   expect_s3_class(condition, "fabric_job_timeout")
   expect_true(any(grepl("/cancel$", calls)))
+  expect_match(condition$message, "last status: InProgress", fixed = TRUE)
 })
 
 test_that("cancel uses the common scheduler route and is idempotent", {

@@ -3,7 +3,13 @@
   "defaultLakehouseArtifactId": "00000000-0000-0000-0000-000000000001",
   "mainClass": "",
   "additionalLakehouseIds": [],
-  "retryPolicy": null,
+  "retryPolicy": {
+    "policyType": "SimpleRetry",
+    "policyProperties": {
+      "retryCount": 1,
+      "intervalBetweenRetriesInSeconds": 30
+    }
+  },
   "commandLineArguments": "",
   "additionalLibraryUris": [],
   "language": "Python",

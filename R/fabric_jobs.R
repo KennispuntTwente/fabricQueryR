@@ -294,11 +294,24 @@ fabric_job_wait <- function(
       if (isTRUE(cancel_on_timeout)) {
         try(fabric_job_cancel(context$job), silent = TRUE)
       }
+      last_detail <- if (!is.null(last)) {
+        paste0(
+          " (last status: ",
+          last$status,
+          if (isFALSE(last$visible)) ", not visible in workload API" else "",
+          ")"
+        )
+      } else {
+        ""
+      }
       rlang::abort(
-        sprintf(
-          "Timed out after %s seconds waiting for Fabric job %s",
-          format(timeout, trim = TRUE),
-          job$id
+        paste0(
+          sprintf(
+            "Timed out after %s seconds waiting for Fabric job %s",
+            format(timeout, trim = TRUE),
+            job$id
+          ),
+          last_detail
         ),
         class = c("fabric_job_timeout", "fabric_job_error"),
         job = job,
@@ -656,15 +669,41 @@ print.fabric_job_instance <- function(x, ...) {
   }
 }
 
+.fabric_job_core_status_url <- function(context) {
+  paste0(
+    context$api_base,
+    "/workspaces/",
+    context$workspace_id,
+    "/items/",
+    context$item_id,
+    "/jobs/instances/",
+    context$id
+  )
+}
+
 .fabric_job_get_status <- function(context, allow_not_found) {
   url <- .fabric_job_status_url(context)
+  notebook <- identical(context$route, "notebook")
   result <- .fabric_job_request(
     "GET",
     url,
     context$credential,
     idempotent = TRUE,
-    accepted_status = if (isTRUE(allow_not_found)) 404L else integer()
+    accepted_status = if (notebook || isTRUE(allow_not_found)) {
+      404L
+    } else {
+      integer()
+    }
   )
+  if (notebook && identical(result$status_code, 404L)) {
+    result <- .fabric_job_request(
+      "GET",
+      .fabric_job_core_status_url(context),
+      context$credential,
+      idempotent = TRUE,
+      accepted_status = if (isTRUE(allow_not_found)) 404L else integer()
+    )
+  }
   if (identical(result$status_code, 404L)) {
     return(.fabric_job_instance(
       list(id = context$id, status = "NotStarted"),
