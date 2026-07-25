@@ -4,8 +4,9 @@
 
 - Delta reader errors now prioritize known unsupported features. Fabric
   job status falls back to the Core scheduler while notebook-specific
-  state is unavailable, and timeouts now report the last observed state.
-  Live Spark coverage verifies durable Delta effects instead of optional
+  state is unavailable, timeouts now report the last observed state, and
+  notebook session tags are validated before submission. Live Spark
+  coverage verifies durable Delta effects instead of optional
   diagnostics.
 
 - Authentication is now consistent across all authenticated exported
