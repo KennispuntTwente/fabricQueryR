@@ -9,7 +9,7 @@
 # META   "dependencies": {}
 # META }
 
-# CELL ********************
+# PARAMETERS CELL ********************
 
 mode = "success"
 marker = "default"
@@ -19,10 +19,7 @@ delay_seconds = 600
 
 # META {
 # META   "language": "python",
-# META   "language_group": "synapse_pyspark",
-# META   "tags": [
-# META     "parameters"
-# META   ]
+# META   "language_group": "synapse_pyspark"
 # META }
 
 # CELL ********************

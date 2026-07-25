@@ -41,7 +41,10 @@ def test_job_notebook_exposes_deterministic_job_modes():
         / "infra/fabric/workspace/JobFixtures.Notebook/notebook-content.py"
     ).read_text()
 
-    assert '"parameters"' in notebook
+    assert notebook.count("# PARAMETERS CELL ********************") == 1
+    assert notebook.index("# PARAMETERS CELL ********************") < notebook.index(
+        'mode = "success"'
+    )
     assert 'mode = "success"' in notebook
     assert 'if mode == "failure":' in notebook
     assert 'if mode == "slow":' in notebook

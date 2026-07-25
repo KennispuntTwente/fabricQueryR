@@ -1157,7 +1157,8 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
       failed_job,
       timeout = 900,
       cancel_on_timeout = TRUE
-    )
+    ),
+    classes = "error"
   )
   expect_s3_class(failed, "fabric_job_failed")
   expect_equal(failed$job_status$status, "Failed")
@@ -1184,7 +1185,8 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
       slow_job,
       timeout = 2,
       cancel_on_timeout = TRUE
-    )
+    ),
+    classes = "error"
   )
   expect_s3_class(timed_out, "fabric_job_timeout")
 

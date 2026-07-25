@@ -506,7 +506,8 @@ test_that("failed, cancelled, and deduped jobs have distinct conditions", {
         job_test_handle(),
         poll_interval = 0,
         timeout = 1
-      )
+      ),
+      classes = "error"
     )
     expect_s3_class(condition, unname(cases[[status]]))
     expect_s3_class(condition, "fabric_job_error")
@@ -565,7 +566,8 @@ test_that("timeout can request cancellation and retains last status", {
       .now = function() {
         as.POSIXct("2026-01-01", tz = "UTC") + elapsed
       }
-    )
+    ),
+    classes = "error"
   )
 
   expect_s3_class(condition, "fabric_job_timeout")
