@@ -415,9 +415,24 @@ test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
     "column mapping mode",
     fixed = TRUE
   )
+  state$protocol <- list(minReaderVersion = 2L)
+  expect_error(
+    fabric_delta_validate_reader(state),
+    "column mapping mode",
+    fixed = TRUE
+  )
 
   state$metadata$configuration <- list()
   state$has_deletion_vectors <- TRUE
+  expect_error(
+    fabric_delta_validate_reader(state),
+    "deletion vectors",
+    fixed = TRUE
+  )
+  state$protocol <- list(
+    minReaderVersion = 3L,
+    readerFeatures = list("deletionVectors")
+  )
   expect_error(
     fabric_delta_validate_reader(state),
     "deletion vectors",

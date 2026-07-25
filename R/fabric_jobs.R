@@ -5,8 +5,6 @@
   "Deduped"
 )
 
-.fabric_job_visibility_retries <- 12L
-
 .fabric_job_parameter_types <- c(
   "VariableReference",
   "Integer",
@@ -281,7 +279,6 @@ fabric_job_wait <- function(
   started <- .now()
   last <- NULL
   retry_after <- job$retry_after
-  not_found_count <- 0L
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
       try(fabric_job_cancel(context$job), silent = TRUE)
@@ -323,13 +320,8 @@ fabric_job_wait <- function(
 
     last <- .fabric_job_get_status(
       context,
-      allow_not_found = not_found_count < .fabric_job_visibility_retries
+      allow_not_found = TRUE
     )
-    if (isTRUE(last$visible)) {
-      not_found_count <- 0L
-    } else {
-      not_found_count <- not_found_count + 1L
-    }
     retry_after <- last$retry_after
     if (!last$status %in% .fabric_job_terminal_states) {
       next

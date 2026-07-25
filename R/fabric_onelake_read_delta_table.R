@@ -700,6 +700,20 @@ fabric_delta_validate_reader <- function(state) {
     state$protocol$readerFeatures %||% list(),
     use.names = FALSE
   )
+
+  configuration <- state$metadata$configuration %||% list()
+  mapping <- configuration[["delta.columnMapping.mode"]] %||% "none"
+  if (!identical(tolower(as.character(mapping)), "none")) {
+    rlang::abort(cli::format_inline(
+      "Delta column mapping mode {.val {mapping}} is not supported by this reader"
+    ))
+  }
+  if (isTRUE(state$has_deletion_vectors)) {
+    rlang::abort(
+      "Delta deletion vectors are not supported by this reader"
+    )
+  }
+
   if (reader_version > 1 || length(features)) {
     detail <- if (length(features)) {
       paste0(". Reader features: ", paste(features, collapse = ", "))
@@ -713,19 +727,6 @@ fabric_delta_validate_reader <- function(state) {
         ". This reader safely supports protocol version 1 only",
         detail
       )
-    )
-  }
-
-  configuration <- state$metadata$configuration %||% list()
-  mapping <- configuration[["delta.columnMapping.mode"]] %||% "none"
-  if (!identical(tolower(as.character(mapping)), "none")) {
-    rlang::abort(cli::format_inline(
-      "Delta column mapping mode {.val {mapping}} is not supported by this reader"
-    ))
-  }
-  if (isTRUE(state$has_deletion_vectors)) {
-    rlang::abort(
-      "Delta deletion vectors are not supported by this reader"
     )
   }
   invisible(state)

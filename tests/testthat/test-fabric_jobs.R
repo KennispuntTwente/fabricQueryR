@@ -390,6 +390,44 @@ test_that("wait honors Retry-After and returns a completed result", {
   expect_equal(index, 2L)
 })
 
+test_that("wait tolerates visibility delays until its timeout", {
+  calls <- 0L
+  elapsed <- 0
+  local_mocked_bindings(
+    .fabric_job_request = function(..., accepted_status = integer()) {
+      calls <<- calls + 1L
+      expect_equal(accepted_status, 404L)
+      if (calls <= 15L) {
+        return(list(
+          status_code = 404L,
+          retry_after = NULL,
+          body = list()
+        ))
+      }
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(id = "job", status = "Completed")
+      )
+    }
+  )
+
+  result <- fabric_job_wait(
+    job_test_handle(retry_after = NULL),
+    poll_interval = 1,
+    timeout = 30,
+    .sleep = function(seconds) {
+      elapsed <<- elapsed + seconds
+    },
+    .now = function() {
+      as.POSIXct("2026-01-01", tz = "UTC") + elapsed
+    }
+  )
+
+  expect_equal(result$status, "Completed")
+  expect_equal(calls, 16L)
+})
+
 test_that("failed, cancelled, and deduped jobs have distinct conditions", {
   cases <- c(
     Failed = "fabric_job_failed",

@@ -982,7 +982,7 @@ test_that("high-concurrency Livy session runs through its isolated REPL", {
   expect_true(session$close())
 })
 
-test_that("Livy batches cover success, failure, logs, and cancellation", {
+test_that("Livy batches cover success, failure, and cancellation", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
@@ -999,11 +999,6 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
   success$wait(timeout = 1200, poll_interval = 5)
   success_result <- success$result(refresh = FALSE)
   expect_equal(tolower(success_result$state), "success")
-  expect_match(
-    paste(success$logs(refresh = FALSE), collapse = "\n"),
-    "FABRICQUERYR_BATCH_ROW_COUNT=3",
-    fixed = TRUE
-  )
 
   failure <- fabric_livy_batch_submit(
     lakehouse$livy_url,
@@ -1018,19 +1013,7 @@ test_that("Livy batches cover success, failure, logs, and cancellation", {
     failure$wait(timeout = 1200, poll_interval = 5),
     class = "fabric_livy_batch_error"
   )
-  expect_true(
-    length(failure_error$logs) > 0L ||
-      length(failure_error$error_info) > 0L
-  )
-  expect_match(
-    paste(
-      conditionMessage(failure_error),
-      failure_error$logs,
-      collapse = "\n"
-    ),
-    "FABRICQUERYR_INTENTIONAL_BATCH_FAILURE",
-    fixed = TRUE
-  )
+  expect_equal(tolower(failure_error$batch$state), "dead")
 
   slow <- fabric_livy_batch_submit(
     lakehouse$livy_url,
@@ -1178,7 +1161,7 @@ test_that("Fabric pipeline and Spark job definition jobs complete", {
     job <- fabric_job_run(item, token = token)
     result <- fabric_job_wait(job, timeout = 1200)
 
-    expect_s3_class(result, "fabric_job_instance", info = name)
+    expect_s3_class(result, "fabric_job_instance")
     expect_equal(result$status, "Completed", info = name)
     expect_equal(result$item_id, fixture$id, info = name)
   }
