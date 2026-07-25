@@ -29,8 +29,8 @@ fabric_livy_batch_submit(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
@@ -93,13 +93,18 @@ fabric_livy_batch_submit(
 
   Microsoft Entra application ID.
 
-- access_token:
+- token:
 
-  Optional Fabric bearer token.
+  Optional
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
+  bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
 
-- token_provider:
+- auth_args:
 
-  Optional callback returning a Fabric bearer token.
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - verbose:
 

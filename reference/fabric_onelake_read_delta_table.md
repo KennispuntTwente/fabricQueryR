@@ -16,8 +16,8 @@ fabric_onelake_read_delta_table(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
@@ -63,16 +63,19 @@ fabric_onelake_read_delta_table(
   `Sys.getenv("FABRICQUERYR_CLIENT_ID")`, falling back to the Azure CLI
   app id `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if not set.
 
-- access_token:
+- token:
 
-  Optional character. If supplied, use this bearer token instead of
-  acquiring a new one via `{AzureAuth}`.
+  Optional
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
+  bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
 
-- token_provider:
+- auth_args:
 
-  Optional function returning a OneLake Storage bearer token. It may
-  accept `audience` and `force_refresh` arguments. Supply only one of
-  `access_token` and `token_provider`.
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+  when no token source is supplied.
 
 - version:
 

@@ -17,8 +17,8 @@ fabric_kql_query(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL
+  token = NULL,
+  auth_args = list()
 )
 ```
 
@@ -67,15 +67,19 @@ fabric_kql_query(
   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as
   fallback.
 
-- access_token:
+- token:
 
-  Optional Kusto bearer token. Supply only one of `access_token` and
-  `token_provider`.
+  Optional
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
+  bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
 
-- token_provider:
+- auth_args:
 
-  Optional callback returning a Kusto bearer token. It may accept
-  `audience` and `force_refresh` arguments.
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+  when no token source is supplied.
 
 ## Value
 

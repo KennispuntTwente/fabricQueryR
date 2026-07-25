@@ -20,6 +20,7 @@ a successful HTTP response can contain both partial data and GraphQL errors."></
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -57,8 +58,8 @@ a successful HTTP response can contain both partial data and GraphQL errors.</p>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
-<span>  access_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  token_provider <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  audience <span class="op">=</span> <span class="va">.fabric_audience</span><span class="op">$</span><span class="va">graphql</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -114,14 +115,15 @@ preserves them in the result, <code>"warn"</code> also emits a warning, and
 <code>FABRICQUERYR_CLIENT_ID</code>, with the Azure CLI application ID as fallback.</p></dd>
 
 
-<dt id="arg-access-token">access_token<a class="anchor" aria-label="anchor" href="#arg-access-token"></a></dt>
-<dd><p>Optional bearer token. Supply only one of
-<code>access_token</code> and <code>token_provider</code>.</p></dd>
+<dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
+<dd><p>Optional <code><a href="https://rdrr.io/pkg/AzureAuth/man/AzureToken.html" class="external-link">AzureAuth::AzureToken</a></code>, bearer-token string, or
+token-provider function. With <code>NULL</code>, <code>AzureAuth</code> reuses a matching cached
+token or starts its normal interactive login flow.</p></dd>
 
 
-<dt id="arg-token-provider">token_provider<a class="anchor" aria-label="anchor" href="#arg-token-provider"></a></dt>
-<dd><p>Optional callback returning a bearer token. It may
-accept <code>audience</code> and <code>force_refresh</code> arguments.</p></dd>
+<dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
+<dd><p>Named list of additional arguments passed to
+<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code> when no token source is supplied.</p></dd>
 
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
@@ -145,15 +147,15 @@ You can instead pass a GraphQL API GUID with <code>workspace_id</code>, or one r
 <code><a href="fabric_typed_items.html">fabric_graphql_apis()</a></code> or <code><a href="fabric_item.html">fabric_item()</a></code>.</p>
 <p>Interactive/delegated authentication requires the Power BI delegated scope
 <code>GraphQLApi.Execute.All</code>, plus <strong>Run Queries and Mutations</strong> permission on
-the API. Service principals are also supported by Fabric: use a Fabric API
-token from a <code>token_provider</code> or <code>access_token</code>, enable service principals
-for Fabric APIs in the tenant, and grant the principal API Execute access or
-a suitable workspace role. With SSO connectivity, the caller also needs the
-required access to the underlying data source. Saved-credential APIs use the
-configured connection instead.</p>
+the API. Service principals are also supported by Fabric: request a Fabric
+API token with <code>auth_args</code> or pass one through <code>token</code>, enable service
+principals for Fabric APIs in the tenant, and grant the principal API
+Execute access or a suitable workspace role. With SSO connectivity, the
+caller also needs the required access to the underlying data source.
+Saved-credential APIs use the configured connection instead.</p>
 <p>The default <code>audience</code> is the delegated GraphQL scope. Set it to
 <code>https://api.fabric.microsoft.com/.default</code> when a custom provider obtains
-service-principal tokens. The value is ignored for a static <code>access_token</code>.</p>
+service-principal tokens. The value is ignored for a static token string.</p>
 <p>GraphQL POST requests are not retried by default because a document can
 contain mutations. Set <code>idempotent = TRUE</code> only when the operation is safe
 to repeat.</p>

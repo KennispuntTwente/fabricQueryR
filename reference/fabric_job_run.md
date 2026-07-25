@@ -23,8 +23,8 @@ fabric_job_run(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 
@@ -38,8 +38,8 @@ fabric_job_status(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 
@@ -53,8 +53,8 @@ fabric_job_wait(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -70,8 +70,8 @@ fabric_job_cancel(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   api_base = .fabric_api_base
 )
 ```
@@ -136,11 +136,30 @@ fabric_job_cancel(
 
   Optional Spark high-concurrency session tag.
 
-- tenant_id, client_id, access_token, token_provider:
+- tenant_id:
 
-  Authentication arguments. Job submission and cancellation require
-  `Item.Execute.All` or the corresponding workload-specific execute
-  permission.
+  Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+
+- client_id:
+
+  Entra application ID. Defaults to `FABRICQUERYR_CLIENT_ID`, then the
+  Azure CLI application ID.
+
+- token:
+
+  Preferred token input: an
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
+  object, bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
+
+- auth_args:
+
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+  when no token source is supplied. Job submission and cancellation
+  require `Item.Execute.All` or the corresponding workload-specific
+  execute permission.
 
 - api_base:
 

@@ -83,7 +83,10 @@ install.packages("fabricQueryR")
 
 See the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
-for the full documentation of all functions.
+for the full documentation of all functions. See the [authentication
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
+for interactive login, cached tokens, service principals, certificates,
+managed identities, and the permissions each Fabric workload requires.
 
 Below is a code snippet showing how to discover targets and use the
 eight methods to work with Fabric data from R:
@@ -402,3 +405,9 @@ Package overview
   [`fabricQueryR-package`](https://lukakoning.github.io/fabricQueryR/reference/fabricQueryR-package.md)
   : fabricQueryR: Query Data in 'Microsoft Fabric'
 
+# Articles
+
+### Authentication
+
+- [Authentication with Microsoft
+  Fabric](https://lukakoning.github.io/fabricQueryR/articles/authentication.md):

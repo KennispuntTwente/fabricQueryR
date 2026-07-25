@@ -20,8 +20,8 @@ fabric_graphql_query(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   audience = .fabric_audience$graphql,
   api_base = .fabric_api_base
 )
@@ -75,15 +75,19 @@ fabric_graphql_query(
   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as
   fallback.
 
-- access_token:
+- token:
 
-  Optional bearer token. Supply only one of `access_token` and
-  `token_provider`.
+  Optional
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
+  bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
 
-- token_provider:
+- auth_args:
 
-  Optional callback returning a bearer token. It may accept `audience`
-  and `force_refresh` arguments.
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+  when no token source is supplied.
 
 - audience:
 
@@ -111,8 +115,8 @@ or
 Interactive/delegated authentication requires the Power BI delegated
 scope `GraphQLApi.Execute.All`, plus **Run Queries and Mutations**
 permission on the API. Service principals are also supported by Fabric:
-use a Fabric API token from a `token_provider` or `access_token`, enable
-service principals for Fabric APIs in the tenant, and grant the
+request a Fabric API token with `auth_args` or pass one through `token`,
+enable service principals for Fabric APIs in the tenant, and grant the
 principal API Execute access or a suitable workspace role. With SSO
 connectivity, the caller also needs the required access to the
 underlying data source. Saved-credential APIs use the configured
@@ -121,7 +125,7 @@ connection instead.
 The default `audience` is the delegated GraphQL scope. Set it to
 `https://api.fabric.microsoft.com/.default` when a custom provider
 obtains service-principal tokens. The value is ignored for a static
-`access_token`.
+token string.
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set `idempotent = TRUE` only when the operation is

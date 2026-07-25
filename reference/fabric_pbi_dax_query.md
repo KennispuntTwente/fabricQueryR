@@ -16,10 +16,10 @@ fabric_pbi_dax_query(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
+  token = NULL,
+  auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  access_token = NULL,
-  token_provider = NULL,
   impersonated_user = NULL
 )
 ```
@@ -69,6 +69,20 @@ fabric_pbi_dax_query(
   want to make your own app registration in your tenant for better
   control.
 
+- token:
+
+  Optional
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
+  bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
+
+- auth_args:
+
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+  when no token source is supplied.
+
 - include_nulls:
 
   Logical; pass-through to the REST serializer setting. Defaults to
@@ -80,17 +94,6 @@ fabric_pbi_dax_query(
   API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
   'myorg' is appropriate for most use cases and does not necessarily
   need to be changed.
-
-- access_token:
-
-  Optional character. If supplied, use this bearer token instead of
-  acquiring a new one via `{AzureAuth}`.
-
-- token_provider:
-
-  Optional function that returns a Power BI bearer token. It may accept
-  `audience` and `force_refresh` arguments and is called again after an
-  HTTP 401. Supply only one of `access_token` and `token_provider`.
 
 - impersonated_user:
 

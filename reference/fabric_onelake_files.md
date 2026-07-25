@@ -28,8 +28,8 @@ fabric_onelake_list(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -41,8 +41,8 @@ fabric_onelake_metadata(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -58,8 +58,8 @@ fabric_onelake_download(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -76,8 +76,8 @@ fabric_onelake_upload(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 
@@ -92,8 +92,8 @@ fabric_onelake_delete(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
-  access_token = NULL,
-  token_provider = NULL,
+  token = NULL,
+  auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 )
 ```
@@ -137,14 +137,18 @@ fabric_onelake_delete(
   Entra application ID. Defaults to `FABRICQUERYR_CLIENT_ID`, then the
   Azure CLI application ID.
 
-- access_token:
+- token:
 
-  Optional Storage-audience bearer token.
+  Optional
+  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
+  bearer-token string, or token-provider function. With `NULL`,
+  `AzureAuth` reuses a matching cached token or starts its normal
+  interactive login flow.
 
-- token_provider:
+- auth_args:
 
-  Optional function returning a Storage-audience token. It may accept
-  `audience` and `force_refresh`.
+  Named list of additional arguments passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - dfs_base:
 
