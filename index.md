@@ -6,55 +6,55 @@ methods which help you work with Microsoft Fabric from R:
 
 1.  Create a connection to a SQL endpoint (e.g., from a `Lakehouse` or
     `Data Warehouse` item):
-    [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md).
+    [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md).
     This results in a ‘DBI’ connection object which you can execute SQL
     queries with, and/or use with ‘DBI’-compatible packages like
     ‘dbplyr’.
 
 2.  Execute a DAX query against a Fabric or Power Bi `Semantic Model`
     item:
-    [`fabric_pbi_dax_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md).
+    [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md).
     With this, you can run DAX queries against a Fabric/Power Bi dataset
     and get the results as a ‘tibble’ dataframe.
 
 3.  Execute Livy API queries: with
-    [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md),
-    [`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md),
+    [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md),
+    [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
     and
-    [`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md),
+    [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md),
     you can remotely run Spark/Spark SQL/SparkR/PySpark in Microsoft
     Fabric and get the results in your local R session.
 
 4.  Read a Delta table from a Fabric `Lakehouse` item:
-    [`fabric_onelake_read_delta_table()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md).
+    [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md).
     This function downloads the underlying Parquet files from the Delta
     table stored in OneLake (ADLS Gen2) and returns the data as a
     ‘tibble’ dataframe.
 
 5.  Work with OneLake files using
-    [`fabric_onelake_list()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
-    [`fabric_onelake_metadata()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
-    [`fabric_onelake_download()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
-    [`fabric_onelake_upload()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_download()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+    [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
     and
-    [`fabric_onelake_delete()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_onelake_files.md).
+    [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md).
 
 6.  Execute a KQL query against an `Eventhouse`/`KQL Database` item:
-    [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md).
+    [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md).
     This returns typed Kusto query results as a ‘tibble’ dataframe, or a
     named list of tibbles when KQL returns multiple result tables.
 
 7.  Execute a GraphQL query against an `API for GraphQL` item:
-    [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md).
+    [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md).
     This preserves GraphQL data, errors, and extensions independently,
     including valid responses containing partial data and errors.
 
 8.  Run and monitor on-demand Fabric item jobs with
-    [`fabric_job_run()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
-    [`fabric_job_status()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
-    [`fabric_job_wait()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
+    [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+    [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+    [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
     and
-    [`fabric_job_cancel()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md).
+    [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md).
     These functions support notebooks, pipelines, and Spark job
     definitions.
 
@@ -125,7 +125,7 @@ notebook <- fabric_notebooks(workspace)[1, ]
 
 # A discovered item supplies both the server and required database/catalog.
 # You can alternatively provide a complete portal connection string, or a bare
-# endpoint together with `database = "..."`; omit it to use Fabric `master`
+# endpoint together with `database = "..."`; omit it to use Fabric `master`.
 
 # Get connection
 con <- fabric_sql_connect(lakehouse)

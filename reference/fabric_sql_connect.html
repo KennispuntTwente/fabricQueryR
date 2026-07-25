@@ -60,6 +60,8 @@ endpoint, or SQL Database using a Microsoft Entra access token.</p>
 <span>  timeout <span class="op">=</span> <span class="fl">30L</span>,</span>
 <span>  read_only <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  max_tries <span class="op">=</span> <span class="fl">3L</span>,</span>
+<span>  retry_delay <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -131,6 +133,18 @@ default.</p></dd>
 <dd><p>Logical. Emit connection progress.</p></dd>
 
 
+<dt id="arg-max-tries">max_tries<a class="anchor" aria-label="anchor" href="#arg-max-tries"></a></dt>
+<dd><p>Positive maximum number of attempts for transient Fabric SQL
+failures. Connections are always safe to retry. In
+<code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>, execution failures are retried only when
+<code>idempotent = TRUE</code>.</p></dd>
+
+
+<dt id="arg-retry-delay">retry_delay<a class="anchor" aria-label="anchor" href="#arg-retry-delay"></a></dt>
+<dd><p>Non-negative initial retry delay in seconds. Subsequent
+delays use exponential backoff with jitter, capped at 60 seconds.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments forwarded to <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>. The former
 named <code>access_token</code> argument is consumed here as a deprecated alias for
@@ -149,6 +163,8 @@ Warehouse does not support it. Complete portal connection strings and
 enriched discovery records provide a catalog automatically. Bare endpoints
 may omit <code>database</code> to use Fabric's <code>master</code> context; the package never
 guesses a catalog name.</p>
+<p>Transient Fabric connection failures are retried on fresh connections with
+refreshed tokens and bounded exponential backoff.</p>
 <p>The SQL audience is <code>https://database.windows.net/.default</code>. The identity
 must have permission to connect to and query the target item.</p>
     </div>

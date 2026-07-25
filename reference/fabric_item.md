@@ -24,7 +24,7 @@ fabric_item(
 - workspace:
 
   Workspace GUID, exact display name, or a workspace record returned by
-  [`fabric_workspaces()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_workspaces.md).
+  [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
 
 - item:
 

@@ -1,7 +1,7 @@
 # Paginate a Microsoft Fabric GraphQL operation
 
 Repeats
-[`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+[`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
 while `next_cursor` returns a cursor. The callback makes pagination
 independent of the user's schema shape.
 
@@ -45,7 +45,7 @@ fabric_graphql_paginate(
 
   Function accepting a `fabric_graphql_result` and returning the next
   opaque cursor, or `NULL` when pagination is complete. Use
-  [`fabric_graphql_cursor()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
+  [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
   for Fabric's normal connection fields.
 
 - variables:

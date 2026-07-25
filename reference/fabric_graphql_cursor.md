@@ -26,4 +26,4 @@ fabric_graphql_cursor(path, has_next = "hasNextPage", end_cursor = "endCursor")
 ## Value
 
 A function suitable for `next_cursor` in
-[`fabric_graphql_paginate()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_paginate.md).
+[`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md).

@@ -24,6 +24,8 @@ fabric_sql_connect(
   timeout = 30L,
   read_only = FALSE,
   verbose = TRUE,
+  max_tries = 3L,
+  retry_delay = 5,
   ...
 )
 ```
@@ -39,7 +41,7 @@ fabric_sql_connect(
 
   Optional catalog/database. An explicit value overrides a catalog found
   in `server`. `fabric_sql_connect()` and
-  [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   infer complete connection strings and discovery records when this
   argument is omitted. A bare Warehouse or SQL analytics endpoint
   without a catalog connects to Fabric's `master` context.
@@ -95,6 +97,18 @@ fabric_sql_connect(
 
   Logical. Emit connection progress.
 
+- max_tries:
+
+  Positive maximum number of attempts for transient Fabric SQL failures.
+  Connections are always safe to retry. In
+  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md),
+  execution failures are retried only when `idempotent = TRUE`.
+
+- retry_delay:
+
+  Non-negative initial retry delay in seconds. Subsequent delays use
+  exponential backoff with jitter, capped at 60 seconds.
+
 - ...:
 
   Additional arguments forwarded to
@@ -114,6 +128,9 @@ Warehouse does not support it. Complete portal connection strings and
 enriched discovery records provide a catalog automatically. Bare
 endpoints may omit `database` to use Fabric's `master` context; the
 package never guesses a catalog name.
+
+Transient Fabric connection failures are retried on fresh connections
+with refreshed tokens and bounded exponential backoff.
 
 The SQL audience is `https://database.windows.net/.default`. The
 identity must have permission to connect to and query the target item.

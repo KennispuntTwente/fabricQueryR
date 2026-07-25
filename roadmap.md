@@ -406,10 +406,10 @@ function to fragile display-name resolution.
 ### Direction
 
 - Add functions such as
-  [`fabric_workspaces()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_workspaces.md),
-  [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md),
+  [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
+  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
   and
-  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md)
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
   over the Fabric Core REST APIs.
 - Support item-type filtering and complete pagination.
 - Add typed convenience discovery for lakehouses, Warehouses, SQL
@@ -474,7 +474,7 @@ meaningful connection surface not represented by the current package.
 ### Direction
 
 - Add
-  [`fabric_kql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   using the Kusto query REST endpoint and the
   `https://api.kusto.windows.net` token resource.
 - Accept cluster/query-service URI and database directly, with optional
@@ -523,7 +523,7 @@ patterns.
 - Integration tests cover multiple statements in one session, statement
   failure, batch success/failure/cancel, and session cleanup.
 - The existing
-  [`fabric_livy_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_query.md)
+  [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   remains as a convenience wrapper over the new session implementation.
 
 ## Priority 8: Add Fabric API for GraphQL
@@ -543,7 +543,7 @@ after the shared authentication and discovery layers are in place.
 ### Direction
 
 - Add
-  [`fabric_graphql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+  [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
   accepting API endpoint/ID, query document, variables, and operation
   name.
 - Parse GraphQL `data` and `errors` independently because valid HTTP
@@ -613,9 +613,9 @@ test-data setup.
 ### Direction
 
 - Add
-  [`fabric_job_run()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
-  [`fabric_job_status()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
-  [`fabric_job_cancel()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
   and a wait helper over the Fabric Job Scheduler APIs.
 - Return structured job IDs, status, timestamps, failure reasons, and
   activity IDs.

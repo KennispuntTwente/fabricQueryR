@@ -28,10 +28,10 @@ fabric_kql_query(
 
   Character query-service/cluster URI, or one Eventhouse or KQLDatabase
   record returned by
-  [`fabric_eventhouses()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md),
-  [`fabric_kql_databases()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   or
-  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md).
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
   A KQLDatabase record also supplies `database`.
 
 - query:

@@ -3,7 +3,7 @@
 Normalizes a bare Fabric SQL endpoint, a complete portal connection
 string, or one enriched discovery record into connection information
 used by
-[`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md).
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md).
 
 ## Usage
 
@@ -28,9 +28,9 @@ fabric_sql_connection_info(
 
   Optional catalog/database. An explicit value overrides a catalog found
   in `server`.
-  [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   and
-  [`fabric_sql_query()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   infer complete connection strings and discovery records when this
   argument is omitted. A bare Warehouse or SQL analytics endpoint
   without a catalog connects to Fabric's `master` context.

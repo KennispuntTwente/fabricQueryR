@@ -43,9 +43,9 @@ fabric_livy_session(
 
   A copied session or batch connection URL, Livy API base URL, or
   enriched Lakehouse record from
-  [`fabric_lakehouses()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
-  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md).
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
 
 - high_concurrency:
 
@@ -118,7 +118,7 @@ fabric_livy_session(
 ## Value
 
 A newly created
-[FabricLivySession](https://lukakoning.github.io/fabricQueryR/reference/FabricLivySession.md).
+[FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
 
 ## Details
 

@@ -121,7 +121,7 @@ fabric_livy_batch_submit(
 ## Value
 
 A
-[FabricLivyBatch](https://lukakoning.github.io/fabricQueryR/reference/FabricLivyBatch.md).
+[FabricLivyBatch](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md).
 
 ## Details
 

@@ -1,7 +1,7 @@
 # Typed Microsoft Fabric item discovery
 
 These helpers are equivalent to
-[`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md)
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
 with an item type and `detail = TRUE`. They return workload-specific
 properties and derived connection targets.
 
@@ -30,12 +30,12 @@ fabric_graphql_apis(workspace, ...)
 - workspace:
 
   Workspace GUID, exact display name, or a workspace record returned by
-  [`fabric_workspaces()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_workspaces.md).
+  [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
 
 - ...:
 
   Authentication and API arguments forwarded to
-  [`fabric_items()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_items.md).
+  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md).
 
 ## Value
 

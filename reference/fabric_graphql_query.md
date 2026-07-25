@@ -109,9 +109,9 @@ A direct endpoint has the form
 `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
 You can instead pass a GraphQL API GUID with `workspace_id`, or one row
 from
-[`fabric_graphql_apis()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md)
+[`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
 or
-[`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md).
+[`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
 
 Interactive/delegated authentication requires the Power BI delegated
 scope `GraphQLApi.Execute.All`, plus **Run Queries and Mutations**

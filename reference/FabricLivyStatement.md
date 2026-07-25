@@ -67,7 +67,7 @@ Internal constructor used by `FabricLivySession$submit()`.
 - `session`:
 
   Parent
-  [FabricLivySession](https://lukakoning.github.io/fabricQueryR/reference/FabricLivySession.md).
+  [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
 
 - `response`:
 

@@ -3,7 +3,7 @@
 Creates a session, waits for it to become ready, runs one statement, and
 closes the session even when execution fails. For multiple statements or
 explicit lifecycle control, use
-[`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md).
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
 
 ## Usage
 
@@ -31,9 +31,9 @@ fabric_livy_query(
 - livy_url:
 
   A Livy connection URL or an enriched Lakehouse record from
-  [`fabric_lakehouses()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
-  [`fabric_item()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_item.md).
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
 
 - code:
 

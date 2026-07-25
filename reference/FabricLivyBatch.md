@@ -1,7 +1,7 @@
 # A Microsoft Fabric Livy batch job
 
 Instances are returned by
-[`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
 
 ## Format
 
@@ -64,7 +64,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
 ### `FabricLivyBatch$new()`
 
 Internal constructor used by
-[`fabric_livy_batch_submit()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
 
 #### Usage
 

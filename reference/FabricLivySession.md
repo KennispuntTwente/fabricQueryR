@@ -2,7 +2,7 @@
 
 `FabricLivySession` represents either a regular interactive Livy session
 or a high-concurrency (HC) session. Create instances with
-[`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md)
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
 rather than calling `$new()` directly.
 
 ## Format
@@ -74,7 +74,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
 ### `FabricLivySession$new()`
 
 Internal constructor used by
-[`fabric_livy_session()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_livy_session.md).
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
 
 #### Usage
 
@@ -207,7 +207,7 @@ Submit code without waiting for completion.
 #### Returns
 
 A
-[FabricLivyStatement](https://lukakoning.github.io/fabricQueryR/reference/FabricLivyStatement.md).
+[FabricLivyStatement](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.md).
 
 ------------------------------------------------------------------------
 

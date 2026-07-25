@@ -1,9 +1,12 @@
 # Run a parameterized query against Microsoft Fabric SQL
 
 Opens a connection with
-[`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md),
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md),
 executes `sql`, and closes the connection. Values in `params` are bound
-by DBI; they are never interpolated into the SQL string.
+by DBI; they are never interpolated into the SQL string. Transient
+connection failures are safe to retry. Set `idempotent = TRUE` only when
+the complete SQL statement may be rerun after an ambiguous transient
+execution failure.
 
 ## Usage
 
@@ -27,6 +30,9 @@ fabric_sql_query(
   timeout = 30L,
   read_only = FALSE,
   verbose = TRUE,
+  max_tries = 3L,
+  retry_delay = 5,
+  idempotent = FALSE,
   ...
 )
 ```
@@ -52,7 +58,7 @@ fabric_sql_query(
 
   Optional catalog/database. An explicit value overrides a catalog found
   in `server`.
-  [`fabric_sql_connect()`](https://lukakoning.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   and `fabric_sql_query()` infer complete connection strings and
   discovery records when this argument is omitted. A bare Warehouse or
   SQL analytics endpoint without a catalog connects to Fabric's `master`
@@ -108,6 +114,22 @@ fabric_sql_query(
 - verbose:
 
   Logical. Emit connection progress.
+
+- max_tries:
+
+  Positive maximum number of attempts for transient Fabric SQL failures.
+  Connections are always safe to retry. In `fabric_sql_query()`,
+  execution failures are retried only when `idempotent = TRUE`.
+
+- retry_delay:
+
+  Non-negative initial retry delay in seconds. Subsequent delays use
+  exponential backoff with jitter, capped at 60 seconds.
+
+- idempotent:
+
+  Logical. Whether the SQL statement may safely rerun on a fresh
+  connection after a transient execution failure.
 
 - ...:
 
