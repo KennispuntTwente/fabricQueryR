@@ -83,6 +83,10 @@ downloaded, so historical and tombstoned Parquet files are not staged.
 \item Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
 require reader protocol versions or reader features this package does not
 implement are rejected before any data is returned.
+\item The returned columns follow the logical schema in the selected Delta
+snapshot. Schema additions are filled with typed missing values, removed
+physical columns are omitted, and partition values come from Delta add-file
+actions rather than being inferred from directory names.
 \item Schema-enabled lakehouses (the default for new lakehouses) organise
 tables into named schemas. Supply the \code{schema} argument (e.g. \code{"dbo"})
 to read a table stored under a specific schema.

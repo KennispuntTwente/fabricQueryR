@@ -269,6 +269,187 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
   )
 })
 
+test_that("Delta reader preserves the logical schema for empty tables", {
+  table_dir <- fs::path_temp(paste0("delta-empty-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "long",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "label",
+          type = "string",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(metaData = list(
+          id = "table",
+          schemaString = schema,
+          partitionColumns = list(),
+          configuration = list()
+        )),
+        auto_unbox = TRUE
+      )
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(nrow(result), 0L)
+  expect_equal(names(result), c("id", "label"))
+  expect_type(result$id, "double")
+  expect_type(result$label, "character")
+})
+
+test_that("Delta reader applies schema projection and log partition values", {
+  table_dir <- fs::path_temp(paste0("delta-schema-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  data_dir <- fs::path(table_dir, "not-a-hive-partition")
+  fs::dir_create(log_dir, recurse = TRUE)
+  fs::dir_create(data_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(data_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  parquet_literal <- as.character(DBI::dbQuoteString(
+    con,
+    gsub("\\\\", "/", parquet)
+  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 1::BIGINT AS id, 'obsolete' AS dropped) TO ",
+      parquet_literal,
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "id", type = "long", nullable = FALSE, metadata = list()),
+        list(
+          name = "added",
+          type = "string",
+          nullable = TRUE,
+          metadata = list()
+        ),
+        list(
+          name = "category",
+          type = "string",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(metaData = list(
+          id = "table",
+          schemaString = schema,
+          partitionColumns = list("category"),
+          configuration = list()
+        )),
+        auto_unbox = TRUE
+      ),
+      jsonlite::toJSON(
+        list(add = list(
+          path = "not-a-hive-partition/part.parquet",
+          partitionValues = list(category = "from-log")
+        )),
+        auto_unbox = TRUE
+      )
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(names(result), c("id", "added", "category"))
+  expect_equal(as.numeric(result$id), 1)
+  expect_true(is.na(result$added))
+  expect_equal(result$category, "from-log")
+  expect_false("dropped" %in% names(result))
+})
+
+test_that("Delta reader supports a physical filename column", {
+  table_dir <- fs::path_temp(paste0("delta-filename-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  parquet_literal <- as.character(DBI::dbQuoteString(
+    con,
+    gsub("\\\\", "/", parquet)
+  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 'value.csv' AS filename) TO ",
+      parquet_literal,
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "filename",
+        type = "string",
+        nullable = FALSE,
+        metadata = list()
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(metaData = list(
+          id = "table",
+          schemaString = schema,
+          partitionColumns = list(),
+          configuration = list()
+        )),
+        auto_unbox = TRUE
+      ),
+      '{"add":{"path":"part.parquet","partitionValues":{}}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(result$filename, "value.csv")
+})
+
 test_that("Delta checkpoints allow earlier JSON commits to be absent", {
   table_dir <- fs::path_temp(paste0("delta-checkpoint-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
@@ -300,6 +481,8 @@ test_that("Delta checkpoints allow earlier JSON commits to be absent", {
         ),
         metaData = list(
           id = "table-id",
+          schemaString = "{}",
+          partitionColumns = list(list()),
           configuration = list(data.frame(
             key = character(),
             value = character()

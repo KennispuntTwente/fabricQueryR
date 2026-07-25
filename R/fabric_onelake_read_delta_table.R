@@ -16,6 +16,10 @@
 #' - Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
 #'  require reader protocol versions or reader features this package does not
 #'  implement are rejected before any data is returned.
+#' - The returned columns follow the logical schema in the selected Delta
+#'  snapshot. Schema additions are filled with typed missing values, removed
+#'  physical columns are omitted, and partition values come from Delta add-file
+#'  actions rather than being inferred from directory names.
 #' - Schema-enabled lakehouses (the default for new lakehouses) organise
 #'  tables into named schemas. Supply the `schema` argument (e.g. `"dbo"`)
 #'  to read a table stored under a specific schema.
@@ -393,9 +397,7 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
 #' @noRd
 fabric_delta_read_staged <- function(table_dir, version = NULL) {
   snapshot <- fabric_delta_resolve_snapshot(table_dir, version = version)
-  if (!length(snapshot$active)) {
-    return(data.frame())
-  }
+  schema <- fabric_delta_schema(snapshot$metadata)
 
   relative <- utils::URLdecode(snapshot$active)
   parts <- strsplit(gsub("\\\\", "/", relative), "/", fixed = TRUE)
@@ -405,6 +407,16 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
   ) {
     rlang::abort("Delta log contains an unsafe data-file path")
   }
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  projection <- fabric_delta_schema_projection(con, schema)
+  if (!length(snapshot$active)) {
+    return(DBI::dbGetQuery(
+      con,
+      paste0("SELECT ", paste(projection$empty, collapse = ", "), " WHERE FALSE")
+    ))
+  }
+
   paths <- fs::path(table_dir, relative)
   missing <- !fs::file_exists(paths)
   if (any(missing)) {
@@ -416,21 +428,297 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
     ))
   }
 
-  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-
   literals <- as.character(DBI::dbQuoteString(
     con,
     gsub("\\\\", "/", normalizePath(paths, mustWork = TRUE))
   ))
+  parquet_without_source <- paste0(
+    "read_parquet([",
+    paste(literals, collapse = ", "),
+    "], union_by_name = true, hive_partitioning = false)"
+  )
+  physical <- DBI::dbGetQuery(
+    con,
+    paste0("DESCRIBE SELECT * FROM ", parquet_without_source)
+  )$column_name
+  source_column <- "filename"
+  if ("filename" %in% physical) {
+    source_column <- "fabric_delta_source_path_internal"
+    while (source_column %in% physical) {
+      source_column <- paste0(source_column, "_")
+    }
+    quoted_source <- as.character(DBI::dbQuoteIdentifier(con, source_column))
+    parquet <- paste(vapply(seq_along(literals), function(index) {
+      paste0(
+        "SELECT *, ",
+        literals[[index]],
+        " AS ",
+        quoted_source,
+        " FROM read_parquet(",
+        literals[[index]],
+        ", hive_partitioning = false)"
+      )
+    }, character(1)), collapse = " UNION ALL BY NAME ")
+    parquet <- paste0("(", parquet, ")")
+  } else {
+    parquet <- paste0(
+      "read_parquet([",
+      paste(literals, collapse = ", "),
+      "], union_by_name = true, hive_partitioning = false, filename = true)"
+    )
+  }
+  mapping <- fabric_delta_partition_mapping(
+    snapshot,
+    gsub("\\\\", "/", normalizePath(paths, mustWork = TRUE)),
+    schema
+  )
+  DBI::dbWriteTable(con, "fabric_delta_partitions", mapping, temporary = TRUE)
+  source <- paste0(
+    parquet,
+    " AS delta_source LEFT JOIN fabric_delta_partitions AS delta_partitions ",
+    "ON delta_source.",
+    as.character(DBI::dbQuoteIdentifier(con, source_column)),
+    " = delta_partitions.fabric_delta_source_path"
+  )
+  selected <- fabric_delta_read_projection(
+    con,
+    schema,
+    physical,
+    source_column
+  )
   DBI::dbGetQuery(
     con,
     paste0(
-      "SELECT * FROM read_parquet([",
-      paste(literals, collapse = ", "),
-      "], union_by_name = true, hive_partitioning = true)"
+      "SELECT ",
+      paste(selected, collapse = ", "),
+      " FROM ",
+      source
     )
   )
+}
+
+#' Parse and validate the current logical Delta schema
+#' @keywords internal
+#' @noRd
+fabric_delta_schema <- function(metadata) {
+  schema_string <- metadata$schemaString %||% NULL
+  if (
+    is.null(schema_string) ||
+      !is.character(schema_string) ||
+      length(schema_string) != 1L ||
+      is.na(schema_string) ||
+      !nzchar(schema_string)
+  ) {
+    rlang::abort("Delta snapshot does not contain a valid metadata schemaString")
+  }
+  schema <- tryCatch(
+    jsonlite::fromJSON(schema_string, simplifyVector = FALSE),
+    error = function(error) {
+      rlang::abort("Could not parse the Delta metadata schemaString", parent = error)
+    }
+  )
+  if (!identical(schema$type, "struct") || !is.list(schema$fields)) {
+    rlang::abort("Delta metadata schemaString must describe a struct")
+  }
+  field_names <- vapply(
+    schema$fields,
+    function(field) as.character(field$name %||% ""),
+    character(1)
+  )
+  if (any(!nzchar(field_names)) || anyDuplicated(tolower(field_names))) {
+    rlang::abort("Delta metadata schema contains missing or duplicate field names")
+  }
+  schema$partitionColumns <- unlist(
+    metadata$partitionColumns %||% list(),
+    use.names = FALSE
+  )
+  unknown_partitions <- setdiff(schema$partitionColumns, field_names)
+  if (length(unknown_partitions)) {
+    rlang::abort(paste0(
+      "Delta metadata references unknown partition column(s): ",
+      paste(unknown_partitions, collapse = ", ")
+    ))
+  }
+  schema
+}
+
+#' Translate a Delta schema type into a DuckDB type
+#' @keywords internal
+#' @noRd
+fabric_delta_duckdb_type <- function(con, type) {
+  if (is.character(type) && length(type) == 1L) {
+    normalized <- tolower(type)
+    primitive <- c(
+      string = "VARCHAR",
+      long = "BIGINT",
+      integer = "INTEGER",
+      short = "SMALLINT",
+      byte = "TINYINT",
+      float = "FLOAT",
+      double = "DOUBLE",
+      boolean = "BOOLEAN",
+      binary = "BLOB",
+      date = "DATE",
+      timestamp = "TIMESTAMPTZ",
+      timestamp_ntz = "TIMESTAMP"
+    )
+    if (!is.null(primitive[[normalized]])) {
+      return(unname(primitive[[normalized]]))
+    }
+    if (grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized)) {
+      return(toupper(normalized))
+    }
+    rlang::abort(paste0("Unsupported Delta schema type: ", type))
+  }
+  if (!is.list(type)) {
+    rlang::abort("Delta schema contains an invalid field type")
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (identical(kind, "struct")) {
+    fields <- type$fields %||% list()
+    if (!length(fields)) {
+      rlang::abort("Empty Delta struct fields are not supported")
+    }
+    definitions <- vapply(fields, function(field) {
+      paste(
+        as.character(DBI::dbQuoteIdentifier(con, field$name)),
+        fabric_delta_duckdb_type(con, field$type)
+      )
+    }, character(1))
+    return(paste0("STRUCT(", paste(definitions, collapse = ", "), ")"))
+  }
+  if (identical(kind, "array")) {
+    return(paste0(
+      fabric_delta_duckdb_type(con, type$elementType),
+      "[]"
+    ))
+  }
+  if (identical(kind, "map")) {
+    return(paste0(
+      "MAP(",
+      fabric_delta_duckdb_type(con, type$keyType),
+      ", ",
+      fabric_delta_duckdb_type(con, type$valueType),
+      ")"
+    ))
+  }
+  rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
+}
+
+#' Build logical and empty-table schema projections
+#' @keywords internal
+#' @noRd
+fabric_delta_schema_projection <- function(con, schema) {
+  names <- vapply(schema$fields, `[[`, character(1), "name")
+  types <- vapply(
+    schema$fields,
+    function(field) fabric_delta_duckdb_type(con, field$type),
+    character(1)
+  )
+  aliases <- as.character(DBI::dbQuoteIdentifier(con, names))
+  list(
+    names = names,
+    types = types,
+    empty = paste0("CAST(NULL AS ", types, ") AS ", aliases)
+  )
+}
+
+#' Normalize a Delta partition-values map
+#' @keywords internal
+#' @noRd
+fabric_delta_partition_values <- function(value) {
+  if (is.null(value) || !length(value)) {
+    return(list())
+  }
+  if (is.data.frame(value) && all(c("key", "value") %in% names(value))) {
+    return(stats::setNames(as.list(value$value), value$key))
+  }
+  if (
+    is.list(value) &&
+      all(c("key", "value") %in% names(value)) &&
+      length(value$key) == length(value$value)
+  ) {
+    return(stats::setNames(as.list(value$value), unlist(value$key)))
+  }
+  if (!is.null(names(value))) {
+    return(as.list(value))
+  }
+  rlang::abort("Delta log contains an invalid partitionValues map")
+}
+
+#' Construct a temporary per-file partition mapping for DuckDB
+#' @keywords internal
+#' @noRd
+fabric_delta_partition_mapping <- function(snapshot, paths, schema) {
+  partitions <- schema$partitionColumns
+  mapping <- data.frame(
+    fabric_delta_source_path = paths,
+    stringsAsFactors = FALSE
+  )
+  if (!length(partitions)) {
+    return(mapping)
+  }
+  files <- snapshot$files %||% list()
+  for (index in seq_along(partitions)) {
+    partition <- partitions[[index]]
+    values <- lapply(snapshot$active, function(path) {
+      record <- files[[path]] %||% list(partitionValues = list())
+      map <- record$partitionValues %||% list()
+      if (!partition %in% names(map)) {
+        rlang::abort(cli::format_inline(
+          "Delta file {.path {path}} has no value for partition column {.field {partition}}"
+        ))
+      }
+      map[[partition]]
+    })
+    mapping[[paste0("fabric_delta_partition_", index)]] <- vapply(
+      values,
+      function(value) {
+        if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) {
+          NA_character_
+        } else {
+          as.character(value[[1L]])
+        }
+      },
+      character(1)
+    )
+  }
+  mapping
+}
+
+#' Project physical Parquet data through the current Delta schema
+#' @keywords internal
+#' @noRd
+fabric_delta_read_projection <- function(
+  con,
+  schema,
+  physical,
+  source_column
+) {
+  projection <- fabric_delta_schema_projection(con, schema)
+  vapply(seq_along(projection$names), function(index) {
+    name <- projection$names[[index]]
+    type <- projection$types[[index]]
+    alias <- as.character(DBI::dbQuoteIdentifier(con, name))
+    if (name %in% schema$partitionColumns) {
+      partition_index <- match(name, schema$partitionColumns)
+      expression <- paste0(
+        "delta_partitions.",
+        as.character(DBI::dbQuoteIdentifier(
+          con,
+          paste0("fabric_delta_partition_", partition_index)
+        ))
+      )
+    } else if (name %in% physical) {
+      expression <- paste0(
+        "delta_source.",
+        as.character(DBI::dbQuoteIdentifier(con, name))
+      )
+    } else {
+      expression <- "NULL"
+    }
+    paste0("CAST(", expression, " AS ", type, ") AS ", alias)
+  }, character(1))
 }
 
 #' Resolve a Delta snapshot from checkpoints and JSON commits
@@ -484,6 +772,7 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
   checkpoint_version <- if (length(eligible)) max(eligible) else NULL
   state <- list(
     active = character(),
+    files = list(),
     protocol = NULL,
     metadata = NULL,
     has_deletion_vectors = FALSE
@@ -624,8 +913,24 @@ fabric_delta_read_checkpoint <- function(paths) {
 fabric_delta_apply_checkpoint <- function(state, checkpoint) {
   adds <- checkpoint$add$path
   removes <- checkpoint$remove$path
-  state$active <- union(state$active, adds[!is.na(adds)])
-  state$active <- setdiff(state$active, removes[!is.na(removes)])
+  add_rows <- which(!is.na(adds))
+  for (i in add_rows) {
+    partition_values <- fabric_delta_checkpoint_value(
+      checkpoint$add$partitionValues %||% NULL,
+      i,
+      length(adds)
+    )
+    state <- fabric_delta_add_file(
+      state,
+      list(
+        path = adds[[i]],
+        partitionValues = fabric_delta_partition_values(partition_values)
+      )
+    )
+  }
+  for (path in removes[!is.na(removes)]) {
+    state <- fabric_delta_remove_file(state, path)
+  }
 
   deletion_storage <- checkpoint$add$deletionVector$storageType
   state$has_deletion_vectors <- state$has_deletion_vectors ||
@@ -642,14 +947,73 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
   metadata_rows <- which(!is.na(checkpoint$metaData$id))
   if (length(metadata_rows)) {
     i <- utils::tail(metadata_rows, 1L)
-    config <- checkpoint$metaData$configuration[[i]]
+    config <- fabric_delta_checkpoint_value(
+      checkpoint$metaData$configuration,
+      i,
+      length(checkpoint$metaData$id)
+    )
     configuration <- if (is.null(config) || !NROW(config)) {
       list()
     } else {
-      stats::setNames(as.list(config$value), config$key)
+      fabric_delta_partition_values(config)
     }
-    state$metadata <- list(configuration = configuration)
+    state$metadata <- list(
+      schemaString = fabric_delta_checkpoint_value(
+        checkpoint$metaData$schemaString %||% NULL,
+        i,
+        length(checkpoint$metaData$id)
+      ),
+      partitionColumns = fabric_delta_checkpoint_value(
+        checkpoint$metaData$partitionColumns %||% NULL,
+        i,
+        length(checkpoint$metaData$id)
+      ) %||% list(),
+      configuration = configuration
+    )
   }
+  state
+}
+
+#' Extract one nested value from a DuckDB checkpoint column
+#' @keywords internal
+#' @noRd
+fabric_delta_checkpoint_value <- function(column, index, row_count) {
+  if (is.null(column)) {
+    return(NULL)
+  }
+  if (is.data.frame(column)) {
+    return(lapply(column, function(value) value[[index]]))
+  }
+  if (is.list(column) && length(column) == row_count) {
+    return(column[[index]])
+  }
+  if (length(column) == row_count) {
+    return(column[[index]])
+  }
+  column
+}
+
+#' Apply an active Delta add-file action
+#' @keywords internal
+#' @noRd
+fabric_delta_add_file <- function(state, add) {
+  path <- add$path
+  state$active <- c(setdiff(state$active, path), path)
+  state$files[[path]] <- list(
+    path = path,
+    partitionValues = fabric_delta_partition_values(
+      add$partitionValues %||% list()
+    )
+  )
+  state
+}
+
+#' Apply a Delta remove-file action
+#' @keywords internal
+#' @noRd
+fabric_delta_remove_file <- function(state, path) {
+  state$active <- setdiff(state$active, path)
+  state$files[[path]] <- NULL
   state
 }
 
@@ -671,12 +1035,12 @@ fabric_delta_apply_json_log <- function(state, path) {
       }
     )
     if (!is.null(action$add$path)) {
-      state$active <- union(state$active, action$add$path)
+      state <- fabric_delta_add_file(state, action$add)
       state$has_deletion_vectors <- state$has_deletion_vectors ||
         !is.null(action$add$deletionVector)
     }
     if (!is.null(action$remove$path)) {
-      state$active <- setdiff(state$active, action$remove$path)
+      state <- fabric_delta_remove_file(state, action$remove$path)
     }
     if (!is.null(action$protocol)) {
       state$protocol <- action$protocol
