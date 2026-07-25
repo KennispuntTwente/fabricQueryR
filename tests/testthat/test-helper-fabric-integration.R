@@ -56,3 +56,28 @@ test_that("live token providers acquire by audience and cache until refresh", {
   )
   expect_identical(calls, c("scope-a", "scope-b", "scope-a"))
 })
+
+test_that("the default manifest path resolves from nested test directories", {
+  root <- tempfile("fabricqueryr-root-")
+  nested <- file.path(root, "tests", "testthat")
+  dir.create(nested, recursive = TRUE)
+  on.exit(unlink(root, recursive = TRUE), add = TRUE)
+  writeLines(
+    c("Package: fabricQueryR", "Version: 0.0.0"),
+    file.path(root, "DESCRIPTION")
+  )
+
+  expected_root <- normalizePath(root, winslash = "/", mustWork = TRUE)
+  expect_identical(fabric_test_repository_root(nested), expected_root)
+  expect_identical(
+    fabric_test_manifest_path(start = nested, configured = ""),
+    file.path(expected_root, ".fabric-test-manifest.json")
+  )
+  expect_identical(
+    fabric_test_manifest_path(
+      start = nested,
+      configured = "explicit-manifest.json"
+    ),
+    "explicit-manifest.json"
+  )
+})

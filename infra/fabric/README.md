@@ -56,6 +56,11 @@ uv --directory tools/fabric-sandbox run fabric-sandbox discover
 Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
 ```
 
+Both the sandbox command and the R test helper resolve
+`.fabric-test-manifest.json` at the repository root by default, even though
+`testthat` runs tests from a nested working directory. Set
+`FABRIC_TEST_MANIFEST` only to override that shared location.
+
 Always remove the workspace after testing:
 
 ```bash

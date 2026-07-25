@@ -13,11 +13,44 @@ fabric_test_skip_or_fail <- function(condition, message) {
   testthat::skip(message)
 }
 
-fabric_test_manifest <- function() {
-  path <- Sys.getenv(
-    "FABRIC_TEST_MANIFEST",
-    unset = file.path(getwd(), ".fabric-test-manifest.json")
+fabric_test_repository_root <- function(start = getwd()) {
+  current <- normalizePath(start, winslash = "/", mustWork = TRUE)
+  repeat {
+    description <- file.path(current, "DESCRIPTION")
+    if (file.exists(description)) {
+      package <- tryCatch(
+        read.dcf(description, fields = "Package")[[1L]],
+        error = function(error) ""
+      )
+      if (identical(package, "fabricQueryR")) {
+        return(current)
+      }
+    }
+    parent <- dirname(current)
+    if (identical(parent, current)) {
+      rlang::abort(
+        paste("Could not locate the fabricQueryR repository from", start)
+      )
+    }
+    current <- parent
+  }
+}
+
+fabric_test_manifest_path <- function(
+  start = getwd(),
+  configured = Sys.getenv("FABRIC_TEST_MANIFEST")
+) {
+  if (nzchar(configured)) {
+    return(configured)
+  }
+  file.path(
+    fabric_test_repository_root(start),
+    ".fabric-test-manifest.json"
   )
+}
+
+fabric_test_manifest <- function() {
+  path <- fabric_test_manifest_path()
   fabric_test_skip_or_fail(
     !file.exists(path),
     paste("Fabric integration manifest not found:", path)
