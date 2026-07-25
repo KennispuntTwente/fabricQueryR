@@ -48,6 +48,23 @@ def test_job_notebook_exposes_deterministic_job_modes():
     assert "fabricqueryr-job-success:" in notebook
 
 
+def test_livy_batch_fixture_persists_each_executed_mode():
+    repository_root = Path(__file__).parents[3]
+    fixture = (
+        repository_root / "infra/fabric/fixtures/livy_batch.py"
+    ).read_text()
+
+    assert '.saveAsTable("dbo.fabricqueryr_livy_batch_result")' in fixture
+    assert "write_marker(mode, row_count)" in fixture
+    assert fixture.count("write_marker(mode, -1)") == 2
+    assert fixture.index("write_marker(mode, -1)") < fixture.index(
+        'raise RuntimeError("FABRICQUERYR_INTENTIONAL_BATCH_FAILURE")'
+    )
+    assert fixture.rindex("write_marker(mode, -1)") < fixture.index(
+        'print("FABRICQUERYR_BATCH_READY_FOR_CANCELLATION"'
+    )
+
+
 def test_pipeline_and_spark_job_fixtures_are_deployable():
     repository_root = Path(__file__).parents[3]
     workspace = repository_root / "infra/fabric/workspace"

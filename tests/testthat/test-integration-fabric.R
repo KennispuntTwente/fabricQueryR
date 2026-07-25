@@ -986,6 +986,38 @@ test_that("Livy batches cover success, failure, and cancellation", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  storage_token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  marker <- function() {
+    fabric_onelake_read_delta_table(
+      table_path = lakehouse$tables$livy_batch_result,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = storage_token,
+      verbose = FALSE
+    )
+  }
+  wait_for_marker <- function(expected_mode, timeout = 120) {
+    deadline <- Sys.time() + timeout
+    repeat {
+      value <- try(marker(), silent = TRUE)
+      if (
+        !inherits(value, "try-error") &&
+          nrow(value) == 1L &&
+          identical(value$mode[[1L]], expected_mode)
+      ) {
+        return(value)
+      }
+      if (Sys.time() >= deadline) {
+        rlang::abort(paste(
+          "Livy batch marker did not reach mode",
+          shQuote(expected_mode),
+          "in time"
+        ))
+      }
+      Sys.sleep(2)
+    }
+  }
 
   success <- fabric_livy_batch_submit(
     lakehouse$livy_url,
@@ -999,6 +1031,9 @@ test_that("Livy batches cover success, failure, and cancellation", {
   success$wait(timeout = 1200, poll_interval = 5)
   success_result <- success$result(refresh = FALSE)
   expect_equal(tolower(success_result$state), "success")
+  success_marker <- wait_for_marker("success")
+  expect_equal(success_marker$mode, "success")
+  expect_equal(as.numeric(success_marker$row_count), 3)
 
   failure <- fabric_livy_batch_submit(
     lakehouse$livy_url,
@@ -1014,6 +1049,9 @@ test_that("Livy batches cover success, failure, and cancellation", {
     class = "fabric_livy_batch_error"
   )
   expect_equal(tolower(failure_error$batch$state), "dead")
+  failure_marker <- wait_for_marker("failure")
+  expect_equal(failure_marker$mode, "failure")
+  expect_equal(as.numeric(failure_marker$row_count), -1)
 
   slow <- fabric_livy_batch_submit(
     lakehouse$livy_url,
@@ -1036,6 +1074,9 @@ test_that("Livy batches cover success, failure, and cancellation", {
     }
     Sys.sleep(5)
   }
+  slow_marker <- wait_for_marker("slow")
+  expect_equal(slow_marker$mode, "slow")
+  expect_equal(as.numeric(slow_marker$row_count), -1)
   expect_true(slow$cancel())
   slow$wait(
     timeout = 600,

@@ -211,6 +211,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "schema_evolved": "fabricqueryr_schema_evolved",
         "column_mapped": "fabricqueryr_column_mapped",
         "deletion_vectors": "fabricqueryr_deletion_vectors",
+        "livy_batch_result": "fabricqueryr_livy_batch_result",
     }
     assert lakehouse["livy_batch_file"] == (
         "abfss://workspace-id@onelake.dfs.fabric.microsoft.com/"
