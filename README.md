@@ -14,14 +14,12 @@ It comes with discovery helpers and eight methods which help you work with Micro
 This results in a 'DBI' connection object which you can execute SQL queries with, and/or
 use with 'DBI'-compatible packages like 'dbplyr'.
 
-2. Execute a DAX query against a Fabric/Power Bi `Semantic Model` item: `fabric_pbi_dax_query()`.
+2. Execute a DAX query against a Fabric or Power Bi `Semantic Model` item: `fabric_pbi_dax_query()`.
 With this, you can run DAX queries against a Fabric/Power Bi dataset and get the results as a 'tibble' dataframe.
 
-3. Execute a Livy API query: `fabric_livy_query()`.
-Use `fabric_livy_session()` to create a reusable Livy session,
-and `fabric_livy_batch_submit()` to submit a standalone Spark application.
-With this, you can remotely execute Spark/Spark SQL/SparkR/PySpark code in Microsoft Fabric
-and get a list with the results in your local R session.
+3. Execute Livy API queries: with `fabric_livy_query()`, `fabric_livy_session()`,
+and `fabric_livy_batch_submit()`, you can remotely run Spark/Spark SQL/SparkR/PySpark 
+in Microsoft Fabric and get the results in your local R session.
 
 4. Read a Delta table from a Fabric `Lakehouse` item: `fabric_onelake_read_delta_table()`.
 This function downloads the underlying Parquet files from the Delta table stored in OneLake (ADLS
@@ -32,19 +30,16 @@ Gen2) and returns the data as a 'tibble' dataframe.
 `fabric_onelake_upload()`, and `fabric_onelake_delete()`.
 
 6. Execute a KQL query against an `Eventhouse`/`KQL Database` item:
-`fabric_kql_query()`.
-This returns typed Kusto query results as a tibble, or a named list of tibbles
-when KQL returns multiple primary result tables.
+`fabric_kql_query()`. This returns typed Kusto query results as a 'tibble' dataframe, 
+or a named list of tibbles when KQL returns multiple result tables.
 
 7. Execute a GraphQL query against an `API for GraphQL` item:
-`fabric_graphql_query()`.
-This preserves GraphQL data, errors, and extensions independently, including
-valid responses containing partial data and errors.
+`fabric_graphql_query()`. This preserves GraphQL data, errors, and extensions 
+independently, including valid responses containing partial data and errors.
 
 8. Run and monitor on-demand Fabric item jobs with `fabric_job_run()`,
 `fabric_job_status()`, `fabric_job_wait()`, and `fabric_job_cancel()`.
-Notebook, pipeline, and Spark job definition runs share one structured job
-interface.
+These functions support notebooks, pipelines, and Spark job definitions.
 
 ## Installation
 
