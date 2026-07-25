@@ -6,11 +6,14 @@ Microsoft Entra authentication. Every exported function that
 authenticates accepts the same four arguments:
 
 - `tenant_id` and `client_id` identify the tenant and app registration.
+  By default, these are read from the `FABRICQUERYR_TENANT_ID` and
+  `FABRICQUERYR_CLIENT_ID` environment variables.
 - `token` accepts an
   [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
   object, a bearer-token string, or a token-provider function. Its
-  default is `NULL`.
-- `auth_args` is a named list forwarded to
+  default is `NULL`, which triggers `AzureAuth` to acquire a token
+  interactively or from its cache.
+- `auth_args` is a named list of arguments forwarded to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 When `token = NULL`, `fabricQueryR` calls
@@ -18,14 +21,17 @@ When `token = NULL`, `fabricQueryR` calls
 `AzureAuth` first looks for a matching cached token and, if it cannot
 use one, starts its normal interactive authorization-code or device-code
 login. Use `auth_args` to select or configure that flow. When `token` is
-not `NULL`, `auth_args` is not used. The package controls the token
-resource, tenant, app, and Azure AD version because those depend on the
-Fabric operation; all other `get_azure_token()` arguments can go in
-`auth_args`.
+not `NULL`, `auth_args` is not used. This package controls the token’s
+`resource`, `tenant`, `app`, and Azure AD `version` arguments, because
+those depend on the Fabric operation; all other `get_azure_token()`
+arguments can go in `auth_args`.
 
-## Interactive login and the token cache
+## Set the tenant and client IDs
 
-Set the tenant once, and optionally set an app registration:
+To tell `fabricQueryR` which Microsoft Entra tenant and app registration
+to use, set the `FABRICQUERYR_TENANT_ID` and `FABRICQUERYR_CLIENT_ID`
+environment variables. You can do this in your `.Renviron` file, or in
+the R session:
 
 ``` r
 
@@ -35,19 +41,33 @@ Sys.setenv(
 )
 
 library(fabricQueryR)
+
+# Test by discovering workspaces; this will trigger an interactive login if no cached token is found
 workspaces <- fabric_workspaces()
 ```
 
+A tenant ID must always be set. In the [Azure
+portal](https://portal.azure.com), open **Microsoft Entra ID \>
+Overview** and copy the **Tenant ID** shown under **Basic information**.
+This is also called the *Directory (tenant) ID* in app-registration
+screens.
+
 If `FABRICQUERYR_CLIENT_ID` is unset, the package uses the Azure CLI
-public client ID. A tenant ID is still required because `AzureAuth`
-cannot infer which Fabric tenant to use.
+public client ID (`04b07795-8ddb-461a-bbee-02f9e1bf7b46`), which may
+work in some tenants but not others. A dedicated app registration is
+more reliable, and it can be scoped to a security group for
+least-privilege access. Get in touch with your administrator to create
+an app registration if needed.
+
+## Interactive login and the token cache
 
 With `token = NULL`, `AzureAuth` first looks for a matching cached
 token. If none exists, it chooses authorization-code login when a local
 browser flow is available, otherwise device-code login. The first
 interactive login can therefore open a browser or display a device code;
-later calls normally reuse and refresh the cached token. See the
-`AzureAuth` documentation on [authentication
+later calls normally reuse and refresh the cached token.
+
+See the `AzureAuth` documentation on [authentication
 scenarios](https://azure.r-universe.dev/AzureAuth/doc/scenarios.html)
 and
 [caching](https://azure.r-universe.dev/AzureAuth/doc/token.html#caching).
@@ -125,6 +145,11 @@ result <- fabric_graphql_query(
 ```
 
 ## Non-interactive authentication
+
+Below are examples of non-interactive authentication flows. These avoid
+the browser/device-code login and are suitable for CI/CD pipelines,
+scheduled jobs, and service principals. They require a dedicated app
+registration and, for service principals, a secret or certificate.
 
 ### Service principal with a client secret
 

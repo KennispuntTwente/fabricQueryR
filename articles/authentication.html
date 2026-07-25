@@ -66,13 +66,16 @@ authenticates accepts the same four arguments:</p>
 <ul>
 <li>
 <code>tenant_id</code> and <code>client_id</code> identify the
-tenant and app registration.</li>
+tenant and app registration. By default, these are read from the
+<code>FABRICQUERYR_TENANT_ID</code> and
+<code>FABRICQUERYR_CLIENT_ID</code> environment variables.</li>
 <li>
 <code>token</code> accepts an <code><a href="https://rdrr.io/pkg/AzureAuth/man/AzureToken.html" class="external-link">AzureAuth::AzureToken</a></code>
 object, a bearer-token string, or a token-provider function. Its default
-is <code>NULL</code>.</li>
+is <code>NULL</code>, which triggers <code>AzureAuth</code> to acquire a
+token interactively or from its cache.</li>
 <li>
-<code>auth_args</code> is a named list forwarded to
+<code>auth_args</code> is a named list of arguments forwarded to
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code>.</li>
 </ul>
 <p>When <code>token = NULL</code>, <code>fabricQueryR</code> calls
@@ -81,14 +84,18 @@ looks for a matching cached token and, if it cannot use one, starts its
 normal interactive authorization-code or device-code login. Use
 <code>auth_args</code> to select or configure that flow. When
 <code>token</code> is not <code>NULL</code>, <code>auth_args</code> is
-not used. The package controls the token resource, tenant, app, and
-Azure AD version because those depend on the Fabric operation; all other
+not used. This package controls the token’s <code>resource</code>,
+<code>tenant</code>, <code>app</code>, and Azure AD <code>version</code>
+arguments, because those depend on the Fabric operation; all other
 <code>get_azure_token()</code> arguments can go in
 <code>auth_args</code>.</p>
 <div class="section level2">
-<h2 id="interactive-login-and-the-token-cache">Interactive login and the token cache<a class="anchor" aria-label="anchor" href="#interactive-login-and-the-token-cache"></a>
+<h2 id="set-the-tenant-and-client-ids">Set the tenant and client IDs<a class="anchor" aria-label="anchor" href="#set-the-tenant-and-client-ids"></a>
 </h2>
-<p>Set the tenant once, and optionally set an app registration:</p>
+<p>To tell <code>fabricQueryR</code> which Microsoft Entra tenant and
+app registration to use, set the <code>FABRICQUERYR_TENANT_ID</code> and
+<code>FABRICQUERYR_CLIENT_ID</code> environment variables. You can do
+this in your <code>.Renviron</code> file, or in the R session:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span></span>
 <span>  FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"&lt;tenant-id&gt;"</span>,</span>
@@ -96,17 +103,31 @@ Azure AD version because those depend on the Fabric operation; all other
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Test by discovering workspaces; this will trigger an interactive login if no cached token is found</span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>A tenant ID must always be set. In the <a href="https://portal.azure.com" class="external-link">Azure portal</a>, open <strong>Microsoft
+Entra ID &gt; Overview</strong> and copy the <strong>Tenant ID</strong>
+shown under <strong>Basic information</strong>. This is also called the
+<em>Directory (tenant) ID</em> in app-registration screens.</p>
 <p>If <code>FABRICQUERYR_CLIENT_ID</code> is unset, the package uses the
-Azure CLI public client ID. A tenant ID is still required because
-<code>AzureAuth</code> cannot infer which Fabric tenant to use.</p>
+Azure CLI public client ID
+(<code>04b07795-8ddb-461a-bbee-02f9e1bf7b46</code>), which may work in
+some tenants but not others. A dedicated app registration is more
+reliable, and it can be scoped to a security group for least-privilege
+access. Get in touch with your administrator to create an app
+registration if needed.</p>
+</div>
+<div class="section level2">
+<h2 id="interactive-login-and-the-token-cache">Interactive login and the token cache<a class="anchor" aria-label="anchor" href="#interactive-login-and-the-token-cache"></a>
+</h2>
 <p>With <code>token = NULL</code>, <code>AzureAuth</code> first looks
 for a matching cached token. If none exists, it chooses
 authorization-code login when a local browser flow is available,
 otherwise device-code login. The first interactive login can therefore
 open a browser or display a device code; later calls normally reuse and
-refresh the cached token. See the <code>AzureAuth</code> documentation
-on <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
+refresh the cached token.</p>
+<p>See the <code>AzureAuth</code> documentation on <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
 scenarios</a> and <a href="https://azure.r-universe.dev/AzureAuth/doc/token.html#caching" class="external-link">caching</a>.</p>
 <p>Choose a flow explicitly when needed:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -204,6 +225,11 @@ audience:</p>
 <div class="section level2">
 <h2 id="non-interactive-authentication">Non-interactive authentication<a class="anchor" aria-label="anchor" href="#non-interactive-authentication"></a>
 </h2>
+<p>Below are examples of non-interactive authentication flows. These
+avoid the browser/device-code login and are suitable for CI/CD
+pipelines, scheduled jobs, and service principals. They require a
+dedicated app registration and, for service principals, a secret or
+certificate.</p>
 <div class="section level3">
 <h3 id="service-principal-with-a-client-secret">Service principal with a client secret<a class="anchor" aria-label="anchor" href="#service-principal-with-a-client-secret"></a>
 </h3>
