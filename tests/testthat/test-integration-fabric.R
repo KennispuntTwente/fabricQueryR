@@ -382,12 +382,17 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token_provider()
+  discovered <- fabric_item(
+    manifest$workspace_id,
+    lakehouse$id,
+    type = "Lakehouse",
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
 
   result <- fabric_onelake_read_delta_table(
     table_path = lakehouse$tables$basic,
-    workspace_name = manifest$workspace_name,
-    lakehouse_name = lakehouse$display_name,
-    schema = lakehouse$schema,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = discovered,
     tenant_id = "",
     client_id = "",
     token = token,

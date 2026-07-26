@@ -35,8 +35,10 @@ suffix; a discovered row avoids suffix and renaming ambiguity.}
 
 \item{schema}{Lakehouse schema name, for example \code{"dbo"}, or \code{NULL}.
 When supplied, the table is resolved under \verb{Tables/<schema>/<table>}
-instead of \verb{Tables/<table>}. Use \code{NULL} for a non-schema Lakehouse. Schema
-support in this reader is experimental.}
+instead of \verb{Tables/<table>}. When \code{lakehouse_name} is a discovered
+schema-enabled Lakehouse and \code{schema} is \code{NULL}, its \code{defaultSchema} is
+used automatically. Use \code{NULL} with a name or GUID for a non-schema
+Lakehouse. Schema support in this reader is experimental.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}

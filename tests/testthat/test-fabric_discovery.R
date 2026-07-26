@@ -99,6 +99,7 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
         displayName = "SalesLake",
         type = "Lakehouse",
         properties = list(
+          defaultSchema = "dbo",
           oneLakeTablesPath = "https://onelake/Tables",
           oneLakeFilesPath = "https://onelake/Files",
           sqlEndpointProperties = list(
@@ -124,6 +125,7 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
   )
   expect_equal(result$sql_database, "SalesLake")
   expect_equal(result$one_lake_tables_path, "https://onelake/Tables")
+  expect_equal(result$default_schema, "dbo")
   expect_equal(
     result$livy_url,
     paste0(

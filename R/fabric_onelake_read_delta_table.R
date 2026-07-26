@@ -44,8 +44,10 @@
 #'   suffix; a discovered row avoids suffix and renaming ambiguity.
 #' @param schema Lakehouse schema name, for example `"dbo"`, or `NULL`.
 #'   When supplied, the table is resolved under `Tables/<schema>/<table>`
-#'   instead of `Tables/<table>`. Use `NULL` for a non-schema Lakehouse. Schema
-#'   support in this reader is experimental.
+#'   instead of `Tables/<table>`. When `lakehouse_name` is a discovered
+#'   schema-enabled Lakehouse and `schema` is `NULL`, its `defaultSchema` is
+#'   used automatically. Use `NULL` with a name or GUID for a non-schema
+#'   Lakehouse. Schema support in this reader is experimental.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -115,10 +117,12 @@ fabric_onelake_read_delta_table <- function(
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  workspace_target <- workspace_name
   workspace_record <- fabric_as_record(workspace_name)
   if (!is.null(workspace_record)) {
     workspace_name <- fabric_record_value(workspace_record, "id", "workspaceId")
   }
+  lakehouse_target <- lakehouse_name
   lakehouse_record <- fabric_as_record(lakehouse_name)
   if (!is.null(lakehouse_record)) {
     if (
@@ -132,6 +136,11 @@ fabric_onelake_read_delta_table <- function(
       )
     }
     lakehouse_name <- fabric_record_value(lakehouse_record, "id")
+    schema <- schema %||% fabric_record_value(
+      lakehouse_record,
+      "default_schema",
+      "defaultSchema"
+    )
   }
   # ---- validate args ----
   if (
@@ -209,8 +218,8 @@ fabric_onelake_read_delta_table <- function(
     table_dir <- paste("Tables", table_name, sep = "/")
   }
   target <- onelake_resolve_target(
-    workspace_name,
-    lakehouse_name,
+    workspace_target,
+    lakehouse_target,
     path = table_dir,
     item_type = "Lakehouse",
     dfs_base = dfs_base

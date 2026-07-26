@@ -91,15 +91,21 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
 
   result <- fabric_onelake_read_delta_table(
     table_path = "table",
-    workspace_name = "Analytics",
-    lakehouse_name = "Curated",
-    schema = "dbo",
+    workspace_name = data.frame(
+      id = "11111111-1111-1111-1111-111111111111"
+    ),
+    lakehouse_name = tibble::tibble(
+      id = "22222222-2222-2222-2222-222222222222",
+      type = "Lakehouse",
+      workspaceId = "11111111-1111-1111-1111-111111111111",
+      properties = list(list(defaultSchema = "dbo"))
+    ),
     token = "token",
     dest_dir = dest,
     verbose = FALSE
   )
 
-  expect_equal(listed_target$item, "Curated.Lakehouse")
+  expect_equal(listed_target$item, "22222222-2222-2222-2222-222222222222")
   expect_equal(listed_target$path, "Tables/dbo/table/_delta_log")
   expect_equal(
     vapply(downloaded, `[[`, character(1), "path"),
@@ -110,6 +116,31 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   )
   expect_true(all(vapply(downloaded, `[[`, logical(1), "overwrite")))
   expect_equal(result$id, 1L)
+})
+
+test_that("Delta records validate workspace ownership", {
+  workspace <- data.frame(
+    id = "11111111-1111-1111-1111-111111111111"
+  )
+  lakehouse <- tibble::tibble(
+    id = "22222222-2222-2222-2222-222222222222",
+    type = "Lakehouse",
+    workspaceId = "33333333-3333-3333-3333-333333333333",
+    properties = list(list(defaultSchema = "dbo"))
+  )
+
+  expect_error(
+    fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = workspace,
+      lakehouse_name = lakehouse,
+      schema = "curated",
+      token = "token",
+      verbose = FALSE
+    ),
+    "different workspace",
+    fixed = TRUE
+  )
 })
 
 test_that("Delta reads do not download tombstoned or historical data files", {

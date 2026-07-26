@@ -544,6 +544,7 @@ fabric_add_derived_targets <- function(record, api_base) {
   record$properties <- properties
   if (type == "lakehouse") {
     sql <- properties$sqlEndpointProperties %||% list()
+    record$default_schema <- properties$defaultSchema
     record$one_lake_tables_path <- properties$oneLakeTablesPath
     record$one_lake_files_path <- properties$oneLakeFilesPath
     record$sql_server <- sql$connectionString
@@ -677,6 +678,7 @@ fabric_item_tbl <- function(records) {
     "sql_database",
     "sql_endpoint_id",
     "sql_endpoint_status",
+    "default_schema",
     "one_lake_tables_path",
     "one_lake_files_path",
     "dax_connection_string",
