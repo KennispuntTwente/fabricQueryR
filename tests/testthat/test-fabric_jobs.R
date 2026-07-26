@@ -88,7 +88,7 @@ test_that("notebook run builds typed release payload and job handle", {
       id = "55555555-5555-5555-5555-555555555555",
       workspaceId = "66666666-6666-6666-6666-666666666666"
     ),
-    session_tag = "fabricqueryr_tests",
+    session_tag = "fabricqueryr-tests / shared pool",
     token = "test-token",
     api_base = "https://api.fabric.test/v1/"
   )
@@ -116,7 +116,7 @@ test_that("notebook run builds typed release payload and job handle", {
   )
   expect_equal(
     call$payload$executionData$computeConfiguration$highConcurrencyModeOptions,
-    list(enabled = TRUE, sessionTag = "fabricqueryr_tests")
+    list(enabled = TRUE, sessionTag = "fabricqueryr-tests / shared pool")
   )
   expect_equal(
     unname(vapply(
@@ -669,30 +669,35 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     ),
     "Unsupported Spark"
   )
-  expect_error(
-    .fabric_job_execution_data(
-      target = list(workspace_id = "workspace"),
-      route = list(route = "notebook"),
-      execution_data = NULL,
-      default_lakehouse = NULL,
-      default_lakehouse_workspace = NULL,
-      compute = NULL,
-      session_tag = "invalid-tag"
-    ),
-    "letters, numbers, and underscores"
+  tagged <- .fabric_job_execution_data(
+    target = list(workspace_id = "workspace"),
+    route = list(route = "notebook"),
+    execution_data = NULL,
+    default_lakehouse = NULL,
+    default_lakehouse_workspace = NULL,
+    compute = NULL,
+    session_tag = "valid-tag with spaces"
   )
-  expect_error(
-    .fabric_job_validate_notebook_compute(
-      list(
-        highConcurrencyModeOptions = list(
-          enabled = TRUE,
-          sessionTag = "invalid tag"
-        )
-      ),
-      "Spark"
-    ),
-    "letters, numbers, and underscores"
+  expect_equal(
+    tagged$computeConfiguration$highConcurrencyModeOptions,
+    list(enabled = TRUE, sessionTag = "valid-tag with spaces")
   )
+  expect_invisible(.fabric_job_validate_notebook_compute(
+    list(
+      highConcurrencyModeOptions = list(
+        enabled = TRUE,
+        sessionTag = "valid-tag with spaces"
+      )
+    ),
+    "Spark"
+  ))
+  for (invalid_tag in list("", NA_character_, c("one", "two"), 42)) {
+    expect_error(
+      .fabric_job_validate_session_tag(invalid_tag, "session_tag"),
+      "non-empty string",
+      fixed = TRUE
+    )
+  }
 })
 
 test_that("print methods do not expose credentials", {

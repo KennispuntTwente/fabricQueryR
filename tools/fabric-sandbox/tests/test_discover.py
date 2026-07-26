@@ -1,5 +1,6 @@
 from fabricqueryr_sandbox.discover import (
     _wait_for_kql_properties,
+    _wait_for_lakehouse_sql_endpoint,
     _wait_for_sql_properties,
     discover,
 )
@@ -248,6 +249,39 @@ def test_sql_property_readiness_retries_until_complete():
     )
 
     assert result["properties"]["connectionString"] == "warehouse.sql.test"
+    assert calls == 2
+    assert api.sleeps == [10]
+
+
+def test_lakehouse_sql_endpoint_readiness_retries_until_success():
+    api = FakeFabricApi()
+    calls = 0
+
+    def get_lakehouse(workspace_id, lakehouse_id):
+        nonlocal calls
+        calls += 1
+        status = "Provisioning" if calls == 1 else "Success"
+        return {
+            "id": lakehouse_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "sqlEndpointProperties": {
+                    "id": "endpoint-id",
+                    "provisioningStatus": status,
+                },
+            },
+        }
+
+    api.get_lakehouse = get_lakehouse
+
+    result = _wait_for_lakehouse_sql_endpoint(
+        api,
+        "workspace-id",
+        "lakehouse-id",
+    )
+
+    endpoint = result["properties"]["sqlEndpointProperties"]
+    assert endpoint["provisioningStatus"] == "Success"
     assert calls == 2
     assert api.sleeps == [10]
 

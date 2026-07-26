@@ -87,6 +87,26 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
     regional$dfs_base,
     "https://westeurope-api.onelake.fabric.microsoft.com"
   )
+  regional_dfs <- onelake_resolve_target(
+    "https://westeurope-onelake.dfs.fabric.microsoft.com/Analytics/Curated.Lakehouse/Files/x"
+  )
+  expect_equal(
+    regional_dfs$dfs_base,
+    "https://westeurope-onelake.dfs.fabric.microsoft.com"
+  )
+  private_workspace <- onelake_resolve_target(paste0(
+    "https://",
+    workspace_id,
+    ".z12.dfs.fabric.microsoft.com/",
+    workspace_id,
+    "/",
+    item_id,
+    "/Files/x"
+  ))
+  expect_equal(
+    private_workspace$dfs_base,
+    paste0("https://", workspace_id, ".z12.dfs.fabric.microsoft.com")
+  )
 })
 
 test_that("OneLake listing follows header continuation and preserves hierarchy", {

@@ -110,8 +110,7 @@ record for \code{default_lakehouse}; defaults to the job workspace.}
 \item{compute}{Notebook compute kind: \code{"Spark"}, \code{"Jupyter"}, or
 \code{"DataWarehouse"}.}
 
-\item{session_tag}{Optional Spark high-concurrency session tag containing
-only letters, numbers, and underscores.}
+\item{session_tag}{Optional non-empty Spark high-concurrency session tag.}
 
 \item{tenant_id}{Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}

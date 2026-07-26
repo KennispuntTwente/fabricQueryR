@@ -11,15 +11,26 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     workspace,
     token = token
   )
-  expect_true(manifest$items$TestLakehouse$id %in% items$id)
-  expect_true(manifest$items$SeedFixtures$id %in% items$id)
-  expect_true(manifest$items$JobFixtures$id %in% items$id)
-  expect_true(manifest$items$TestPipeline$id %in% items$id)
-  expect_true(manifest$items$TestSparkJob$id %in% items$id)
-  expect_true(manifest$items$TestWarehouse$id %in% items$id)
-  expect_true(manifest$items$TestSQLDatabase$id %in% items$id)
-  expect_true(manifest$items$TestEventhouse$id %in% items$id)
-  expect_true(manifest$items$TestKQLDatabase$id %in% items$id)
+  expected_items <- c(
+    "TestLakehouse",
+    "SeedFixtures",
+    "JobFixtures",
+    "TestPipeline",
+    "TestSparkJob",
+    "TestWarehouse",
+    "TestSQLDatabase",
+    "TestEventhouse",
+    "TestKQLDatabase",
+    "TestSemanticModel",
+    "TestGraphQL"
+  )
+  for (name in expected_items) {
+    expected <- manifest$items[[name]]
+    discovered <- items[items$id == expected$id, ]
+    expect_equal(nrow(discovered), 1L, info = name)
+    expect_equal(discovered$type, expected$type, info = name)
+    expect_equal(discovered$displayName, expected$display_name, info = name)
+  }
 
   lakehouses <- fabric_lakehouses(workspace, token = token)
   lakehouse <- lakehouses[
@@ -455,6 +466,14 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     page_size = 2L,
     token = token
   )
+  expect_setequal(
+    fixtures$path[!fixtures$is_directory],
+    c(
+      "Files/fixtures/nested/a/duplicate.txt",
+      "Files/fixtures/nested/b/duplicate.txt",
+      "Files/fixtures/nested/unicode/café-数据.txt"
+    )
+  )
   duplicate_paths <- fixtures$path[fixtures$name == "duplicate.txt"]
   expect_setequal(
     duplicate_paths,
@@ -480,6 +499,16 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
   expect_false(unicode_metadata$is_directory)
   expect_true(nzchar(unicode_metadata$etag))
   expect_gt(unicode_metadata$content_length, 0)
+  unicode_contents <- fabric_onelake_download(
+    manifest$workspace_id,
+    lakehouse$id,
+    unicode_path,
+    token = token
+  )
+  expect_identical(
+    trimws(rawToChar(unicode_contents)),
+    "OneLake Unicode fixture"
+  )
 
   ranged <- fabric_onelake_download(
     manifest$workspace_id,
@@ -1003,6 +1032,51 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     fixed = TRUE
   )
 
+  scala <- session$run(
+    "println(\"FABRICQUERYR_SCALA_OK\")",
+    kind = "spark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_equal(scala$output$status, "ok")
+  expect_match(
+    paste(scala$output$parsed, collapse = "\n"),
+    "FABRICQUERYR_SCALA_OK",
+    fixed = TRUE
+  )
+
+  sparkr <- session$run(
+    "cat(\"FABRICQUERYR_SPARKR_OK\\n\")",
+    kind = "sparkr",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_equal(sparkr$output$status, "ok")
+  expect_match(
+    paste(sparkr$output$parsed, collapse = "\n"),
+    "FABRICQUERYR_SPARKR_OK",
+    fixed = TRUE
+  )
+
+  sql <- session$run(
+    "SELECT 42 AS fabricqueryr_sql_value",
+    kind = "sql",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_equal(sql$output$status, "ok")
+  expect_gt(length(sql$output$data), 0L)
+  expect_match(
+    jsonlite::toJSON(sql$output$data, auto_unbox = TRUE),
+    "fabricqueryr_sql_value",
+    fixed = TRUE
+  )
+  expect_match(
+    jsonlite::toJSON(sql$output$data, auto_unbox = TRUE),
+    "42",
+    fixed = TRUE
+  )
+
   failed <- session$submit(
     "raise RuntimeError('FABRICQUERYR_INTENTIONAL_STATEMENT_FAILURE')",
     kind = "pyspark"
@@ -1033,35 +1107,63 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   expect_false(session$close())
 })
 
-test_that("high-concurrency Livy session runs through its isolated REPL", {
+test_that("high-concurrency Livy sessions pack but isolate their REPLs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  session <- fabric_livy_session(
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  tag <- paste0("fabricqueryr-", manifest$workspace_id)
+  session_a <- fabric_livy_session(
     lakehouse$livy_url,
     high_concurrency = TRUE,
-    session_tag = paste0("fabricqueryr-", manifest$workspace_id),
+    session_tag = tag,
     artifact_name = lakehouse$display_name,
-    token = fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    token = token,
     verbose = FALSE
   )
-  on.exit(try(session$close(), silent = TRUE), add = TRUE)
-  session$wait(timeout = 900, poll_interval = 5)
+  on.exit(try(session_a$close(), silent = TRUE), add = TRUE)
+  session_a$wait(timeout = 900, poll_interval = 5)
+  session_b <- fabric_livy_session(
+    lakehouse$livy_url,
+    high_concurrency = TRUE,
+    session_tag = tag,
+    artifact_name = lakehouse$display_name,
+    token = token,
+    verbose = FALSE
+  )
+  on.exit(try(session_b$close(), silent = TRUE), add = TRUE)
+  session_b$wait(timeout = 900, poll_interval = 5)
 
-  expect_true(nzchar(session$session_id))
-  expect_true(nzchar(session$repl_id))
-  result <- session$run(
-    "print('FABRICQUERYR_HIGH_CONCURRENCY_OK')",
+  expect_false(identical(session_a$id, session_b$id))
+  expect_identical(session_a$session_id, session_b$session_id)
+  expect_false(identical(session_a$repl_id, session_b$repl_id))
+  expect_true(nzchar(session_a$session_id))
+  expect_true(nzchar(session_a$repl_id))
+  expect_true(nzchar(session_b$repl_id))
+
+  assigned <- session_a$run(
+    "fabricqueryr_hc_secret = 'session-a-only'",
     kind = "pyspark",
     timeout = 300,
     poll_interval = 2
   )
-  expect_equal(result$output$status, "ok")
+  expect_equal(assigned$output$status, "ok")
+  isolated <- session_b$run(
+    paste0(
+      "print('FABRICQUERYR_HC_VARIABLE_VISIBLE=' + ",
+      "str('fabricqueryr_hc_secret' in globals()))"
+    ),
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_equal(isolated$output$status, "ok")
   expect_match(
-    paste(result$output$parsed, collapse = "\n"),
-    "FABRICQUERYR_HIGH_CONCURRENCY_OK",
+    paste(isolated$output$parsed, collapse = "\n"),
+    "FABRICQUERYR_HC_VARIABLE_VISIBLE=False",
     fixed = TRUE
   )
-  expect_true(session$close())
+  expect_true(session_a$close())
+  expect_true(session_b$close())
 })
 
 test_that("Livy batches cover success, failure, and cancellation", {
@@ -1112,7 +1214,19 @@ test_that("Livy batches cover success, failure, and cancellation", {
   )
   success$wait(timeout = 1200, poll_interval = 5)
   success_result <- success$result(refresh = FALSE)
+  expect_s3_class(success_result, "fabric_livy_batch_result")
+  expect_identical(success_result$id, success$id)
   expect_equal(tolower(success_result$state), "success")
+  expect_match(
+    paste(success_result$logs, collapse = "\n"),
+    "FABRICQUERYR_BATCH_ROW_COUNT=3",
+    fixed = TRUE
+  )
+  expect_match(
+    paste(success$logs(refresh = FALSE), collapse = "\n"),
+    "FABRICQUERYR_BATCH_ROW_COUNT=3",
+    fixed = TRUE
+  )
   success_marker <- wait_for_marker("success")
   expect_equal(success_marker$mode, "success")
   expect_equal(as.numeric(success_marker$row_count), 3)
@@ -1131,6 +1245,16 @@ test_that("Livy batches cover success, failure, and cancellation", {
     class = "fabric_livy_batch_error"
   )
   expect_equal(tolower(failure_error$batch$state), "dead")
+  expect_match(
+    paste(
+      conditionMessage(failure_error),
+      failure_error$logs,
+      unlist(failure_error$error_info, recursive = TRUE),
+      collapse = "\n"
+    ),
+    "FABRICQUERYR_INTENTIONAL_BATCH_FAILURE",
+    fixed = TRUE
+  )
   failure_marker <- wait_for_marker("failure")
   expect_equal(failure_marker$mode, "failure")
   expect_equal(as.numeric(failure_marker$row_count), -1)
@@ -1197,7 +1321,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     displayName = notebook$display_name
   )
   session_tag <- paste0(
-    "fabricqueryr_job_integration_",
+    "fabricqueryr-job-integration-",
     substr(notebook$id, 1L, 8L)
   )
   completed_job <- fabric_job_run(
@@ -1390,4 +1514,21 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   )
   expect_s3_class(by_id, "tbl_df")
   expect_equal(as.numeric(by_id[["[row_count]"]]), 3)
+
+  multiple_tables <- expect_error(
+    fabric_pbi_dax_query(
+      connstr = semantic_model$connection_string,
+      dax = paste(
+        'EVALUATE ROW("first", 1)',
+        'EVALUATE ROW("second", 2)',
+        sep = "\n"
+      ),
+      token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    )
+  )
+  expect_match(conditionMessage(multiple_tables), "Power BI", fixed = TRUE)
+  expect_match(
+    conditionMessage(multiple_tables),
+    "(?i)(more than one|result table)"
+  )
 })
