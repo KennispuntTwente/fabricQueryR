@@ -983,6 +983,9 @@ onelake_upload_target <- function(
   rename_headers <- list(
     `x-ms-rename-source` = onelake_rename_source(temporary)
   )
+  if (!is.null(content_type)) {
+    rename_headers[["x-ms-content-type"]] <- content_type
+  }
   if (!overwrite) {
     rename_headers[["If-None-Match"]] <- "*"
   }

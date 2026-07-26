@@ -314,6 +314,10 @@ test_that("OneLake upload chunks to a temporary path and renames atomically", {
     captured[[4L]]$headers[["x-ms-rename-source"]],
     "^/Analytics/Curated.Lakehouse/Files/\\.fabricqueryr-upload-"
   )
+  expect_equal(
+    captured[[4L]]$headers[["x-ms-content-type"]],
+    "text/plain; charset=utf-8"
+  )
   expect_equal(captured[[4L]]$headers[["If-None-Match"]], "*")
   expect_equal(uploaded$content_length, 5)
   expect_equal(uploaded$etag, "\"uploaded\"")
