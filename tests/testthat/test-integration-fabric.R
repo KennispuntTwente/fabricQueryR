@@ -942,33 +942,115 @@ fabric_test_sql_item <- function(name, backend) {
   sql_token <- fabric_test_token("FABRIC_TEST_SQL_TOKEN")
 
   provisioned <- fabric_test_manifest_item(manifest, name)
+  table_name <- provisioned$tables$types
+  if (is.null(table_name)) {
+    rlang::abort(sprintf(
+      "Fabric integration manifest has no typed SQL table for '%s'",
+      name
+    ))
+  }
+  context <- paste(name, backend)
   target <- fabric_item(
     manifest$workspace_id,
     provisioned$id,
     type = provisioned$type,
     token = api_token
   )
-  result <- fabric_sql_query(
+  info <- fabric_sql_connection_info(target)
+  expect_equal(info$database, provisioned$database_name, info = context)
+  expect_equal(info$source, "discovery", info = context)
+  expect_equal(
+    info$target_type,
+    if (identical(name, "TestWarehouse")) "warehouse" else "sql_database",
+    info = context
+  )
+
+  con <- fabric_sql_connect(
     target,
-    "SELECT CAST(? AS int) AS bound_value",
-    params = list(42L),
+    backend = backend,
+    token = sql_token,
+    read_only = TRUE,
+    verbose = FALSE
+  )
+  on.exit(
+    if (DBI::dbIsValid(con)) {
+      DBI::dbDisconnect(con)
+    },
+    add = TRUE
+  )
+  expect_true(DBI::dbIsValid(con), info = context)
+  expect_true(
+    DBI::dbExistsTable(
+      con,
+      DBI::Id(schema = "dbo", table = table_name)
+    ),
+    info = context
+  )
+  catalog <- DBI::dbGetQuery(con, "SELECT DB_NAME() AS database_name")
+  expect_equal(
+    catalog$database_name,
+    provisioned$database_name,
+    info = context
+  )
+  rows <- DBI::dbGetQuery(
+    con,
+    sprintf(
+      paste(
+        "SELECT id, name, amount, active, event_date,",
+        "loaded_at, nullable_value",
+        "FROM dbo.%s",
+        "ORDER BY id"
+      ),
+      table_name
+    )
+  )
+  expect_equal(rows$id, c(1L, 2L, 3L), info = context)
+  expect_equal(
+    rows$name,
+    c("alpha", "beta", "gamma"),
+    info = context
+  )
+  expect_equal(as.numeric(rows$amount), c(10.5, 20, NA), info = context)
+  expect_equal(as.logical(rows$active), c(TRUE, FALSE, NA), info = context)
+  expect_s3_class(rows$event_date, "Date")
+  expect_equal(
+    rows$event_date,
+    as.Date(c("2026-01-01", "2026-01-02", NA)),
+    info = context
+  )
+  expect_s3_class(rows$loaded_at, "POSIXct")
+  expect_equal(
+    as.numeric(rows$loaded_at),
+    rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3),
+    info = context
+  )
+  expect_equal(
+    rows$nullable_value,
+    c(NA, "present", NA),
+    info = context
+  )
+  DBI::dbDisconnect(con)
+  expect_false(DBI::dbIsValid(con), info = context)
+
+  bound_rows <- fabric_sql_query(
+    target,
+    sprintf(
+      paste(
+        "SELECT id, name",
+        "FROM dbo.%s",
+        "WHERE id >= ?",
+        "ORDER BY id"
+      ),
+      table_name
+    ),
+    params = list(2L),
     backend = backend,
     token = sql_token,
     verbose = FALSE
   )
-  expect_equal(result$bound_value, 42L, info = paste(name, backend))
-
-  info <- fabric_sql_connection_info(target)
-  expect_equal(
-    info$database,
-    provisioned$database_name,
-    info = paste(name, backend)
-  )
-  expect_equal(
-    info$target_type,
-    if (identical(name, "TestWarehouse")) "warehouse" else "sql_database",
-    info = paste(name, backend)
-  )
+  expect_s3_class(bound_rows, "tbl_df")
+  expect_equal(bound_rows$id, c(2L, 3L), info = context)
+  expect_equal(bound_rows$name, c("beta", "gamma"), info = context)
 
   from_manifest <- fabric_sql_query(
     provisioned$connection_string,
@@ -986,13 +1068,37 @@ fabric_test_sql_item <- function(name, backend) {
   expect_equal(
     from_manifest$bound_value,
     "safe ' value; --",
-    info = paste(name, backend)
+    info = context
+  )
+  bare_server <- if (identical(name, "TestSQLDatabase")) {
+    provisioned$server_fqdn
+  } else {
+    fabric_sql_connection_info(provisioned$connection_string)$server
+  }
+  from_server_and_database <- fabric_sql_query(
+    bare_server,
+    "SELECT DB_NAME() AS database_name",
+    database = provisioned$database_name,
+    backend = backend,
+    token = sql_token,
+    verbose = FALSE
+  )
+  expect_equal(
+    from_server_and_database$database_name,
+    provisioned$database_name,
+    info = context
   )
 
   stream <- fabric_sql_query(
     target,
-    "SELECT CAST(? AS int) AS bound_value",
-    params = list(43L),
+    sprintf(
+      paste(
+        "SELECT id, name, amount",
+        "FROM dbo.%s",
+        "ORDER BY id"
+      ),
+      table_name
+    ),
     backend = backend,
     result = "arrow_stream",
     token = sql_token,
@@ -1003,19 +1109,38 @@ fabric_test_sql_item <- function(name, backend) {
     "nanoarrow_array_stream"
   )
   streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
-  expect_equal(streamed$bound_value, 43L, info = paste(name, backend))
+  expect_equal(streamed$id, c(1L, 2L, 3L), info = context)
+  expect_equal(
+    streamed$name,
+    c("alpha", "beta", "gamma"),
+    info = context
+  )
+  expect_equal(as.numeric(streamed$amount), c(10.5, 20, NA), info = context)
+
+  list(
+    id = as.integer(rows$id),
+    name = as.character(rows$name),
+    amount = as.numeric(rows$amount),
+    active = as.logical(rows$active),
+    event_date = as.character(rows$event_date),
+    nullable_value = as.character(rows$nullable_value)
+  )
 }
 
 test_that("provisioned Warehouse target is discoverable and connectable", {
-  for (backend in fabric_test_sql_backends()) {
-    fabric_test_sql_item("TestWarehouse", backend)
-  }
+  results <- lapply(
+    fabric_test_sql_backends(),
+    function(backend) fabric_test_sql_item("TestWarehouse", backend)
+  )
+  expect_identical(results[[1L]], results[[2L]])
 })
 
 test_that("provisioned SQL Database target is discoverable and connectable", {
-  for (backend in fabric_test_sql_backends()) {
-    fabric_test_sql_item("TestSQLDatabase", backend)
-  }
+  results <- lapply(
+    fabric_test_sql_backends(),
+    function(backend) fabric_test_sql_item("TestSQLDatabase", backend)
+  )
+  expect_identical(results[[1L]], results[[2L]])
 })
 
 test_that("fabric_livy_query executes Spark and returns its output", {

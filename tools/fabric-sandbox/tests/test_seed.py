@@ -150,6 +150,29 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             )
             return {"id": "seed-job", "exitValue": "fabricqueryr-seed-success"}
 
+        def get_warehouse(self, workspace_id, warehouse_id):
+            return {
+                "id": warehouse_id,
+                "workspaceId": workspace_id,
+                "properties": {
+                    "connectionString": "warehouse.sql.test",
+                },
+            }
+
+        def get_sql_database(self, workspace_id, database_id):
+            return {
+                "id": database_id,
+                "workspaceId": workspace_id,
+                "properties": {
+                    "connectionString": (
+                        "Server=database.sql.test;"
+                        "Initial Catalog=TestSQLDatabase-internal"
+                    ),
+                    "serverFqdn": "database.sql.test,1433",
+                    "databaseName": "TestSQLDatabase-internal",
+                },
+            }
+
         def wait_for_sql_endpoint_table(
             self,
             workspace_id,
@@ -213,10 +236,6 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             return {"Tables": []}
 
     monkeypatch.setattr(
-        "fabricqueryr_sandbox.seed.get_credential",
-        lambda: "credential",
-    )
-    monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.FabricApi",
         FakeFabricApi,
     )
@@ -241,6 +260,27 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         lambda api, workspace_id, item_id, *, item_type: {
             "properties": {"queryServiceUri": "https://kusto.test"}
         },
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.seed_sql_fixture",
+        lambda connection_string, database, token: calls.append(
+            ("seed_sql", connection_string, database, token)
+        ),
+    )
+    credential = type(
+        "Credential",
+        (),
+        {
+            "get_token": lambda self, audience: type(
+                "AccessToken",
+                (),
+                {"token": f"token-for-{audience}"},
+            )()
+        },
+    )()
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.get_credential",
+        lambda: credential,
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.seed_test_semantic_model",
@@ -281,4 +321,19 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "https://kusto.test",
         "TestKQLDatabase",
     ) in calls
-    assert ("seed_power_bi", "credential", "workspace-id") in calls
+    assert (
+        "seed_sql",
+        "warehouse.sql.test",
+        "TestWarehouse",
+        "token-for-https://database.windows.net/.default",
+    ) in calls
+    assert (
+        "seed_sql",
+        (
+            "Server=database.sql.test;"
+            "Initial Catalog=TestSQLDatabase-internal"
+        ),
+        "TestSQLDatabase-internal",
+        "token-for-https://database.windows.net/.default",
+    ) in calls
+    assert ("seed_power_bi", credential, "workspace-id") in calls

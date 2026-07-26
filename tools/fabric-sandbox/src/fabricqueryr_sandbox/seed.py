@@ -7,6 +7,7 @@ from .credentials import get_credential
 from .discover import (
     _wait_for_kql_properties,
     _wait_for_lakehouse_sql_endpoint,
+    _wait_for_sql_properties,
 )
 from .fabric_api import FabricApi
 from .graphql_api import (
@@ -18,6 +19,7 @@ from .graphql_api import (
 from .kusto_api import KustoApi, SEED_TABLE
 from .power_bi_api import seed_test_semantic_model
 from .settings import SandboxSettings
+from .sql_api import SQL_AUDIENCE, seed_sql_fixture
 
 
 def upload_fixtures(
@@ -68,11 +70,33 @@ def seed(settings: SandboxSettings) -> None:
             "TestKQLDatabase",
             "KQLDatabase",
         )
+        warehouse_item = api.find_item(
+            workspace_id,
+            "TestWarehouse",
+            "Warehouse",
+        )
+        sql_database_item = api.find_item(
+            workspace_id,
+            "TestSQLDatabase",
+            "SQLDatabase",
+        )
         kql_database = _wait_for_kql_properties(
             api,
             workspace_id,
             kql_database_item["id"],
             item_type="KQLDatabase",
+        )
+        warehouse = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            warehouse_item["id"],
+            item_type="Warehouse",
+        )
+        sql_database = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            sql_database_item["id"],
+            item_type="SQLDatabase",
         )
         upload_fixtures(settings, workspace_id, lakehouse["id"])
         job = api.run_notebook(
@@ -114,6 +138,23 @@ def seed(settings: SandboxSettings) -> None:
             "GraphQL fixture ready: "
             f"{graphql_api['displayName']}.{ready_field['name']}"
         )
+
+    sql_token = get_credential().get_token(SQL_AUDIENCE).token
+    sql_targets = (
+        (
+            warehouse_item["displayName"],
+            warehouse["properties"]["connectionString"],
+            warehouse_item["displayName"],
+        ),
+        (
+            sql_database_item["displayName"],
+            sql_database["properties"]["connectionString"],
+            sql_database["properties"]["databaseName"],
+        ),
+    )
+    for display_name, connection_string, database_name in sql_targets:
+        seed_sql_fixture(connection_string, database_name, sql_token)
+        print(f"SQL fixture seeded: {display_name}.dbo.fabricqueryr_sql_types")
 
     query_service_uri = kql_database.get("properties", {}).get("queryServiceUri")
     if not query_service_uri:

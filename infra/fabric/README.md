@@ -113,7 +113,8 @@ creates basic, empty, partitioned, typed/null-partition, schema-evolved,
 column-mapped, and deletion-vector Delta tables. These cover empty logical
 schemas, checkpoint replay, partition replacement and typed log partition
 values, schema merging, and explicit rejection of unsupported Delta protocol
-features. It also creates a deterministic typed Kusto table.
+features. It also creates matching deterministic typed SQL tables in the
+Warehouse and SQL Database, plus a deterministic typed Kusto table.
 
 After the seed table is available, the sandbox refreshes the SQL analytics
 endpoint and requires a successful per-table sync status before applying the
@@ -130,7 +131,9 @@ connectivity failures fail the integration job.
 
 The SQL portion runs the ODBC and ADBC backends against the Lakehouse SQL
 analytics endpoint, Warehouse, and SQL Database. It checks direct DBI
-connections, metadata discovery, bound parameters, collected tibbles, and
-Arrow streams that remain consumable after the one-shot helper closes its
-connection. The stream checks cover both nanoarrow collection and conversion
-to an `arrow::RecordBatchReader`.
+connections and lifecycle, table metadata, discovery records, portal connection
+strings, bare server/database pairs, bound parameters, typed and null values,
+collected tibbles, and Arrow streams that remain consumable after the one-shot
+helper closes its connection. ODBC and ADBC results are normalized and compared
+for the writable SQL items. The stream checks cover both nanoarrow collection
+and conversion to an `arrow::RecordBatchReader`.

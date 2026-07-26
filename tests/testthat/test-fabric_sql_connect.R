@@ -627,13 +627,23 @@ test_that("SQL helper defaults preserve ODBC and tibble behavior", {
 test_that("the Fabric integration manifest requires every SQL fixture", {
   manifest <- list(
     items = list(
-      TestWarehouse = list(id = "warehouse-id")
+      TestWarehouse = list(
+        id = "warehouse-id",
+        tables = list(types = "fabricqueryr_sql_types")
+      )
     )
   )
 
   expect_identical(
     fabric_test_manifest_item(manifest, "TestWarehouse")$id,
     "warehouse-id"
+  )
+  expect_identical(
+    fabric_test_manifest_item(
+      manifest,
+      "TestWarehouse"
+    )$tables$types,
+    "fabricqueryr_sql_types"
   )
   expect_error(
     fabric_test_manifest_item(manifest, "TestSQLDatabase"),

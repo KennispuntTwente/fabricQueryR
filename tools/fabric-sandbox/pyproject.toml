@@ -9,6 +9,7 @@ dependencies = [
     "azure-storage-file-datalake>=12.20,<13",
     "fabric-cicd>=1.2,<2",
     "httpx>=0.28,<1",
+    "pyodbc>=5.2,<6",
 ]
 
 [project.scripts]

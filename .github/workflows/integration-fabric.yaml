@@ -74,6 +74,14 @@ jobs:
           enable-cache: true
           cache-dependency-glob: tools/fabric-sandbox/uv.lock
 
+      - name: Install Microsoft ODBC driver
+        run: |
+          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
+          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
       - name: Install locked sandbox environment
         run: uv --directory tools/fabric-sandbox sync --locked
 
@@ -111,14 +119,6 @@ jobs:
             echo "FABRIC_TEST_PBI_TOKEN=$pbi_token"
             echo "FABRIC_TEST_KUSTO_TOKEN=$kusto_token"
           } >> "$GITHUB_ENV"
-
-      - name: Install Microsoft ODBC driver
-        run: |
-          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
-          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
-          sudo dpkg -i packages-microsoft-prod.deb
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
       - name: Install Microsoft SQL Server ADBC driver
         run: uvx dbc==0.3.0 install "mssql>=1.5,<2"

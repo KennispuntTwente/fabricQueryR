@@ -170,6 +170,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "display_name": "TestWarehouse",
         "connection_string": "warehouse.sql.test",
         "database_name": "TestWarehouse",
+        "tables": {"types": "fabricqueryr_sql_types"},
     }
     assert manifest.items["TestSQLDatabase"] == {
         "id": "TestSQLDatabase-id",
@@ -181,6 +182,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         ),
         "server_fqdn": "database.sql.test,1433",
         "database_name": "TestSQLDatabase-internal",
+        "tables": {"types": "fabricqueryr_sql_types"},
     }
     assert fabric_api.refreshed == [("workspace-id", "endpoint-id")]
     assert manifest.items["TestEventhouse"] == {

@@ -12,6 +12,7 @@ from .graphql_api import GRAPHQL_API_NAME, GRAPHQL_ROOT_FIELD
 from .manifest import SandboxManifest
 from .power_bi_api import PowerBiApi, SEMANTIC_MODEL_NAME
 from .settings import SandboxSettings
+from .sql_api import SQL_FIXTURE_TABLE
 
 
 def _wait_for_lakehouse_sql_endpoint(
@@ -214,6 +215,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "display_name": warehouse_item["displayName"],
                 "connection_string": warehouse_properties["connectionString"],
                 "database_name": warehouse_item["displayName"],
+                "tables": {
+                    "types": SQL_FIXTURE_TABLE,
+                },
             },
             "TestSQLDatabase": {
                 "id": sql_database_item["id"],
@@ -222,6 +226,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "connection_string": sql_database_properties["connectionString"],
                 "server_fqdn": sql_database_properties["serverFqdn"],
                 "database_name": sql_database_properties["databaseName"],
+                "tables": {
+                    "types": SQL_FIXTURE_TABLE,
+                },
             },
             "TestEventhouse": {
                 "id": eventhouse_item["id"],
