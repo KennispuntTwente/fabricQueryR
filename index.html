@@ -120,10 +120,9 @@
 <span><span class="co"># Or, run a single SQL query directly (without a connection object):</span></span>
 <span><span class="va">df_sql</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
-<span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = ?"</span>,</span>
-<span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"West"</span><span class="op">)</span></span>
+<span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The default connection method requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>. An optional ADBC backend is available for Arrow-based workflows; see <a href="https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.html"><code>fabric_sql_connect()</code></a> for setup and trade-offs.</p>
+<p>The default connection method requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>. An optional ADBC backend is available for Arrow-based workflows; see <a href="https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.html"><code>fabric_sql_connect()</code></a>.</p>
 </div>
 <div class="section level3">
 <h3 id="id_2-query-a-semantic-model-with-dax">2. Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#id_2-query-a-semantic-model-with-dax"></a>
