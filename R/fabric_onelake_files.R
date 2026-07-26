@@ -812,6 +812,9 @@ onelake_download_target <- function(
       credential = credential,
       audience = .fabric_audience$storage
     )
+    if (is.raw(response$body) && length(response$body) == 0L) {
+      return(raw())
+    }
     return(httr2::resp_body_raw(response))
   }
   onelake_scalar(dest, "dest")

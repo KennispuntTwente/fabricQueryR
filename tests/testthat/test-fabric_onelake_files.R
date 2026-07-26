@@ -270,6 +270,25 @@ test_that("OneLake download supports ranges, ETags, and atomic destinations", {
   )
 })
 
+test_that("OneLake download returns raw zero bytes for an empty file", {
+  httr2::local_mocked_responses(function(req) {
+    onelake_test_response(
+      body = raw(),
+      headers = list(`content-length` = "0"),
+      url = req$url
+    )
+  })
+
+  value <- fabric_onelake_download(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/empty.bin",
+    token = "token"
+  )
+
+  expect_identical(value, raw())
+})
+
 test_that("OneLake upload chunks to a temporary path and renames atomically", {
   captured <- list()
   httr2::local_mocked_responses(function(req) {
