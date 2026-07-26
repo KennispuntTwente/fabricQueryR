@@ -207,7 +207,7 @@ df_kql <- fabric_kql_query(
 
 ### 7. Query a Fabric GraphQL API
 
-Call an **API for GraphQL** item that has already been configured in
+Call an `API for GraphQL` item that has already been configured in
 Fabric. The result keeps the nested GraphQL data and any GraphQL-level
 errors separate.
 
@@ -232,8 +232,8 @@ graphql_result$errors
 
 ### 8. Run and monitor Fabric jobs
 
-Start an on-demand Notebook, data pipeline, or Spark job definition,
-then wait for completion or inspect/cancel it from R.
+Start a notebook, data pipeline, or Spark job definition, then wait for
+completion or inspect/cancel it from R.
 
 ``` r
 
