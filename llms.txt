@@ -2,9 +2,9 @@
 
 `fabricQueryR` helps you work with Microsoft Fabric directly from R.
 
-You can use it to find Fabric workspaces and data items, query several
-Fabric data services, work with OneLake files and tables, run Spark
-code, and start or monitor Fabric jobs.
+You can use it to find Fabric workspaces and data items, query various
+Fabric data interfaces (SQL, DAX, KQL, GraphQL), work with OneLake files
+and tables, run Spark code, and start or monitor Fabric jobs.
 
 ## Installation
 
