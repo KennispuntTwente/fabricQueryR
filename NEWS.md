@@ -6,6 +6,15 @@
   session tags are validated before submission. Live Spark coverage verifies
   durable Delta effects instead of optional diagnostics.
 
+* Delta reads now use unique temporary staging directories, normalize the
+  protocol's empty-string null partition values correctly, and report
+  unsupported logical types intentionally. OneLake listing rejects fractional
+  or non-numeric page sizes instead of silently coercing them. Unit and live
+  sandbox coverage now includes duplicate Parquet basenames, empty tables,
+  typed/null partitions, stale ETag writes, empty files, and full sandbox seed
+  orchestration. Fabric integration tests also skip cleanly during installed
+  package checks when no manifest is configured.
+
 * Authentication is now consistent across all authenticated exported
   functions. New code can pass an `AzureAuth::AzureToken` object, bearer token,
   or provider through `token`, and can configure any supported AzureAuth flow

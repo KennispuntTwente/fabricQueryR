@@ -222,7 +222,7 @@ fabric_onelake_read_delta_table <- function(
   }
 
   auto_cleanup <- is.null(dest_dir)
-  dest_dir <- dest_dir %||% fs::path_temp("onelake_tbl_")
+  dest_dir <- dest_dir %||% fs::file_temp("onelake_tbl_")
   fs::dir_create(dest_dir, recurse = TRUE)
   if (auto_cleanup) {
     on.exit(try(fs::dir_delete(dest_dir), silent = TRUE), add = TRUE)
@@ -580,7 +580,7 @@ fabric_delta_duckdb_type <- function(con, type) {
       timestamp = "TIMESTAMPTZ",
       timestamp_ntz = "TIMESTAMP"
     )
-    if (!is.null(primitive[[normalized]])) {
+    if (normalized %in% names(primitive)) {
       return(unname(primitive[[normalized]]))
     }
     if (grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized)) {
@@ -699,7 +699,8 @@ fabric_delta_partition_mapping <- function(snapshot, paths, schema) {
         if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) {
           NA_character_
         } else {
-          as.character(value[[1L]])
+          text <- as.character(value[[1L]])
+          if (nzchar(text)) text else NA_character_
         }
       },
       character(1)

@@ -43,8 +43,14 @@ fabric_test_manifest_path <- function(
   if (nzchar(configured)) {
     return(configured)
   }
-  file.path(
+  root <- tryCatch(
     fabric_test_repository_root(start),
+    error = function(error) {
+      normalizePath(start, winslash = "/", mustWork = TRUE)
+    }
+  )
+  file.path(
+    root,
     ".fabric-test-manifest.json"
   )
 }

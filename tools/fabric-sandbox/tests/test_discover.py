@@ -207,7 +207,9 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     lakehouse = manifest.items["TestLakehouse"]
     assert lakehouse["tables"] == {
         "basic": "fabricqueryr_basic",
+        "empty": "fabricqueryr_empty",
         "partitioned": "fabricqueryr_partitioned",
+        "typed_partitions": "fabricqueryr_typed_partitions",
         "schema_evolved": "fabricqueryr_schema_evolved",
         "column_mapped": "fabricqueryr_column_mapped",
         "deletion_vectors": "fabricqueryr_deletion_vectors",

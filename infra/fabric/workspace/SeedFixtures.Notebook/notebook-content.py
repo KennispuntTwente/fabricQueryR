@@ -47,6 +47,15 @@ try:
         .saveAsTable("dbo.fabricqueryr_basic")
     )
 
+    stage = "write empty Delta table"
+    (
+        fixture.limit(0)
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_empty")
+    )
+
     stage = "write partitioned Delta table"
     (
         fixture.write.format("delta")
@@ -54,6 +63,37 @@ try:
         .partitionBy("category")
         .option("overwriteSchema", True)
         .saveAsTable("dbo.fabricqueryr_partitioned")
+    )
+
+    stage = "write typed and null partition Delta table"
+    typed_partitions = (
+        fixture.select("id", "name", "amount")
+        .withColumn(
+            "event_date",
+            F.when(
+                F.col("id") == 3,
+                F.lit(None).cast("date"),
+            ).otherwise(
+                F.date_add(
+                    F.lit("2026-01-01").cast("date"),
+                    F.col("id") - 1,
+                )
+            ),
+        )
+        .withColumn(
+            "active",
+            F.when(
+                F.col("id") == 3,
+                F.lit(None).cast("boolean"),
+            ).otherwise((F.col("id") % 2) == 1),
+        )
+    )
+    (
+        typed_partitions.write.format("delta")
+        .mode("overwrite")
+        .partitionBy("event_date", "active")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_typed_partitions")
     )
 
     stage = "generate Delta checkpoint"

@@ -109,3 +109,21 @@ test_that("the default manifest path resolves from nested test directories", {
     "explicit-manifest.json"
   )
 })
+
+test_that("manifest lookup can skip cleanly outside a source checkout", {
+  installed_tests <- tempfile("fabricqueryr-installed-tests-")
+  dir.create(installed_tests)
+  on.exit(unlink(installed_tests, recursive = TRUE), add = TRUE)
+
+  expected <- file.path(
+    normalizePath(installed_tests, winslash = "/", mustWork = TRUE),
+    ".fabric-test-manifest.json"
+  )
+  expect_identical(
+    fabric_test_manifest_path(
+      start = installed_tests,
+      configured = ""
+    ),
+    expected
+  )
+})

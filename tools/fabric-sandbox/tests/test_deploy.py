@@ -32,6 +32,9 @@ def test_seed_notebook_ids_are_parameterized():
     assert "abfss://" in notebook
     assert '.option("replaceWhere", "category = \'B\'")' in notebook
     assert '"beta-updated"' in notebook
+    assert '.saveAsTable("dbo.fabricqueryr_empty")' in notebook
+    assert '.saveAsTable("dbo.fabricqueryr_typed_partitions")' in notebook
+    assert '.partitionBy("event_date", "active")' in notebook
 
 
 def test_job_notebook_exposes_deterministic_job_modes():

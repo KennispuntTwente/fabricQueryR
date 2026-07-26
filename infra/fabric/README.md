@@ -105,10 +105,11 @@ The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
 `TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, `SeedFixtures`,
 `JobFixtures`, `TestPipeline`, and `TestSparkJob`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. It
-creates basic, partitioned, schema-evolved, column-mapped, and
-deletion-vector Delta tables. These cover checkpoint replay, partition
-replacement, schema merging, and explicit rejection of unsupported Delta
-protocol features. It also creates a deterministic typed Kusto table.
+creates basic, empty, partitioned, typed/null-partition, schema-evolved,
+column-mapped, and deletion-vector Delta tables. These cover empty logical
+schemas, checkpoint replay, partition replacement and typed log partition
+values, schema merging, and explicit rejection of unsupported Delta protocol
+features. It also creates a deterministic typed Kusto table.
 
 After the seed table is available, the sandbox refreshes the SQL analytics
 endpoint and requires a successful per-table sync status before applying the

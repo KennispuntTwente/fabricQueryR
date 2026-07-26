@@ -213,6 +213,42 @@ test_that("Delta staging rejects paths outside the requested table", {
   )
 })
 
+test_that("automatic Delta staging is unique and cleaned after each read", {
+  staging_dirs <- character()
+  local_mocked_bindings(
+    onelake_list_target = function(...) {
+      tibble::tibble(
+        path = "Tables/table/_delta_log/00000000000000000000.json",
+        is_directory = FALSE
+      )
+    },
+    onelake_download_target = function(target, credential, dest, ...) {
+      fs::dir_create(fs::path_dir(dest), recurse = TRUE)
+      writeBin(raw(), dest)
+      invisible(dest)
+    },
+    fabric_delta_resolve_snapshot = function(table_dir, version = NULL) {
+      staging_dirs <<- c(staging_dirs, as.character(table_dir))
+      list(active = character(), version = 0)
+    },
+    fabric_delta_read_staged = function(...) data.frame(id = integer())
+  )
+
+  for (index in 1:2) {
+    result <- fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = "workspace",
+      lakehouse_name = "lakehouse",
+      token = "token",
+      verbose = FALSE
+    )
+    expect_equal(nrow(result), 0L)
+  }
+
+  expect_length(unique(staging_dirs), 2L)
+  expect_false(any(fs::dir_exists(staging_dirs)))
+})
+
 test_that("Delta versions must be non-negative integers", {
   for (version in list(-1, 1.5, NA_real_, c(1, 2), "1")) {
     expect_error(
@@ -269,6 +305,88 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
   )
 })
 
+test_that("Delta reads preserve duplicate basenames in separate partitions", {
+  table_dir <- fs::path_temp(
+    paste0("delta-duplicate-basenames-", sample.int(1e9, 1))
+  )
+  log_dir <- fs::path(table_dir, "_delta_log")
+  partitions <- fs::path(table_dir, c("category=A", "category=B"))
+  fs::dir_create(log_dir, recurse = TRUE)
+  purrr::walk(partitions, fs::dir_create, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  for (index in seq_along(partitions)) {
+    parquet <- fs::path(partitions[[index]], "part.parquet")
+    literal <- as.character(DBI::dbQuoteString(
+      con,
+      gsub("\\", "/", parquet, fixed = TRUE)
+    ))
+    DBI::dbExecute(
+      con,
+      paste0(
+        "COPY (SELECT ",
+        index,
+        "::BIGINT AS id, 'row-",
+        index,
+        "' AS value) TO ",
+        literal,
+        " (FORMAT PARQUET)"
+      )
+    )
+  }
+
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "id", type = "long", nullable = FALSE, metadata = list()),
+        list(
+          name = "value",
+          type = "string",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "category",
+          type = "string",
+          nullable = FALSE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            schemaString = schema,
+            partitionColumns = list("category"),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      ),
+      '{"add":{"path":"category=A/part.parquet","partitionValues":{"category":"A"}}}',
+      '{"add":{"path":"category=B/part.parquet","partitionValues":{"category":"B"}}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+  result <- result[order(result$id), ]
+
+  expect_equal(result$id, c(1, 2))
+  expect_equal(result$value, c("row-1", "row-2"))
+  expect_equal(result$category, c("A", "B"))
+})
+
 test_that("Delta reader preserves the logical schema for empty tables", {
   table_dir <- fs::path_temp(paste0("delta-empty-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
@@ -319,6 +437,155 @@ test_that("Delta reader preserves the logical schema for empty tables", {
   expect_equal(names(result), c("id", "label"))
   expect_type(result$id, "double")
   expect_type(result$label, "character")
+})
+
+test_that("Delta logical schemas cover primitive and nested types", {
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+
+  primitives <- c(
+    string = "VARCHAR",
+    long = "BIGINT",
+    integer = "INTEGER",
+    short = "SMALLINT",
+    byte = "TINYINT",
+    float = "FLOAT",
+    double = "DOUBLE",
+    boolean = "BOOLEAN",
+    binary = "BLOB",
+    date = "DATE",
+    timestamp = "TIMESTAMPTZ",
+    timestamp_ntz = "TIMESTAMP",
+    "decimal(18,4)" = "DECIMAL(18,4)"
+  )
+  converted <- vapply(
+    names(primitives),
+    function(type) fabric_delta_duckdb_type(con, type),
+    character(1)
+  )
+  expect_equal(unname(converted), unname(primitives))
+
+  complex <- list(
+    type = "struct",
+    fields = list(
+      list(
+        name = "labels",
+        type = list(
+          type = "array",
+          elementType = "string"
+        )
+      ),
+      list(
+        name = "counts",
+        type = list(
+          type = "map",
+          keyType = "string",
+          valueType = "long"
+        )
+      )
+    )
+  )
+  complex_type <- fabric_delta_duckdb_type(con, complex)
+  expect_match(complex_type, "^STRUCT\\(")
+  expect_match(complex_type, "labels VARCHAR\\[\\]")
+  expect_match(complex_type, "counts MAP\\(VARCHAR, BIGINT\\)")
+
+  expect_error(
+    fabric_delta_duckdb_type(con, "variant"),
+    "Unsupported Delta schema type: variant",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_duckdb_type(con, list(type = "struct", fields = list())),
+    "Empty Delta struct fields are not supported",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_duckdb_type(con, list(type = "interval")),
+    "Unsupported Delta complex schema type: interval",
+    fixed = TRUE
+  )
+})
+
+test_that("Delta partition serialization treats empty strings as null", {
+  snapshot <- list(
+    active = c("missing.parquet", "present.parquet"),
+    files = list(
+      "missing.parquet" = list(
+        partitionValues = list(
+          event_date = "",
+          active = ""
+        )
+      ),
+      "present.parquet" = list(
+        partitionValues = list(
+          event_date = "2026-01-02",
+          active = "false"
+        )
+      )
+    )
+  )
+  schema <- list(partitionColumns = c("event_date", "active"))
+
+  mapping <- fabric_delta_partition_mapping(
+    snapshot,
+    c("missing.parquet", "present.parquet"),
+    schema
+  )
+
+  expect_equal(
+    mapping$fabric_delta_partition_1,
+    c(NA_character_, "2026-01-02")
+  )
+  expect_equal(
+    mapping$fabric_delta_partition_2,
+    c(NA_character_, "false")
+  )
+})
+
+test_that("Delta metadata schemas reject malformed and ambiguous fields", {
+  expect_error(
+    fabric_delta_schema(list(schemaString = "{not-json")),
+    "Could not parse the Delta metadata schemaString",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_schema(list(schemaString = '{"type":"array","fields":[]}')),
+    "must describe a struct",
+    fixed = TRUE
+  )
+
+  duplicate <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "Value", type = "string"),
+        list(name = "value", type = "string")
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  expect_error(
+    fabric_delta_schema(list(schemaString = duplicate)),
+    "missing or duplicate field names",
+    fixed = TRUE
+  )
+
+  valid <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(name = "id", type = "long"))
+    ),
+    auto_unbox = TRUE
+  )
+  expect_error(
+    fabric_delta_schema(list(
+      schemaString = valid,
+      partitionColumns = list("missing")
+    )),
+    "unknown partition column(s): missing",
+    fixed = TRUE
+  )
 })
 
 test_that("Delta reader applies schema projection and log partition values", {

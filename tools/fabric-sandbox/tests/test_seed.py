@@ -1,4 +1,4 @@
-from fabricqueryr_sandbox.seed import upload_fixtures
+from fabricqueryr_sandbox.seed import seed, upload_fixtures
 from fabricqueryr_sandbox.settings import SandboxSettings
 
 
@@ -100,3 +100,185 @@ def test_upload_fixtures_preserves_nested_and_unicode_paths(monkeypatch, tmp_pat
     ]
     assert unicode_file[0].replace(b"\r\n", b"\n") == b"unicode\n"
     assert unicode_file[1] is True
+
+
+def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="lakehouse-id",
+        workspace_name="fabricqueryr-test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    calls = []
+
+    class FakeFabricApi:
+        def __init__(self, credential):
+            calls.append(("fabric_client", credential))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def find_item(self, workspace_id, display_name, item_type):
+            calls.append(("find_item", workspace_id, display_name, item_type))
+            return {
+                "id": f"{display_name}-id",
+                "displayName": display_name,
+                "type": item_type,
+            }
+
+        def run_notebook(
+            self,
+            workspace_id,
+            notebook_id,
+            *,
+            lakehouse_id,
+        ):
+            calls.append(
+                (
+                    "run_notebook",
+                    workspace_id,
+                    notebook_id,
+                    lakehouse_id,
+                )
+            )
+            return {"id": "seed-job", "exitValue": "fabricqueryr-seed-success"}
+
+        def wait_for_sql_endpoint_table(
+            self,
+            workspace_id,
+            sql_endpoint_id,
+            table_name,
+        ):
+            calls.append(
+                (
+                    "wait_for_sql_table",
+                    workspace_id,
+                    sql_endpoint_id,
+                    table_name,
+                )
+            )
+            return {"tableName": table_name, "status": "Success"}
+
+        def update_graphql_definition(
+            self,
+            workspace_id,
+            graphql_api_id,
+            definition,
+        ):
+            calls.append(
+                (
+                    "update_graphql",
+                    workspace_id,
+                    graphql_api_id,
+                    definition,
+                )
+            )
+            return {"status": "Succeeded"}
+
+        def wait_for_graphql_root_field(
+            self,
+            workspace_id,
+            graphql_api_id,
+            root_field,
+        ):
+            calls.append(
+                (
+                    "wait_for_graphql",
+                    workspace_id,
+                    graphql_api_id,
+                    root_field,
+                )
+            )
+            return {"name": root_field}
+
+    class FakeKustoApi:
+        def __init__(self, credential):
+            calls.append(("kusto_client", credential))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def seed_fixture(self, query_service_uri, database):
+            calls.append(("seed_kusto", query_service_uri, database))
+            return {"Tables": []}
+
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.get_credential",
+        lambda: "credential",
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.FabricApi",
+        FakeFabricApi,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.KustoApi",
+        FakeKustoApi,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.upload_fixtures",
+        lambda settings, workspace_id, lakehouse_id: calls.append(
+            ("upload", settings, workspace_id, lakehouse_id)
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed._wait_for_lakehouse_sql_endpoint",
+        lambda api, workspace_id, lakehouse_id: {
+            "properties": {"sqlEndpointProperties": {"id": "sql-endpoint-id"}}
+        },
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed._wait_for_kql_properties",
+        lambda api, workspace_id, item_id, *, item_type: {
+            "properties": {"queryServiceUri": "https://kusto.test"}
+        },
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.seed_test_semantic_model",
+        lambda credential, workspace_id: calls.append(
+            ("seed_power_bi", credential, workspace_id)
+        )
+        or {"id": "semantic-model-id", "name": "TestModel"},
+    )
+
+    seed(settings)
+
+    assert ("upload", settings, "workspace-id", "TestLakehouse-id") in calls
+    assert (
+        "run_notebook",
+        "workspace-id",
+        "SeedFixtures-id",
+        "TestLakehouse-id",
+    ) in calls
+    assert (
+        "wait_for_sql_table",
+        "workspace-id",
+        "sql-endpoint-id",
+        "dbo.fabricqueryr_basic",
+    ) in calls
+    graphql_call = next(call for call in calls if call[0] == "update_graphql")
+    assert graphql_call[1:3] == ("workspace-id", "TestGraphQL-id")
+    datasource = graphql_call[3]["datasources"][0]
+    assert datasource["sourceWorkspaceId"] == "workspace-id"
+    assert datasource["sourceItemId"] == "sql-endpoint-id"
+    assert (
+        "wait_for_graphql",
+        "workspace-id",
+        "TestGraphQL-id",
+        "fabricqueryr_basics",
+    ) in calls
+    assert (
+        "seed_kusto",
+        "https://kusto.test",
+        "TestKQLDatabase",
+    ) in calls
+    assert ("seed_power_bi", "credential", "workspace-id") in calls

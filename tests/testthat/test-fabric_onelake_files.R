@@ -496,6 +496,19 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
 test_that("OneLake validates ranges and protected paths before I/O", {
   expect_error(onelake_validate_range(c(-1, 2)), "non-negative")
   expect_error(onelake_validate_range(c(3, 2)), "non-negative")
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files"
+  )
+  credential <- fabric_credential(token = "token")
+  for (page_size in list(0, 5001, 1.5, NA_real_, Inf, "10", c(1, 2))) {
+    expect_error(
+      onelake_list_target(target, credential, page_size = page_size),
+      "page_size must be one whole number between 1 and 5000",
+      fixed = TRUE
+    )
+  }
   expect_error(
     fabric_onelake_upload(
       "Analytics",

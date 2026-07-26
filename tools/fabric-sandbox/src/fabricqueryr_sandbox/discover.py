@@ -178,7 +178,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 ),
                 "tables": {
                     "basic": "fabricqueryr_basic",
+                    "empty": "fabricqueryr_empty",
                     "partitioned": "fabricqueryr_partitioned",
+                    "typed_partitions": "fabricqueryr_typed_partitions",
                     "schema_evolved": "fabricqueryr_schema_evolved",
                     "column_mapped": "fabricqueryr_column_mapped",
                     "deletion_vectors": "fabricqueryr_deletion_vectors",

@@ -402,6 +402,46 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   )
 })
 
+test_that("Delta reader preserves empty schemas and typed log partitions", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  read_table <- function(table) {
+    fabric_onelake_read_delta_table(
+      table_path = table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      verbose = FALSE
+    )
+  }
+
+  empty <- read_table(lakehouse$tables$empty)
+  expect_s3_class(empty, "tbl_df")
+  expect_equal(nrow(empty), 0L)
+  expect_named(empty, c("id", "name", "category", "amount"))
+  expect_type(empty$id, "integer")
+  expect_type(empty$name, "character")
+  expect_type(empty$category, "character")
+  expect_type(empty$amount, "double")
+
+  partitioned <- read_table(lakehouse$tables$typed_partitions)
+  partitioned <- partitioned[order(partitioned$id), ]
+  expect_equal(partitioned$id, 1:3)
+  expect_equal(partitioned$name, c("alpha", "beta", "gamma"))
+  expect_equal(partitioned$amount, c(10.5, 20, NA))
+  expect_s3_class(partitioned$event_date, "Date")
+  expect_equal(
+    partitioned$event_date,
+    as.Date(c("2026-01-01", "2026-01-02", NA))
+  )
+  expect_type(partitioned$active, "logical")
+  expect_equal(partitioned$active, c(TRUE, FALSE, NA))
+})
+
 test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -490,6 +530,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
   )
   expect_equal(first$content_length, nchar("first-version", type = "bytes"))
   expect_true(nzchar(first$etag))
+  expect_match(first$content_type, "^text/plain")
 
   expect_error(
     fabric_onelake_upload(
@@ -510,6 +551,35 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     if_match = first$etag,
     token = token
   )
+  second <- fabric_onelake_metadata(
+    manifest$workspace_id,
+    lakehouse$id,
+    test_path,
+    token = token
+  )
+  expect_true(nzchar(second$etag))
+  expect_false(identical(second$etag, first$etag))
+  expect_error(
+    fabric_onelake_upload(
+      manifest$workspace_id,
+      lakehouse$id,
+      test_path,
+      source = charToRaw("stale-write"),
+      overwrite = TRUE,
+      if_match = first$etag,
+      token = token
+    ),
+    "HTTP 412"
+  )
+  expect_identical(
+    rawToChar(fabric_onelake_download(
+      manifest$workspace_id,
+      lakehouse$id,
+      test_path,
+      token = token
+    )),
+    "second-version"
+  )
   expect_identical(
     rawToChar(fabric_onelake_download(
       manifest$workspace_id,
@@ -519,6 +589,25 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
       token = token
     )),
     "version"
+  )
+
+  empty_path <- paste0(test_root, "/empty.bin")
+  empty_metadata <- fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    empty_path,
+    source = raw(),
+    token = token
+  )
+  expect_equal(empty_metadata$content_length, 0)
+  expect_length(
+    fabric_onelake_download(
+      manifest$workspace_id,
+      lakehouse$id,
+      empty_path,
+      token = token
+    ),
+    0L
   )
 
   expect_error(
