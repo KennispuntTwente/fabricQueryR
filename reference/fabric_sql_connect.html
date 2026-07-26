@@ -189,7 +189,8 @@ named <code>access_token</code> argument is consumed here as a deprecated alias 
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A live <code>DBIConnection</code>. Close it with <code><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">DBI::dbDisconnect()</a></code> when
-finished.</p>
+finished. For an ADBC connection with child results still registered,
+use <code>DBI::dbDisconnect(con, force = TRUE)</code> to release them immediately.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

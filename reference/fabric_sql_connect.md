@@ -151,7 +151,9 @@ fabric_sql_connect(
 
 A live `DBIConnection`. Close it with
 [`DBI::dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
-when finished.
+when finished. For an ADBC connection with child results still
+registered, use `DBI::dbDisconnect(con, force = TRUE)` to release them
+immediately.
 
 ## Details
 
