@@ -52,8 +52,10 @@ fabric_onelake_read_delta_table(
 
   Lakehouse schema name, for example `"dbo"`, or `NULL`. When supplied,
   the table is resolved under `Tables/<schema>/<table>` instead of
-  `Tables/<table>`. Use `NULL` for a non-schema Lakehouse. Schema
-  support in this reader is experimental.
+  `Tables/<table>`. When `lakehouse_name` is a discovered schema-enabled
+  Lakehouse and `schema` is `NULL`, its `defaultSchema` is used
+  automatically. Use `NULL` with a name or GUID for a non-schema
+  Lakehouse. Schema support in this reader is experimental.
 
 - tenant_id:
 
@@ -116,9 +118,14 @@ values are included as columns.
   log, then downloads only the Parquet files active in the requested
   version.
 
-- Checkpoint Parquet and data Parquet files are read with DuckDB. Tables
-  that require reader protocol versions or reader features this package
-  does not implement are rejected before any data is returned.
+- Checkpoint Parquet and data Parquet files are read with DuckDB. The
+  staged reader supports Delta reader protocol version 1 without table
+  features. It does not currently support column mapping, deletion
+  vectors, or higher reader protocols. These occur in some current
+  Fabric tables, including Warehouse Delta exports. Such tables are
+  rejected with a `fabric_delta_unsupported_error` before any data is
+  returned; use the Lakehouse SQL analytics endpoint or Fabric Spark for
+  those tables.
 
 - The returned columns follow the logical schema in the selected Delta
   snapshot. Schema additions are filled with typed missing values,

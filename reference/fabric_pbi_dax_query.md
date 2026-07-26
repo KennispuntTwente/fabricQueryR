@@ -90,7 +90,9 @@ fabric_pbi_dax_query(
 
   Power BI REST API base URL. The default
   `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial
-  cloud; change it only for another Microsoft cloud or a test service.
+  cloud; override it only for a test service that implements the same
+  endpoint and authentication contract. Sovereign Microsoft clouds are
+  not currently supported by this helper.
 
 - impersonated_user:
 
@@ -142,10 +144,18 @@ than silently returning incomplete data.
   user. Partial results reported by Power BI are treated as errors by
   this function.
 
+- This function uses the JSON `executeQueries` API. Microsoft also
+  offers a separate `executeDaxQueries` API that returns Apache Arrow
+  streams; that endpoint and its additional request options are not used
+  here.
+
 ## References
 
-[Power BI Execute Queries REST
-API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries)
+[Power BI JSON Execute Queries REST
+API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
+
+[Power BI Arrow Execute DAX Queries REST
+API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-dax-queries-in-group)
 
 [Semantic model
 permissions](https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions)

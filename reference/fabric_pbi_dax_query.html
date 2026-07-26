@@ -129,7 +129,9 @@ returned row; retaining <code>TRUE</code> usually gives a more consistent tibble
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Power BI REST API base URL. The default
 <code>"https://api.powerbi.com/v1.0/myorg"</code> is correct for the commercial cloud;
-change it only for another Microsoft cloud or a test service.</p></dd>
+override it only for a test service that implements the same endpoint and
+authentication contract. Sovereign Microsoft clouds are not currently
+supported by this helper.</p></dd>
 
 
 <dt id="arg-impersonated-user">impersonated_user<a class="anchor" aria-label="anchor" href="#arg-impersonated-user"></a></dt>
@@ -171,10 +173,14 @@ semantic models with row-level security or single sign-on enabled.</p></li>
 request. Results are limited to 100,000 rows or 1,000,000 values (whichever
 is reached first), 15 MB, and 120 requests per minute per user. Partial
 results reported by Power BI are treated as errors by this function.</p></li>
+<li><p>This function uses the JSON <code>executeQueries</code> API. Microsoft also offers a
+separate <code>executeDaxQueries</code> API that returns Apache Arrow streams; that
+endpoint and its additional request options are not used here.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
-    <p><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries" class="external-link">Power BI Execute Queries REST API</a></p>
+    <p><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group" class="external-link">Power BI JSON Execute Queries REST API</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-dax-queries-in-group" class="external-link">Power BI Arrow Execute DAX Queries REST API</a></p>
 <p><a href="https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions" class="external-link">Semantic model permissions</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-integration#semantic-model-execute-queries-rest-api" class="external-link">Semantic Model Execute Queries tenant setting</a></p>
     </div>

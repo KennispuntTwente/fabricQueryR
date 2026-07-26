@@ -147,8 +147,8 @@ fabric_sql_query(
 
 - timeout:
 
-  Non-negative login/connect timeout in seconds; `0` lets the driver use
-  an unlimited or driver-specific timeout.
+  Non-negative whole-number login/connect timeout in seconds; `0` lets
+  the driver use an unlimited or driver-specific timeout.
 
 - read_only:
 

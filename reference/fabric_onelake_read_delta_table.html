@@ -91,8 +91,10 @@ suffix; a discovered row avoids suffix and renaming ambiguity.</p></dd>
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
 <dd><p>Lakehouse schema name, for example <code>"dbo"</code>, or <code>NULL</code>.
 When supplied, the table is resolved under <code>Tables/&lt;schema&gt;/&lt;table&gt;</code>
-instead of <code>Tables/&lt;table&gt;</code>. Use <code>NULL</code> for a non-schema Lakehouse. Schema
-support in this reader is experimental.</p></dd>
+instead of <code>Tables/&lt;table&gt;</code>. When <code>lakehouse_name</code> is a discovered
+schema-enabled Lakehouse and <code>schema</code> is <code>NULL</code>, its <code>defaultSchema</code> is
+used automatically. Use <code>NULL</code> with a name or GUID for a non-schema
+Lakehouse. Schema support in this reader is experimental.</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
@@ -153,9 +155,13 @@ filesystem. Within a Lakehouse item, Delta tables are stored under
 <code>Tables/&lt;table&gt;</code> (non-schema lakehouse) or <code>Tables/&lt;schema&gt;/&lt;table&gt;</code>
 (schema-enabled lakehouse). The function first stages the transaction log,
 then downloads only the Parquet files active in the requested version.</p></li>
-<li><p>Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
-require reader protocol versions or reader features this package does not
-implement are rejected before any data is returned.</p></li>
+<li><p>Checkpoint Parquet and data Parquet files are read with DuckDB. The staged
+reader supports Delta reader protocol version 1 without table features. It
+does not currently support column mapping, deletion vectors, or higher
+reader protocols. These occur in some current Fabric tables, including
+Warehouse Delta exports. Such tables are rejected with a
+<code>fabric_delta_unsupported_error</code> before any data is returned; use the
+Lakehouse SQL analytics endpoint or Fabric Spark for those tables.</p></li>
 <li><p>The returned columns follow the logical schema in the selected Delta
 snapshot. Schema additions are filled with typed missing values, removed
 physical columns are omitted, and partition values come from Delta add-file

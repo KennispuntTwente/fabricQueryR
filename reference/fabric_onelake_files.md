@@ -170,7 +170,7 @@ fabric_onelake_delete(
 
   Optional local destination. When `NULL`, download returns a raw vector
   held in R memory. Supply a path to stream large files to disk. A
-  destination download is committed atomically.
+  destination download is staged before it replaces an existing file.
 
 - range:
 
@@ -255,9 +255,11 @@ application access through a workspace role or through the item's
 uploads and deletes.
 
 Uploads are streamed in chunks to a temporary sibling file. The
-completed file is atomically renamed to its destination with the
+completed file is atomically renamed to its OneLake destination with the
 requested overwrite or ETag precondition, so failed transfers do not
-truncate an existing file.
+truncate an existing remote file. Downloads to disk are also staged in a
+temporary sibling. When replacing a local file, the original is moved to
+a backup and restored if the final rename fails.
 
 ## References
 
