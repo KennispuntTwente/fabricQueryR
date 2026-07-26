@@ -39,10 +39,16 @@ token for this first setup.
 The tenant ID identifies your organization. It is a GUID that looks like
 `12345678-1234-1234-1234-123456789abc`.
 
-In the [Azure portal](https://portal.azure.com), open **Microsoft Entra ID >
+You may be able to find the tenant ID in the [Fabric portal](https://app.fabric.microsoft.com).
+Open your profile (top-right corner) and hover over the tooltip icon near 'Tenant Name';
+this will then show 'Tenant ID: <your-tenant-id>'.
+
+Alternatively, in the [Azure portal](https://portal.azure.com), open **Microsoft Entra ID >
 Overview** and copy **Tenant ID** under **Basic information**. It may also be
-called the **Directory (tenant) ID**. If you cannot access this page, ask your
-Microsoft 365, Azure, or Fabric administrator for the tenant ID.
+called the **Directory (tenant) ID**. 
+
+If you do not have access to your tenant ID through either portal, 
+ask your Microsoft 365, Azure, or Fabric administrator for the tenant ID.
 
 ### 2. Set the tenant ID in R
 
