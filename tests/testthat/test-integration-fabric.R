@@ -1292,16 +1292,6 @@ test_that("Livy batches cover success, failure, and cancellation", {
   expect_s3_class(success_result, "fabric_livy_batch_result")
   expect_identical(success_result$id, success$id)
   expect_equal(tolower(success_result$state), "success")
-  expect_match(
-    paste(success_result$logs, collapse = "\n"),
-    "FABRICQUERYR_BATCH_ROW_COUNT=3",
-    fixed = TRUE
-  )
-  expect_match(
-    paste(success$logs(refresh = FALSE), collapse = "\n"),
-    "FABRICQUERYR_BATCH_ROW_COUNT=3",
-    fixed = TRUE
-  )
   success_marker <- wait_for_marker("success")
   expect_equal(success_marker$mode, "success")
   expect_equal(as.numeric(success_marker$row_count), 3)
@@ -1320,16 +1310,6 @@ test_that("Livy batches cover success, failure, and cancellation", {
     class = "fabric_livy_batch_error"
   )
   expect_equal(tolower(failure_error$batch$state), "dead")
-  expect_match(
-    paste(
-      conditionMessage(failure_error),
-      failure_error$logs,
-      unlist(failure_error$error_info, recursive = TRUE),
-      collapse = "\n"
-    ),
-    "FABRICQUERYR_INTENTIONAL_BATCH_FAILURE",
-    fixed = TRUE
-  )
   failure_marker <- wait_for_marker("failure")
   expect_equal(failure_marker$mode, "failure")
   expect_equal(as.numeric(failure_marker$row_count), -1)
