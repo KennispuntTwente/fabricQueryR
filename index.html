@@ -52,7 +52,7 @@
 </h1></div>
 <!-- badges: start -->
 
-<p><code>fabricQueryR</code> helps you work with Microsoft Fabric directly from R. You can use it to find Fabric workspaces and data items, query several Fabric data services, work with OneLake files and tables, run Spark code, and start or monitor Fabric jobs. All with familiar R tools and data types.</p>
+<p><code>fabricQueryR</code> helps you work with Microsoft Fabric directly from R. You can use it to find Fabric workspaces and data items, query several Fabric data services, work with OneLake files and tables, run Spark code, and start or monitor Fabric jobs.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -70,24 +70,30 @@
 <div class="section level2">
 <h2 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
 </h2>
-<p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html">reference</a> for full function documentation and examples.</p>
-<p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> for help with signing in to Microsoft Fabric and obtaining access tokens.</p>
-<p>Set your Microsoft Entra tenant ID before starting. A client ID is optional when your tenant permits the use of the default Azure CLI application ID. On first use, <code>AzureAuth</code> may open a browser so you can sign in.</p>
+<p>Below is a minimal example of how to find a workspace and some of its items. You can use these items to perform queries and other operations in Fabric.</p>
+<p>To connect to Microsoft Fabric, you need a Microsoft Entra tenant ID and optionally a client ID. See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> more details on how to set these environment variables and sign in to Microsoft Fabric from R.</p>
+<p>Once you know these values, you can discover workspaces and items like so:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"your-tenant-id"</span><span class="op">)</span></span>
+<span><span class="co"># Optional (if your tenant does not permit the public Azure CLI client ID):</span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")</span></span>
 <span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[</span><span class="va">workspaces</span><span class="op">$</span><span class="va">displayName</span> <span class="op">==</span> <span class="st">"ExampleWorkspace"</span>, <span class="op">]</span></span>
 <span></span>
-<span><span class="co"># These helpers find specific kinds of Fabric items and their connection details</span></span>
+<span><span class="co"># Find all items in the workspace</span></span>
+<span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Find specific items by type, </span></span>
+<span><span class="co"># e.g. the first Lakehouse, Semantic Model, KQL Database, GraphQL API, and Notebook:</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">graphql_api</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
 <span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_notebooks</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span></code></pre></div>
+<p>In the next sections, you can see how to use these items to query data, run Spark code, and more. Also see the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html">reference</a> for full function documentation and more examples.</p>
 </div>
 <div class="section level2">
 <h2 id="what-you-can-do">What you can do<a class="anchor" aria-label="anchor" href="#what-you-can-do"></a>

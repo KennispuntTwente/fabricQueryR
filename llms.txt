@@ -3,8 +3,7 @@
 `fabricQueryR` helps you work with Microsoft Fabric directly from R. You
 can use it to find Fabric workspaces and data items, query several
 Fabric data services, work with OneLake files and tables, run Spark
-code, and start or monitor Fabric jobs. All with familiar R tools and
-data types.
+code, and start or monitor Fabric jobs.
 
 ## Installation
 
@@ -28,37 +27,46 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 
 ## Getting started
 
-See the
-[reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
-for full function documentation and examples.
+Below is a minimal example of how to find a workspace and some of its
+items. You can use these items to perform queries and other operations
+in Fabric.
 
-See the [authentication
+To connect to Microsoft Fabric, you need a Microsoft Entra tenant ID and
+optionally a client ID. See the [authentication
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
-for help with signing in to Microsoft Fabric and obtaining access
-tokens.
+more details on how to set these environment variables and sign in to
+Microsoft Fabric from R.
 
-Set your Microsoft Entra tenant ID before starting. A client ID is
-optional when your tenant permits the use of the default Azure CLI
-application ID. On first use, `AzureAuth` may open a browser so you can
-sign in.
+Once you know these values, you can discover workspaces and items like
+so:
 
 ``` r
 
 library(fabricQueryR)
 
 Sys.setenv(FABRICQUERYR_TENANT_ID = "your-tenant-id")
+# Optional (if your tenant does not permit the public Azure CLI client ID):
 # Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")
 
 workspaces <- fabric_workspaces()
 workspace <- workspaces[workspaces$displayName == "ExampleWorkspace", ]
 
-# These helpers find specific kinds of Fabric items and their connection details
+# Find all items in the workspace
+items <- fabric_items(workspace)
+
+# Find specific items by type, 
+# e.g. the first Lakehouse, Semantic Model, KQL Database, GraphQL API, and Notebook:
 lakehouse <- fabric_lakehouses(workspace)[1, ]
 semantic_model <- fabric_semantic_models(workspace)[1, ]
 kql_database <- fabric_kql_databases(workspace)[1, ]
 graphql_api <- fabric_graphql_apis(workspace)[1, ]
 notebook <- fabric_notebooks(workspace)[1, ]
 ```
+
+In the next sections, you can see how to use these items to query data,
+run Spark code, and more. Also see the
+[reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
+for full function documentation and more examples.
 
 ## What you can do
 
