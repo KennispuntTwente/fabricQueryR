@@ -140,11 +140,12 @@ fabric_onelake_read_delta_table <- function(
       )
     }
     lakehouse_name <- fabric_record_value(lakehouse_record, "id")
-    schema <- schema %||% fabric_record_value(
-      lakehouse_record,
-      "default_schema",
-      "defaultSchema"
-    )
+    schema <- schema %||%
+      fabric_record_value(
+        lakehouse_record,
+        "default_schema",
+        "defaultSchema"
+      )
   }
   # ---- validate args ----
   if (

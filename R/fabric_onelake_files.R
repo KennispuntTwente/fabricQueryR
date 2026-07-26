@@ -888,7 +888,9 @@ onelake_commit_download <- function(temporary, dest) {
 
   backup <- tempfile(".fabricqueryr-backup-", tmpdir = dirname(dest))
   if (!.onelake_file_rename(dest, backup)) {
-    rlang::abort("Could not protect the existing destination before replacing it")
+    rlang::abort(
+      "Could not protect the existing destination before replacing it"
+    )
   }
   if (.onelake_file_rename(temporary, dest)) {
     unlink(backup, force = TRUE)
