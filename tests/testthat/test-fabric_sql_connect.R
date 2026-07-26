@@ -389,10 +389,39 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
   expect_equal(connect_args$backend, "adbc")
   expect_equal(connect_args$adbc_driver, "mssql")
   expect_equal(query_args$sql, "SELECT @p1 AS value, '?' AS literal")
-  expect_identical(query_args$params, list(p1 = 42L))
+  expect_identical(query_args$params, list("@p1" = 42L))
   expect_equal(query_args$result, "arrow_stream")
   expect_true(disconnected)
   expect_false(disconnect_force)
+})
+
+test_that("ADBC bind failures clear the result before disconnecting", {
+  connection <- structure(list(), class = "AdbiConnection")
+  query_result <- structure(list(), class = "test_result")
+  cleared <- FALSE
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(...) query_result,
+    .fabric_sql_db_bind = function(...) rlang::abort("bind failed"),
+    .fabric_sql_db_fetch = function(...) {
+      rlang::abort("fetch should not be called")
+    },
+    .fabric_sql_db_clear_result = function(result) {
+      expect_identical(result, query_result)
+      cleared <<- TRUE
+      invisible(TRUE)
+    }
+  )
+
+  expect_error(
+    .fabric_sql_db_get_query(
+      connection,
+      "SELECT @p1",
+      params = list("@p1" = 1L)
+    ),
+    "bind failed",
+    fixed = TRUE
+  )
+  expect_true(cleared)
 })
 
 test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {

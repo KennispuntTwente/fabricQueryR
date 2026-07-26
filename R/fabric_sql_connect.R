@@ -503,7 +503,7 @@ fabric_sql_query <- function(
     sql
   }
   query_params <- if (adbc_params) {
-    stats::setNames(params, paste0("p", seq_along(params)))
+    stats::setNames(params, paste0("@p", seq_along(params)))
   } else {
     params
   }
@@ -1065,10 +1065,38 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   result = c("tibble", "arrow_stream")
 ) {
   result <- match.arg(result)
+  if (!is.null(params) && inherits(con, "AdbiConnection")) {
+    query_result <- .fabric_sql_db_send_query(con, sql, result)
+    on.exit(.fabric_sql_db_clear_result(query_result), add = TRUE)
+    .fabric_sql_db_bind(query_result, params)
+    return(.fabric_sql_db_fetch(query_result, result))
+  }
   if (identical(result, "arrow_stream")) {
     return(DBI::dbGetQueryArrow(con, sql, params = params))
   }
   DBI::dbGetQuery(con, sql, params = params)
+}
+
+.fabric_sql_db_send_query <- function(con, sql, result) {
+  if (identical(result, "arrow_stream")) {
+    return(DBI::dbSendQueryArrow(con, sql, immediate = FALSE))
+  }
+  DBI::dbSendQuery(con, sql, immediate = FALSE)
+}
+
+.fabric_sql_db_bind <- function(result, params) {
+  DBI::dbBind(result, params)
+}
+
+.fabric_sql_db_fetch <- function(result, output) {
+  if (identical(output, "arrow_stream")) {
+    return(DBI::dbFetchArrow(result))
+  }
+  DBI::dbFetch(result)
+}
+
+.fabric_sql_db_clear_result <- function(result) {
+  DBI::dbClearResult(result)
 }
 
 .fabric_sql_db_disconnect <- function(con, force = FALSE) {
