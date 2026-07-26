@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_onelake_read_delta_table.R
 \name{fabric_onelake_read_delta_table}
 \alias{fabric_onelake_read_delta_table}
-\title{Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)}
+\title{Read a Delta table from a Microsoft Fabric Lakehouse}
 \usage{
 fabric_onelake_read_delta_table(
   table_path,
@@ -21,29 +21,28 @@ fabric_onelake_read_delta_table(
 )
 }
 \arguments{
-\item{table_path}{Character. Table name or nested path (e.g.
-\code{"Patienten"} or \code{"Patienten/patienten_hash"}). Only the last path
-segment is used as the table directory under \verb{Tables/}.}
+\item{table_path}{Table name, for example \code{"PatientInfo"}. For backward
+compatibility a nested string is accepted, but only its final segment is
+used; select a schema with \code{schema}, not by adding it to \code{table_path}.}
 
-\item{workspace_name}{Character. Fabric workspace display name or GUID
-(this is the ADLS filesystem/container name).}
+\item{workspace_name}{Fabric workspace display name or GUID, or a row from
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. GUIDs are safest for scheduled code and names are
+convenient interactively.}
 
-\item{lakehouse_name}{Character. Lakehouse item name, with or without the
-\code{.Lakehouse} suffix (e.g. \code{"Lakehouse"} or \code{"Lakehouse.Lakehouse"}).}
+\item{lakehouse_name}{Lakehouse item name or GUID, or a row from
+\code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A character name may include the \code{.Lakehouse}
+suffix; a discovered row avoids suffix and renaming ambiguity.}
 
-\item{schema}{Character or \code{NULL}. Lakehouse schema name (e.g. \code{"dbo"}).
+\item{schema}{Lakehouse schema name, for example \code{"dbo"}, or \code{NULL}.
 When supplied, the table is resolved under \verb{Tables/<schema>/<table>}
-instead of \verb{Tables/<table>}. Schema support requires a schema-enabled
-Lakehouse (enabled by default for new lakehouses). Defaults to \code{NULL}
-(no schema, for non-schema lakehouses). (Note: schema support through this
-argument is experimental.)}
+instead of \verb{Tables/<table>}. Use \code{NULL} for a non-schema Lakehouse. Schema
+support in this reader is experimental.}
 
-\item{tenant_id}{Character. Entra ID (Azure AD) tenant GUID. Defaults to
-\code{Sys.getenv("FABRICQUERYR_TENANT_ID")} if missing.}
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Character. App registration (client) ID. Defaults to
-\code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}, falling back to the Azure CLI app id
-\code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"} if not set.}
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
 token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
@@ -52,34 +51,39 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
-\item{version}{Optional non-negative integer Delta table version to read.
-Defaults to the latest version.}
+\item{version}{Optional non-negative Delta transaction version. \code{NULL} reads
+the latest snapshot; supplying a version provides time travel when that
+version and its active files are still available in OneLake.}
 
-\item{dest_dir}{Character or \code{NULL}. Local staging directory for the Delta
-log and active snapshot files. If \code{NULL} (default), a temp dir is used and
-cleaned up on exit.}
+\item{dest_dir}{Local staging directory for the Delta log and active data
+files, or \code{NULL}. The default creates a temporary directory and removes it
+on exit. Supply a directory to retain the downloaded files for inspection
+or reuse, and ensure it has enough free space.}
 
-\item{verbose}{Logical. Print progress messages via \code{{cli}}. Default \code{TRUE}.}
+\item{verbose}{Logical. Show download and read progress.}
 
-\item{dfs_base}{Character. OneLake DFS endpoint. Default
-\code{"https://onelake.dfs.fabric.microsoft.com"}.}
+\item{dfs_base}{OneLake DFS endpoint. Keep the default unless using a
+regional or workspace-private endpoint.}
 }
 \value{
-A tibble with the table's current rows (0 rows if the table is empty).
+A tibble containing the rows and logical schema of the selected Delta
+snapshot. An empty table returns a zero-row tibble. Delta/R type conversion
+follows DuckDB; schema evolution is applied and partition values are
+included as columns.
 }
 \description{
-Authenticates to OneLake through the package's shared ADLS Gen2 transport,
-stages the Delta transaction log, resolves the requested snapshot, and then
-downloads only the data files active in that snapshot.
+Downloads a Lakehouse Delta table from OneLake and returns it as a tibble.
+Delta tables consist of Parquet data files plus a transaction log that says
+which files make up the current table. This function reads that log so that
+deleted or superseded files are not accidentally included.
 }
 \details{
 \itemize{
 \item In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 filesystem. Within a Lakehouse item, Delta tables are stored under
 \verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
-(schema-enabled lakehouse). The complete table is staged because Delta
-checkpoints and table features are resolved before data files are
-downloaded, so historical and tombstoned Parquet files are not staged.
+(schema-enabled lakehouse). The function first stages the transaction log,
+then downloads only the Parquet files active in the requested version.
 \item Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
 require reader protocol versions or reader features this package does not
 implement are rejected before any data is returned.
@@ -88,21 +92,24 @@ snapshot. Schema additions are filled with typed missing values, removed
 physical columns are omitted, and partition values come from Delta add-file
 actions rather than being inferred from directory names.
 \item Schema-enabled lakehouses (the default for new lakehouses) organise
-tables into named schemas. Supply the \code{schema} argument (e.g. \code{"dbo"})
-to read a table stored under a specific schema.
-\item Ensure the account/principal you authenticate with has access via
-\strong{Lakehouse -> Manage OneLake data access} (or is a member of the workspace).
+tables into named schemas. If the Fabric Lakehouse explorer shows the table
+under a schema such as \code{dbo}, supply that name in \code{schema}.
+\item Give the signed-in user or application Read access through a workspace role
+or \strong{Lakehouse > Manage OneLake data access}.
 \item Tokens use the \verb{https://storage.azure.com/.default} audience.
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
 caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
-to clear cached tokens if you run into issues
+if the wrong account or tenant is being reused.
+\item The active files are downloaded locally and the final table is collected
+into R memory. For very large tables, a SQL query that filters rows in
+Fabric may transfer much less data.
 }
 }
 \examples{
 # Example is not executed since it requires configured credentials for Fabric
 \dontrun{
 df <- fabric_onelake_read_delta_table(
-  table_path     = "Patients/PatientInfo",
+  table_path     = "PatientInfo",
   workspace_name = "PatientsWorkspace",
   lakehouse_name = "Lakehouse.Lakehouse",
   tenant_id      = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -118,4 +125,11 @@ df2 <- fabric_onelake_read_delta_table(
   schema         = "dbo"
 )
 }
+}
+\references{
+\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connect to OneLake with ADLS APIs}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-schemas}{Lakehouse schemas}
+
+\href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Delta Lake tables in OneLake}
 }

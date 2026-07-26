@@ -4,7 +4,9 @@
 #'
 #' `FabricLivySession` represents either a regular interactive Livy session or
 #' a high-concurrency (HC) session. Create instances with
-#' [fabric_livy_session()] rather than calling `$new()` directly.
+#' [fabric_livy_session()] rather than calling `$new()` directly. Use
+#' `$wait()` before submitting work, `$run()` for a convenient submit-and-wait
+#' operation, and `$close()` when finished.
 #'
 #' @field id Fabric session or high-concurrency acquisition ID.
 #' @field url Session lifecycle URL.
@@ -324,7 +326,9 @@ FabricLivySession <- R6::R6Class(
 
 #' A statement submitted to a Fabric Livy session
 #'
-#' Instances are returned by `FabricLivySession$submit()`.
+#' Instances are returned by `FabricLivySession$submit()`. Call `$wait()` and
+#' then `$result()` to retrieve parsed output, or use
+#' `FabricLivySession$run()` to perform those steps together.
 #'
 #' @field id Numeric Livy statement ID.
 #' @field url Statement lifecycle URL.
@@ -492,38 +496,61 @@ FabricLivyStatement <- R6::R6Class(
 
 #' Create a Microsoft Fabric Livy session
 #'
-#' Creates and returns an R6 object for an interactive Spark session. Set
-#' `high_concurrency = TRUE` to acquire an isolated REPL in Fabric's
-#' high-concurrency session pool.
+#' Starts an interactive Spark context that can run several statements while
+#' retaining variables and Spark state between them. This avoids starting new
+#' compute for each call.
 #'
 #' @param livy_url A copied session or batch connection URL, Livy API base URL,
 #'   or enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
-#' @param high_concurrency Logical. Acquire a high-concurrency session.
-#' @param session_tag Optional packing hint for high-concurrency sessions.
-#'   Repeated requests with the same tag remain non-idempotent and return
-#'   distinct HC session IDs.
-#' @param name Optional session name.
-#' @param tags Optional named list of string session tags.
-#' @param conf Optional named list of Spark settings.
-#' @param environment_id Optional Fabric Environment ID.
-#' @param archives Optional character vector of archive URIs.
-#' @param driver_memory,executor_memory Optional Spark memory strings.
+#'   Copy the session-job URL from **Lakehouse settings > Livy endpoint**, or
+#'   use a discovered row to avoid handling IDs manually.
+#' @param high_concurrency Logical. `FALSE` creates a standard session for
+#'   sequential or low-concurrency work. `TRUE` creates an isolated REPL that
+#'   Fabric can pack into shared Spark sessions, which is useful when an
+#'   application runs several independent Spark workloads concurrently.
+#' @param session_tag Optional high-concurrency packing hint. Related requests
+#'   with the same tag may share an underlying Livy session while keeping
+#'   separate REPL state. Each call still returns a distinct HC session.
+#' @param name Optional readable session name shown in service metadata.
+#' @param tags Optional named list of string labels for monitoring.
+#' @param conf Optional named list of Spark settings. Prefer a published Fabric
+#'   Environment for configuration shared by several jobs.
+#' @param environment_id Optional GUID of a published Fabric Environment whose
+#'   libraries and Spark settings should be used.
+#' @param archives Optional character vector of archive URIs made available to
+#'   Spark.
+#' @param driver_memory,executor_memory Optional Spark memory values such as
+#'   `"4g"`. Leave `NULL` to use Fabric defaults.
 #' @param driver_cores,executor_cores,num_executors Optional Spark resource
-#'   counts.
-#' @param artifact_name,file,class_name,args,jars,files,py_files Optional
-#'   high-concurrency request fields. `artifact_name` controls the Monitoring
-#'   hub label.
-#' @param tenant_id Microsoft Entra tenant ID.
-#' @param client_id Microsoft Entra application ID.
+#'   counts. Larger values consume more capacity; leave `NULL` unless the
+#'   workload has been sized deliberately.
+#' @param artifact_name Optional Lakehouse/artifact label used for a
+#'   high-concurrency job in the Fabric Monitoring hub.
+#' @param file Optional application file URI for a high-concurrency request.
+#' @param class_name Optional Java/Scala main class for `file`.
+#' @param args Optional character vector of application arguments.
+#' @param jars,files,py_files Optional character vectors of dependency URIs
+#'   supplied to Spark.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Microsoft Entra application/client ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
 #'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
-#' @param verbose Logical. Emit lifecycle messages.
+#' @param verbose Logical. Show session lifecycle messages.
 #'
-#' @return A newly created [FabricLivySession].
-#' @details A finalizer attempts cleanup if an open object is garbage
+#' @return A newly created [FabricLivySession]. It may still be starting; call
+#'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished.
+#' @details
+#' Use a standard session for a typical interactive sequence in one R process.
+#' High concurrency is intended for automation that needs multiple isolated
+#' Spark statement streams at the same time; it is not necessary merely to run
+#' several statements sequentially.
+#'
+#' A finalizer attempts cleanup if an open object is garbage
 #'   collected. Call `$close()` explicitly, and use `on.exit(session$close())`
 #'   in functions, for deterministic cleanup. Requests use the
 #'   `https://api.fabric.microsoft.com/.default` audience. Delegated

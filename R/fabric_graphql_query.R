@@ -1,10 +1,17 @@
 #' Query a Microsoft Fabric API for GraphQL
 #'
-#' Executes a GraphQL document against a Fabric GraphQL endpoint and preserves
-#' `data`, `errors`, and `extensions` independently. This is important because
-#' a successful HTTP response can contain both partial data and GraphQL errors.
+#' Sends a GraphQL query or mutation to an API for GraphQL item configured in
+#' Fabric. Fabric generates the API schema from selected Lakehouse, Warehouse,
+#' or SQL Database objects; this function calls that API from R and returns its
+#' nested response.
 #'
 #' @details
+#' Before using this function, create an **API for GraphQL** item in a Fabric
+#' workspace, connect its data source, and choose which tables, fields, queries,
+#' and mutations the API exposes. Fabric's built-in GraphQL editor and schema
+#' explorer are the easiest places to design and test a document before copying
+#' it to R.
+#'
 #' A direct endpoint has the form
 #' `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
 #' You can instead pass a GraphQL API GUID with `workspace_id`, or one row from
@@ -29,17 +36,24 @@
 #' to repeat.
 #'
 #' @param api GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-#'   GraphQLApi record.
-#' @param query One non-empty GraphQL document.
-#' @param variables Named list of GraphQL variables.
-#' @param operation_name Optional operation name for a multi-operation document.
+#'   GraphQLApi record. A row from [fabric_graphql_apis()] is usually easiest
+#'   because it supplies the endpoint and workspace ID.
+#' @param query One GraphQL document containing a query or mutation. Use
+#'   variables for changing values instead of pasting values into this string.
+#' @param variables Named list of GraphQL variables. Values must be representable
+#'   as JSON; names must match variables declared in `query`.
+#' @param operation_name Optional operation name. Supply it when the document
+#'   contains more than one named operation; otherwise leave `NULL`.
 #' @param workspace_id Workspace GUID. Required when `api` is a GraphQL API
 #'   GUID, and otherwise inferred from a discovered record.
 #' @param error_policy How GraphQL-level errors are handled. `"return"`
-#'   preserves them in the result, `"warn"` also emits a warning, and
-#'   `"error"` raises a `fabric_graphql_error` carrying the result.
-#' @param timeout Positive request timeout in seconds.
-#' @param idempotent Logical. Allow shared transient HTTP retries for this POST.
+#'   lets the caller inspect partial data and errors; `"warn"` also makes errors
+#'   visible immediately; `"error"` stops and attaches the result to a
+#'   `fabric_graphql_error`. HTTP/authentication failures always stop.
+#' @param timeout Positive HTTP timeout in seconds.
+#' @param idempotent Logical. Permit retries after transient HTTP failures.
+#'   `TRUE` is normally suitable for a read-only query, but not for a mutation
+#'   that could be applied twice.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -50,11 +64,22 @@
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param audience OAuth audience/scope passed to the credential. `NULL`
-#'   selects the scope from the authentication flow.
-#' @param api_base Fabric REST API base URL, used to derive endpoints from IDs.
+#'   selects the documented scope from the authentication flow. Set this only
+#'   for a custom token provider or unusual identity flow.
+#' @param api_base Fabric REST API base URL used to derive endpoints from IDs.
+#'   Most users should keep the default.
 #'
 #' @return A `fabric_graphql_result` list with `data`, `errors`, `extensions`,
-#'   and `response` (the complete parsed response).
+#'   and `response` (the complete parsed response). `data` follows the nested
+#'   shape requested in the GraphQL document and is usually a combination of
+#'   named lists and vectors, not a tibble. Because GraphQL can return partial
+#'   data, inspect `errors` even when `data` is present.
+#' @references
+#' [Fabric API for GraphQL editor](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-editor)
+#'
+#' [Fabric GraphQL schema explorer](https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-schema-view)
+#'
+#' [Use service principals with Fabric API for GraphQL](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal)
 #' @export
 #'
 #' @examples
@@ -146,17 +171,22 @@ fabric_graphql_query <- function(
 #' Paginate a Microsoft Fabric GraphQL operation
 #'
 #' Repeats [fabric_graphql_query()] while `next_cursor` returns a cursor. The
-#' callback makes pagination independent of the user's schema shape.
+#' callback tells the function where the current page stores its next cursor,
+#' because that location depends on the API schema.
 #'
 #' @param next_cursor Function accepting a `fabric_graphql_result` and returning
 #'   the next opaque cursor, or `NULL` when pagination is complete. Use
 #'   [fabric_graphql_cursor()] for Fabric's normal connection fields.
-#' @param cursor_variable Name of the GraphQL variable that receives the cursor.
-#' @param max_pages Positive maximum number of requests.
+#' @param cursor_variable Name of the GraphQL variable that receives the next
+#'   cursor, commonly `"after"`. It must match the variable declared in `query`.
+#' @param max_pages Positive maximum number of requests. This guards against a
+#'   faulty or unexpectedly large pagination loop.
 #' @inheritParams fabric_graphql_query
 #'
 #' @return A `fabric_graphql_pages` list with `pages`, combined `errors`, and
-#'   the final `variables`.
+#'   the final `variables`. `pages` contains one `fabric_graphql_result` per
+#'   request and `complete` is `TRUE` when the callback reported no next page.
+#'   Results are kept page-by-page because the requested schema shape can vary.
 #' @export
 #'
 #' @examples
@@ -278,12 +308,16 @@ graphql_resolve_audience <- function(audience, token, auth_args) {
 #' Build a Fabric GraphQL cursor extractor
 #'
 #' @param path Character path from the result's `data` field to a connection
-#'   object, for example `"products"` or `c("viewer", "products")`.
-#' @param has_next Name of the connection field indicating another page.
+#'   object, for example `"products"` or `c("viewer", "products")`. This is the
+#'   parent object that contains the pagination fields, not the `items` field.
+#' @param has_next Name of the logical connection field indicating another
+#'   page. Fabric commonly uses `"hasNextPage"`.
 #' @param end_cursor Name of the connection field containing the opaque cursor.
+#'   Fabric commonly uses `"endCursor"`.
 #'
 #' @return A function suitable for `next_cursor` in
-#'   [fabric_graphql_paginate()].
+#'   [fabric_graphql_paginate()]. For each page it returns the cursor when
+#'   `has_next` is true, otherwise `NULL`.
 #' @export
 fabric_graphql_cursor <- function(
   path,

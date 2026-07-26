@@ -22,17 +22,23 @@ fabric_livy_query(
 )
 }
 \arguments{
-\item{livy_url}{A Livy connection URL or an enriched Lakehouse record from
-\code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.}
+\item{livy_url}{A Livy connection URL copied from the Lakehouse settings, or
+an enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.
+A discovered record avoids copying workspace and Lakehouse IDs.}
 
-\item{code}{One non-empty string containing Spark code.}
+\item{code}{One string containing the Spark code to run. Objects created in
+this temporary session are lost after the function returns, although
+writes made to Lakehouse storage persist.}
 
-\item{kind}{Statement language: \code{"spark"}, \code{"pyspark"}, \code{"sparkr"}, or
-\code{"sql"}.}
+\item{kind}{Statement language. Use \code{"sparkr"} for SparkR code, \code{"pyspark"}
+for Python with Spark, \code{"spark"} for Scala, or \code{"sql"} for Spark SQL. This
+must match the syntax in \code{code}.}
 
-\item{tenant_id}{Microsoft Entra tenant ID.}
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Microsoft Entra application ID.}
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
 token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
@@ -41,29 +47,47 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{environment_id}{Optional Fabric Environment ID.}
+\item{environment_id}{Optional GUID of a published Fabric Environment whose
+libraries and Spark settings should be used. Leave \code{NULL} to use the
+Lakehouse/workspace defaults.}
 
-\item{conf}{Optional named list of Spark configuration settings.}
+\item{conf}{Optional named list of Spark configuration overrides, for example
+\code{list("spark.sql.shuffle.partitions" = "100")}. Most users can leave this
+\code{NULL} and configure shared settings in a Fabric Environment.}
 
-\item{verbose}{Logical. Emit lifecycle progress.}
+\item{verbose}{Logical. Show session startup, execution, and cleanup progress.}
 
-\item{poll_interval}{Polling interval in seconds.}
+\item{poll_interval}{Seconds between status checks. Lower values update
+sooner but make more API calls.}
 
-\item{timeout}{Maximum seconds for each readiness/execution wait.}
+\item{timeout}{Maximum seconds to wait for session readiness and, separately,
+statement completion.}
 
 \item{...}{Compatibility arguments. The former named \code{access_token}
 argument is accepted here as a deprecated alias for \code{token}; all other
 arguments are rejected.}
 }
 \value{
-An invisible \code{fabric_livy_statement_result} list.
+Invisibly, a \code{fabric_livy_statement_result} list with statement
+\code{state}, timing information, submitted \code{code}, raw response, and \code{output}.
+\code{output$parsed} contains JSON output converted to an R object or plain-text
+output as a character vector; error details are retained in the other
+\code{output} fields.
 }
 \description{
-Creates a session, waits for it to become ready, runs one statement, and
-closes the session even when execution fails. For multiple statements or
-explicit lifecycle control, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}.
+Starts Fabric Spark compute, runs one statement, waits for its result, and
+closes the session. This is the simplest Livy helper for a one-off Spark
+operation. Spark is useful for distributed processing or changing Lakehouse
+data; it has more startup overhead than querying an existing SQL endpoint.
 }
 \details{
+Fabric needs a workspace on supported Fabric capacity and a Lakehouse. In
+the Fabric portal, open the Lakehouse settings, find \strong{Livy endpoint}, and
+copy the session-job connection string. For several statements that reuse
+variables and Spark state, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}. To run a complete
+Python, Scala/Java, or R application file, use
+\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
+
 Requests use the
 \verb{https://api.fabric.microsoft.com/.default} audience. Delegated
 authentication requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
@@ -98,5 +122,5 @@ fabric_livy_query_example <- function() {
 }
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview}{Microsoft Fabric Livy API overview},
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session}{session jobs}
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session}{session jobs and Fabric setup}
 }

@@ -8,15 +8,19 @@ fabric_graphql_cursor(path, has_next = "hasNextPage", end_cursor = "endCursor")
 }
 \arguments{
 \item{path}{Character path from the result's \code{data} field to a connection
-object, for example \code{"products"} or \code{c("viewer", "products")}.}
+object, for example \code{"products"} or \code{c("viewer", "products")}. This is the
+parent object that contains the pagination fields, not the \code{items} field.}
 
-\item{has_next}{Name of the connection field indicating another page.}
+\item{has_next}{Name of the logical connection field indicating another
+page. Fabric commonly uses \code{"hasNextPage"}.}
 
-\item{end_cursor}{Name of the connection field containing the opaque cursor.}
+\item{end_cursor}{Name of the connection field containing the opaque cursor.
+Fabric commonly uses \code{"endCursor"}.}
 }
 \value{
 A function suitable for \code{next_cursor} in
-\code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}}.
+\code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}}. For each page it returns the cursor when
+\code{has_next} is true, otherwise \code{NULL}.
 }
 \description{
 Build a Fabric GraphQL cursor extractor

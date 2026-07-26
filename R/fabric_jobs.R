@@ -18,37 +18,50 @@
 
 #' Run and monitor Microsoft Fabric item jobs
 #'
-#' Submit, inspect, wait for, and cancel on-demand Fabric item jobs through the
-#' Fabric Job Scheduler APIs. Notebook jobs use the workload-specific release
-#' endpoint so that their compute configuration and exit value are available.
+#' Starts one on-demand run of a supported Fabric item, then lets R inspect,
+#' wait for, or cancel that run. Typical examples are running a Notebook, data
+#' pipeline, or Spark job definition. This is for immediate runs; configure a
+#' recurring timetable with Fabric's scheduler in the portal or scheduler API.
 #'
 #' @param item Item GUID, exact display name, or a one-row item record returned
-#'   by a discovery function.
+#'   by a discovery function. A discovered row is recommended because it
+#'   already includes the item type and workspace ID.
 #' @param workspace Workspace GUID, exact display name, or a workspace record.
-#'   May be omitted when `item` contains `workspaceId`.
+#'   Omit it when `item` is a discovered row containing `workspaceId`.
 #' @param job_type Fabric job type. Known defaults are `"RunNotebook"` for
 #'   notebooks, `"Pipeline"` for data pipelines, and `"SparkJob"` for Spark job
-#'   definitions. It is required for other item types.
+#'   definitions. Normally omit it for those item types; supply the API's job
+#'   type for another supported item.
 #' @param item_type Optional Fabric item type when `item` is a GUID. A discovered
-#'   item supplies this automatically.
+#'   item supplies this automatically. Examples are `"Notebook"`,
+#'   `"DataPipeline"`, and `"SparkJobDefinition"`.
 #' @param parameters A named list of scalar parameter values, or a list of
 #'   records containing `name`, `value`, and `type`. Names are compared
-#'   case-insensitively, as required by Fabric.
+#'   case-insensitively. The simple form, such as
+#'   `list(run_date = as.Date("2026-01-31"), full_load = FALSE)`, infers types
+#'   from R values and is appropriate for most runs. Parameter names must match
+#'   those configured in the Fabric item.
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
-#'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`.
-#' @param execution_data Optional workload execution configuration. Notebook
-#'   configuration is validated against the documented `compute` and
-#'   `computeConfiguration` shape. Spark job definition configuration must be a
-#'   named list. Data pipelines do not currently accept execution data here.
+#'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`. Use this
+#'   only when R's inferred type is not the type expected in Fabric.
+#' @param execution_data Optional advanced workload configuration in the shape
+#'   documented by Fabric. For notebooks this contains `compute` and optionally
+#'   `computeConfiguration`; for Spark job definitions it is a named list of
+#'   execution overrides. Data pipelines do not accept it here. Use the simpler
+#'   arguments below for common notebook settings.
 #' @param default_lakehouse Optional Lakehouse GUID or discovered record used to
-#'   construct a notebook Spark `defaultLakehouse` configuration.
+#'   set the notebook's default Lakehouse for this run. This changes the run
+#'   context, not the notebook's saved default.
 #' @param default_lakehouse_workspace Optional workspace GUID or discovered
 #'   record for `default_lakehouse`; defaults to the job workspace.
 #' @param compute Notebook compute kind: `"Spark"`, `"Jupyter"`, or
-#'   `"DataWarehouse"`.
+#'   `"DataWarehouse"`. Use `"Spark"` (the default) for Spark notebooks,
+#'   `"Jupyter"` for a Jupyter runtime, and `"DataWarehouse"` for a notebook
+#'   attached to Warehouse compute. It must match what the notebook code needs.
 #' @param session_tag Optional Spark high-concurrency session tag containing
-#'   only letters, numbers, and underscores.
+#'   only letters, numbers, and underscores. Supplying it enables Fabric's
+#'   high-concurrency mode so related notebook runs may reuse Spark compute.
 #' @param tenant_id Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Entra application ID. Defaults to
@@ -60,7 +73,7 @@
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #'   Job submission and cancellation require `Item.Execute.All` or
 #'   the corresponding workload-specific execute permission.
-#' @param api_base Fabric REST API base URL.
+#' @param api_base Fabric REST API base URL. Most users should keep the default.
 #' @references
 #' [Core Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 #'
@@ -68,10 +81,30 @@
 #'
 #' [Manage and execute notebooks with public APIs](https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api)
 #'
-#' @return `fabric_job_run()` returns a `fabric_job` handle.
+#' [Fabric job scheduler](https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler)
+#'
+#' @return `fabric_job_run()` returns a `fabric_job` handle containing the job
+#'   instance ID and resolved workspace, item, job type, status URL, and
+#'   authentication context.
 #'   `fabric_job_status()` and `fabric_job_wait()` return a
-#'   `fabric_job_instance`. `fabric_job_cancel()` returns `TRUE` invisibly after
-#'   Fabric accepts the cancellation.
+#'   `fabric_job_instance` list with `status`, start/end times,
+#'   `failure_reason`, notebook `exit_value` when available, workload
+#'   `properties`, and `raw` response. `fabric_job_cancel()` returns `TRUE`
+#'   invisibly after Fabric accepts the cancellation request; terminal state
+#'   may not be visible immediately.
+#' @examples
+#' \dontrun{
+#' notebook <- fabric_notebooks("Analytics workspace")[1, ]
+#'
+#' job <- fabric_job_run(
+#'   notebook,
+#'   parameters = list(run_date = Sys.Date(), full_load = FALSE)
+#' )
+#'
+#' completed <- fabric_job_wait(job, timeout = 900)
+#' completed$status
+#' completed$exit_value
+#' }
 #' @export
 fabric_job_run <- function(
   item,
@@ -173,8 +206,10 @@ fabric_job_run <- function(
 
 #' @param job A `fabric_job` returned by [fabric_job_run()], or a job instance
 #'   GUID. When a GUID is supplied, also provide `workspace`, `item`, and
-#'   optionally `item_type` and `job_type`.
-#' @param job_instance_id Alternative to supplying the instance GUID as `job`.
+#'   enough type information to reconstruct the status URL. The handle is
+#'   simpler because it already stores that context.
+#' @param job_instance_id Alternative argument for a job instance GUID. Do not
+#'   supply it together with a `fabric_job` handle.
 #' @rdname fabric_job_run
 #' @export
 fabric_job_status <- function(
@@ -210,15 +245,17 @@ fabric_job_status <- function(
 }
 
 #' @param poll_interval Minimum seconds between status requests. `NULL` uses
-#'   Fabric's `Retry-After` header, falling back to two seconds.
-#' @param timeout Maximum seconds to wait.
+#'   Fabric's recommended `Retry-After` value, falling back to two seconds.
+#'   Setting a value never polls faster than Fabric requests.
+#' @param timeout Maximum seconds to wait before raising a
+#'   `fabric_job_timeout`.
 #' @param error_on_failure Whether failed, cancelled, or deduplicated jobs raise
 #'   typed errors. Set to `FALSE` to inspect those terminal results directly.
 #' @param cancel_on_timeout Ask Fabric to cancel the job when the client-side
-#'   timeout expires.
+#'   timeout expires. `FALSE` stops waiting but leaves the Fabric job running.
 #' @param cancel Optional callback checked between polls. Returning `TRUE`
 #'   cancels the Fabric job and raises a `fabric_job_cancelled_by_caller`
-#'   condition.
+#'   condition. This is useful for an application-specific stop button.
 #' @param .sleep,.now Internal hooks for deterministic tests.
 #' @rdname fabric_job_run
 #' @export

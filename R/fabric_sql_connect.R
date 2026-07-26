@@ -1,23 +1,29 @@
 #' Parse a Microsoft Fabric SQL target
 #'
-#' Normalizes a bare Fabric SQL endpoint, a complete portal connection string,
-#' or one enriched discovery record into connection information used by
-#' [fabric_sql_connect()].
+#' Converts the different ways Fabric identifies a SQL endpoint into one
+#' consistent set of connection values. Most users can pass a discovered item
+#' directly to [fabric_sql_connect()] and do not need to call this function.
 #'
-#' @param server A character endpoint/connection string, or one Lakehouse,
-#'   Warehouse, or SQL Database record returned by a discovery function.
+#' @param server A Fabric SQL server name, a complete connection string copied
+#'   from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
+#'   returned by a discovery function. A discovered row is usually simplest
+#'   because it also supplies the database name.
 #' @param database Optional catalog/database. An explicit value overrides a
-#'   catalog found in `server`. [fabric_sql_connect()] and [fabric_sql_query()]
-#'   infer complete connection strings and discovery records when this argument
-#'   is omitted. A bare Warehouse or SQL analytics endpoint without a catalog
-#'   connects to Fabric's `master` context.
-#' @param target_type Target kind. `"auto"` infers it from discovery metadata or
-#'   the endpoint hostname.
+#'   database found in `server`. For a bare endpoint, supply the item database
+#'   shown with its connection string in Fabric. If omitted, Warehouse and SQL
+#'   analytics endpoints open Fabric's `master` context, which is useful for
+#'   discovery but does not select the item's tables.
+#' @param target_type Label for the endpoint kind. Keep `"auto"` unless the
+#'   hostname is custom or ambiguous. The explicit choices distinguish a
+#'   Lakehouse SQL analytics endpoint, Warehouse, transactional SQL Database,
+#'   or another read-only SQL analytics endpoint; they do not convert one kind
+#'   of endpoint into another.
 #' @param port Optional TCP port. An explicit value overrides a port in
-#'   `server`; otherwise port 1433 is used.
+#'   `server`; otherwise the standard SQL port, 1433, is used.
 #'
 #' @return A `fabric_sql_connection_info` list with `server`, `database`,
-#'   `port`, and `target_type`.
+#'   `port`, `target_type`, and `source` (whether the input was text or a
+#'   discovery record). No connection is opened.
 #' @export
 fabric_sql_connection_info <- function(
   server,
@@ -114,18 +120,28 @@ fabric_sql_connection_info <- function(
 
 #' Connect to a Microsoft Fabric SQL target
 #'
-#' Opens a DBI connection to a Fabric Warehouse, Lakehouse SQL analytics
-#' endpoint, or SQL Database using a Microsoft Entra access token. ODBC is the
-#' default backend; ADBC is available as an opt-in backend.
+#' Opens a standard R DBI connection to a Fabric Warehouse, Lakehouse SQL
+#' analytics endpoint, or SQL Database using Microsoft Entra authentication.
+#' Use the returned connection with familiar DBI functions such as
+#' [DBI::dbListTables()] and [DBI::dbGetQuery()].
 #'
 #' @details
-#' The ODBC backend requires ODBC Driver 18 or newer. Multiple Active Result
-#' Sets (MARS) is disabled because Fabric Warehouse does not support it. The
-#' ADBC backend uses [adbi::adbi()] with the `mssql` driver loaded by
+#' In Fabric, copy a SQL connection string from the Warehouse, SQL analytics
+#' endpoint, or SQL Database settings. Alternatively, use a row returned by
+#' [fabric_warehouses()], [fabric_lakehouses()], or
+#' [fabric_sql_databases()]. A Lakehouse's SQL analytics endpoint is read-only;
+#' use Spark or another OneLake writer when data must be changed.
+#'
+#' `"odbc"` is the most familiar choice for DBI workflows and requires
+#' Microsoft ODBC Driver 18 or newer. `"adbc"` is useful when a query result
+#' should remain in Arrow form, especially for larger analytical results. It
+#' uses [adbi::adbi()] with the `mssql` driver loaded by
 #' [adbcdrivermanager::adbc_driver()]. Install that external driver separately
 #' with `dbc install mssql`. The package checks that the driver can be loaded
 #' before authenticating or opening a network connection. `adbcdrivermanager`
 #' discovers and loads installed drivers; it does not install driver binaries.
+#' Multiple Active Result Sets (MARS) is disabled because Fabric Warehouse does
+#' not support it.
 #'
 #' Complete portal connection strings and enriched discovery records provide a
 #' catalog automatically. Bare endpoints may omit `database` to use Fabric's
@@ -134,13 +150,19 @@ fabric_sql_connection_info <- function(
 #' Transient Fabric connection failures are retried on fresh connections with
 #' refreshed tokens and bounded exponential backoff.
 #'
-#' The SQL audience is `https://database.windows.net/.default`. The identity
-#' must have permission to connect to and query the target item.
+#' The SQL audience is `https://database.windows.net/.default`. In Fabric, give
+#' the user or application access through a workspace role or the item's
+#' **Manage permissions** dialog. SQL `GRANT`/`DENY` rules can further restrict
+#' what the identity may query.
 #'
 #' @inheritParams fabric_sql_connection_info
-#' @param backend SQL client backend. `"odbc"` remains the default.
-#' @param tenant_id Character. Entra tenant ID.
-#' @param client_id Character. Application/client ID.
+#' @param backend SQL client backend. Use `"odbc"` for broad DBI compatibility
+#'   and the easiest setup; use `"adbc"` for its native Arrow result path after
+#'   separately installing the ADBC `mssql` driver.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Microsoft Entra application/client ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
 #'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
 #'   token or starts its normal interactive login flow.
@@ -150,21 +172,36 @@ fabric_sql_connection_info <- function(
 #'   default.
 #' @param adbc_driver ADBC driver name or shared-library path. The separately
 #'   installed ADBC Driver Foundry `mssql` driver is the default.
-#' @param encrypt,trust_server_certificate SQL client encryption flags.
-#' @param timeout Login/connect timeout in seconds.
-#' @param read_only Logical. Set `ApplicationIntent=ReadOnly`.
+#' @param encrypt Whether the driver encrypts the connection. Keep the secure
+#'   default, `"yes"`, for Fabric.
+#' @param trust_server_certificate Whether to accept a server certificate
+#'   without validating its trust chain. Keep the secure default, `"no"`,
+#'   unless diagnosing a controlled test environment.
+#' @param timeout Non-negative login/connect timeout in seconds; `0` lets the
+#'   driver use an unlimited or driver-specific timeout.
+#' @param read_only Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a
+#'   connection hint; it is not a substitute for Fabric/SQL permissions.
 #' @param max_tries Positive maximum number of attempts for transient Fabric SQL
 #'   failures. Connections are always safe to retry. In
 #'   `fabric_sql_query()`, execution failures are retried only when
 #'   `idempotent = TRUE`.
 #' @param retry_delay Non-negative initial retry delay in seconds. Subsequent
 #'   delays use exponential backoff with jitter, capped at 60 seconds.
-#' @param verbose Logical. Emit connection progress.
+#' @param verbose Logical. Show authentication, retry, and connection progress.
 #' @param ... Additional arguments forwarded to [DBI::dbConnect()]. The former
 #'   named `access_token` argument is consumed here as a deprecated alias for
 #'   `token` and is not forwarded.
 #'
-#' @return A live `DBIConnection`.
+#' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
+#'   finished.
+#' @references
+#' [Connect to a Fabric Warehouse or SQL analytics endpoint](https://learn.microsoft.com/en-us/fabric/data-warehouse/how-to-connect)
+#'
+#' [Microsoft Entra authentication in Fabric Data Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/entra-id-authentication)
+#'
+#' [Lakehouse SQL analytics endpoint](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint)
+#'
+#' [Download Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
 #' @export
 #'
 #' @examples
@@ -347,13 +384,13 @@ fabric_sql_connect <- function(
 #' Run a parameterized query against Microsoft Fabric SQL
 #'
 #' Opens a connection with [fabric_sql_connect()], executes `sql`, and closes
-#' the connection. Values in `params` are bound by DBI; they are never
-#' interpolated into the SQL string. Transient connection failures are safe to
-#' retry. Set `idempotent = TRUE` only when the complete SQL statement may be
-#' rerun after an ambiguous transient execution failure.
+#' it automatically. This is the convenient choice for a single query; use
+#' [fabric_sql_connect()] when several queries should share one connection.
+#' Values in `params` are bound by DBI rather than pasted into the SQL string.
 #'
 #' @inheritParams fabric_sql_connect
-#' @param sql One SQL statement.
+#' @param sql One T-SQL statement. A Lakehouse SQL analytics endpoint supports
+#'   read queries but not `INSERT`, `UPDATE`, or `DELETE`.
 #' @param params Optional list of values for DBI parameter placeholders (`?`).
 #'   Strings, dates, missing values, and values containing SQL metacharacters
 #'   are passed unchanged to the driver. With `backend = "adbc"`, placeholders
@@ -364,12 +401,17 @@ fabric_sql_connect <- function(
 #'   [DBI::dbGetQueryArrow()]. ADBC provides the native Arrow path; DBI may
 #'   materialize results when adapting an ODBC connection. The stream implements
 #'   the Arrow C Stream interface and can be converted directly with
-#'   [arrow::as_record_batch_reader()] when the optional `arrow` package is
-#'   installed. A stream is single-use.
-#' @param idempotent Logical. Whether the SQL statement may safely rerun on a
-#'   fresh connection after a transient execution failure.
+#'   `arrow::as_record_batch_reader()` when the optional `arrow` package is
+#'   installed. A stream is single-use. Prefer `"tibble"` for ordinary analysis
+#'   and `"arrow_stream"` when avoiding collection into an R data frame matters.
+#' @param idempotent Logical. Set to `TRUE` only if running the entire statement
+#'   a second time has no unwanted effect (usually a plain `SELECT`). This
+#'   permits a retry when it is unclear whether Fabric executed the first
+#'   attempt.
 #'
-#' @return A tibble or `nanoarrow_array_stream`, according to `result`.
+#' @return With `result = "tibble"`, a tibble containing the returned rows and
+#'   driver-converted column types. With `result = "arrow_stream"`, a single-use
+#'   `nanoarrow_array_stream` that can be consumed by Arrow-compatible tools.
 #' @export
 #'
 #' @examples

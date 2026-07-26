@@ -24,24 +24,31 @@ fabric_graphql_query(
 }
 \arguments{
 \item{api}{GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-GraphQLApi record.}
+GraphQLApi record. A row from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
+because it supplies the endpoint and workspace ID.}
 
-\item{query}{One non-empty GraphQL document.}
+\item{query}{One GraphQL document containing a query or mutation. Use
+variables for changing values instead of pasting values into this string.}
 
-\item{variables}{Named list of GraphQL variables.}
+\item{variables}{Named list of GraphQL variables. Values must be representable
+as JSON; names must match variables declared in \code{query}.}
 
-\item{operation_name}{Optional operation name for a multi-operation document.}
+\item{operation_name}{Optional operation name. Supply it when the document
+contains more than one named operation; otherwise leave \code{NULL}.}
 
 \item{workspace_id}{Workspace GUID. Required when \code{api} is a GraphQL API
 GUID, and otherwise inferred from a discovered record.}
 
 \item{error_policy}{How GraphQL-level errors are handled. \code{"return"}
-preserves them in the result, \code{"warn"} also emits a warning, and
-\code{"error"} raises a \code{fabric_graphql_error} carrying the result.}
+lets the caller inspect partial data and errors; \code{"warn"} also makes errors
+visible immediately; \code{"error"} stops and attaches the result to a
+\code{fabric_graphql_error}. HTTP/authentication failures always stop.}
 
-\item{timeout}{Positive request timeout in seconds.}
+\item{timeout}{Positive HTTP timeout in seconds.}
 
-\item{idempotent}{Logical. Allow shared transient HTTP retries for this POST.}
+\item{idempotent}{Logical. Permit retries after transient HTTP failures.
+\code{TRUE} is normally suitable for a read-only query, but not for a mutation
+that could be applied twice.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -57,20 +64,32 @@ token or starts its normal interactive login flow.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
-selects the scope from the authentication flow.}
+selects the documented scope from the authentication flow. Set this only
+for a custom token provider or unusual identity flow.}
 
-\item{api_base}{Fabric REST API base URL, used to derive endpoints from IDs.}
+\item{api_base}{Fabric REST API base URL used to derive endpoints from IDs.
+Most users should keep the default.}
 }
 \value{
 A \code{fabric_graphql_result} list with \code{data}, \code{errors}, \code{extensions},
-and \code{response} (the complete parsed response).
+and \code{response} (the complete parsed response). \code{data} follows the nested
+shape requested in the GraphQL document and is usually a combination of
+named lists and vectors, not a tibble. Because GraphQL can return partial
+data, inspect \code{errors} even when \code{data} is present.
 }
 \description{
-Executes a GraphQL document against a Fabric GraphQL endpoint and preserves
-\code{data}, \code{errors}, and \code{extensions} independently. This is important because
-a successful HTTP response can contain both partial data and GraphQL errors.
+Sends a GraphQL query or mutation to an API for GraphQL item configured in
+Fabric. Fabric generates the API schema from selected Lakehouse, Warehouse,
+or SQL Database objects; this function calls that API from R and returns its
+nested response.
 }
 \details{
+Before using this function, create an \strong{API for GraphQL} item in a Fabric
+workspace, connect its data source, and choose which tables, fields, queries,
+and mutations the API exposes. Fabric's built-in GraphQL editor and schema
+explorer are the easiest places to design and test a document before copying
+it to R.
+
 A direct endpoint has the form
 \verb{https://api.fabric.microsoft.com/v1/workspaces/\{workspace-id\}/graphqlapis/\{api-id\}/graphql}.
 You can instead pass a GraphQL API GUID with \code{workspace_id}, or one row from
@@ -113,4 +132,11 @@ result <- fabric_graphql_query(
 result$data$products$items
 result$errors
 }
+}
+\references{
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-editor}{Fabric API for GraphQL editor}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-schema-view}{Fabric GraphQL schema explorer}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal}{Use service principals with Fabric API for GraphQL}
 }

@@ -317,33 +317,58 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 
 #' Run Spark code in a temporary Microsoft Fabric Livy session
 #'
-#' Creates a session, waits for it to become ready, runs one statement, and
-#' closes the session even when execution fails. For multiple statements or
-#' explicit lifecycle control, use [fabric_livy_session()].
+#' Starts Fabric Spark compute, runs one statement, waits for its result, and
+#' closes the session. This is the simplest Livy helper for a one-off Spark
+#' operation. Spark is useful for distributed processing or changing Lakehouse
+#' data; it has more startup overhead than querying an existing SQL endpoint.
 #'
-#' @param livy_url A Livy connection URL or an enriched Lakehouse record from
-#'   [fabric_lakehouses()] or [fabric_item()].
-#' @param code One non-empty string containing Spark code.
-#' @param kind Statement language: `"spark"`, `"pyspark"`, `"sparkr"`, or
-#'   `"sql"`.
-#' @param tenant_id Microsoft Entra tenant ID.
-#' @param client_id Microsoft Entra application ID.
+#' @param livy_url A Livy connection URL copied from the Lakehouse settings, or
+#'   an enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
+#'   A discovered record avoids copying workspace and Lakehouse IDs.
+#' @param code One string containing the Spark code to run. Objects created in
+#'   this temporary session are lost after the function returns, although
+#'   writes made to Lakehouse storage persist.
+#' @param kind Statement language. Use `"sparkr"` for SparkR code, `"pyspark"`
+#'   for Python with Spark, `"spark"` for Scala, or `"sql"` for Spark SQL. This
+#'   must match the syntax in `code`.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Microsoft Entra application/client ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
 #'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
-#' @param environment_id Optional Fabric Environment ID.
-#' @param conf Optional named list of Spark configuration settings.
-#' @param verbose Logical. Emit lifecycle progress.
-#' @param poll_interval Polling interval in seconds.
-#' @param timeout Maximum seconds for each readiness/execution wait.
+#' @param environment_id Optional GUID of a published Fabric Environment whose
+#'   libraries and Spark settings should be used. Leave `NULL` to use the
+#'   Lakehouse/workspace defaults.
+#' @param conf Optional named list of Spark configuration overrides, for example
+#'   `list("spark.sql.shuffle.partitions" = "100")`. Most users can leave this
+#'   `NULL` and configure shared settings in a Fabric Environment.
+#' @param verbose Logical. Show session startup, execution, and cleanup progress.
+#' @param poll_interval Seconds between status checks. Lower values update
+#'   sooner but make more API calls.
+#' @param timeout Maximum seconds to wait for session readiness and, separately,
+#'   statement completion.
 #' @param ... Compatibility arguments. The former named `access_token`
 #'   argument is accepted here as a deprecated alias for `token`; all other
 #'   arguments are rejected.
 #'
-#' @return An invisible `fabric_livy_statement_result` list.
-#' @details Requests use the
+#' @return Invisibly, a `fabric_livy_statement_result` list with statement
+#'   `state`, timing information, submitted `code`, raw response, and `output`.
+#'   `output$parsed` contains JSON output converted to an R object or plain-text
+#'   output as a character vector; error details are retained in the other
+#'   `output` fields.
+#' @details
+#' Fabric needs a workspace on supported Fabric capacity and a Lakehouse. In
+#' the Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and
+#' copy the session-job connection string. For several statements that reuse
+#' variables and Spark state, use [fabric_livy_session()]. To run a complete
+#' Python, Scala/Java, or R application file, use
+#' [fabric_livy_batch_submit()].
+#'
+#' Requests use the
 #'   `https://api.fabric.microsoft.com/.default` audience. Delegated
 #'   authentication requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
 #'   `Code.AccessFabric.All`, and `Code.AccessStorage.All`; the caller also
@@ -351,7 +376,7 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 #'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
-#' [session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
+#' [session jobs and Fabric setup](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
 #'
 #' @export
 #' @example inst/examples/fabric_livy_query.R

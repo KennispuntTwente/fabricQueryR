@@ -19,23 +19,29 @@ fabric_kql_query(
 )
 }
 \arguments{
-\item{cluster}{Character query-service/cluster URI, or one Eventhouse or
+\item{cluster}{Query-service URI, or one Eventhouse or
 KQLDatabase record returned by \code{\link[=fabric_eventhouses]{fabric_eventhouses()}},
 \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, or \code{\link[=fabric_item]{fabric_item()}}. A KQLDatabase record also
-supplies \code{database}.}
+supplies \code{database}. Despite the argument name, use Fabric's \strong{Query URI}
+here.}
 
-\item{query}{A non-empty KQL query.}
+\item{query}{One non-empty, read-only KQL query, for example
+\code{"Events | where Severity == 'Error' | take 100"}.}
 
-\item{database}{KQL database display name. Required for a direct URI or an
-Eventhouse record; inferred from a KQLDatabase record.}
+\item{database}{KQL database display name. Supply it with a copied Query URI
+or an Eventhouse record; omit it when \code{cluster} is a KQLDatabase record.}
 
 \item{parameters}{Named list of values for parameters declared by
-\verb{declare query_parameters(...)} in \code{query}.}
+\verb{declare query_parameters(...)} in \code{query}. Scalar R values become Kusto
+scalar values; vectors and lists become \code{dynamic} values. Binding is safer
+and easier to quote correctly than building KQL with \code{paste()}.}
 
 \item{request_properties}{Named list of Kusto client request options, such as
-\code{servertimeout = "2m"} or \code{notruncation = TRUE}.}
+\code{servertimeout = "2m"} or \code{notruncation = TRUE}. Most users can leave this
+empty; these are server-side Kusto controls, not query parameters.}
 
-\item{timeout}{Positive request timeout in seconds.}
+\item{timeout}{Positive client-side HTTP timeout in seconds. This is separate
+from the Kusto \code{servertimeout} request property.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -52,17 +58,24 @@ token or starts its normal interactive login flow.}
 }
 \value{
 A typed tibble for one primary result, a \code{fabric_kql_tables} list for
-multiple primary results, or an empty tibble when there is no primary
-result.
+multiple primary results (one named element per table), or an empty tibble
+when there is no primary result. See Details for the KQL-to-R type mapping.
 }
 \description{
-Executes a read-only Kusto Query Language (KQL) query against a Fabric
-Eventhouse query service and converts primary result tables to typed tibbles.
+Runs a read-only Kusto Query Language (KQL) query against a KQL database and
+converts the result to R objects. In Fabric, an Eventhouse is a container for
+one or more KQL databases designed for fast analysis of event, log,
+telemetry, and time-series data.
 }
 \details{
+The easiest input is a row from \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, because it supplies
+both the database name and its \strong{Query URI}. If copying a URI from Fabric,
+use \strong{Query URI}, not \strong{Ingestion URI}; this function queries existing data
+and does not load new data. The caller needs database access through a Fabric
+workspace role, Eventhouse sharing, or KQL database sharing.
+
 This function uses the Kusto v2 REST query endpoint and requests a token for
-\verb{https://api.kusto.windows.net/.default}. The caller needs access to the KQL
-database, normally through a Fabric workspace role or KQL database sharing.
+\verb{https://api.kusto.windows.net/.default}.
 
 Query parameters are sent through Kusto client request properties, never
 interpolated into \code{query}. Declare them in KQL with
@@ -94,4 +107,11 @@ events <- fabric_kql_query(
   parameters = list(selected_type = "Warning")
 )
 }
+}
+\references{
+\href{https://learn.microsoft.com/en-us/fabric/real-time-intelligence/access-database-copy-uri}{Access a KQL database and copy its Query URI}
+
+\href{https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric}{Kusto query HTTP request and parameters}
+
+\href{https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric}{Kusto role-based access control}
 }

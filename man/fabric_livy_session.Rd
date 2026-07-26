@@ -35,36 +35,56 @@ fabric_livy_session(
 }
 \arguments{
 \item{livy_url}{A copied session or batch connection URL, Livy API base URL,
-or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.}
+or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.
+Copy the session-job URL from \strong{Lakehouse settings > Livy endpoint}, or
+use a discovered row to avoid handling IDs manually.}
 
-\item{high_concurrency}{Logical. Acquire a high-concurrency session.}
+\item{high_concurrency}{Logical. \code{FALSE} creates a standard session for
+sequential or low-concurrency work. \code{TRUE} creates an isolated REPL that
+Fabric can pack into shared Spark sessions, which is useful when an
+application runs several independent Spark workloads concurrently.}
 
-\item{session_tag}{Optional packing hint for high-concurrency sessions.
-Repeated requests with the same tag remain non-idempotent and return
-distinct HC session IDs.}
+\item{session_tag}{Optional high-concurrency packing hint. Related requests
+with the same tag may share an underlying Livy session while keeping
+separate REPL state. Each call still returns a distinct HC session.}
 
-\item{name}{Optional session name.}
+\item{name}{Optional readable session name shown in service metadata.}
 
-\item{tags}{Optional named list of string session tags.}
+\item{tags}{Optional named list of string labels for monitoring.}
 
-\item{conf}{Optional named list of Spark settings.}
+\item{conf}{Optional named list of Spark settings. Prefer a published Fabric
+Environment for configuration shared by several jobs.}
 
-\item{environment_id}{Optional Fabric Environment ID.}
+\item{environment_id}{Optional GUID of a published Fabric Environment whose
+libraries and Spark settings should be used.}
 
-\item{archives}{Optional character vector of archive URIs.}
+\item{archives}{Optional character vector of archive URIs made available to
+Spark.}
 
-\item{driver_memory, executor_memory}{Optional Spark memory strings.}
+\item{driver_memory, executor_memory}{Optional Spark memory values such as
+\code{"4g"}. Leave \code{NULL} to use Fabric defaults.}
 
 \item{driver_cores, executor_cores, num_executors}{Optional Spark resource
-counts.}
+counts. Larger values consume more capacity; leave \code{NULL} unless the
+workload has been sized deliberately.}
 
-\item{artifact_name, file, class_name, args, jars, files, py_files}{Optional
-high-concurrency request fields. \code{artifact_name} controls the Monitoring
-hub label.}
+\item{artifact_name}{Optional Lakehouse/artifact label used for a
+high-concurrency job in the Fabric Monitoring hub.}
 
-\item{tenant_id}{Microsoft Entra tenant ID.}
+\item{file}{Optional application file URI for a high-concurrency request.}
 
-\item{client_id}{Microsoft Entra application ID.}
+\item{class_name}{Optional Java/Scala main class for \code{file}.}
+
+\item{args}{Optional character vector of application arguments.}
+
+\item{jars, files, py_files}{Optional character vectors of dependency URIs
+supplied to Spark.}
+
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
+
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
 token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
@@ -73,17 +93,23 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{verbose}{Logical. Emit lifecycle messages.}
+\item{verbose}{Logical. Show session lifecycle messages.}
 }
 \value{
-A newly created \link{FabricLivySession}.
+A newly created \link{FabricLivySession}. It may still be starting; call
+\verb{$wait()} before \verb{$submit()}/\verb{$run()}, and \verb{$close()} when finished.
 }
 \description{
-Creates and returns an R6 object for an interactive Spark session. Set
-\code{high_concurrency = TRUE} to acquire an isolated REPL in Fabric's
-high-concurrency session pool.
+Starts an interactive Spark context that can run several statements while
+retaining variables and Spark state between them. This avoids starting new
+compute for each call.
 }
 \details{
+Use a standard session for a typical interactive sequence in one R process.
+High concurrency is intended for automation that needs multiple isolated
+Spark statement streams at the same time; it is not necessary merely to run
+several statements sequentially.
+
 A finalizer attempts cleanup if an open object is garbage
 collected. Call \verb{$close()} explicitly, and use \code{on.exit(session$close())}
 in functions, for deterministic cleanup. Requests use the

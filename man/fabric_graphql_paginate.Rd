@@ -27,32 +27,41 @@ fabric_graphql_paginate(
 }
 \arguments{
 \item{api}{GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-GraphQLApi record.}
+GraphQLApi record. A row from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
+because it supplies the endpoint and workspace ID.}
 
-\item{query}{One non-empty GraphQL document.}
+\item{query}{One GraphQL document containing a query or mutation. Use
+variables for changing values instead of pasting values into this string.}
 
 \item{next_cursor}{Function accepting a \code{fabric_graphql_result} and returning
 the next opaque cursor, or \code{NULL} when pagination is complete. Use
 \code{\link[=fabric_graphql_cursor]{fabric_graphql_cursor()}} for Fabric's normal connection fields.}
 
-\item{variables}{Named list of GraphQL variables.}
+\item{variables}{Named list of GraphQL variables. Values must be representable
+as JSON; names must match variables declared in \code{query}.}
 
-\item{cursor_variable}{Name of the GraphQL variable that receives the cursor.}
+\item{cursor_variable}{Name of the GraphQL variable that receives the next
+cursor, commonly \code{"after"}. It must match the variable declared in \code{query}.}
 
-\item{operation_name}{Optional operation name for a multi-operation document.}
+\item{operation_name}{Optional operation name. Supply it when the document
+contains more than one named operation; otherwise leave \code{NULL}.}
 
 \item{workspace_id}{Workspace GUID. Required when \code{api} is a GraphQL API
 GUID, and otherwise inferred from a discovered record.}
 
 \item{error_policy}{How GraphQL-level errors are handled. \code{"return"}
-preserves them in the result, \code{"warn"} also emits a warning, and
-\code{"error"} raises a \code{fabric_graphql_error} carrying the result.}
+lets the caller inspect partial data and errors; \code{"warn"} also makes errors
+visible immediately; \code{"error"} stops and attaches the result to a
+\code{fabric_graphql_error}. HTTP/authentication failures always stop.}
 
-\item{max_pages}{Positive maximum number of requests.}
+\item{max_pages}{Positive maximum number of requests. This guards against a
+faulty or unexpectedly large pagination loop.}
 
-\item{timeout}{Positive request timeout in seconds.}
+\item{timeout}{Positive HTTP timeout in seconds.}
 
-\item{idempotent}{Logical. Allow shared transient HTTP retries for this POST.}
+\item{idempotent}{Logical. Permit retries after transient HTTP failures.
+\code{TRUE} is normally suitable for a read-only query, but not for a mutation
+that could be applied twice.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -68,17 +77,22 @@ token or starts its normal interactive login flow.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
-selects the scope from the authentication flow.}
+selects the documented scope from the authentication flow. Set this only
+for a custom token provider or unusual identity flow.}
 
-\item{api_base}{Fabric REST API base URL, used to derive endpoints from IDs.}
+\item{api_base}{Fabric REST API base URL used to derive endpoints from IDs.
+Most users should keep the default.}
 }
 \value{
 A \code{fabric_graphql_pages} list with \code{pages}, combined \code{errors}, and
-the final \code{variables}.
+the final \code{variables}. \code{pages} contains one \code{fabric_graphql_result} per
+request and \code{complete} is \code{TRUE} when the callback reported no next page.
+Results are kept page-by-page because the requested schema shape can vary.
 }
 \description{
 Repeats \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} while \code{next_cursor} returns a cursor. The
-callback makes pagination independent of the user's schema shape.
+callback tells the function where the current page stores its next cursor,
+because that location depends on the API schema.
 }
 \examples{
 \dontrun{

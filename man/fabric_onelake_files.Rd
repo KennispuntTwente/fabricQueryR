@@ -90,21 +90,28 @@ fabric_onelake_delete(
 )
 }
 \arguments{
-\item{workspace}{Workspace name, GUID, discovered workspace, or complete
-OneLake HTTPS/ABFSS path.}
+\item{workspace}{Workspace display name, GUID, row from
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}, or complete OneLake HTTPS/ABFSS path. Names are
+convenient interactively; GUIDs avoid problems with spaces and renaming.}
 
 \item{item}{Item name, GUID, or discovered Fabric item. Use \code{NULL} when
-\code{workspace} is a complete OneLake path.}
+\code{workspace} is a complete OneLake path. A row from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} is
+the least ambiguous input.}
 
-\item{path}{Path relative to the item. Complete OneLake paths already contain
-this value.}
+\item{path}{Path relative to the item, usually beginning with \verb{Files/} or
+\verb{Tables/}, for example \code{"Files/incoming/data.csv"}. Use forward slashes.
+A complete OneLake path already contains this value.}
 
-\item{recursive}{Logical. Recurse into subdirectories.}
+\item{recursive}{Logical. For listing, include descendants rather than only
+direct children. For deletion, allow removal of a non-empty directory.}
 
-\item{page_size}{Maximum paths requested per ADLS page, from 1 to 5000.}
+\item{page_size}{Maximum paths requested from OneLake per API call, from 1 to
+5000. Smaller values reduce each response size but require more requests.}
 
 \item{item_type}{Optional Fabric item type appended to an item name unless
-that name already ends in the same suffix, for example \code{"Lakehouse"}.}
+that name already ends in the same suffix, for example \code{"Lakehouse"}.
+Usually unnecessary for a discovered item or a name such as
+\code{"Sales.Lakehouse"}.}
 
 \item{tenant_id}{Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -120,42 +127,54 @@ token or starts its normal interactive login flow.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{dfs_base}{OneLake DFS endpoint. Regional and workspace-private DFS
-endpoints are supported.}
+endpoints are supported. Most users should keep the default.}
 
 \item{dest}{Optional local destination. When \code{NULL}, download returns a raw
-vector. A destination download is streamed and committed atomically.}
+vector held in R memory. Supply a path to stream large files to disk. A
+destination download is committed atomically.}
 
 \item{range}{Optional inclusive zero-based byte range. Supply one value for
-\verb{bytes=start-} or two values for \code{bytes=start-end}.}
+all bytes from that offset onward, or two values for \code{start} through \code{end}.
+Leave \code{NULL} to download the entire file.}
 
 \item{overwrite}{Logical. Whether an existing destination may be replaced.
-Upload defaults to \code{FALSE} and uses \verb{If-None-Match: *}.}
+Both downloads and uploads protect existing files by default. Upload with
+\code{overwrite = FALSE} uses \verb{If-None-Match: *}.}
 
 \item{if_match}{Optional ETag for a conditional operation. Values returned
-by \code{fabric_onelake_metadata()} can be passed back unchanged; unquoted
-values are quoted as required by ADLS.}
+by \code{fabric_onelake_metadata()} can be passed back unchanged. This prevents
+overwriting, downloading, or deleting a file that changed since it was
+inspected.}
 
-\item{source}{A local file path or raw vector to upload.}
+\item{source}{Local file path or raw vector to upload. A path is streamed;
+a raw vector is already held in memory.}
 
-\item{content_type}{Optional MIME type stored with an uploaded file.}
+\item{content_type}{Optional MIME type stored with an uploaded file, for
+example \code{"text/csv"}.}
 
 \item{create_parents}{Logical. Create missing parent directories below the
-Fabric-managed first-level folder.}
+Fabric-managed first-level folder. Keep \code{TRUE} for normal uploads.}
 
 \item{chunk_size}{Positive upload chunk size in bytes. Defaults to 8 MiB;
-local files are streamed without being loaded into memory.}
+larger chunks use fewer requests but more memory.}
 
-\item{confirm}{Must be \code{TRUE} to enable deletion.}
+\item{confirm}{Safety switch that must be explicitly set to \code{TRUE} before
+deletion is attempted.}
 }
 \value{
-\code{fabric_onelake_list()} and \code{fabric_onelake_metadata()} return
-tibbles. \code{fabric_onelake_download()} returns a raw vector, or invisibly
-returns the destination path. \code{fabric_onelake_upload()} returns a one-row
-metadata tibble. \code{fabric_onelake_delete()} invisibly returns \code{TRUE}.
+\code{fabric_onelake_list()} returns one row per path, including its
+item-relative \code{path}, file \code{name}, \code{is_directory}, \code{content_length},
+\code{etag}, and modification/permission fields.
+\code{fabric_onelake_metadata()} and \code{fabric_onelake_upload()} return a one-row
+tibble with the resolved path and available HTTP metadata.
+\code{fabric_onelake_download()} returns a raw vector when \code{dest = NULL}, or
+invisibly returns the destination path after writing to disk.
+\code{fabric_onelake_delete()} invisibly returns \code{TRUE}.
 }
 \description{
-These functions expose the ADLS Gen2-compatible OneLake filesystem without
-applying Delta Lake transaction semantics:
+Lists, inspects, downloads, uploads, or deletes files in OneLake, the storage
+layer shared by Fabric data items. These functions treat paths as ordinary
+files through OneLake's ADLS Gen2-compatible API:
 \itemize{
 \item \code{fabric_onelake_list()} lists paths and follows all continuation tokens.
 \item \code{fabric_onelake_metadata()} returns file or directory properties.
@@ -165,6 +184,13 @@ applying Delta Lake transaction semantics:
 }
 }
 \details{
+A Lakehouse normally contains a \verb{Files/} area for ordinary files and a
+\verb{Tables/} area managed as Delta tables. These helpers are well suited to
+CSV, JSON, images, and other files under \verb{Files/}. They do not interpret the
+Delta transaction log: use \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read a
+Delta table, and do not upload or delete individual files under \verb{Tables/},
+because doing so can make the table inconsistent.
+
 \code{workspace} and \code{item} may be names, GUIDs, or one-row discovery results.
 Name-based items must include their item-type suffix (for example,
 \code{"Sales.Lakehouse"}) or supply \code{item_type}. Microsoft requires workspace and
@@ -177,6 +203,9 @@ OneLake uses the Storage token audience
 first-level folders (such as \code{Files} and \code{Tables}), so upload and delete
 operations are limited to descendants of a managed folder. Deletion also
 requires \code{confirm = TRUE}.
+Give the signed-in user or application access through a workspace role or
+through the item's \strong{Manage OneLake data access} roles. Write access is
+required for uploads and deletes.
 
 Uploads are streamed in chunks to a temporary sibling file. The completed
 file is atomically renamed to its destination with the requested overwrite
@@ -212,4 +241,9 @@ fabric_onelake_delete(
   confirm = TRUE
 )
 }
+}
+\references{
+\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connect to OneLake with ADLS APIs}
+
+\href{https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles}{Create and manage OneLake security roles}
 }

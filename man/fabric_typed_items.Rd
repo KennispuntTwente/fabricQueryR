@@ -30,15 +30,36 @@ fabric_graphql_apis(workspace, ...)
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
+returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
+a name is often easier for interactive use.}
 
-\item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}.}
+\item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}.
+Do not supply \code{type} or \code{detail}; each helper sets those values.}
 }
 \value{
-A tibble of enriched Fabric items.
+A tibble with one row per matching item, common item metadata, and
+applicable connection fields. See \code{\link[=fabric_items]{fabric_items()}} for the column groups.
 }
 \description{
-These helpers are equivalent to \code{\link[=fabric_items]{fabric_items()}} with an item type and
-\code{detail = TRUE}. They return workload-specific properties and derived
-connection targets.
+These shortcuts list one kind of item and include the detailed connection
+fields used by the matching query functions. They are equivalent to
+\code{\link[=fabric_items]{fabric_items()}} with a fixed item type and \code{detail = TRUE}.
 }
+\section{Choosing a helper}{
+
+\itemize{
+\item \code{fabric_lakehouses()} and \code{fabric_warehouses()} find data stores that can
+be queried through \code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses can also be accessed
+through OneLake and Livy.
+\item \code{fabric_sql_databases()} finds transactional Fabric SQL databases.
+\item \code{fabric_semantic_models()} finds the business models queried with DAX via
+\code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}.
+\item \code{fabric_eventhouses()} and \code{fabric_kql_databases()} find real-time data
+stores queried with \code{\link[=fabric_kql_query]{fabric_kql_query()}}.
+\item \code{fabric_notebooks()} finds notebooks that can be run with
+\code{\link[=fabric_job_run]{fabric_job_run()}}.
+\item \code{fabric_graphql_apis()} finds APIs configured in Fabric for use with
+\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}.
+}
+}
+

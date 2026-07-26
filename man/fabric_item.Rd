@@ -18,18 +18,22 @@ fabric_item(
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
+returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
+a name is often easier for interactive use.}
 
 \item{item}{Item GUID, exact display name, or a one-row item record returned
-by a discovery function.}
+by a discovery function. A display name must identify exactly one item of
+the requested \code{type}; use a GUID or discovered row when names are
+duplicated.}
 
-\item{type}{Optional Fabric item type, for example \code{"Lakehouse"} or
-\code{"Warehouse"}.}
+\item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
+\code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
+Fabric, so use the API spelling. Leave \code{NULL} to list all item types.}
 
-\item{tenant_id}{Entra tenant ID. Defaults to
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Entra application ID. Defaults to
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
@@ -43,13 +47,17 @@ Discovery uses the
 \verb{https://api.fabric.microsoft.com/.default} audience and requires
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 
-\item{api_base}{Fabric REST API base URL.}
+\item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
+different Fabric cloud or a test service.}
 }
 \value{
-A \code{fabric_item} list containing common metadata, workload
-properties, and derived connection targets.
+A \code{fabric_item} list. It contains common fields such as \code{id},
+\code{displayName}, \code{type}, and \code{workspaceId}, the nested workload
+\code{properties}, and applicable connection targets such as
+\code{sql_connection_string}, \code{livy_url}, or \code{query_service_uri}.
 }
 \description{
-Resolves an item by GUID or by an exact/unique display name and retrieves
-workload-specific properties when supported.
+Finds one item and retrieves the connection details that fabricQueryR can
+use. This is convenient when you know the item's name and do not need a
+table of every item in the workspace.
 }

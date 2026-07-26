@@ -33,10 +33,13 @@ fabric_sql_query(
 )
 }
 \arguments{
-\item{server}{A character endpoint/connection string, or one Lakehouse,
-Warehouse, or SQL Database record returned by a discovery function.}
+\item{server}{A Fabric SQL server name, a complete connection string copied
+from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
+returned by a discovery function. A discovered row is usually simplest
+because it also supplies the database name.}
 
-\item{sql}{One SQL statement.}
+\item{sql}{One T-SQL statement. A Lakehouse SQL analytics endpoint supports
+read queries but not \code{INSERT}, \code{UPDATE}, or \code{DELETE}.}
 
 \item{params}{Optional list of values for DBI parameter placeholders (\verb{?}).
 Strings, dates, missing values, and values containing SQL metacharacters
@@ -49,23 +52,31 @@ the SQL Server driver's native \verb{@p1}, \verb{@p2}, ... syntax.}
 \code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}. ADBC provides the native Arrow path; DBI may
 materialize results when adapting an ODBC connection. The stream implements
 the Arrow C Stream interface and can be converted directly with
-\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} when the optional \code{arrow} package is
-installed. A stream is single-use.}
+\code{arrow::as_record_batch_reader()} when the optional \code{arrow} package is
+installed. A stream is single-use. Prefer \code{"tibble"} for ordinary analysis
+and \code{"arrow_stream"} when avoiding collection into an R data frame matters.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
-catalog found in \code{server}. \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and \code{\link[=fabric_sql_query]{fabric_sql_query()}}
-infer complete connection strings and discovery records when this argument
-is omitted. A bare Warehouse or SQL analytics endpoint without a catalog
-connects to Fabric's \code{master} context.}
+database found in \code{server}. For a bare endpoint, supply the item database
+shown with its connection string in Fabric. If omitted, Warehouse and SQL
+analytics endpoints open Fabric's \code{master} context, which is useful for
+discovery but does not select the item's tables.}
 
-\item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
-the endpoint hostname.}
+\item{target_type}{Label for the endpoint kind. Keep \code{"auto"} unless the
+hostname is custom or ambiguous. The explicit choices distinguish a
+Lakehouse SQL analytics endpoint, Warehouse, transactional SQL Database,
+or another read-only SQL analytics endpoint; they do not convert one kind
+of endpoint into another.}
 
-\item{backend}{SQL client backend. \code{"odbc"} remains the default.}
+\item{backend}{SQL client backend. Use \code{"odbc"} for broad DBI compatibility
+and the easiest setup; use \code{"adbc"} for its native Arrow result path after
+separately installing the ADBC \code{mssql} driver.}
 
-\item{tenant_id}{Character. Entra tenant ID.}
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Character. Application/client ID.}
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
 token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
@@ -81,15 +92,22 @@ default.}
 installed ADBC Driver Foundry \code{mssql} driver is the default.}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
-\code{server}; otherwise port 1433 is used.}
+\code{server}; otherwise the standard SQL port, 1433, is used.}
 
-\item{encrypt, trust_server_certificate}{SQL client encryption flags.}
+\item{encrypt}{Whether the driver encrypts the connection. Keep the secure
+default, \code{"yes"}, for Fabric.}
 
-\item{timeout}{Login/connect timeout in seconds.}
+\item{trust_server_certificate}{Whether to accept a server certificate
+without validating its trust chain. Keep the secure default, \code{"no"},
+unless diagnosing a controlled test environment.}
 
-\item{read_only}{Logical. Set \code{ApplicationIntent=ReadOnly}.}
+\item{timeout}{Non-negative login/connect timeout in seconds; \code{0} lets the
+driver use an unlimited or driver-specific timeout.}
 
-\item{verbose}{Logical. Emit connection progress.}
+\item{read_only}{Logical. \code{TRUE} sends \code{ApplicationIntent=ReadOnly} as a
+connection hint; it is not a substitute for Fabric/SQL permissions.}
+
+\item{verbose}{Logical. Show authentication, retry, and connection progress.}
 
 \item{max_tries}{Positive maximum number of attempts for transient Fabric SQL
 failures. Connections are always safe to retry. In
@@ -99,22 +117,25 @@ failures. Connections are always safe to retry. In
 \item{retry_delay}{Non-negative initial retry delay in seconds. Subsequent
 delays use exponential backoff with jitter, capped at 60 seconds.}
 
-\item{idempotent}{Logical. Whether the SQL statement may safely rerun on a
-fresh connection after a transient execution failure.}
+\item{idempotent}{Logical. Set to \code{TRUE} only if running the entire statement
+a second time has no unwanted effect (usually a plain \code{SELECT}). This
+permits a retry when it is unclear whether Fabric executed the first
+attempt.}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded.}
 }
 \value{
-A tibble or \code{nanoarrow_array_stream}, according to \code{result}.
+With \code{result = "tibble"}, a tibble containing the returned rows and
+driver-converted column types. With \code{result = "arrow_stream"}, a single-use
+\code{nanoarrow_array_stream} that can be consumed by Arrow-compatible tools.
 }
 \description{
 Opens a connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}}, executes \code{sql}, and closes
-the connection. Values in \code{params} are bound by DBI; they are never
-interpolated into the SQL string. Transient connection failures are safe to
-retry. Set \code{idempotent = TRUE} only when the complete SQL statement may be
-rerun after an ambiguous transient execution failure.
+it automatically. This is the convenient choice for a single query; use
+\code{\link[=fabric_sql_connect]{fabric_sql_connect()}} when several queries should share one connection.
+Values in \code{params} are bound by DBI rather than pasted into the SQL string.
 }
 \examples{
 \dontrun{

@@ -2,16 +2,19 @@
 
 #' Discover Microsoft Fabric workspaces
 #'
-#' Lists every workspace visible to the authenticated principal, following all
-#' Fabric continuation pages.
+#' Lists the Fabric workspaces the signed-in user or application can access. A
+#' workspace is the top-level container that holds Lakehouses, Warehouses,
+#' semantic models, notebooks, and other Fabric items.
 #'
-#' @param roles Optional character vector of workspace roles used to filter the
-#'   response.
-#' @param prefer_workspace_endpoints Logical. Ask Fabric to include a
-#'   workspace-specific API endpoint, when available.
-#' @param tenant_id Entra tenant ID. Defaults to
+#' @param roles Optional workspace roles to include, such as `"Viewer"`,
+#'   `"Contributor"`, `"Member"`, or `"Admin"`. Leave `NULL` to return every
+#'   visible workspace.
+#' @param prefer_workspace_endpoints Logical. Set to `TRUE` to ask Fabric for a
+#'   workspace-specific API endpoint, which can be needed with workspace-level
+#'   private links. Most users should keep the default, `FALSE`.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
-#' @param client_id Entra application ID. Defaults to
+#' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Preferred token input: an `AzureAuth::AzureToken` object,
 #'   bearer-token string, or token-provider function. With `NULL` (the
@@ -22,10 +25,17 @@
 #'   Discovery uses the
 #'   `https://api.fabric.microsoft.com/.default` audience and requires
 #'   `Workspace.Read.All` or `Workspace.ReadWrite.All`.
-#' @param api_base Fabric REST API base URL.
+#' @param api_base Fabric REST API base URL. Leave unchanged unless using a
+#'   different Fabric cloud or a test service.
 #'
-#' @return A tibble with one row per workspace. Nested Fabric fields are kept
-#'   in list columns.
+#' @return A tibble with one row per workspace. Important columns include `id`
+#'   (useful for later API calls), `displayName`, `capacityRegion`, and
+#'   `apiEndpoint`. `tags` and the complete service response in `raw` are list
+#'   columns.
+#' @references
+#' [List workspaces REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
+#'
+#' [Workspace roles](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)
 #' @export
 fabric_workspaces <- function(
   roles = NULL,
@@ -82,25 +92,40 @@ fabric_workspaces <- function(
 
 #' Discover Microsoft Fabric items
 #'
-#' Lists items in a workspace with optional server-side item-type filtering.
-#' Set `detail = TRUE` to call each supported workload API and include
-#' workload-specific connection metadata.
+#' Lists the items stored in one workspace. In Fabric, an *item* is a resource
+#' such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.
 #'
 #' @param workspace Workspace GUID, exact display name, or a workspace record
-#'   returned by [fabric_workspaces()].
-#' @param type Optional Fabric item type, for example `"Lakehouse"` or
-#'   `"Warehouse"`.
-#' @param detail Logical. Retrieve workload-specific properties for supported
-#'   types.
-#' @param recursive Logical. Include items in nested folders.
+#'   returned by [fabric_workspaces()]. A record or GUID avoids an extra lookup;
+#'   a name is often easier for interactive use.
+#' @param type Optional Fabric API item type, for example `"Lakehouse"`,
+#'   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
+#'   Fabric, so use the API spelling. Leave `NULL` to list all item types.
+#' @param detail Logical. `FALSE` makes the fewest API calls and is sufficient
+#'   for names and IDs. `TRUE` also retrieves supported workload properties,
+#'   such as SQL connection strings and Livy or KQL endpoints, but is slower
+#'   and can require additional permissions. The typed helpers below use
+#'   `TRUE`.
+#' @param recursive Logical. `TRUE` includes items inside workspace folders;
+#'   `FALSE` lists only items at the workspace root.
 #' @inheritParams fabric_workspaces
 #'
-#' @return A tibble with one row per item. `properties` and `raw` are list
-#'   columns. Enriched rows also contain directly usable SQL, OneLake, DAX,
-#'   Livy, KQL, and GraphQL fields where Fabric exposes or identifies them.
-#' @details Workload enrichment requires `Item.Read.All`/`Item.ReadWrite.All`
-#'   or the corresponding workload-specific read scope in addition to access
-#'   to the item.
+#' @return A tibble with one row per item and common columns including `id`,
+#'   `displayName`, `type`, `workspaceId`, and `folderId`. With `detail = TRUE`,
+#'   applicable rows also contain ready-to-use `sql_connection_string`,
+#'   `one_lake_*_path`, `dax_connection_string`, `livy_url`,
+#'   `query_service_uri`, or `graphql_endpoint` values. Fields that do not apply
+#'   to an item are `NA`; `properties` and `raw` retain nested service data.
+#' @details
+#' The caller needs at least access to the workspace (the Viewer role is
+#' sufficient for the core list operation). Workload enrichment additionally
+#' requires `Item.Read.All`/`Item.ReadWrite.All` or the corresponding
+#' workload-specific read scope and access to the item.
+#'
+#' @references
+#' [List items REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
+#'
+#' [Fabric item management overview](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview)
 #' @export
 fabric_items <- function(
   workspace,
@@ -166,15 +191,20 @@ fabric_items <- function(
 
 #' Discover one Microsoft Fabric item
 #'
-#' Resolves an item by GUID or by an exact/unique display name and retrieves
-#' workload-specific properties when supported.
+#' Finds one item and retrieves the connection details that fabricQueryR can
+#' use. This is convenient when you know the item's name and do not need a
+#' table of every item in the workspace.
 #'
 #' @param item Item GUID, exact display name, or a one-row item record returned
-#'   by a discovery function.
+#'   by a discovery function. A display name must identify exactly one item of
+#'   the requested `type`; use a GUID or discovered row when names are
+#'   duplicated.
 #' @inheritParams fabric_items
 #'
-#' @return A `fabric_item` list containing common metadata, workload
-#'   properties, and derived connection targets.
+#' @return A `fabric_item` list. It contains common fields such as `id`,
+#'   `displayName`, `type`, and `workspaceId`, the nested workload
+#'   `properties`, and applicable connection targets such as
+#'   `sql_connection_string`, `livy_url`, or `query_service_uri`.
 #' @export
 fabric_item <- function(
   workspace,
@@ -271,13 +301,29 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 
 #' Typed Microsoft Fabric item discovery
 #'
-#' These helpers are equivalent to [fabric_items()] with an item type and
-#' `detail = TRUE`. They return workload-specific properties and derived
-#' connection targets.
+#' These shortcuts list one kind of item and include the detailed connection
+#' fields used by the matching query functions. They are equivalent to
+#' [fabric_items()] with a fixed item type and `detail = TRUE`.
+#'
+#' @section Choosing a helper:
+#' - `fabric_lakehouses()` and `fabric_warehouses()` find data stores that can
+#'   be queried through [fabric_sql_query()]; Lakehouses can also be accessed
+#'   through OneLake and Livy.
+#' - `fabric_sql_databases()` finds transactional Fabric SQL databases.
+#' - `fabric_semantic_models()` finds the business models queried with DAX via
+#'   [fabric_pbi_dax_query()].
+#' - `fabric_eventhouses()` and `fabric_kql_databases()` find real-time data
+#'   stores queried with [fabric_kql_query()].
+#' - `fabric_notebooks()` finds notebooks that can be run with
+#'   [fabric_job_run()].
+#' - `fabric_graphql_apis()` finds APIs configured in Fabric for use with
+#'   [fabric_graphql_query()].
 #'
 #' @inheritParams fabric_items
 #' @param ... Authentication and API arguments forwarded to [fabric_items()].
-#' @return A tibble of enriched Fabric items.
+#'   Do not supply `type` or `detail`; each helper sets those values.
+#' @return A tibble with one row per matching item, common item metadata, and
+#'   applicable connection fields. See [fabric_items()] for the column groups.
 #' @name fabric_typed_items
 NULL
 

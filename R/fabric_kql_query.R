@@ -1,12 +1,19 @@
 #' Query a Microsoft Fabric Eventhouse with KQL
 #'
-#' Executes a read-only Kusto Query Language (KQL) query against a Fabric
-#' Eventhouse query service and converts primary result tables to typed tibbles.
+#' Runs a read-only Kusto Query Language (KQL) query against a KQL database and
+#' converts the result to R objects. In Fabric, an Eventhouse is a container for
+#' one or more KQL databases designed for fast analysis of event, log,
+#' telemetry, and time-series data.
 #'
 #' @details
+#' The easiest input is a row from [fabric_kql_databases()], because it supplies
+#' both the database name and its **Query URI**. If copying a URI from Fabric,
+#' use **Query URI**, not **Ingestion URI**; this function queries existing data
+#' and does not load new data. The caller needs database access through a Fabric
+#' workspace role, Eventhouse sharing, or KQL database sharing.
+#'
 #' This function uses the Kusto v2 REST query endpoint and requests a token for
-#' `https://api.kusto.windows.net/.default`. The caller needs access to the KQL
-#' database, normally through a Fabric workspace role or KQL database sharing.
+#' `https://api.kusto.windows.net/.default`.
 #'
 #' Query parameters are sent through Kusto client request properties, never
 #' interpolated into `query`. Declare them in KQL with
@@ -25,18 +32,24 @@
 #' A query with no primary table returns an empty tibble.
 #' Management commands and ingestion endpoints are intentionally not supported.
 #'
-#' @param cluster Character query-service/cluster URI, or one Eventhouse or
+#' @param cluster Query-service URI, or one Eventhouse or
 #'   KQLDatabase record returned by [fabric_eventhouses()],
 #'   [fabric_kql_databases()], or [fabric_item()]. A KQLDatabase record also
-#'   supplies `database`.
-#' @param query A non-empty KQL query.
-#' @param database KQL database display name. Required for a direct URI or an
-#'   Eventhouse record; inferred from a KQLDatabase record.
+#'   supplies `database`. Despite the argument name, use Fabric's **Query URI**
+#'   here.
+#' @param query One non-empty, read-only KQL query, for example
+#'   `"Events | where Severity == 'Error' | take 100"`.
+#' @param database KQL database display name. Supply it with a copied Query URI
+#'   or an Eventhouse record; omit it when `cluster` is a KQLDatabase record.
 #' @param parameters Named list of values for parameters declared by
-#'   `declare query_parameters(...)` in `query`.
+#'   `declare query_parameters(...)` in `query`. Scalar R values become Kusto
+#'   scalar values; vectors and lists become `dynamic` values. Binding is safer
+#'   and easier to quote correctly than building KQL with `paste()`.
 #' @param request_properties Named list of Kusto client request options, such as
-#'   `servertimeout = "2m"` or `notruncation = TRUE`.
-#' @param timeout Positive request timeout in seconds.
+#'   `servertimeout = "2m"` or `notruncation = TRUE`. Most users can leave this
+#'   empty; these are server-side Kusto controls, not query parameters.
+#' @param timeout Positive client-side HTTP timeout in seconds. This is separate
+#'   from the Kusto `servertimeout` request property.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -48,8 +61,14 @@
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #'
 #' @return A typed tibble for one primary result, a `fabric_kql_tables` list for
-#'   multiple primary results, or an empty tibble when there is no primary
-#'   result.
+#'   multiple primary results (one named element per table), or an empty tibble
+#'   when there is no primary result. See Details for the KQL-to-R type mapping.
+#' @references
+#' [Access a KQL database and copy its Query URI](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/access-database-copy-uri)
+#'
+#' [Kusto query HTTP request and parameters](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric)
+#'
+#' [Kusto role-based access control](https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric)
 #' @export
 #'
 #' @examples

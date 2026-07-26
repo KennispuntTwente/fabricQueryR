@@ -7,7 +7,9 @@
 An \link[R6:R6Class]{R6::R6Class} generator.
 }
 \description{
-Instances are returned by \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
+Instances are returned by \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}. Use \verb{$status()} to
+refresh metadata, \verb{$wait()} to block until completion, \verb{$logs()}/\verb{$result()}
+to inspect the outcome, and \verb{$cancel()} to request cancellation.
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}

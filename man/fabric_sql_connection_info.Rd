@@ -13,27 +13,33 @@ fabric_sql_connection_info(
 )
 }
 \arguments{
-\item{server}{A character endpoint/connection string, or one Lakehouse,
-Warehouse, or SQL Database record returned by a discovery function.}
+\item{server}{A Fabric SQL server name, a complete connection string copied
+from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
+returned by a discovery function. A discovered row is usually simplest
+because it also supplies the database name.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
-catalog found in \code{server}. \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and \code{\link[=fabric_sql_query]{fabric_sql_query()}}
-infer complete connection strings and discovery records when this argument
-is omitted. A bare Warehouse or SQL analytics endpoint without a catalog
-connects to Fabric's \code{master} context.}
+database found in \code{server}. For a bare endpoint, supply the item database
+shown with its connection string in Fabric. If omitted, Warehouse and SQL
+analytics endpoints open Fabric's \code{master} context, which is useful for
+discovery but does not select the item's tables.}
 
-\item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
-the endpoint hostname.}
+\item{target_type}{Label for the endpoint kind. Keep \code{"auto"} unless the
+hostname is custom or ambiguous. The explicit choices distinguish a
+Lakehouse SQL analytics endpoint, Warehouse, transactional SQL Database,
+or another read-only SQL analytics endpoint; they do not convert one kind
+of endpoint into another.}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
-\code{server}; otherwise port 1433 is used.}
+\code{server}; otherwise the standard SQL port, 1433, is used.}
 }
 \value{
 A \code{fabric_sql_connection_info} list with \code{server}, \code{database},
-\code{port}, and \code{target_type}.
+\code{port}, \code{target_type}, and \code{source} (whether the input was text or a
+discovery record). No connection is opened.
 }
 \description{
-Normalizes a bare Fabric SQL endpoint, a complete portal connection string,
-or one enriched discovery record into connection information used by
-\code{\link[=fabric_sql_connect]{fabric_sql_connect()}}.
+Converts the different ways Fabric identifies a SQL endpoint into one
+consistent set of connection values. Most users can pass a discovered item
+directly to \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this function.
 }

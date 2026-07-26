@@ -19,20 +19,26 @@ fabric_items(
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
+returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
+a name is often easier for interactive use.}
 
-\item{type}{Optional Fabric item type, for example \code{"Lakehouse"} or
-\code{"Warehouse"}.}
+\item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
+\code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
+Fabric, so use the API spelling. Leave \code{NULL} to list all item types.}
 
-\item{detail}{Logical. Retrieve workload-specific properties for supported
-types.}
+\item{detail}{Logical. \code{FALSE} makes the fewest API calls and is sufficient
+for names and IDs. \code{TRUE} also retrieves supported workload properties,
+such as SQL connection strings and Livy or KQL endpoints, but is slower
+and can require additional permissions. The typed helpers below use
+\code{TRUE}.}
 
-\item{recursive}{Logical. Include items in nested folders.}
+\item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
+\code{FALSE} lists only items at the workspace root.}
 
-\item{tenant_id}{Entra tenant ID. Defaults to
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Entra application ID. Defaults to
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
@@ -46,20 +52,29 @@ Discovery uses the
 \verb{https://api.fabric.microsoft.com/.default} audience and requires
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 
-\item{api_base}{Fabric REST API base URL.}
+\item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
+different Fabric cloud or a test service.}
 }
 \value{
-A tibble with one row per item. \code{properties} and \code{raw} are list
-columns. Enriched rows also contain directly usable SQL, OneLake, DAX,
-Livy, KQL, and GraphQL fields where Fabric exposes or identifies them.
+A tibble with one row per item and common columns including \code{id},
+\code{displayName}, \code{type}, \code{workspaceId}, and \code{folderId}. With \code{detail = TRUE},
+applicable rows also contain ready-to-use \code{sql_connection_string},
+\verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
+\code{query_service_uri}, or \code{graphql_endpoint} values. Fields that do not apply
+to an item are \code{NA}; \code{properties} and \code{raw} retain nested service data.
 }
 \description{
-Lists items in a workspace with optional server-side item-type filtering.
-Set \code{detail = TRUE} to call each supported workload API and include
-workload-specific connection metadata.
+Lists the items stored in one workspace. In Fabric, an \emph{item} is a resource
+such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.
 }
 \details{
-Workload enrichment requires \code{Item.Read.All}/\code{Item.ReadWrite.All}
-or the corresponding workload-specific read scope in addition to access
-to the item.
+The caller needs at least access to the workspace (the Viewer role is
+sufficient for the core list operation). Workload enrichment additionally
+requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the corresponding
+workload-specific read scope and access to the item.
+}
+\references{
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items}{List items REST API}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview}{Fabric item management overview}
 }

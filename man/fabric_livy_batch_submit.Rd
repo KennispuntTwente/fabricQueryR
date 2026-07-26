@@ -36,34 +36,54 @@ fabric_livy_batch_submit(
 }
 \arguments{
 \item{livy_url}{A copied Livy connection URL, Livy API base URL, or enriched
-Lakehouse record.}
+Lakehouse record. Copy the batch-job URL from \strong{Lakehouse settings > Livy
+endpoint}, or use a row from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}.}
 
-\item{file}{ABFS URI of the application file to execute.}
+\item{file}{ABFS/ABFSS URI of the main Python, R, or Java/Scala application
+file. After uploading a script under a Lakehouse's \verb{Files/} area, its
+\strong{Properties} dialog can copy this path.}
 
-\item{name}{Optional job name.}
+\item{name}{Optional readable job name shown in Fabric monitoring.}
 
-\item{class_name}{Optional main class for Java/Scala applications.}
+\item{class_name}{Main class for a Java/Scala application; leave \code{NULL} for
+Python or R scripts.}
 
-\item{args, jars, files, py_files, archives}{Optional character vectors passed
-to Livy.}
+\item{args}{Optional character vector of command-line arguments passed to the
+application.}
 
-\item{conf}{Optional named list of Spark settings.}
+\item{jars}{Optional JAR dependency URIs.}
 
-\item{environment_id}{Optional Fabric Environment ID.}
+\item{files}{Optional supporting-file URIs copied to the job.}
 
-\item{target_lakehouse_id}{Optional Lakehouse ID set as
-\code{spark.targetLakehouse}.}
+\item{py_files}{Optional Python dependency URIs, such as \code{.py} or \code{.zip}
+files.}
 
-\item{tags}{Optional named list of string tags.}
+\item{archives}{Optional archive URIs that Spark should unpack.}
 
-\item{driver_memory, executor_memory}{Optional Spark memory strings.}
+\item{conf}{Optional named list of Spark settings or application-specific
+values.}
+
+\item{environment_id}{Optional GUID of a published Fabric Environment whose
+libraries and Spark settings should be used.}
+
+\item{target_lakehouse_id}{Optional Lakehouse GUID made available as
+\code{spark.targetLakehouse}. Use this when the application needs an explicit
+default Lakehouse context.}
+
+\item{tags}{Optional named list of string labels for monitoring.}
+
+\item{driver_memory, executor_memory}{Optional Spark memory values such as
+\code{"4g"}. Leave \code{NULL} to use Fabric defaults.}
 
 \item{driver_cores, executor_cores, num_executors}{Optional Spark resource
-counts.}
+counts. Larger values consume more capacity; leave \code{NULL} unless the
+workload has been sized deliberately.}
 
-\item{tenant_id}{Microsoft Entra tenant ID.}
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Microsoft Entra application ID.}
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
 token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
@@ -72,20 +92,32 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{verbose}{Logical. Emit lifecycle messages.}
+\item{verbose}{Logical. Show submission and lifecycle messages.}
 
-\item{wait}{Logical. Wait for the job to finish before returning.}
+\item{wait}{Logical. \code{FALSE} returns immediately so other R work can
+continue; \code{TRUE} waits for a terminal state before returning the same
+object.}
 
-\item{timeout, poll_interval}{Wait controls in seconds.}
+\item{timeout}{Maximum seconds to wait when \code{wait = TRUE}.}
+
+\item{poll_interval}{Seconds between status checks when waiting.}
 }
 \value{
-A \link{FabricLivyBatch}.
+A \link{FabricLivyBatch} R6 object. Inspect its \verb{$state}, call
+\verb{$result()} for structured metadata and logs, and call \verb{$wait()} later when
+submitting with \code{wait = FALSE}.
 }
 \description{
-Submits a Spark application stored in OneLake/ADLS and returns an R6 object
-for status, logs, result inspection, timeout handling, and cancellation.
+Starts a complete Spark application file stored in OneLake or ADLS. Unlike an
+interactive Livy session, a batch has its own application lifecycle and is a
+good fit for repeatable scripts and unattended processing.
 }
 \details{
+Fabric needs a workspace on supported Fabric capacity and a Lakehouse. The
+application file must already be accessible through an ABFS/ABFSS URI; this
+function does not upload a local script. Use \code{\link[=fabric_onelake_upload]{fabric_onelake_upload()}} first
+when needed.
+
 Requests use the
 \verb{https://api.fabric.microsoft.com/.default} audience. Delegated
 authentication requires the Livy Lakehouse execution/read and required

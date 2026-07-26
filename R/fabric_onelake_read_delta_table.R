@@ -1,18 +1,18 @@
 #' @title
-#' Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
+#' Read a Delta table from a Microsoft Fabric Lakehouse
 #'
 #' @description
-#' Authenticates to OneLake through the package's shared ADLS Gen2 transport,
-#' stages the Delta transaction log, resolves the requested snapshot, and then
-#' downloads only the data files active in that snapshot.
+#' Downloads a Lakehouse Delta table from OneLake and returns it as a tibble.
+#' Delta tables consist of Parquet data files plus a transaction log that says
+#' which files make up the current table. This function reads that log so that
+#' deleted or superseded files are not accidentally included.
 #'
 #' @details
 #' - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
 #'  filesystem. Within a Lakehouse item, Delta tables are stored under
 #'  `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
-#'  (schema-enabled lakehouse). The complete table is staged because Delta
-#'  checkpoints and table features are resolved before data files are
-#'  downloaded, so historical and tombstoned Parquet files are not staged.
+#'  (schema-enabled lakehouse). The function first stages the transaction log,
+#'  then downloads only the Parquet files active in the requested version.
 #' - Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
 #'  require reader protocol versions or reader features this package does not
 #'  implement are rejected before any data is returned.
@@ -21,55 +21,68 @@
 #'  physical columns are omitted, and partition values come from Delta add-file
 #'  actions rather than being inferred from directory names.
 #' - Schema-enabled lakehouses (the default for new lakehouses) organise
-#'  tables into named schemas. Supply the `schema` argument (e.g. `"dbo"`)
-#'  to read a table stored under a specific schema.
-#' - Ensure the account/principal you authenticate with has access via
-#'  **Lakehouse -> Manage OneLake data access** (or is a member of the workspace).
+#'  tables into named schemas. If the Fabric Lakehouse explorer shows the table
+#'  under a schema such as `dbo`, supply that name in `schema`.
+#' - Give the signed-in user or application Read access through a workspace role
+#'  or **Lakehouse > Manage OneLake data access**.
 #' - Tokens use the `https://storage.azure.com/.default` audience.
 #' - \pkg{AzureAuth} is used to acquire the token. Be wary of
 #'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
-#'  to clear cached tokens if you run into issues
+#'  if the wrong account or tenant is being reused.
+#' - The active files are downloaded locally and the final table is collected
+#'  into R memory. For very large tables, a SQL query that filters rows in
+#'  Fabric may transfer much less data.
 #'
-#' @param table_path Character. Table name or nested path (e.g.
-#'   `"Patienten"` or `"Patienten/patienten_hash"`). Only the last path
-#'   segment is used as the table directory under `Tables/`.
-#' @param workspace_name Character. Fabric workspace display name or GUID
-#'   (this is the ADLS filesystem/container name).
-#' @param lakehouse_name Character. Lakehouse item name, with or without the
-#'   `.Lakehouse` suffix (e.g. `"Lakehouse"` or `"Lakehouse.Lakehouse"`).
-#' @param schema Character or `NULL`. Lakehouse schema name (e.g. `"dbo"`).
+#' @param table_path Table name, for example `"PatientInfo"`. For backward
+#'   compatibility a nested string is accepted, but only its final segment is
+#'   used; select a schema with `schema`, not by adding it to `table_path`.
+#' @param workspace_name Fabric workspace display name or GUID, or a row from
+#'   [fabric_workspaces()]. GUIDs are safest for scheduled code and names are
+#'   convenient interactively.
+#' @param lakehouse_name Lakehouse item name or GUID, or a row from
+#'   [fabric_lakehouses()]. A character name may include the `.Lakehouse`
+#'   suffix; a discovered row avoids suffix and renaming ambiguity.
+#' @param schema Lakehouse schema name, for example `"dbo"`, or `NULL`.
 #'   When supplied, the table is resolved under `Tables/<schema>/<table>`
-#'   instead of `Tables/<table>`. Schema support requires a schema-enabled
-#'   Lakehouse (enabled by default for new lakehouses). Defaults to `NULL`
-#'   (no schema, for non-schema lakehouses). (Note: schema support through this
-#'   argument is experimental.)
-#' @param tenant_id Character. Entra ID (Azure AD) tenant GUID. Defaults to
-#'   `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
-#' @param client_id Character. App registration (client) ID. Defaults to
-#'   `Sys.getenv("FABRICQUERYR_CLIENT_ID")`, falling back to the Azure CLI app id
-#'   `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"` if not set.
+#'   instead of `Tables/<table>`. Use `NULL` for a non-schema Lakehouse. Schema
+#'   support in this reader is experimental.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Microsoft Entra application/client ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
 #'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
-#' @param version Optional non-negative integer Delta table version to read.
-#'   Defaults to the latest version.
-#' @param dest_dir Character or `NULL`. Local staging directory for the Delta
-#'   log and active snapshot files. If `NULL` (default), a temp dir is used and
-#'   cleaned up on exit.
-#' @param verbose Logical. Print progress messages via `{cli}`. Default `TRUE`.
-#' @param dfs_base Character. OneLake DFS endpoint. Default
-#'   `"https://onelake.dfs.fabric.microsoft.com"`.
+#' @param version Optional non-negative Delta transaction version. `NULL` reads
+#'   the latest snapshot; supplying a version provides time travel when that
+#'   version and its active files are still available in OneLake.
+#' @param dest_dir Local staging directory for the Delta log and active data
+#'   files, or `NULL`. The default creates a temporary directory and removes it
+#'   on exit. Supply a directory to retain the downloaded files for inspection
+#'   or reuse, and ensure it has enough free space.
+#' @param verbose Logical. Show download and read progress.
+#' @param dfs_base OneLake DFS endpoint. Keep the default unless using a
+#'   regional or workspace-private endpoint.
 #'
-#' @return A tibble with the table's current rows (0 rows if the table is empty).
+#' @return A tibble containing the rows and logical schema of the selected Delta
+#'   snapshot. An empty table returns a zero-row tibble. Delta/R type conversion
+#'   follows DuckDB; schema evolution is applied and partition values are
+#'   included as columns.
+#' @references
+#' [Connect to OneLake with ADLS APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+#'
+#' [Lakehouse schemas](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-schemas)
+#'
+#' [Delta Lake tables in OneLake](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
 #' @export
 #'
 #' @examples
 #' # Example is not executed since it requires configured credentials for Fabric
 #' \dontrun{
 #' df <- fabric_onelake_read_delta_table(
-#'   table_path     = "Patients/PatientInfo",
+#'   table_path     = "PatientInfo",
 #'   workspace_name = "PatientsWorkspace",
 #'   lakehouse_name = "Lakehouse.Lakehouse",
 #'   tenant_id      = Sys.getenv("FABRICQUERYR_TENANT_ID"),

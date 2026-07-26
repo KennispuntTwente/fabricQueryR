@@ -16,16 +16,18 @@ fabric_workspaces(
 )
 }
 \arguments{
-\item{roles}{Optional character vector of workspace roles used to filter the
-response.}
+\item{roles}{Optional workspace roles to include, such as \code{"Viewer"},
+\code{"Contributor"}, \code{"Member"}, or \code{"Admin"}. Leave \code{NULL} to return every
+visible workspace.}
 
-\item{prefer_workspace_endpoints}{Logical. Ask Fabric to include a
-workspace-specific API endpoint, when available.}
+\item{prefer_workspace_endpoints}{Logical. Set to \code{TRUE} to ask Fabric for a
+workspace-specific API endpoint, which can be needed with workspace-level
+private links. Most users should keep the default, \code{FALSE}.}
 
-\item{tenant_id}{Entra tenant ID. Defaults to
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Entra application ID. Defaults to
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
@@ -39,13 +41,22 @@ Discovery uses the
 \verb{https://api.fabric.microsoft.com/.default} audience and requires
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 
-\item{api_base}{Fabric REST API base URL.}
+\item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
+different Fabric cloud or a test service.}
 }
 \value{
-A tibble with one row per workspace. Nested Fabric fields are kept
-in list columns.
+A tibble with one row per workspace. Important columns include \code{id}
+(useful for later API calls), \code{displayName}, \code{capacityRegion}, and
+\code{apiEndpoint}. \code{tags} and the complete service response in \code{raw} are list
+columns.
 }
 \description{
-Lists every workspace visible to the authenticated principal, following all
-Fabric continuation pages.
+Lists the Fabric workspaces the signed-in user or application can access. A
+workspace is the top-level container that holds Lakehouses, Warehouses,
+semantic models, notebooks, and other Fabric items.
+}
+\references{
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces}{List workspaces REST API}
+
+\href{https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces}{Workspace roles}
 }

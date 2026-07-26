@@ -4,9 +4,36 @@
 \name{fabricQueryR-package}
 \alias{fabricQueryR}
 \alias{fabricQueryR-package}
-\title{fabricQueryR: Query Data in 'Microsoft Fabric'}
+\title{Work with Microsoft Fabric from R}
 \description{
-Discover workspaces, items, and workload endpoints in 'Microsoft Fabric'. Provides helpers to open parameterized 'DBI' connections to 'SQL' endpoints of 'Lakehouse', 'Data Warehouse', and 'SQL Database' items; submit 'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft Fabric' and 'Power BI'; list, inspect, download, upload, and delete files in 'OneLake' ('Azure Data Lake Storage Gen2'); read 'Delta Lake' tables stored in 'OneLake'; execute 'Kusto Query Language' ('KQL') queries against 'Eventhouse' databases; call user-configured 'GraphQL' APIs over Fabric data; and execute 'Spark' code via the 'Livy API'. On-demand item jobs can be submitted, monitored, waited on, and cancelled through the Fabric Job Scheduler APIs.
+fabricQueryR provides R-friendly access to common Microsoft Fabric data
+interfaces. It can discover the workspaces and items available to you, then
+pass those discovered records directly to query and file functions so that
+you rarely need to copy GUIDs or endpoints by hand.
+}
+\section{Where to start}{
+
+\itemize{
+\item Use \code{\link[=fabric_workspaces]{fabric_workspaces()}} and the typed discovery helpers, such as
+\code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}, to find data.
+\item Use \code{\link[=fabric_sql_query]{fabric_sql_query()}} for T-SQL against a Warehouse, SQL Database, or
+Lakehouse SQL analytics endpoint.
+\item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
+\code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data, and
+\code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item.
+\item Use \link{fabric_onelake_files} for ordinary files,
+\code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} for Delta tables, and the Livy helpers
+when Spark processing is required.
+\item See \code{vignette("authentication", package = "fabricQueryR")} for interactive
+and unattended authentication setup, required token audiences, and Fabric
+permissions.
+}
+}
+
+\references{
+\href{https://learn.microsoft.com/en-us/fabric/fundamentals/microsoft-fabric-overview}{What is Microsoft Fabric?}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/}{Microsoft Fabric REST API documentation}
 }
 \seealso{
 Useful links:

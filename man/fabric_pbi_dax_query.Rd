@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_pbi_dax_query.R
 \name{fabric_pbi_dax_query}
 \alias{fabric_pbi_dax_query}
-\title{Query a Microsoft Fabric/Power Bi semantic model with DAX}
+\title{Query a Microsoft Fabric/Power BI semantic model with DAX}
 \usage{
 fabric_pbi_dax_query(
   connstr = NULL,
@@ -20,17 +20,17 @@ fabric_pbi_dax_query(
 )
 }
 \arguments{
-\item{connstr}{Optional character Power BI connection string or one
+\item{connstr}{Optional Power BI connection string or one
 SemanticModel record returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}} or
 \code{\link[=fabric_item]{fabric_item()}}. For a discovered record, workspace and dataset IDs are
-used directly.
-A character connection string can be, e.g.
+used directly. A character connection string can be, for example,
 \code{"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"}.
-The function accepts either \verb{Data Source=} and \verb{Initial Catalog=} parts, or a
-bare \verb{powerbi://...} for the data source plus a \verb{Dataset=}/\verb{Catalog=}/\verb{Initial Catalog=} key
-(see details). May be omitted when \code{dataset_id} is supplied.}
+It may contain \verb{Data Source=} and \verb{Initial Catalog=} parts, or a bare
+\verb{powerbi://...} source plus a \verb{Dataset=}, \verb{Catalog=}, or
+\verb{Initial Catalog=} key. Omit it when \code{dataset_id} is supplied.}
 
-\item{dax}{Character scalar with a valid DAX query (see example).}
+\item{dax}{One DAX query, normally beginning with \code{EVALUATE}. DAX table
+expressions determine which rows and columns are returned.}
 
 \item{workspace_id}{Optional workspace GUID. Use with \code{dataset_id} to avoid
 name-based discovery. If omitted with \code{dataset_id}, the unscoped dataset
@@ -39,12 +39,11 @@ endpoint is used.}
 \item{dataset_id}{Optional semantic model/dataset GUID. When supplied, no
 connection-string name lookup is performed.}
 
-\item{tenant_id}{Microsoft Azure tenant ID. Defaults to \code{Sys.getenv("FABRICQUERYR_TENANT_ID")} if missing.}
+\item{tenant_id}{Microsoft Entra tenant ID. Defaults to
+\code{FABRICQUERYR_TENANT_ID}.}
 
-\item{client_id}{Microsoft Azure application (client) ID used to authenticate. Defaults to
-\code{Sys.getenv("FABRICQUERYR_CLIENT_ID")}. You may be able to use the Azure CLI app id
-\code{"04b07795-8ddb-461a-bbee-02f9e1bf7b46"}, but may want to make your own
-app registration in your tenant for better control.}
+\item{client_id}{Microsoft Entra application/client ID. Defaults to
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
 token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
@@ -53,33 +52,44 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
 
-\item{include_nulls}{Logical; pass-through to the REST serializer setting. Defaults to TRUE.
-If TRUE, null values are included in the response; if FALSE, they are omitted.}
+\item{include_nulls}{Logical. With \code{TRUE}, Power BI includes properties whose
+value is blank/null. With \code{FALSE}, those properties can be absent from a
+returned row; retaining \code{TRUE} usually gives a more consistent tibble.}
 
-\item{api_base}{API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
-'myorg' is appropriate for most use cases and does not necessarily need to be changed.}
+\item{api_base}{Power BI REST API base URL. The default
+\code{"https://api.powerbi.com/v1.0/myorg"} is correct for the commercial cloud;
+change it only for another Microsoft cloud or a test service.}
 
-\item{impersonated_user}{Optional user principal name sent as
-\code{impersonatedUserName} for supported row-level security scenarios.}
+\item{impersonated_user}{Optional user principal name, such as
+\code{"analyst@example.com"}, sent as \code{impersonatedUserName} for supported
+row-level-security scenarios. Leave \code{NULL} for the normal identity context.}
 }
 \value{
-A tibble with the query result (0 rows if the DAX query returned no rows).
+A tibble containing the single result table. Power BI's qualified,
+bracketed column names are preserved. An empty result becomes a zero-row
+tibble; API errors and partial/truncated results raise an error rather than
+silently returning incomplete data.
 }
 \description{
-High-level helper that authenticates against Azure AD, resolves the
-workspace & dataset from a Power BI (Microsoft Fabric) XMLA/connection string, executes a DAX
-statement via the Power BI REST API, validates the complete response, and
-returns a tibble with the resulting data.
+Runs a Data Analysis Expressions (DAX) query against a published semantic
+model and returns its result as a tibble. A semantic model is the
+report-ready layer behind Power BI reports: it contains tables,
+relationships, measures, and business calculations. Use DAX here, rather
+than SQL intended for the underlying Lakehouse or Warehouse.
 }
 \details{
 \itemize{
-\item In Microsoft Fabric/Power BI, you can find and copy the connection string by going to
-a 'Semantic model' item, then go to 'File' -> 'Settings' -> 'Server settings'.
-Ensure that the account you use to authenticate has access to the workspace,
-or has been granted 'Build' permissions on the dataset (via sharing).
+\item The easiest input is a row from \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}. You can instead
+supply \code{workspace_id} and \code{dataset_id} (both GUIDs), or a Power BI
+connection string containing the workspace and semantic-model names. IDs
+avoid name lookup and are best for scheduled code.
+\item In Fabric/Power BI, open the semantic model's settings to find its server
+or XMLA connection information. The signed-in identity needs Read and Build
+permission on the semantic model, either through its workspace role or
+through \strong{Manage permissions} on the model.
 \item \pkg{AzureAuth} is used to acquire the token. Be wary of
 caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
-to clear cached tokens if you run into issues
+to clear cached tokens if the wrong account or tenant is being reused.
 \item Requests use the Power BI audience
 \verb{https://analysis.windows.net/powerbi/api/.default} and require
 \code{Dataset.Read.All} (or \code{Dataset.ReadWrite.All}) plus dataset Read and Build
@@ -109,4 +119,8 @@ dplyr::glimpse(df)
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries}{Power BI Execute Queries REST API}
+
+\href{https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions}{Semantic model permissions}
+
+\href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-integration#semantic-model-execute-queries-rest-api}{Semantic Model Execute Queries tenant setting}
 }
