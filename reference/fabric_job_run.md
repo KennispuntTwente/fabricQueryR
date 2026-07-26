@@ -134,7 +134,8 @@ fabric_job_cancel(
 
 - session_tag:
 
-  Optional non-empty Spark high-concurrency session tag.
+  Optional Spark high-concurrency session tag containing only letters,
+  numbers, and underscores.
 
 - tenant_id:
 
