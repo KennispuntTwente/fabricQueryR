@@ -77,7 +77,7 @@ for full function documentation and more examples.
 
 Connect to a Warehouse, SQL Database, or a Lakehouse’s read-only SQL
 analytics endpoint. The result is a standard DBI connection, so it works
-with familiar R database tools such as DBI and dbplyr.
+with familiar R database packages such as DBI and dbplyr.
 
 ``` r
 
@@ -102,8 +102,8 @@ for setup and trade-offs.
 
 ### 2. Query a semantic model with DAX
 
-Run a DAX query against the report-ready tables and measures in a Fabric
-or Power BI semantic model. The result is returned as a tibble.
+Run a DAX query against tables and measures in a Fabric or Power BI
+semantic model. The result is returned as a tibble.
 
 ``` r
 
@@ -118,23 +118,19 @@ permissions on the semantic model.
 
 ### 3. Run Spark code through Livy
 
-Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric. Use
-[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
-for one statement,
-[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
-when several statements should share state, or
-[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
-for a complete application file.
+Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric, and get the
+result in your local R session.
 
 ``` r
 
+# Run a single SparkR statement through Livy
 livy_sparkr_result <- fabric_livy_query(
   livy_url = lakehouse,
   kind = "sparkr",
   code = "print(1 + 2)"
 )
 
-# Reuse variables and Spark state across statements
+# Run a Livy session for multiple statements that share state
 livy <- fabric_livy_session(lakehouse)
 livy$wait()
 livy$run("shared_value = 40", kind = "pyspark")
@@ -153,16 +149,14 @@ as above.
 ### 4. Read a Lakehouse Delta table
 
 Read a Delta table stored in OneLake and return its current rows as a
-tibble. For a schema-enabled Lakehouse, also provide a schema such as
-`"dbo"`.
+tibble.
 
 ``` r
 
 df_onelake <- fabric_onelake_read_delta_table(
   table_path = "Customers",
   workspace_name = workspace,
-  lakehouse_name = lakehouse,
-  schema = "dbo"
+  lakehouse_name = lakehouse
 )
 ```
 
@@ -173,8 +167,8 @@ tables.
 
 ### 5. Work with OneLake files
 
-List, inspect, download, upload, or delete ordinary files in OneLake.
-Paths in a Lakehouse usually start with `Files/`.
+List, inspect, download, upload, or delete files in OneLake. Paths in a
+Lakehouse usually start with `Files/`.
 
 ``` r
 
@@ -193,14 +187,11 @@ fabric_onelake_download(
 )
 ```
 
-Use the Delta table reader above for tables under `Tables/`; changing
-individual files there would bypass the Delta transaction log.
-
 ### 6. Query Eventhouse data with KQL
 
 Run a KQL query against a KQL database in an Eventhouse. A single result
-table is returned as a tibble, with common Kusto data types converted to
-useful R types.
+table is returned as a tibble, with Kusto data types converted to R data
+types.
 
 ``` r
 
@@ -213,9 +204,6 @@ df_kql <- fabric_kql_query(
   parameters = list(selected_type = "Warning")
 )
 ```
-
-Using `parameters` keeps changing values separate from the KQL text and
-avoids manual quoting.
 
 ### 7. Query a Fabric GraphQL API
 
@@ -242,9 +230,6 @@ graphql_result$data$customers$items
 graphql_result$errors
 ```
 
-Create the API item, connect its data source, and choose which objects
-to expose in Fabric before querying it from R.
-
 ### 8. Run and monitor Fabric jobs
 
 Start an on-demand Notebook, data pipeline, or Spark job definition,
@@ -262,9 +247,6 @@ result <- fabric_job_wait(job, timeout = 900)
 result$status
 result$exit_value
 ```
-
-Use Fabric’s scheduler rather than these functions when you need a
-recurring timetable.
 
 ## Background
 

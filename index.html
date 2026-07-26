@@ -103,7 +103,7 @@
 <div class="section level3">
 <h3 id="id_1-connect-to-fabric-sql">1. Connect to Fabric SQL<a class="anchor" aria-label="anchor" href="#id_1-connect-to-fabric-sql"></a>
 </h3>
-<p>Connect to a Warehouse, SQL Database, or a Lakehouse’s read-only SQL analytics endpoint. The result is a standard DBI connection, so it works with familiar R database tools such as DBI and dbplyr.</p>
+<p>Connect to a Warehouse, SQL Database, or a Lakehouse’s read-only SQL analytics endpoint. The result is a standard DBI connection, so it works with familiar R database packages such as DBI and dbplyr.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
 <span></span>
@@ -121,7 +121,7 @@
 <div class="section level3">
 <h3 id="id_2-query-a-semantic-model-with-dax">2. Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#id_2-query-a-semantic-model-with-dax"></a>
 </h3>
-<p>Run a DAX query against the report-ready tables and measures in a Fabric or Power BI semantic model. The result is returned as a tibble.</p>
+<p>Run a DAX query against tables and measures in a Fabric or Power BI semantic model. The result is returned as a tibble.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df_dax</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
 <span>  connstr <span class="op">=</span> <span class="va">semantic_model</span>,</span>
@@ -132,15 +132,16 @@
 <div class="section level3">
 <h3 id="id_3-run-spark-code-through-livy">3. Run Spark code through Livy<a class="anchor" aria-label="anchor" href="#id_3-run-spark-code-through-livy"></a>
 </h3>
-<p>Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric. Use <code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code> for one statement, <code><a href="reference/fabric_livy_session.html">fabric_livy_session()</a></code> when several statements should share state, or <code><a href="reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code> for a complete application file.</p>
+<p>Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric, and get the result in your local R session.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">livy_sparkr_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="co"># Run a single SparkR statement through Livy</span></span>
+<span><span class="va">livy_sparkr_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
 <span>  livy_url <span class="op">=</span> <span class="va">lakehouse</span>,</span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Reuse variables and Spark state across statements</span></span>
+<span><span class="co"># Run a Livy session for multiple statements that share state</span></span>
 <span><span class="va">livy</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_session.html">fabric_livy_session</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
 <span><span class="va">livy</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">livy</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span><span class="st">"shared_value = 40"</span>, kind <span class="op">=</span> <span class="st">"pyspark"</span><span class="op">)</span></span>
@@ -154,20 +155,19 @@
 <div class="section level3">
 <h3 id="id_4-read-a-lakehouse-delta-table">4. Read a Lakehouse Delta table<a class="anchor" aria-label="anchor" href="#id_4-read-a-lakehouse-delta-table"></a>
 </h3>
-<p>Read a Delta table stored in OneLake and return its current rows as a tibble. For a schema-enabled Lakehouse, also provide a schema such as <code>"dbo"</code>.</p>
+<p>Read a Delta table stored in OneLake and return its current rows as a tibble.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df_onelake</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table</a></span><span class="op">(</span></span>
 <span>  table_path <span class="op">=</span> <span class="st">"Customers"</span>,</span>
 <span>  workspace_name <span class="op">=</span> <span class="va">workspace</span>,</span>
-<span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span>,</span>
-<span>  schema <span class="op">=</span> <span class="st">"dbo"</span></span>
+<span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The account needs access through the workspace or <strong>Lakehouse &gt; Manage OneLake data access</strong>. This function downloads the active table files locally, so a filtered SQL query can be more efficient for very large tables.</p>
 </div>
 <div class="section level3">
 <h3 id="id_5-work-with-onelake-files">5. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_5-work-with-onelake-files"></a>
 </h3>
-<p>List, inspect, download, upload, or delete ordinary files in OneLake. Paths in a Lakehouse usually start with <code>Files/</code>.</p>
+<p>List, inspect, download, upload, or delete files in OneLake. Paths in a Lakehouse usually start with <code>Files/</code>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_files.html">fabric_onelake_list</a></span><span class="op">(</span></span>
 <span>  <span class="va">workspace</span>,</span>
@@ -182,12 +182,11 @@
 <span>  path <span class="op">=</span> <span class="st">"Files/fixtures/basic.csv"</span>,</span>
 <span>  dest <span class="op">=</span> <span class="st">"basic.csv"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Use the Delta table reader above for tables under <code>Tables/</code>; changing individual files there would bypass the Delta transaction log.</p>
 </div>
 <div class="section level3">
 <h3 id="id_6-query-eventhouse-data-with-kql">6. Query Eventhouse data with KQL<a class="anchor" aria-label="anchor" href="#id_6-query-eventhouse-data-with-kql"></a>
 </h3>
-<p>Run a KQL query against a KQL database in an Eventhouse. A single result table is returned as a tibble, with common Kusto data types converted to useful R types.</p>
+<p>Run a KQL query against a KQL database in an Eventhouse. A single result table is returned as a tibble, with Kusto data types converted to R data types.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df_kql</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">kql_database</span>,</span>
@@ -197,7 +196,6 @@
 <span>  <span class="op">)</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>selected_type <span class="op">=</span> <span class="st">"Warning"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Using <code>parameters</code> keeps changing values separate from the KQL text and avoids manual quoting.</p>
 </div>
 <div class="section level3">
 <h3 id="id_7-query-a-fabric-graphql-api">7. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_7-query-a-fabric-graphql-api"></a>
@@ -219,7 +217,6 @@
 <span></span>
 <span><span class="va">graphql_result</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">customers</span><span class="op">$</span><span class="va">items</span></span>
 <span><span class="va">graphql_result</span><span class="op">$</span><span class="va">errors</span></span></code></pre></div>
-<p>Create the API item, connect its data source, and choose which objects to expose in Fabric before querying it from R.</p>
 </div>
 <div class="section level3">
 <h3 id="id_8-run-and-monitor-fabric-jobs">8. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_8-run-and-monitor-fabric-jobs"></a>
@@ -235,7 +232,6 @@
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="va">job</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">exit_value</span></span></code></pre></div>
-<p>Use Fabric’s scheduler rather than these functions when you need a recurring timetable.</p>
 </div>
 </div>
 <div class="section level2">
