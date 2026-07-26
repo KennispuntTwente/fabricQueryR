@@ -126,6 +126,19 @@ test_that("SQL connections enforce Fabric ODBC options", {
   expect_equal(captured$attributes$azure_token, "sql-token")
 })
 
+test_that("SQL timeouts are not constrained by the TCP port range", {
+  expect_silent(fabric_sql_timeout(86400))
+  expect_silent(fabric_sql_timeout(0))
+  for (value in list(-1, 1.5, Inf, NA_real_, "30", c(1, 2))) {
+    expect_error(
+      fabric_sql_timeout(value),
+      "non-negative whole number",
+      fixed = TRUE,
+      class = "fabric_sql_target_error"
+    )
+  }
+})
+
 test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
   captured <- NULL
   connection <- structure(list(), class = "test_connection")

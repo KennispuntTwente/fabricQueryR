@@ -47,6 +47,21 @@ test_that("pbi_parse_connstr rejects incomplete and non-Power-BI strings", {
   )
 })
 
+test_that("fabric_pbi_dax_query validates include_nulls strictly", {
+  for (value in list(NA, 1, "true", logical(), c(TRUE, FALSE))) {
+    expect_error(
+      fabric_pbi_dax_query(
+        dax = "EVALUATE ROW(\"value\", 1)",
+        dataset_id = "dataset-id",
+        include_nulls = value,
+        token = "token"
+      ),
+      "include_nulls must be TRUE or FALSE",
+      fixed = TRUE
+    )
+  }
+})
+
 
 # pbi_resolve_ids_from_connstr() ------------------------------------------
 

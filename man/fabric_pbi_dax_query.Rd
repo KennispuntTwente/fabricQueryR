@@ -58,7 +58,9 @@ returned row; retaining \code{TRUE} usually gives a more consistent tibble.}
 
 \item{api_base}{Power BI REST API base URL. The default
 \code{"https://api.powerbi.com/v1.0/myorg"} is correct for the commercial cloud;
-change it only for another Microsoft cloud or a test service.}
+override it only for a test service that implements the same endpoint and
+authentication contract. Sovereign Microsoft clouds are not currently
+supported by this helper.}
 
 \item{impersonated_user}{Optional user principal name, such as
 \code{"analyst@example.com"}, sent as \code{impersonatedUserName} for supported

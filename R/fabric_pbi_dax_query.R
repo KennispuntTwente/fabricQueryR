@@ -60,7 +60,9 @@
 #'   returned row; retaining `TRUE` usually gives a more consistent tibble.
 #' @param api_base Power BI REST API base URL. The default
 #'   `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial cloud;
-#'   change it only for another Microsoft cloud or a test service.
+#'   override it only for a test service that implements the same endpoint and
+#'   authentication contract. Sovereign Microsoft clouds are not currently
+#'   supported by this helper.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
 #'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
 #'   token or starts its normal interactive login flow.
@@ -114,6 +116,13 @@ fabric_pbi_dax_query <- function(
 ) {
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
     rlang::abort("dax must be one non-empty string")
+  }
+  if (
+    !is.logical(include_nulls) ||
+      length(include_nulls) != 1L ||
+      is.na(include_nulls)
+  ) {
+    rlang::abort("include_nulls must be TRUE or FALSE")
   }
   discovered <- fabric_as_record(connstr)
   if (!is.null(discovered)) {
@@ -367,7 +376,7 @@ pbi_execute_dax <- function(
 
   body <- list(
     queries = list(list(query = dax)),
-    serializerSettings = list(includeNulls = isTRUE(include_nulls))
+    serializerSettings = list(includeNulls = include_nulls)
   )
   if (!is.null(impersonated_user)) {
     body$impersonatedUserName <- impersonated_user

@@ -79,8 +79,8 @@ default, \code{"yes"}, for Fabric.}
 without validating its trust chain. Keep the secure default, \code{"no"},
 unless diagnosing a controlled test environment.}
 
-\item{timeout}{Non-negative login/connect timeout in seconds; \code{0} lets the
-driver use an unlimited or driver-specific timeout.}
+\item{timeout}{Non-negative whole-number login/connect timeout in seconds;
+\code{0} lets the driver use an unlimited or driver-specific timeout.}
 
 \item{read_only}{Logical. \code{TRUE} sends \code{ApplicationIntent=ReadOnly} as a
 connection hint; it is not a substitute for Fabric/SQL permissions.}

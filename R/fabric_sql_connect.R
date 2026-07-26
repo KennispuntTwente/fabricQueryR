@@ -177,8 +177,8 @@ fabric_sql_connection_info <- function(
 #' @param trust_server_certificate Whether to accept a server certificate
 #'   without validating its trust chain. Keep the secure default, `"no"`,
 #'   unless diagnosing a controlled test environment.
-#' @param timeout Non-negative login/connect timeout in seconds; `0` lets the
-#'   driver use an unlimited or driver-specific timeout.
+#' @param timeout Non-negative whole-number login/connect timeout in seconds;
+#'   `0` lets the driver use an unlimited or driver-specific timeout.
 #' @param read_only Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a
 #'   connection hint; it is not a substitute for Fabric/SQL permissions.
 #' @param max_tries Positive maximum number of attempts for transient Fabric SQL
@@ -266,7 +266,7 @@ fabric_sql_connect <- function(
   if (!is.logical(read_only) || length(read_only) != 1L || is.na(read_only)) {
     rlang::abort("read_only must be TRUE or FALSE")
   }
-  fabric_sql_port(timeout, "timeout", allow_zero = TRUE)
+  fabric_sql_timeout(timeout)
   fabric_sql_retry_settings(max_tries, retry_delay)
   fabric_sql_require_backend(backend)
   adbc_driver_object <- NULL
@@ -992,6 +992,23 @@ fabric_sql_port <- function(
         argument,
         minimum
       ),
+      class = "fabric_sql_target_error"
+    )
+  }
+  invisible(value)
+}
+
+fabric_sql_timeout <- function(value) {
+  if (
+    length(value) != 1L ||
+      is.na(value) ||
+      !is.numeric(value) ||
+      !is.finite(value) ||
+      value < 0 ||
+      value != floor(value)
+  ) {
+    rlang::abort(
+      "timeout must be one non-negative whole number",
       class = "fabric_sql_target_error"
     )
   }
