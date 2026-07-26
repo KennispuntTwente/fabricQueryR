@@ -8,7 +8,11 @@ from urllib.parse import quote
 
 from .credentials import get_credential
 from .fabric_api import FabricApi
-from .graphql_api import GRAPHQL_API_NAME, GRAPHQL_ROOT_FIELD
+from .graphql_api import (
+    GRAPHQL_API_NAME,
+    GRAPHQL_CREATE_FIELD,
+    GRAPHQL_ROOT_FIELD,
+)
 from .manifest import SandboxManifest
 from .power_bi_api import PowerBiApi, SEMANTIC_MODEL_NAME
 from .settings import SandboxSettings
@@ -274,6 +278,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     f"{workspace_id}/graphqlapis/{graphql_api_item['id']}/graphql"
                 ),
                 "root_field": GRAPHQL_ROOT_FIELD,
+                "create_field": GRAPHQL_CREATE_FIELD,
             },
         },
     )

@@ -250,12 +250,6 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         ),
     )
     monkeypatch.setattr(
-        "fabricqueryr_sandbox.seed._wait_for_lakehouse_sql_endpoint",
-        lambda api, workspace_id, lakehouse_id: {
-            "properties": {"sqlEndpointProperties": {"id": "sql-endpoint-id"}}
-        },
-    )
-    monkeypatch.setattr(
         "fabricqueryr_sandbox.seed._wait_for_kql_properties",
         lambda api, workspace_id, item_id, *, item_type: {
             "properties": {"queryServiceUri": "https://kusto.test"}
@@ -299,17 +293,13 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "SeedFixtures-id",
         "TestLakehouse-id",
     ) in calls
-    assert (
-        "wait_for_sql_table",
-        "workspace-id",
-        "sql-endpoint-id",
-        "dbo.fabricqueryr_basic",
-    ) in calls
     graphql_call = next(call for call in calls if call[0] == "update_graphql")
     assert graphql_call[1:3] == ("workspace-id", "TestGraphQL-id")
     datasource = graphql_call[3]["datasources"][0]
     assert datasource["sourceWorkspaceId"] == "workspace-id"
-    assert datasource["sourceItemId"] == "sql-endpoint-id"
+    assert datasource["sourceItemId"] == "TestWarehouse-id"
+    assert datasource["sourceType"] == "Warehouse"
+    assert datasource["objects"][0]["actions"]["Create"] == "Enabled"
     assert (
         "wait_for_graphql",
         "workspace-id",
@@ -327,6 +317,9 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "TestWarehouse",
         "token-for-https://database.windows.net/.default",
     ) in calls
+    assert calls.index(graphql_call) > max(
+        index for index, call in enumerate(calls) if call[0] == "seed_sql"
+    )
     assert (
         "seed_sql",
         (

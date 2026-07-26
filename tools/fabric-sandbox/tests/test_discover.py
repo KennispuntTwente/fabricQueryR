@@ -211,6 +211,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
             "graphqlapis/TestGraphQL-id/graphql"
         ),
         "root_field": "fabricqueryr_basics",
+        "create_field": "createfabricqueryr_basic",
     }
     lakehouse = manifest.items["TestLakehouse"]
     assert lakehouse["tables"] == {

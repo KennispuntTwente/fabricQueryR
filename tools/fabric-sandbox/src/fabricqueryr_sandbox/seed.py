@@ -6,14 +6,12 @@ from azure.storage.filedatalake import DataLakeServiceClient
 from .credentials import get_credential
 from .discover import (
     _wait_for_kql_properties,
-    _wait_for_lakehouse_sql_endpoint,
     _wait_for_sql_properties,
 )
 from .fabric_api import FabricApi
 from .graphql_api import (
     GRAPHQL_API_NAME,
     GRAPHQL_ROOT_FIELD,
-    GRAPHQL_SOURCE_OBJECT,
     graphql_definition,
 )
 from .kusto_api import KustoApi, SEED_TABLE
@@ -108,37 +106,6 @@ def seed(settings: SandboxSettings) -> None:
             f"seed notebook completed: {job.get('id')} "
             f"exitValue={job.get('exitValue')!r}"
         )
-        lakehouse_properties = _wait_for_lakehouse_sql_endpoint(
-            api,
-            workspace_id,
-            lakehouse["id"],
-        )["properties"]
-        sql_endpoint_id = lakehouse_properties["sqlEndpointProperties"]["id"]
-        sync_status = api.wait_for_sql_endpoint_table(
-            workspace_id,
-            sql_endpoint_id,
-            GRAPHQL_SOURCE_OBJECT,
-        )
-        print(
-            "SQL endpoint fixture ready: "
-            f"{sync_status.get('tableName')} "
-            f"status={sync_status.get('status')!r}"
-        )
-        api.update_graphql_definition(
-            workspace_id,
-            graphql_api["id"],
-            graphql_definition(workspace_id, sql_endpoint_id),
-        )
-        ready_field = api.wait_for_graphql_root_field(
-            workspace_id,
-            graphql_api["id"],
-            GRAPHQL_ROOT_FIELD,
-        )
-        print(
-            "GraphQL fixture ready: "
-            f"{graphql_api['displayName']}.{ready_field['name']}"
-        )
-
     sql_token = get_credential().get_token(SQL_AUDIENCE).token
     sql_targets = (
         (
@@ -155,6 +122,22 @@ def seed(settings: SandboxSettings) -> None:
     for display_name, connection_string, database_name in sql_targets:
         seed_sql_fixture(connection_string, database_name, sql_token)
         print(f"SQL fixture seeded: {display_name}.dbo.fabricqueryr_sql_types")
+
+    with FabricApi(get_credential()) as api:
+        api.update_graphql_definition(
+            workspace_id,
+            graphql_api["id"],
+            graphql_definition(workspace_id, warehouse_item["id"]),
+        )
+        ready_field = api.wait_for_graphql_root_field(
+            workspace_id,
+            graphql_api["id"],
+            GRAPHQL_ROOT_FIELD,
+        )
+        print(
+            "GraphQL fixture ready: "
+            f"{graphql_api['displayName']}.{ready_field['name']}"
+        )
 
     query_service_uri = kql_database.get("properties", {}).get("queryServiceUri")
     if not query_service_uri:

@@ -8,14 +8,15 @@ from typing import Any
 GRAPHQL_API_NAME = "TestGraphQL"
 GRAPHQL_TYPE = "fabricqueryr_basic"
 GRAPHQL_ROOT_FIELD = "fabricqueryr_basics"
-GRAPHQL_SOURCE_OBJECT = "dbo.fabricqueryr_basic"
+GRAPHQL_CREATE_FIELD = "createfabricqueryr_basic"
+GRAPHQL_SOURCE_OBJECT = "dbo.fabricqueryr_sql_types"
 
 
 def graphql_definition(
     workspace_id: str,
-    sql_endpoint_id: str,
+    warehouse_id: str,
 ) -> dict[str, Any]:
-    """Build the supported public definition over the seeded lakehouse table."""
+    """Build the public definition over the writable Warehouse fixture."""
     fields = {
         "id": "id",
         "name": "name",
@@ -30,15 +31,18 @@ def graphql_definition(
         ),
         "datasources": [
             {
-                "sourceItemId": sql_endpoint_id,
+                "sourceItemId": warehouse_id,
                 "sourceWorkspaceId": workspace_id,
-                "sourceType": "SqlAnalyticsEndpoint",
+                "sourceType": "Warehouse",
                 "objects": [
                     {
                         "graphqlType": GRAPHQL_TYPE,
                         "sourceObject": GRAPHQL_SOURCE_OBJECT,
                         "sourceObjectType": "Table",
-                        "actions": {"Query": "Enabled"},
+                        "actions": {
+                            "Query": "Enabled",
+                            "Create": "Enabled",
+                        },
                         "fieldMappings": fields,
                         "relationships": [],
                     }

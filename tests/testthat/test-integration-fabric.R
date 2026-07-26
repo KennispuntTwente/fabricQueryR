@@ -351,6 +351,64 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
   )
 })
 
+test_that("Fabric GraphQL executes a live mutation", {
+  manifest <- fabric_test_manifest()
+  api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  token <- fabric_test_token_provider()
+  sql_token <- fabric_test_token("FABRIC_TEST_SQL_TOKEN")
+  con <- fabric_sql_connect(
+    warehouse$connection_string,
+    database = warehouse$database_name,
+    token = sql_token,
+    verbose = FALSE
+  )
+  on.exit(
+    {
+      try(
+        DBI::dbExecute(
+          con,
+          "DELETE FROM dbo.fabricqueryr_sql_types WHERE id = -99"
+        ),
+        silent = TRUE
+      )
+      try(DBI::dbDisconnect(con), silent = TRUE)
+    },
+    add = TRUE
+  )
+  DBI::dbExecute(
+    con,
+    "DELETE FROM dbo.fabricqueryr_sql_types WHERE id = -99"
+  )
+
+  result <- fabric_graphql_query(
+    api$endpoint,
+    query = paste0(
+      "mutation CreateFixture {",
+      "  ",
+      api$create_field,
+      "(",
+      "    id: -99,",
+      '    name: "mutation",',
+      '    category: "M",',
+      "    amount: 12.5,",
+      '    loaded_at: "2026-01-01T00:00:00Z"',
+      "  ) { id name category amount }",
+      "}"
+    ),
+    operation_name = "CreateFixture",
+    error_policy = "error",
+    token = token,
+    audience = "https://api.fabric.microsoft.com/.default"
+  )
+
+  created <- result$data[[api$create_field]]
+  expect_equal(created$id, -99L)
+  expect_equal(created$name, "mutation")
+  expect_equal(created$category, "M")
+  expect_equal(created$amount, 12.5)
+})
+
 test_that("Fabric GraphQL surfaces schema and authentication failures", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
@@ -553,6 +611,7 @@ test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode"
     lakehouse$id,
     test_path,
     source = charToRaw("first-version"),
+    chunk_size = 3,
     content_type = "text/plain; charset=utf-8",
     token = token
   )

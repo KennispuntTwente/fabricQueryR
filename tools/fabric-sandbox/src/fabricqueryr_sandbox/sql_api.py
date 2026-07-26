@@ -93,6 +93,7 @@ def seed_sql_fixture(
             f"CREATE TABLE dbo.{SQL_FIXTURE_TABLE} ("
             "id int NOT NULL, "
             "name varchar(100) NOT NULL, "
+            "category varchar(20) NOT NULL, "
             "amount decimal(10, 2) NULL, "
             "active bit NULL, "
             "event_date date NULL, "
@@ -102,15 +103,15 @@ def seed_sql_fixture(
         ),
         (
             f"INSERT INTO dbo.{SQL_FIXTURE_TABLE} "
-            "SELECT 1, 'alpha', CAST(10.50 AS decimal(10, 2)), 1, "
+            "SELECT 1, 'alpha', 'A', CAST(10.50 AS decimal(10, 2)), 1, "
             "CAST('2026-01-01' AS date), "
             "CAST('2026-01-01T00:00:00' AS datetime2(0)), NULL "
             "UNION ALL "
-            "SELECT 2, 'beta', CAST(20.00 AS decimal(10, 2)), 0, "
+            "SELECT 2, 'beta', 'B', CAST(20.00 AS decimal(10, 2)), 0, "
             "CAST('2026-01-02' AS date), "
             "CAST('2026-01-01T00:00:00' AS datetime2(0)), 'present' "
             "UNION ALL "
-            "SELECT 3, 'gamma', NULL, NULL, NULL, "
+            "SELECT 3, 'gamma', 'A', NULL, NULL, NULL, "
             "CAST('2026-01-01T00:00:00' AS datetime2(0)), NULL"
         ),
     )
