@@ -57,6 +57,34 @@ test_that("live token providers acquire by audience and cache until refresh", {
   expect_identical(calls, c("scope-a", "scope-b", "scope-a"))
 })
 
+test_that("live token providers use the token provisioned for each audience", {
+  expect_identical(
+    fabric_test_token_variable(.fabric_audience$fabric),
+    "FABRIC_TEST_API_TOKEN"
+  )
+  expect_identical(
+    fabric_test_token_variable(.fabric_audience$power_bi),
+    "FABRIC_TEST_PBI_TOKEN"
+  )
+  expect_identical(
+    fabric_test_token_variable(.fabric_audience$sql),
+    "FABRIC_TEST_SQL_TOKEN"
+  )
+  expect_identical(
+    fabric_test_token_variable(.fabric_audience$storage),
+    "FABRIC_TEST_STORAGE_TOKEN"
+  )
+  expect_identical(
+    fabric_test_token_variable(.fabric_audience$kusto),
+    "FABRIC_TEST_KUSTO_TOKEN"
+  )
+  expect_error(
+    fabric_test_token_variable(.fabric_audience$graphql),
+    "No provisioned Fabric integration token",
+    fixed = TRUE
+  )
+})
+
 test_that("the default manifest path resolves from nested test directories", {
   root <- tempfile("fabricqueryr-root-")
   nested <- file.path(root, "tests", "testthat")

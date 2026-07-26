@@ -67,46 +67,29 @@ fabric_test_token <- function(variable) {
   token
 }
 
-fabric_test_azure_cli_token <- function(audience) {
-  fabric_test_skip_or_fail(
-    nzchar(Sys.which("az")),
-    "Azure CLI is required for live package-managed authentication tests"
+fabric_test_token_variable <- function(audience) {
+  variables <- c(
+    "https://api.fabric.microsoft.com/.default" = "FABRIC_TEST_API_TOKEN",
+    "https://analysis.windows.net/powerbi/api/.default" = "FABRIC_TEST_PBI_TOKEN",
+    "https://database.windows.net/.default" = "FABRIC_TEST_SQL_TOKEN",
+    "https://storage.azure.com/.default" = "FABRIC_TEST_STORAGE_TOKEN",
+    "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
   )
-  output <- suppressWarnings(system2(
-    "az",
-    c(
-      "account",
-      "get-access-token",
-      "--scope",
-      shQuote(audience),
-      "--query",
-      "accessToken",
-      "--output",
-      "tsv",
-      "--only-show-errors"
-    ),
-    stdout = TRUE,
-    stderr = TRUE
-  ))
-  status <- attr(output, "status") %||% 0L
-  fabric_test_skip_or_fail(
-    identical(as.integer(status), 0L),
-    paste(
-      "Azure CLI could not acquire a Fabric integration token for",
-      audience,
-      paste(output, collapse = "\n")
+  index <- match(audience, names(variables))
+  if (is.na(index)) {
+    rlang::abort(
+      paste("No provisioned Fabric integration token for audience:", audience)
     )
-  )
-  token <- trimws(paste(output, collapse = ""))
-  fabric_test_skip_or_fail(
-    nzchar(token),
-    paste("Azure CLI returned an empty integration token for", audience)
-  )
-  token
+  }
+  unname(variables[[index]])
+}
+
+fabric_test_provisioned_token <- function(audience) {
+  fabric_test_token(fabric_test_token_variable(audience))
 }
 
 fabric_test_token_provider <- function(
-  acquire = fabric_test_azure_cli_token
+  acquire = fabric_test_provisioned_token
 ) {
   cache <- new.env(parent = emptyenv())
   function(audience, force_refresh = FALSE) {
