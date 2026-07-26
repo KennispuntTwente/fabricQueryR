@@ -115,6 +115,15 @@ df_dax <- fabric_pbi_dax_query(
   connstr = semantic_model,
   dax = "EVALUATE TOPN(1000, 'Customers')"
 )
+
+# Use the newer typed Arrow API on modern semantic models
+arrow_stream <- fabric_pbi_dax_query(
+  connstr = semantic_model,
+  dax = "EVALUATE TOPN(1000, 'Customers')",
+  api = "arrow",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(arrow_stream)
 ```
 
 The signed-in account needs access to the workspace or Read and Build

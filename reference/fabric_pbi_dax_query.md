@@ -21,7 +21,10 @@ fabric_pbi_dax_query(
   auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  impersonated_user = NULL
+  impersonated_user = NULL,
+  api = c("json", "arrow"),
+  result = c("tibble", "arrow_stream"),
+  arrow_options = list()
 )
 ```
 
@@ -85,6 +88,8 @@ fabric_pbi_dax_query(
   Logical. With `TRUE`, Power BI includes properties whose value is
   blank/null. With `FALSE`, those properties can be absent from a
   returned row; retaining `TRUE` usually gives a more consistent tibble.
+  Used only by `api = "json"`; Arrow has a schema and always represents
+  nulls explicitly.
 
 - api_base:
 
@@ -97,15 +102,42 @@ fabric_pbi_dax_query(
 - impersonated_user:
 
   Optional user principal name, such as `"analyst@example.com"`, sent as
-  `impersonatedUserName` for supported row-level-security scenarios.
-  Leave `NULL` for the normal identity context.
+  `impersonatedUserName` for supported JSON row-level-security scenarios
+  or as `effectiveUsername` for Arrow. Leave `NULL` for the normal
+  identity context.
+
+- api:
+
+  Response API. `"json"` uses `executeQueries`; `"arrow"` uses
+  `executeDaxQueries`.
+
+- result:
+
+  Return format. `"tibble"` collects the result in R memory. With
+  `api = "arrow"`, `"arrow_stream"` returns a `nanoarrow_array_stream`
+  compatible with
+  [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
+  and other Arrow C stream consumers.
+
+- arrow_options:
+
+  Named list of optional `executeDaxQueries` request properties.
+  Supported names are `applicationContext`, `culture`, `customData`,
+  `effectiveUsername`, `executionMetrics`, `memoryLimit`,
+  `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`.
+  The required `query` property is supplied from `dax`. Used only by
+  `api = "arrow"`.
 
 ## Value
 
-A tibble containing the single result table. Power BI's qualified,
-bracketed column names are preserved. An empty result becomes a zero-row
-tibble; API errors and partial/truncated results raise an error rather
-than silently returning incomplete data.
+With `result = "tibble"`, a tibble containing the single result table.
+With `api = "arrow", result = "arrow_stream"`, a
+`nanoarrow_array_stream`. Power BI's column names are preserved. An
+empty result becomes a typed zero-row result; API errors, multiple
+rowsets, and partial/truncated JSON results raise an error rather than
+silently returning incomplete data. When `executionMetrics = TRUE`, the
+metrics rowset is attached to either result as an `execution_metrics`
+tibble attribute.
 
 ## Details
 
@@ -138,16 +170,26 @@ than silently returning incomplete data.
   supported for semantic models with row-level security or single
   sign-on enabled.
 
-- The Execute Queries API accepts one DAX query and one result table per
-  request. Results are limited to 100,000 rows or 1,000,000 values
-  (whichever is reached first), 15 MB, and 120 requests per minute per
-  user. Partial results reported by Power BI are treated as errors by
-  this function.
+- Set `api = "json"` (the default) for the established `executeQueries`
+  endpoint. It accepts one DAX query and one result table per request.
+  Results are limited to 100,000 rows or 1,000,000 values (whichever is
+  reached first), 15 MB, and 120 requests per minute per user. Partial
+  results reported by Power BI are treated as errors by this function.
 
-- This function uses the JSON `executeQueries` API. Microsoft also
-  offers a separate `executeDaxQueries` API that returns Apache Arrow
-  streams; that endpoint and its additional request options are not used
-  here.
+- Set `api = "arrow"` for the newer `executeDaxQueries` endpoint. It
+  preserves Arrow column types, raises errors carried in HTTP 200 Arrow
+  error rowsets, and supports the additional documented request
+  properties through `arrow_options`. The optional arrow package is
+  required because Power BI compresses record batches with LZ4. This API
+  requires a Premium, Fabric, or Embedded capacity and does not support
+  deprecated Push semantic models. The Power BI tenant settings
+  **Dataset Execute Queries REST API** and **Allow XMLA endpoints and
+  Analyze in Excel with on-premises semantic models** must both be
+  enabled.
+
+- Arrow queries may contain multiple `EVALUATE` statements, but this
+  helper retains its single-table return contract and errors when Power
+  BI returns multiple data rowsets.
 
 ## References
 
@@ -176,5 +218,14 @@ df <- fabric_pbi_dax_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 )
 dplyr::glimpse(df)
+
+# Arrow IPC endpoint, returned through the Arrow C stream interface
+stream <- fabric_pbi_dax_query(
+  connstr = conn,
+  dax = "EVALUATE TOPN(1000, 'Customers')",
+  api = "arrow",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
 } # }
 ```
