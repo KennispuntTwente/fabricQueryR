@@ -191,6 +191,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             "SeedFixtures": {
                 "id": notebook_item["id"],
                 "type": "Notebook",
+                "display_name": notebook_item["displayName"],
             },
             "JobFixtures": {
                 "id": job_notebook_item["id"],

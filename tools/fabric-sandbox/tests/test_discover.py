@@ -149,6 +149,11 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "type": "Notebook",
         "display_name": "JobFixtures",
     }
+    assert manifest.items["SeedFixtures"] == {
+        "id": "SeedFixtures-id",
+        "type": "Notebook",
+        "display_name": "SeedFixtures",
+    }
     assert manifest.items["TestPipeline"] == {
         "id": "TestPipeline-id",
         "type": "DataPipeline",
