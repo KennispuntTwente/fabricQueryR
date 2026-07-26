@@ -65,7 +65,9 @@ notebook <- fabric_notebooks(workspace)[1, ]
 ```
 
 In the next sections, you can see how to use these items to query data,
-run Spark code, and more. Also see the
+run Spark code, and more.
+
+Also see the
 [reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 for full function documentation and more examples.
 
