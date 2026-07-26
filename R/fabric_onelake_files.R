@@ -1003,7 +1003,15 @@ onelake_upload_target <- function(
     )
   })
 
-  flush <- onelake_request(onelake_path_url(temporary), "PATCH") |>
+  flush_headers <- list()
+  if (!is.null(content_type)) {
+    flush_headers[["x-ms-content-type"]] <- content_type
+  }
+  flush <- onelake_request(
+    onelake_path_url(temporary),
+    "PATCH",
+    headers = flush_headers
+  ) |>
     httr2::req_url_query(
       action = "flush",
       position = format(upload$size, scientific = FALSE, trim = TRUE),

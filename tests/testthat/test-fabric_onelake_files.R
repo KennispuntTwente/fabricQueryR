@@ -328,6 +328,10 @@ test_that("OneLake upload chunks to a temporary path and renames atomically", {
   expect_identical(captured[[2L]]$body$data, charToRaw("hello"))
   expect_match(captured[[3L]]$url, "action=flush")
   expect_match(captured[[3L]]$url, "position=5")
+  expect_equal(
+    captured[[3L]]$headers[["x-ms-content-type"]],
+    "text/plain; charset=utf-8"
+  )
   expect_match(captured[[4L]]$url, "Files/file.txt\\?mode=posix")
   expect_match(
     captured[[4L]]$headers[["x-ms-rename-source"]],
