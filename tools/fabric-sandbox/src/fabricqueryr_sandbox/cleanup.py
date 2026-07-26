@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .credentials import get_credential
@@ -10,19 +12,70 @@ from .fabric_api import FabricApi
 
 CI_WORKSPACE_PREFIX = "fabricqueryr-ci-"
 CI_DESCRIPTION_PREFIX = "fabricqueryr-ci;"
+DEFAULT_MINIMUM_AGE = timedelta(hours=6)
 
 
-def cleanup_ci_workspaces(*, confirm: bool = False) -> list[dict[str, Any]]:
+def parse_ci_description(description: str) -> dict[str, str] | None:
+    """Parse a complete CI ownership marker from a workspace description."""
+    if not description.startswith(CI_DESCRIPTION_PREFIX):
+        return None
+    fields: dict[str, str] = {}
+    for component in description[len(CI_DESCRIPTION_PREFIX) :].split(";"):
+        key, separator, value = component.strip().partition("=")
+        if separator and key and value:
+            fields[key] = value
+    if not {"repo", "created", "run"}.issubset(fields):
+        return None
+    return fields
+
+
+def parse_created_at(value: str) -> datetime | None:
+    """Return an aware UTC timestamp for a CI marker."""
+    try:
+        created = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if created.tzinfo is None:
+        return None
+    return created.astimezone(UTC)
+
+
+def cleanup_ci_workspaces(
+    *,
+    confirm: bool = False,
+    repository: str | None = None,
+    now: datetime | None = None,
+    minimum_age: timedelta = DEFAULT_MINIMUM_AGE,
+) -> list[dict[str, Any]]:
     """Find, and optionally delete, only recognized CI sandbox workspaces."""
+    repository = repository or os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        raise RuntimeError(
+            "Repository identity is required via GITHUB_REPOSITORY"
+        )
+    if minimum_age < timedelta(0):
+        raise ValueError("minimum_age must not be negative")
+    current_time = (now or datetime.now(UTC)).astimezone(UTC)
+
+    def is_owned_stale_workspace(workspace: dict[str, Any]) -> bool:
+        marker = parse_ci_description(workspace.get("description", ""))
+        if marker is None or marker["repo"].casefold() != repository.casefold():
+            return False
+        created = parse_created_at(marker["created"])
+        return (
+            workspace.get("type") == "Workspace"
+            and workspace.get("displayName", "").startswith(
+                CI_WORKSPACE_PREFIX
+            )
+            and created is not None
+            and current_time - created >= minimum_age
+        )
+
     with FabricApi(get_credential()) as api:
         candidates = [
             workspace
             for workspace in api.list_workspaces(roles="Admin")
-            if workspace.get("type") == "Workspace"
-            and workspace.get("displayName", "").startswith(CI_WORKSPACE_PREFIX)
-            and workspace.get("description", "").startswith(
-                CI_DESCRIPTION_PREFIX
-            )
+            if is_owned_stale_workspace(workspace)
         ]
         for workspace in candidates:
             action = "deleting" if confirm else "would delete"

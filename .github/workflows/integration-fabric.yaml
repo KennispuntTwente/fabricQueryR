@@ -23,7 +23,6 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
       TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      TF_VAR_workspace_description: fabricqueryr-ci; run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
       FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
@@ -31,6 +30,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Mark workspace ownership and creation time
+        run: |
+          created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          echo "TF_VAR_workspace_description=fabricqueryr-ci; repo=${GITHUB_REPOSITORY}; created=${created}; run=${run_url}" >> "$GITHUB_ENV"
 
       - name: Sign in to Azure with OIDC
         uses: azure/login@v3

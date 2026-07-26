@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import timedelta
 
 from .cleanup import cleanup_ci_workspaces
 from .deploy import deploy
@@ -39,6 +40,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="delete matching workspaces; without this flag, only list them",
     )
+    cleanup_parser.add_argument(
+        "--repository",
+        help="repository owner/name; defaults to GITHUB_REPOSITORY",
+    )
+    cleanup_parser.add_argument(
+        "--minimum-age-hours",
+        type=float,
+        default=6,
+        help="delete only workspaces at least this old (default: 6)",
+    )
     return parser
 
 
@@ -61,7 +72,11 @@ def main() -> int:
         )
         return 0
     if args.command == "cleanup":
-        workspaces = cleanup_ci_workspaces(confirm=args.confirm)
+        workspaces = cleanup_ci_workspaces(
+            confirm=args.confirm,
+            repository=args.repository,
+            minimum_age=timedelta(hours=args.minimum_age_hours),
+        )
         verb = "deleted" if args.confirm else "found"
         print(f"{verb} {len(workspaces)} CI sandbox workspace(s)")
         return 0
