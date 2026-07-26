@@ -267,8 +267,11 @@ created to make that work easier and more consistent for other R users.
 
 ### About the maintainer
 
-Luka Koning is no longer associated with Kennispunt Twente. He maintains
-this open-source R package in his personal capacity.
+I (Luka Koning) am no longer associated with Kennispunt Twente. I
+maintain this open-source R package in my personal capacity. The
+repository remains under the Kennispunt Twente GitHub organization for
+historical reasons, and because the early development was done while I
+was affiliated with them.
 
 # Package index
 
