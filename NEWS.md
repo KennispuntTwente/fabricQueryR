@@ -1,138 +1,57 @@
 # fabricQueryR (development version)
 
-* Delta reader errors now prioritize known unsupported features. Fabric job
-  status falls back to the Core scheduler while notebook-specific state is
-  unavailable, timeouts now report the last observed state, and notebook
-  session tags are validated before submission. Live Spark coverage verifies
-  durable Delta effects instead of optional diagnostics.
-
-* Delta reads now use unique temporary staging directories, normalize the
-  protocol's empty-string null partition values correctly, and report
-  unsupported logical types intentionally. OneLake listing rejects fractional
-  or non-numeric page sizes instead of silently coercing them. Unit and live
-  sandbox coverage now includes duplicate Parquet basenames, empty tables,
-  typed/null partitions, stale ETag writes, empty files, and full sandbox seed
-  orchestration. Fabric integration tests also skip cleanly during installed
-  package checks when no manifest is configured.
-
-* Authentication is now consistent across all authenticated exported
-  functions. New code can pass an `AzureAuth::AzureToken` object, bearer token,
-  or provider through `token`, and can configure any supported AzureAuth flow
-  through `auth_args`. Functions that exposed `access_token` in version 0.2.1
-  consume that former name from `...` as a deprecated alias without restoring
-  it to their formal arguments; supplying both names is an error. The single
-  polymorphic `token` argument replaces it for new code. With `token = NULL`,
-  AzureAuth reuses its cache before starting interactive login. AzureAuth
-  tokens are expiry-checked and refreshed, and client-credential requests omit
-  delegated-only `offline_access`. A new authentication vignette covers
-  interactive and device login, service principals with secrets or
-  certificates, managed identities, token audiences, cache behavior, and
-  Fabric tenant/workspace/workload permissions.
-  GraphQL selects the Fabric API audience automatically for package-managed
-  client credentials and retains the delegated GraphQL scope for user flows.
-
-* `fabric_job_run()`, `fabric_job_status()`, `fabric_job_wait()`, and
-  `fabric_job_cancel()` add a common on-demand item-job interface. Notebook
-  jobs use Fabric's current release submission API and richer status API;
-  pipelines and other item jobs use the Core Job Scheduler. Runs expose IDs,
-  status, timestamps, failure reasons, exit values, activity IDs, and polling
-  hints. Typed parameter inference, validated workload configuration,
-  non-idempotent submission safety, explicit completed/failed/cancelled/
-  deduplicated conditions, caller cancellation, and optional cancellation on
-  timeout are covered by deterministic tests. The Fabric sandbox now deploys a
-  parameterized job notebook for live success, failure, timeout, and
-  cancellation coverage.
-
-* General OneLake filesystem access is now available through
-  `fabric_onelake_list()`, `fabric_onelake_metadata()`,
-  `fabric_onelake_download()`, `fabric_onelake_upload()`, and
-  `fabric_onelake_delete()`. The helpers support names, paired workspace/item
-  GUIDs, discovery records, and HTTPS/ABFSS paths; preserve nested and Unicode
-  paths; follow ADLS continuation tokens; expose ETags; support byte ranges and
-  conditional overwrite; and require explicit confirmation for deletion.
-  Downloads stream atomically to local destinations. Uploads stream bounded
-  chunks to temporary sibling files and atomically rename only after a complete
-  flush, so failed overwrites do not truncate existing data. The Delta reader
-  now uses the same authenticated listing/download transport.
-
-* `fabric_graphql_query()` adds authenticated Fabric API for GraphQL execution
-  from direct endpoints, workspace/API IDs, or discovered GraphQL API items.
-  Results preserve `data`, `errors`, and `extensions` independently, with
-  configurable return/warn/error behavior for partial GraphQL failures.
-  `fabric_graphql_paginate()` and `fabric_graphql_cursor()` provide
-  schema-neutral cursor traversal. Discovery now exposes executable GraphQL
-  endpoints. The real Fabric sandbox provisions a GraphQL item over the seeded
-  Lakehouse table and covers variables, nulls, cursor pagination, schema
-  errors, authentication failures, and service-principal execution.
-
-* `fabric_livy_session()` now creates a stateful `FabricLivySession` R6 object
-  for regular or high-concurrency Fabric Spark sessions. Session objects can
-  wait for readiness, submit and reuse multiple statements, inspect output,
-  reset inactivity timeouts, cancel statements, and close deterministically.
-  Structured statement failures retain Livy error values and tracebacks.
-  `fabric_livy_batch_submit()` adds batch status, logs, results, timeout, and
-  cancellation through `FabricLivyBatch`. The one-shot
-  `fabric_livy_query()` helper is now implemented on the session object. The
-  integration sandbox includes a real batch application covering successful,
-  failed, and cancelled jobs.
-
-* `fabric_kql_query()` adds first-class, read-only Eventhouse/KQL querying
-  through the Kusto v2 REST endpoint. It accepts direct query-service
-  coordinates or discovered KQL database items, binds query parameters through
-  Kusto request properties, validates HTTP-200 partial failures, supports
-  multiple/progressive result tables, and maps Kusto schema types to stable R
-  columns. The integration sandbox now provisions and seeds an Eventhouse and
-  KQL database for live discovery, typing, parameterization, multi-table, and
-  service-error coverage.
-
-* `fabric_onelake_read_delta_table()` now preserves the full staged table layout
-  and resolves snapshots from both JSON commits and Parquet checkpoints. It
-  projects the selected snapshot's logical schema, fills evolved columns with
-  typed missing values, omits removed physical columns, and reads partition
-  values from Delta add-file metadata instead of directory-name heuristics. It
-  rejects unsupported Delta reader protocols, column mapping, and deletion
-  vectors before returning data instead of risking incorrect results. The new
-  `version` argument supports versioned reads.
-  Directory entries returned by OneLake are excluded from file downloads.
-
-* `fabric_pbi_dax_query()` now rejects embedded response, query, and table
-  errors—including HTTP 200 partial-result responses—rather than returning
-  incomplete data. It also supports direct `workspace_id`/`dataset_id` lookup
-  bypass, optional RLS impersonation, paginated workspace lookup, and ambiguity
-  errors for duplicate names.
-
-* Authentication and REST behavior are now shared across Fabric surfaces.
-  Exported functions accept refreshable provider callbacks through `token` in
-  addition to static tokens and interactive `AzureAuth`; REST calls use bounded
-  request timeouts and retries for throttling/transient failures, honor
-  `Retry-After`, refresh after 401, and include redacted endpoint/request
-  diagnostics. Shared pagination and Fabric long-running-operation polling
-  helpers are covered by deterministic tests.
-
-* `fabric_workspaces()`, `fabric_items()`, and `fabric_item()` now provide
-  paginated, ambiguity-safe Fabric discovery. Typed helpers enrich Lakehouses,
+* Added paginated workspace and item discovery with `fabric_workspaces()`,
+  `fabric_items()`, and `fabric_item()`. Typed helpers discover Lakehouses,
   Warehouses, SQL Databases, semantic models, Eventhouses/KQL databases,
-  notebooks, and GraphQL APIs with the workload properties available from
-  Fabric. Discovery records expose ready-to-use SQL, OneLake, DAX, Livy, and KQL
-  targets and can be passed directly to the corresponding query helpers.
+  notebooks, and GraphQL APIs. The returned records can be passed directly to
+  the corresponding query, OneLake, Livy, and job helpers.
 
-* `fabric_sql_connect()` and `fabric_sql_query()` now support Fabric Warehouse,
-  Lakehouse SQL analytics endpoints, and Fabric SQL Database explicitly. They
-  parse complete portal connection strings, disable unsupported MARS behavior,
-  expose read-only intent and connection timeout, classify failures, and bind
-  query parameters through DBI without SQL interpolation. Complete connection
-  strings and discovery records infer their catalog. Bare endpoints no longer
-  guess `"Lakehouse"` and can omit the catalog to use Fabric's documented
-  `master` context. Transient opens retry with refreshed tokens and bounded
-  backoff; transient query execution retries only when explicitly marked
-  idempotent and always uses a fresh connection. The Fabric integration sandbox
-  now provisions mandatory Warehouse and SQL Database fixtures and validates
-  discovery, connection strings, token login, and parameter binding against all
-  three Fabric SQL surfaces.
+* Authentication is now consistent across the package. Authenticated functions
+  accept an `AzureAuth::AzureToken`, bearer token, or refreshable provider via
+  `token`, while `auth_args` configures AzureAuth login flows. The former
+  `access_token` argument to the SQL and Livy helpers remains available through
+  `...` as a deprecated alias. Token refresh, transient REST retries, and a new
+  authentication vignette are also included.
 
-* The real-service sandbox resolves its manifest consistently from the
-  repository root and exercises audience-aware package token providers against
-  Fabric API, GraphQL, Kusto, OneLake, SQL, Livy, and Power BI endpoints.
+* SQL helpers now support Fabric Warehouse, Lakehouse SQL analytics endpoints,
+  and SQL Database. They accept discovery records and complete portal
+  connection strings, bind query parameters through DBI, and retry transient
+  connection failures. The default `database` changed from `"Lakehouse"` to
+  `NULL`: complete targets infer their catalog, while bare endpoints use
+  Fabric's `master` context unless a database is supplied.
+
+* Added authenticated Eventhouse queries with `fabric_kql_query()` and Fabric
+  API for GraphQL execution with `fabric_graphql_query()`. Both accept direct
+  endpoints or discovered items and support bound parameters or variables.
+  GraphQL cursor pagination is available through `fabric_graphql_paginate()`
+  and `fabric_graphql_cursor()`.
+
+* Added general OneLake file access with `fabric_onelake_list()`,
+  `fabric_onelake_metadata()`, `fabric_onelake_download()`,
+  `fabric_onelake_upload()`, and `fabric_onelake_delete()`. These functions
+  support discovery records and HTTPS/ABFSS paths, ETags, byte ranges,
+  conditional writes, atomic transfers, and confirmation before deletion.
+
+* Added a common on-demand item-job interface through `fabric_job_run()`,
+  `fabric_job_status()`, `fabric_job_wait()`, and `fabric_job_cancel()`.
+  Notebook, pipeline, and Spark job definition runs expose status, result,
+  failure, timeout, and cancellation information.
+
+* Livy support now includes reusable regular and high-concurrency Spark
+  sessions through `fabric_livy_session()`, plus standalone batch applications
+  through `fabric_livy_batch_submit()`. The objects expose status, results, and
+  cancellation, while sessions also provide explicit cleanup;
+  `fabric_livy_query()` remains the one-shot interface.
+
+* `fabric_onelake_read_delta_table()` now reads snapshots from JSON commits and
+  Parquet checkpoints, supports historical reads through `version`, preserves
+  logical schemas and typed partition values, and rejects unsupported Delta
+  features instead of risking incorrect results.
+
+* `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
+  workspace/dataset IDs, supports optional RLS impersonation, handles paginated
+  name lookup safely, and rejects partial or embedded query errors instead of
+  returning incomplete results.
 
 # fabricQueryR 0.2.1
 
