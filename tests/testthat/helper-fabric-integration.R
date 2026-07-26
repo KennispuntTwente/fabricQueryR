@@ -115,6 +115,20 @@ fabric_test_require_package <- function(package) {
   invisible(TRUE)
 }
 
+fabric_test_sql_backends <- function() {
+  for (package in c(
+    "DBI",
+    "odbc",
+    "adbi",
+    "adbcdrivermanager",
+    "nanoarrow",
+    "arrow"
+  )) {
+    fabric_test_require_package(package)
+  }
+  c("odbc", "adbc")
+}
+
 fabric_test_spark_table <- function(manifest, lakehouse) {
   paste(
     sprintf(

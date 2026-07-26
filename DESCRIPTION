@@ -23,11 +23,15 @@ Description:
     through the Fabric Job Scheduler APIs.
 License: MIT + file LICENSE
 Suggests: 
-    DBI,
+    adbcdrivermanager,
+    adbi,
+    arrow,
+    DBI (>= 1.2.0),
     duckdb (>= 0.10.3),
-    odbc,
     fs,
     knitr,
+    nanoarrow,
+    odbc,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr

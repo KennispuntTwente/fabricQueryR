@@ -14,6 +14,7 @@ supported by the Microsoft Fabric Terraform provider.
 
 - Terraform 1.11 or newer
 - `uv`
+- Microsoft ODBC Driver 18 and the ADBC Driver Foundry `mssql` driver
 - Azure CLI authenticated to the target tenant
 - A Fabric capacity ID
 - A capacity/region that supports Warehouse and SQL Database items
@@ -52,6 +53,9 @@ uv --directory tools/fabric-sandbox run fabric-sandbox doctor
 uv --directory tools/fabric-sandbox run fabric-sandbox deploy
 uv --directory tools/fabric-sandbox run fabric-sandbox seed
 uv --directory tools/fabric-sandbox run fabric-sandbox discover
+
+# Install the external ADBC driver once per test machine.
+uvx dbc==0.3.0 install "mssql>=1.5,<2"
 
 Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
 ```
@@ -123,3 +127,10 @@ package; the notebook and uploaded `livy_batch.py` additionally expose
 deterministic success, failure, timeout, and cancellation modes. Required
 fixtures are not capability-gated: provisioning, discovery, seeding, or
 connectivity failures fail the integration job.
+
+The SQL portion runs the ODBC and ADBC backends against the Lakehouse SQL
+analytics endpoint, Warehouse, and SQL Database. It checks direct DBI
+connections, metadata discovery, bound parameters, collected tibbles, and
+Arrow streams that remain consumable after the one-shot helper closes its
+connection. The stream checks cover both nanoarrow collection and conversion
+to an `arrow::RecordBatchReader`.

@@ -758,8 +758,7 @@ test_that("Delta reader covers schema evolution and rejects unsupported features
 })
 
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
-  fabric_test_require_package("DBI")
-  fabric_test_require_package("odbc")
+  backends <- fabric_test_sql_backends()
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token_provider()
@@ -770,129 +769,174 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
     token = fabric_test_token("FABRIC_TEST_API_TOKEN")
   )
 
-  con <- fabric_sql_connect(
-    server = target,
-    tenant_id = "",
-    client_id = "",
-    token = token,
-    verbose = FALSE
-  )
-  on.exit(
-    if (DBI::dbIsValid(con)) {
-      DBI::dbDisconnect(con)
-    },
-    add = TRUE
-  )
-
-  expect_true(DBI::dbIsValid(con))
-  result <- DBI::dbGetQuery(
-    con,
-    paste(
-      "SELECT id, name, category, amount, loaded_at",
-      "FROM dbo.fabricqueryr_basic",
-      "ORDER BY id"
+  for (backend in backends) {
+    con <- fabric_sql_connect(
+      server = target,
+      backend = backend,
+      tenant_id = "",
+      client_id = "",
+      token = token,
+      verbose = FALSE
     )
-  )
-  expect_equal(result$id, c(1L, 2L, 3L))
-  expect_equal(result$name, c("alpha", "beta", "gamma"))
-  expect_equal(result$category, c("A", "B", "A"))
-  expect_equal(result$amount, c(10.5, 20, NA))
-  expect_s3_class(result$loaded_at, "POSIXct")
-  expect_equal(
-    as.numeric(result$loaded_at),
-    rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3)
-  )
-  expect_true(
-    DBI::dbExistsTable(
+    expect_true(DBI::dbIsValid(con), info = backend)
+    result <- DBI::dbGetQuery(
       con,
-      DBI::Id(schema = "dbo", table = "fabricqueryr_basic")
+      paste(
+        "SELECT id, name, category, amount, loaded_at",
+        "FROM dbo.fabricqueryr_basic",
+        "ORDER BY id"
+      )
     )
-  )
+    expect_equal(result$id, c(1L, 2L, 3L), info = backend)
+    expect_equal(result$name, c("alpha", "beta", "gamma"), info = backend)
+    expect_equal(result$category, c("A", "B", "A"), info = backend)
+    expect_equal(result$amount, c(10.5, 20, NA), info = backend)
+    expect_s3_class(result$loaded_at, "POSIXct", info = backend)
+    expect_equal(
+      as.numeric(result$loaded_at),
+      rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3),
+      info = backend
+    )
+    expect_true(
+      DBI::dbExistsTable(
+        con,
+        DBI::Id(schema = "dbo", table = "fabricqueryr_basic")
+      ),
+      info = backend
+    )
 
-  DBI::dbDisconnect(con)
-  expect_false(DBI::dbIsValid(con))
+    DBI::dbDisconnect(con)
+    expect_false(DBI::dbIsValid(con), info = backend)
+  }
 })
 
-test_that("fabric_sql_query returns a tibble with aggregate results", {
-  fabric_test_require_package("DBI")
-  fabric_test_require_package("odbc")
+test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
+  backends <- fabric_test_sql_backends()
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
 
-  result <- fabric_sql_query(
-    server = lakehouse$sql_endpoint,
-    database = lakehouse$display_name,
-    sql = paste(
-      "SELECT COUNT(*) AS row_count,",
-      "SUM(amount) AS amount_sum",
-      "FROM dbo.fabricqueryr_basic"
-    ),
-    tenant_id = "",
-    client_id = "",
-    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
-    verbose = FALSE
-  )
+  for (backend in backends) {
+    result <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = paste(
+        "SELECT COUNT(*) AS row_count,",
+        "SUM(amount) AS amount_sum",
+        "FROM dbo.fabricqueryr_basic"
+      ),
+      backend = backend,
+      tenant_id = "",
+      client_id = "",
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
 
-  expect_s3_class(result, "tbl_df")
-  expect_equal(nrow(result), 1L)
-  expect_equal(as.numeric(result$row_count), 3)
-  expect_equal(as.numeric(result$amount_sum), 30.5)
+    expect_s3_class(result, "tbl_df", info = backend)
+    expect_equal(nrow(result), 1L, info = backend)
+    expect_equal(as.numeric(result$row_count), 3, info = backend)
+    expect_equal(as.numeric(result$amount_sum), 30.5, info = backend)
 
-  empty <- fabric_sql_query(
-    server = lakehouse$sql_endpoint,
-    database = lakehouse$display_name,
-    sql = paste(
-      "SELECT id, name",
-      "FROM dbo.fabricqueryr_basic",
-      "WHERE 1 = 0"
-    ),
-    tenant_id = "",
-    client_id = "",
-    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
-    verbose = FALSE
-  )
-  expect_s3_class(empty, "tbl_df")
-  expect_equal(nrow(empty), 0L)
-  expect_named(empty, c("id", "name"))
+    empty <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = paste(
+        "SELECT id, name",
+        "FROM dbo.fabricqueryr_basic",
+        "WHERE 1 = 0"
+      ),
+      backend = backend,
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_s3_class(empty, "tbl_df", info = backend)
+    expect_equal(nrow(empty), 0L, info = backend)
+    expect_named(empty, c("id", "name"), info = backend)
 
-  metacharacters <- "Robert'); DROP TABLE dbo.fabricqueryr_basic;--"
-  bound <- fabric_sql_query(
-    server = paste0(
-      "Server=tcp:",
-      lakehouse$sql_endpoint,
-      ";Initial Catalog=",
-      lakehouse$display_name,
-      ";MultipleActiveResultSets=False"
-    ),
-    sql = paste(
-      "SELECT CAST(? AS nvarchar(200)) AS text_value,",
-      "CAST(? AS date) AS date_value,",
-      "CAST(? AS nvarchar(20)) AS null_value"
-    ),
-    params = list(
-      metacharacters,
+    metacharacters <- "Robert'); DROP TABLE dbo.fabricqueryr_basic;--"
+    bound <- fabric_sql_query(
+      server = paste0(
+        "Server=tcp:",
+        lakehouse$sql_endpoint,
+        ";Initial Catalog=",
+        lakehouse$display_name,
+        ";MultipleActiveResultSets=False"
+      ),
+      sql = paste(
+        "SELECT CAST(? AS nvarchar(200)) AS text_value,",
+        "CAST(? AS date) AS date_value,",
+        "CAST(? AS nvarchar(20)) AS null_value"
+      ),
+      params = list(
+        metacharacters,
+        as.Date("2026-07-24"),
+        NA_character_
+      ),
+      backend = backend,
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_equal(bound$text_value, metacharacters, info = backend)
+    expect_equal(
+      as.Date(bound$date_value),
       as.Date("2026-07-24"),
-      NA_character_
-    ),
-    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
-    verbose = FALSE
-  )
-  expect_equal(bound$text_value, metacharacters)
-  expect_equal(as.Date(bound$date_value), as.Date("2026-07-24"))
-  expect_true(is.na(bound$null_value))
-  still_present <- fabric_sql_query(
-    server = lakehouse$sql_endpoint,
-    database = lakehouse$display_name,
-    sql = "SELECT COUNT(*) AS row_count FROM dbo.fabricqueryr_basic",
-    token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
-    verbose = FALSE
-  )
-  expect_equal(as.numeric(still_present$row_count), 3)
+      info = backend
+    )
+    expect_true(is.na(bound$null_value), info = backend)
+
+    still_present <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = "SELECT COUNT(*) AS row_count FROM dbo.fabricqueryr_basic",
+      backend = backend,
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_equal(as.numeric(still_present$row_count), 3, info = backend)
+
+    stream <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = paste(
+        "SELECT id, name",
+        "FROM dbo.fabricqueryr_basic",
+        "ORDER BY id"
+      ),
+      backend = backend,
+      result = "arrow_stream",
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_s3_class(stream, "nanoarrow_array_stream", info = backend)
+    streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
+    expect_equal(streamed$id, c(1L, 2L, 3L), info = backend)
+    expect_equal(streamed$name, c("alpha", "beta", "gamma"), info = backend)
+
+    arrow_stream <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = paste(
+        "SELECT id, name",
+        "FROM dbo.fabricqueryr_basic",
+        "ORDER BY id"
+      ),
+      backend = backend,
+      result = "arrow_stream",
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    reader <- arrow::as_record_batch_reader(arrow_stream)
+    arrow_result <- as.data.frame(reader$read_table())
+    expect_s3_class(reader, "RecordBatchReader", info = backend)
+    expect_equal(arrow_result$id, c(1L, 2L, 3L), info = backend)
+    expect_equal(
+      arrow_result$name,
+      c("alpha", "beta", "gamma"),
+      info = backend
+    )
+  }
 })
 
-fabric_test_sql_item <- function(name) {
-  fabric_test_require_package("DBI")
-  fabric_test_require_package("odbc")
+fabric_test_sql_item <- function(name, backend) {
   manifest <- fabric_test_manifest()
   api_token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
   sql_token <- fabric_test_token("FABRIC_TEST_SQL_TOKEN")
@@ -908,23 +952,29 @@ fabric_test_sql_item <- function(name) {
     target,
     "SELECT CAST(? AS int) AS bound_value",
     params = list(42L),
+    backend = backend,
     token = sql_token,
     verbose = FALSE
   )
-  expect_equal(result$bound_value, 42L, info = name)
+  expect_equal(result$bound_value, 42L, info = paste(name, backend))
 
   info <- fabric_sql_connection_info(target)
-  expect_equal(info$database, provisioned$database_name, info = name)
+  expect_equal(
+    info$database,
+    provisioned$database_name,
+    info = paste(name, backend)
+  )
   expect_equal(
     info$target_type,
     if (identical(name, "TestWarehouse")) "warehouse" else "sql_database",
-    info = name
+    info = paste(name, backend)
   )
 
   from_manifest <- fabric_sql_query(
     provisioned$connection_string,
     "SELECT CAST(? AS nvarchar(100)) AS bound_value",
     params = list("safe ' value; --"),
+    backend = backend,
     database = if (identical(name, "TestWarehouse")) {
       provisioned$database_name
     } else {
@@ -933,15 +983,40 @@ fabric_test_sql_item <- function(name) {
     token = sql_token,
     verbose = FALSE
   )
-  expect_equal(from_manifest$bound_value, "safe ' value; --", info = name)
+  expect_equal(
+    from_manifest$bound_value,
+    "safe ' value; --",
+    info = paste(name, backend)
+  )
+
+  stream <- fabric_sql_query(
+    target,
+    "SELECT CAST(? AS int) AS bound_value",
+    params = list(43L),
+    backend = backend,
+    result = "arrow_stream",
+    token = sql_token,
+    verbose = FALSE
+  )
+  expect_s3_class(
+    stream,
+    "nanoarrow_array_stream",
+    info = paste(name, backend)
+  )
+  streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
+  expect_equal(streamed$bound_value, 43L, info = paste(name, backend))
 }
 
 test_that("provisioned Warehouse target is discoverable and connectable", {
-  fabric_test_sql_item("TestWarehouse")
+  for (backend in fabric_test_sql_backends()) {
+    fabric_test_sql_item("TestWarehouse", backend)
+  }
 })
 
 test_that("provisioned SQL Database target is discoverable and connectable", {
-  fabric_test_sql_item("TestSQLDatabase")
+  for (backend in fabric_test_sql_backends()) {
+    fabric_test_sql_item("TestSQLDatabase", backend)
+  }
 })
 
 test_that("fabric_livy_query executes Spark and returns its output", {

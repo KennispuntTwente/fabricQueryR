@@ -8,15 +8,18 @@ fabric_sql_query(
   server,
   sql,
   params = NULL,
+  result = c("tibble", "arrow_stream"),
   database = NULL,
   target_type = c("auto", "lakehouse", "warehouse", "sql_database",
     "sql_analytics_endpoint"),
+  backend = c("odbc", "adbc"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
+  adbc_driver = getOption("fabricqueryr.sql.adbc_driver", "mssql"),
   port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
@@ -37,7 +40,17 @@ Warehouse, or SQL Database record returned by a discovery function.}
 
 \item{params}{Optional list of values for DBI parameter placeholders (\verb{?}).
 Strings, dates, missing values, and values containing SQL metacharacters
-are passed unchanged to the driver.}
+are passed unchanged to the driver. With \code{backend = "adbc"}, placeholders
+outside SQL strings, identifiers, and comments are safely translated to
+the SQL Server driver's native \verb{@p1}, \verb{@p2}, ... syntax.}
+
+\item{result}{Result representation. \code{"tibble"} collects the query result.
+\code{"arrow_stream"} returns a \code{nanoarrow_array_stream} from
+\code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}. ADBC provides the native Arrow path; DBI may
+materialize results when adapting an ODBC connection. The stream implements
+the Arrow C Stream interface and can be converted directly with
+\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} when the optional \code{arrow} package is
+installed. A stream is single-use.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 catalog found in \code{server}. \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and \code{\link[=fabric_sql_query]{fabric_sql_query()}}
@@ -47,6 +60,8 @@ connects to Fabric's \code{master} context.}
 
 \item{target_type}{Target kind. \code{"auto"} infers it from discovery metadata or
 the endpoint hostname.}
+
+\item{backend}{SQL client backend. \code{"odbc"} remains the default.}
 
 \item{tenant_id}{Character. Entra tenant ID.}
 
@@ -62,14 +77,17 @@ token or starts its normal interactive login flow.}
 \item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
 default.}
 
+\item{adbc_driver}{ADBC driver name or shared-library path. The separately
+installed ADBC Driver Foundry \code{mssql} driver is the default.}
+
 \item{port}{Optional TCP port. An explicit value overrides a port in
 \code{server}; otherwise port 1433 is used.}
 
-\item{encrypt, trust_server_certificate}{ODBC encryption flags.}
+\item{encrypt, trust_server_certificate}{SQL client encryption flags.}
 
 \item{timeout}{Login/connect timeout in seconds.}
 
-\item{read_only}{Logical. Set ODBC \code{ApplicationIntent=ReadOnly}.}
+\item{read_only}{Logical. Set \code{ApplicationIntent=ReadOnly}.}
 
 \item{verbose}{Logical. Emit connection progress.}
 
@@ -89,7 +107,7 @@ named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded.}
 }
 \value{
-A tibble containing the result.
+A tibble or \code{nanoarrow_array_stream}, according to \code{result}.
 }
 \description{
 Opens a connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}}, executes \code{sql}, and closes
@@ -108,5 +126,14 @@ result <- fabric_sql_query(
   sql = "SELECT * FROM dbo.Customers WHERE region = ?",
   params = list("West")
 )
+
+stream <- fabric_sql_query(
+  warehouse,
+  "SELECT * FROM dbo.Customers",
+  backend = "adbc",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
+table <- reader$read_table()
 }
 }

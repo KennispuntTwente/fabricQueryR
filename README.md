@@ -132,6 +132,21 @@ df_sql <- fabric_sql_query(
 # Close connection
 DBI::dbDisconnect(con)
 
+# ADBC is opt-in; first install the external driver with:
+#   dbc install mssql
+con_adbc <- fabric_sql_connect(lakehouse, backend = "adbc")
+DBI::dbDisconnect(con_adbc)
+
+# Keep results in Arrow form for downstream Arrow/nanoarrow processing.
+stream <- fabric_sql_query(
+  lakehouse,
+  "SELECT * FROM dbo.Customers",
+  backend = "adbc",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
+customers <- as.data.frame(reader$read_table())
+
 
 # Table from Lakehouse via OneLake data access ---------------------------------
 
@@ -252,6 +267,17 @@ result <- fabric_job_wait(job, timeout = 900)
 result$status
 result$exit_value
 ```
+
+ODBC remains the default and requires Microsoft ODBC Driver 18 or newer. The
+ADBC path uses the CRAN packages `adbi` and `adbcdrivermanager` plus the
+separately distributed ADBC Driver Foundry `mssql` driver. That driver is tested
+upstream with Fabric Data Warehouse; this package's live sandbox additionally
+tests Lakehouse SQL analytics endpoints and Fabric SQL Database.
+`adbcdrivermanager` loads installed drivers but does not install their external
+binaries. If the requested driver is missing, `fabric_sql_connect()` fails
+before authentication with the exact `dbc install ...` command. Arrow-stream
+results implement the Arrow C Stream interface and convert directly with
+`arrow::as_record_batch_reader()`; `arrow` remains an optional dependency.
 
 ## Background
 

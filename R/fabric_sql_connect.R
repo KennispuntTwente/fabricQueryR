@@ -114,16 +114,22 @@ fabric_sql_connection_info <- function(
 
 #' Connect to a Microsoft Fabric SQL target
 #'
-#' Opens a DBI/ODBC connection to a Fabric Warehouse, Lakehouse SQL analytics
-#' endpoint, or SQL Database using a Microsoft Entra access token.
+#' Opens a DBI connection to a Fabric Warehouse, Lakehouse SQL analytics
+#' endpoint, or SQL Database using a Microsoft Entra access token. ODBC is the
+#' default backend; ADBC is available as an opt-in backend.
 #'
 #' @details
-#' Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
-#' newer. Multiple Active Result Sets (MARS) is disabled because Fabric
-#' Warehouse does not support it. Complete portal connection strings and
-#' enriched discovery records provide a catalog automatically. Bare endpoints
-#' may omit `database` to use Fabric's `master` context; the package never
-#' guesses a catalog name.
+#' The ODBC backend requires ODBC Driver 18 or newer. Multiple Active Result
+#' Sets (MARS) is disabled because Fabric Warehouse does not support it. The
+#' ADBC backend uses [adbi::adbi()] with the `mssql` driver loaded by
+#' [adbcdrivermanager::adbc_driver()]. Install that external driver separately
+#' with `dbc install mssql`. The package checks that the driver can be loaded
+#' before authenticating or opening a network connection. `adbcdrivermanager`
+#' discovers and loads installed drivers; it does not install driver binaries.
+#'
+#' Complete portal connection strings and enriched discovery records provide a
+#' catalog automatically. Bare endpoints may omit `database` to use Fabric's
+#' `master` context; the package never guesses a catalog name.
 #'
 #' Transient Fabric connection failures are retried on fresh connections with
 #' refreshed tokens and bounded exponential backoff.
@@ -132,6 +138,7 @@ fabric_sql_connection_info <- function(
 #' must have permission to connect to and query the target item.
 #'
 #' @inheritParams fabric_sql_connection_info
+#' @param backend SQL client backend. `"odbc"` remains the default.
 #' @param tenant_id Character. Entra tenant ID.
 #' @param client_id Character. Application/client ID.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
@@ -141,9 +148,11 @@ fabric_sql_connection_info <- function(
 #'   [AzureAuth::get_azure_token()].
 #' @param odbc_driver ODBC driver name. ODBC Driver 18 for SQL Server is the
 #'   default.
-#' @param encrypt,trust_server_certificate ODBC encryption flags.
+#' @param adbc_driver ADBC driver name or shared-library path. The separately
+#'   installed ADBC Driver Foundry `mssql` driver is the default.
+#' @param encrypt,trust_server_certificate SQL client encryption flags.
 #' @param timeout Login/connect timeout in seconds.
-#' @param read_only Logical. Set ODBC `ApplicationIntent=ReadOnly`.
+#' @param read_only Logical. Set `ApplicationIntent=ReadOnly`.
 #' @param max_tries Positive maximum number of attempts for transient Fabric SQL
 #'   failures. Connections are always safe to retry. In
 #'   `fabric_sql_query()`, execution failures are retried only when
@@ -171,6 +180,9 @@ fabric_sql_connection_info <- function(
 #'
 #' warehouse <- fabric_warehouses("Analytics")[1, ]
 #' con <- fabric_sql_connect(warehouse)
+#'
+#' # After installing the external driver with `dbc install mssql`:
+#' con <- fabric_sql_connect(warehouse, backend = "adbc")
 #' }
 fabric_sql_connect <- function(
   server,
@@ -182,6 +194,7 @@ fabric_sql_connect <- function(
     "sql_database",
     "sql_analytics_endpoint"
   ),
+  backend = c("odbc", "adbc"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -193,6 +206,7 @@ fabric_sql_connect <- function(
     "fabricqueryr.sql.driver",
     "ODBC Driver 18 for SQL Server"
   ),
+  adbc_driver = getOption("fabricqueryr.sql.adbc_driver", "mssql"),
   port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
@@ -210,15 +224,24 @@ fabric_sql_connect <- function(
   )
   token <- resolved$token
   target_type <- match.arg(target_type)
+  backend <- match.arg(backend)
   if (!is.logical(read_only) || length(read_only) != 1L || is.na(read_only)) {
     rlang::abort("read_only must be TRUE or FALSE")
   }
   fabric_sql_port(timeout, "timeout", allow_zero = TRUE)
   fabric_sql_retry_settings(max_tries, retry_delay)
-  rlang::check_installed(
-    c("DBI", "odbc"),
-    reason = "to open a Fabric SQL connection"
-  )
+  fabric_sql_require_backend(backend)
+  adbc_driver_object <- NULL
+  if (identical(backend, "adbc")) {
+    fabric_sql_scalar(adbc_driver, "adbc_driver")
+    if ("uri" %in% names(resolved$dots)) {
+      rlang::abort(
+        "fabric_sql_connect() constructs the ADBC uri; uri cannot be supplied in ...",
+        class = "fabric_sql_target_error"
+      )
+    }
+    adbc_driver_object <- fabric_sql_load_adbc_driver(adbc_driver)
+  }
 
   info <- fabric_sql_connection_info(
     server = server,
@@ -238,14 +261,16 @@ fabric_sql_connect <- function(
     token = token,
     auth_args = auth_args
   )
+  backend_label <- toupper(backend)
   message <- if (is.null(info$database)) {
-    "Opening ODBC connection to {info$server} / Fabric master context"
+    "Opening {backend_label} connection to {info$server} / Fabric master context"
   } else {
-    "Opening ODBC connection to {info$server} / DB '{info$database}'"
+    "Opening {backend_label} connection to {info$server} / DB '{info$database}'"
   }
   inform(verbose, message)
-  args <- c(
+  odbc_args <- c(
     list(
+      backend = backend,
       driver = odbc_driver,
       server = info$server,
       Port = info$port,
@@ -273,11 +298,27 @@ fabric_sql_connect <- function(
         )
       }
     )
+    connect_args <- if (identical(backend, "odbc")) {
+      c(odbc_args, list(attributes = list(azure_token = token_value)))
+    } else {
+      c(
+        list(
+          backend = backend,
+          adbc_driver = adbc_driver_object,
+          uri = fabric_sql_adbc_uri(
+            info = info,
+            token = token_value,
+            encrypt = encrypt,
+            trust_server_certificate = trust_server_certificate,
+            timeout = timeout,
+            read_only = read_only
+          )
+        ),
+        resolved$dots
+      )
+    }
     connection <- tryCatch(
-      do.call(
-        .fabric_sql_db_connect,
-        c(args, list(attributes = list(azure_token = token_value)))
-      ),
+      do.call(.fabric_sql_db_connect, connect_args),
       error = function(error) error
     )
     if (!inherits(connection, "error")) {
@@ -288,7 +329,10 @@ fabric_sql_connect <- function(
       attempt == as.integer(max_tries) ||
         !fabric_sql_transient_error(connection)
     ) {
-      fabric_sql_connection_error(connection)
+      fabric_sql_connection_error(
+        connection,
+        secrets = if (identical(backend, "adbc")) token_value else NULL
+      )
     }
     delay <- fabric_sql_retry_delay(attempt, retry_delay)
     inform(
@@ -312,11 +356,20 @@ fabric_sql_connect <- function(
 #' @param sql One SQL statement.
 #' @param params Optional list of values for DBI parameter placeholders (`?`).
 #'   Strings, dates, missing values, and values containing SQL metacharacters
-#'   are passed unchanged to the driver.
+#'   are passed unchanged to the driver. With `backend = "adbc"`, placeholders
+#'   outside SQL strings, identifiers, and comments are safely translated to
+#'   the SQL Server driver's native `@p1`, `@p2`, ... syntax.
+#' @param result Result representation. `"tibble"` collects the query result.
+#'   `"arrow_stream"` returns a `nanoarrow_array_stream` from
+#'   [DBI::dbGetQueryArrow()]. ADBC provides the native Arrow path; DBI may
+#'   materialize results when adapting an ODBC connection. The stream implements
+#'   the Arrow C Stream interface and can be converted directly with
+#'   [arrow::as_record_batch_reader()] when the optional `arrow` package is
+#'   installed. A stream is single-use.
 #' @param idempotent Logical. Whether the SQL statement may safely rerun on a
 #'   fresh connection after a transient execution failure.
 #'
-#' @return A tibble containing the result.
+#' @return A tibble or `nanoarrow_array_stream`, according to `result`.
 #' @export
 #'
 #' @examples
@@ -329,11 +382,21 @@ fabric_sql_connect <- function(
 #'   sql = "SELECT * FROM dbo.Customers WHERE region = ?",
 #'   params = list("West")
 #' )
+#'
+#' stream <- fabric_sql_query(
+#'   warehouse,
+#'   "SELECT * FROM dbo.Customers",
+#'   backend = "adbc",
+#'   result = "arrow_stream"
+#' )
+#' reader <- arrow::as_record_batch_reader(stream)
+#' table <- reader$read_table()
 #' }
 fabric_sql_query <- function(
   server,
   sql,
   params = NULL,
+  result = c("tibble", "arrow_stream"),
   database = NULL,
   target_type = c(
     "auto",
@@ -342,6 +405,7 @@ fabric_sql_query <- function(
     "sql_database",
     "sql_analytics_endpoint"
   ),
+  backend = c("odbc", "adbc"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -353,6 +417,7 @@ fabric_sql_query <- function(
     "fabricqueryr.sql.driver",
     "ODBC Driver 18 for SQL Server"
   ),
+  adbc_driver = getOption("fabricqueryr.sql.adbc_driver", "mssql"),
   port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
@@ -370,6 +435,8 @@ fabric_sql_query <- function(
     caller = "fabric_sql_query()"
   )
   token <- resolved$token
+  result <- match.arg(result)
+  backend <- match.arg(backend)
   fabric_sql_scalar(sql, "sql")
   if (!is.null(params) && !is.list(params)) {
     rlang::abort(
@@ -385,16 +452,24 @@ fabric_sql_query <- function(
     rlang::abort("idempotent must be TRUE or FALSE")
   }
   fabric_sql_retry_settings(max_tries, retry_delay)
+  fabric_sql_require_backend(backend, result = result)
+  query_sql <- if (identical(backend, "adbc") && !is.null(params)) {
+    fabric_sql_adbc_parameter_sql(sql, params)
+  } else {
+    sql
+  }
   connect_args <- c(
     list(
       server = server,
       database = database,
       target_type = match.arg(target_type),
+      backend = backend,
       tenant_id = tenant_id,
       client_id = client_id,
       token = token,
       auth_args = auth_args,
       odbc_driver = odbc_driver,
+      adbc_driver = adbc_driver,
       port = port,
       encrypt = encrypt,
       trust_server_certificate = trust_server_certificate,
@@ -412,7 +487,12 @@ fabric_sql_query <- function(
       {
         con <- do.call(fabric_sql_connect, connect_args)
         list(
-          value = .fabric_sql_db_get_query(con, sql, params = params),
+          value = .fabric_sql_db_get_query(
+            con,
+            query_sql,
+            params = params,
+            result = result
+          ),
           error = NULL
         )
       },
@@ -424,6 +504,9 @@ fabric_sql_query <- function(
       }
     )
     if (is.null(outcome$error)) {
+      if (identical(result, "arrow_stream")) {
+        return(outcome$value)
+      }
       return(tibble::as_tibble(outcome$value))
     }
     connection_failure <- inherits(
@@ -450,6 +533,247 @@ fabric_sql_query <- function(
     .fabric_sql_sleep(delay)
   }
   rlang::abort("Fabric SQL query retry loop ended unexpectedly")
+}
+
+fabric_sql_require_backend <- function(
+  backend = c("odbc", "adbc"),
+  result = NULL
+) {
+  backend <- match.arg(backend)
+  packages <- if (identical(backend, "odbc")) {
+    c("DBI", "odbc")
+  } else {
+    c("DBI", "adbi", "adbcdrivermanager")
+  }
+  if (identical(result, "arrow_stream")) {
+    packages <- c(packages, "nanoarrow")
+  }
+  rlang::check_installed(
+    unique(packages),
+    reason = sprintf("to use the Fabric SQL %s backend", backend)
+  )
+  invisible(TRUE)
+}
+
+fabric_sql_load_adbc_driver <- function(adbc_driver) {
+  tryCatch(
+    adbcdrivermanager::adbc_driver(adbc_driver),
+    error = function(error) {
+      install_guidance <- if (grepl("^[A-Za-z0-9._-]+$", adbc_driver)) {
+        sprintf("Install it with `dbc install %s`, then retry.", adbc_driver)
+      } else {
+        paste0(
+          "Verify the shared-library path, or install a registered driver ",
+          "with `dbc install <driver>`."
+        )
+      }
+      rlang::abort(
+        paste(
+          sprintf("Could not load ADBC driver '%s'.", adbc_driver),
+          install_guidance,
+          paste0(
+            "The adbcdrivermanager R package loads installed driver ",
+            "manifests but does not install external driver binaries."
+          )
+        ),
+        class = c(
+          "fabric_sql_driver_error",
+          "fabric_sql_connection_error"
+        ),
+        parent = error
+      )
+    }
+  )
+}
+
+fabric_sql_adbc_uri <- function(
+  info,
+  token,
+  encrypt,
+  trust_server_certificate,
+  timeout,
+  read_only
+) {
+  parsed <- httr2::url_parse(
+    sprintf("sqlserver://%s:%d", info$server, info$port)
+  )
+  parsed$query <- c(
+    if (!is.null(info$database)) list(database = info$database) else list(),
+    list(
+      fedauth = "ActiveDirectoryServicePrincipalAccessToken",
+      password = token,
+      encrypt = fabric_sql_adbc_encrypt(encrypt),
+      TrustServerCertificate = fabric_sql_adbc_boolean(
+        trust_server_certificate,
+        "trust_server_certificate"
+      ),
+      `connection timeout` = as.character(as.integer(timeout)),
+      `app name` = "fabricQueryR"
+    ),
+    if (isTRUE(read_only)) list(ApplicationIntent = "ReadOnly") else list()
+  )
+  httr2::url_build(parsed)
+}
+
+fabric_sql_adbc_boolean <- function(value, argument) {
+  fabric_sql_scalar(value, argument)
+  normalized <- tolower(trimws(value))
+  if (normalized %in% c("true", "yes", "1", "t")) {
+    return("true")
+  }
+  if (normalized %in% c("false", "no", "0", "f")) {
+    return("false")
+  }
+  rlang::abort(
+    sprintf(
+      "%s must be a true/false or yes/no value for the ADBC backend",
+      argument
+    ),
+    class = "fabric_sql_target_error"
+  )
+}
+
+fabric_sql_adbc_encrypt <- function(value) {
+  fabric_sql_scalar(value, "encrypt")
+  normalized <- tolower(trimws(value))
+  if (normalized %in% c("strict", "mandatory", "disable", "optional")) {
+    return(normalized)
+  }
+  fabric_sql_adbc_boolean(value, "encrypt")
+}
+
+fabric_sql_adbc_parameter_sql <- function(sql, params) {
+  chars <- strsplit(sql, "", fixed = TRUE)[[1L]]
+  output <- character()
+  state <- "normal"
+  block_depth <- 0L
+  marker <- 0L
+  position <- 1L
+  total <- length(chars)
+
+  append_chars <- function(...) {
+    output <<- c(output, ...)
+  }
+  next_char <- function() {
+    if (position < total) chars[[position + 1L]] else ""
+  }
+
+  while (position <= total) {
+    current <- chars[[position]]
+    following <- next_char()
+
+    if (identical(state, "normal")) {
+      if (identical(current, "'")) {
+        state <- "single_quote"
+      } else if (identical(current, "\"")) {
+        state <- "double_quote"
+      } else if (identical(current, "[")) {
+        state <- "bracket"
+      } else if (identical(current, "-") && identical(following, "-")) {
+        append_chars(current, following)
+        position <- position + 2L
+        state <- "line_comment"
+        next
+      } else if (identical(current, "/") && identical(following, "*")) {
+        append_chars(current, following)
+        position <- position + 2L
+        state <- "block_comment"
+        block_depth <- 1L
+        next
+      } else if (identical(current, "?")) {
+        marker <- marker + 1L
+        append_chars(paste0("@p", marker))
+        position <- position + 1L
+        next
+      }
+      append_chars(current)
+      position <- position + 1L
+      next
+    }
+
+    if (identical(state, "single_quote")) {
+      append_chars(current)
+      if (identical(current, "'")) {
+        if (identical(following, "'")) {
+          append_chars(following)
+          position <- position + 2L
+          next
+        }
+        state <- "normal"
+      }
+      position <- position + 1L
+      next
+    }
+
+    if (identical(state, "double_quote")) {
+      append_chars(current)
+      if (identical(current, "\"")) {
+        if (identical(following, "\"")) {
+          append_chars(following)
+          position <- position + 2L
+          next
+        }
+        state <- "normal"
+      }
+      position <- position + 1L
+      next
+    }
+
+    if (identical(state, "bracket")) {
+      append_chars(current)
+      if (identical(current, "]")) {
+        if (identical(following, "]")) {
+          append_chars(following)
+          position <- position + 2L
+          next
+        }
+        state <- "normal"
+      }
+      position <- position + 1L
+      next
+    }
+
+    if (identical(state, "line_comment")) {
+      append_chars(current)
+      if (current %in% c("\r", "\n")) {
+        state <- "normal"
+      }
+      position <- position + 1L
+      next
+    }
+
+    append_chars(current)
+    if (identical(current, "/") && identical(following, "*")) {
+      append_chars(following)
+      position <- position + 2L
+      block_depth <- block_depth + 1L
+      next
+    }
+    if (identical(current, "*") && identical(following, "/")) {
+      append_chars(following)
+      position <- position + 2L
+      block_depth <- block_depth - 1L
+      if (block_depth == 0L) {
+        state <- "normal"
+      }
+      next
+    }
+    position <- position + 1L
+  }
+
+  if (marker != length(params)) {
+    rlang::abort(
+      sprintf(
+        "ADBC parameter binding found %d SQL placeholder%s for %d value%s",
+        marker,
+        if (marker == 1L) "" else "s",
+        length(params),
+        if (length(params) == 1L) "" else "s"
+      ),
+      class = "fabric_sql_execution_error"
+    )
+  }
+  paste0(output, collapse = "")
 }
 
 fabric_sql_retry_settings <- function(max_tries, retry_delay) {
@@ -616,8 +940,8 @@ fabric_sql_port <- function(
   invisible(value)
 }
 
-fabric_sql_connection_error <- function(error) {
-  message <- conditionMessage(error)
+fabric_sql_connection_error <- function(error, secrets = NULL) {
+  message <- fabric_sql_redact_secrets(conditionMessage(error), secrets)
   class <- if (
     grepl(
       "token|authentication|login failed|18456",
@@ -640,15 +964,52 @@ fabric_sql_connection_error <- function(error) {
   rlang::abort(
     paste0("Fabric SQL connection failed: ", message),
     class = c(class, "fabric_sql_connection_error"),
-    parent = error
+    parent = if (is.null(secrets)) error else simpleError(message)
   )
 }
 
-.fabric_sql_db_connect <- function(...) {
-  DBI::dbConnect(odbc::odbc(), ...)
+fabric_sql_redact_secrets <- function(message, secrets = NULL) {
+  secrets <- unique(secrets[!is.na(secrets) & nzchar(secrets)])
+  for (secret in secrets) {
+    message <- gsub(secret, "<redacted>", message, fixed = TRUE)
+    encoded <- utils::URLencode(secret, reserved = TRUE)
+    message <- gsub(encoded, "<redacted>", message, fixed = TRUE)
+  }
+  gsub(
+    "(?i)(password=)[^&;[:space:]]+",
+    "\\1<redacted>",
+    message,
+    perl = TRUE
+  )
 }
 
-.fabric_sql_db_get_query <- function(con, sql, params = NULL) {
+.fabric_sql_db_connect <- function(
+  backend = c("odbc", "adbc"),
+  adbc_driver = NULL,
+  ...
+) {
+  backend <- match.arg(backend)
+  if (identical(backend, "odbc")) {
+    return(DBI::dbConnect(odbc::odbc(), ...))
+  }
+  driver <- if (inherits(adbc_driver, "adbc_driver")) {
+    adbc_driver
+  } else {
+    adbcdrivermanager::adbc_driver(adbc_driver)
+  }
+  DBI::dbConnect(adbi::adbi(driver), ...)
+}
+
+.fabric_sql_db_get_query <- function(
+  con,
+  sql,
+  params = NULL,
+  result = c("tibble", "arrow_stream")
+) {
+  result <- match.arg(result)
+  if (identical(result, "arrow_stream")) {
+    return(DBI::dbGetQueryArrow(con, sql, params = params))
+  }
   DBI::dbGetQuery(con, sql, params = params)
 }
 

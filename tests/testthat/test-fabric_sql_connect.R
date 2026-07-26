@@ -116,6 +116,7 @@ test_that("SQL connections enforce Fabric ODBC options", {
   )
 
   expect_identical(result, connection)
+  expect_equal(captured$backend, "odbc")
   expect_equal(captured$server, "server.datawarehouse.fabric.microsoft.com")
   expect_equal(captured$database, "Warehouse")
   expect_equal(captured$Port, 1433L)
@@ -123,6 +124,78 @@ test_that("SQL connections enforce Fabric ODBC options", {
   expect_equal(captured$ApplicationIntent, "ReadOnly")
   expect_equal(captured$timeout, 17L)
   expect_equal(captured$attributes$azure_token, "sql-token")
+})
+
+test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
+  captured <- NULL
+  connection <- structure(list(), class = "test_connection")
+  token <- "token+/ with=?&reserved"
+  local_mocked_bindings(
+    fabric_sql_load_adbc_driver = function(...) "mssql",
+    .fabric_sql_db_connect = function(...) {
+      captured <<- list(...)
+      connection
+    }
+  )
+
+  result <- fabric_sql_connect(
+    server = "server.datawarehouse.fabric.microsoft.com",
+    database = "Warehouse with space",
+    backend = "adbc",
+    token = token,
+    read_only = TRUE,
+    timeout = 17L,
+    verbose = FALSE
+  )
+
+  parsed <- httr2::url_parse(captured$uri)
+  expect_identical(result, connection)
+  expect_equal(captured$backend, "adbc")
+  expect_equal(captured$adbc_driver, "mssql")
+  expect_equal(parsed$scheme, "sqlserver")
+  expect_equal(parsed$hostname, "server.datawarehouse.fabric.microsoft.com")
+  expect_equal(parsed$port, "1433")
+  expect_equal(parsed$query$database, "Warehouse with space")
+  expect_equal(
+    parsed$query$fedauth,
+    "ActiveDirectoryServicePrincipalAccessToken"
+  )
+  expect_equal(parsed$query$password, token)
+  expect_equal(parsed$query$encrypt, "true")
+  expect_equal(parsed$query$TrustServerCertificate, "false")
+  expect_equal(parsed$query$`connection timeout`, "17")
+  expect_equal(parsed$query$ApplicationIntent, "ReadOnly")
+  expect_false(grepl(token, captured$uri, fixed = TRUE))
+  expect_false("attributes" %in% names(captured))
+})
+
+test_that("missing ADBC drivers fail before authentication with install guidance", {
+  acquired <- FALSE
+  missing_driver <- "fabricqueryr_missing_mssql_driver"
+
+  error <- tryCatch(
+    fabric_sql_connect(
+      "server.datawarehouse.fabric.microsoft.com",
+      backend = "adbc",
+      adbc_driver = missing_driver,
+      token = function(...) {
+        acquired <<- TRUE
+        "token"
+      },
+      verbose = FALSE
+    ),
+    error = identity
+  )
+
+  expect_s3_class(error, "fabric_sql_driver_error")
+  expect_s3_class(error, "fabric_sql_connection_error")
+  expect_false(acquired)
+  expect_match(
+    conditionMessage(error),
+    paste0("dbc install ", missing_driver),
+    fixed = TRUE
+  )
+  expect_match(conditionMessage(error), "adbcdrivermanager", fixed = TRUE)
 })
 
 test_that("SQL connections retry transient Fabric failures with fresh tokens", {
@@ -161,6 +234,40 @@ test_that("SQL connections retry transient Fabric failures with fresh tokens", {
   expect_equal(delays, c(5, 10))
 })
 
+test_that("ADBC connection retries rebuild the URI with a fresh token", {
+  attempts <- 0L
+  tokens <- character()
+  connection <- structure(list(), class = "test_connection")
+  local_mocked_bindings(
+    fabric_sql_load_adbc_driver = function(...) "mssql",
+    .fabric_sql_db_connect = function(...) {
+      args <- list(...)
+      attempts <<- attempts + 1L
+      tokens <<- c(tokens, httr2::url_parse(args$uri)$query$password)
+      if (attempts == 1L) {
+        rlang::abort("Error 6008: temporarily unavailable")
+      }
+      connection
+    },
+    .fabric_sql_sleep = function(...) invisible(NULL),
+    .fabric_sql_runif = function(...) 1
+  )
+
+  result <- fabric_sql_connect(
+    "server.datawarehouse.fabric.microsoft.com",
+    backend = "adbc",
+    token = function(audience, force_refresh = FALSE) {
+      if (force_refresh) "fresh-token" else "initial-token"
+    },
+    max_tries = 2L,
+    retry_delay = 0,
+    verbose = FALSE
+  )
+
+  expect_identical(result, connection)
+  expect_identical(tokens, c("initial-token", "fresh-token"))
+})
+
 test_that("fabric_sql_query passes bound parameters unchanged", {
   connection <- structure(list(), class = "test_connection")
   captured <- NULL
@@ -173,8 +280,18 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   )
   local_mocked_bindings(
     fabric_sql_connect = function(...) connection,
-    .fabric_sql_db_get_query = function(con, sql, params = NULL) {
-      captured <<- list(con = con, sql = sql, params = params)
+    .fabric_sql_db_get_query = function(
+      con,
+      sql,
+      params = NULL,
+      result = "tibble"
+    ) {
+      captured <<- list(
+        con = con,
+        sql = sql,
+        params = params,
+        result = result
+      )
       data.frame(ok = TRUE)
     },
     .fabric_sql_db_disconnect = function(con) {
@@ -194,7 +311,111 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   expect_s3_class(result, "tbl_df")
   expect_identical(captured$params, values)
   expect_identical(captured$sql, "SELECT ?, ?, ?, ?")
+  expect_identical(captured$result, "tibble")
   expect_true(disconnected)
+})
+
+test_that("ADBC parameter translation ignores SQL literals and comments", {
+  sql <- paste0(
+    "SELECT ?, '?', \"?\", [?], [a]]?], ",
+    "'it''s ?' -- ?\n",
+    "FROM t /* ? /* nested ? */ still ? */ WHERE x = ?"
+  )
+  translated <- fabric_sql_adbc_parameter_sql(sql, list(1L, 2L))
+
+  expect_equal(
+    translated,
+    paste0(
+      "SELECT @p1, '?', \"?\", [?], [a]]?], ",
+      "'it''s ?' -- ?\n",
+      "FROM t /* ? /* nested ? */ still ? */ WHERE x = @p2"
+    )
+  )
+  expect_error(
+    fabric_sql_adbc_parameter_sql("SELECT ?, ?", list(1L)),
+    "2 SQL placeholders for 1 value",
+    fixed = TRUE,
+    class = "fabric_sql_execution_error"
+  )
+})
+
+test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
+  connection <- structure(list(), class = "test_connection")
+  fake_stream <- structure(list(id = 1L), class = "nanoarrow_array_stream")
+  connect_args <- NULL
+  query_args <- NULL
+  disconnected <- FALSE
+  local_mocked_bindings(
+    fabric_sql_connect = function(...) {
+      connect_args <<- list(...)
+      connection
+    },
+    .fabric_sql_db_get_query = function(
+      con,
+      sql,
+      params = NULL,
+      result = "tibble"
+    ) {
+      query_args <<- list(
+        con = con,
+        sql = sql,
+        params = params,
+        result = result
+      )
+      fake_stream
+    },
+    .fabric_sql_db_disconnect = function(...) {
+      disconnected <<- TRUE
+      invisible(TRUE)
+    }
+  )
+
+  result <- fabric_sql_query(
+    "unused",
+    "SELECT ? AS value, '?' AS literal",
+    params = list(42L),
+    backend = "adbc",
+    result = "arrow_stream",
+    token = "token",
+    verbose = FALSE
+  )
+
+  expect_identical(result, fake_stream)
+  expect_equal(connect_args$backend, "adbc")
+  expect_equal(connect_args$adbc_driver, "mssql")
+  expect_equal(query_args$sql, "SELECT @p1 AS value, '?' AS literal")
+  expect_identical(query_args$params, list(42L))
+  expect_equal(query_args$result, "arrow_stream")
+  expect_true(disconnected)
+})
+
+test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {
+  skip_if_not_installed("arrow")
+  connection <- structure(list(), class = "test_connection")
+  stream <- nanoarrow::basic_array_stream(
+    list(data.frame(id = 1:2, value = c("a", "b")))
+  )
+  local_mocked_bindings(
+    fabric_sql_connect = function(...) connection,
+    .fabric_sql_db_get_query = function(...) stream,
+    .fabric_sql_db_disconnect = function(...) invisible(TRUE)
+  )
+
+  result <- fabric_sql_query(
+    "unused",
+    "SELECT id, value FROM dbo.items",
+    result = "arrow_stream",
+    token = "token",
+    verbose = FALSE
+  )
+  reader <- arrow::as_record_batch_reader(result)
+  table <- reader$read_table()
+
+  expect_s3_class(reader, "RecordBatchReader")
+  expect_equal(
+    as.data.frame(table),
+    data.frame(id = 1:2, value = c("a", "b"))
+  )
 })
 
 test_that("SQL query retries require idempotency and use fresh connections", {
@@ -207,7 +428,12 @@ test_that("SQL query retries require idempotency and use fresh connections", {
       connections <<- connections + 1L
       structure(list(id = connections), class = "test_connection")
     },
-    .fabric_sql_db_get_query = function(con, sql, params = NULL) {
+    .fabric_sql_db_get_query = function(
+      con,
+      sql,
+      params = NULL,
+      result = "tibble"
+    ) {
       queries <<- queries + 1L
       if (queries == 1L) {
         rlang::abort("Error 24804: operation interrupted by a system update")
@@ -293,6 +519,27 @@ test_that("SQL retry controls reject invalid values", {
     "idempotent",
     fixed = TRUE
   )
+  expect_error(
+    fabric_sql_connect(
+      "server",
+      backend = "invalid",
+      token = "token",
+      verbose = FALSE
+    ),
+    "should be one of",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_sql_query(
+      "server",
+      "SELECT 1",
+      result = "invalid",
+      token = "token",
+      verbose = FALSE
+    ),
+    "should be one of",
+    fixed = TRUE
+  )
 })
 
 test_that("SQL failures have actionable condition classes", {
@@ -310,6 +557,33 @@ test_that("SQL failures have actionable condition classes", {
     ),
     class = "fabric_sql_authentication_error"
   )
+
+  secret <- "sensitive+/token"
+  local_mocked_bindings(
+    fabric_sql_load_adbc_driver = function(...) "mssql",
+    .fabric_sql_db_connect = function(...) {
+      args <- list(...)
+      rlang::abort(paste("driver rejected", args$uri))
+    }
+  )
+  error <- tryCatch(
+    fabric_sql_connect(
+      "server.datawarehouse.fabric.microsoft.com",
+      database = "db",
+      backend = "adbc",
+      token = secret,
+      verbose = FALSE
+    ),
+    error = identity
+  )
+  expect_s3_class(error, "fabric_sql_connection_error")
+  expect_false(grepl(secret, conditionMessage(error), fixed = TRUE))
+  expect_false(grepl(
+    "password=sensitive",
+    conditionMessage(error),
+    fixed = TRUE
+  ))
+  expect_match(conditionMessage(error), "password=<redacted>", fixed = TRUE)
 
   local_mocked_bindings(
     fabric_sql_connect = function(...) structure(list(), class = "connection"),
@@ -336,6 +610,17 @@ test_that("SQL failures have actionable condition classes", {
       verbose = FALSE
     ),
     "params must be NULL or a list"
+  )
+})
+
+test_that("SQL helper defaults preserve ODBC and tibble behavior", {
+  expect_identical(
+    eval(formals(fabric_sql_connect)$backend),
+    c("odbc", "adbc")
+  )
+  expect_identical(
+    eval(formals(fabric_sql_query)$result),
+    c("tibble", "arrow_stream")
   )
 })
 
