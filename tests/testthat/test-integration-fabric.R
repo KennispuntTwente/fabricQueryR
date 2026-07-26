@@ -791,7 +791,7 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
     expect_equal(result$name, c("alpha", "beta", "gamma"), info = backend)
     expect_equal(result$category, c("A", "B", "A"), info = backend)
     expect_equal(result$amount, c(10.5, 20, NA), info = backend)
-    expect_s3_class(result$loaded_at, "POSIXct", info = backend)
+    expect_s3_class(result$loaded_at, "POSIXct")
     expect_equal(
       as.numeric(result$loaded_at),
       rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3),
@@ -831,7 +831,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
       verbose = FALSE
     )
 
-    expect_s3_class(result, "tbl_df", info = backend)
+    expect_s3_class(result, "tbl_df")
     expect_equal(nrow(result), 1L, info = backend)
     expect_equal(as.numeric(result$row_count), 3, info = backend)
     expect_equal(as.numeric(result$amount_sum), 30.5, info = backend)
@@ -848,7 +848,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
       token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
       verbose = FALSE
     )
-    expect_s3_class(empty, "tbl_df", info = backend)
+    expect_s3_class(empty, "tbl_df")
     expect_equal(nrow(empty), 0L, info = backend)
     expect_named(empty, c("id", "name"), info = backend)
 
@@ -906,7 +906,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
       token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
       verbose = FALSE
     )
-    expect_s3_class(stream, "nanoarrow_array_stream", info = backend)
+    expect_s3_class(stream, "nanoarrow_array_stream")
     streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
     expect_equal(streamed$id, c(1L, 2L, 3L), info = backend)
     expect_equal(streamed$name, c("alpha", "beta", "gamma"), info = backend)
@@ -926,7 +926,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     )
     reader <- arrow::as_record_batch_reader(arrow_stream)
     arrow_result <- as.data.frame(reader$read_table())
-    expect_s3_class(reader, "RecordBatchReader", info = backend)
+    expect_s3_class(reader, "RecordBatchReader")
     expect_equal(arrow_result$id, c(1L, 2L, 3L), info = backend)
     expect_equal(
       arrow_result$name,
@@ -1000,8 +1000,7 @@ fabric_test_sql_item <- function(name, backend) {
   )
   expect_s3_class(
     stream,
-    "nanoarrow_array_stream",
-    info = paste(name, backend)
+    "nanoarrow_array_stream"
   )
   streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
   expect_equal(streamed$bound_value, 43L, info = paste(name, backend))
