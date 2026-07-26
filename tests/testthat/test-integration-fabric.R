@@ -1396,7 +1396,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     displayName = notebook$display_name
   )
   session_tag <- paste0(
-    "fabricqueryr-job-integration-",
+    "fabricqueryr_job_integration_",
     substr(notebook$id, 1L, 8L)
   )
   completed_job <- fabric_job_run(

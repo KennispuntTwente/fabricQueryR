@@ -47,7 +47,8 @@
 #'   record for `default_lakehouse`; defaults to the job workspace.
 #' @param compute Notebook compute kind: `"Spark"`, `"Jupyter"`, or
 #'   `"DataWarehouse"`.
-#' @param session_tag Optional non-empty Spark high-concurrency session tag.
+#' @param session_tag Optional Spark high-concurrency session tag containing
+#'   only letters, numbers, and underscores.
 #' @param tenant_id Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Entra application ID. Defaults to
@@ -961,6 +962,12 @@ print.fabric_job_instance <- function(x, ...) {
 
 .fabric_job_validate_session_tag <- function(value, name) {
   .fabric_job_nonempty(value, name)
+  if (!grepl("^[A-Za-z0-9_]+$", value)) {
+    rlang::abort(sprintf(
+      "`%s` can only contain letters, numbers, and underscores",
+      name
+    ))
+  }
   invisible(TRUE)
 }
 
