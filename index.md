@@ -80,17 +80,24 @@ with familiar R database packages such as DBI and dbplyr.
 
 ``` r
 
+# Set up a DBI connection to a Lakehouse SQL endpoint
 con <- fabric_sql_connect(lakehouse)
-
+# List the tables
 DBI::dbListTables(con)
+# Run a SQL query and return the result as a tibble
+df_sql <- DBI::dbGetQuery(
+  con, 
+  "SELECT * FROM dbo.Customers WHERE region = 'West'"
+)
+# Close the connection when done
+DBI::dbDisconnect(con)
 
+# Or, run a single SQL query directly (without a connection object):
 df_sql <- fabric_sql_query(
   lakehouse,
   "SELECT * FROM dbo.Customers WHERE region = ?",
   params = list("West")
 )
-
-DBI::dbDisconnect(con)
 ```
 
 The default connection method requires [Microsoft ODBC Driver 18 for SQL

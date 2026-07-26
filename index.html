@@ -105,17 +105,24 @@
 </h3>
 <p>Connect to a Warehouse, SQL Database, or a Lakehouse’s read-only SQL analytics endpoint. The result is a standard DBI connection, so it works with familiar R database packages such as DBI and dbplyr.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
-<span></span>
+<code class="sourceCode R"><span><span class="co"># Set up a DBI connection to a Lakehouse SQL endpoint</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
+<span><span class="co"># List the tables</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
+<span><span class="co"># Run a SQL query and return the result as a tibble</span></span>
+<span><span class="va">df_sql</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span></span>
+<span>  <span class="va">con</span>, </span>
+<span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># Close the connection when done</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Or, run a single SQL query directly (without a connection object):</span></span>
 <span><span class="va">df_sql</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = ?"</span>,</span>
 <span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"West"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
 <p>The default connection method requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>. An optional ADBC backend is available for Arrow-based workflows; see <a href="https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.html"><code>fabric_sql_connect()</code></a> for setup and trade-offs.</p>
 </div>
 <div class="section level3">
