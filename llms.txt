@@ -29,8 +29,7 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 ## Getting started
 
 Below is a minimal example of how to find a workspace and some of its
-items. You can use these items to perform queries and other operations
-in Fabric.
+items.
 
 To connect to Microsoft Fabric, you need a Microsoft Entra tenant ID and
 optionally a client ID. See the [authentication
