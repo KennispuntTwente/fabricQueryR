@@ -32,6 +32,9 @@
 #'  request. Results are limited to 100,000 rows or 1,000,000 values (whichever
 #'  is reached first), 15 MB, and 120 requests per minute per user. Partial
 #'  results reported by Power BI are treated as errors by this function.
+#' - This function uses the JSON `executeQueries` API. Microsoft also offers a
+#'  separate `executeDaxQueries` API that returns Apache Arrow streams; that
+#'  endpoint and its additional request options are not used here.
 #'
 #' @param connstr Optional Power BI connection string or one
 #'   SemanticModel record returned by [fabric_semantic_models()] or
@@ -72,7 +75,9 @@
 #'   tibble; API errors and partial/truncated results raise an error rather than
 #'   silently returning incomplete data.
 #' @references
-#' [Power BI Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries)
+#' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
+#'
+#' [Power BI Arrow Execute DAX Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-dax-queries-in-group)
 #'
 #' [Semantic model permissions](https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions)
 #'

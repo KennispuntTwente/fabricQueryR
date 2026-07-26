@@ -102,6 +102,9 @@ semantic models with row-level security or single sign-on enabled.
 request. Results are limited to 100,000 rows or 1,000,000 values (whichever
 is reached first), 15 MB, and 120 requests per minute per user. Partial
 results reported by Power BI are treated as errors by this function.
+\item This function uses the JSON \code{executeQueries} API. Microsoft also offers a
+separate \code{executeDaxQueries} API that returns Apache Arrow streams; that
+endpoint and its additional request options are not used here.
 }
 }
 \examples{
@@ -118,7 +121,9 @@ dplyr::glimpse(df)
 }
 }
 \references{
-\href{https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries}{Power BI Execute Queries REST API}
+\href{https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group}{Power BI JSON Execute Queries REST API}
+
+\href{https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-dax-queries-in-group}{Power BI Arrow Execute DAX Queries REST API}
 
 \href{https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions}{Semantic model permissions}
 

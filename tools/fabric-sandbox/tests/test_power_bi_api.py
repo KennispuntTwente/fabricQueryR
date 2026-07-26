@@ -83,3 +83,46 @@ def test_semantic_model_fixture_can_be_found_by_unique_name():
         dataset = api.find_dataset("workspace-id", SEMANTIC_MODEL_NAME)
 
     assert dataset["id"] == "dataset-id"
+
+
+def test_semantic_model_fixture_reset_removes_all_stale_copies():
+    requests = []
+
+    def handler(request):
+        requests.append((request.method, request.url.path))
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {"id": "stale-1", "name": SEMANTIC_MODEL_NAME},
+                        {
+                            "id": "stale-2",
+                            "name": SEMANTIC_MODEL_NAME.lower(),
+                        },
+                        {"id": "other", "name": "Other"},
+                    ]
+                },
+            )
+        if request.method == "DELETE":
+            return httpx.Response(200)
+        if request.method == "POST" and request.url.path.endswith("/datasets"):
+            return httpx.Response(
+                201,
+                json={"id": "fresh", "name": SEMANTIC_MODEL_NAME},
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        dataset = api.reset_test_semantic_model("workspace-id")
+
+    assert dataset["id"] == "fresh"
+    assert requests == [
+        ("GET", "/v1.0/myorg/groups/workspace-id/datasets"),
+        ("DELETE", "/v1.0/myorg/groups/workspace-id/datasets/stale-1"),
+        ("DELETE", "/v1.0/myorg/groups/workspace-id/datasets/stale-2"),
+        ("POST", "/v1.0/myorg/groups/workspace-id/datasets"),
+    ]

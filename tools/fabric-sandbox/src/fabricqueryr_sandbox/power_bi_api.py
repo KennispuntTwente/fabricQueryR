@@ -50,6 +50,7 @@ class PowerBiApi:
         return response
 
     def create_test_semantic_model(self, workspace_id: str) -> dict[str, Any]:
+        """Create the Push fixture used to exercise the JSON query API."""
         return self.request(
             "POST",
             f"/groups/{workspace_id}/datasets",
@@ -70,21 +71,42 @@ class PowerBiApi:
             },
         ).json()
 
-    def find_dataset(self, workspace_id: str, name: str) -> dict[str, Any]:
+    def find_datasets(
+        self, workspace_id: str, name: str
+    ) -> list[dict[str, Any]]:
         datasets = self.request(
             "GET",
             f"/groups/{workspace_id}/datasets",
         ).json().get("value", [])
-        matches = [
+        return [
             dataset
             for dataset in datasets
             if dataset.get("name", "").casefold() == name.casefold()
         ]
+
+    def find_dataset(self, workspace_id: str, name: str) -> dict[str, Any]:
+        matches = self.find_datasets(workspace_id, name)
         if not matches:
             raise LookupError(f"Power BI dataset not found: {name}")
         if len(matches) > 1:
             raise LookupError(f"Power BI dataset name is ambiguous: {name}")
         return matches[0]
+
+    def delete_dataset(self, workspace_id: str, dataset_id: str) -> None:
+        self.request(
+            "DELETE",
+            f"/groups/{workspace_id}/datasets/{dataset_id}",
+        )
+
+    def reset_test_semantic_model(
+        self, workspace_id: str
+    ) -> dict[str, Any]:
+        """Delete stale fixture copies and create exactly one fresh model."""
+        for dataset in self.find_datasets(
+            workspace_id, SEMANTIC_MODEL_NAME
+        ):
+            self.delete_dataset(workspace_id, dataset["id"])
+        return self.create_test_semantic_model(workspace_id)
 
     def add_test_rows(self, workspace_id: str, dataset_id: str) -> None:
         self.request(
@@ -147,7 +169,7 @@ def seed_test_semantic_model(
     workspace_id: str,
 ) -> dict[str, Any]:
     with PowerBiApi(credential) as api:
-        dataset = api.create_test_semantic_model(workspace_id)
+        dataset = api.reset_test_semantic_model(workspace_id)
         api.add_test_rows(workspace_id, dataset["id"])
         api.wait_for_test_rows(workspace_id, dataset["id"])
         return dataset

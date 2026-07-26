@@ -406,7 +406,7 @@ The main workload considerations are:
   setting. A user needs semantic-model Read and Build permissions. Service
   principals additionally need the Power BI service-principal tenant setting;
   they are not supported for models with RLS or SSO enabled. See
-  [Execute Queries](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries).
+  [JSON Execute Queries](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group).
 - **GraphQL.** Grant **Run Queries and Mutations** (Execute) on the GraphQL API
   and grant access to its underlying data source. A Contributor workspace role
   is convenient for development but item-level permission is narrower. See the
