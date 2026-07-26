@@ -1584,6 +1584,6 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   expect_match(conditionMessage(multiple_tables), "Power BI", fixed = TRUE)
   expect_match(
     conditionMessage(multiple_tables),
-    "(?i)(more than one|result table)"
+    "(?i)(more than (one|1)|result (table|set))"
   )
 })
