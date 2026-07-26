@@ -86,9 +86,13 @@ filesystem. Within a Lakehouse item, Delta tables are stored under
 \verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
 (schema-enabled lakehouse). The function first stages the transaction log,
 then downloads only the Parquet files active in the requested version.
-\item Checkpoint Parquet and data Parquet files are read with DuckDB. Tables that
-require reader protocol versions or reader features this package does not
-implement are rejected before any data is returned.
+\item Checkpoint Parquet and data Parquet files are read with DuckDB. The staged
+reader supports Delta reader protocol version 1 without table features. It
+does not currently support column mapping, deletion vectors, or higher
+reader protocols. These occur in some current Fabric tables, including
+Warehouse Delta exports. Such tables are rejected with a
+\code{fabric_delta_unsupported_error} before any data is returned; use the
+Lakehouse SQL analytics endpoint or Fabric Spark for those tables.
 \item The returned columns follow the logical schema in the selected Delta
 snapshot. Schema additions are filled with typed missing values, removed
 physical columns are omitted, and partition values come from Delta add-file

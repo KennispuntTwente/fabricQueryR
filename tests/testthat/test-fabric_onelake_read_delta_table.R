@@ -891,8 +891,9 @@ test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
   )
   expect_error(
     fabric_delta_validate_reader(state),
-    "Unsupported Delta reader protocol version 3",
-    fixed = TRUE
+    "Delta reader protocol version 3",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
   )
 
   state$protocol <- list(minReaderVersion = 1L)
@@ -902,13 +903,15 @@ test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
   expect_error(
     fabric_delta_validate_reader(state),
     "column mapping mode",
-    fixed = TRUE
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
   )
   state$protocol <- list(minReaderVersion = 2L)
   expect_error(
     fabric_delta_validate_reader(state),
     "column mapping mode",
-    fixed = TRUE
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
   )
 
   state$metadata$configuration <- list()
@@ -916,7 +919,8 @@ test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
   expect_error(
     fabric_delta_validate_reader(state),
     "deletion vectors",
-    fixed = TRUE
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
   )
   state$protocol <- list(
     minReaderVersion = 3L,
@@ -925,7 +929,8 @@ test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
   expect_error(
     fabric_delta_validate_reader(state),
     "deletion vectors",
-    fixed = TRUE
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
   )
 
   table_dir <- fs::path_temp(paste0("delta-incomplete-", sample.int(1e9, 1)))
