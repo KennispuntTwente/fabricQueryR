@@ -283,6 +283,13 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         )
         or {"id": "semantic-model-id", "name": "TestModel"},
     )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.prepare_arrow_test_semantic_model",
+        lambda credential, workspace_id: calls.append(
+            ("prepare_arrow_power_bi", credential, workspace_id)
+        )
+        or {"id": "arrow-model-id", "name": "ArrowTestModel"},
+    )
 
     seed(settings)
 
@@ -330,3 +337,4 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "token-for-https://database.windows.net/.default",
     ) in calls
     assert ("seed_power_bi", credential, "workspace-id") in calls
+    assert ("prepare_arrow_power_bi", credential, "workspace-id") in calls

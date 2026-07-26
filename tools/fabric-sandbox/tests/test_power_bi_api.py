@@ -4,9 +4,11 @@ from azure.core.credentials import AccessToken
 import httpx
 
 from fabricqueryr_sandbox.power_bi_api import (
+    ARROW_SEMANTIC_MODEL_NAME,
     PowerBiApi,
     SEMANTIC_MODEL_NAME,
     SEMANTIC_MODEL_TABLE,
+    prepare_arrow_test_semantic_model,
 )
 
 
@@ -125,4 +127,71 @@ def test_semantic_model_fixture_reset_removes_all_stale_copies():
         ("DELETE", "/v1.0/myorg/groups/workspace-id/datasets/stale-1"),
         ("DELETE", "/v1.0/myorg/groups/workspace-id/datasets/stale-2"),
         ("POST", "/v1.0/myorg/groups/workspace-id/datasets"),
+    ]
+
+
+def test_arrow_semantic_model_fixture_is_refreshed_and_verified(monkeypatch):
+    requests = []
+
+    def handler(request):
+        requests.append((request.method, request.url.path))
+        if request.method == "GET" and request.url.path.endswith("/datasets"):
+            return httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "id": "arrow-dataset-id",
+                            "name": ARROW_SEMANTIC_MODEL_NAME,
+                        }
+                    ]
+                },
+            )
+        if request.url.path.endswith("/refreshes"):
+            return httpx.Response(202)
+        if request.url.path.endswith("/executeQueries"):
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "tables": [
+                                {"rows": [{"[row_count]": 3}]},
+                            ]
+                        }
+                    ]
+                },
+            )
+        raise AssertionError(f"unexpected request: {request.url}")
+
+    credential = StaticCredential()
+    original_init = PowerBiApi.__init__
+
+    def fake_init(self, supplied_credential):
+        original_init(
+            self,
+            supplied_credential,
+            transport=httpx.MockTransport(handler),
+            sleep=lambda _: None,
+        )
+
+    monkeypatch.setattr(PowerBiApi, "__init__", fake_init)
+    dataset = prepare_arrow_test_semantic_model(
+        credential,
+        "workspace-id",
+    )
+
+    assert dataset["id"] == "arrow-dataset-id"
+    assert requests == [
+        ("GET", "/v1.0/myorg/groups/workspace-id/datasets"),
+        (
+            "POST",
+            "/v1.0/myorg/groups/workspace-id/datasets/"
+            "arrow-dataset-id/refreshes",
+        ),
+        (
+            "POST",
+            "/v1.0/myorg/groups/workspace-id/datasets/"
+            "arrow-dataset-id/executeQueries",
+        ),
     ]

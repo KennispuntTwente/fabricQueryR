@@ -60,7 +60,10 @@
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
   workspace/dataset IDs, supports optional RLS impersonation, handles paginated
   name lookup safely, and rejects partial or embedded query errors instead of
-  returning incomplete results.
+  returning incomplete results. It also supports the newer Arrow
+  `executeDaxQueries` API, including its advanced request options, typed tibble
+  results, Arrow C stream results, LZ4-compressed record batches, and HTTP 200
+  error rowsets. Optional execution metrics are retained as a result attribute.
 
 # fabricQueryR 0.2.1
 

@@ -15,7 +15,10 @@ from .graphql_api import (
     graphql_definition,
 )
 from .kusto_api import KustoApi, SEED_TABLE
-from .power_bi_api import seed_test_semantic_model
+from .power_bi_api import (
+    prepare_arrow_test_semantic_model,
+    seed_test_semantic_model,
+)
 from .settings import SandboxSettings
 from .sql_api import SQL_AUDIENCE, seed_sql_fixture
 
@@ -159,4 +162,13 @@ def seed(settings: SandboxSettings) -> None:
     print(
         "semantic model seeded: "
         f"{semantic_model.get('name')} ({semantic_model.get('id')})"
+    )
+    arrow_semantic_model = prepare_arrow_test_semantic_model(
+        get_credential(),
+        workspace_id,
+    )
+    print(
+        "Arrow semantic model refreshed: "
+        f"{arrow_semantic_model.get('name')} "
+        f"({arrow_semantic_model.get('id')})"
     )

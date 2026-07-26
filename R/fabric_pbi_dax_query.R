@@ -28,13 +28,23 @@
 #'  enabled. Service-principal authentication also requires **Allow service
 #'  principals to use Power BI APIs**. Service principals are not supported for
 #'  semantic models with row-level security or single sign-on enabled.
-#' - The Execute Queries API accepts one DAX query and one result table per
-#'  request. Results are limited to 100,000 rows or 1,000,000 values (whichever
-#'  is reached first), 15 MB, and 120 requests per minute per user. Partial
+#' - Set `api = "json"` (the default) for the established `executeQueries`
+#'  endpoint. It accepts one DAX query and one result table per request.
+#'  Results are limited to 100,000 rows or 1,000,000 values (whichever is
+#'  reached first), 15 MB, and 120 requests per minute per user. Partial
 #'  results reported by Power BI are treated as errors by this function.
-#' - This function uses the JSON `executeQueries` API. Microsoft also offers a
-#'  separate `executeDaxQueries` API that returns Apache Arrow streams; that
-#'  endpoint and its additional request options are not used here.
+#' - Set `api = "arrow"` for the newer `executeDaxQueries` endpoint. It
+#'  preserves Arrow column types, raises errors carried in HTTP 200 Arrow error
+#'  rowsets, and supports the additional documented request properties through
+#'  `arrow_options`. The optional \pkg{arrow} package is required because Power
+#'  BI compresses record batches with LZ4. This API requires a Premium, Fabric,
+#'  or Embedded capacity and does not support deprecated Push semantic models.
+#'  The Power BI tenant settings **Dataset Execute Queries REST API** and
+#'  **Allow XMLA endpoints and Analyze in Excel with on-premises semantic
+#'  models** must both be enabled.
+#' - Arrow queries may contain multiple `EVALUATE` statements, but this helper
+#'  retains its single-table return contract and errors when Power BI returns
+#'  multiple data rowsets.
 #'
 #' @param connstr Optional Power BI connection string or one
 #'   SemanticModel record returned by [fabric_semantic_models()] or
@@ -58,6 +68,8 @@
 #' @param include_nulls Logical. With `TRUE`, Power BI includes properties whose
 #'   value is blank/null. With `FALSE`, those properties can be absent from a
 #'   returned row; retaining `TRUE` usually gives a more consistent tibble.
+#'   Used only by `api = "json"`; Arrow has a schema and always represents
+#'   nulls explicitly.
 #' @param api_base Power BI REST API base URL. The default
 #'   `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial cloud;
 #'   override it only for a test service that implements the same endpoint and
@@ -70,12 +82,29 @@
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param impersonated_user Optional user principal name, such as
 #'   `"analyst@example.com"`, sent as `impersonatedUserName` for supported
-#'   row-level-security scenarios. Leave `NULL` for the normal identity context.
+#'   JSON row-level-security scenarios or as `effectiveUsername` for Arrow.
+#'   Leave `NULL` for the normal identity context.
+#' @param api Response API. `"json"` uses `executeQueries`; `"arrow"` uses
+#'   `executeDaxQueries`.
+#' @param result Return format. `"tibble"` collects the result in R memory.
+#'   With `api = "arrow"`, `"arrow_stream"` returns a
+#'   `nanoarrow_array_stream` compatible with
+#'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers.
+#' @param arrow_options Named list of optional `executeDaxQueries` request
+#'   properties. Supported names are `applicationContext`, `culture`,
+#'   `customData`, `effectiveUsername`, `executionMetrics`, `memoryLimit`,
+#'   `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The
+#'   required `query` property is supplied from `dax`. Used only by
+#'   `api = "arrow"`.
 #'
-#' @return A tibble containing the single result table. Power BI's qualified,
-#'   bracketed column names are preserved. An empty result becomes a zero-row
-#'   tibble; API errors and partial/truncated results raise an error rather than
-#'   silently returning incomplete data.
+#' @return With `result = "tibble"`, a tibble containing the single result
+#'   table. With `api = "arrow", result = "arrow_stream"`, a
+#'   `nanoarrow_array_stream`. Power BI's column names are preserved. An empty
+#'   result becomes a typed zero-row result; API errors, multiple rowsets, and
+#'   partial/truncated JSON results raise an error rather than silently
+#'   returning incomplete data. When `executionMetrics = TRUE`, the metrics
+#'   rowset is attached to either result as an `execution_metrics` tibble
+#'   attribute.
 #' @references
 #' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
 #'
@@ -97,6 +126,15 @@
 #'   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
 #' )
 #' dplyr::glimpse(df)
+#'
+#' # Arrow IPC endpoint, returned through the Arrow C stream interface
+#' stream <- fabric_pbi_dax_query(
+#'   connstr = conn,
+#'   dax = "EVALUATE TOPN(1000, 'Customers')",
+#'   api = "arrow",
+#'   result = "arrow_stream"
+#' )
+#' reader <- arrow::as_record_batch_reader(stream)
 #' }
 fabric_pbi_dax_query <- function(
   connstr = NULL,
@@ -112,8 +150,13 @@ fabric_pbi_dax_query <- function(
   auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  impersonated_user = NULL
+  impersonated_user = NULL,
+  api = c("json", "arrow"),
+  result = c("tibble", "arrow_stream"),
+  arrow_options = list()
 ) {
+  api <- match.arg(api)
+  result <- match.arg(result)
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
     rlang::abort("dax must be one non-empty string")
   }
@@ -188,6 +231,32 @@ fabric_pbi_dax_query <- function(
   ) {
     rlang::abort("impersonated_user must be one non-empty string")
   }
+  arrow_options <- pbi_validate_arrow_options(arrow_options)
+  if (identical(api, "json") && length(arrow_options)) {
+    rlang::abort("arrow_options can only be used with api = \"arrow\"")
+  }
+  if (identical(api, "json") && !identical(result, "tibble")) {
+    rlang::abort("result = \"arrow_stream\" requires api = \"arrow\"")
+  }
+  if (
+    identical(api, "arrow") &&
+      !is.null(impersonated_user) &&
+      "effectiveUsername" %in% names(arrow_options)
+  ) {
+    rlang::abort(
+      "Supply effective identity through either impersonated_user or arrow_options, not both"
+    )
+  }
+  if (identical(api, "arrow")) {
+    packages <- "arrow"
+    if (identical(result, "arrow_stream")) {
+      packages <- c(packages, "nanoarrow")
+    }
+    rlang::check_installed(
+      packages,
+      reason = "to consume Power BI Arrow DAX responses"
+    )
+  }
 
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -206,14 +275,28 @@ fabric_pbi_dax_query <- function(
     dataset_id <- ids$dataset_id
   }
 
-  pbi_execute_dax(
+  if (identical(api, "json")) {
+    return(pbi_execute_dax(
+      credential = credential,
+      dataset_id = dataset_id,
+      dax = dax,
+      group_id = workspace_id,
+      include_nulls = include_nulls,
+      api_base = api_base,
+      impersonated_user = impersonated_user
+    ))
+  }
+  if (!is.null(impersonated_user)) {
+    arrow_options$effectiveUsername <- impersonated_user
+  }
+  pbi_execute_dax_arrow(
     credential = credential,
     dataset_id = dataset_id,
     dax = dax,
     group_id = workspace_id,
-    include_nulls = include_nulls,
     api_base = api_base,
-    impersonated_user = impersonated_user
+    options = arrow_options,
+    result = result
   )
 }
 
@@ -393,6 +476,287 @@ pbi_execute_dax <- function(
     idempotent = TRUE
   )
   pbi_parse_dax_response(out)
+}
+
+#' Validate optional Execute DAX Queries Arrow request properties
+#' @keywords internal
+#' @noRd
+pbi_validate_arrow_options <- function(options) {
+  if (!is.list(options) || is.data.frame(options)) {
+    rlang::abort("arrow_options must be a named list")
+  }
+  if (!length(options)) {
+    return(list())
+  }
+  option_names <- names(options)
+  if (
+    is.null(option_names) ||
+      anyNA(option_names) ||
+      any(!nzchar(option_names)) ||
+      anyDuplicated(option_names)
+  ) {
+    rlang::abort("arrow_options must have unique, non-empty names")
+  }
+  supported <- c(
+    "applicationContext",
+    "culture",
+    "customData",
+    "effectiveUsername",
+    "executionMetrics",
+    "memoryLimit",
+    "queryTimeout",
+    "resultSetRowCountLimit",
+    "roles",
+    "schemaOnly"
+  )
+  unknown <- setdiff(option_names, supported)
+  if (length(unknown)) {
+    rlang::abort(paste0(
+      "Unsupported arrow_options name(s): ",
+      paste(unknown, collapse = ", ")
+    ))
+  }
+  options <- Filter(Negate(is.null), options)
+  string_options <- intersect(
+    names(options),
+    c(
+      "applicationContext",
+      "culture",
+      "customData",
+      "effectiveUsername"
+    )
+  )
+  for (name in string_options) {
+    value <- options[[name]]
+    if (
+      !is.character(value) ||
+        length(value) != 1L ||
+        is.na(value) ||
+        !nzchar(value)
+    ) {
+      rlang::abort(paste0(
+        "arrow_options$",
+        name,
+        " must be one non-empty string"
+      ))
+    }
+  }
+  integer_options <- intersect(
+    names(options),
+    c("memoryLimit", "queryTimeout", "resultSetRowCountLimit")
+  )
+  for (name in integer_options) {
+    value <- options[[name]]
+    if (
+      !is.numeric(value) ||
+        length(value) != 1L ||
+        is.na(value) ||
+        !is.finite(value) ||
+        value <= 0 ||
+        value != floor(value)
+    ) {
+      rlang::abort(paste0(
+        "arrow_options$",
+        name,
+        " must be one positive integer"
+      ))
+    }
+  }
+  if ("roles" %in% names(options)) {
+    roles <- options$roles
+    if (
+      !is.character(roles) ||
+        !length(roles) ||
+        anyNA(roles) ||
+        any(!nzchar(roles))
+    ) {
+      rlang::abort(
+        "arrow_options$roles must be a non-empty character vector"
+      )
+    }
+  }
+  logical_options <- intersect(
+    names(options),
+    c("executionMetrics", "schemaOnly")
+  )
+  for (name in logical_options) {
+    value <- options[[name]]
+    if (
+      !is.logical(value) ||
+        length(value) != 1L ||
+        is.na(value)
+    ) {
+      rlang::abort(paste0(
+        "arrow_options$",
+        name,
+        " must be TRUE or FALSE"
+      ))
+    }
+  }
+  options
+}
+
+#' Execute a DAX query through the Arrow IPC endpoint
+#' @keywords internal
+#' @noRd
+pbi_execute_dax_arrow <- function(
+  credential,
+  dataset_id,
+  dax,
+  group_id = NULL,
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  options = list(),
+  result = c("tibble", "arrow_stream")
+) {
+  result <- match.arg(result)
+  path <- if (is.null(group_id)) {
+    sprintf("%s/datasets/%s/executeDaxQueries", api_base, dataset_id)
+  } else {
+    sprintf(
+      "%s/groups/%s/datasets/%s/executeDaxQueries",
+      api_base,
+      group_id,
+      dataset_id
+    )
+  }
+  body <- c(list(query = dax), options)
+  req <- httr2::request(path) |>
+    httr2::req_headers(
+      Accept = "application/vnd.apache.arrow.stream"
+    ) |>
+    httr2::req_body_json(body)
+  response <- .httr2_perform(
+    req,
+    credential = credential,
+    audience = .fabric_audience$power_bi,
+    idempotent = TRUE
+  )
+  pbi_parse_dax_arrow_response(
+    httr2::resp_body_raw(response),
+    result = result
+  )
+}
+
+#' Parse concatenated Execute DAX Queries Arrow IPC streams
+#' @keywords internal
+#' @noRd
+pbi_parse_dax_arrow_response <- function(
+  payload,
+  result = c("tibble", "arrow_stream")
+) {
+  result <- match.arg(result)
+  if (!is.raw(payload) || !length(payload)) {
+    rlang::abort("Power BI returned an empty Arrow DAX response")
+  }
+  buffer <- arrow::BufferReader$create(payload)
+  size <- length(payload)
+  data_tables <- list()
+  metrics_tables <- list()
+  while (buffer$tell() < size) {
+    position <- buffer$tell()
+    reader <- tryCatch(
+      arrow::RecordBatchStreamReader$create(buffer),
+      error = function(error) {
+        rlang::abort(
+          "Power BI returned an invalid Arrow DAX response",
+          parent = error
+        )
+      }
+    )
+    schema <- reader$schema
+    table <- tryCatch(
+      reader$read_table(),
+      error = function(error) {
+        rlang::abort(
+          "Could not decompress or read the Power BI Arrow DAX response",
+          parent = error
+        )
+      }
+    )
+    metadata <- schema$metadata %||% list()
+    if (identical(tolower(metadata[["IsError"]] %||% "false"), "true")) {
+      pbi_abort_dax_arrow_error(metadata, table)
+    }
+    if (
+      identical(
+        tolower(metadata[["IsExecMetrics"]] %||% "false"),
+        "true"
+      )
+    ) {
+      metrics_tables[[length(metrics_tables) + 1L]] <- table
+    } else {
+      data_tables[[length(data_tables) + 1L]] <- table
+    }
+    if (buffer$tell() <= position) {
+      rlang::abort("Power BI returned a non-advancing Arrow DAX stream")
+    }
+  }
+  if (!length(data_tables)) {
+    rlang::abort("Power BI returned no Arrow DAX data rowset")
+  }
+  if (length(data_tables) != 1L) {
+    rlang::abort(sprintf(
+      "Power BI returned %d Arrow DAX data rowsets; exactly one is supported",
+      length(data_tables)
+    ))
+  }
+  if (length(metrics_tables) > 1L) {
+    rlang::abort(sprintf(
+      "Power BI returned %d Arrow DAX execution-metrics rowsets; at most one is supported",
+      length(metrics_tables)
+    ))
+  }
+  table <- data_tables[[1L]]
+  metrics <- if (length(metrics_tables)) {
+    tibble::as_tibble(as.data.frame(metrics_tables[[1L]]))
+  } else {
+    NULL
+  }
+  if (identical(result, "arrow_stream")) {
+    value <- nanoarrow::as_nanoarrow_array_stream(table)
+  } else {
+    value <- tibble::as_tibble(as.data.frame(table))
+  }
+  if (!is.null(metrics)) {
+    attr(value, "execution_metrics") <- metrics
+  }
+  value
+}
+
+#' Raise an actionable HTTP 200 Arrow error-rowset response
+#' @keywords internal
+#' @noRd
+pbi_abort_dax_arrow_error <- function(metadata, table) {
+  fields <- tryCatch(
+    as.data.frame(table),
+    error = function(error) data.frame()
+  )
+  row_detail <- if (NROW(fields)) {
+    values <- unlist(fields[1L, , drop = FALSE], use.names = TRUE)
+    values <- values[!is.na(values) & nzchar(as.character(values))]
+    paste(
+      paste0(names(values), "=", as.character(values)),
+      collapse = "; "
+    )
+  } else {
+    ""
+  }
+  fault_code <- as.character(metadata[["FaultCode"]] %||% "")
+  fault_string <- as.character(metadata[["FaultString"]] %||% "")
+  summary <- paste0(
+    if (nzchar(fault_code)) paste0("[", fault_code, "] ") else "",
+    fault_string
+  )
+  detail <- paste(c(summary, row_detail)[nzchar(c(summary, row_detail))],
+    collapse = ": "
+  )
+  if (!nzchar(detail)) {
+    detail <- "unknown Arrow error rowset"
+  }
+  rlang::abort(
+    paste0("Power BI Arrow DAX query failed: ", detail),
+    class = "fabric_pbi_dax_error"
+  )
 }
 
 #' Validate and parse an Execute Queries response

@@ -14,7 +14,11 @@ from .graphql_api import (
     GRAPHQL_ROOT_FIELD,
 )
 from .manifest import SandboxManifest
-from .power_bi_api import PowerBiApi, SEMANTIC_MODEL_NAME
+from .power_bi_api import (
+    ARROW_SEMANTIC_MODEL_NAME,
+    PowerBiApi,
+    SEMANTIC_MODEL_NAME,
+)
 from .settings import SandboxSettings
 from .sql_api import SQL_FIXTURE_TABLE
 
@@ -159,6 +163,10 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             workspace_id,
             SEMANTIC_MODEL_NAME,
         )
+        arrow_semantic_model = power_bi.find_dataset(
+            workspace_id,
+            ARROW_SEMANTIC_MODEL_NAME,
+        )
     manifest = SandboxManifest(
         workspace_id=workspace_id,
         workspace_name=settings.workspace_name,
@@ -268,6 +276,16 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "Data Source=powerbi://api.powerbi.com/v1.0/myorg/"
                     f"{quote(settings.workspace_name, safe='')};"
                     f"Initial Catalog={SEMANTIC_MODEL_NAME};"
+                ),
+            },
+            "TestArrowSemanticModel": {
+                "id": arrow_semantic_model["id"],
+                "type": "SemanticModel",
+                "display_name": ARROW_SEMANTIC_MODEL_NAME,
+                "connection_string": (
+                    "Data Source=powerbi://api.powerbi.com/v1.0/myorg/"
+                    f"{quote(settings.workspace_name, safe='')};"
+                    f"Initial Catalog={ARROW_SEMANTIC_MODEL_NAME};"
                 ),
             },
             "TestGraphQL": {

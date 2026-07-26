@@ -142,6 +142,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "TestEventhouse",
         "TestKQLDatabase",
         "TestSemanticModel",
+        "TestArrowSemanticModel",
         "TestGraphQL",
     }
     assert manifest.items["JobFixtures"] == {
@@ -163,6 +164,16 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "id": "TestSparkJob-id",
         "type": "SparkJobDefinition",
         "display_name": "TestSparkJob",
+    }
+    assert manifest.items["TestArrowSemanticModel"] == {
+        "id": "semantic-model-id",
+        "type": "SemanticModel",
+        "display_name": "FabricQueryRArrowIntegrationModel",
+        "connection_string": (
+            "Data Source=powerbi://api.powerbi.com/v1.0/myorg/"
+            "fabricqueryr-test;"
+            "Initial Catalog=FabricQueryRArrowIntegrationModel;"
+        ),
     }
     assert manifest.items["TestWarehouse"] == {
         "id": "TestWarehouse-id",

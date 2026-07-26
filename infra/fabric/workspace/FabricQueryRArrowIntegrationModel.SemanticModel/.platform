@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "FabricQueryRArrowIntegrationModel",
+    "description": "Modern import semantic model for fabricQueryR Arrow DAX integration tests"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "dc4e8118-e60a-4e41-8fd5-a69b11c654bc"
+  }
+}

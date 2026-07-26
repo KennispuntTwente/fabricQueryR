@@ -13,6 +13,7 @@ import httpx
 POWER_BI_SCOPE = "https://analysis.windows.net/powerbi/api/.default"
 POWER_BI_API = "https://api.powerbi.com/v1.0/myorg"
 SEMANTIC_MODEL_NAME = "FabricQueryRIntegrationModel"
+ARROW_SEMANTIC_MODEL_NAME = "FabricQueryRArrowIntegrationModel"
 SEMANTIC_MODEL_TABLE = "Facts"
 
 
@@ -163,6 +164,13 @@ class PowerBiApi:
             "Power BI semantic model rows were not queryable in time"
         ) from last_error
 
+    def refresh_import_model(self, workspace_id: str, dataset_id: str) -> None:
+        """Start a refresh for the source-controlled Arrow API fixture."""
+        self.request(
+            "POST",
+            f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
+        )
+
 
 def seed_test_semantic_model(
     credential: TokenCredential,
@@ -171,5 +179,17 @@ def seed_test_semantic_model(
     with PowerBiApi(credential) as api:
         dataset = api.reset_test_semantic_model(workspace_id)
         api.add_test_rows(workspace_id, dataset["id"])
+        api.wait_for_test_rows(workspace_id, dataset["id"])
+        return dataset
+
+
+def prepare_arrow_test_semantic_model(
+    credential: TokenCredential,
+    workspace_id: str,
+) -> dict[str, Any]:
+    """Refresh and verify the modern import model used by the Arrow API."""
+    with PowerBiApi(credential) as api:
+        dataset = api.find_dataset(workspace_id, ARROW_SEMANTIC_MODEL_NAME)
+        api.refresh_import_model(workspace_id, dataset["id"])
         api.wait_for_test_rows(workspace_id, dataset["id"])
         return dataset

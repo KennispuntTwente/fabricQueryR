@@ -51,7 +51,12 @@ class SandboxSettings:
 
     @property
     def item_types(self) -> list[str]:
-        return ["Notebook", "DataPipeline", "SparkJobDefinition"]
+        return [
+            "Notebook",
+            "DataPipeline",
+            "SparkJobDefinition",
+            "SemanticModel",
+        ]
 
     def require_workspace(self) -> str:
         if not self.workspace_id:

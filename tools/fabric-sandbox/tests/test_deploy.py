@@ -179,6 +179,7 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
         "Notebook",
         "DataPipeline",
         "SparkJobDefinition",
+        "SemanticModel",
     ]
     assert workspaces[0]["workspace_id"] == "workspace-id"
     assert published == [workspaces[0]]

@@ -42,4 +42,5 @@ def test_paths_are_derived_from_repository_root(tmp_path):
         "Notebook",
         "DataPipeline",
         "SparkJobDefinition",
+        "SemanticModel",
     ]

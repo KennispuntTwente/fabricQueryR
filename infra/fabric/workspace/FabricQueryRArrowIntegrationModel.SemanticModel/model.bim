@@ -1,0 +1,67 @@
+{
+  "compatibilityLevel": 1600,
+  "model": {
+    "culture": "en-US",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "en-US",
+    "tables": [
+      {
+        "name": "Facts",
+        "lineageTag": "9e8c0bad-7778-4921-83cf-93ad0d3e1f08",
+        "columns": [
+          {
+            "name": "id",
+            "dataType": "int64",
+            "formatString": "0",
+            "sourceColumn": "id",
+            "lineageTag": "de211c2f-d359-45bb-8723-87c193294188",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "name",
+            "dataType": "string",
+            "sourceColumn": "name",
+            "lineageTag": "534a5b4c-e49e-4dbd-af11-e0da5419ae4e",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "category",
+            "dataType": "string",
+            "sourceColumn": "category",
+            "lineageTag": "762bc599-cebd-4de9-81b8-8a52c711d0ca",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "amount",
+            "dataType": "double",
+            "sourceColumn": "amount",
+            "lineageTag": "d93eff68-3065-43ca-988e-7ad706098809",
+            "summarizeBy": "sum"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Facts",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = #table(",
+                "        type table [id = Int64.Type, name = text, category = text, amount = nullable number],",
+                "        {{1, \"alpha\", \"A\", 10.5}, {2, \"beta\", \"B\", 20.0}, {3, \"gamma\", \"A\", null}}",
+                "    )",
+                "in",
+                "    Source"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

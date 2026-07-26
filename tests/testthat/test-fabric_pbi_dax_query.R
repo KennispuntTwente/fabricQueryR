@@ -62,6 +62,67 @@ test_that("fabric_pbi_dax_query validates include_nulls strictly", {
   }
 })
 
+test_that("Arrow DAX options and result combinations validate strictly", {
+  expect_equal(
+    pbi_validate_arrow_options(list(
+      culture = "en-US",
+      queryTimeout = 300,
+      resultSetRowCountLimit = 100000,
+      roles = c("Sales", "Auditor"),
+      executionMetrics = TRUE,
+      schemaOnly = FALSE
+    )),
+    list(
+      culture = "en-US",
+      queryTimeout = 300,
+      resultSetRowCountLimit = 100000,
+      roles = c("Sales", "Auditor"),
+      executionMetrics = TRUE,
+      schemaOnly = FALSE
+    )
+  )
+  expect_error(
+    pbi_validate_arrow_options(list(query = "EVALUATE ROW()")),
+    "Unsupported arrow_options name(s): query",
+    fixed = TRUE
+  )
+  expect_error(
+    pbi_validate_arrow_options(list(queryTimeout = 1.5)),
+    "positive integer",
+    fixed = TRUE
+  )
+  expect_error(
+    pbi_validate_arrow_options(list(schemaOnly = NA)),
+    "TRUE or FALSE",
+    fixed = TRUE
+  )
+  expect_error(
+    pbi_validate_arrow_options(list(executionMetrics = 1)),
+    "TRUE or FALSE",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      dax = "EVALUATE ROW()",
+      dataset_id = "dataset",
+      token = "token",
+      arrow_options = list(culture = "en-US")
+    ),
+    "api = \"arrow\"",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      dax = "EVALUATE ROW()",
+      dataset_id = "dataset",
+      token = "token",
+      result = "arrow_stream"
+    ),
+    "requires api = \"arrow\"",
+    fixed = TRUE
+  )
+})
+
 
 # pbi_resolve_ids_from_connstr() ------------------------------------------
 
@@ -211,6 +272,48 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
   )
 })
 
+test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
+  skip_if_not_installed("arrow")
+  called <- FALSE
+  local_mocked_bindings(
+    pbi_execute_dax_arrow = function(
+      credential,
+      dataset_id,
+      dax,
+      group_id,
+      api_base,
+      options,
+      result
+    ) {
+      called <<- TRUE
+      expect_equal(
+        fabric_get_token(credential, .fabric_audience$power_bi),
+        "token"
+      )
+      expect_equal(dataset_id, "dataset-id")
+      expect_equal(group_id, "workspace-id")
+      expect_equal(dax, "EVALUATE ROW(\"value\", 1)")
+      expect_equal(options$effectiveUsername, "reader@example.com")
+      expect_equal(options$queryTimeout, 30)
+      expect_equal(result, "tibble")
+      tibble::tibble(value = 1L)
+    }
+  )
+
+  result <- fabric_pbi_dax_query(
+    dax = "EVALUATE ROW(\"value\", 1)",
+    workspace_id = "workspace-id",
+    dataset_id = "dataset-id",
+    token = "token",
+    impersonated_user = "reader@example.com",
+    api = "arrow",
+    arrow_options = list(queryTimeout = 30)
+  )
+
+  expect_true(called)
+  expect_equal(result$value, 1L)
+})
+
 test_that("DAX response parser preserves names, nulls, and empty results", {
   parsed <- pbi_parse_dax_response(list(
     results = list(list(
@@ -314,6 +417,154 @@ test_that("DAX execution sends impersonation and parses one table", {
     impersonated_user = "reader@example.com"
   )
   expect_equal(result[["[value]"]], 7L)
+})
+
+test_that("Arrow DAX execution sends documented endpoint and request body", {
+  skip_if_not_installed("arrow")
+  payload <- jsonlite::base64_dec(paste0(
+    "/////3gAAAAQAAAAAAAKAAwABgAFAAgACgAAAAABBAAMAAAACAAIAAAABAAI",
+    "AAAABAAAAAEAAAAUAAAAEAAUAAgABgAHAAwAAAAQABAAAAAAAAECEAAAABwAA",
+    "AAEAAAAAAAAAAEAAAB4AAAACAAMAAgABwAIAAAAAAAAAUAAAAD/////mAAAAB",
+    "QAAAAAAAAADAAYAAYABQAIAAwADAAAAAADBAAcAAAAMAAAAAAAAAAAAAAADAA",
+    "cABAABAAIAAwADAAAAEgAAAAcAAAAFAAAAAMAAAAAAAAAAAAAAAQABAAEAAAA",
+    "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACoAAAAAAAAAAAAAAAEAAAADAA",
+    "AAAAAAAAAAAAAAAAAAGAAAAAAAAAAEIk0YYECCEwAAACIBAAEAEgIHAJAAAwA",
+    "AAAAAAAAAAAAAAAAAAAAA/////wAAAAA="
+  ))
+  local_mocked_bindings(
+    .httr2_perform = function(req, credential, audience, idempotent) {
+      expect_match(
+        req$url,
+        "/groups/workspace/datasets/dataset/executeDaxQueries$"
+      )
+      expect_true(idempotent)
+      expect_identical(audience, .fabric_audience$power_bi)
+      expect_equal(
+        req$headers$Accept,
+        "application/vnd.apache.arrow.stream"
+      )
+      expect_equal(req$body$data$query, "EVALUATE ROW(\"value\", 1)")
+      expect_equal(req$body$data$culture, "en-US")
+      expect_equal(req$body$data$queryTimeout, 60)
+      httr2::new_response(
+        method = "POST",
+        url = req$url,
+        status_code = 200L,
+        headers = list(
+          "content-type" = "application/vnd.apache.arrow.stream"
+        ),
+        body = payload,
+        request = req
+      )
+    }
+  )
+
+  result <- pbi_execute_dax_arrow(
+    credential = fabric_credential(token = "token"),
+    dataset_id = "dataset",
+    dax = "EVALUATE ROW(\"value\", 1)",
+    group_id = "workspace",
+    options = list(culture = "en-US", queryTimeout = 60)
+  )
+
+  expect_equal(result$x, bit64::as.integer64(1:3))
+})
+
+test_that("Arrow DAX parser handles LZ4 and Arrow C stream compatibility", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  payload <- jsonlite::base64_dec(paste0(
+    "/////3gAAAAQAAAAAAAKAAwABgAFAAgACgAAAAABBAAMAAAACAAIAAAABAAI",
+    "AAAABAAAAAEAAAAUAAAAEAAUAAgABgAHAAwAAAAQABAAAAAAAAECEAAAABwAA",
+    "AAEAAAAAAAAAAEAAAB4AAAACAAMAAgABwAIAAAAAAAAAUAAAAD/////mAAAAB",
+    "QAAAAAAAAADAAYAAYABQAIAAwADAAAAAADBAAcAAAAMAAAAAAAAAAAAAAADAA",
+    "cABAABAAIAAwADAAAAEgAAAAcAAAAFAAAAAMAAAAAAAAAAAAAAAQABAAEAAAA",
+    "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACoAAAAAAAAAAAAAAAEAAAADAA",
+    "AAAAAAAAAAAAAAAAAAGAAAAAAAAAAEIk0YYECCEwAAACIBAAEAEgIHAJAAAwA",
+    "AAAAAAAAAAAAAAAAAAAAA/////wAAAAA="
+  ))
+
+  stream <- pbi_parse_dax_arrow_response(payload, "arrow_stream")
+  expect_s3_class(stream, "nanoarrow_array_stream")
+  reader <- arrow::as_record_batch_reader(stream)
+  expect_equal(
+    as.data.frame(reader$read_table())$x,
+    bit64::as.integer64(1:3)
+  )
+})
+
+test_that("Arrow DAX parser rejects error and multiple data rowsets", {
+  skip_if_not_installed("arrow")
+  arrow_payload <- function(data, metadata = list()) {
+    table <- arrow::arrow_table(data)
+    if (length(metadata)) {
+      table <- table$ReplaceSchemaMetadata(metadata)
+    }
+    path <- tempfile(fileext = ".arrows")
+    on.exit(unlink(path), add = TRUE)
+    arrow::write_ipc_stream(table, path)
+    readBin(path, "raw", n = file.info(path)$size)
+  }
+  error_payload <- arrow_payload(
+    data.frame(
+      ErrorCode = "QueryError",
+      ErrorMessage = "Invalid DAX"
+    ),
+    list(
+      IsError = "true",
+      FaultCode = "0xC1210001",
+      FaultString = "The query is invalid"
+    )
+  )
+  expect_error(
+    pbi_parse_dax_arrow_response(error_payload),
+    "Power BI Arrow DAX query failed: [0xC1210001] The query is invalid",
+    fixed = TRUE,
+    class = "fabric_pbi_dax_error"
+  )
+
+  multiple <- c(
+    arrow_payload(data.frame(first = 1L)),
+    arrow_payload(data.frame(second = 2L))
+  )
+  expect_error(
+    pbi_parse_dax_arrow_response(multiple),
+    "2 Arrow DAX data rowsets",
+    fixed = TRUE
+  )
+  expect_error(
+    pbi_parse_dax_arrow_response(raw()),
+    "empty Arrow DAX response",
+    fixed = TRUE
+  )
+})
+
+test_that("Arrow DAX parser separates execution metrics from data", {
+  skip_if_not_installed("arrow")
+  arrow_payload <- function(data, metadata = list()) {
+    table <- arrow::arrow_table(data)
+    if (length(metadata)) {
+      table <- table$ReplaceSchemaMetadata(metadata)
+    }
+    path <- tempfile(fileext = ".arrows")
+    on.exit(unlink(path), add = TRUE)
+    arrow::write_ipc_stream(table, path)
+    readBin(path, "raw", n = file.info(path)$size)
+  }
+  payload <- c(
+    arrow_payload(data.frame(value = 42L)),
+    arrow_payload(
+      data.frame(durationMs = 12L, rowsReturned = 1L),
+      list(IsExecMetrics = "true")
+    )
+  )
+
+  result <- pbi_parse_dax_arrow_response(payload)
+  expect_equal(result$value, 42L)
+  metrics <- attr(result, "execution_metrics")
+  expect_s3_class(metrics, "tbl_df")
+  expect_equal(metrics$durationMs, 12L)
+  expect_equal(metrics$rowsReturned, 1L)
 })
 
 test_that("Power BI collection paging follows offsets and next links", {
