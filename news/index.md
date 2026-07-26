@@ -29,6 +29,16 @@
   catalog, while bare endpoints use Fabric’s `master` context unless a
   database is supplied.
 
+- SQL helpers now offer an opt-in ADBC backend through `adbi`,
+  `adbcdrivermanager`, and the external ADBC Driver Foundry `mssql`
+  driver. ODBC remains the default.
+  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  can return either its existing tibble result or a
+  `nanoarrow_array_stream` compatible with
+  [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html).
+  Missing external ADBC drivers fail before authentication with
+  `dbc install` guidance.
+
 - Added authenticated Eventhouse queries with
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   and Fabric API for GraphQL execution with

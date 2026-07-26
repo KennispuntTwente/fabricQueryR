@@ -1,8 +1,8 @@
 # Connect to a Microsoft Fabric SQL target
 
-Opens a DBI/ODBC connection to a Fabric Warehouse, Lakehouse SQL
-analytics endpoint, or SQL Database using a Microsoft Entra access
-token.
+Opens a DBI connection to a Fabric Warehouse, Lakehouse SQL analytics
+endpoint, or SQL Database using a Microsoft Entra access token. ODBC is
+the default backend; ADBC is available as an opt-in backend.
 
 ## Usage
 
@@ -12,12 +12,14 @@ fabric_sql_connect(
   database = NULL,
   target_type = c("auto", "lakehouse", "warehouse", "sql_database",
     "sql_analytics_endpoint"),
+  backend = c("odbc", "adbc"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
+  adbc_driver = getOption("fabricqueryr.sql.adbc_driver", "mssql"),
   port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
@@ -51,6 +53,10 @@ fabric_sql_connect(
   Target kind. `"auto"` infers it from discovery metadata or the
   endpoint hostname.
 
+- backend:
+
+  SQL client backend. `"odbc"` remains the default.
+
 - tenant_id:
 
   Character. Entra tenant ID.
@@ -76,6 +82,11 @@ fabric_sql_connect(
 
   ODBC driver name. ODBC Driver 18 for SQL Server is the default.
 
+- adbc_driver:
+
+  ADBC driver name or shared-library path. The separately installed ADBC
+  Driver Foundry `mssql` driver is the default.
+
 - port:
 
   Optional TCP port. An explicit value overrides a port in `server`;
@@ -83,7 +94,7 @@ fabric_sql_connect(
 
 - encrypt, trust_server_certificate:
 
-  ODBC encryption flags.
+  SQL client encryption flags.
 
 - timeout:
 
@@ -91,7 +102,7 @@ fabric_sql_connect(
 
 - read_only:
 
-  Logical. Set ODBC `ApplicationIntent=ReadOnly`.
+  Logical. Set `ApplicationIntent=ReadOnly`.
 
 - verbose:
 
@@ -122,12 +133,20 @@ A live `DBIConnection`.
 
 ## Details
 
-Fabric Warehouse and SQL analytics endpoints require ODBC Driver 18 or
-newer. Multiple Active Result Sets (MARS) is disabled because Fabric
-Warehouse does not support it. Complete portal connection strings and
-enriched discovery records provide a catalog automatically. Bare
-endpoints may omit `database` to use Fabric's `master` context; the
-package never guesses a catalog name.
+The ODBC backend requires ODBC Driver 18 or newer. Multiple Active
+Result Sets (MARS) is disabled because Fabric Warehouse does not support
+it. The ADBC backend uses
+[`adbi::adbi()`](https://adbi.r-dbi.org/reference/dbConnect.html) with
+the `mssql` driver loaded by
+[`adbcdrivermanager::adbc_driver()`](https://arrow.apache.org/adbc/current/r/adbcdrivermanager/reference/adbc_driver_void.html).
+Install that external driver separately with `dbc install mssql`. The
+package checks that the driver can be loaded before authenticating or
+opening a network connection. `adbcdrivermanager` discovers and loads
+installed drivers; it does not install driver binaries.
+
+Complete portal connection strings and enriched discovery records
+provide a catalog automatically. Bare endpoints may omit `database` to
+use Fabric's `master` context; the package never guesses a catalog name.
 
 Transient Fabric connection failures are retried on fresh connections
 with refreshed tokens and bounded exponential backoff.
@@ -150,5 +169,8 @@ DBI::dbDisconnect(con)
 
 warehouse <- fabric_warehouses("Analytics")[1, ]
 con <- fabric_sql_connect(warehouse)
+
+# After installing the external driver with `dbc install mssql`:
+con <- fabric_sql_connect(warehouse, backend = "adbc")
 } # }
 ```

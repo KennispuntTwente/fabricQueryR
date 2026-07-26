@@ -15,15 +15,18 @@ fabric_sql_query(
   server,
   sql,
   params = NULL,
+  result = c("tibble", "arrow_stream"),
   database = NULL,
   target_type = c("auto", "lakehouse", "warehouse", "sql_database",
     "sql_analytics_endpoint"),
+  backend = c("odbc", "adbc"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
   odbc_driver = getOption("fabricqueryr.sql.driver", "ODBC Driver 18 for SQL Server"),
+  adbc_driver = getOption("fabricqueryr.sql.adbc_driver", "mssql"),
   port = NULL,
   encrypt = "yes",
   trust_server_certificate = "no",
@@ -52,7 +55,21 @@ fabric_sql_query(
 
   Optional list of values for DBI parameter placeholders (`?`). Strings,
   dates, missing values, and values containing SQL metacharacters are
-  passed unchanged to the driver.
+  passed unchanged to the driver. With `backend = "adbc"`, placeholders
+  outside SQL strings, identifiers, and comments are safely translated
+  to the SQL Server driver's native `@p1`, `@p2`, ... syntax.
+
+- result:
+
+  Result representation. `"tibble"` collects the query result.
+  `"arrow_stream"` returns a `nanoarrow_array_stream` from
+  [`DBI::dbGetQueryArrow()`](https://dbi.r-dbi.org/reference/dbGetQueryArrow.html).
+  ADBC provides the native Arrow path; DBI may materialize results when
+  adapting an ODBC connection. The stream implements the Arrow C Stream
+  interface and can be converted directly with
+  [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
+  when the optional `arrow` package is installed. A stream is
+  single-use.
 
 - database:
 
@@ -68,6 +85,10 @@ fabric_sql_query(
 
   Target kind. `"auto"` infers it from discovery metadata or the
   endpoint hostname.
+
+- backend:
+
+  SQL client backend. `"odbc"` remains the default.
 
 - tenant_id:
 
@@ -94,6 +115,11 @@ fabric_sql_query(
 
   ODBC driver name. ODBC Driver 18 for SQL Server is the default.
 
+- adbc_driver:
+
+  ADBC driver name or shared-library path. The separately installed ADBC
+  Driver Foundry `mssql` driver is the default.
+
 - port:
 
   Optional TCP port. An explicit value overrides a port in `server`;
@@ -101,7 +127,7 @@ fabric_sql_query(
 
 - encrypt, trust_server_certificate:
 
-  ODBC encryption flags.
+  SQL client encryption flags.
 
 - timeout:
 
@@ -109,7 +135,7 @@ fabric_sql_query(
 
 - read_only:
 
-  Logical. Set ODBC `ApplicationIntent=ReadOnly`.
+  Logical. Set `ApplicationIntent=ReadOnly`.
 
 - verbose:
 
@@ -140,7 +166,7 @@ fabric_sql_query(
 
 ## Value
 
-A tibble containing the result.
+A tibble or `nanoarrow_array_stream`, according to `result`.
 
 ## Examples
 
@@ -154,5 +180,14 @@ result <- fabric_sql_query(
   sql = "SELECT * FROM dbo.Customers WHERE region = ?",
   params = list("West")
 )
+
+stream <- fabric_sql_query(
+  warehouse,
+  "SELECT * FROM dbo.Customers",
+  backend = "adbc",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
+table <- reader$read_table()
 } # }
 ```
