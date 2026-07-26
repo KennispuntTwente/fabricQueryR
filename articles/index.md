@@ -2,5 +2,5 @@
 
 ### Authentication
 
-- [Authentication with Microsoft
-  Fabric](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):
+- [Get started with Microsoft Fabric
+  authentication](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):

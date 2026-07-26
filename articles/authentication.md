@@ -1,101 +1,250 @@
-# Authentication with Microsoft Fabric
+# Get started with Microsoft Fabric authentication
 
-`fabricQueryR` uses
-[`AzureAuth`](https://azure.r-universe.dev/AzureAuth/doc/token.html) for
-Microsoft Entra authentication. Every exported function that
-authenticates accepts the same four arguments:
+Authentication is how Microsoft Fabric confirms *who you are*.
+Authorization is what that person or application is allowed to see and
+do. You need both: signing in successfully does not automatically grant
+access to a workspace or its data.
 
-- `tenant_id` and `client_id` identify the tenant and app registration.
-  By default, these are read from the `FABRICQUERYR_TENANT_ID` and
-  `FABRICQUERYR_CLIENT_ID` environment variables.
-- `token` accepts an
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
-  object, a bearer-token string, or a token-provider function. Its
-  default is `NULL`, which triggers `AzureAuth` to acquire a token
-  interactively or from its cache.
-- `auth_args` is a named list of arguments forwarded to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+This guide starts with the normal setup for a person using R
+interactively. That is the best place to begin. Later sections cover app
+registrations, service principals, managed identities, custom tokens,
+and other options for automated or advanced use.
 
-When `token = NULL`, `fabricQueryR` calls
-[`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
-`AzureAuth` first looks for a matching cached token and, if it cannot
-use one, starts its normal interactive authorization-code or device-code
-login. Use `auth_args` to select or configure that flow. When `token` is
-not `NULL`, `auth_args` is not used. This package controls the token’s
-`resource`, `tenant`, `app`, and Azure AD `version` arguments, because
-those depend on the Fabric operation; all other `get_azure_token()`
-arguments can go in `auth_args`.
+## Quick start: sign in as yourself
 
-## Set the tenant and client IDs
+For a normal interactive login, you need:
 
-To tell `fabricQueryR` which Microsoft Entra tenant and app registration
-to use, set the `FABRICQUERYR_TENANT_ID` and `FABRICQUERYR_CLIENT_ID`
-environment variables. You can do this in your `.Renviron` file, or in
-the R session:
+- a work or school Microsoft account that can sign in to your
+  organization’s Fabric portal;
+- your organization’s Microsoft Entra **tenant ID**;
+- access to at least one Fabric workspace or item; and
+- sometimes, a **client ID** supplied by your administrator.
+
+You do **not** need a client secret, certificate, or manually copied
+access token for this first setup.
+
+### 1. Find your tenant ID
+
+The tenant ID identifies your organization. It is a GUID that looks like
+`12345678-1234-1234-1234-123456789abc`.
+
+In the [Azure portal](https://portal.azure.com), open **Microsoft Entra
+ID \> Overview** and copy **Tenant ID** under **Basic information**. It
+may also be called the **Directory (tenant) ID**. If you cannot access
+this page, ask your Microsoft 365, Azure, or Fabric administrator for
+the tenant ID.
+
+### 2. Set the tenant ID in R
+
+For a first test, set it in the current R session:
 
 ``` r
 
-Sys.setenv(
-  FABRICQUERYR_TENANT_ID = "<tenant-id>",
-  FABRICQUERYR_CLIENT_ID = "<app-registration-client-id>"
-)
+Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
 
 library(fabricQueryR)
-
-# Test by discovering workspaces; this will trigger an interactive login if no cached token is found
-workspaces <- fabric_workspaces()
 ```
 
-A tenant ID must always be set. In the [Azure
-portal](https://portal.azure.com), open **Microsoft Entra ID \>
-Overview** and copy the **Tenant ID** shown under **Basic information**.
-This is also called the *Directory (tenant) ID* in app-registration
-screens.
+If your administrator has given you an app-registration client ID, set
+that as well:
 
-If `FABRICQUERYR_CLIENT_ID` is unset, the package uses the Azure CLI
-public client ID (`04b07795-8ddb-461a-bbee-02f9e1bf7b46`), which may
-work in some tenants but not others. A dedicated app registration is
-more reliable, and it can be scoped to a security group for
-least-privilege access. Get in touch with your administrator to create
-an app registration if needed.
+``` r
 
-## Interactive login and the token cache
+Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-client-id>")
+```
 
-With `token = NULL`, `AzureAuth` first looks for a matching cached
-token. If none exists, it chooses authorization-code login when a local
-browser flow is available, otherwise device-code login. The first
-interactive login can therefore open a browser or display a device code;
-later calls normally reuse and refresh the cached token.
+When `FABRICQUERYR_CLIENT_ID` is not set, `fabricQueryR` tries the
+public Azure CLI client ID. Some organizations allow this and some do
+not. If sign-in is blocked or your organization requires an approved
+application, ask the administrator for a dedicated client ID.
+
+### 3. Test the connection
+
+Start with workspace discovery because it is a simple way to check both
+sign-in and basic Fabric access:
+
+``` r
+
+workspaces <- fabric_workspaces()
+
+workspaces[, c("displayName", "id")]
+```
+
+On the first call, a browser may open and ask you to sign in and approve
+access. Use the same organizational account that you use in the Fabric
+portal. Multifactor authentication and your organization’s Conditional
+Access rules still apply.
+
+If the call succeeds, `workspaces` is a tibble with the workspaces
+available to that account. You can then find items in one of them:
+
+``` r
+
+items <- fabric_items(workspaces[1, ])
+items[, c("displayName", "type", "id")]
+```
+
+An empty result does not necessarily mean sign-in failed. It can mean
+that the account has not been given access to a Fabric workspace.
+
+### 4. Save the settings for future R sessions
+
+[`Sys.setenv()`](https://rdrr.io/r/base/Sys.setenv.html) only changes
+the current R session. To load the IDs automatically, add them to your
+user-level `.Renviron` file:
+
+``` r
+
+file.edit("~/.Renviron")
+```
+
+Add one or both lines, without R code around them:
+
+``` text
+FABRICQUERYR_TENANT_ID=<your-tenant-id>
+FABRICQUERYR_CLIENT_ID=<your-client-id>
+```
+
+Omit the client-ID line if the default client works for your
+organization. Save the file and restart R. Confirm that R can read the
+values:
+
+``` r
+
+Sys.getenv("FABRICQUERYR_TENANT_ID")
+Sys.getenv("FABRICQUERYR_CLIENT_ID")
+```
+
+Use the `.Renviron` file in your user home directory, not one committed
+with a project. Tenant and client IDs are not passwords, but keeping
+machine-specific configuration out of source control is still good
+practice.
+
+## Make sure Fabric access has been granted
+
+`fabricQueryR` cannot grant Fabric permissions. The signed-in account
+must already be able to access the relevant workspace, item, and data.
+
+For an initial test, ask a workspace administrator to do one of the
+following:
+
+1.  add your account to the Fabric workspace, normally with the
+    least-privileged role that supports your task; or
+2.  share the specific Fabric item with your account and grant any
+    additional data permission it needs.
+
+The **Viewer** workspace role is enough to list the workspace and its
+items. Reading underlying data can require an additional permission. For
+example, a semantic model normally needs Read and Build permission,
+while a Lakehouse may use a workspace role or a OneLake security role
+for its tables and files. Detailed workload guidance appears later in
+this vignette.
+
+## First-login troubleshooting
+
+These are the most common starting problems:
+
+| What you see | What to check |
+|----|----|
+| `tenant_id is required` | Set `FABRICQUERYR_TENANT_ID` and check for spelling mistakes in the environment-variable name. |
+| The browser signs in to the wrong account | Sign out of the unwanted Microsoft account, or retry without the token cache as shown below. |
+| Your organization blocks the application or asks for admin approval | Ask an Entra administrator for an approved app-registration client ID and any required consent. |
+| Login succeeds but no workspaces appear | Confirm that the same account can open the expected workspace in the Fabric portal and has been added or invited to it. |
+| HTTP 401 | The login/token is invalid for this operation, expired, or belongs to the wrong tenant or resource. |
+| HTTP 403 | Fabric knows who you are, but the account lacks a required workspace, item, or data permission. |
+
+If a cached login is using the wrong account, retry once without reading
+or writing the cache:
+
+``` r
+
+workspaces <- fabric_workspaces(
+  auth_args = list(use_cache = FALSE)
+)
+```
+
+For R running on a remote machine where no local browser can open, use a
+device code:
+
+``` r
+
+workspaces <- fabric_workspaces(
+  auth_args = list(auth_type = "device_code")
+)
+```
+
+R prints a code and a Microsoft sign-in address. Open that address in
+any browser, enter the code, and sign in with the intended account.
+
+## How authentication works
+
+`fabricQueryR` uses
+[`AzureAuth`](https://azure.r-universe.dev/AzureAuth/doc/token.html) to
+sign in to Microsoft Entra. Every exported function that needs
+authentication accepts the same four arguments:
+
+- `tenant_id` identifies the organization and defaults to
+  `FABRICQUERYR_TENANT_ID`.
+- `client_id` identifies the application and defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI public client ID.
+- `token` can supply an existing token or token provider. Most
+  interactive users should leave it as `NULL`.
+- `auth_args` customizes how `AzureAuth` signs in. Most interactive
+  users can leave it as an empty list.
+
+With the defaults, `AzureAuth` first looks for a matching cached token.
+If none is available, it normally opens a browser or uses device-code
+login. Later calls reuse and refresh the cached token, so signing in is
+not usually required for every query.
 
 See the `AzureAuth` documentation on [authentication
 scenarios](https://azure.r-universe.dev/AzureAuth/doc/scenarios.html)
 and
 [caching](https://azure.r-universe.dev/AzureAuth/doc/token.html#caching).
 
-Choose a flow explicitly when needed:
+### Authentication arguments and precedence
 
-``` r
+When `token = NULL`, `fabricQueryR` asks `AzureAuth` to obtain the
+token. The package chooses the correct token resource for each Fabric
+service and supplies the tenant, client ID, and Microsoft
+identity-platform version. Other
+[`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+options can be supplied in `auth_args`.
 
-# Remote R session: display a device code
-items <- fabric_items(
-  "Analytics",
-  auth_args = list(auth_type = "device_code")
-)
+When `token` is supplied, it takes responsibility for authentication and
+`auth_args` is not used. This avoids accidentally combining two
+different login methods.
 
-# Force a new login and do not read or write the AzureAuth cache
-items <- fabric_items(
-  "Analytics",
-  auth_args = list(use_cache = FALSE)
-)
-```
+### Using your own app registration interactively
 
-Authorization-code login requires a suitable redirect URI on the app
-registration (normally `http://localhost:1410`) and the `httpuv`
-package. Device-code login requires **Allow public client flows** on the
-app registration. Conditional Access and multifactor-authentication
-policies still apply.
+A dedicated app registration gives an organization more control over
+which users may sign in and which delegated API permissions they may
+request. Ask an Entra administrator to create or approve one if the
+default client is blocked.
 
-## Pass an AzureAuth token
+For browser-based authorization-code login, the app needs a suitable
+redirect URI (normally `http://localhost:1410`) and R needs the `httpuv`
+package. For device-code login, the app registration needs **Allow
+public client flows** enabled. Your tenant’s user/admin consent,
+Conditional Access, and multifactor-authentication policies continue to
+apply.
+
+Do not create a client secret for ordinary interactive user login.
+
+## Choosing an advanced authentication method
+
+If the quick start works and you are using R interactively, you can
+continue using it. Choose one of the options below only when the way R
+runs requires it.
+
+| Method | Best suited to | Credential |
+|----|----|----|
+| Interactive user login | A person working in a local or remote R session | Browser login or device code |
+| Service principal | Scheduled scripts, CI/CD, or applications with no person present | Client secret or certificate |
+| Managed identity | R running in a supported Azure-hosted environment | Identity managed by Azure |
+| Existing token or provider | An organization with its own token broker or workload-identity system | Supplied by that system |
+
+## Advanced: pass an AzureAuth token
 
 You can acquire a token with `AzureAuth` and pass the resulting R6
 object directly. `fabricQueryR` extracts its access token, checks its
@@ -148,12 +297,13 @@ Set `audience = "https://api.fabric.microsoft.com/.default"` explicitly
 when a custom token-provider function obtains the service-principal
 token.
 
-## Non-interactive authentication
+## Advanced: authentication for automation
 
-Below are examples of non-interactive authentication flows. These avoid
-the browser/device-code login and are suitable for CI/CD pipelines,
-scheduled jobs, and service principals. They require a dedicated app
-registration and, for service principals, a secret or certificate.
+Automated code cannot wait for a person to complete a browser login. A
+service principal is an application identity that can sign in on its
+own. It requires a dedicated app registration and a secret or
+certificate, and the service principal itself must be granted access in
+Fabric.
 
 ### Service principal with a client secret
 
@@ -240,10 +390,12 @@ The callback must return one bearer-token string (or a list containing
 an `access_token` or `token` field). This is also the escape hatch for
 authentication methods not implemented by `AzureAuth`.
 
-## Configure authorization in Fabric
+## Detailed Fabric permissions by workload
 
 Getting a token proves an identity; it does not grant that identity
-access to Fabric data. Configure authorization separately:
+access to Fabric data. The quick-start section described the basic
+access requirement. For production use or troubleshooting a particular
+function, configure the relevant layers below:
 
 1.  For service principals and managed identities, a Fabric
     administrator normally enables **Service principals can use Fabric
@@ -303,7 +455,7 @@ workspace, item, and workload permissions before changing the login
 flow. HTTP 401 more often indicates the wrong token resource, an
 expired/nonrefreshable raw token, or a tenant/app mismatch.
 
-## Cache and secret hygiene
+## Sign out, token cache, and secret safety
 
 `AzureAuth` stores cached user tokens in its user-specific AzureR data
 directory, never in the package project. Use
