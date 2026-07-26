@@ -89,16 +89,14 @@ DBI::dbDisconnect(con)
 # Or, run a single SQL query directly (without a connection object):
 df_sql <- fabric_sql_query(
   lakehouse,
-  "SELECT * FROM dbo.Customers WHERE region = ?",
-  params = list("West")
+  "SELECT * FROM dbo.Customers WHERE region = 'West'"
 )
 ```
 
 The default connection method requires
 [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
 An optional ADBC backend is available for Arrow-based workflows; see
-[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.html)
-for setup and trade-offs.
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.html).
 
 ### 2. Query a semantic model with DAX
 
