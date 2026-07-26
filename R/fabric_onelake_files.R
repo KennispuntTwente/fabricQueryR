@@ -36,8 +36,11 @@
 #' required for uploads and deletes.
 #'
 #' Uploads are streamed in chunks to a temporary sibling file. The completed
-#' file is atomically renamed to its destination with the requested overwrite
-#' or ETag precondition, so failed transfers do not truncate an existing file.
+#' file is atomically renamed to its OneLake destination with the requested
+#' overwrite or ETag precondition, so failed transfers do not truncate an
+#' existing remote file. Downloads to disk are also staged in a temporary
+#' sibling. When replacing a local file, the original is moved to a backup and
+#' restored if the final rename fails.
 #'
 #' @param workspace Workspace display name, GUID, row from
 #'   [fabric_workspaces()], or complete OneLake HTTPS/ABFSS path. Names are
@@ -72,7 +75,7 @@
 #'   Leave `NULL` to download the entire file.
 #' @param dest Optional local destination. When `NULL`, download returns a raw
 #'   vector held in R memory. Supply a path to stream large files to disk. A
-#'   destination download is committed atomically.
+#'   destination download is staged before it replaces an existing file.
 #' @param overwrite Logical. Whether an existing destination may be replaced.
 #'   Both downloads and uploads protect existing files by default. Upload with
 #'   `overwrite = FALSE` uses `If-None-Match: *`.
@@ -871,13 +874,43 @@ onelake_download_target <- function(
     audience = .fabric_audience$storage,
     download_path = temporary
   )
-  if (file.exists(dest) && !unlink(dest)) {
-    rlang::abort("Could not replace the existing destination")
-  }
-  if (!file.rename(temporary, dest)) {
-    rlang::abort("Could not commit the downloaded file")
-  }
+  onelake_commit_download(temporary, dest)
   invisible(normalizePath(dest, winslash = "/", mustWork = TRUE))
+}
+
+onelake_commit_download <- function(temporary, dest) {
+  if (!file.exists(dest)) {
+    if (!.onelake_file_rename(temporary, dest)) {
+      rlang::abort("Could not commit the downloaded file")
+    }
+    return(invisible(TRUE))
+  }
+
+  backup <- tempfile(".fabricqueryr-backup-", tmpdir = dirname(dest))
+  if (!.onelake_file_rename(dest, backup)) {
+    rlang::abort("Could not protect the existing destination before replacing it")
+  }
+  if (.onelake_file_rename(temporary, dest)) {
+    unlink(backup, force = TRUE)
+    return(invisible(TRUE))
+  }
+
+  restored <- .onelake_file_rename(backup, dest)
+  if (!restored) {
+    rlang::abort(c(
+      "Could not commit the downloaded file or restore the destination.",
+      "i" = cli::format_inline(
+        "The original file remains at {.path {backup}}."
+      )
+    ))
+  }
+  rlang::abort(
+    "Could not commit the downloaded file; the original destination was restored"
+  )
+}
+
+.onelake_file_rename <- function(from, to) {
+  file.rename(from, to)
 }
 
 onelake_upload_source <- function(source) {

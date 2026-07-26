@@ -215,7 +215,7 @@ test_that("OneLake metadata exposes properties and ETags", {
   expect_equal(metadata$request_id, "storage-request")
 })
 
-test_that("OneLake download supports ranges, ETags, and atomic destinations", {
+test_that("OneLake download supports ranges, ETags, and staged destinations", {
   captured <- list()
   httr2::local_mocked_responses(function(req) {
     captured[[length(captured) + 1L]] <<- req
@@ -268,6 +268,56 @@ test_that("OneLake download supports ranges, ETags, and atomic destinations", {
     "Destination already exists",
     fixed = TRUE
   )
+  expect_equal(
+    fabric_onelake_download(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/a.txt",
+      dest = dest,
+      overwrite = TRUE,
+      token = "token"
+    ),
+    normalizePath(dest, winslash = "/", mustWork = TRUE)
+  )
+  expect_equal(readChar(dest, nchars = 5L, useBytes = TRUE), "alpha")
+})
+
+test_that("failed download replacement restores the original destination", {
+  dest <- tempfile("onelake-existing-")
+  on.exit(unlink(dest), add = TRUE)
+  writeBin(charToRaw("original"), dest)
+  rename_calls <- 0L
+  local_mocked_bindings(
+    .httr2_perform = function(req, download_path = NULL, ...) {
+      writeBin(charToRaw("replacement"), download_path)
+      onelake_test_response(body = charToRaw("replacement"), url = req$url)
+    },
+    .onelake_file_rename = function(from, to) {
+      rename_calls <<- rename_calls + 1L
+      if (rename_calls == 2L) {
+        return(FALSE)
+      }
+      file.rename(from, to)
+    }
+  )
+
+  expect_error(
+    fabric_onelake_download(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/a.txt",
+      dest = dest,
+      overwrite = TRUE,
+      token = "token"
+    ),
+    "original destination was restored",
+    fixed = TRUE
+  )
+  expect_equal(
+    readChar(dest, nchars = 8L, useBytes = TRUE),
+    "original"
+  )
+  expect_equal(rename_calls, 3L)
 })
 
 test_that("OneLake download returns raw zero bytes for an empty file", {

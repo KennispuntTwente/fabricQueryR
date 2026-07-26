@@ -131,7 +131,7 @@ endpoints are supported. Most users should keep the default.}
 
 \item{dest}{Optional local destination. When \code{NULL}, download returns a raw
 vector held in R memory. Supply a path to stream large files to disk. A
-destination download is committed atomically.}
+destination download is staged before it replaces an existing file.}
 
 \item{range}{Optional inclusive zero-based byte range. Supply one value for
 all bytes from that offset onward, or two values for \code{start} through \code{end}.
@@ -208,8 +208,11 @@ through the item's \strong{Manage OneLake data access} roles. Write access is
 required for uploads and deletes.
 
 Uploads are streamed in chunks to a temporary sibling file. The completed
-file is atomically renamed to its destination with the requested overwrite
-or ETag precondition, so failed transfers do not truncate an existing file.
+file is atomically renamed to its OneLake destination with the requested
+overwrite or ETag precondition, so failed transfers do not truncate an
+existing remote file. Downloads to disk are also staged in a temporary
+sibling. When replacing a local file, the original is moved to a backup and
+restored if the final rename fails.
 }
 \examples{
 \dontrun{
