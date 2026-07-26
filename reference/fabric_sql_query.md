@@ -2,11 +2,11 @@
 
 Opens a connection with
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md),
-executes `sql`, and closes the connection. Values in `params` are bound
-by DBI; they are never interpolated into the SQL string. Transient
-connection failures are safe to retry. Set `idempotent = TRUE` only when
-the complete SQL statement may be rerun after an ambiguous transient
-execution failure.
+executes `sql`, and closes it automatically. This is the convenient
+choice for a single query; use
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+when several queries should share one connection. Values in `params` are
+bound by DBI rather than pasted into the SQL string.
 
 ## Usage
 
@@ -44,12 +44,15 @@ fabric_sql_query(
 
 - server:
 
-  A character endpoint/connection string, or one Lakehouse, Warehouse,
-  or SQL Database record returned by a discovery function.
+  A Fabric SQL server name, a complete connection string copied from the
+  Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
+  returned by a discovery function. A discovered row is usually simplest
+  because it also supplies the database name.
 
 - sql:
 
-  One SQL statement.
+  One T-SQL statement. A Lakehouse SQL analytics endpoint supports read
+  queries but not `INSERT`, `UPDATE`, or `DELETE`.
 
 - params:
 
@@ -69,34 +72,40 @@ fabric_sql_query(
   interface and can be converted directly with
   [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
   when the optional `arrow` package is installed. A stream is
-  single-use.
+  single-use. Prefer `"tibble"` for ordinary analysis and
+  `"arrow_stream"` when avoiding collection into an R data frame
+  matters.
 
 - database:
 
-  Optional catalog/database. An explicit value overrides a catalog found
-  in `server`.
-  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-  and `fabric_sql_query()` infer complete connection strings and
-  discovery records when this argument is omitted. A bare Warehouse or
-  SQL analytics endpoint without a catalog connects to Fabric's `master`
-  context.
+  Optional catalog/database. An explicit value overrides a database
+  found in `server`. For a bare endpoint, supply the item database shown
+  with its connection string in Fabric. If omitted, Warehouse and SQL
+  analytics endpoints open Fabric's `master` context, which is useful
+  for discovery but does not select the item's tables.
 
 - target_type:
 
-  Target kind. `"auto"` infers it from discovery metadata or the
-  endpoint hostname.
+  Label for the endpoint kind. Keep `"auto"` unless the hostname is
+  custom or ambiguous. The explicit choices distinguish a Lakehouse SQL
+  analytics endpoint, Warehouse, transactional SQL Database, or another
+  read-only SQL analytics endpoint; they do not convert one kind of
+  endpoint into another.
 
 - backend:
 
-  SQL client backend. `"odbc"` remains the default.
+  SQL client backend. Use `"odbc"` for broad DBI compatibility and the
+  easiest setup; use `"adbc"` for its native Arrow result path after
+  separately installing the ADBC `mssql` driver.
 
 - tenant_id:
 
-  Character. Entra tenant ID.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Character. Application/client ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -123,23 +132,32 @@ fabric_sql_query(
 - port:
 
   Optional TCP port. An explicit value overrides a port in `server`;
-  otherwise port 1433 is used.
+  otherwise the standard SQL port, 1433, is used.
 
-- encrypt, trust_server_certificate:
+- encrypt:
 
-  SQL client encryption flags.
+  Whether the driver encrypts the connection. Keep the secure default,
+  `"yes"`, for Fabric.
+
+- trust_server_certificate:
+
+  Whether to accept a server certificate without validating its trust
+  chain. Keep the secure default, `"no"`, unless diagnosing a controlled
+  test environment.
 
 - timeout:
 
-  Login/connect timeout in seconds.
+  Non-negative login/connect timeout in seconds; `0` lets the driver use
+  an unlimited or driver-specific timeout.
 
 - read_only:
 
-  Logical. Set `ApplicationIntent=ReadOnly`.
+  Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a connection
+  hint; it is not a substitute for Fabric/SQL permissions.
 
 - verbose:
 
-  Logical. Emit connection progress.
+  Logical. Show authentication, retry, and connection progress.
 
 - max_tries:
 
@@ -154,8 +172,9 @@ fabric_sql_query(
 
 - idempotent:
 
-  Logical. Whether the SQL statement may safely rerun on a fresh
-  connection after a transient execution failure.
+  Logical. Set to `TRUE` only if running the entire statement a second
+  time has no unwanted effect (usually a plain `SELECT`). This permits a
+  retry when it is unclear whether Fabric executed the first attempt.
 
 - ...:
 
@@ -166,7 +185,10 @@ fabric_sql_query(
 
 ## Value
 
-A tibble or `nanoarrow_array_stream`, according to `result`.
+With `result = "tibble"`, a tibble containing the returned rows and
+driver-converted column types. With `result = "arrow_stream"`, a
+single-use `nanoarrow_array_stream` that can be consumed by
+Arrow-compatible tools.
 
 ## Examples
 

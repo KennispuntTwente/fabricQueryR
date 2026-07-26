@@ -1,9 +1,9 @@
 # Query a Microsoft Fabric API for GraphQL
 
-Executes a GraphQL document against a Fabric GraphQL endpoint and
-preserves `data`, `errors`, and `extensions` independently. This is
-important because a successful HTTP response can contain both partial
-data and GraphQL errors.
+Sends a GraphQL query or mutation to an API for GraphQL item configured
+in Fabric. Fabric generates the API schema from selected Lakehouse,
+Warehouse, or SQL Database objects; this function calls that API from R
+and returns its nested response.
 
 ## Usage
 
@@ -32,19 +32,24 @@ fabric_graphql_query(
 - api:
 
   GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered GraphQLApi
-  record.
+  record. A row from
+  [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  is usually easiest because it supplies the endpoint and workspace ID.
 
 - query:
 
-  One non-empty GraphQL document.
+  One GraphQL document containing a query or mutation. Use variables for
+  changing values instead of pasting values into this string.
 
 - variables:
 
-  Named list of GraphQL variables.
+  Named list of GraphQL variables. Values must be representable as JSON;
+  names must match variables declared in `query`.
 
 - operation_name:
 
-  Optional operation name for a multi-operation document.
+  Optional operation name. Supply it when the document contains more
+  than one named operation; otherwise leave `NULL`.
 
 - workspace_id:
 
@@ -53,17 +58,20 @@ fabric_graphql_query(
 
 - error_policy:
 
-  How GraphQL-level errors are handled. `"return"` preserves them in the
-  result, `"warn"` also emits a warning, and `"error"` raises a
-  `fabric_graphql_error` carrying the result.
+  How GraphQL-level errors are handled. `"return"` lets the caller
+  inspect partial data and errors; `"warn"` also makes errors visible
+  immediately; `"error"` stops and attaches the result to a
+  `fabric_graphql_error`. HTTP/authentication failures always stop.
 
 - timeout:
 
-  Positive request timeout in seconds.
+  Positive HTTP timeout in seconds.
 
 - idempotent:
 
-  Logical. Allow shared transient HTTP retries for this POST.
+  Logical. Permit retries after transient HTTP failures. `TRUE` is
+  normally suitable for a read-only query, but not for a mutation that
+  could be applied twice.
 
 - tenant_id:
 
@@ -92,18 +100,29 @@ fabric_graphql_query(
 - audience:
 
   OAuth audience/scope passed to the credential. `NULL` selects the
-  scope from the authentication flow.
+  documented scope from the authentication flow. Set this only for a
+  custom token provider or unusual identity flow.
 
 - api_base:
 
-  Fabric REST API base URL, used to derive endpoints from IDs.
+  Fabric REST API base URL used to derive endpoints from IDs. Most users
+  should keep the default.
 
 ## Value
 
 A `fabric_graphql_result` list with `data`, `errors`, `extensions`, and
-`response` (the complete parsed response).
+`response` (the complete parsed response). `data` follows the nested
+shape requested in the GraphQL document and is usually a combination of
+named lists and vectors, not a tibble. Because GraphQL can return
+partial data, inspect `errors` even when `data` is present.
 
 ## Details
+
+Before using this function, create an **API for GraphQL** item in a
+Fabric workspace, connect its data source, and choose which tables,
+fields, queries, and mutations the API exposes. Fabric's built-in
+GraphQL editor and schema explorer are the easiest places to design and
+test a document before copying it to R.
 
 A direct endpoint has the form
 `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
@@ -131,6 +150,17 @@ service-principal flow. The value is ignored for a static token string.
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set `idempotent = TRUE` only when the operation is
 safe to repeat.
+
+## References
+
+[Fabric API for GraphQL
+editor](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-editor)
+
+[Fabric GraphQL schema
+explorer](https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-schema-view)
+
+[Use service principals with Fabric API for
+GraphQL](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal)
 
 ## Examples
 

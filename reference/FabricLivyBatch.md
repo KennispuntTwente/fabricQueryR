@@ -2,6 +2,9 @@
 
 Instances are returned by
 [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+Use `$status()` to refresh metadata, `$wait()` to block until
+completion, `$logs()`/`$result()` to inspect the outcome, and
+`$cancel()` to request cancellation.
 
 ## Format
 

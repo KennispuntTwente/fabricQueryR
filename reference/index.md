@@ -36,7 +36,7 @@ Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
 Run DAX queries against Fabric and Power BI semantic models
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
-  : Query a Microsoft Fabric/Power Bi semantic model with DAX
+  : Query a Microsoft Fabric/Power BI semantic model with DAX
 
 ## OneLake files
 
@@ -54,7 +54,7 @@ List, inspect, download, upload, and delete files in OneLake
 Resolve and read supported Delta Lake snapshots from OneLake
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  : Read a Microsoft Fabric/OneLake Delta table (ADLS Gen2)
+  : Read a Delta table from a Microsoft Fabric Lakehouse
 
 ## KQL
 
@@ -107,4 +107,4 @@ Package overview
 
 - [`fabricQueryR`](https://kennispunttwente.github.io/fabricQueryR/reference/fabricQueryR-package.md)
   [`fabricQueryR-package`](https://kennispunttwente.github.io/fabricQueryR/reference/fabricQueryR-package.md)
-  : fabricQueryR: Query Data in 'Microsoft Fabric'
+  : Work with Microsoft Fabric from R

@@ -1,7 +1,8 @@
 # Discover one Microsoft Fabric item
 
-Resolves an item by GUID or by an exact/unique display name and
-retrieves workload-specific properties when supported.
+Finds one item and retrieves the connection details that fabricQueryR
+can use. This is convenient when you know the item's name and do not
+need a table of every item in the workspace.
 
 ## Usage
 
@@ -25,24 +26,30 @@ fabric_item(
 
   Workspace GUID, exact display name, or a workspace record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
+  A record or GUID avoids an extra lookup; a name is often easier for
+  interactive use.
 
 - item:
 
   Item GUID, exact display name, or a one-row item record returned by a
-  discovery function.
+  discovery function. A display name must identify exactly one item of
+  the requested `type`; use a GUID or discovered row when names are
+  duplicated.
 
 - type:
 
-  Optional Fabric item type, for example `"Lakehouse"` or `"Warehouse"`.
+  Optional Fabric API item type, for example `"Lakehouse"`,
+  `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
+  Fabric, so use the API spelling. Leave `NULL` to list all item types.
 
 - tenant_id:
 
-  Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Entra application ID. Defaults to `FABRICQUERYR_CLIENT_ID`, then the
-  Azure CLI application ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -62,9 +69,12 @@ fabric_item(
 
 - api_base:
 
-  Fabric REST API base URL.
+  Fabric REST API base URL. Leave unchanged unless using a different
+  Fabric cloud or a test service.
 
 ## Value
 
-A `fabric_item` list containing common metadata, workload properties,
-and derived connection targets.
+A `fabric_item` list. It contains common fields such as `id`,
+`displayName`, `type`, and `workspaceId`, the nested workload
+`properties`, and applicable connection targets such as
+`sql_connection_string`, `livy_url`, or `query_service_uri`.

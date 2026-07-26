@@ -3,7 +3,9 @@
 `FabricLivySession` represents either a regular interactive Livy session
 or a high-concurrency (HC) session. Create instances with
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
-rather than calling `$new()` directly.
+rather than calling `$new()` directly. Use `$wait()` before submitting
+work, `$run()` for a convenient submit-and-wait operation, and
+`$close()` when finished.
 
 ## Format
 

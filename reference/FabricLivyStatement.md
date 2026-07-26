@@ -1,6 +1,8 @@
 # A statement submitted to a Fabric Livy session
 
-Instances are returned by `FabricLivySession$submit()`.
+Instances are returned by `FabricLivySession$submit()`. Call `$wait()`
+and then `$result()` to retrieve parsed output, or use
+`FabricLivySession$run()` to perform those steps together.
 
 ## Format
 

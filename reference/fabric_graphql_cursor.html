@@ -49,21 +49,25 @@
 
 <dl><dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>Character path from the result's <code>data</code> field to a connection
-object, for example <code>"products"</code> or <code>c("viewer", "products")</code>.</p></dd>
+object, for example <code>"products"</code> or <code>c("viewer", "products")</code>. This is the
+parent object that contains the pagination fields, not the <code>items</code> field.</p></dd>
 
 
 <dt id="arg-has-next">has_next<a class="anchor" aria-label="anchor" href="#arg-has-next"></a></dt>
-<dd><p>Name of the connection field indicating another page.</p></dd>
+<dd><p>Name of the logical connection field indicating another
+page. Fabric commonly uses <code>"hasNextPage"</code>.</p></dd>
 
 
 <dt id="arg-end-cursor">end_cursor<a class="anchor" aria-label="anchor" href="#arg-end-cursor"></a></dt>
-<dd><p>Name of the connection field containing the opaque cursor.</p></dd>
+<dd><p>Name of the connection field containing the opaque cursor.
+Fabric commonly uses <code>"endCursor"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A function suitable for <code>next_cursor</code> in
-<code><a href="fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code>.</p>
+<code><a href="fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code>. For each page it returns the cursor when
+<code>has_next</code> is true, otherwise <code>NULL</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

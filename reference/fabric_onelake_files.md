@@ -1,7 +1,8 @@
 # Work with files in Microsoft Fabric OneLake
 
-These functions expose the ADLS Gen2-compatible OneLake filesystem
-without applying Delta Lake transaction semantics:
+Lists, inspects, downloads, uploads, or deletes files in OneLake, the
+storage layer shared by Fabric data items. These functions treat paths
+as ordinary files through OneLake's ADLS Gen2-compatible API:
 
 - `fabric_onelake_list()` lists paths and follows all continuation
   tokens.
@@ -103,31 +104,40 @@ fabric_onelake_delete(
 
 - workspace:
 
-  Workspace name, GUID, discovered workspace, or complete OneLake
-  HTTPS/ABFSS path.
+  Workspace display name, GUID, row from
+  [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
+  or complete OneLake HTTPS/ABFSS path. Names are convenient
+  interactively; GUIDs avoid problems with spaces and renaming.
 
 - item:
 
   Item name, GUID, or discovered Fabric item. Use `NULL` when
-  `workspace` is a complete OneLake path.
+  `workspace` is a complete OneLake path. A row from
+  [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  is the least ambiguous input.
 
 - path:
 
-  Path relative to the item. Complete OneLake paths already contain this
-  value.
+  Path relative to the item, usually beginning with `Files/` or
+  `Tables/`, for example `"Files/incoming/data.csv"`. Use forward
+  slashes. A complete OneLake path already contains this value.
 
 - recursive:
 
-  Logical. Recurse into subdirectories.
+  Logical. For listing, include descendants rather than only direct
+  children. For deletion, allow removal of a non-empty directory.
 
 - page_size:
 
-  Maximum paths requested per ADLS page, from 1 to 5000.
+  Maximum paths requested from OneLake per API call, from 1 to 5000.
+  Smaller values reduce each response size but require more requests.
 
 - item_type:
 
   Optional Fabric item type appended to an item name unless that name
-  already ends in the same suffix, for example `"Lakehouse"`.
+  already ends in the same suffix, for example `"Lakehouse"`. Usually
+  unnecessary for a discovered item or a name such as
+  `"Sales.Lakehouse"`.
 
 - tenant_id:
 
@@ -154,59 +164,78 @@ fabric_onelake_delete(
 - dfs_base:
 
   OneLake DFS endpoint. Regional and workspace-private DFS endpoints are
-  supported.
+  supported. Most users should keep the default.
 
 - dest:
 
-  Optional local destination. When `NULL`, download returns a raw
-  vector. A destination download is streamed and committed atomically.
+  Optional local destination. When `NULL`, download returns a raw vector
+  held in R memory. Supply a path to stream large files to disk. A
+  destination download is committed atomically.
 
 - range:
 
-  Optional inclusive zero-based byte range. Supply one value for
-  `bytes=start-` or two values for `bytes=start-end`.
+  Optional inclusive zero-based byte range. Supply one value for all
+  bytes from that offset onward, or two values for `start` through
+  `end`. Leave `NULL` to download the entire file.
 
 - overwrite:
 
-  Logical. Whether an existing destination may be replaced. Upload
-  defaults to `FALSE` and uses `If-None-Match: *`.
+  Logical. Whether an existing destination may be replaced. Both
+  downloads and uploads protect existing files by default. Upload with
+  `overwrite = FALSE` uses `If-None-Match: *`.
 
 - if_match:
 
   Optional ETag for a conditional operation. Values returned by
-  `fabric_onelake_metadata()` can be passed back unchanged; unquoted
-  values are quoted as required by ADLS.
+  `fabric_onelake_metadata()` can be passed back unchanged. This
+  prevents overwriting, downloading, or deleting a file that changed
+  since it was inspected.
 
 - source:
 
-  A local file path or raw vector to upload.
+  Local file path or raw vector to upload. A path is streamed; a raw
+  vector is already held in memory.
 
 - content_type:
 
-  Optional MIME type stored with an uploaded file.
+  Optional MIME type stored with an uploaded file, for example
+  `"text/csv"`.
 
 - create_parents:
 
   Logical. Create missing parent directories below the Fabric-managed
-  first-level folder.
+  first-level folder. Keep `TRUE` for normal uploads.
 
 - chunk_size:
 
-  Positive upload chunk size in bytes. Defaults to 8 MiB; local files
-  are streamed without being loaded into memory.
+  Positive upload chunk size in bytes. Defaults to 8 MiB; larger chunks
+  use fewer requests but more memory.
 
 - confirm:
 
-  Must be `TRUE` to enable deletion.
+  Safety switch that must be explicitly set to `TRUE` before deletion is
+  attempted.
 
 ## Value
 
-`fabric_onelake_list()` and `fabric_onelake_metadata()` return tibbles.
-`fabric_onelake_download()` returns a raw vector, or invisibly returns
-the destination path. `fabric_onelake_upload()` returns a one-row
-metadata tibble. `fabric_onelake_delete()` invisibly returns `TRUE`.
+`fabric_onelake_list()` returns one row per path, including its
+item-relative `path`, file `name`, `is_directory`, `content_length`,
+`etag`, and modification/permission fields. `fabric_onelake_metadata()`
+and `fabric_onelake_upload()` return a one-row tibble with the resolved
+path and available HTTP metadata. `fabric_onelake_download()` returns a
+raw vector when `dest = NULL`, or invisibly returns the destination path
+after writing to disk. `fabric_onelake_delete()` invisibly returns
+`TRUE`.
 
 ## Details
+
+A Lakehouse normally contains a `Files/` area for ordinary files and a
+`Tables/` area managed as Delta tables. These helpers are well suited to
+CSV, JSON, images, and other files under `Files/`. They do not interpret
+the Delta transaction log: use
+[`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
+to read a Delta table, and do not upload or delete individual files
+under `Tables/`, because doing so can make the table inconsistent.
 
 `workspace` and `item` may be names, GUIDs, or one-row discovery
 results. Name-based items must include their item-type suffix (for
@@ -220,12 +249,23 @@ OneLake uses the Storage token audience
 `https://storage.azure.com/.default`. Fabric manages the item root and
 its first-level folders (such as `Files` and `Tables`), so upload and
 delete operations are limited to descendants of a managed folder.
-Deletion also requires `confirm = TRUE`.
+Deletion also requires `confirm = TRUE`. Give the signed-in user or
+application access through a workspace role or through the item's
+**Manage OneLake data access** roles. Write access is required for
+uploads and deletes.
 
 Uploads are streamed in chunks to a temporary sibling file. The
 completed file is atomically renamed to its destination with the
 requested overwrite or ETag precondition, so failed transfers do not
 truncate an existing file.
+
+## References
+
+[Connect to OneLake with ADLS
+APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+
+[Create and manage OneLake security
+roles](https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles)
 
 ## Examples
 

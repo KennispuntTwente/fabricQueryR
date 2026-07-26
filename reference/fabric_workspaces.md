@@ -1,7 +1,8 @@
 # Discover Microsoft Fabric workspaces
 
-Lists every workspace visible to the authenticated principal, following
-all Fabric continuation pages.
+Lists the Fabric workspaces the signed-in user or application can
+access. A workspace is the top-level container that holds Lakehouses,
+Warehouses, semantic models, notebooks, and other Fabric items.
 
 ## Usage
 
@@ -22,22 +23,24 @@ fabric_workspaces(
 
 - roles:
 
-  Optional character vector of workspace roles used to filter the
-  response.
+  Optional workspace roles to include, such as `"Viewer"`,
+  `"Contributor"`, `"Member"`, or `"Admin"`. Leave `NULL` to return
+  every visible workspace.
 
 - prefer_workspace_endpoints:
 
-  Logical. Ask Fabric to include a workspace-specific API endpoint, when
-  available.
+  Logical. Set to `TRUE` to ask Fabric for a workspace-specific API
+  endpoint, which can be needed with workspace-level private links. Most
+  users should keep the default, `FALSE`.
 
 - tenant_id:
 
-  Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Entra application ID. Defaults to `FABRICQUERYR_CLIENT_ID`, then the
-  Azure CLI application ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -57,9 +60,20 @@ fabric_workspaces(
 
 - api_base:
 
-  Fabric REST API base URL.
+  Fabric REST API base URL. Leave unchanged unless using a different
+  Fabric cloud or a test service.
 
 ## Value
 
-A tibble with one row per workspace. Nested Fabric fields are kept in
+A tibble with one row per workspace. Important columns include `id`
+(useful for later API calls), `displayName`, `capacityRegion`, and
+`apiEndpoint`. `tags` and the complete service response in `raw` are
 list columns.
+
+## References
+
+[List workspaces REST
+API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
+
+[Workspace
+roles](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)

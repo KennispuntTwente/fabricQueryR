@@ -1,8 +1,8 @@
 # Create a Microsoft Fabric Livy session
 
-Creates and returns an R6 object for an interactive Spark session. Set
-`high_concurrency = TRUE` to acquire an isolated REPL in Fabric's
-high-concurrency session pool.
+Starts an interactive Spark context that can run several statements
+while retaining variables and Spark state between them. This avoids
+starting new compute for each call.
 
 ## Usage
 
@@ -46,57 +46,83 @@ fabric_livy_session(
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
+  Copy the session-job URL from **Lakehouse settings \> Livy endpoint**,
+  or use a discovered row to avoid handling IDs manually.
 
 - high_concurrency:
 
-  Logical. Acquire a high-concurrency session.
+  Logical. `FALSE` creates a standard session for sequential or
+  low-concurrency work. `TRUE` creates an isolated REPL that Fabric can
+  pack into shared Spark sessions, which is useful when an application
+  runs several independent Spark workloads concurrently.
 
 - session_tag:
 
-  Optional packing hint for high-concurrency sessions. Repeated requests
-  with the same tag remain non-idempotent and return distinct HC session
-  IDs.
+  Optional high-concurrency packing hint. Related requests with the same
+  tag may share an underlying Livy session while keeping separate REPL
+  state. Each call still returns a distinct HC session.
 
 - name:
 
-  Optional session name.
+  Optional readable session name shown in service metadata.
 
 - tags:
 
-  Optional named list of string session tags.
+  Optional named list of string labels for monitoring.
 
 - conf:
 
-  Optional named list of Spark settings.
+  Optional named list of Spark settings. Prefer a published Fabric
+  Environment for configuration shared by several jobs.
 
 - environment_id:
 
-  Optional Fabric Environment ID.
+  Optional GUID of a published Fabric Environment whose libraries and
+  Spark settings should be used.
 
 - archives:
 
-  Optional character vector of archive URIs.
+  Optional character vector of archive URIs made available to Spark.
 
 - driver_memory, executor_memory:
 
-  Optional Spark memory strings.
+  Optional Spark memory values such as `"4g"`. Leave `NULL` to use
+  Fabric defaults.
 
 - driver_cores, executor_cores, num_executors:
 
-  Optional Spark resource counts.
+  Optional Spark resource counts. Larger values consume more capacity;
+  leave `NULL` unless the workload has been sized deliberately.
 
-- artifact_name, file, class_name, args, jars, files, py_files:
+- artifact_name:
 
-  Optional high-concurrency request fields. `artifact_name` controls the
-  Monitoring hub label.
+  Optional Lakehouse/artifact label used for a high-concurrency job in
+  the Fabric Monitoring hub.
+
+- file:
+
+  Optional application file URI for a high-concurrency request.
+
+- class_name:
+
+  Optional Java/Scala main class for `file`.
+
+- args:
+
+  Optional character vector of application arguments.
+
+- jars, files, py_files:
+
+  Optional character vectors of dependency URIs supplied to Spark.
 
 - tenant_id:
 
-  Microsoft Entra tenant ID.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Microsoft Entra application ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -113,14 +139,21 @@ fabric_livy_session(
 
 - verbose:
 
-  Logical. Emit lifecycle messages.
+  Logical. Show session lifecycle messages.
 
 ## Value
 
 A newly created
 [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
+It may still be starting; call `$wait()` before `$submit()`/`$run()`,
+and `$close()` when finished.
 
 ## Details
+
+Use a standard session for a typical interactive sequence in one R
+process. High concurrency is intended for automation that needs multiple
+isolated Spark statement streams at the same time; it is not necessary
+merely to run several statements sequentially.
 
 A finalizer attempts cleanup if an open object is garbage collected.
 Call `$close()` explicitly, and use `on.exit(session$close())` in

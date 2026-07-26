@@ -1,8 +1,12 @@
 # Connect to a Microsoft Fabric SQL target
 
-Opens a DBI connection to a Fabric Warehouse, Lakehouse SQL analytics
-endpoint, or SQL Database using a Microsoft Entra access token. ODBC is
-the default backend; ADBC is available as an opt-in backend.
+Opens a standard R DBI connection to a Fabric Warehouse, Lakehouse SQL
+analytics endpoint, or SQL Database using Microsoft Entra
+authentication. Use the returned connection with familiar DBI functions
+such as
+[`DBI::dbListTables()`](https://dbi.r-dbi.org/reference/dbListTables.html)
+and
+[`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html).
 
 ## Usage
 
@@ -36,34 +40,41 @@ fabric_sql_connect(
 
 - server:
 
-  A character endpoint/connection string, or one Lakehouse, Warehouse,
-  or SQL Database record returned by a discovery function.
+  A Fabric SQL server name, a complete connection string copied from the
+  Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
+  returned by a discovery function. A discovered row is usually simplest
+  because it also supplies the database name.
 
 - database:
 
-  Optional catalog/database. An explicit value overrides a catalog found
-  in `server`. `fabric_sql_connect()` and
-  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-  infer complete connection strings and discovery records when this
-  argument is omitted. A bare Warehouse or SQL analytics endpoint
-  without a catalog connects to Fabric's `master` context.
+  Optional catalog/database. An explicit value overrides a database
+  found in `server`. For a bare endpoint, supply the item database shown
+  with its connection string in Fabric. If omitted, Warehouse and SQL
+  analytics endpoints open Fabric's `master` context, which is useful
+  for discovery but does not select the item's tables.
 
 - target_type:
 
-  Target kind. `"auto"` infers it from discovery metadata or the
-  endpoint hostname.
+  Label for the endpoint kind. Keep `"auto"` unless the hostname is
+  custom or ambiguous. The explicit choices distinguish a Lakehouse SQL
+  analytics endpoint, Warehouse, transactional SQL Database, or another
+  read-only SQL analytics endpoint; they do not convert one kind of
+  endpoint into another.
 
 - backend:
 
-  SQL client backend. `"odbc"` remains the default.
+  SQL client backend. Use `"odbc"` for broad DBI compatibility and the
+  easiest setup; use `"adbc"` for its native Arrow result path after
+  separately installing the ADBC `mssql` driver.
 
 - tenant_id:
 
-  Character. Entra tenant ID.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Character. Application/client ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -90,23 +101,32 @@ fabric_sql_connect(
 - port:
 
   Optional TCP port. An explicit value overrides a port in `server`;
-  otherwise port 1433 is used.
+  otherwise the standard SQL port, 1433, is used.
 
-- encrypt, trust_server_certificate:
+- encrypt:
 
-  SQL client encryption flags.
+  Whether the driver encrypts the connection. Keep the secure default,
+  `"yes"`, for Fabric.
+
+- trust_server_certificate:
+
+  Whether to accept a server certificate without validating its trust
+  chain. Keep the secure default, `"no"`, unless diagnosing a controlled
+  test environment.
 
 - timeout:
 
-  Login/connect timeout in seconds.
+  Non-negative login/connect timeout in seconds; `0` lets the driver use
+  an unlimited or driver-specific timeout.
 
 - read_only:
 
-  Logical. Set `ApplicationIntent=ReadOnly`.
+  Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a connection
+  hint; it is not a substitute for Fabric/SQL permissions.
 
 - verbose:
 
-  Logical. Emit connection progress.
+  Logical. Show authentication, retry, and connection progress.
 
 - max_tries:
 
@@ -129,20 +149,35 @@ fabric_sql_connect(
 
 ## Value
 
-A live `DBIConnection`.
+A live `DBIConnection`. Close it with
+[`DBI::dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
+when finished.
 
 ## Details
 
-The ODBC backend requires ODBC Driver 18 or newer. Multiple Active
-Result Sets (MARS) is disabled because Fabric Warehouse does not support
-it. The ADBC backend uses
+In Fabric, copy a SQL connection string from the Warehouse, SQL
+analytics endpoint, or SQL Database settings. Alternatively, use a row
+returned by
+[`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+or
+[`fabric_sql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+A Lakehouse's SQL analytics endpoint is read-only; use Spark or another
+OneLake writer when data must be changed.
+
+`"odbc"` is the most familiar choice for DBI workflows and requires
+Microsoft ODBC Driver 18 or newer. `"adbc"` is useful when a query
+result should remain in Arrow form, especially for larger analytical
+results. It uses
 [`adbi::adbi()`](https://adbi.r-dbi.org/reference/dbConnect.html) with
 the `mssql` driver loaded by
 [`adbcdrivermanager::adbc_driver()`](https://arrow.apache.org/adbc/current/r/adbcdrivermanager/reference/adbc_driver_void.html).
 Install that external driver separately with `dbc install mssql`. The
 package checks that the driver can be loaded before authenticating or
 opening a network connection. `adbcdrivermanager` discovers and loads
-installed drivers; it does not install driver binaries.
+installed drivers; it does not install driver binaries. Multiple Active
+Result Sets (MARS) is disabled because Fabric Warehouse does not support
+it.
 
 Complete portal connection strings and enriched discovery records
 provide a catalog automatically. Bare endpoints may omit `database` to
@@ -151,8 +186,24 @@ use Fabric's `master` context; the package never guesses a catalog name.
 Transient Fabric connection failures are retried on fresh connections
 with refreshed tokens and bounded exponential backoff.
 
-The SQL audience is `https://database.windows.net/.default`. The
-identity must have permission to connect to and query the target item.
+The SQL audience is `https://database.windows.net/.default`. In Fabric,
+give the user or application access through a workspace role or the
+item's **Manage permissions** dialog. SQL `GRANT`/`DENY` rules can
+further restrict what the identity may query.
+
+## References
+
+[Connect to a Fabric Warehouse or SQL analytics
+endpoint](https://learn.microsoft.com/en-us/fabric/data-warehouse/how-to-connect)
+
+[Microsoft Entra authentication in Fabric Data
+Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/entra-id-authentication)
+
+[Lakehouse SQL analytics
+endpoint](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint)
+
+[Download Microsoft ODBC Driver 18 for SQL
+Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
 
 ## Examples
 

@@ -1,8 +1,8 @@
 # Discover Microsoft Fabric items
 
-Lists items in a workspace with optional server-side item-type
-filtering. Set `detail = TRUE` to call each supported workload API and
-include workload-specific connection metadata.
+Lists the items stored in one workspace. In Fabric, an *item* is a
+resource such as a Lakehouse, Warehouse, semantic model, notebook, or
+Eventhouse.
 
 ## Usage
 
@@ -27,27 +27,36 @@ fabric_items(
 
   Workspace GUID, exact display name, or a workspace record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
+  A record or GUID avoids an extra lookup; a name is often easier for
+  interactive use.
 
 - type:
 
-  Optional Fabric item type, for example `"Lakehouse"` or `"Warehouse"`.
+  Optional Fabric API item type, for example `"Lakehouse"`,
+  `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
+  Fabric, so use the API spelling. Leave `NULL` to list all item types.
 
 - detail:
 
-  Logical. Retrieve workload-specific properties for supported types.
+  Logical. `FALSE` makes the fewest API calls and is sufficient for
+  names and IDs. `TRUE` also retrieves supported workload properties,
+  such as SQL connection strings and Livy or KQL endpoints, but is
+  slower and can require additional permissions. The typed helpers below
+  use `TRUE`.
 
 - recursive:
 
-  Logical. Include items in nested folders.
+  Logical. `TRUE` includes items inside workspace folders; `FALSE` lists
+  only items at the workspace root.
 
 - tenant_id:
 
-  Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Entra application ID. Defaults to `FABRICQUERYR_CLIENT_ID`, then the
-  Azure CLI application ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -67,16 +76,30 @@ fabric_items(
 
 - api_base:
 
-  Fabric REST API base URL.
+  Fabric REST API base URL. Leave unchanged unless using a different
+  Fabric cloud or a test service.
 
 ## Value
 
-A tibble with one row per item. `properties` and `raw` are list columns.
-Enriched rows also contain directly usable SQL, OneLake, DAX, Livy, KQL,
-and GraphQL fields where Fabric exposes or identifies them.
+A tibble with one row per item and common columns including `id`,
+`displayName`, `type`, `workspaceId`, and `folderId`. With
+`detail = TRUE`, applicable rows also contain ready-to-use
+`sql_connection_string`, `one_lake_*_path`, `dax_connection_string`,
+`livy_url`, `query_service_uri`, or `graphql_endpoint` values. Fields
+that do not apply to an item are `NA`; `properties` and `raw` retain
+nested service data.
 
 ## Details
 
-Workload enrichment requires `Item.Read.All`/`Item.ReadWrite.All` or the
-corresponding workload-specific read scope in addition to access to the
-item.
+The caller needs at least access to the workspace (the Viewer role is
+sufficient for the core list operation). Workload enrichment
+additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the
+corresponding workload-specific read scope and access to the item.
+
+## References
+
+[List items REST
+API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
+
+[Fabric item management
+overview](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview)

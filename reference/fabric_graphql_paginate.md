@@ -2,8 +2,9 @@
 
 Repeats
 [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
-while `next_cursor` returns a cursor. The callback makes pagination
-independent of the user's schema shape.
+while `next_cursor` returns a cursor. The callback tells the function
+where the current page stores its next cursor, because that location
+depends on the API schema.
 
 ## Usage
 
@@ -35,11 +36,14 @@ fabric_graphql_paginate(
 - api:
 
   GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered GraphQLApi
-  record.
+  record. A row from
+  [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  is usually easiest because it supplies the endpoint and workspace ID.
 
 - query:
 
-  One non-empty GraphQL document.
+  One GraphQL document containing a query or mutation. Use variables for
+  changing values instead of pasting values into this string.
 
 - next_cursor:
 
@@ -50,15 +54,18 @@ fabric_graphql_paginate(
 
 - variables:
 
-  Named list of GraphQL variables.
+  Named list of GraphQL variables. Values must be representable as JSON;
+  names must match variables declared in `query`.
 
 - cursor_variable:
 
-  Name of the GraphQL variable that receives the cursor.
+  Name of the GraphQL variable that receives the next cursor, commonly
+  `"after"`. It must match the variable declared in `query`.
 
 - operation_name:
 
-  Optional operation name for a multi-operation document.
+  Optional operation name. Supply it when the document contains more
+  than one named operation; otherwise leave `NULL`.
 
 - workspace_id:
 
@@ -67,21 +74,25 @@ fabric_graphql_paginate(
 
 - error_policy:
 
-  How GraphQL-level errors are handled. `"return"` preserves them in the
-  result, `"warn"` also emits a warning, and `"error"` raises a
-  `fabric_graphql_error` carrying the result.
+  How GraphQL-level errors are handled. `"return"` lets the caller
+  inspect partial data and errors; `"warn"` also makes errors visible
+  immediately; `"error"` stops and attaches the result to a
+  `fabric_graphql_error`. HTTP/authentication failures always stop.
 
 - max_pages:
 
-  Positive maximum number of requests.
+  Positive maximum number of requests. This guards against a faulty or
+  unexpectedly large pagination loop.
 
 - timeout:
 
-  Positive request timeout in seconds.
+  Positive HTTP timeout in seconds.
 
 - idempotent:
 
-  Logical. Allow shared transient HTTP retries for this POST.
+  Logical. Permit retries after transient HTTP failures. `TRUE` is
+  normally suitable for a read-only query, but not for a mutation that
+  could be applied twice.
 
 - tenant_id:
 
@@ -110,16 +121,21 @@ fabric_graphql_paginate(
 - audience:
 
   OAuth audience/scope passed to the credential. `NULL` selects the
-  scope from the authentication flow.
+  documented scope from the authentication flow. Set this only for a
+  custom token provider or unusual identity flow.
 
 - api_base:
 
-  Fabric REST API base URL, used to derive endpoints from IDs.
+  Fabric REST API base URL used to derive endpoints from IDs. Most users
+  should keep the default.
 
 ## Value
 
 A `fabric_graphql_pages` list with `pages`, combined `errors`, and the
-final `variables`.
+final `variables`. `pages` contains one `fabric_graphql_result` per
+request and `complete` is `TRUE` when the callback reported no next
+page. Results are kept page-by-page because the requested schema shape
+can vary.
 
 ## Examples
 

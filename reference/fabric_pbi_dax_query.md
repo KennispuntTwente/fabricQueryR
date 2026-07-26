@@ -1,9 +1,10 @@
-# Query a Microsoft Fabric/Power Bi semantic model with DAX
+# Query a Microsoft Fabric/Power BI semantic model with DAX
 
-High-level helper that authenticates against Azure AD, resolves the
-workspace & dataset from a Power BI (Microsoft Fabric) XMLA/connection
-string, executes a DAX statement via the Power BI REST API, validates
-the complete response, and returns a tibble with the resulting data.
+Runs a Data Analysis Expressions (DAX) query against a published
+semantic model and returns its result as a tibble. A semantic model is
+the report-ready layer behind Power BI reports: it contains tables,
+relationships, measures, and business calculations. Use DAX here, rather
+than SQL intended for the underlying Lakehouse or Warehouse.
 
 ## Usage
 
@@ -28,22 +29,22 @@ fabric_pbi_dax_query(
 
 - connstr:
 
-  Optional character Power BI connection string or one SemanticModel
-  record returned by
+  Optional Power BI connection string or one SemanticModel record
+  returned by
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
   For a discovered record, workspace and dataset IDs are used directly.
-  A character connection string can be, e.g.
+  A character connection string can be, for example,
   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
-  The function accepts either `Data Source=` and `Initial Catalog=`
-  parts, or a bare `powerbi://...` for the data source plus a
-  `Dataset=`/`Catalog=`/`Initial Catalog=` key (see details). May be
-  omitted when `dataset_id` is supplied.
+  It may contain `Data Source=` and `Initial Catalog=` parts, or a bare
+  `powerbi://...` source plus a `Dataset=`, `Catalog=`, or
+  `Initial Catalog=` key. Omit it when `dataset_id` is supplied.
 
 - dax:
 
-  Character scalar with a valid DAX query (see example).
+  One DAX query, normally beginning with `EVALUATE`. DAX table
+  expressions determine which rows and columns are returned.
 
 - workspace_id:
 
@@ -58,16 +59,12 @@ fabric_pbi_dax_query(
 
 - tenant_id:
 
-  Microsoft Azure tenant ID. Defaults to
-  `Sys.getenv("FABRICQUERYR_TENANT_ID")` if missing.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Microsoft Azure application (client) ID used to authenticate. Defaults
-  to `Sys.getenv("FABRICQUERYR_CLIENT_ID")`. You may be able to use the
-  Azure CLI app id `"04b07795-8ddb-461a-bbee-02f9e1bf7b46"`, but may
-  want to make your own app registration in your tenant for better
-  control.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -85,38 +82,47 @@ fabric_pbi_dax_query(
 
 - include_nulls:
 
-  Logical; pass-through to the REST serializer setting. Defaults to
-  TRUE. If TRUE, null values are included in the response; if FALSE,
-  they are omitted.
+  Logical. With `TRUE`, Power BI includes properties whose value is
+  blank/null. With `FALSE`, those properties can be absent from a
+  returned row; retaining `TRUE` usually gives a more consistent tibble.
 
 - api_base:
 
-  API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
-  'myorg' is appropriate for most use cases and does not necessarily
-  need to be changed.
+  Power BI REST API base URL. The default
+  `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial
+  cloud; change it only for another Microsoft cloud or a test service.
 
 - impersonated_user:
 
-  Optional user principal name sent as `impersonatedUserName` for
-  supported row-level security scenarios.
+  Optional user principal name, such as `"analyst@example.com"`, sent as
+  `impersonatedUserName` for supported row-level-security scenarios.
+  Leave `NULL` for the normal identity context.
 
 ## Value
 
-A tibble with the query result (0 rows if the DAX query returned no
-rows).
+A tibble containing the single result table. Power BI's qualified,
+bracketed column names are preserved. An empty result becomes a zero-row
+tibble; API errors and partial/truncated results raise an error rather
+than silently returning incomplete data.
 
 ## Details
 
-- In Microsoft Fabric/Power BI, you can find and copy the connection
-  string by going to a 'Semantic model' item, then go to 'File' -\>
-  'Settings' -\> 'Server settings'. Ensure that the account you use to
-  authenticate has access to the workspace, or has been granted 'Build'
-  permissions on the dataset (via sharing).
+- The easiest input is a row from
+  [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+  You can instead supply `workspace_id` and `dataset_id` (both GUIDs),
+  or a Power BI connection string containing the workspace and
+  semantic-model names. IDs avoid name lookup and are best for scheduled
+  code.
+
+- In Fabric/Power BI, open the semantic model's settings to find its
+  server or XMLA connection information. The signed-in identity needs
+  Read and Build permission on the semantic model, either through its
+  workspace role or through **Manage permissions** on the model.
 
 - AzureAuth is used to acquire the token. Be wary of caching behavior;
   you may want to call
   [`AzureAuth::clean_token_directory()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  to clear cached tokens if you run into issues
+  to clear cached tokens if the wrong account or tenant is being reused.
 
 - Requests use the Power BI audience
   `https://analysis.windows.net/powerbi/api/.default` and require
@@ -140,6 +146,12 @@ rows).
 
 [Power BI Execute Queries REST
 API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries)
+
+[Semantic model
+permissions](https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions)
+
+[Semantic Model Execute Queries tenant
+setting](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-integration#semantic-model-execute-queries-rest-api)
 
 ## Examples
 

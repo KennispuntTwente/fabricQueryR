@@ -1,9 +1,10 @@
 # Run Spark code in a temporary Microsoft Fabric Livy session
 
-Creates a session, waits for it to become ready, runs one statement, and
-closes the session even when execution fails. For multiple statements or
-explicit lifecycle control, use
-[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
+Starts Fabric Spark compute, runs one statement, waits for its result,
+and closes the session. This is the simplest Livy helper for a one-off
+Spark operation. Spark is useful for distributed processing or changing
+Lakehouse data; it has more startup overhead than querying an existing
+SQL endpoint.
 
 ## Usage
 
@@ -30,26 +31,33 @@ fabric_livy_query(
 
 - livy_url:
 
-  A Livy connection URL or an enriched Lakehouse record from
+  A Livy connection URL copied from the Lakehouse settings, or an
+  enriched Lakehouse record from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
+  A discovered record avoids copying workspace and Lakehouse IDs.
 
 - code:
 
-  One non-empty string containing Spark code.
+  One string containing the Spark code to run. Objects created in this
+  temporary session are lost after the function returns, although writes
+  made to Lakehouse storage persist.
 
 - kind:
 
-  Statement language: `"spark"`, `"pyspark"`, `"sparkr"`, or `"sql"`.
+  Statement language. Use `"sparkr"` for SparkR code, `"pyspark"` for
+  Python with Spark, `"spark"` for Scala, or `"sql"` for Spark SQL. This
+  must match the syntax in `code`.
 
 - tenant_id:
 
-  Microsoft Entra tenant ID.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 
 - client_id:
 
-  Microsoft Entra application ID.
+  Microsoft Entra application/client ID. Defaults to
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 
 - token:
 
@@ -66,23 +74,29 @@ fabric_livy_query(
 
 - environment_id:
 
-  Optional Fabric Environment ID.
+  Optional GUID of a published Fabric Environment whose libraries and
+  Spark settings should be used. Leave `NULL` to use the
+  Lakehouse/workspace defaults.
 
 - conf:
 
-  Optional named list of Spark configuration settings.
+  Optional named list of Spark configuration overrides, for example
+  `list("spark.sql.shuffle.partitions" = "100")`. Most users can leave
+  this `NULL` and configure shared settings in a Fabric Environment.
 
 - verbose:
 
-  Logical. Emit lifecycle progress.
+  Logical. Show session startup, execution, and cleanup progress.
 
 - poll_interval:
 
-  Polling interval in seconds.
+  Seconds between status checks. Lower values update sooner but make
+  more API calls.
 
 - timeout:
 
-  Maximum seconds for each readiness/execution wait.
+  Maximum seconds to wait for session readiness and, separately,
+  statement completion.
 
 - ...:
 
@@ -92,9 +106,21 @@ fabric_livy_query(
 
 ## Value
 
-An invisible `fabric_livy_statement_result` list.
+Invisibly, a `fabric_livy_statement_result` list with statement `state`,
+timing information, submitted `code`, raw response, and `output`.
+`output$parsed` contains JSON output converted to an R object or
+plain-text output as a character vector; error details are retained in
+the other `output` fields.
 
 ## Details
+
+Fabric needs a workspace on supported Fabric capacity and a Lakehouse.
+In the Fabric portal, open the Lakehouse settings, find **Livy
+endpoint**, and copy the session-job connection string. For several
+statements that reuse variables and Spark state, use
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
+To run a complete Python, Scala/Java, or R application file, use
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
 
 Requests use the `https://api.fabric.microsoft.com/.default` audience.
 Delegated authentication requires `Lakehouse.Execute.All`,
@@ -106,8 +132,8 @@ role.
 
 [Microsoft Fabric Livy API
 overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
-[session
-jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
+[session jobs and Fabric
+setup](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
 
 ## Examples
 
