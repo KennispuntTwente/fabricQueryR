@@ -119,13 +119,14 @@ values are included as columns.
   version.
 
 - Checkpoint Parquet and data Parquet files are read with DuckDB. The
-  staged reader supports Delta reader protocol version 1 without table
-  features. It does not currently support column mapping, deletion
-  vectors, or higher reader protocols. These occur in some current
-  Fabric tables, including Warehouse Delta exports. Such tables are
-  rejected with a `fabric_delta_unsupported_error` before any data is
-  returned; use the Lakehouse SQL analytics endpoint or Fabric Spark for
-  those tables.
+  staged reader supports Delta reader protocols 1 through 3, name-based
+  column mapping, deletion vectors stored inline or in table-relative
+  sidecar files, timestamps without time zones, and supported type
+  widening. This covers the reader 3/writer 7 format currently emitted
+  by Fabric Warehouse Delta export. ID-based column mapping, absolute
+  deletion-vector paths, v2 checkpoints, and unrecognised reader
+  features are rejected with a `fabric_delta_unsupported_error` before
+  any data is returned.
 
 - The returned columns follow the logical schema in the selected Delta
   snapshot. Schema additions are filled with typed missing values,
