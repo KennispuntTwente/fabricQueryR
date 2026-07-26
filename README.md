@@ -69,7 +69,7 @@ for full function documentation and more examples.
 
 ### 1. Connect to Fabric SQL
 
-Connect to a Warehouse, SQL Database, or a Lakehouse's read-only SQL analytics endpoint. 
+Connect to a Warehouse, SQL Database, or a Lakehouse's SQL analytics endpoint. 
 The result is a standard DBI connection, 
 so it works with familiar R database packages such as DBI and dbplyr.
 
