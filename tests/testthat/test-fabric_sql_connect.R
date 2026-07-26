@@ -272,6 +272,7 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   connection <- structure(list(), class = "test_connection")
   captured <- NULL
   disconnected <- FALSE
+  disconnect_force <- NULL
   values <- list(
     "Robert'); DROP TABLE Students;--",
     as.Date("2026-07-24"),
@@ -294,8 +295,9 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
       )
       data.frame(ok = TRUE)
     },
-    .fabric_sql_db_disconnect = function(con) {
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
       disconnected <<- TRUE
+      disconnect_force <<- force
       invisible(TRUE)
     }
   )
@@ -313,6 +315,7 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   expect_identical(captured$sql, "SELECT ?, ?, ?, ?")
   expect_identical(captured$result, "tibble")
   expect_true(disconnected)
+  expect_true(disconnect_force)
 })
 
 test_that("ADBC parameter translation ignores SQL literals and comments", {
@@ -345,6 +348,7 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
   connect_args <- NULL
   query_args <- NULL
   disconnected <- FALSE
+  disconnect_force <- NULL
   local_mocked_bindings(
     fabric_sql_connect = function(...) {
       connect_args <<- list(...)
@@ -364,8 +368,9 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
       )
       fake_stream
     },
-    .fabric_sql_db_disconnect = function(...) {
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
       disconnected <<- TRUE
+      disconnect_force <<- force
       invisible(TRUE)
     }
   )
@@ -384,9 +389,10 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
   expect_equal(connect_args$backend, "adbc")
   expect_equal(connect_args$adbc_driver, "mssql")
   expect_equal(query_args$sql, "SELECT @p1 AS value, '?' AS literal")
-  expect_identical(query_args$params, list(42L))
+  expect_identical(query_args$params, list(p1 = 42L))
   expect_equal(query_args$result, "arrow_stream")
   expect_true(disconnected)
+  expect_false(disconnect_force)
 })
 
 test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {
@@ -418,6 +424,33 @@ test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {
   )
 })
 
+test_that("failed Arrow queries force connection cleanup", {
+  connection <- structure(list(), class = "test_connection")
+  disconnect_force <- NULL
+  local_mocked_bindings(
+    fabric_sql_connect = function(...) connection,
+    .fabric_sql_db_get_query = function(...) {
+      rlang::abort("stream failed")
+    },
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
+      disconnect_force <<- force
+      invisible(TRUE)
+    }
+  )
+
+  expect_error(
+    fabric_sql_query(
+      "unused",
+      "SELECT 1",
+      result = "arrow_stream",
+      token = "token",
+      verbose = FALSE
+    ),
+    class = "fabric_sql_execution_error"
+  )
+  expect_true(disconnect_force)
+})
+
 test_that("SQL query retries require idempotency and use fresh connections", {
   connections <- 0L
   queries <- 0L
@@ -440,7 +473,7 @@ test_that("SQL query retries require idempotency and use fresh connections", {
       }
       data.frame(connection_id = con$id)
     },
-    .fabric_sql_db_disconnect = function(con) {
+    .fabric_sql_db_disconnect = function(con, ...) {
       disconnected <<- c(disconnected, con$id)
       invisible(TRUE)
     },

@@ -101,7 +101,8 @@ named \code{access_token} argument is consumed here as a deprecated alias for
 }
 \value{
 A live \code{DBIConnection}. Close it with \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}} when
-finished.
+finished. For an ADBC connection with child results still registered,
+use \code{DBI::dbDisconnect(con, force = TRUE)} to release them immediately.
 }
 \description{
 Opens a standard R DBI connection to a Fabric Warehouse, Lakehouse SQL

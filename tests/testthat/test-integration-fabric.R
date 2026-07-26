@@ -805,7 +805,11 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
       info = backend
     )
 
-    DBI::dbDisconnect(con)
+    if (identical(backend, "adbc")) {
+      DBI::dbDisconnect(con, force = TRUE)
+    } else {
+      DBI::dbDisconnect(con)
+    }
     expect_false(DBI::dbIsValid(con), info = backend)
   }
 })
@@ -974,7 +978,11 @@ fabric_test_sql_item <- function(name, backend) {
   )
   on.exit(
     if (DBI::dbIsValid(con)) {
-      DBI::dbDisconnect(con)
+      if (identical(backend, "adbc")) {
+        DBI::dbDisconnect(con, force = TRUE)
+      } else {
+        DBI::dbDisconnect(con)
+      }
     },
     add = TRUE
   )
@@ -1029,7 +1037,11 @@ fabric_test_sql_item <- function(name, backend) {
     c(NA, "present", NA),
     info = context
   )
-  DBI::dbDisconnect(con)
+  if (identical(backend, "adbc")) {
+    DBI::dbDisconnect(con, force = TRUE)
+  } else {
+    DBI::dbDisconnect(con)
+  }
   expect_false(DBI::dbIsValid(con), info = context)
 
   bound_rows <- fabric_sql_query(
@@ -1534,7 +1546,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     item,
     parameters = list(mode = "failure"),
     default_lakehouse = lakehouse$id,
-    session_tag = session_tag,
+    session_tag = paste0(session_tag, "_failure"),
     token = token
   )
   failed <- rlang::catch_cnd(

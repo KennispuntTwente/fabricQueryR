@@ -193,7 +193,8 @@ fabric_sql_connection_info <- function(
 #'   `token` and is not forwarded.
 #'
 #' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
-#'   finished.
+#'   finished. For an ADBC connection with child results still registered,
+#'   use `DBI::dbDisconnect(con, force = TRUE)` to release them immediately.
 #' @references
 #' [Connect to a Fabric Warehouse or SQL analytics endpoint](https://learn.microsoft.com/en-us/fabric/data-warehouse/how-to-connect)
 #'
@@ -495,10 +496,16 @@ fabric_sql_query <- function(
   }
   fabric_sql_retry_settings(max_tries, retry_delay)
   fabric_sql_require_backend(backend, result = result)
-  query_sql <- if (identical(backend, "adbc") && !is.null(params)) {
+  adbc_params <- identical(backend, "adbc") && !is.null(params)
+  query_sql <- if (adbc_params) {
     fabric_sql_adbc_parameter_sql(sql, params)
   } else {
     sql
+  }
+  query_params <- if (adbc_params) {
+    stats::setNames(params, paste0("p", seq_along(params)))
+  } else {
+    params
   }
   connect_args <- c(
     list(
@@ -525,23 +532,32 @@ fabric_sql_query <- function(
   )
   for (attempt in seq_len(as.integer(max_tries))) {
     con <- NULL
+    preserve_stream <- FALSE
     outcome <- tryCatch(
       {
         con <- do.call(fabric_sql_connect, connect_args)
+        value <- .fabric_sql_db_get_query(
+          con,
+          query_sql,
+          params = query_params,
+          result = result
+        )
+        preserve_stream <- identical(result, "arrow_stream")
         list(
-          value = .fabric_sql_db_get_query(
-            con,
-            query_sql,
-            params = params,
-            result = result
-          ),
+          value = value,
           error = NULL
         )
       },
       error = function(error) list(value = NULL, error = error),
       finally = {
         if (!is.null(con)) {
-          try(.fabric_sql_db_disconnect(con), silent = TRUE)
+          try(
+            .fabric_sql_db_disconnect(
+              con,
+              force = !preserve_stream
+            ),
+            silent = TRUE
+          )
         }
       }
     )
@@ -1055,7 +1071,10 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   DBI::dbGetQuery(con, sql, params = params)
 }
 
-.fabric_sql_db_disconnect <- function(con) {
+.fabric_sql_db_disconnect <- function(con, force = FALSE) {
+  if (inherits(con, "AdbiConnection")) {
+    return(DBI::dbDisconnect(con, force = force))
+  }
   DBI::dbDisconnect(con)
 }
 
