@@ -78,7 +78,18 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
     fabric_delta_resolve_snapshot = function(table_dir, version = NULL) {
       expect_null(version)
       expect_true(dir.exists(table_dir))
-      list(active = "category=A/part.parquet", version = 0)
+      list(
+        active = "category=A/part.parquet",
+        files = list(
+          "category=A/part.parquet" = list(
+            deletionVector = list(
+              storageType = "u",
+              pathOrInlineDv = "ab^-aqEH.-t@S}K{vb[*k^"
+            )
+          )
+        ),
+        version = 0
+      )
     },
     fabric_delta_read_staged = function(table_dir, version = NULL) {
       expect_null(version)
@@ -111,7 +122,11 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
     vapply(downloaded, `[[`, character(1), "path"),
     c(
       "Tables/dbo/table/_delta_log/00000000000000000000.json",
-      "Tables/dbo/table/category=A/part.parquet"
+      "Tables/dbo/table/category=A/part.parquet",
+      paste0(
+        "Tables/dbo/table/ab/deletion_vector_",
+        "d2c639aa-8816-431a-aaf6-d3fe2512ff61.bin"
+      )
     )
   )
   expect_true(all(vapply(downloaded, `[[`, logical(1), "overwrite")))
@@ -880,59 +895,124 @@ test_that("Delta snapshot ignores an incomplete multipart checkpoint", {
   expect_equal(snapshot$active, "part.parquet")
 })
 
-test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
+test_that("Delta type widening validates stable and preview transitions", {
+  schema <- list(
+    fields = list(list(
+      name = "id",
+      type = "long",
+      metadata = list(
+        "delta.typeChanges" = list(list(
+          fromType = "integer",
+          toType = "long"
+        ))
+      )
+    ))
+  )
+  expect_invisible(
+    fabric_delta_validate_type_widening(schema, "typeWidening")
+  )
+  expect_error(
+    fabric_delta_validate_type_widening(
+      schema,
+      "typeWidening-preview"
+    ),
+    "integer -> long",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+  expect_true(
+    fabric_delta_supported_type_change(
+      "decimal(8,2)",
+      "decimal(12,4)"
+    )
+  )
+  expect_false(
+    fabric_delta_supported_type_change(
+      "decimal(8,2)",
+      "decimal(9,4)"
+    )
+  )
+  expect_true(
+    fabric_delta_supported_type_change(
+      "date",
+      "timestamp_ntz"
+    )
+  )
+})
+
+test_that("Delta reader accepts supported features and rejects unsafe ones", {
   state <- list(
     protocol = list(
       minReaderVersion = 3L,
-      readerFeatures = list("deletionVectors")
+      minWriterVersion = 7L,
+      readerFeatures = list(
+        "columnMapping",
+        "deletionVectors",
+        "timestampNtz",
+        "typeWidening",
+        "vacuumProtocolCheck"
+      )
     ),
-    metadata = list(configuration = list()),
-    has_deletion_vectors = FALSE
+    metadata = list(
+      configuration = list(
+        "delta.columnMapping.mode" = "name"
+      )
+    ),
+    has_deletion_vectors = TRUE,
+    active = "part.parquet",
+    files = list(
+      "part.parquet" = list(
+        deletionVector = list(storageType = "i")
+      )
+    )
   )
-  expect_error(
-    fabric_delta_validate_reader(state),
-    "Delta reader protocol version 3",
-    fixed = TRUE,
-    class = "fabric_delta_unsupported_error"
-  )
+  expect_invisible(fabric_delta_validate_reader(state))
 
   state$protocol <- list(minReaderVersion = 1L)
-  state$metadata$configuration <- list(
-    "delta.columnMapping.mode" = "name"
-  )
   expect_error(
     fabric_delta_validate_reader(state),
-    "column mapping mode",
+    "column mapping without matching protocol support",
     fixed = TRUE,
     class = "fabric_delta_unsupported_error"
   )
-  state$protocol <- list(minReaderVersion = 2L)
-  expect_error(
-    fabric_delta_validate_reader(state),
-    "column mapping mode",
-    fixed = TRUE,
-    class = "fabric_delta_unsupported_error"
+  state$protocol <- list(minReaderVersion = 2L, minWriterVersion = 5L)
+  state$has_deletion_vectors <- FALSE
+  state$files[["part.parquet"]]$deletionVector <- NULL
+  expect_invisible(
+    fabric_delta_validate_reader(state)
   )
 
-  state$metadata$configuration <- list()
-  state$has_deletion_vectors <- TRUE
+  state$metadata$configuration[["delta.columnMapping.mode"]] <- "id"
   expect_error(
     fabric_delta_validate_reader(state),
-    "deletion vectors",
+    'column mapping mode "id"',
     fixed = TRUE,
     class = "fabric_delta_unsupported_error"
   )
+  state$metadata$configuration[["delta.columnMapping.mode"]] <- "none"
   state$protocol <- list(
     minReaderVersion = 3L,
-    readerFeatures = list("deletionVectors")
+    minWriterVersion = 7L,
+    readerFeatures = list("variant")
   )
   expect_error(
     fabric_delta_validate_reader(state),
-    "deletion vectors",
+    "reader feature(s): variant",
     fixed = TRUE,
     class = "fabric_delta_unsupported_error"
   )
+  state$protocol$readerFeatures <- list("deletionVectors")
+  state$has_deletion_vectors <- TRUE
+  state$files[["part.parquet"]]$deletionVector <- list(storageType = "p")
+  expect_error(
+    fabric_delta_validate_reader(state),
+    "absolute paths",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+})
 
+test_that("Delta reader fails safely for incomplete snapshots", {
   table_dir <- fs::path_temp(paste0("delta-incomplete-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
   fs::dir_create(log_dir, recurse = TRUE)
@@ -950,4 +1030,162 @@ test_that("Delta reader fails safely for incomplete or unsupported snapshots", {
     "required commit is missing",
     fixed = TRUE
   )
+})
+
+test_that("Delta deletion vectors decode inline and persisted storage", {
+  descriptor <- list(
+    storageType = "i",
+    pathOrInlineDv = paste0(
+      "^Bg9^0rr910000000000iXQKl0rr91000f55c8Xg0",
+      "@@D72lkbi5=-{L"
+    ),
+    sizeInBytes = 44L,
+    cardinality = 6L
+  )
+  expect_equal(
+    fabric_delta_read_deletion_vector(descriptor, tempdir()),
+    c(3, 4, 7, 11, 18, 29)
+  )
+
+  relative_descriptor <- descriptor
+  relative_descriptor$storageType <- "u"
+  relative_descriptor$pathOrInlineDv <- "ab^-aqEH.-t@S}K{vb[*k^"
+  relative_descriptor$offset <- 1L
+  expected_path <- paste0(
+    "ab/deletion_vector_",
+    "d2c639aa-8816-431a-aaf6-d3fe2512ff61.bin"
+  )
+  expect_equal(
+    fabric_delta_deletion_vector_path(relative_descriptor),
+    expected_path
+  )
+
+  table_dir <- fs::path_temp(paste0("delta-dv-", sample.int(1e9, 1)))
+  path <- fs::path(table_dir, expected_path)
+  fs::dir_create(fs::path_dir(path), recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  bitmap <- fabric_delta_z85_decode(descriptor$pathOrInlineDv)
+  uint32_be <- function(value) {
+    as.raw(floor(value / 256^(3:0)) %% 256)
+  }
+  writeBin(
+    c(
+      as.raw(1L),
+      uint32_be(length(bitmap)),
+      bitmap,
+      uint32_be(fabric_delta_crc32(bitmap))
+    ),
+    path
+  )
+  expect_equal(
+    fabric_delta_read_deletion_vector(relative_descriptor, table_dir),
+    c(3, 4, 7, 11, 18, 29)
+  )
+  damaged <- readBin(path, "raw", n = fs::file_size(path))
+  damaged[[10L]] <- as.raw(bitwXor(as.integer(damaged[[10L]]), 1L))
+  writeBin(damaged, path)
+  expect_error(
+    fabric_delta_read_deletion_vector(relative_descriptor, table_dir),
+    "checksum",
+    fixed = TRUE
+  )
+})
+
+test_that("Delta reader applies name mapping and deletion vectors", {
+  table_dir <- fs::path_temp(paste0("delta-modern-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT range::INTEGER AS \"physical-id\", ",
+      "'row-' || range::VARCHAR AS \"physical-name\" ",
+      "FROM range(30)) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "integer",
+          nullable = FALSE,
+          metadata = list(
+            "delta.columnMapping.id" = 1L,
+            "delta.columnMapping.physicalName" = "physical-id"
+          )
+        ),
+        list(
+          name = "display name",
+          type = "string",
+          nullable = TRUE,
+          metadata = list(
+            "delta.columnMapping.id" = 2L,
+            "delta.columnMapping.physicalName" = "physical-name"
+          )
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  deletion_vector <- list(
+    storageType = "i",
+    pathOrInlineDv = paste0(
+      "^Bg9^0rr910000000000iXQKl0rr91000f55c8Xg0",
+      "@@D72lkbi5=-{L"
+    ),
+    sizeInBytes = 44L,
+    cardinality = 6L
+  )
+  actions <- list(
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("columnMapping", "deletionVectors"),
+        writerFeatures = list("columnMapping", "deletionVectors")
+      )
+    ),
+    list(
+      metaData = list(
+        id = "table",
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list("delta.columnMapping.mode" = "name")
+      )
+    ),
+    list(
+      add = list(
+        path = "part.parquet",
+        partitionValues = list(),
+        deletionVector = deletion_vector
+      )
+    )
+  )
+  writeLines(
+    vapply(
+      actions,
+      jsonlite::toJSON,
+      character(1),
+      auto_unbox = TRUE
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_named(result, c("id", "display name"))
+  expect_equal(
+    result$id,
+    setdiff(0:29, c(3, 4, 7, 11, 18, 29))
+  )
+  expect_equal(result[["display name"]], paste0("row-", result$id))
 })

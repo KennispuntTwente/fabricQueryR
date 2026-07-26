@@ -787,7 +787,7 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
   expect_equal(historical_beta$amount, 20)
 })
 
-test_that("Delta reader covers schema evolution and rejects unsupported features", {
+test_that("Delta reader covers current Fabric Delta reader features", {
   fabric_test_require_package("duckdb")
   fabric_test_require_package("fs")
   manifest <- fabric_test_manifest()
@@ -811,13 +811,22 @@ test_that("Delta reader covers schema evolution and rejects unsupported features
   expect_true(all(is.na(evolved$evolved_value[1:2])))
   expect_equal(evolved$evolved_value[[3L]], "introduced")
 
-  expect_error(
-    read_table(lakehouse$tables$column_mapped),
-    "column mapping mode"
-  )
-  expect_error(
-    read_table(lakehouse$tables$deletion_vectors),
-    "deletion vectors"
+  column_mapped <- read_table(lakehouse$tables$column_mapped)
+  column_mapped <- column_mapped[order(column_mapped$id), ]
+  expect_equal(column_mapped$id, 1:3)
+  expect_equal(column_mapped$name, c("alpha", "beta", "gamma"))
+
+  deletion_vectors <- read_table(lakehouse$tables$deletion_vectors)
+  deletion_vectors <- deletion_vectors[order(deletion_vectors$id), ]
+  expect_equal(deletion_vectors$id, 2:3)
+  expect_equal(deletion_vectors$name, c("beta", "gamma"))
+
+  type_widened <- read_table(lakehouse$tables$type_widened)
+  type_widened <- type_widened[order(type_widened$id), ]
+  expect_equal(type_widened$id, c(1L, 127L, 128L))
+  expect_equal(
+    type_widened$label,
+    c("before", "tinyint-limit", "after")
   )
 })
 

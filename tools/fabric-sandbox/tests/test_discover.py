@@ -222,6 +222,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "schema_evolved": "fabricqueryr_schema_evolved",
         "column_mapped": "fabricqueryr_column_mapped",
         "deletion_vectors": "fabricqueryr_deletion_vectors",
+        "type_widened": "fabricqueryr_type_widened",
         "livy_batch_result": "fabricqueryr_livy_batch_result",
         "spark_job_result": "fabricqueryr_spark_job_result",
     }

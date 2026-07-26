@@ -52,8 +52,10 @@
 
 * `fabric_onelake_read_delta_table()` now reads snapshots from JSON commits and
   Parquet checkpoints, supports historical reads through `version`, preserves
-  logical schemas and typed partition values, and rejects unsupported Delta
-  features instead of risking incorrect results.
+  logical schemas and typed partition values, and supports current Fabric
+  reader 3 tables with name-based column mapping, deletion vectors,
+  `timestampNtz`, and type widening. Unsupported Delta features still fail
+  closed instead of risking incorrect results.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
   workspace/dataset IDs, supports optional RLS impersonation, handles paginated

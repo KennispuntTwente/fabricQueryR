@@ -152,6 +152,37 @@ try:
     spark.sql(
         "DELETE FROM dbo.fabricqueryr_deletion_vectors WHERE id = 1"
     )
+
+    stage = "write type-widening Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_type_widened (
+          id TINYINT,
+          label STRING
+        )
+        USING DELTA
+        TBLPROPERTIES ('delta.enableTypeWidening' = 'true')
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened
+        VALUES (1, 'before'), (127, 'tinyint-limit')
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_type_widened
+        ALTER COLUMN id TYPE SMALLINT
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened
+        VALUES (128, 'after')
+        """
+    )
 except Exception:
     mssparkutils.notebook.exit(
         f"fabricqueryr-seed-error: {stage}\n{traceback.format_exc()}"
