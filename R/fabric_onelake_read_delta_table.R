@@ -1185,18 +1185,21 @@ fabric_delta_read_deletion_vector <- function(descriptor, table_dir) {
       ))
     }
     bytes <- readBin(path, "raw", n = fs::file_size(path))
-    if (!length(bytes) || as.integer(bytes[[1L]]) != 1L) {
-      rlang::abort("Delta deletion-vector sidecar has an unsupported version")
-    }
-    offset <- as.numeric(descriptor$offset %||% 1)
+    offset <- as.numeric(descriptor$offset %||% 0)
     start <- offset + 1L
     if (
       !is.finite(offset) ||
-        offset < 1 ||
+        offset < 0 ||
         offset != floor(offset) ||
         start + 3L > length(bytes)
     ) {
       rlang::abort("Delta deletion-vector sidecar offset is invalid")
+    }
+    if (
+      offset > 0 &&
+        (!length(bytes) || as.integer(bytes[[1L]]) != 1L)
+    ) {
+      rlang::abort("Delta deletion-vector sidecar has an unsupported version")
     }
     stored_size <- fabric_delta_raw_uint32(bytes, start, endian = "big")
     if (!identical(as.numeric(stored_size), as.numeric(size))) {

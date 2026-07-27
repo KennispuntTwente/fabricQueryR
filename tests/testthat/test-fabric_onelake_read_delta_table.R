@@ -1101,6 +1101,64 @@ test_that("Delta deletion vectors decode inline and persisted storage", {
   )
 })
 
+test_that("persisted deletion vectors support legacy and sidecar offsets", {
+  descriptor <- list(
+    storageType = "u",
+    pathOrInlineDv = "ab^-aqEH.-t@S}K{vb[*k^",
+    sizeInBytes = 44L,
+    cardinality = 6L
+  )
+  expected <- c(3, 4, 7, 11, 18, 29)
+  expected_path <- paste0(
+    "ab/deletion_vector_",
+    "d2c639aa-8816-431a-aaf6-d3fe2512ff61.bin"
+  )
+  table_dir <- fs::path_temp(paste0("delta-dv-offset-", sample.int(1e9, 1)))
+  path <- fs::path(table_dir, expected_path)
+  fs::dir_create(fs::path_dir(path), recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  bitmap <- fabric_delta_z85_decode(
+    paste0(
+      "^Bg9^0rr910000000000iXQKl0rr91000f55c8Xg0",
+      "@@D72lkbi5=-{L"
+    )
+  )
+  uint32_be <- function(value) {
+    as.raw(floor(value / 256^(3:0)) %% 256)
+  }
+  block <- c(
+    uint32_be(length(bitmap)),
+    bitmap,
+    uint32_be(fabric_delta_crc32(bitmap))
+  )
+
+  writeBin(block, path)
+  expect_equal(
+    fabric_delta_read_deletion_vector(descriptor, table_dir),
+    expected
+  )
+  zero_descriptor <- descriptor
+  zero_descriptor$offset <- 0L
+  expect_equal(
+    fabric_delta_read_deletion_vector(zero_descriptor, table_dir),
+    expected
+  )
+
+  writeBin(c(as.raw(1L), block, block), path)
+  first_descriptor <- descriptor
+  first_descriptor$offset <- 1L
+  expect_equal(
+    fabric_delta_read_deletion_vector(first_descriptor, table_dir),
+    expected
+  )
+  second_descriptor <- descriptor
+  second_descriptor$offset <- 1L + length(block)
+  expect_equal(
+    fabric_delta_read_deletion_vector(second_descriptor, table_dir),
+    expected
+  )
+})
+
 test_that("Delta reader applies name mapping and deletion vectors", {
   table_dir <- fs::path_temp(paste0("delta-modern-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
