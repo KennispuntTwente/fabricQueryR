@@ -493,6 +493,34 @@ test_that("Arrow DAX parser handles LZ4 and Arrow C stream compatibility", {
   )
 })
 
+test_that("Arrow DAX parser decodes dictionary values for R and streams", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  name <- arrow::DictionaryArray$create(
+    c(0L, 1L, 2L),
+    c("alpha", "beta", "gamma")
+  )
+  amount <- arrow::DictionaryArray$create(
+    c(0L, 1L, NA_integer_),
+    c(10.5, 20)
+  )
+  table <- arrow::arrow_table(name = name, amount = amount)
+  path <- tempfile(fileext = ".arrows")
+  on.exit(unlink(path), add = TRUE)
+  arrow::write_ipc_stream(table, path)
+  payload <- readBin(path, "raw", n = file.info(path)$size)
+
+  result <- pbi_parse_dax_arrow_response(payload)
+  stream <- pbi_parse_dax_arrow_response(payload, "arrow_stream")
+  streamed <- arrow::as_record_batch_reader(stream)$read_table()
+  streamed <- as.data.frame(streamed)
+
+  expect_equal(result$name, c("alpha", "beta", "gamma"))
+  expect_equal(result$amount, c(10.5, 20, NA))
+  expect_equal(streamed$name, c("alpha", "beta", "gamma"))
+  expect_equal(streamed$amount, c(10.5, 20, NA))
+})
+
 test_that("Arrow DAX parser rejects error and multiple data rowsets", {
   skip_if_not_installed("arrow")
   arrow_payload <- function(data, metadata = list()) {

@@ -673,6 +673,7 @@ pbi_parse_dax_arrow_response <- function(
         )
       }
     )
+    table <- pbi_decode_dax_arrow_dictionaries(table)
     metadata <- schema$metadata %||% list()
     if (identical(tolower(metadata[["IsError"]] %||% "false"), "true")) {
       pbi_abort_dax_arrow_error(metadata, table)
@@ -723,6 +724,34 @@ pbi_parse_dax_arrow_response <- function(
   value
 }
 
+#' Decode dictionary columns before exposing Arrow DAX results to R
+#' @keywords internal
+#' @noRd
+pbi_decode_dax_arrow_dictionaries <- function(table) {
+  fields <- table$schema$fields
+  dictionary <- vapply(
+    fields,
+    function(field) inherits(field$type, "DictionaryType"),
+    logical(1)
+  )
+  if (!any(dictionary)) {
+    return(table)
+  }
+  fields[dictionary] <- lapply(fields[dictionary], function(field) {
+    arrow::field(
+      field$name,
+      field$type$value_type,
+      nullable = field$nullable,
+      metadata = field$metadata
+    )
+  })
+  target <- do.call(arrow::schema, fields)
+  if (length(table$schema$metadata)) {
+    target <- target$WithMetadata(table$schema$metadata)
+  }
+  table$cast(target)
+}
+
 #' Raise an actionable HTTP 200 Arrow error-rowset response
 #' @keywords internal
 #' @noRd
@@ -747,7 +776,8 @@ pbi_abort_dax_arrow_error <- function(metadata, table) {
     if (nzchar(fault_code)) paste0("[", fault_code, "] ") else "",
     fault_string
   )
-  detail <- paste(c(summary, row_detail)[nzchar(c(summary, row_detail))],
+  detail <- paste(
+    c(summary, row_detail)[nzchar(c(summary, row_detail))],
     collapse = ": "
   )
   if (!nzchar(detail)) {
