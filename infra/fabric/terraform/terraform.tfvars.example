@@ -4,4 +4,5 @@ workspace_description = "Ephemeral fabricQueryR sandbox; owner=yourname; expires
 
 # Set only when the identity running tests differs from the Terraform identity.
 # test_principal_id   = "00000000-0000-0000-0000-000000000000"
+# test_principal_type = "ServicePrincipal"
 # test_principal_role = "Contributor"

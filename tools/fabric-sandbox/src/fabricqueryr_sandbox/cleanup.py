@@ -12,21 +12,47 @@ from .fabric_api import FabricApi
 
 CI_WORKSPACE_PREFIX = "fabricqueryr-ci-"
 CI_DESCRIPTION_PREFIX = "fabricqueryr-ci;"
+PERSISTENT_DESCRIPTION_PREFIX = "fabricqueryr-persistent;"
 DEFAULT_MINIMUM_AGE = timedelta(hours=6)
 
 
-def parse_ci_description(description: str) -> dict[str, str] | None:
-    """Parse a complete CI ownership marker from a workspace description."""
-    if not description.startswith(CI_DESCRIPTION_PREFIX):
+def parse_description(
+    description: str,
+    *,
+    prefix: str,
+    required_fields: set[str],
+) -> dict[str, str] | None:
+    """Parse a complete ownership marker from a workspace description."""
+    if not description.startswith(prefix):
         return None
     fields: dict[str, str] = {}
-    for component in description[len(CI_DESCRIPTION_PREFIX) :].split(";"):
+    for component in description[len(prefix) :].split(";"):
         key, separator, value = component.strip().partition("=")
         if separator and key and value:
             fields[key] = value
-    if not {"repo", "created", "run"}.issubset(fields):
+    if not required_fields.issubset(fields):
         return None
     return fields
+
+
+def parse_ci_description(description: str) -> dict[str, str] | None:
+    """Parse a complete ephemeral-CI ownership marker."""
+    return parse_description(
+        description,
+        prefix=CI_DESCRIPTION_PREFIX,
+        required_fields={"repo", "created", "run"},
+    )
+
+
+def parse_persistent_description(
+    description: str,
+) -> dict[str, str] | None:
+    """Parse a complete persistent-sandbox ownership marker."""
+    return parse_description(
+        description,
+        prefix=PERSISTENT_DESCRIPTION_PREFIX,
+        required_fields={"repo", "owner", "managed-by", "rebuilt", "run"},
+    )
 
 
 def parse_created_at(value: str) -> datetime | None:
@@ -76,6 +102,57 @@ def cleanup_ci_workspaces(
             workspace
             for workspace in api.list_workspaces(roles="Admin")
             if is_owned_stale_workspace(workspace)
+        ]
+        for workspace in candidates:
+            action = "deleting" if confirm else "would delete"
+            print(
+                f"{action}: {workspace['displayName']} "
+                f"({workspace['id']})"
+            )
+            if confirm:
+                api.delete_workspace(workspace["id"])
+    return candidates
+
+
+def remove_persistent_workspace(
+    *,
+    workspace_name: str,
+    owner_id: str,
+    managed_by: str,
+    confirm: bool = False,
+    repository: str | None = None,
+) -> list[dict[str, Any]]:
+    """Find, and optionally delete, one repository's persistent sandbox."""
+    repository = repository or os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        raise RuntimeError(
+            "Repository identity is required via GITHUB_REPOSITORY"
+        )
+    if not workspace_name.strip():
+        raise ValueError("workspace_name must not be empty")
+    if not owner_id.strip():
+        raise ValueError("owner_id must not be empty")
+    if not managed_by.strip():
+        raise ValueError("managed_by must not be empty")
+
+    def is_owned_persistent_workspace(workspace: dict[str, Any]) -> bool:
+        marker = parse_persistent_description(
+            workspace.get("description", "")
+        )
+        return (
+            workspace.get("type") == "Workspace"
+            and workspace.get("displayName") == workspace_name
+            and marker is not None
+            and marker["repo"].casefold() == repository.casefold()
+            and marker["owner"].casefold() == owner_id.casefold()
+            and marker["managed-by"] == managed_by
+        )
+
+    with FabricApi(get_credential()) as api:
+        candidates = [
+            workspace
+            for workspace in api.list_workspaces(roles="Admin")
+            if is_owned_persistent_workspace(workspace)
         ]
         for workspace in candidates:
             action = "deleting" if confirm else "would delete"

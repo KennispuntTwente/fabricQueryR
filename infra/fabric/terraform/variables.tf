@@ -15,10 +15,24 @@ variable "workspace_description" {
 }
 
 variable "test_principal_id" {
-  description = "Optional object ID of a service principal other than the workspace creator."
+  description = "Optional Entra object ID of a principal other than the workspace creator."
   type        = string
   default     = null
   nullable    = true
+}
+
+variable "test_principal_type" {
+  description = "Principal type used for test_principal_id."
+  type        = string
+  default     = "ServicePrincipal"
+
+  validation {
+    condition = contains(
+      ["Group", "ServicePrincipal", "ServicePrincipalProfile", "User"],
+      var.test_principal_type
+    )
+    error_message = "test_principal_type must be Group, ServicePrincipal, ServicePrincipalProfile, or User."
+  }
 }
 
 variable "test_principal_role" {

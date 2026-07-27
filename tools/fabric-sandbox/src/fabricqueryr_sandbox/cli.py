@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from datetime import timedelta
 
-from .cleanup import cleanup_ci_workspaces
+from .cleanup import cleanup_ci_workspaces, remove_persistent_workspace
 from .deploy import deploy
 from .discover import discover
 from .seed import seed
@@ -50,6 +50,34 @@ def build_parser() -> argparse.ArgumentParser:
         default=6,
         help="delete only workspaces at least this old (default: 6)",
     )
+    persistent_parser = subparsers.add_parser(
+        "remove-persistent",
+        help="find a persistent sandbox owned by this repository",
+    )
+    persistent_parser.add_argument(
+        "--workspace-name",
+        required=True,
+        help="exact display name of the persistent workspace",
+    )
+    persistent_parser.add_argument(
+        "--owner-id",
+        required=True,
+        help="exact owner object ID in the workspace marker",
+    )
+    persistent_parser.add_argument(
+        "--managed-by",
+        required=True,
+        help="exact managing workflow in the workspace marker",
+    )
+    persistent_parser.add_argument(
+        "--confirm",
+        action="store_true",
+        help="delete matching workspaces; without this flag, only list them",
+    )
+    persistent_parser.add_argument(
+        "--repository",
+        help="repository owner/name; defaults to GITHUB_REPOSITORY",
+    )
     return parser
 
 
@@ -79,5 +107,16 @@ def main() -> int:
         )
         verb = "deleted" if args.confirm else "found"
         print(f"{verb} {len(workspaces)} CI sandbox workspace(s)")
+        return 0
+    if args.command == "remove-persistent":
+        workspaces = remove_persistent_workspace(
+            workspace_name=args.workspace_name,
+            owner_id=args.owner_id,
+            managed_by=args.managed_by,
+            confirm=args.confirm,
+            repository=args.repository,
+        )
+        verb = "deleted" if args.confirm else "found"
+        print(f"{verb} {len(workspaces)} persistent sandbox workspace(s)")
         return 0
     raise AssertionError(f"unhandled command: {args.command}")

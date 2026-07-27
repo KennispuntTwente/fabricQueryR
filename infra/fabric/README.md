@@ -103,6 +103,29 @@ janitor uses the same concurrency group and removes only workspaces carrying
 both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;` description
 marker. `fabric-sandbox cleanup` is a dry run unless `--confirm` is supplied.
 
+### Persistent interactive sandbox
+
+The manually dispatched **Manage persistent Fabric sandbox** workflow creates
+`fabricqueryr-dev-dhrkoning` from the same Terraform resources, item
+definitions, and seed fixtures as the ephemeral integration workflow. Choose
+`rebuild` to delete the repository-owned workspace with that exact name and
+recreate it from source, or `teardown` to delete it without rebuilding.
+
+The workflow grants the configured Entra user object ID the `Admin` workspace
+role. Fabric role assignments use the object ID and principal type (`User`), so
+the guest user principal name is not needed. A
+`fabricqueryr-persistent; ...` description marker records the repository,
+owner, managing workflow, rebuild time, and workflow run. Reset and teardown
+only delete a workspace when its exact name, repository, type, and complete
+ownership marker all match. The daily ephemeral-workspace janitor ignores this
+marker.
+
+The persistent workflow intentionally has no final Terraform destroy step.
+Successful rebuilds leave the workspace available for interactive package
+testing, and the Actions job summary reports its name and ID. It shares the
+integration concurrency group so rebuild, teardown, ephemeral integration, and
+janitor runs cannot modify Fabric sandboxes concurrently.
+
 ## Current fixture scope
 
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,

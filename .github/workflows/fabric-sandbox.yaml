@@ -1,0 +1,156 @@
+name: Manage persistent Fabric sandbox
+run-name: Fabric sandbox - ${{ inputs.action }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Rebuild the sandbox or tear it down
+        required: true
+        default: rebuild
+        type: choice
+        options:
+          - rebuild
+          - teardown
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: fabric-integration-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  manage:
+    name: ${{ inputs.action }} persistent Fabric sandbox
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 110
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_DIR: infra/fabric/terraform
+      PERSISTENT_WORKSPACE_NAME: fabricqueryr-dev-dhrkoning
+      TF_VAR_workspace_name: fabricqueryr-dev-dhrkoning
+      TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+      TF_VAR_test_principal_id: 9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5
+      TF_VAR_test_principal_type: User
+      TF_VAR_test_principal_role: Admin
+      FABRIC_WORKSPACE_NAME: fabricqueryr-dev-dhrkoning
+      FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mark persistent workspace ownership
+        if: inputs.action == 'rebuild'
+        run: |
+          rebuilt="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          marker="fabricqueryr-persistent; repo=${GITHUB_REPOSITORY}; owner=${TF_VAR_test_principal_id}; managed-by=.github/workflows/fabric-sandbox.yaml; rebuilt=${rebuilt}; run=${run_url}"
+          echo "TF_VAR_workspace_description=${marker}" >> "$GITHUB_ENV"
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+
+      - name: Install locked sandbox environment
+        run: uv --directory tools/fabric-sandbox sync --locked
+
+      - name: Remove existing persistent sandbox
+        run: |
+          uv --directory tools/fabric-sandbox run fabric-sandbox remove-persistent \
+            --workspace-name "$PERSISTENT_WORKSPACE_NAME" \
+            --owner-id "$TF_VAR_test_principal_id" \
+            --managed-by ".github/workflows/fabric-sandbox.yaml" \
+            --confirm
+
+      - name: Confirm teardown
+        if: inputs.action == 'teardown'
+        run: |
+          {
+            echo "### Persistent Fabric sandbox removed"
+            echo ""
+            echo "Workspace: \`$PERSISTENT_WORKSPACE_NAME\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Terraform
+        if: inputs.action == 'rebuild'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+          terraform_wrapper: false
+
+      - name: Check Terraform formatting
+        if: inputs.action == 'rebuild'
+        run: terraform -chdir="$TF_DIR" fmt -check -recursive
+
+      - name: Initialize Terraform
+        if: inputs.action == 'rebuild'
+        run: terraform -chdir="$TF_DIR" init -input=false
+
+      - name: Validate Terraform
+        if: inputs.action == 'rebuild'
+        run: terraform -chdir="$TF_DIR" validate
+
+      - name: Create workspace and test targets
+        if: inputs.action == 'rebuild'
+        run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
+
+      - name: Export Terraform outputs
+        if: inputs.action == 'rebuild'
+        run: |
+          echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
+
+      - name: Install Microsoft ODBC driver
+        if: inputs.action == 'rebuild'
+        run: |
+          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
+          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Validate local sandbox configuration
+        if: inputs.action == 'rebuild'
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor
+
+      - name: Deploy Fabric item definitions
+        if: inputs.action == 'rebuild'
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox deploy
+
+      - name: Seed test data
+        if: inputs.action == 'rebuild'
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox seed
+
+      - name: Discover Fabric endpoints
+        if: inputs.action == 'rebuild'
+        run: uv --directory tools/fabric-sandbox run fabric-sandbox discover
+
+      - name: Summarize persistent sandbox
+        if: inputs.action == 'rebuild'
+        run: |
+          {
+            echo "### Persistent Fabric sandbox ready"
+            echo ""
+            echo "- Workspace: \`$FABRIC_WORKSPACE_NAME\`"
+            echo "- Workspace ID: \`$FABRIC_WORKSPACE_ID\`"
+            echo "- Interactive admin object ID: \`$TF_VAR_test_principal_id\`"
+            echo "- Re-run this workflow with **rebuild** to reset it from source."
+            echo "- Run it with **teardown** to remove it."
+          } >> "$GITHUB_STEP_SUMMARY"

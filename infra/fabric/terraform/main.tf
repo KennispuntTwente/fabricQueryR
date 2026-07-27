@@ -110,7 +110,7 @@ resource "fabric_workspace_role_assignment" "test_principal" {
   workspace_id = fabric_workspace.sandbox.id
   principal = {
     id   = var.test_principal_id
-    type = "ServicePrincipal"
+    type = var.test_principal_type
   }
   role = var.test_principal_role
 }

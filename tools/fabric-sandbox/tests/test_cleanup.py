@@ -1,6 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
-from fabricqueryr_sandbox.cleanup import cleanup_ci_workspaces
+from fabricqueryr_sandbox.cleanup import (
+    cleanup_ci_workspaces,
+    remove_persistent_workspace,
+)
 
 
 class FakeFabricApi:
@@ -72,6 +75,28 @@ class FakeFabricApi:
                 "description": "fabricqueryr-ci; run=manual",
                 "type": "Personal",
             },
+            {
+                "id": "persistent-id",
+                "displayName": "fabricqueryr-dev-dhrkoning",
+                "description": (
+                    "fabricqueryr-persistent; repo=owner/fabricQueryR; "
+                    "owner=user-id; managed-by=.github/workflows/"
+                    "fabric-sandbox.yaml; rebuilt=2026-07-26T11:00:00Z; "
+                    "run=https://example.test/persistent"
+                ),
+                "type": "Workspace",
+            },
+            {
+                "id": "persistent-foreign-id",
+                "displayName": "fabricqueryr-dev-dhrkoning",
+                "description": (
+                    "fabricqueryr-persistent; repo=other/fabricQueryR; "
+                    "owner=user-id; managed-by=.github/workflows/"
+                    "fabric-sandbox.yaml; rebuilt=2026-07-26T11:00:00Z; "
+                    "run=https://example.test/persistent"
+                ),
+                "type": "Workspace",
+            },
         ]
 
     def delete_workspace(self, workspace_id):
@@ -134,3 +159,73 @@ def test_cleanup_rejects_negative_minimum_age():
         assert "minimum_age" in str(error)
     else:
         raise AssertionError("cleanup accepted a negative minimum age")
+
+
+def test_persistent_cleanup_is_dry_run_by_default(monkeypatch):
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cleanup.FabricApi", FakeFabricApi
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cleanup.get_credential", lambda: "credential"
+    )
+
+    candidates = remove_persistent_workspace(
+        workspace_name="fabricqueryr-dev-dhrkoning",
+        owner_id="user-id",
+        managed_by=".github/workflows/fabric-sandbox.yaml",
+        repository="OWNER/FABRICQUERYR",
+    )
+
+    assert [workspace["id"] for workspace in candidates] == ["persistent-id"]
+    assert FakeFabricApi.deleted == []
+
+
+def test_persistent_cleanup_deletes_only_exact_owned_workspace(monkeypatch):
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cleanup.FabricApi", FakeFabricApi
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cleanup.get_credential", lambda: "credential"
+    )
+
+    remove_persistent_workspace(
+        workspace_name="fabricqueryr-dev-dhrkoning",
+        owner_id="user-id",
+        managed_by=".github/workflows/fabric-sandbox.yaml",
+        confirm=True,
+        repository="owner/fabricQueryR",
+    )
+
+    assert FakeFabricApi.deleted == ["persistent-id"]
+
+
+def test_persistent_cleanup_rejects_empty_workspace_name():
+    try:
+        remove_persistent_workspace(
+            workspace_name=" ",
+            owner_id="user-id",
+            managed_by=".github/workflows/fabric-sandbox.yaml",
+            repository="owner/fabricQueryR",
+        )
+    except ValueError as error:
+        assert "workspace_name" in str(error)
+    else:
+        raise AssertionError("persistent cleanup accepted an empty name")
+
+
+def test_persistent_cleanup_requires_exact_marker_owner(monkeypatch):
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cleanup.FabricApi", FakeFabricApi
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cleanup.get_credential", lambda: "credential"
+    )
+
+    candidates = remove_persistent_workspace(
+        workspace_name="fabricqueryr-dev-dhrkoning",
+        owner_id="another-user-id",
+        managed_by=".github/workflows/fabric-sandbox.yaml",
+        repository="owner/fabricQueryR",
+    )
+
+    assert candidates == []
