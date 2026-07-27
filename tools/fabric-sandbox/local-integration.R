@@ -27,9 +27,7 @@ fabric_local_cached_contexts <- function() {
   tokens <- unname(AzureAuth::list_azure_tokens())
   contexts <- lapply(tokens, function(token) {
     scopes <- c(token[["scope"]], token[["resource"]])
-    if (
-      !"https://api.fabric.microsoft.com/.default" %in% scopes
-    ) {
+    if (!"https://api.fabric.microsoft.com/.default" %in% scopes) {
       return(NULL)
     }
     tenant <- tryCatch(token[["tenant"]], error = function(error) "")
@@ -112,11 +110,9 @@ fabric_local_acquire_tokens <- function(
   }
   if (
     length(auth_args) &&
-      (
-        is.null(names(auth_args)) ||
-          anyNA(names(auth_args)) ||
-          !all(nzchar(names(auth_args)))
-      )
+      (is.null(names(auth_args)) ||
+        anyNA(names(auth_args)) ||
+        !all(nzchar(names(auth_args))))
   ) {
     stop("auth_args must be fully named", call. = FALSE)
   }
@@ -291,7 +287,10 @@ fabric_local_require_dependencies <- function(install_adbc_driver) {
       silent = TRUE
     )
     if (inherits(adbc, "try-error")) {
-      stop("The installed ADBC mssql driver could not be loaded.", call. = FALSE)
+      stop(
+        "The installed ADBC mssql driver could not be loaded.",
+        call. = FALSE
+      )
     }
   }
   invisible(TRUE)
@@ -438,7 +437,10 @@ run_fabric_integration_tests <- function(
   }
   if (length(matches) != 1L) {
     stop(
-      paste("Expected exactly one persistent workspace, found", length(matches)),
+      paste(
+        "Expected exactly one persistent workspace, found",
+        length(matches)
+      ),
       call. = FALSE
     )
   }
