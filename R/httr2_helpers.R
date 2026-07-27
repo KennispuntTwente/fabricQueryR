@@ -249,6 +249,35 @@
 }
 
 # Read a complete paged REST collection
+.httr2_continuation_url <- function(origin_url, current_url, next_link) {
+  candidate <- httr2::url_modify_relative(current_url, next_link)
+  origin <- httr2::url_parse(origin_url)
+  next_url <- httr2::url_parse(candidate)
+  normalized_port <- function(parsed) {
+    parsed$port %||% switch(
+      tolower(parsed$scheme %||% ""),
+      http = 80L,
+      https = 443L,
+      NA_integer_
+    )
+  }
+  same_origin <- identical(
+    tolower(origin$scheme %||% ""),
+    tolower(next_url$scheme %||% "")
+  ) &&
+    identical(
+      tolower(origin$hostname %||% ""),
+      tolower(next_url$hostname %||% "")
+    ) &&
+    identical(normalized_port(origin), normalized_port(next_url))
+  if (!same_origin) {
+    rlang::abort(
+      "The service returned a continuation URL on a different origin"
+    )
+  }
+  candidate
+}
+
 .httr2_collection <- function(
   url,
   credential,
@@ -288,7 +317,7 @@
       page[["odata.nextLink"]] %||%
       page$continuationUri
     if (!is.null(next_link) && nzchar(next_link)) {
-      next_url <- next_link
+      next_url <- .httr2_continuation_url(url, next_url, next_link)
       continuation_token <- NULL
       offset_pagination <- FALSE
       next

@@ -386,6 +386,50 @@ test_that("shared pagination follows continuation URIs and tokens", {
   expect_match(urls[[3]], "continuationToken=next-token")
 })
 
+test_that("shared pagination resolves relative links and rejects new origins", {
+  credential <- fabric_credential(token = "token")
+  urls <- character()
+  pages <- list(
+    list(
+      value = list(list(id = "one")),
+      continuationUri = "?page=2"
+    ),
+    list(value = list(list(id = "two")))
+  )
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      urls <<- c(urls, req$url)
+      pages[[length(urls)]]
+    }
+  )
+
+  values <- .httr2_collection(
+    "https://example.test/items",
+    credential,
+    .fabric_audience$fabric
+  )
+  expect_equal(length(values), 2L)
+  expect_equal(urls[[2L]], "https://example.test/items?page=2")
+
+  local_mocked_bindings(
+    .httr2_json = function(...) {
+      list(
+        value = list(),
+        continuationUri = "https://attacker.example/items?page=2"
+      )
+    }
+  )
+  expect_error(
+    .httr2_collection(
+      "https://example.test/items",
+      credential,
+      .fabric_audience$fabric
+    ),
+    "different origin",
+    fixed = TRUE
+  )
+})
+
 test_that("long-running operation polling handles terminal states", {
   credential <- fabric_credential(token = "token")
   responses <- list(
