@@ -192,8 +192,8 @@ fabric_onelake_read_delta_table <- function(
     if (
       length(version) != 1L ||
         is.na(version) ||
-      !is.numeric(version) ||
-      version < 0 ||
+        !is.numeric(version) ||
+        version < 0 ||
         version != floor(version) ||
         version > .fabric_delta_max_exact_version
     ) {
@@ -206,13 +206,11 @@ fabric_onelake_read_delta_table <- function(
   }
   if (
     !is.null(columns) &&
-      (
-        !is.character(columns) ||
-          !length(columns) ||
-          anyNA(columns) ||
-          !all(nzchar(columns)) ||
-          anyDuplicated(columns)
-      )
+      (!is.character(columns) ||
+        !length(columns) ||
+        anyNA(columns) ||
+        !all(nzchar(columns)) ||
+        anyDuplicated(columns))
   ) {
     rlang::abort(
       "columns must be NULL or one or more unique, non-empty strings"
@@ -220,15 +218,13 @@ fabric_onelake_read_delta_table <- function(
   }
   if (
     !is.null(limit) &&
-      (
-        !is.numeric(limit) ||
-          length(limit) != 1L ||
-          is.na(limit) ||
-          !is.finite(limit) ||
-          limit < 0 ||
-          limit != floor(limit) ||
-          limit > .fabric_delta_max_exact_version
-      )
+      (!is.numeric(limit) ||
+        length(limit) != 1L ||
+        is.na(limit) ||
+        !is.finite(limit) ||
+        limit < 0 ||
+        limit != floor(limit) ||
+        limit > .fabric_delta_max_exact_version)
   ) {
     rlang::abort(
       "limit must be NULL or one exactly representable non-negative integer"
@@ -321,11 +317,9 @@ fabric_onelake_read_delta_table <- function(
     NULL
   }
   checkpoint_missing <- !is.null(last_checkpoint) &&
-    (
-      is.null(selection) ||
-        is.null(selection$checkpoint_version) ||
-        selection$checkpoint_version < last_checkpoint
-    )
+    (is.null(selection) ||
+      is.null(selection$checkpoint_version) ||
+      selection$checkpoint_version < last_checkpoint)
   if (checkpoint_missing) {
     files <- onelake_list_target(
       log_target,
@@ -476,7 +470,7 @@ fabric_delta_last_checkpoint_version <- function(log_target, credential) {
 #' @noRd
 fabric_delta_versions_from_text <- function(versions) {
   if (
-    any(!grepl("^[0-9]{20}$", versions)) ||
+    !all(grepl("^[0-9]{20}$", versions)) ||
       any(versions > .fabric_delta_max_exact_version_text)
   ) {
     fabric_delta_abort_version_range()

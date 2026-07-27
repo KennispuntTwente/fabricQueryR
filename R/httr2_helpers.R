@@ -254,12 +254,13 @@
   origin <- httr2::url_parse(origin_url)
   next_url <- httr2::url_parse(candidate)
   normalized_port <- function(parsed) {
-    parsed$port %||% switch(
-      tolower(parsed$scheme %||% ""),
-      http = 80L,
-      https = 443L,
-      NA_integer_
-    )
+    parsed$port %||%
+      switch(
+        tolower(parsed$scheme %||% ""),
+        http = 80L,
+        https = 443L,
+        NA_integer_
+      )
   }
   same_origin <- identical(
     tolower(origin$scheme %||% ""),

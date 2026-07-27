@@ -459,10 +459,12 @@ test_that("Delta versions must be non-negative integers", {
 
 test_that("Delta versions are not narrowed to 32-bit integers", {
   local_mocked_bindings(
-    fabric_credential = function(...) structure(
-      list(),
-      class = "fabric_credential"
-    ),
+    fabric_credential = function(...) {
+      structure(
+        list(),
+        class = "fabric_credential"
+      )
+    },
     onelake_resolve_target = function(...) {
       rlang::abort("version validation completed")
     }
