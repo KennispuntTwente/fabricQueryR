@@ -492,7 +492,7 @@ pbi_validate_arrow_options <- function(options) {
   if (
     is.null(option_names) ||
       anyNA(option_names) ||
-      any(!nzchar(option_names)) ||
+      !all(nzchar(option_names)) ||
       anyDuplicated(option_names)
   ) {
     rlang::abort("arrow_options must have unique, non-empty names")
@@ -568,7 +568,7 @@ pbi_validate_arrow_options <- function(options) {
       !is.character(roles) ||
         !length(roles) ||
         anyNA(roles) ||
-        any(!nzchar(roles))
+        !all(nzchar(roles))
     ) {
       rlang::abort(
         "arrow_options$roles must be a non-empty character vector"
