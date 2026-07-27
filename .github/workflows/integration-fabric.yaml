@@ -14,11 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  integration:
-    name: Ephemeral Fabric sandbox
+  provision:
+    name: Provision Fabric sandbox
     runs-on: ubuntu-latest
     environment: fabric-integration
     timeout-minutes: 110
+    outputs:
+      terraform-initialized: ${{ steps.terraform_init.outputs.initialized }}
     env:
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
@@ -26,9 +28,6 @@ jobs:
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
       FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
-      FABRIC_INTEGRATION_REQUIRED: "true"
-      FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -57,23 +56,12 @@ jobs:
 
       - name: Initialize Terraform
         id: terraform_init
-        run: terraform -chdir="$TF_DIR" init -input=false
+        run: |
+          terraform -chdir="$TF_DIR" init -input=false
+          echo "initialized=true" >> "$GITHUB_OUTPUT"
 
       - name: Validate Terraform
         run: terraform -chdir="$TF_DIR" validate
-
-      - name: Create workspace and test targets
-        run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
-
-      - name: Export Terraform outputs
-        run: |
-          echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -98,6 +86,19 @@ jobs:
       - name: Validate local sandbox configuration
         run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor
 
+      - name: Create workspace and test targets
+        run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
+
+      - name: Export Terraform outputs
+        run: |
+          echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
+
       - name: Deploy Fabric item definitions
         run: uv --directory tools/fabric-sandbox run fabric-sandbox deploy
 
@@ -106,6 +107,84 @@ jobs:
 
       - name: Discover Fabric endpoints
         run: uv --directory tools/fabric-sandbox run fabric-sandbox discover
+
+      - name: Share Fabric test manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-test-manifest
+          path: .fabric-test-manifest.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Preserve Terraform state for teardown
+        if: always() && steps.terraform_init.outputs.initialized == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-terraform-state
+          path: infra/fabric/terraform/terraform.tfstate
+          if-no-files-found: ignore
+          retention-days: 1
+
+  integration:
+    name: Test ${{ matrix.label }}
+    needs: provision
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: auth and discovery
+            filter: integration-fabric-auth-discovery
+            odbc: false
+            adbc: false
+          - label: KQL and GraphQL
+            filter: integration-fabric-kql-graphql
+            odbc: true
+            adbc: false
+          - label: OneLake and Delta
+            filter: integration-fabric-onelake
+            odbc: false
+            adbc: false
+          - label: SQL
+            filter: integration-fabric-sql
+            odbc: true
+            adbc: true
+          - label: Livy
+            filter: integration-fabric-livy
+            odbc: false
+            adbc: false
+          - label: item jobs
+            filter: integration-fabric-jobs
+            odbc: false
+            adbc: false
+          - label: Power BI
+            filter: integration-fabric-power-bi
+            odbc: false
+            adbc: false
+    env:
+      FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
+      FABRIC_INTEGRATION_REQUIRED: "true"
+      FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Fabric test manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: fabric-test-manifest
+          path: .
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Acquire short-lived test tokens
         run: |
@@ -127,7 +206,21 @@ jobs:
             echo "FABRIC_TEST_KUSTO_TOKEN=$kusto_token"
           } >> "$GITHUB_ENV"
 
+      - name: Install Microsoft ODBC driver
+        if: matrix.odbc
+        run: |
+          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
+          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Set up uv
+        if: matrix.adbc
+        uses: astral-sh/setup-uv@v6
+
       - name: Install Microsoft SQL Server ADBC driver
+        if: matrix.adbc
         run: uvx dbc==0.3.0 install "mssql>=1.5,<2"
 
       - uses: r-lib/actions/setup-r@v2
@@ -142,8 +235,49 @@ jobs:
       - name: Run Fabric integration tests
         env:
           FABRIC_TEST_AUTH_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_AUTH_CLIENT_SECRET }}
-        run: Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
+          FABRIC_TEST_FILTER: ${{ matrix.filter }}
+        run: Rscript -e 'devtools::test(filter = Sys.getenv("FABRIC_TEST_FILTER"), stop_on_failure = TRUE)'
+
+  teardown:
+    name: Destroy Fabric sandbox
+    needs:
+      - provision
+      - integration
+    if: always() && needs.provision.outputs.terraform-initialized == 'true'
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 30
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_DIR: infra/fabric/terraform
+      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+          terraform_wrapper: false
+
+      - name: Restore Terraform state
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: fabric-terraform-state
+          path: infra/fabric/terraform
+
+      - name: Initialize Terraform
+        run: terraform -chdir="$TF_DIR" init -input=false
 
       - name: Destroy Fabric sandbox
-        if: always() && steps.terraform_init.outcome == 'success'
         run: terraform -chdir="$TF_DIR" destroy -auto-approve -input=false

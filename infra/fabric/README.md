@@ -102,15 +102,23 @@ discover the ephemeral workspace. When the secret is absent, only this optional
 authentication smoke test is skipped. Use a dedicated, short-lived test secret;
 the federated workflow login remains responsible for sandbox provisioning.
 
-The workflow uses a repository-wide concurrency group so only one sandbox
-consumes the test capacity at a time, and runs Terraform destroy after success
-or failure. It runs weekly and can also be dispatched manually. CI enables
-required integration mode, so missing manifests, tokens, and test dependencies
-fail rather than silently skipping the live suite. Because a canceled runner
-cannot guarantee the destroy step, a daily
-janitor uses the same concurrency group and removes only workspaces carrying
-both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;` description
-marker. `fabric-sandbox cleanup` is a dry run unless `--confirm` is supplied.
+The workflow provisions and seeds one workspace, uploads its generated test
+manifest, and runs seven feature groups in parallel: authentication/discovery,
+KQL/GraphQL, OneLake/Delta, SQL, Livy, item jobs, and Power BI. The matrix jobs
+share the manifest but acquire their own short-lived tokens and use independent
+R sessions. Terraform state is retained as a one-day workflow artifact and
+consumed by a final teardown job after every matrix leg succeeds, fails, or is
+skipped.
+
+A repository-wide concurrency group ensures only one sandbox consumes the test
+capacity at a time. The workflow runs weekly and can also be dispatched
+manually. CI enables required integration mode, so missing manifests, tokens,
+and test dependencies fail rather than silently skipping the live suite.
+Because canceling the entire workflow cannot guarantee the teardown job runs, a
+daily janitor uses the same concurrency group and removes only workspaces
+carrying both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;`
+description marker. `fabric-sandbox cleanup` is a dry run unless `--confirm` is
+supplied.
 
 ### Persistent interactive sandbox
 

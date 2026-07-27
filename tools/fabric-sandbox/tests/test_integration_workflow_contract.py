@@ -1,7 +1,57 @@
 from pathlib import Path
 
 
-def test_live_sql_matrix_installs_both_client_drivers():
+INTEGRATION_GROUPS = {
+    "auth-discovery",
+    "jobs",
+    "kql-graphql",
+    "livy",
+    "onelake",
+    "power-bi",
+    "sql",
+}
+
+
+def test_live_suite_is_split_into_feature_files():
+    repository_root = Path(__file__).parents[3]
+    test_directory = repository_root / "tests/testthat"
+    files = sorted(test_directory.glob("test-integration-fabric-*.R"))
+    groups = {
+        path.stem.removeprefix("test-integration-fabric-") for path in files
+    }
+
+    assert groups == INTEGRATION_GROUPS
+    assert not (test_directory / "test-integration-fabric.R").exists()
+    assert sum(path.read_text().count("test_that(") for path in files) == 27
+    assert all(
+        path.read_text().startswith("# Fabric integration coverage:")
+        for path in files
+    )
+
+
+def test_live_workflow_provisions_once_and_runs_feature_matrix():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+
+    for group in INTEGRATION_GROUPS:
+        assert f"filter: integration-fabric-{group}" in workflow
+    assert "fail-fast: false" in workflow
+    assert "name: fabric-test-manifest" in workflow
+    assert "name: fabric-terraform-state" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert workflow.count("Create workspace and test targets") == 1
+    assert workflow.index("Share Fabric test manifest") < workflow.index(
+        "Download Fabric test manifest"
+    )
+    assert workflow.index("Restore Terraform state") < workflow.rindex(
+        "Destroy Fabric sandbox"
+    )
+
+
+def test_live_sql_matrix_installs_required_client_drivers():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/integration-fabric.yaml"
@@ -9,13 +59,21 @@ def test_live_sql_matrix_installs_both_client_drivers():
 
     assert "msodbcsql18" in workflow
     assert 'uvx dbc==0.3.0 install "mssql>=1.5,<2"' in workflow
-    assert 'filter = "integration-fabric"' in workflow
-    assert workflow.index("Install Microsoft ODBC driver") < workflow.index(
-        "Install locked sandbox environment"
-    )
+    assert "if: matrix.odbc" in workflow
+    assert "if: matrix.adbc" in workflow
     assert workflow.index(
         "Install Microsoft SQL Server ADBC driver"
     ) < workflow.index("Run Fabric integration tests")
+
+
+def test_parallel_sql_reads_ignore_graphql_mutation_sentinel():
+    repository_root = Path(__file__).parents[3]
+    sql_tests = (
+        repository_root
+        / "tests/testthat/test-integration-fabric-sql.R"
+    ).read_text()
+
+    assert sql_tests.count('"WHERE id > 0"') == 2
 
 
 def test_persistent_sandbox_workflow_is_idempotent_and_manually_removed():
