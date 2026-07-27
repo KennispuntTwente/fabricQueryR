@@ -389,12 +389,14 @@ test_that("Fabric GraphQL executes a live mutation", {
       "  ",
       api$create_field,
       "(",
-      "    id: -99,",
-      '    name: "mutation",',
-      '    category: "M",',
-      "    amount: 12.5,",
-      '    loaded_at: "2026-01-01T00:00:00Z"',
-      "  ) { id name category amount }",
+      "    item: {",
+      "      id: -99,",
+      '      name: "mutation",',
+      '      category: "M",',
+      "      amount: 12.5,",
+      '      loaded_at: "2026-01-01T00:00:00Z"',
+      "    }",
+      "  ) { __typename }",
       "}"
     ),
     operation_name = "CreateFixture",
@@ -403,11 +405,22 @@ test_that("Fabric GraphQL executes a live mutation", {
     audience = "https://api.fabric.microsoft.com/.default"
   )
 
-  created <- result$data[[api$create_field]]
+  expect_equal(
+    result$data[[api$create_field]]$`__typename`,
+    "DbOperationResult"
+  )
+  created <- DBI::dbGetQuery(
+    con,
+    paste(
+      "SELECT id, name, category, amount",
+      "FROM dbo.fabricqueryr_sql_types",
+      "WHERE id = -99"
+    )
+  )
   expect_equal(created$id, -99L)
   expect_equal(created$name, "mutation")
   expect_equal(created$category, "M")
-  expect_equal(created$amount, 12.5)
+  expect_equal(as.numeric(created$amount), 12.5)
 })
 
 test_that("Fabric GraphQL surfaces schema and authentication failures", {
