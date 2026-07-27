@@ -503,7 +503,8 @@ fabric_sql_query <- function(
     sql
   }
   query_params <- if (adbc_params) {
-    stats::setNames(params, paste0("@p", seq_along(params)))
+    # SQL Server writes @p1 in SQL but exposes p1 in the ADBC parameter schema.
+    stats::setNames(params, paste0("p", seq_along(params)))
   } else {
     params
   }

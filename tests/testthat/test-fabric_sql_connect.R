@@ -402,7 +402,7 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
   expect_equal(connect_args$backend, "adbc")
   expect_equal(connect_args$adbc_driver, "mssql")
   expect_equal(query_args$sql, "SELECT @p1 AS value, '?' AS literal")
-  expect_identical(query_args$params, list("@p1" = 42L))
+  expect_identical(query_args$params, list("p1" = 42L))
   expect_equal(query_args$result, "arrow_stream")
   expect_true(disconnected)
   expect_false(disconnect_force)
