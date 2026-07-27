@@ -64,8 +64,26 @@ fabric_test_manifest <- function() {
   jsonlite::fromJSON(path, simplifyVector = FALSE)
 }
 
+fabric_test_token_variables <- c(
+  "https://api.fabric.microsoft.com/.default" = "FABRIC_TEST_API_TOKEN",
+  "https://analysis.windows.net/powerbi/api/.default" = "FABRIC_TEST_PBI_TOKEN",
+  "https://database.windows.net/.default" = "FABRIC_TEST_SQL_TOKEN",
+  "https://storage.azure.com/.default" = "FABRIC_TEST_STORAGE_TOKEN",
+  "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
+)
+
 fabric_test_token <- function(variable) {
-  token <- Sys.getenv(variable)
+  provider <- getOption("fabricQueryR.integration_token_provider")
+  token <- if (is.null(provider)) {
+    Sys.getenv(variable)
+  } else {
+    if (!is.function(provider)) {
+      rlang::abort(
+        "fabricQueryR.integration_token_provider must be a function"
+      )
+    }
+    provider(fabric_test_token_audience(variable))
+  }
   fabric_test_skip_or_fail(
     !nzchar(token),
     paste("Fabric integration token not set:", variable)
@@ -74,20 +92,23 @@ fabric_test_token <- function(variable) {
 }
 
 fabric_test_token_variable <- function(audience) {
-  variables <- c(
-    "https://api.fabric.microsoft.com/.default" = "FABRIC_TEST_API_TOKEN",
-    "https://analysis.windows.net/powerbi/api/.default" = "FABRIC_TEST_PBI_TOKEN",
-    "https://database.windows.net/.default" = "FABRIC_TEST_SQL_TOKEN",
-    "https://storage.azure.com/.default" = "FABRIC_TEST_STORAGE_TOKEN",
-    "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
-  )
-  index <- match(audience, names(variables))
+  index <- match(audience, names(fabric_test_token_variables))
   if (is.na(index)) {
     rlang::abort(
       paste("No provisioned Fabric integration token for audience:", audience)
     )
   }
-  unname(variables[[index]])
+  unname(fabric_test_token_variables[[index]])
+}
+
+fabric_test_token_audience <- function(variable) {
+  index <- match(variable, unname(fabric_test_token_variables))
+  if (is.na(index)) {
+    rlang::abort(
+      paste("No Fabric integration audience for token variable:", variable)
+    )
+  }
+  names(fabric_test_token_variables)[[index]]
 }
 
 fabric_test_provisioned_token <- function(audience) {
@@ -108,6 +129,23 @@ fabric_test_token_provider <- function(
 }
 
 fabric_test_azure_auth_config <- function() {
+  local <- getOption("fabricQueryR.integration_auth_config")
+  if (!is.null(local)) {
+    required <- c("tenant_id", "client_id", "auth_args")
+    if (
+      !is.list(local) ||
+        !all(required %in% names(local)) ||
+        !nzchar(local$tenant_id) ||
+        !nzchar(local$client_id) ||
+        !is.list(local$auth_args)
+    ) {
+      rlang::abort(
+        "fabricQueryR.integration_auth_config is invalid"
+      )
+    }
+    return(local)
+  }
+
   secret <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_SECRET")
   if (!nzchar(secret)) {
     testthat::skip(
@@ -133,7 +171,11 @@ fabric_test_azure_auth_config <- function() {
   list(
     tenant_id = tenant_id,
     client_id = client_id,
-    secret = secret
+    auth_args = list(
+      password = secret,
+      auth_type = "client_credentials",
+      use_cache = FALSE
+    )
   )
 }
 

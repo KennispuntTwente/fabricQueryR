@@ -83,6 +83,58 @@ test_that("live token providers use the token provisioned for each audience", {
     "No provisioned Fabric integration token",
     fixed = TRUE
   )
+  expect_identical(
+    fabric_test_token_audience("FABRIC_TEST_API_TOKEN"),
+    .fabric_audience$fabric
+  )
+  expect_error(
+    fabric_test_token_audience("FABRIC_TEST_UNKNOWN_TOKEN"),
+    "No Fabric integration audience",
+    fixed = TRUE
+  )
+})
+
+test_that("local integration token provider takes precedence over environment", {
+  old_provider <- getOption("fabricQueryR.integration_token_provider")
+  old_token <- Sys.getenv("FABRIC_TEST_API_TOKEN", unset = NA)
+  on.exit(
+    {
+      options(fabricQueryR.integration_token_provider = old_provider)
+      if (is.na(old_token)) {
+        Sys.unsetenv("FABRIC_TEST_API_TOKEN")
+      } else {
+        Sys.setenv(FABRIC_TEST_API_TOKEN = old_token)
+      }
+    },
+    add = TRUE
+  )
+  Sys.setenv(FABRIC_TEST_API_TOKEN = "environment-token")
+  options(
+    fabricQueryR.integration_token_provider = function(audience) {
+      paste0("provider-token:", audience)
+    }
+  )
+
+  expect_identical(
+    fabric_test_token("FABRIC_TEST_API_TOKEN"),
+    paste0("provider-token:", .fabric_audience$fabric)
+  )
+})
+
+test_that("local AzureAuth context enables the acquisition integration test", {
+  old_config <- getOption("fabricQueryR.integration_auth_config")
+  on.exit(
+    options(fabricQueryR.integration_auth_config = old_config),
+    add = TRUE
+  )
+  expected <- list(
+    tenant_id = "tenant-id",
+    client_id = "client-id",
+    auth_args = list(use_cache = TRUE)
+  )
+  options(fabricQueryR.integration_auth_config = expected)
+
+  expect_identical(fabric_test_azure_auth_config(), expected)
 })
 
 test_that("the default manifest path resolves from nested test directories", {

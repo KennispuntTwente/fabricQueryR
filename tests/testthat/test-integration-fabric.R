@@ -5,11 +5,7 @@ test_that("fabricQueryR acquires a live Fabric token through AzureAuth", {
   workspaces <- fabric_workspaces(
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
-    auth_args = list(
-      password = auth$secret,
-      auth_type = "client_credentials",
-      use_cache = FALSE
-    )
+    auth_args = auth$auth_args
   )
 
   expect_true(

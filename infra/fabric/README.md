@@ -135,6 +135,61 @@ testing, and the Actions job summary reports its name and ID. It shares the
 integration concurrency group so rebuild, teardown, ephemeral integration, and
 janitor runs cannot modify Fabric sandboxes concurrently.
 
+#### Run the integration suite locally as the workspace admin
+
+From an interactive R session at the repository root:
+
+```r
+source("tools/fabric-sandbox/local-integration.R")
+run_fabric_integration_tests()
+```
+
+The local runner:
+
+1. checks the R, ODBC, ADBC, `uv`, and sandbox-tool dependencies;
+2. reuses the tenant and client ID from a cached Fabric `AzureAuth` token;
+3. obtains user tokens for Fabric, Power BI, SQL, OneLake, and Kusto;
+4. verifies the Fabric token's `oid` claim is the configured workspace admin;
+5. resolves the single marked `fabricqueryr-dev-dhrkoning` workspace;
+6. regenerates `.fabric-test-manifest.json` from its live items; and
+7. calls the existing
+   `devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)`.
+   The AzureAuth acquisition test uses the interactive user context locally;
+   CI continues to exercise its client-credentials configuration.
+
+Raw bearer tokens exported by the runner stay in the R process and child
+discovery process only. The runner restores the previous environment variables
+and token-provider option when it finishes; AzureAuth continues to manage its
+normal user token cache. If a matching AzureAuth token is missing, AzureAuth
+starts its normal interactive browser login. For a terminal without a usable
+browser, request device-code login explicitly:
+
+```r
+run_fabric_integration_tests(
+  auth_args = list(auth_type = "device_code")
+)
+```
+
+When no Fabric token has ever been cached and
+`FABRICQUERYR_TENANT_ID` is unset, the runner uses the persistent sandbox
+tenant domain. `FABRICQUERYR_CLIENT_ID` remains optional and defaults to the
+Azure CLI public client application. If multiple Fabric identities are cached,
+set `FABRICQUERYR_TENANT_ID` explicitly.
+
+If the cached token belongs to another user, the object-ID check stops before
+workspace discovery. Force a fresh interactive login with:
+
+```r
+run_fabric_integration_tests(
+  auth_args = list(use_cache = FALSE)
+)
+```
+
+By default, the runner installs the locked ADBC `mssql` driver through `uvx`
+when it is missing. Set `install_adbc_driver = FALSE` to require a preinstalled
+driver instead. Microsoft ODBC Driver 18 must already be installed because its
+installation is operating-system specific.
+
 ## Current fixture scope
 
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
