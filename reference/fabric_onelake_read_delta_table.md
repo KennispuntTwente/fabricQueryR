@@ -84,7 +84,8 @@ fabric_onelake_read_delta_table(
 
   Optional non-negative Delta transaction version. `NULL` reads the
   latest snapshot; supplying a version provides time travel when that
-  version and its active files are still available in OneLake.
+  version and its active files are still available in OneLake. Versions
+  through `2^53` are represented exactly; larger versions are rejected.
 
 - dest_dir:
 
