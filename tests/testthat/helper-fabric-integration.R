@@ -107,6 +107,36 @@ fabric_test_token_provider <- function(
   }
 }
 
+fabric_test_azure_auth_config <- function() {
+  secret <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_SECRET")
+  if (!nzchar(secret)) {
+    testthat::skip(
+      paste(
+        "AzureAuth integration is optional; set",
+        "FABRIC_TEST_AUTH_CLIENT_SECRET to enable it"
+      )
+    )
+  }
+  tenant_id <- Sys.getenv("FABRIC_TEST_AUTH_TENANT_ID")
+  client_id <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_ID")
+  missing <- c(
+    FABRIC_TEST_AUTH_TENANT_ID = tenant_id,
+    FABRIC_TEST_AUTH_CLIENT_ID = client_id
+  )
+  missing <- names(missing)[!nzchar(missing)]
+  if (length(missing)) {
+    rlang::abort(paste(
+      "AzureAuth integration configuration is incomplete; missing",
+      paste(missing, collapse = ", ")
+    ))
+  }
+  list(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    secret = secret
+  )
+}
+
 fabric_test_require_package <- function(package) {
   fabric_test_skip_or_fail(
     !requireNamespace(package, quietly = TRUE),

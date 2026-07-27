@@ -1,3 +1,20 @@
+test_that("fabricQueryR acquires a live Fabric token through AzureAuth", {
+  manifest <- fabric_test_manifest()
+  auth <- fabric_test_azure_auth_config()
+
+  workspaces <- fabric_workspaces(
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = list(
+      password = auth$secret,
+      auth_type = "client_credentials",
+      use_cache = FALSE
+    )
+  )
+
+  expect_true(manifest$workspace_id %in% workspaces$id)
+})
+
 test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token_provider()

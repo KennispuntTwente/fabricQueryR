@@ -27,6 +27,8 @@ jobs:
       FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_INTEGRATION_REQUIRED: "true"
+      FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -138,6 +140,8 @@ jobs:
           needs: check
 
       - name: Run Fabric integration tests
+        env:
+          FABRIC_TEST_AUTH_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_AUTH_CLIENT_SECRET }}
         run: Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
 
       - name: Destroy Fabric sandbox
