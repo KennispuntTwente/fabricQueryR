@@ -75,40 +75,40 @@
 </div>
 <div class="section level3">
 <h3 id="proposed-repository-layout">Proposed repository layout<a class="anchor" aria-label="anchor" href="#proposed-repository-layout"></a></h3>
-<pre class="text"><code><span><span class="va">.github</span><span class="op">/</span><span class="va">workflows</span><span class="op">/</span></span>
-<span>  <span class="va">integration</span><span class="op">-</span><span class="va">fabric.yaml</span></span>
-<span><span class="va">infra</span><span class="op">/</span><span class="va">fabric</span><span class="op">/</span></span>
-<span>  <span class="va">terraform</span><span class="op">/</span></span>
-<span>    <span class="va">main.tf</span></span>
-<span>    <span class="va">providers.tf</span></span>
-<span>    <span class="va">variables.tf</span></span>
-<span>    <span class="va">outputs.tf</span></span>
-<span>  <span class="va">workspace</span><span class="op">/</span></span>
-<span>    <span class="va">TestLakehouse.Lakehouse</span><span class="op">/</span></span>
-<span>    <span class="va">SeedFixtures.Notebook</span><span class="op">/</span></span>
-<span>    <span class="va">TestWarehouse.Warehouse</span><span class="op">/</span></span>
-<span>    <span class="va">TestSemanticModel.SemanticModel</span><span class="op">/</span></span>
-<span>    <span class="va">TestEventhouse.Eventhouse</span><span class="op">/</span></span>
-<span>    <span class="va">TestKQLDatabase.KQLDatabase</span><span class="op">/</span></span>
-<span>    <span class="va">TestGraphQL.GraphQLApi</span><span class="op">/</span></span>
-<span>    <span class="va">TestPipeline.DataPipeline</span><span class="op">/</span></span>
-<span>    <span class="va">TestSparkJob.SparkJobDefinition</span><span class="op">/</span></span>
-<span>    <span class="va">parameter.yml</span></span>
-<span>  <span class="va">fixtures</span><span class="op">/</span></span>
-<span>    <span class="va">basic.csv</span></span>
-<span>    <span class="va">partitioned</span><span class="op">/</span></span>
-<span><span class="va">tools</span><span class="op">/</span><span class="va">fabric</span><span class="op">-</span><span class="va">sandbox</span><span class="op">/</span></span>
-<span>  <span class="va">pyproject.toml</span></span>
-<span>  <span class="va">.python</span><span class="op">-</span><span class="va">version</span></span>
-<span>  <span class="va">uv.lock</span></span>
-<span>  <span class="va">src</span><span class="op">/</span><span class="va">fabricqueryr_sandbox</span><span class="op">/</span></span>
-<span>    <span class="va">deploy.py</span></span>
-<span>    <span class="va">seed.py</span></span>
-<span>    <span class="va">discover.py</span></span>
-<span>    <span class="va">cleanup.py</span></span>
-<span><span class="va">tests</span><span class="op">/</span><span class="va">testthat</span><span class="op">/</span></span>
-<span>  <span class="va">helper</span><span class="op">-</span><span class="va">fabric</span><span class="op">-</span><span class="va">integration.R</span></span>
-<span>  <span class="va">test</span><span class="op">-</span><span class="va">integration</span><span class="op">-</span><span class="va">fabric.R</span></span></code></pre>
+<pre class="text"><code>.github/workflows/
+  integration-fabric.yaml
+infra/fabric/
+  terraform/
+    main.tf
+    providers.tf
+    variables.tf
+    outputs.tf
+  workspace/
+    TestLakehouse.Lakehouse/
+    SeedFixtures.Notebook/
+    TestWarehouse.Warehouse/
+    TestSemanticModel.SemanticModel/
+    TestEventhouse.Eventhouse/
+    TestKQLDatabase.KQLDatabase/
+    TestGraphQL.GraphQLApi/
+    TestPipeline.DataPipeline/
+    TestSparkJob.SparkJobDefinition/
+    parameter.yml
+  fixtures/
+    basic.csv
+    partitioned/
+tools/fabric-sandbox/
+  pyproject.toml
+  .python-version
+  uv.lock
+  src/fabricqueryr_sandbox/
+    deploy.py
+    seed.py
+    discover.py
+    cleanup.py
+tests/testthat/
+  helper-fabric-integration.R
+  test-integration-fabric-*.R</code></pre>
 <p>The exact Fabric item directories should be produced from definitions exported by Fabric source control and kept separate from Terraform state.</p>
 </div>
 <div class="section level3">

@@ -130,7 +130,7 @@ tools/fabric-sandbox/
     cleanup.py
 tests/testthat/
   helper-fabric-integration.R
-  test-integration-fabric.R
+  test-integration-fabric-*.R
 ```
 
 The exact Fabric item directories should be produced from definitions
