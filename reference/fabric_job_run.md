@@ -234,6 +234,14 @@ return a `fabric_job_instance` list with `status`, start/end times,
 invisibly after Fabric accepts the cancellation request; terminal state
 may not be visible immediately.
 
+## Details
+
+Notebook status uses Fabric's workload-specific beta endpoint first and
+falls back to the core scheduler when that endpoint is unavailable.
+Because Fabric may add job statuses over time, `fabric_job_wait()`
+raises a `fabric_job_unknown_status` condition for an unrecognised state
+instead of polling until timeout.
+
 ## References
 
 [Core Job Scheduler REST
