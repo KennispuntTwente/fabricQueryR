@@ -65,10 +65,9 @@ fabric_workspaces(
 
 ## Value
 
-A tibble with one row per workspace. Important columns include `id`
-(useful for later API calls), `displayName`, `capacityRegion`, and
-`apiEndpoint`. `tags` and the complete service response in `raw` are
-list columns.
+A plain list with one `fabric_workspace` object per workspace. Each
+object is a named list containing the fields returned by Fabric, such as
+`id`, `displayName`, `capacityRegion`, `apiEndpoint`, and nested `tags`.
 
 ## References
 

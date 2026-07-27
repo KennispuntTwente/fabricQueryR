@@ -82,10 +82,15 @@
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")</span></span>
 <span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[</span><span class="va">workspaces</span><span class="op">$</span><span class="va">displayName</span> <span class="op">==</span> <span class="st">"ExampleWorkspace"</span>, <span class="op">]</span></span>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/keep.html" class="external-link">keep</a></span><span class="op">(</span></span>
+<span>  <span class="va">workspaces</span>,</span>
+<span>  <span class="op">~</span> <span class="va">.x</span><span class="op">$</span><span class="va">displayName</span> <span class="op">==</span> <span class="st">"ExampleWorkspace"</span></span>
+<span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="co"># Find all items in the workspace</span></span>
 <span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
+<span><span class="va">item_names</span> <span class="op">&lt;-</span> <span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map_chr</a></span><span class="op">(</span><span class="va">items</span>, <span class="st">"displayName"</span><span class="op">)</span></span>
+<span><span class="va">lakehouse_items</span> <span class="op">&lt;-</span> <span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/keep.html" class="external-link">keep</a></span><span class="op">(</span><span class="va">items</span>, <span class="op">~</span> <span class="va">.x</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"Lakehouse"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Find specific items by type, </span></span>
 <span><span class="co"># e.g. the first Lakehouse, Semantic Model, KQL Database, GraphQL API, and Notebook:</span></span>
@@ -94,6 +99,7 @@
 <span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">graphql_api</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_notebooks</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<p>Discovery functions return ordinary lists of named objects: <code>fabric_workspace</code> objects for workspaces and <code>fabric_item</code> objects for items. Fields are available directly, for example <code>workspace$id</code>, <code>lakehouse$properties</code>, and <code>lakehouse$sql_server</code>. Use <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::map()</a></code> to transform a collection or <code><a href="https://purrr.tidyverse.org/reference/keep.html" class="external-link">purrr::keep()</a></code> to select matching objects.</p>
 <p>In the next sections, you can see how to use these items to query data, run Spark code, and more.</p>
 <p>Also see the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html">reference</a> for full function documentation and more examples.</p>
 </div>

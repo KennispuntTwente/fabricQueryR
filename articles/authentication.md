@@ -73,7 +73,9 @@ sign-in and basic Fabric access:
 
 workspaces <- fabric_workspaces()
 
-workspaces[, c("displayName", "id")]
+purrr::map(workspaces, function(workspace) {
+  workspace[c("displayName", "id")]
+})
 ```
 
 On the first call, a browser may open and ask you to sign in and approve
@@ -81,13 +83,13 @@ access. Use the same organizational account that you use in the Fabric
 portal. Multifactor authentication and your organization’s Conditional
 Access rules still apply.
 
-If the call succeeds, `workspaces` is a tibble with the workspaces
-available to that account. Item discovery returns a list of named
-`fabric_item` objects:
+If the call succeeds, `workspaces` is a list of named `fabric_workspace`
+objects available to that account. Item discovery similarly returns a
+list of named `fabric_item` objects:
 
 ``` r
 
-items <- fabric_items(workspaces[1, ])
+items <- fabric_items(workspaces[[1]])
 purrr::map(items, function(item) {
   item[c("displayName", "type", "id")]
 })

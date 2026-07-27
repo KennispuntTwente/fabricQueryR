@@ -125,16 +125,19 @@ both sign-in and basic Fabric access:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">workspaces</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"displayName"</span>, <span class="st">"id"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<span><span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="va">workspaces</span>, <span class="kw">function</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">workspace</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"displayName"</span>, <span class="st">"id"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p>On the first call, a browser may open and ask you to sign in and
 approve access. Use the same organizational account that you use in the
 Fabric portal. Multifactor authentication and your organization’s
 Conditional Access rules still apply.</p>
-<p>If the call succeeds, <code>workspaces</code> is a tibble with the
-workspaces available to that account. Item discovery returns a list of
-named <code>fabric_item</code> objects:</p>
+<p>If the call succeeds, <code>workspaces</code> is a list of named
+<code>fabric_workspace</code> objects available to that account. Item
+discovery similarly returns a list of named <code>fabric_item</code>
+objects:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspaces</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspaces</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="va">items</span>, <span class="kw">function</span><span class="op">(</span><span class="va">item</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">item</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"displayName"</span>, <span class="st">"type"</span>, <span class="st">"id"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>

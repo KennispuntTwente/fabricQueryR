@@ -49,10 +49,15 @@ Sys.setenv(FABRICQUERYR_TENANT_ID = "your-tenant-id")
 # Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")
 
 workspaces <- fabric_workspaces()
-workspace <- workspaces[workspaces$displayName == "ExampleWorkspace", ]
+workspace <- purrr::keep(
+  workspaces,
+  ~ .x$displayName == "ExampleWorkspace"
+)[[1]]
 
 # Find all items in the workspace
 items <- fabric_items(workspace)
+item_names <- purrr::map_chr(items, "displayName")
+lakehouse_items <- purrr::keep(items, ~ .x$type == "Lakehouse")
 
 # Find specific items by type, 
 # e.g. the first Lakehouse, Semantic Model, KQL Database, GraphQL API, and Notebook:
@@ -62,6 +67,15 @@ kql_database <- fabric_kql_databases(workspace)[[1]]
 graphql_api <- fabric_graphql_apis(workspace)[[1]]
 notebook <- fabric_notebooks(workspace)[[1]]
 ```
+
+Discovery functions return ordinary lists of named objects:
+`fabric_workspace` objects for workspaces and `fabric_item` objects for
+items. Fields are available directly, for example `workspace$id`,
+`lakehouse$properties`, and `lakehouse$sql_server`. Use
+[`purrr::map()`](https://purrr.tidyverse.org/reference/map.html) to
+transform a collection or
+[`purrr::keep()`](https://purrr.tidyverse.org/reference/keep.html) to
+select matching objects.
 
 In the next sections, you can see how to use these items to query data,
 run Spark code, and more.

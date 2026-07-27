@@ -106,10 +106,9 @@ different Fabric cloud or a test service.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble with one row per workspace. Important columns include <code>id</code>
-(useful for later API calls), <code>displayName</code>, <code>capacityRegion</code>, and
-<code>apiEndpoint</code>. <code>tags</code> and the complete service response in <code>raw</code> are list
-columns.</p>
+    <p>A plain list with one <code>fabric_workspace</code> object per workspace. Each
+object is a named list containing the fields returned by Fabric, such as
+<code>id</code>, <code>displayName</code>, <code>capacityRegion</code>, <code>apiEndpoint</code>, and nested <code>tags</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

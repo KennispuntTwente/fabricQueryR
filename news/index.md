@@ -2,11 +2,13 @@
 
 ## fabricQueryR (development version)
 
-- [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
-  and all typed item-discovery helpers now return a plain list of
-  `fabric_item` objects instead of a tibble. Each item retains its
-  native nested Fabric fields and adds applicable connection targets
-  directly; select one item with `[[` and work with collections using
+- [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
+  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
+  and all typed discovery helpers now return plain lists of
+  `fabric_workspace` or `fabric_item` objects instead of tibbles. Each
+  object retains its native nested Fabric fields, while items add
+  applicable connection targets directly. Select one object with `[[`
+  and work with collections using
   [`purrr::map()`](https://purrr.tidyverse.org/reference/map.html) or
   [`purrr::keep()`](https://purrr.tidyverse.org/reference/keep.html).
 
