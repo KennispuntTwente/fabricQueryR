@@ -17,7 +17,9 @@ fabric_onelake_read_delta_table(
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  columns = NULL,
+  limit = NULL
 )
 }
 \arguments{
@@ -67,6 +69,13 @@ or reuse, and ensure it has enough free space.}
 
 \item{dfs_base}{OneLake DFS endpoint. Keep the default unless using a
 regional or workspace-private endpoint.}
+
+\item{columns}{Optional character vector of logical Delta column names to
+return, in the requested order. \code{NULL} returns every column.}
+
+\item{limit}{Optional non-negative whole number limiting returned rows.
+\code{NULL} returns every row. This limits DuckDB collection but not OneLake
+file downloads.}
 }
 \value{
 A tibble containing the rows and logical schema of the selected Delta
@@ -109,8 +118,10 @@ or \strong{Lakehouse > Manage OneLake data access}.
 caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
 if the wrong account or tenant is being reused.
 \item The active files are downloaded locally and the final table is collected
-into R memory. For very large tables, a SQL query that filters rows in
-Fabric may transfer much less data.
+into R memory. \code{columns} and \code{limit} can reduce the data read by DuckDB and
+materialised in R, but they do not reduce the active Parquet files
+downloaded from OneLake. For very large tables, a SQL query that filters
+rows in Fabric may transfer much less data.
 }
 }
 \examples{
@@ -130,7 +141,9 @@ df2 <- fabric_onelake_read_delta_table(
   table_path     = "PatientInfo",
   workspace_name = "PatientsWorkspace",
   lakehouse_name = "Lakehouse.Lakehouse",
-  schema         = "dbo"
+  schema         = "dbo",
+  columns        = c("PatientId", "Status"),
+  limit          = 1000
 )
 }
 }

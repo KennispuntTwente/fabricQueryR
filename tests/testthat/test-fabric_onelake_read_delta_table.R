@@ -99,8 +99,15 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
         version = 0
       )
     },
-    fabric_delta_read_staged = function(table_dir, version = NULL) {
+    fabric_delta_read_staged = function(
+      table_dir,
+      version = NULL,
+      columns = NULL,
+      limit = NULL
+    ) {
       expect_null(version)
+      expect_equal(columns, "id")
+      expect_equal(limit, 1)
       expect_true(dir.exists(table_dir))
       data.frame(id = 1L)
     }
@@ -121,7 +128,9 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
     ),
     token = "token",
     dest_dir = dest,
-    verbose = FALSE
+    verbose = FALSE,
+    columns = "id",
+    limit = 1
   )
 
   expect_equal(listed_target$item, "22222222-2222-2222-2222-222222222222")
@@ -139,6 +148,33 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   )
   expect_true(all(vapply(downloaded, `[[`, logical(1), "overwrite")))
   expect_equal(result$id, 1L)
+})
+
+test_that("Delta public projection and limit arguments are validated", {
+  read_table <- function(...) {
+    fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = "workspace",
+      lakehouse_name = "lakehouse",
+      token = "token",
+      verbose = FALSE,
+      ...
+    )
+  }
+
+  expect_error(
+    read_table(columns = character()),
+    "columns must be NULL",
+    fixed = TRUE
+  )
+  expect_error(
+    read_table(columns = c("id", "id")),
+    "unique",
+    fixed = TRUE
+  )
+  expect_error(read_table(limit = -1), "limit must be NULL", fixed = TRUE)
+  expect_error(read_table(limit = 1.5), "limit must be NULL", fixed = TRUE)
+  expect_error(read_table(limit = Inf), "limit must be NULL", fixed = TRUE)
 })
 
 test_that("Delta records validate workspace ownership", {
@@ -200,7 +236,14 @@ test_that("Delta reads do not download tombstoned or historical data files", {
     fabric_delta_resolve_snapshot = function(table_dir, version = NULL) {
       list(active = "active.parquet", version = 1)
     },
-    fabric_delta_read_staged = function(table_dir, version = NULL) {
+    fabric_delta_read_staged = function(
+      table_dir,
+      version = NULL,
+      columns = NULL,
+      limit = NULL
+    ) {
+      expect_null(columns)
+      expect_null(limit)
       data.frame(id = 1L)
     }
   )
@@ -579,6 +622,16 @@ test_that("Delta reads preserve duplicate basenames in separate partitions", {
   expect_equal(result$id, c(1, 2))
   expect_equal(result$value, c("row-1", "row-2"))
   expect_equal(result$category, c("A", "B"))
+
+  projected <- fabric_delta_read_staged(
+    table_dir,
+    columns = c("category", "id"),
+    limit = 1
+  )
+  expect_named(projected, c("category", "id"))
+  expect_equal(nrow(projected), 1L)
+  expect_true(projected$id %in% c(1, 2))
+  expect_true(projected$category %in% c("A", "B"))
 })
 
 test_that("Delta reader preserves the logical schema for empty tables", {
@@ -631,6 +684,20 @@ test_that("Delta reader preserves the logical schema for empty tables", {
   expect_equal(names(result), c("id", "label"))
   expect_type(result$id, "double")
   expect_type(result$label, "character")
+
+  projected <- fabric_delta_read_staged(
+    table_dir,
+    columns = "label",
+    limit = 0
+  )
+  expect_named(projected, "label")
+  expect_equal(nrow(projected), 0L)
+  expect_type(projected$label, "character")
+  expect_error(
+    fabric_delta_read_staged(table_dir, columns = "missing"),
+    "not present in the selected snapshot",
+    fixed = TRUE
+  )
 })
 
 test_that("Delta logical schemas cover primitive and nested types", {

@@ -38,8 +38,10 @@
 #'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
 #'  if the wrong account or tenant is being reused.
 #' - The active files are downloaded locally and the final table is collected
-#'  into R memory. For very large tables, a SQL query that filters rows in
-#'  Fabric may transfer much less data.
+#'  into R memory. `columns` and `limit` can reduce the data read by DuckDB and
+#'  materialised in R, but they do not reduce the active Parquet files
+#'  downloaded from OneLake. For very large tables, a SQL query that filters
+#'  rows in Fabric may transfer much less data.
 #'
 #' @param table_path Table name, for example `"PatientInfo"`. For backward
 #'   compatibility a nested string is accepted, but only its final segment is
@@ -76,6 +78,11 @@
 #' @param verbose Logical. Show download and read progress.
 #' @param dfs_base OneLake DFS endpoint. Keep the default unless using a
 #'   regional or workspace-private endpoint.
+#' @param columns Optional character vector of logical Delta column names to
+#'   return, in the requested order. `NULL` returns every column.
+#' @param limit Optional non-negative whole number limiting returned rows.
+#'   `NULL` returns every row. This limits DuckDB collection but not OneLake
+#'   file downloads.
 #'
 #' @return A tibble containing the rows and logical schema of the selected Delta
 #'   snapshot. An empty table returns a zero-row tibble. Delta/R type conversion
@@ -106,7 +113,9 @@
 #'   table_path     = "PatientInfo",
 #'   workspace_name = "PatientsWorkspace",
 #'   lakehouse_name = "Lakehouse.Lakehouse",
-#'   schema         = "dbo"
+#'   schema         = "dbo",
+#'   columns        = c("PatientId", "Status"),
+#'   limit          = 1000
 #' )
 #' }
 fabric_onelake_read_delta_table <- function(
@@ -124,7 +133,9 @@ fabric_onelake_read_delta_table <- function(
   version = NULL,
   dest_dir = NULL,
   verbose = TRUE,
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  columns = NULL,
+  limit = NULL
 ) {
   workspace_target <- workspace_name
   workspace_record <- fabric_as_record(workspace_name)
@@ -192,6 +203,39 @@ fabric_onelake_read_delta_table <- function(
       ))
     }
     version <- as.numeric(version)
+  }
+  if (
+    !is.null(columns) &&
+      (
+        !is.character(columns) ||
+          !length(columns) ||
+          anyNA(columns) ||
+          !all(nzchar(columns)) ||
+          anyDuplicated(columns)
+      )
+  ) {
+    rlang::abort(
+      "columns must be NULL or one or more unique, non-empty strings"
+    )
+  }
+  if (
+    !is.null(limit) &&
+      (
+        !is.numeric(limit) ||
+          length(limit) != 1L ||
+          is.na(limit) ||
+          !is.finite(limit) ||
+          limit < 0 ||
+          limit != floor(limit) ||
+          limit > .fabric_delta_max_exact_version
+      )
+  ) {
+    rlang::abort(
+      "limit must be NULL or one exactly representable non-negative integer"
+    )
+  }
+  if (!is.null(limit)) {
+    limit <- as.numeric(limit)
   }
 
   # ---- deps ----
@@ -376,7 +420,12 @@ fabric_onelake_read_delta_table <- function(
 
   # ---- read the requested Delta snapshot ----
   inform(verbose, "Reading the Delta snapshot with {.pkg duckdb}")
-  df <- fabric_delta_read_staged(dest_dir, version = version)
+  df <- fabric_delta_read_staged(
+    dest_dir,
+    version = version,
+    columns = columns,
+    limit = limit
+  )
 
   inform(verbose, "Loaded {nrow(df)} row{?s}", type = "success")
   tibble::as_tibble(df)
@@ -618,10 +667,17 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
 #' Read a locally staged Delta snapshot
 #' @param table_dir Local Delta table root.
 #' @param version Optional Delta table version.
+#' @param columns Optional logical columns to return.
+#' @param limit Optional maximum number of rows to return.
 #' @return A data frame.
 #' @keywords internal
 #' @noRd
-fabric_delta_read_staged <- function(table_dir, version = NULL) {
+fabric_delta_read_staged <- function(
+  table_dir,
+  version = NULL,
+  columns = NULL,
+  limit = NULL
+) {
   snapshot <- fabric_delta_resolve_snapshot(table_dir, version = version)
   schema <- fabric_delta_schema(snapshot$metadata)
   fabric_delta_validate_type_widening(
@@ -643,13 +699,33 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
   projection <- fabric_delta_schema_projection(con, schema)
+  selected_indexes <- if (is.null(columns)) {
+    seq_along(projection$names)
+  } else {
+    unknown <- setdiff(columns, projection$names)
+    if (length(unknown)) {
+      rlang::abort(paste0(
+        "Requested Delta column",
+        if (length(unknown) == 1L) " is" else "s are",
+        " not present in the selected snapshot: ",
+        paste(unknown, collapse = ", ")
+      ))
+    }
+    match(columns, projection$names)
+  }
+  limit_sql <- if (is.null(limit)) {
+    ""
+  } else {
+    paste0(" LIMIT ", sprintf("%.0f", limit))
+  }
   if (!length(snapshot$active)) {
     return(DBI::dbGetQuery(
       con,
       paste0(
         "SELECT ",
-        paste(projection$empty, collapse = ", "),
-        " WHERE FALSE"
+        paste(projection$empty[selected_indexes], collapse = ", "),
+        " WHERE FALSE",
+        limit_sql
       )
     ))
   }
@@ -743,7 +819,7 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
     schema,
     physical,
     source_column
-  )
+  )[selected_indexes]
   DBI::dbGetQuery(
     con,
     paste0(
@@ -751,7 +827,8 @@ fabric_delta_read_staged <- function(table_dir, version = NULL) {
       paste(selected, collapse = ", "),
       " FROM ",
       source,
-      " WHERE delta_deletions.fabric_delta_row_index IS NULL"
+      " WHERE delta_deletions.fabric_delta_row_index IS NULL",
+      limit_sql
     )
   )
 }
