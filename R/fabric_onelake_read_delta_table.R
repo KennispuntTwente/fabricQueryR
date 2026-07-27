@@ -1,3 +1,6 @@
+.fabric_delta_max_exact_version <- 2^53
+.fabric_delta_max_exact_version_text <- "00009007199254740992"
+
 #' @title
 #' Read a Delta table from a Microsoft Fabric Lakehouse
 #'
@@ -64,7 +67,8 @@
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param version Optional non-negative Delta transaction version. `NULL` reads
 #'   the latest snapshot; supplying a version provides time travel when that
-#'   version and its active files are still available in OneLake.
+#'   version and its active files are still available in OneLake. Versions
+#'   through `2^53` are represented exactly; larger versions are rejected.
 #' @param dest_dir Local staging directory for the Delta log and active data
 #'   files, or `NULL`. The default creates a temporary directory and removes it
 #'   on exit. Supply a directory to retain the downloaded files for inspection
@@ -177,13 +181,17 @@ fabric_onelake_read_delta_table <- function(
     if (
       length(version) != 1L ||
         is.na(version) ||
-        !is.numeric(version) ||
-        version < 0 ||
-        version != floor(version)
+      !is.numeric(version) ||
+      version < 0 ||
+        version != floor(version) ||
+        version > .fabric_delta_max_exact_version
     ) {
-      rlang::abort("version must be a single non-negative integer")
+      rlang::abort(paste0(
+        "version must be one exactly representable non-negative integer ",
+        "no greater than 2^53"
+      ))
     }
-    version <- as.integer(version)
+    version <- as.numeric(version)
   }
 
   # ---- deps ----
@@ -392,7 +400,8 @@ fabric_delta_last_checkpoint_version <- function(log_target, credential) {
   checkpoint <- tryCatch(
     jsonlite::fromJSON(
       rawToChar(httr2::resp_body_raw(response)),
-      simplifyVector = FALSE
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
     ),
     error = function(error) NULL
   )
@@ -407,7 +416,36 @@ fabric_delta_last_checkpoint_version <- function(log_target, credential) {
   ) {
     return(NULL)
   }
+  if (checkpoint_version > .fabric_delta_max_exact_version) {
+    fabric_delta_abort_version_range()
+  }
   as.numeric(checkpoint_version)
+}
+
+#' Parse zero-padded Delta versions without silently losing precision
+#' @keywords internal
+#' @noRd
+fabric_delta_versions_from_text <- function(versions) {
+  if (
+    any(!grepl("^[0-9]{20}$", versions)) ||
+      any(versions > .fabric_delta_max_exact_version_text)
+  ) {
+    fabric_delta_abort_version_range()
+  }
+  as.numeric(versions)
+}
+
+#' Reject Delta versions outside R's exact numeric range
+#' @keywords internal
+#' @noRd
+fabric_delta_abort_version_range <- function() {
+  rlang::abort(
+    paste0(
+      "Delta versions greater than 2^53 are not supported because R cannot ",
+      "represent them exactly"
+    ),
+    class = "fabric_delta_unsupported_error"
+  )
 }
 
 #' Select the checkpoint and commits required for one Delta snapshot
@@ -418,7 +456,7 @@ fabric_delta_select_log_paths <- function(paths, version = NULL) {
   json_match <- regexec("^([0-9]{20})\\.json$", filenames)
   json_parts <- regmatches(filenames, json_match)
   json_keep <- lengths(json_parts) > 0L
-  json_versions <- as.numeric(vapply(
+  json_versions <- fabric_delta_versions_from_text(vapply(
     json_parts[json_keep],
     `[[`,
     character(1),
@@ -1667,7 +1705,7 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
   json_match <- regexec("^([0-9]{20})\\.json$", names)
   json_parts <- regmatches(names, json_match)
   json_keep <- lengths(json_parts) > 0L
-  json_versions <- as.numeric(vapply(
+  json_versions <- fabric_delta_versions_from_text(vapply(
     json_parts[json_keep],
     `[[`,
     character(1),
@@ -1758,7 +1796,7 @@ fabric_delta_checkpoint_sets <- function(paths) {
         nzchar(match[[4L]])
       list(
         version_text = match[[2L]],
-        version = as.numeric(match[[2L]]),
+        version = fabric_delta_versions_from_text(match[[2L]]),
         part = if (multipart) as.integer(match[[3L]]) else NA_integer_,
         total = if (multipart) as.integer(match[[4L]]) else NA_integer_,
         path = path

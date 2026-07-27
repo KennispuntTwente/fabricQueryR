@@ -398,7 +398,7 @@ test_that("Delta reads the last-checkpoint pointer directly", {
 })
 
 test_that("Delta versions must be non-negative integers", {
-  for (version in list(-1, 1.5, NA_real_, c(1, 2), "1")) {
+  for (version in list(-1, 1.5, NA_real_, c(1, 2), "1", 2^53 + 2)) {
     expect_error(
       fabric_onelake_read_delta_table(
         table_path = "table",
@@ -408,10 +408,46 @@ test_that("Delta versions must be non-negative integers", {
         version = version,
         verbose = FALSE
       ),
-      "version must be a single non-negative integer",
+      "version must be one exactly representable non-negative integer",
       fixed = TRUE
     )
   }
+})
+
+test_that("Delta versions are not narrowed to 32-bit integers", {
+  local_mocked_bindings(
+    fabric_credential = function(...) structure(
+      list(),
+      class = "fabric_credential"
+    ),
+    onelake_resolve_target = function(...) {
+      rlang::abort("version validation completed")
+    }
+  )
+
+  expect_error(
+    fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = "workspace",
+      lakehouse_name = "lakehouse",
+      token = "token",
+      version = 3000000000,
+      verbose = FALSE
+    ),
+    "version validation completed",
+    fixed = TRUE
+  )
+  expect_equal(
+    fabric_delta_versions_from_text(c(
+      "00000000003000000000",
+      "00009007199254740992"
+    )),
+    c(3000000000, 2^53)
+  )
+  expect_error(
+    fabric_delta_versions_from_text("00009007199254740993"),
+    class = "fabric_delta_unsupported_error"
+  )
 })
 
 test_that("Delta JSON logs resolve latest and versioned snapshots", {

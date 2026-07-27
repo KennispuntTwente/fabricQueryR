@@ -55,7 +55,8 @@ token or starts its normal interactive login flow.}
 
 \item{version}{Optional non-negative Delta transaction version. \code{NULL} reads
 the latest snapshot; supplying a version provides time travel when that
-version and its active files are still available in OneLake.}
+version and its active files are still available in OneLake. Versions
+through \code{2^53} are represented exactly; larger versions are rejected.}
 
 \item{dest_dir}{Local staging directory for the Delta log and active data
 files, or \code{NULL}. The default creates a temporary directory and removes it
