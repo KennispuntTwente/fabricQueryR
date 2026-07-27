@@ -82,12 +82,15 @@ portal. Multifactor authentication and your organization’s Conditional
 Access rules still apply.
 
 If the call succeeds, `workspaces` is a tibble with the workspaces
-available to that account. You can then find items in one of them:
+available to that account. Item discovery returns a list of named
+`fabric_item` objects:
 
 ``` r
 
 items <- fabric_items(workspaces[1, ])
-items[, c("displayName", "type", "id")]
+purrr::map(items, function(item) {
+  item[c("displayName", "type", "id")]
+})
 ```
 
 An empty result does not necessarily mean sign-in failed. It can mean

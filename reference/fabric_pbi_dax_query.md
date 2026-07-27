@@ -144,7 +144,7 @@ tibble attribute.
 
 ## Details
 
-- The easiest input is a row from
+- The easiest input is an item from
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
   You can instead supply `workspace_id` and `dataset_id` (both GUIDs),
   or a Power BI connection string containing the workspace and

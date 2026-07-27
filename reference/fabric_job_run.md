@@ -81,14 +81,14 @@ fabric_job_cancel(
 
 - item:
 
-  Item GUID, exact display name, or a one-row item record returned by a
-  discovery function. A discovered row is recommended because it already
-  includes the item type and workspace ID.
+  Item GUID, exact display name, or an item record returned by a
+  discovery function. A discovered record is recommended because it
+  already includes the item type and workspace ID.
 
 - workspace:
 
   Workspace GUID, exact display name, or a workspace record. Omit it
-  when `item` is a discovered row containing `workspaceId`.
+  when `item` is a discovered record containing `workspaceId`.
 
 - job_type:
 
@@ -260,7 +260,7 @@ scheduler](https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler)
 
 ``` r
 if (FALSE) { # \dontrun{
-notebook <- fabric_notebooks("Analytics workspace")[1, ]
+notebook <- fabric_notebooks("Analytics workspace")[[1]]
 
 job <- fabric_job_run(
   notebook,

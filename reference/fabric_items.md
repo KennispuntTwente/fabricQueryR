@@ -88,13 +88,14 @@ fabric_items(
 
 ## Value
 
-A tibble with one row per item and common columns including `id`,
-`displayName`, `type`, `workspaceId`, and `folderId`. With
-`detail = TRUE`, applicable rows also contain ready-to-use
-`sql_connection_string`, `one_lake_*_path`, `dax_connection_string`,
-`livy_url`, `query_service_uri`, or `graphql_endpoint` values. Fields
-that do not apply to an item are `NA`; `detail_error` records failed
-enrichment requests; `properties` and `raw` retain nested service data.
+A list with one `fabric_item` object per item. Each object is a named
+list with common fields including `id`, `displayName`, `type`,
+`workspaceId`, and `folderId`. With `detail = TRUE`, applicable objects
+also contain ready-to-use `sql_connection_string`, `one_lake_*_path`,
+`dax_connection_string`, `livy_url`, `query_service_uri`, or
+`graphql_endpoint` values. Fields that do not apply to an item are
+absent; `detail_error` records failed enrichment requests. Nested
+service data is retained in place, including in `properties`.
 
 ## Details
 

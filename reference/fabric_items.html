@@ -125,13 +125,14 @@ different Fabric cloud or a test service.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble with one row per item and common columns including <code>id</code>,
-<code>displayName</code>, <code>type</code>, <code>workspaceId</code>, and <code>folderId</code>. With <code>detail = TRUE</code>,
-applicable rows also contain ready-to-use <code>sql_connection_string</code>,
+    <p>A list with one <code>fabric_item</code> object per item. Each object is a
+named list with common fields including <code>id</code>, <code>displayName</code>, <code>type</code>,
+<code>workspaceId</code>, and <code>folderId</code>. With <code>detail = TRUE</code>, applicable objects
+also contain ready-to-use <code>sql_connection_string</code>,
 <code>one_lake_*_path</code>, <code>dax_connection_string</code>, <code>livy_url</code>,
 <code>query_service_uri</code>, or <code>graphql_endpoint</code> values. Fields that do not apply
-to an item are <code>NA</code>; <code>detail_error</code> records failed enrichment requests;
-<code>properties</code> and <code>raw</code> retain nested service data.</p>
+to an item are absent; <code>detail_error</code> records failed enrichment requests.
+Nested service data is retained in place, including in <code>properties</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

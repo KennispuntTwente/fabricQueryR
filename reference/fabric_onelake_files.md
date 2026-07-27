@@ -104,7 +104,7 @@ fabric_onelake_delete(
 
 - workspace:
 
-  Workspace display name, GUID, row from
+  Workspace display name, GUID, record from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
   or complete OneLake HTTPS/ABFSS path. Names are convenient
   interactively; GUIDs avoid problems with spaces and renaming.
@@ -112,7 +112,7 @@ fabric_onelake_delete(
 - item:
 
   Item name, GUID, or discovered Fabric item. Use `NULL` when
-  `workspace` is a complete OneLake path. A row from
+  `workspace` is a complete OneLake path. An item from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   is the least ambiguous input.
 
@@ -237,13 +237,12 @@ the Delta transaction log: use
 to read a Delta table, and do not upload or delete individual files
 under `Tables/`, because doing so can make the table inconsistent.
 
-`workspace` and `item` may be names, GUIDs, or one-row discovery
-results. Name-based items must include their item-type suffix (for
-example, `"Sales.Lakehouse"`) or supply `item_type`. Microsoft requires
-workspace and item GUIDs to be used together. As a convenience,
-`workspace` may instead be a complete
-`https://...dfs.fabric.microsoft.com/...` or `abfss://...` OneLake path,
-in which case `item` must be `NULL`.
+`workspace` and `item` may be names, GUIDs, or discovery records.
+Name-based items must include their item-type suffix (for example,
+`"Sales.Lakehouse"`) or supply `item_type`. Microsoft requires workspace
+and item GUIDs to be used together. As a convenience, `workspace` may
+instead be a complete `https://...dfs.fabric.microsoft.com/...` or
+`abfss://...` OneLake path, in which case `item` must be `NULL`.
 
 OneLake uses the Storage token audience
 `https://storage.azure.com/.default`. Fabric manages the item root and

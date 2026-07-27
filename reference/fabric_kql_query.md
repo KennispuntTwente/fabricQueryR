@@ -98,7 +98,7 @@ type mapping.
 
 ## Details
 
-The easiest input is a row from
+The easiest input is an item from
 [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
 because it supplies both the database name and its **Query URI**. If
 copying a URI from Fabric, use **Query URI**, not **Ingestion URI**;
@@ -145,7 +145,7 @@ control](https://learn.microsoft.com/en-us/kusto/access-control/role-based-acces
 
 ``` r
 if (FALSE) { # \dontrun{
-database <- fabric_kql_databases("Telemetry workspace")[1, ]
+database <- fabric_kql_databases("Telemetry workspace")[[1]]
 
 events <- fabric_kql_query(
   database,

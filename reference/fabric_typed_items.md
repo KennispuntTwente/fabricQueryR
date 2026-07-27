@@ -52,10 +52,10 @@ fabric_graphql_apis(workspace, detail = TRUE, ...)
 
 ## Value
 
-A tibble with one row per matching item, common item metadata, and
-applicable connection fields. See
+A list with one `fabric_item` object per matching item. Each object
+contains common item metadata and applicable connection fields. See
 [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
-for the column groups.
+for details.
 
 ## Choosing a helper
 

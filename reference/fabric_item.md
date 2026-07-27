@@ -2,7 +2,7 @@
 
 Finds one item and retrieves the connection details that fabricQueryR
 can use. This is convenient when you know the item's name and do not
-need a table of every item in the workspace.
+need a collection of every item in the workspace.
 
 ## Usage
 
@@ -31,9 +31,9 @@ fabric_item(
 
 - item:
 
-  Item GUID, exact display name, or a one-row item record returned by a
+  Item GUID, exact display name, or an item record returned by a
   discovery function. A display name must identify exactly one item of
-  the requested `type`; use a GUID or discovered row when names are
+  the requested `type`; use a GUID or discovered record when names are
   duplicated.
 
 - type:

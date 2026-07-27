@@ -133,7 +133,7 @@ when there is no primary result. See Details for the KQL-to-R type mapping.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The easiest input is a row from <code><a href="fabric_typed_items.html">fabric_kql_databases()</a></code>, because it supplies
+    <p>The easiest input is an item from <code><a href="fabric_typed_items.html">fabric_kql_databases()</a></code>, because it supplies
 both the database name and its <strong>Query URI</strong>. If copying a URI from Fabric,
 use <strong>Query URI</strong>, not <strong>Ingestion URI</strong>; this function queries existing data
 and does not load new data. The caller needs database access through a Fabric
@@ -165,7 +165,7 @@ Management commands and ingestion endpoints are intentionally not supported.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">database</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">database</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">events</span> <span class="op">&lt;-</span> <span class="fu">fabric_kql_query</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">database</span>,</span></span>

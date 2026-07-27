@@ -47,7 +47,7 @@ fabric_livy_session(
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
   Copy the session-job URL from **Lakehouse settings \> Livy endpoint**,
-  or use a discovered row to avoid handling IDs manually.
+  or use a discovered record to avoid handling IDs manually.
 
 - high_concurrency:
 

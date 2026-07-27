@@ -150,14 +150,14 @@ files through OneLake's ADLS Gen2-compatible API:</p><ul><li><p><code>fabric_one
 
 
 <dl><dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
-<dd><p>Workspace display name, GUID, row from
+<dd><p>Workspace display name, GUID, record from
 <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>, or complete OneLake HTTPS/ABFSS path. Names are
 convenient interactively; GUIDs avoid problems with spaces and renaming.</p></dd>
 
 
 <dt id="arg-item">item<a class="anchor" aria-label="anchor" href="#arg-item"></a></dt>
 <dd><p>Item name, GUID, or discovered Fabric item. Use <code>NULL</code> when
-<code>workspace</code> is a complete OneLake path. A row from <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code> is
+<code>workspace</code> is a complete OneLake path. An item from <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code> is
 the least ambiguous input.</p></dd>
 
 
@@ -279,7 +279,7 @@ CSV, JSON, images, and other files under <code>Files/</code>. They do not interp
 Delta transaction log: use <code><a href="fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> to read a
 Delta table, and do not upload or delete individual files under <code>Tables/</code>,
 because doing so can make the table inconsistent.</p>
-<p><code>workspace</code> and <code>item</code> may be names, GUIDs, or one-row discovery results.
+<p><code>workspace</code> and <code>item</code> may be names, GUIDs, or discovery records.
 Name-based items must include their item-type suffix (for example,
 <code>"Sales.Lakehouse"</code>) or supply <code>item_type</code>. Microsoft requires workspace and
 item GUIDs to be used together. As a convenience, <code>workspace</code> may instead be

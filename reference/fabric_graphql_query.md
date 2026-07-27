@@ -32,7 +32,7 @@ fabric_graphql_query(
 - api:
 
   GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered GraphQLApi
-  record. A row from
+  record. An item from
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   is usually easiest because it supplies the endpoint and workspace ID.
 
@@ -126,7 +126,7 @@ test a document before copying it to R.
 
 A direct endpoint has the form
 `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
-You can instead pass a GraphQL API GUID with `workspace_id`, or one row
+You can instead pass a GraphQL API GUID with `workspace_id`, or one item
 from
 [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
 or
@@ -166,7 +166,7 @@ GraphQL](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-s
 
 ``` r
 if (FALSE) { # \dontrun{
-api <- fabric_graphql_apis("Analytics workspace")[1, ]
+api <- fabric_graphql_apis("Analytics workspace")[[1]]
 
 result <- fabric_graphql_query(
   api,

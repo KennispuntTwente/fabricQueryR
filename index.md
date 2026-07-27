@@ -56,11 +56,11 @@ items <- fabric_items(workspace)
 
 # Find specific items by type, 
 # e.g. the first Lakehouse, Semantic Model, KQL Database, GraphQL API, and Notebook:
-lakehouse <- fabric_lakehouses(workspace)[1, ]
-semantic_model <- fabric_semantic_models(workspace)[1, ]
-kql_database <- fabric_kql_databases(workspace)[1, ]
-graphql_api <- fabric_graphql_apis(workspace)[1, ]
-notebook <- fabric_notebooks(workspace)[1, ]
+lakehouse <- fabric_lakehouses(workspace)[[1]]
+semantic_model <- fabric_semantic_models(workspace)[[1]]
+kql_database <- fabric_kql_databases(workspace)[[1]]
+graphql_api <- fabric_graphql_apis(workspace)[[1]]
+notebook <- fabric_notebooks(workspace)[[1]]
 ```
 
 In the next sections, you can see how to use these items to query data,

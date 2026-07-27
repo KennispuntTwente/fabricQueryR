@@ -36,7 +36,7 @@ fabric_graphql_paginate(
 - api:
 
   GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered GraphQLApi
-  record. A row from
+  record. An item from
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   is usually easiest because it supplies the endpoint and workspace ID.
 

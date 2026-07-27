@@ -38,17 +38,17 @@ fabric_onelake_read_delta_table(
 
 - workspace_name:
 
-  Fabric workspace display name or GUID, or a row from
+  Fabric workspace display name or GUID, or a record from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
   GUIDs are safest for scheduled code and names are convenient
   interactively.
 
 - lakehouse_name:
 
-  Lakehouse item name or GUID, or a row from
+  Lakehouse item name or GUID, or an item from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-  A character name may include the `.Lakehouse` suffix; a discovered row
-  avoids suffix and renaming ambiguity.
+  A character name may include the `.Lakehouse` suffix; a discovered
+  record avoids suffix and renaming ambiguity.
 
 - schema:
 
