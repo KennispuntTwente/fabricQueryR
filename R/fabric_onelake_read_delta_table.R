@@ -233,22 +233,6 @@ fabric_onelake_read_delta_table <- function(
 
   inform(verbose, "Table root: {.path {table_dir}}")
 
-  # ---- list and stage the transaction log ----
-  log_target <- target
-  log_target$path <- paste0(table_dir, "/_delta_log")
-  files <- onelake_list_target(
-    log_target,
-    credential,
-    recursive = TRUE,
-    page_size = 5000L
-  )
-  files <- fabric_delta_file_rows(files)
-  if (NROW(files) == 0) {
-    rlang::abort(cli::format_inline(
-      "No {.path _delta_log} files found under {.path {table_dir}}"
-    ))
-  }
-
   auto_cleanup <- is.null(dest_dir)
   dest_dir <- dest_dir %||% fs::file_temp("onelake_tbl_")
   fs::dir_create(dest_dir, recurse = TRUE)
@@ -256,8 +240,75 @@ fabric_onelake_read_delta_table <- function(
     on.exit(try(fs::dir_delete(dest_dir), silent = TRUE), add = TRUE)
   }
 
-  file_paths <- if ("path" %in% names(files)) files$path else files$name
-  log_staged <- fabric_delta_stage_paths(file_paths, table_dir, dest_dir)
+  # ---- locate and stage the transaction log ----
+  log_target <- target
+  log_target$path <- paste0(table_dir, "/_delta_log")
+  last_checkpoint <- if (is.null(version)) {
+    fabric_delta_last_checkpoint_version(log_target, credential)
+  } else {
+    NULL
+  }
+  files <- onelake_list_target(
+    log_target,
+    credential,
+    recursive = FALSE,
+    page_size = 5000L,
+    begin_from = if (!is.null(last_checkpoint)) {
+      sprintf("%020.0f", last_checkpoint)
+    }
+  )
+  files <- fabric_delta_file_rows(files)
+  if (NROW(files) > 0) {
+    file_paths <- if ("path" %in% names(files)) files$path else files$name
+  } else {
+    file_paths <- character()
+  }
+  selection <- if (length(file_paths)) {
+    fabric_delta_select_log_paths(file_paths, version = version)
+  } else {
+    NULL
+  }
+  checkpoint_missing <- !is.null(last_checkpoint) &&
+    (
+      is.null(selection) ||
+        is.null(selection$checkpoint_version) ||
+        selection$checkpoint_version < last_checkpoint
+    )
+  if (checkpoint_missing) {
+    files <- onelake_list_target(
+      log_target,
+      credential,
+      recursive = FALSE,
+      page_size = 5000L
+    )
+    files <- fabric_delta_file_rows(files)
+    file_paths <- if (NROW(files) > 0 && "path" %in% names(files)) {
+      files$path
+    } else if (NROW(files) > 0) {
+      files$name
+    } else {
+      character()
+    }
+    selection <- if (length(file_paths)) {
+      fabric_delta_select_log_paths(file_paths, version = version)
+    } else {
+      NULL
+    }
+  }
+  if (NROW(files) == 0) {
+    rlang::abort(cli::format_inline(
+      "No {.path _delta_log} files found under {.path {table_dir}}"
+    ))
+  }
+  if (is.null(selection) || !length(selection$paths)) {
+    rlang::abort("No supported Delta commits or checkpoints were found")
+  }
+
+  log_staged <- fabric_delta_stage_paths(
+    selection$paths,
+    table_dir,
+    dest_dir
+  )
   if (!all(grepl("^_delta_log/", log_staged$relative))) {
     rlang::abort(cli::format_inline(
       "OneLake returned a file outside the requested {.path _delta_log}"
@@ -321,6 +372,97 @@ fabric_onelake_read_delta_table <- function(
 
   inform(verbose, "Loaded {nrow(df)} row{?s}", type = "success")
   tibble::as_tibble(df)
+}
+
+#' Read the recent checkpoint pointer without listing the full Delta log
+#' @keywords internal
+#' @noRd
+fabric_delta_last_checkpoint_version <- function(log_target, credential) {
+  checkpoint_target <- log_target
+  checkpoint_target$path <- paste0(log_target$path, "/_last_checkpoint")
+  response <- .httr2_perform(
+    onelake_request(onelake_path_url(checkpoint_target)),
+    credential = credential,
+    audience = .fabric_audience$storage,
+    accepted_status = 404L
+  )
+  if (identical(httr2::resp_status(response), 404L)) {
+    return(NULL)
+  }
+  checkpoint <- tryCatch(
+    jsonlite::fromJSON(
+      rawToChar(httr2::resp_body_raw(response)),
+      simplifyVector = FALSE
+    ),
+    error = function(error) NULL
+  )
+  checkpoint_version <- checkpoint$version %||% NULL
+  if (
+    length(checkpoint_version) != 1L ||
+      !is.numeric(checkpoint_version) ||
+      is.na(checkpoint_version) ||
+      !is.finite(checkpoint_version) ||
+      checkpoint_version < 0 ||
+      checkpoint_version != floor(checkpoint_version)
+  ) {
+    return(NULL)
+  }
+  as.numeric(checkpoint_version)
+}
+
+#' Select the checkpoint and commits required for one Delta snapshot
+#' @keywords internal
+#' @noRd
+fabric_delta_select_log_paths <- function(paths, version = NULL) {
+  filenames <- basename(paths)
+  json_match <- regexec("^([0-9]{20})\\.json$", filenames)
+  json_parts <- regmatches(filenames, json_match)
+  json_keep <- lengths(json_parts) > 0L
+  json_versions <- as.numeric(vapply(
+    json_parts[json_keep],
+    `[[`,
+    character(1),
+    2L
+  ))
+  json_paths <- paths[json_keep]
+  checkpoints <- fabric_delta_checkpoint_sets(paths)
+  checkpoint_versions <- vapply(
+    checkpoints,
+    `[[`,
+    numeric(1),
+    "version"
+  )
+  available <- c(json_versions, checkpoint_versions)
+  if (!length(available)) {
+    return(NULL)
+  }
+
+  latest <- max(available)
+  target <- version %||% latest
+  if (target > latest) {
+    rlang::abort(cli::format_inline(
+      paste0(
+        "Delta version {target} does not exist; ",
+        "the latest available version is {latest}"
+      )
+    ))
+  }
+  eligible <- checkpoint_versions[checkpoint_versions <= target]
+  checkpoint_version <- if (length(eligible)) max(eligible) else NULL
+  checkpoint_paths <- if (!is.null(checkpoint_version)) {
+    checkpoints[[match(checkpoint_version, checkpoint_versions)]]$paths
+  } else {
+    character()
+  }
+  first_json <- if (is.null(checkpoint_version)) 0 else checkpoint_version + 1
+  json_needed <- json_paths[
+    json_versions >= first_json & json_versions <= target
+  ]
+  list(
+    paths = unique(c(checkpoint_paths, json_needed)),
+    target = target,
+    checkpoint_version = checkpoint_version
+  )
 }
 
 #' Download files into their validated Delta staging locations

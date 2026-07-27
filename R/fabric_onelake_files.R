@@ -647,7 +647,8 @@ onelake_list_target <- function(
   target,
   credential,
   recursive = FALSE,
-  page_size = 5000L
+  page_size = 5000L,
+  begin_from = NULL
 ) {
   if (
     !is.logical(recursive) ||
@@ -669,6 +670,9 @@ onelake_list_target <- function(
   if (page_size < 1L || page_size > 5000L) {
     rlang::abort("page_size must be one whole number between 1 and 5000")
   }
+  if (!is.null(begin_from)) {
+    begin_from <- onelake_normalize_path(begin_from)
+  }
 
   directory <- paste(
     c(target$item, if (nzchar(target$path)) target$path),
@@ -685,6 +689,9 @@ onelake_list_target <- function(
       recursive = if (recursive) "true" else "false",
       maxResults = page_size
     )
+    if (!is.null(begin_from)) {
+      query$beginFrom <- begin_from
+    }
     if (!is.null(continuation)) {
       query$continuation <- continuation
     }

@@ -51,10 +51,18 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   listed_target <- NULL
   downloaded <- list()
   local_mocked_bindings(
-    onelake_list_target = function(target, credential, recursive, page_size) {
+    fabric_delta_last_checkpoint_version = function(...) NULL,
+    onelake_list_target = function(
+      target,
+      credential,
+      recursive,
+      page_size,
+      begin_from = NULL
+    ) {
       listed_target <<- target
-      expect_true(recursive)
+      expect_false(recursive)
       expect_equal(page_size, 5000L)
+      expect_null(begin_from)
       tibble::tibble(
         path = "Tables/dbo/table/_delta_log/00000000000000000000.json",
         is_directory = FALSE
@@ -161,7 +169,14 @@ test_that("Delta records validate workspace ownership", {
 test_that("Delta reads do not download tombstoned or historical data files", {
   downloaded <- character()
   local_mocked_bindings(
-    onelake_list_target = function(target, credential, recursive, page_size) {
+    fabric_delta_last_checkpoint_version = function(...) NULL,
+    onelake_list_target = function(
+      target,
+      credential,
+      recursive,
+      page_size,
+      begin_from = NULL
+    ) {
       tibble::tibble(
         path = c(
           "Tables/table/_delta_log/00000000000000000000.json",
@@ -262,6 +277,7 @@ test_that("Delta staging rejects paths outside the requested table", {
 test_that("automatic Delta staging is unique and cleaned after each read", {
   staging_dirs <- character()
   local_mocked_bindings(
+    fabric_delta_last_checkpoint_version = function(...) NULL,
     onelake_list_target = function(...) {
       tibble::tibble(
         path = "Tables/table/_delta_log/00000000000000000000.json",
@@ -293,6 +309,92 @@ test_that("automatic Delta staging is unique and cleaned after each read", {
 
   expect_length(unique(staging_dirs), 2L)
   expect_false(any(fs::dir_exists(staging_dirs)))
+})
+
+test_that("Delta log selection stages only the newest checkpoint tail", {
+  old_commits <- sprintf(
+    "Tables/table/_delta_log/%020.0f.json",
+    0:9999
+  )
+  checkpoint <- paste0(
+    "Tables/table/_delta_log/",
+    "00000000000000010000.checkpoint.parquet"
+  )
+  recent_commits <- sprintf(
+    "Tables/table/_delta_log/%020.0f.json",
+    10001:10004
+  )
+  ignored <- c(
+    "Tables/table/_delta_log/_last_checkpoint",
+    "Tables/table/_delta_log/00000000000000010004.crc"
+  )
+
+  selected <- fabric_delta_select_log_paths(
+    c(old_commits, checkpoint, recent_commits, ignored)
+  )
+
+  expect_equal(selected$checkpoint_version, 10000)
+  expect_equal(selected$target, 10004)
+  expect_setequal(selected$paths, c(checkpoint, recent_commits))
+  expect_length(selected$paths, 5L)
+})
+
+test_that("Delta log selection respects historical versions", {
+  paths <- c(
+    sprintf("Tables/table/_delta_log/%020.0f.json", 0:12),
+    paste0(
+      "Tables/table/_delta_log/",
+      "00000000000000000010.checkpoint.parquet"
+    )
+  )
+
+  selected <- fabric_delta_select_log_paths(paths, version = 11)
+
+  expect_equal(selected$checkpoint_version, 10)
+  expect_equal(
+    selected$paths,
+    c(
+      paste0(
+        "Tables/table/_delta_log/",
+        "00000000000000000010.checkpoint.parquet"
+      ),
+      "Tables/table/_delta_log/00000000000000000011.json"
+    )
+  )
+  expect_error(
+    fabric_delta_select_log_paths(paths, version = 13),
+    "does not exist",
+    fixed = TRUE
+  )
+})
+
+test_that("Delta reads the last-checkpoint pointer directly", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    httr2::response(
+      status_code = if (calls == 1L) 200L else 404L,
+      url = req$url,
+      headers = list("content-type" = "application/json"),
+      body = if (calls == 1L) {
+        charToRaw('{"version":42,"size":7}')
+      } else {
+        raw()
+      }
+    )
+  })
+  target <- onelake_resolve_target(
+    "workspace",
+    "lakehouse.Lakehouse",
+    "Tables/table/_delta_log"
+  )
+  credential <- fabric_credential(token = "token")
+
+  expect_equal(
+    fabric_delta_last_checkpoint_version(target, credential),
+    42
+  )
+  expect_null(fabric_delta_last_checkpoint_version(target, credential))
 })
 
 test_that("Delta versions must be non-negative integers", {

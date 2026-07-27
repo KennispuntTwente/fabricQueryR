@@ -182,6 +182,36 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
   expect_match(calls[[2L]]$url, "continuation=opaque%2B%2F%3D%20token")
 })
 
+test_that("OneLake listing can begin from a lexicographic path", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- req
+    onelake_test_response(body = list(paths = list()))
+  })
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Tables/table/_delta_log"
+  )
+
+  onelake_list_target(
+    target,
+    fabric_credential(token = "token"),
+    begin_from = "00000000000000000100"
+  )
+
+  expect_match(captured$url, "beginFrom=00000000000000000100")
+  expect_error(
+    onelake_list_target(
+      target,
+      fabric_credential(token = "token"),
+      begin_from = "../outside"
+    ),
+    "unsafe segment",
+    fixed = TRUE
+  )
+})
+
 test_that("OneLake metadata exposes properties and ETags", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {
