@@ -432,7 +432,13 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
     "AAAAAAAAAAAAAAAAAAAAA/////wAAAAA="
   ))
   local_mocked_bindings(
-    .httr2_perform = function(req, credential, audience, idempotent) {
+    .httr2_perform = function(
+      req,
+      credential,
+      audience,
+      idempotent,
+      download_path
+    ) {
       expect_match(
         req$url,
         "/groups/workspace/datasets/dataset/executeDaxQueries$"
@@ -446,6 +452,7 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
       expect_equal(req$body$data$query, "EVALUATE ROW(\"value\", 1)")
       expect_equal(req$body$data$culture, "en-US")
       expect_equal(req$body$data$queryTimeout, 60)
+      writeBin(payload, download_path)
       httr2::new_response(
         method = "POST",
         url = req$url,
@@ -453,7 +460,7 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
         headers = list(
           "content-type" = "application/vnd.apache.arrow.stream"
         ),
-        body = payload,
+        body = raw(),
         request = req
       )
     }
@@ -519,6 +526,24 @@ test_that("Arrow DAX parser decodes dictionary values for R and streams", {
   expect_equal(result$amount, c(10.5, 20, NA))
   expect_equal(streamed$name, c("alpha", "beta", "gamma"))
   expect_equal(streamed$amount, c(10.5, 20, NA))
+})
+
+test_that("Arrow DAX responses can be parsed from disk", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  path <- tempfile(fileext = ".arrows")
+  on.exit(unlink(path), add = TRUE)
+  arrow::write_ipc_stream(
+    arrow::Table$create(data.frame(value = 1:3)),
+    path
+  )
+
+  result <- pbi_parse_dax_arrow_response(path)
+  stream <- pbi_parse_dax_arrow_response(path, "arrow_stream")
+  streamed <- arrow::as_record_batch_reader(stream)$read_table()
+
+  expect_equal(result$value, 1:3)
+  expect_equal(as.data.frame(streamed)$value, 1:3)
 })
 
 test_that("Arrow DAX parser rejects error and multiple data rowsets", {

@@ -89,7 +89,10 @@
 #' @param result Return format. `"tibble"` collects the result in R memory.
 #'   With `api = "arrow"`, `"arrow_stream"` returns a
 #'   `nanoarrow_array_stream` compatible with
-#'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers.
+#'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers. The
+#'   HTTP response is streamed to a temporary file before Arrow reads it, but
+#'   the returned Arrow table is materialized in memory so that concatenated
+#'   data, error, and metrics rowsets can be validated.
 #' @param arrow_options Named list of optional `executeDaxQueries` request
 #'   properties. Supported names are `applicationContext`, `culture`,
 #'   `customData`, `effectiveUsername`, `executionMetrics`, `memoryLimit`,
@@ -625,16 +628,16 @@ pbi_execute_dax_arrow <- function(
       Accept = "application/vnd.apache.arrow.stream"
     ) |>
     httr2::req_body_json(body)
-  response <- .httr2_perform(
+  payload <- tempfile("fabricqueryr-dax-", fileext = ".arrow")
+  on.exit(unlink(payload, force = TRUE), add = TRUE)
+  .httr2_perform(
     req,
     credential = credential,
     audience = .fabric_audience$power_bi,
-    idempotent = TRUE
+    idempotent = TRUE,
+    download_path = payload
   )
-  pbi_parse_dax_arrow_response(
-    httr2::resp_body_raw(response),
-    result = result
-  )
+  pbi_parse_dax_arrow_response(payload, result = result)
 }
 
 #' Parse concatenated Execute DAX Queries Arrow IPC streams
@@ -645,11 +648,25 @@ pbi_parse_dax_arrow_response <- function(
   result = c("tibble", "arrow_stream")
 ) {
   result <- match.arg(result)
-  if (!is.raw(payload) || !length(payload)) {
+  path_payload <- is.character(payload) &&
+    length(payload) == 1L &&
+    !is.na(payload) &&
+    file.exists(payload)
+  if ((!is.raw(payload) && !path_payload) || !length(payload)) {
     rlang::abort("Power BI returned an empty Arrow DAX response")
   }
-  buffer <- arrow::BufferReader$create(payload)
-  size <- length(payload)
+  if (path_payload && file.info(payload)$size == 0) {
+    rlang::abort("Power BI returned an empty Arrow DAX response")
+  }
+  buffer <- if (path_payload) {
+    arrow::mmap_open(payload)
+  } else {
+    arrow::BufferReader$create(payload)
+  }
+  if (path_payload) {
+    on.exit(buffer$close(), add = TRUE)
+  }
+  size <- if (path_payload) file.info(payload)$size else length(payload)
   data_tables <- list()
   metrics_tables <- list()
   while (buffer$tell() < size) {

@@ -78,7 +78,10 @@ Leave \code{NULL} for the normal identity context.}
 \item{result}{Return format. \code{"tibble"} collects the result in R memory.
 With \code{api = "arrow"}, \code{"arrow_stream"} returns a
 \code{nanoarrow_array_stream} compatible with
-\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} and other Arrow C stream consumers.}
+\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} and other Arrow C stream consumers. The
+HTTP response is streamed to a temporary file before Arrow reads it, but
+the returned Arrow table is materialized in memory so that concatenated
+data, error, and metrics rowsets can be validated.}
 
 \item{arrow_options}{Named list of optional \code{executeDaxQueries} request
 properties. Supported names are \code{applicationContext}, \code{culture},
