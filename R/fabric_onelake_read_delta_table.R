@@ -1695,6 +1695,9 @@ fabric_delta_read_checkpoint <- function(paths) {
 fabric_delta_apply_checkpoint <- function(state, checkpoint) {
   adds <- checkpoint$add$path
   removes <- checkpoint$remove$path
+  for (path in removes[!is.na(removes)]) {
+    state <- fabric_delta_remove_file(state, path)
+  }
   add_rows <- which(!is.na(adds))
   for (i in add_rows) {
     partition_values <- fabric_delta_checkpoint_value(
@@ -1715,9 +1718,6 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
         deletionVector = fabric_delta_deletion_vector_value(deletion_vector)
       )
     )
-  }
-  for (path in removes[!is.na(removes)]) {
-    state <- fabric_delta_remove_file(state, path)
   }
 
   protocol_rows <- which(!is.na(checkpoint$protocol$minReaderVersion))
@@ -1812,25 +1812,30 @@ fabric_delta_remove_file <- function(state, path) {
 #' @noRd
 fabric_delta_apply_json_log <- function(state, path) {
   lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-  for (line in lines[nzchar(lines)]) {
-    action <- tryCatch(
-      jsonlite::fromJSON(line, simplifyVector = FALSE),
-      error = function(e) {
-        rlang::abort(
-          cli::format_inline(
-            "Could not parse Delta commit {.path {basename(path)}}"
-          ),
-          parent = e
-        )
-      }
-    )
-    if (!is.null(action$add$path)) {
-      state <- fabric_delta_add_file(state, action$add)
-      state$has_deletion_vectors <- state$has_deletion_vectors ||
-        !is.null(action$add$deletionVector)
+  actions <- lapply(
+    lines[nzchar(lines)],
+    function(line) {
+      tryCatch(
+        jsonlite::fromJSON(line, simplifyVector = FALSE),
+        error = function(e) {
+          rlang::abort(
+            cli::format_inline(
+              "Could not parse Delta commit {.path {basename(path)}}"
+            ),
+            parent = e
+          )
+        }
+      )
     }
+  )
+  for (action in actions) {
     if (!is.null(action$remove$path)) {
       state <- fabric_delta_remove_file(state, action$remove$path)
+    }
+  }
+  for (action in actions) {
+    if (!is.null(action$add$path)) {
+      state <- fabric_delta_add_file(state, action$add)
     }
     if (!is.null(action$protocol)) {
       state$protocol <- action$protocol

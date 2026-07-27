@@ -320,7 +320,10 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
 
   writeLines(
     c(
-      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      paste0(
+        '{"protocol":{"minReaderVersion":3,"minWriterVersion":7,',
+        '"readerFeatures":["deletionVectors"]}}'
+      ),
       '{"metaData":{"id":"table","configuration":{}}}',
       '{"add":{"path":"category=A/part.parquet"}}',
       '{"add":{"path":"category=B/part.parquet"}}'
@@ -330,8 +333,11 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
   )
   writeLines(
     c(
-      '{"remove":{"path":"category=B/part.parquet"}}',
-      '{"add":{"path":"category=B/replacement.parquet"}}'
+      paste0(
+        '{"add":{"path":"category=B/part.parquet",',
+        '"deletionVector":{"storageType":"i"}}}'
+      ),
+      '{"remove":{"path":"category=B/part.parquet"}}'
     ),
     fs::path(log_dir, "00000000000000000001.json"),
     useBytes = TRUE
@@ -343,7 +349,11 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
   expect_equal(latest$version, 1)
   expect_setequal(
     latest$active,
-    c("category=A/part.parquet", "category=B/replacement.parquet")
+    c("category=A/part.parquet", "category=B/part.parquet")
+  )
+  expect_equal(
+    latest$files[["category=B/part.parquet"]]$deletionVector$storageType,
+    "i"
   )
   expect_setequal(
     original$active,
@@ -795,7 +805,7 @@ test_that("Delta checkpoints allow earlier JSON commits to be absent", {
           path = "category=A/from-checkpoint.parquet",
           deletionVector = list(storageType = NA_character_)
         ),
-        remove = list(path = NA_character_),
+        remove = list(path = "category=A/from-checkpoint.parquet"),
         protocol = list(
           minReaderVersion = 1L,
           readerFeatures = list(NULL)
