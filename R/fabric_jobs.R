@@ -24,11 +24,11 @@
 #' pipeline, or Spark job definition. This is for immediate runs; configure a
 #' recurring timetable with Fabric's scheduler in the portal or scheduler API.
 #'
-#' @param item Item GUID, exact display name, or a one-row item record returned
-#'   by a discovery function. A discovered row is recommended because it
+#' @param item Item GUID, exact display name, or an item record returned
+#'   by a discovery function. A discovered record is recommended because it
 #'   already includes the item type and workspace ID.
 #' @param workspace Workspace GUID, exact display name, or a workspace record.
-#'   Omit it when `item` is a discovered row containing `workspaceId`.
+#'   Omit it when `item` is a discovered record containing `workspaceId`.
 #' @param job_type Fabric job type. Known defaults are `"RunNotebook"` for
 #'   notebooks, `"Pipeline"` for data pipelines, and `"SparkJob"` for Spark job
 #'   definitions. Normally omit it for those item types; supply the API's job
@@ -100,7 +100,7 @@
 #'   may not be visible immediately.
 #' @examples
 #' \dontrun{
-#' notebook <- fabric_notebooks("Analytics workspace")[1, ]
+#' notebook <- fabric_notebooks("Analytics workspace")[[1]]
 #'
 #' job <- fabric_job_run(
 #'   notebook,

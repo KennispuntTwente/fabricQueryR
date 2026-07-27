@@ -21,9 +21,9 @@ fabric_item(
 returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
 a name is often easier for interactive use.}
 
-\item{item}{Item GUID, exact display name, or a one-row item record returned
+\item{item}{Item GUID, exact display name, or an item record returned
 by a discovery function. A display name must identify exactly one item of
-the requested \code{type}; use a GUID or discovered row when names are
+the requested \code{type}; use a GUID or discovered record when names are
 duplicated.}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
@@ -59,5 +59,5 @@ A \code{fabric_item} list. It contains common fields such as \code{id},
 \description{
 Finds one item and retrieves the connection details that fabricQueryR can
 use. This is convenient when you know the item's name and do not need a
-table of every item in the workspace.
+collection of every item in the workspace.
 }

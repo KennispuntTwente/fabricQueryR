@@ -5,8 +5,8 @@
 #' directly to [fabric_sql_connect()] and do not need to call this function.
 #'
 #' @param server A Fabric SQL server name, a complete connection string copied
-#'   from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
-#'   returned by a discovery function. A discovered row is usually simplest
+#'   from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
+#'   returned by a discovery function. A discovered record is usually simplest
 #'   because it also supplies the database name.
 #' @param database Optional catalog/database. An explicit value overrides a
 #'   database found in `server`. For a bare endpoint, supply the item database
@@ -216,7 +216,7 @@ fabric_sql_connection_info <- function(
 #' DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.Customers")
 #' DBI::dbDisconnect(con)
 #'
-#' warehouse <- fabric_warehouses("Analytics")[1, ]
+#' warehouse <- fabric_warehouses("Analytics")[[1]]
 #' con <- fabric_sql_connect(warehouse)
 #'
 #' # After installing the external driver with `dbc install mssql`:

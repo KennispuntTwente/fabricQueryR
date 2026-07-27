@@ -43,8 +43,9 @@ and can require additional permissions. The typed helpers below use
 Do not supply \code{type}; each helper sets that value.}
 }
 \value{
-A tibble with one row per matching item, common item metadata, and
-applicable connection fields. See \code{\link[=fabric_items]{fabric_items()}} for the column groups.
+A list with one \code{fabric_item} object per matching item. Each object
+contains common item metadata and applicable connection fields. See
+\code{\link[=fabric_items]{fabric_items()}} for details.
 }
 \description{
 These shortcuts list one kind of item and include the detailed connection

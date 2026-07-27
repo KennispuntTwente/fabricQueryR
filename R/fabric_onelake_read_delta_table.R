@@ -46,12 +46,12 @@
 #' @param table_path Table name, for example `"PatientInfo"`. For backward
 #'   compatibility a nested string is accepted, but only its final segment is
 #'   used; select a schema with `schema`, not by adding it to `table_path`.
-#' @param workspace_name Fabric workspace display name or GUID, or a row from
+#' @param workspace_name Fabric workspace display name or GUID, or a record from
 #'   [fabric_workspaces()]. GUIDs are safest for scheduled code and names are
 #'   convenient interactively.
-#' @param lakehouse_name Lakehouse item name or GUID, or a row from
+#' @param lakehouse_name Lakehouse item name or GUID, or an item from
 #'   [fabric_lakehouses()]. A character name may include the `.Lakehouse`
-#'   suffix; a discovered row avoids suffix and renaming ambiguity.
+#'   suffix; a discovered record avoids suffix and renaming ambiguity.
 #' @param schema Lakehouse schema name, for example `"dbo"`, or `NULL`.
 #'   When supplied, the table is resolved under `Tables/<schema>/<table>`
 #'   instead of `Tables/<table>`. When `lakehouse_name` is a discovered

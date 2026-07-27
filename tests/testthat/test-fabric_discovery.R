@@ -10,7 +10,7 @@ discovery_response <- function(
   )
 }
 
-test_that("fabric_workspaces follows pagination and returns stable columns", {
+test_that("fabric_workspaces follows pagination and returns workspace lists", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {
     calls <<- c(calls, req$url)
@@ -22,7 +22,9 @@ test_that("fabric_workspaces follows pagination and returns stable columns", {
             displayName = "Analytics",
             description = "Primary",
             type = "Workspace",
-            capacityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+            capacityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            capacityRegion = list(name = "West Europe"),
+            tags = list(team = "analytics")
           )),
           continuationToken = "page two"
         ),
@@ -48,13 +50,20 @@ test_that("fabric_workspaces follows pagination and returns stable columns", {
     token = "token"
   )
 
-  expect_s3_class(result, "tbl_df")
-  expect_equal(result$displayName, c("Analytics", "Research"))
-  expect_equal(result$description, c("Primary", NA_character_))
+  expect_identical(class(result), "list")
+  expect_length(result, 2L)
+  expect_true(all(purrr::map_lgl(result, inherits, "fabric_workspace")))
+  expect_equal(
+    purrr::map_chr(result, "displayName"),
+    c("Analytics", "Research")
+  )
+  expect_equal(result[[1L]]$description, "Primary")
+  expect_equal(result[[1L]]$capacityRegion$name, "West Europe")
+  expect_equal(result[[1L]]$tags$team, "analytics")
+  expect_null(result[[2L]]$description)
   expect_match(calls[[1L]], "roles=Admin%2CMember")
   expect_match(calls[[1L]], "preferWorkspaceSpecificEndpoints=true")
   expect_match(calls[[2L]], "continuationToken=page%20two")
-  expect_true(all(c("tags", "raw") %in% names(result)))
 })
 
 test_that("name discovery requires an exact or unique match", {
@@ -117,17 +126,20 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
     token = "token",
     api_base = "https://fabric.test/v1/"
   )
+  lakehouse <- result[[1L]]
 
-  expect_equal(result$type, "Lakehouse")
+  expect_identical(class(result), "list")
+  expect_s3_class(lakehouse, "fabric_item")
+  expect_equal(lakehouse$type, "Lakehouse")
   expect_equal(
-    result$sql_server,
+    lakehouse$sql_server,
     "server.datawarehouse.fabric.microsoft.com"
   )
-  expect_equal(result$sql_database, "SalesLake")
-  expect_equal(result$one_lake_tables_path, "https://onelake/Tables")
-  expect_equal(result$default_schema, "dbo")
+  expect_equal(lakehouse$sql_database, "SalesLake")
+  expect_equal(lakehouse$one_lake_tables_path, "https://onelake/Tables")
+  expect_equal(lakehouse$default_schema, "dbo")
   expect_equal(
-    result$livy_url,
+    lakehouse$livy_url,
     paste0(
       "https://fabric.test/v1/workspaces/",
       "11111111-1111-4111-8111-111111111111/lakehouses/",
@@ -168,15 +180,18 @@ test_that("item discovery records partial detail failures", {
     "Could not retrieve workload details for 1 Fabric item",
     fixed = TRUE
   )
-  expect_equal(nrow(result), 2L)
-  expect_true(is.na(result$detail_error[result$id == "available"]))
+  expect_length(result, 2L)
+  expect_true(all(vapply(result, inherits, logical(1), "fabric_item")))
+  available <- purrr::keep(result, ~ .x$id == "available")[[1L]]
+  forbidden <- purrr::keep(result, ~ .x$id == "forbidden")[[1L]]
+  expect_null(available$detail_error)
   expect_match(
-    result$detail_error[result$id == "forbidden"],
+    forbidden$detail_error,
     "forbidden",
     fixed = TRUE
   )
   expect_equal(
-    result$detail_error_class[result$id == "forbidden"],
+    forbidden$detail_error_class,
     "rlang_error"
   )
 
@@ -282,7 +297,7 @@ test_that("typed convenience helpers forward their workload types", {
         type = type,
         detail = detail
       )
-      tibble::tibble()
+      list()
     }
   )
   helpers <- list(
@@ -310,17 +325,34 @@ test_that("typed convenience helpers forward their workload types", {
   expect_false(calls[[length(calls)]]$detail)
 })
 
-test_that("empty discovery results retain their public schema", {
-  workspaces <- fabric_workspace_tbl(list())
-  items <- fabric_item_tbl(list())
-  expect_s3_class(workspaces, "tbl_df")
-  expect_s3_class(items, "tbl_df")
-  expect_equal(nrow(workspaces), 0L)
-  expect_equal(nrow(items), 0L)
-  expect_true(all(c("id", "displayName", "tags", "raw") %in% names(workspaces)))
-  expect_true(all(
-    c("id", "detail_error", "properties", "raw") %in% names(items)
-  ))
+test_that("empty discovery results retain their public types", {
+  workspaces <- fabric_workspace_list(list())
+  items <- fabric_item_list(list())
+  expect_identical(class(workspaces), "list")
+  expect_length(workspaces, 0L)
+  expect_identical(class(items), "list")
+  expect_length(items, 0L)
+})
+
+test_that("item collections preserve nested service records", {
+  record <- list(
+    id = "item-id",
+    displayName = "Nested",
+    type = "Notebook",
+    properties = list(
+      definition = list(format = "ipynb"),
+      enabled = TRUE
+    ),
+    tags = list(team = "analytics")
+  )
+
+  items <- fabric_item_list(list(record))
+
+  expect_identical(class(items), "list")
+  expect_length(items, 1L)
+  expect_s3_class(items[[1L]], "fabric_item")
+  expect_identical(items[[1L]]$properties, record$properties)
+  expect_identical(items[[1L]]$tags, record$tags)
 })
 
 test_that("fabric_item resolves names and rejects type mismatches", {
@@ -424,6 +456,6 @@ test_that("GraphQL discovery derives an executable endpoint", {
       "5b218778-e7a5-4d73-8187-f10824047715/graphql"
     )
   )
-  table <- fabric_item_tbl(list(record))
-  expect_equal(table$graphql_endpoint, record$graphql_endpoint)
+  items <- fabric_item_list(list(record))
+  expect_equal(items[[1L]]$graphql_endpoint, record$graphql_endpoint)
 })

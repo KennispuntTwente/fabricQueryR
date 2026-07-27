@@ -68,7 +68,7 @@ one or more KQL databases designed for fast analysis of event, log,
 telemetry, and time-series data.
 }
 \details{
-The easiest input is a row from \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, because it supplies
+The easiest input is an item from \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, because it supplies
 both the database name and its \strong{Query URI}. If copying a URI from Fabric,
 use \strong{Query URI}, not \strong{Ingestion URI}; this function queries existing data
 and does not load new data. The caller needs database access through a Fabric
@@ -96,7 +96,7 @@ Management commands and ingestion endpoints are intentionally not supported.
 }
 \examples{
 \dontrun{
-database <- fabric_kql_databases("Telemetry workspace")[1, ]
+database <- fabric_kql_databases("Telemetry workspace")[[1]]
 
 events <- fabric_kql_query(
   database,

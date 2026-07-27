@@ -27,7 +27,7 @@ fabric_graphql_paginate(
 }
 \arguments{
 \item{api}{GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-GraphQLApi record. A row from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
+GraphQLApi record. An item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
 because it supplies the endpoint and workspace ID.}
 
 \item{query}{One GraphQL document containing a query or mutation. Use

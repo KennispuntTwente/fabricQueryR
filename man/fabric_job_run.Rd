@@ -75,12 +75,12 @@ fabric_job_cancel(
 )
 }
 \arguments{
-\item{item}{Item GUID, exact display name, or a one-row item record returned
-by a discovery function. A discovered row is recommended because it
+\item{item}{Item GUID, exact display name, or an item record returned
+by a discovery function. A discovered record is recommended because it
 already includes the item type and workspace ID.}
 
 \item{workspace}{Workspace GUID, exact display name, or a workspace record.
-Omit it when \code{item} is a discovered row containing \code{workspaceId}.}
+Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
 
 \item{job_type}{Fabric job type. Known defaults are \code{"RunNotebook"} for
 notebooks, \code{"Pipeline"} for data pipelines, and \code{"SparkJob"} for Spark job
@@ -195,7 +195,7 @@ polling until timeout.
 }
 \examples{
 \dontrun{
-notebook <- fabric_notebooks("Analytics workspace")[1, ]
+notebook <- fabric_notebooks("Analytics workspace")[[1]]
 
 job <- fabric_job_run(
   notebook,

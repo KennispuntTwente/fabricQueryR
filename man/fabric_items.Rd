@@ -61,13 +61,14 @@ Discovery uses the
 different Fabric cloud or a test service.}
 }
 \value{
-A tibble with one row per item and common columns including \code{id},
-\code{displayName}, \code{type}, \code{workspaceId}, and \code{folderId}. With \code{detail = TRUE},
-applicable rows also contain ready-to-use \code{sql_connection_string},
+A list with one \code{fabric_item} object per item. Each object is a
+named list with common fields including \code{id}, \code{displayName}, \code{type},
+\code{workspaceId}, and \code{folderId}. With \code{detail = TRUE}, applicable objects
+also contain ready-to-use \code{sql_connection_string},
 \verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
 \code{query_service_uri}, or \code{graphql_endpoint} values. Fields that do not apply
-to an item are \code{NA}; \code{detail_error} records failed enrichment requests;
-\code{properties} and \code{raw} retain nested service data.
+to an item are absent; \code{detail_error} records failed enrichment requests.
+Nested service data is retained in place, including in \code{properties}.
 }
 \description{
 Lists the items stored in one workspace. In Fabric, an \emph{item} is a resource

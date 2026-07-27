@@ -201,7 +201,7 @@ FabricLivyBatch <- R6::R6Class(
 #'
 #' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
 #'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
-#'   endpoint**, or use a row from [fabric_lakehouses()].
+#'   endpoint**, or use an item from [fabric_lakehouses()].
 #' @param file ABFS/ABFSS URI of the main Python, R, or Java/Scala application
 #'   file. After uploading a script under a Lakehouse's `Files/` area, its
 #'   **Properties** dialog can copy this path.

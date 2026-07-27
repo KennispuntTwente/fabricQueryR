@@ -27,13 +27,13 @@ fabric_onelake_read_delta_table(
 compatibility a nested string is accepted, but only its final segment is
 used; select a schema with \code{schema}, not by adding it to \code{table_path}.}
 
-\item{workspace_name}{Fabric workspace display name or GUID, or a row from
+\item{workspace_name}{Fabric workspace display name or GUID, or a record from
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}. GUIDs are safest for scheduled code and names are
 convenient interactively.}
 
-\item{lakehouse_name}{Lakehouse item name or GUID, or a row from
+\item{lakehouse_name}{Lakehouse item name or GUID, or an item from
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A character name may include the \code{.Lakehouse}
-suffix; a discovered row avoids suffix and renaming ambiguity.}
+suffix; a discovered record avoids suffix and renaming ambiguity.}
 
 \item{schema}{Lakehouse schema name, for example \code{"dbo"}, or \code{NULL}.
 When supplied, the table is resolved under \verb{Tables/<schema>/<table>}

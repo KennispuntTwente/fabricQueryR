@@ -37,7 +37,7 @@ fabric_livy_batch_submit(
 \arguments{
 \item{livy_url}{A copied Livy connection URL, Livy API base URL, or enriched
 Lakehouse record. Copy the batch-job URL from \strong{Lakehouse settings > Livy
-endpoint}, or use a row from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}.}
+endpoint}, or use an item from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}.}
 
 \item{file}{ABFS/ABFSS URI of the main Python, R, or Java/Scala application
 file. After uploading a script under a Lakehouse's \verb{Files/} area, its

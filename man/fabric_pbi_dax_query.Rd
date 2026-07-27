@@ -109,7 +109,7 @@ than SQL intended for the underlying Lakehouse or Warehouse.
 }
 \details{
 \itemize{
-\item The easiest input is a row from \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}. You can instead
+\item The easiest input is an item from \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}. You can instead
 supply \code{workspace_id} and \code{dataset_id} (both GUIDs), or a Power BI
 connection string containing the workspace and semantic-model names. IDs
 avoid name lookup and are best for scheduled code.

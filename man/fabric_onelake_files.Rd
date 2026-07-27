@@ -90,12 +90,12 @@ fabric_onelake_delete(
 )
 }
 \arguments{
-\item{workspace}{Workspace display name, GUID, row from
+\item{workspace}{Workspace display name, GUID, record from
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or complete OneLake HTTPS/ABFSS path. Names are
 convenient interactively; GUIDs avoid problems with spaces and renaming.}
 
 \item{item}{Item name, GUID, or discovered Fabric item. Use \code{NULL} when
-\code{workspace} is a complete OneLake path. A row from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} is
+\code{workspace} is a complete OneLake path. An item from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} is
 the least ambiguous input.}
 
 \item{path}{Path relative to the item, usually beginning with \verb{Files/} or
@@ -191,7 +191,7 @@ Delta transaction log: use \code{\link[=fabric_onelake_read_delta_table]{fabric_
 Delta table, and do not upload or delete individual files under \verb{Tables/},
 because doing so can make the table inconsistent.
 
-\code{workspace} and \code{item} may be names, GUIDs, or one-row discovery results.
+\code{workspace} and \code{item} may be names, GUIDs, or discovery records.
 Name-based items must include their item-type suffix (for example,
 \code{"Sales.Lakehouse"}) or supply \code{item_type}. Microsoft requires workspace and
 item GUIDs to be used together. As a convenience, \code{workspace} may instead be

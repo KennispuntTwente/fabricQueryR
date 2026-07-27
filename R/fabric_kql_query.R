@@ -6,7 +6,7 @@
 #' telemetry, and time-series data.
 #'
 #' @details
-#' The easiest input is a row from [fabric_kql_databases()], because it supplies
+#' The easiest input is an item from [fabric_kql_databases()], because it supplies
 #' both the database name and its **Query URI**. If copying a URI from Fabric,
 #' use **Query URI**, not **Ingestion URI**; this function queries existing data
 #' and does not load new data. The caller needs database access through a Fabric
@@ -73,7 +73,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' database <- fabric_kql_databases("Telemetry workspace")[1, ]
+#' database <- fabric_kql_databases("Telemetry workspace")[[1]]
 #'
 #' events <- fabric_kql_query(
 #'   database,

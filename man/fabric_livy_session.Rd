@@ -37,7 +37,7 @@ fabric_livy_session(
 \item{livy_url}{A copied session or batch connection URL, Livy API base URL,
 or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.
 Copy the session-job URL from \strong{Lakehouse settings > Livy endpoint}, or
-use a discovered row to avoid handling IDs manually.}
+use a discovered record to avoid handling IDs manually.}
 
 \item{high_concurrency}{Logical. \code{FALSE} creates a standard session for
 sequential or low-concurrency work. \code{TRUE} creates an isolated REPL that

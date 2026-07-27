@@ -19,7 +19,7 @@
 #' Delta table, and do not upload or delete individual files under `Tables/`,
 #' because doing so can make the table inconsistent.
 #'
-#' `workspace` and `item` may be names, GUIDs, or one-row discovery results.
+#' `workspace` and `item` may be names, GUIDs, or discovery records.
 #' Name-based items must include their item-type suffix (for example,
 #' `"Sales.Lakehouse"`) or supply `item_type`. Microsoft requires workspace and
 #' item GUIDs to be used together. As a convenience, `workspace` may instead be
@@ -42,11 +42,11 @@
 #' sibling. When replacing a local file, the original is moved to a backup and
 #' restored if the final rename fails.
 #'
-#' @param workspace Workspace display name, GUID, row from
+#' @param workspace Workspace display name, GUID, record from
 #'   [fabric_workspaces()], or complete OneLake HTTPS/ABFSS path. Names are
 #'   convenient interactively; GUIDs avoid problems with spaces and renaming.
 #' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
-#'   `workspace` is a complete OneLake path. A row from [fabric_lakehouses()] is
+#'   `workspace` is a complete OneLake path. An item from [fabric_lakehouses()] is
 #'   the least ambiguous input.
 #' @param path Path relative to the item, usually beginning with `Files/` or
 #'   `Tables/`, for example `"Files/incoming/data.csv"`. Use forward slashes.

@@ -14,7 +14,7 @@
 #'
 #' A direct endpoint has the form
 #' `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
-#' You can instead pass a GraphQL API GUID with `workspace_id`, or one row from
+#' You can instead pass a GraphQL API GUID with `workspace_id`, or one item from
 #' [fabric_graphql_apis()] or [fabric_item()].
 #'
 #' Interactive/delegated authentication requires the Power BI delegated scope
@@ -36,7 +36,7 @@
 #' to repeat.
 #'
 #' @param api GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-#'   GraphQLApi record. A row from [fabric_graphql_apis()] is usually easiest
+#'   GraphQLApi record. An item from [fabric_graphql_apis()] is usually easiest
 #'   because it supplies the endpoint and workspace ID.
 #' @param query One GraphQL document containing a query or mutation. Use
 #'   variables for changing values instead of pasting values into this string.
@@ -84,7 +84,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' api <- fabric_graphql_apis("Analytics workspace")[1, ]
+#' api <- fabric_graphql_apis("Analytics workspace")[[1]]
 #'
 #' result <- fabric_graphql_query(
 #'   api,

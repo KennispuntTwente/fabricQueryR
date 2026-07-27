@@ -503,7 +503,7 @@ FabricLivyStatement <- R6::R6Class(
 #' @param livy_url A copied session or batch connection URL, Livy API base URL,
 #'   or enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
 #'   Copy the session-job URL from **Lakehouse settings > Livy endpoint**, or
-#'   use a discovered row to avoid handling IDs manually.
+#'   use a discovered record to avoid handling IDs manually.
 #' @param high_concurrency Logical. `FALSE` creates a standard session for
 #'   sequential or low-concurrency work. `TRUE` creates an isolated REPL that
 #'   Fabric can pack into shared Spark sessions, which is useful when an

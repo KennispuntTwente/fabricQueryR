@@ -45,10 +45,9 @@ Discovery uses the
 different Fabric cloud or a test service.}
 }
 \value{
-A tibble with one row per workspace. Important columns include \code{id}
-(useful for later API calls), \code{displayName}, \code{capacityRegion}, and
-\code{apiEndpoint}. \code{tags} and the complete service response in \code{raw} are list
-columns.
+A plain list with one \code{fabric_workspace} object per workspace. Each
+object is a named list containing the fields returned by Fabric, such as
+\code{id}, \code{displayName}, \code{capacityRegion}, \code{apiEndpoint}, and nested \code{tags}.
 }
 \description{
 Lists the Fabric workspaces the signed-in user or application can access. A

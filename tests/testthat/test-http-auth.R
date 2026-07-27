@@ -67,8 +67,8 @@ test_that("public functions accept AzureAuth token objects", {
     api_base = "https://fabric.test/v1"
   )
 
-  expect_s3_class(result, "tbl_df")
-  expect_equal(nrow(result), 0L)
+  expect_identical(class(result), "list")
+  expect_length(result, 0L)
 })
 
 test_that("token NULL delegates acquisition and caching to AzureAuth", {

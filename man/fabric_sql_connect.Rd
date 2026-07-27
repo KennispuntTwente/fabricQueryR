@@ -30,8 +30,8 @@ fabric_sql_connect(
 }
 \arguments{
 \item{server}{A Fabric SQL server name, a complete connection string copied
-from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database row
-returned by a discovery function. A discovered row is usually simplest
+from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
+returned by a discovery function. A discovered record is usually simplest
 because it also supplies the database name.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
@@ -151,7 +151,7 @@ con <- fabric_sql_connect(
 DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.Customers")
 DBI::dbDisconnect(con)
 
-warehouse <- fabric_warehouses("Analytics")[1, ]
+warehouse <- fabric_warehouses("Analytics")[[1]]
 con <- fabric_sql_connect(warehouse)
 
 # After installing the external driver with `dbc install mssql`:

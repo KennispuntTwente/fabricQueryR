@@ -28,10 +28,9 @@
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
 #'   different Fabric cloud or a test service.
 #'
-#' @return A tibble with one row per workspace. Important columns include `id`
-#'   (useful for later API calls), `displayName`, `capacityRegion`, and
-#'   `apiEndpoint`. `tags` and the complete service response in `raw` are list
-#'   columns.
+#' @return A plain list with one `fabric_workspace` object per workspace. Each
+#'   object is a named list containing the fields returned by Fabric, such as
+#'   `id`, `displayName`, `capacityRegion`, `apiEndpoint`, and nested `tags`.
 #' @references
 #' [List workspaces REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
 #'
@@ -87,7 +86,7 @@ fabric_workspaces <- function(
     credential = credential,
     audience = .fabric_audience$fabric
   )
-  fabric_workspace_tbl(records)
+  fabric_workspace_list(records)
 }
 
 #' Discover Microsoft Fabric items
@@ -113,13 +112,14 @@ fabric_workspaces <- function(
 #'   `FALSE` lists only items at the workspace root.
 #' @inheritParams fabric_workspaces
 #'
-#' @return A tibble with one row per item and common columns including `id`,
-#'   `displayName`, `type`, `workspaceId`, and `folderId`. With `detail = TRUE`,
-#'   applicable rows also contain ready-to-use `sql_connection_string`,
+#' @return A list with one `fabric_item` object per item. Each object is a
+#'   named list with common fields including `id`, `displayName`, `type`,
+#'   `workspaceId`, and `folderId`. With `detail = TRUE`, applicable objects
+#'   also contain ready-to-use `sql_connection_string`,
 #'   `one_lake_*_path`, `dax_connection_string`, `livy_url`,
 #'   `query_service_uri`, or `graphql_endpoint` values. Fields that do not apply
-#'   to an item are `NA`; `detail_error` records failed enrichment requests;
-#'   `properties` and `raw` retain nested service data.
+#'   to an item are absent; `detail_error` records failed enrichment requests.
+#'   Nested service data is retained in place, including in `properties`.
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
 #' sufficient for the core list operation). Workload enrichment additionally
@@ -217,18 +217,18 @@ fabric_items <- function(
       if (failed == 1L) "" else "s"
     ))
   }
-  fabric_item_tbl(records)
+  fabric_item_list(records)
 }
 
 #' Discover one Microsoft Fabric item
 #'
 #' Finds one item and retrieves the connection details that fabricQueryR can
 #' use. This is convenient when you know the item's name and do not need a
-#' table of every item in the workspace.
+#' collection of every item in the workspace.
 #'
-#' @param item Item GUID, exact display name, or a one-row item record returned
+#' @param item Item GUID, exact display name, or an item record returned
 #'   by a discovery function. A display name must identify exactly one item of
-#'   the requested `type`; use a GUID or discovered row when names are
+#'   the requested `type`; use a GUID or discovered record when names are
 #'   duplicated.
 #' @inheritParams fabric_items
 #'
@@ -304,10 +304,9 @@ fabric_item <- function(
       )
     )
   }
-  structure(
-    fabric_enrich_item(record, credential, base),
-    class = c("fabric_item", "list")
-  )
+  fabric_item_list(list(
+    fabric_enrich_item(record, credential, base)
+  ))[[1L]]
 }
 
 fabric_validate_item_workspace <- function(item, workspace_id) {
@@ -354,8 +353,9 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 #' @inheritParams fabric_items
 #' @param ... Authentication and API arguments forwarded to [fabric_items()].
 #'   Do not supply `type`; each helper sets that value.
-#' @return A tibble with one row per matching item, common item metadata, and
-#'   applicable connection fields. See [fabric_items()] for the column groups.
+#' @return A list with one `fabric_item` object per matching item. Each object
+#'   contains common item metadata and applicable connection fields. See
+#'   [fabric_items()] for details.
 #' @name fabric_typed_items
 NULL
 
@@ -625,116 +625,14 @@ fabric_add_derived_targets <- function(record, api_base) {
   record
 }
 
-fabric_workspace_tbl <- function(records) {
-  if (!length(records)) {
-    return(tibble::tibble(
-      id = character(),
-      displayName = character(),
-      description = character(),
-      type = character(),
-      capacityId = character(),
-      domainId = character(),
-      capacityRegion = character(),
-      apiEndpoint = character(),
-      tags = list(),
-      raw = list()
-    ))
-  }
-  tibble::tibble(
-    id = vapply(records, function(x) x$id %||% NA_character_, character(1)),
-    displayName = vapply(
-      records,
-      function(x) x$displayName %||% NA_character_,
-      character(1)
-    ),
-    description = vapply(
-      records,
-      function(x) x$description %||% NA_character_,
-      character(1)
-    ),
-    type = vapply(records, function(x) x$type %||% NA_character_, character(1)),
-    capacityId = vapply(
-      records,
-      function(x) x$capacityId %||% NA_character_,
-      character(1)
-    ),
-    domainId = vapply(
-      records,
-      function(x) x$domainId %||% NA_character_,
-      character(1)
-    ),
-    capacityRegion = vapply(
-      records,
-      function(x) {
-        region <- x$capacityRegion
-        if (is.list(region)) {
-          region <- region$displayName %||% region$name
-        }
-        if (is.null(region) || length(region) != 1L) {
-          NA_character_
-        } else {
-          as.character(region)
-        }
-      },
-      character(1)
-    ),
-    apiEndpoint = vapply(
-      records,
-      function(x) x$apiEndpoint %||% NA_character_,
-      character(1)
-    ),
-    tags = lapply(records, function(x) x$tags %||% list()),
-    raw = records
-  )
+fabric_workspace_list <- function(records) {
+  lapply(records, function(record) {
+    structure(record, class = c("fabric_workspace", "list"))
+  })
 }
 
-fabric_item_tbl <- function(records) {
-  scalar <- function(record, key) {
-    value <- record[[key]]
-    if (is.null(value) || length(value) != 1L) {
-      NA_character_
-    } else {
-      as.character(value)
-    }
-  }
-  columns <- c(
-    "id",
-    "displayName",
-    "description",
-    "type",
-    "workspaceId",
-    "workspaceDisplayName",
-    "folderId",
-    "sql_connection_string",
-    "sql_server",
-    "sql_database",
-    "sql_endpoint_id",
-    "sql_endpoint_status",
-    "default_schema",
-    "one_lake_tables_path",
-    "one_lake_files_path",
-    "dax_connection_string",
-    "livy_url",
-    "query_service_uri",
-    "ingestion_service_uri",
-    "graphql_endpoint",
-    "detail_error",
-    "detail_error_class"
-  )
-  if (!length(records)) {
-    out <- stats::setNames(
-      replicate(length(columns), character(), simplify = FALSE),
-      columns
-    )
-    out$properties <- list()
-    out$raw <- list()
-    return(tibble::as_tibble(out))
-  }
-  out <- lapply(columns, function(key) {
-    vapply(records, scalar, character(1), key = key)
+fabric_item_list <- function(records) {
+  lapply(records, function(record) {
+    structure(record, class = c("fabric_item", "list"))
   })
-  names(out) <- columns
-  out$properties <- lapply(records, function(x) x$properties %||% list())
-  out$raw <- records
-  tibble::as_tibble(out)
 }

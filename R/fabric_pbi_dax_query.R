@@ -9,7 +9,7 @@
 #' than SQL intended for the underlying Lakehouse or Warehouse.
 #'
 #' @details
-#' - The easiest input is a row from [fabric_semantic_models()]. You can instead
+#' - The easiest input is an item from [fabric_semantic_models()]. You can instead
 #'   supply `workspace_id` and `dataset_id` (both GUIDs), or a Power BI
 #'   connection string containing the workspace and semantic-model names. IDs
 #'   avoid name lookup and are best for scheduled code.
