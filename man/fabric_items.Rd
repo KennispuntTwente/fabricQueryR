@@ -8,6 +8,7 @@ fabric_items(
   workspace,
   type = NULL,
   detail = FALSE,
+  detail_errors = c("record", "abort"),
   recursive = TRUE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -31,6 +32,10 @@ for names and IDs. \code{TRUE} also retrieves supported workload properties,
 such as SQL connection strings and Livy or KQL endpoints, but is slower
 and can require additional permissions. The typed helpers below use
 \code{TRUE}.}
+
+\item{detail_errors}{How workload-detail failures are handled. \code{"record"}
+retains the item, stores the message in \code{detail_error}, and emits one
+summary warning. \code{"abort"} preserves strict all-or-nothing behavior.}
 
 \item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
 \code{FALSE} lists only items at the workspace root.}
@@ -61,7 +66,8 @@ A tibble with one row per item and common columns including \code{id},
 applicable rows also contain ready-to-use \code{sql_connection_string},
 \verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
 \code{query_service_uri}, or \code{graphql_endpoint} values. Fields that do not apply
-to an item are \code{NA}; \code{properties} and \code{raw} retain nested service data.
+to an item are \code{NA}; \code{detail_error} records failed enrichment requests;
+\code{properties} and \code{raw} retain nested service data.
 }
 \description{
 Lists the items stored in one workspace. In Fabric, an \emph{item} is a resource

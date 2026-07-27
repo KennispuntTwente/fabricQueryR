@@ -106,6 +106,9 @@ fabric_workspaces <- function(
 #'   such as SQL connection strings and Livy or KQL endpoints, but is slower
 #'   and can require additional permissions. The typed helpers below use
 #'   `TRUE`.
+#' @param detail_errors How workload-detail failures are handled. `"record"`
+#'   retains the item, stores the message in `detail_error`, and emits one
+#'   summary warning. `"abort"` preserves strict all-or-nothing behavior.
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
 #'   `FALSE` lists only items at the workspace root.
 #' @inheritParams fabric_workspaces
@@ -115,7 +118,8 @@ fabric_workspaces <- function(
 #'   applicable rows also contain ready-to-use `sql_connection_string`,
 #'   `one_lake_*_path`, `dax_connection_string`, `livy_url`,
 #'   `query_service_uri`, or `graphql_endpoint` values. Fields that do not apply
-#'   to an item are `NA`; `properties` and `raw` retain nested service data.
+#'   to an item are `NA`; `detail_error` records failed enrichment requests;
+#'   `properties` and `raw` retain nested service data.
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
 #' sufficient for the core list operation). Workload enrichment additionally
@@ -131,6 +135,7 @@ fabric_items <- function(
   workspace,
   type = NULL,
   detail = FALSE,
+  detail_errors = c("record", "abort"),
   recursive = TRUE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
@@ -153,6 +158,7 @@ fabric_items <- function(
   if (!is.logical(detail) || length(detail) != 1L || is.na(detail)) {
     rlang::abort("detail must be TRUE or FALSE")
   }
+  detail_errors <- match.arg(detail_errors)
   if (!is.logical(recursive) || length(recursive) != 1L || is.na(recursive)) {
     rlang::abort("recursive must be TRUE or FALSE")
   }
@@ -181,11 +187,36 @@ fabric_items <- function(
     record$workspaceId <- record$workspaceId %||% ws$id
     record$workspaceDisplayName <- ws$displayName
     if (isTRUE(detail)) {
-      fabric_enrich_item(record, credential, base)
+      tryCatch(
+        fabric_enrich_item(record, credential, base),
+        error = function(error) {
+          if (identical(detail_errors, "abort")) {
+            rlang::cnd_signal(error)
+          }
+          record$detail_error <- conditionMessage(error)
+          record$detail_error_class <- class(error)[[1L]]
+          fabric_add_derived_targets(record, base)
+        }
+      )
     } else {
       fabric_add_derived_targets(record, base)
     }
   })
+  failed <- sum(vapply(
+    records,
+    function(record) !is.null(record$detail_error),
+    logical(1)
+  ))
+  if (failed > 0) {
+    rlang::warn(sprintf(
+      paste0(
+        "Could not retrieve workload details for %d Fabric item%s; ",
+        "see detail_error"
+      ),
+      failed,
+      if (failed == 1L) "" else "s"
+    ))
+  }
   fabric_item_tbl(records)
 }
 
@@ -303,7 +334,8 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 #'
 #' These shortcuts list one kind of item and include the detailed connection
 #' fields used by the matching query functions. They are equivalent to
-#' [fabric_items()] with a fixed item type and `detail = TRUE`.
+#' [fabric_items()] with a fixed item type and `detail = TRUE`. Set
+#' `detail = FALSE` when only names and identifiers are needed.
 #'
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()` and `fabric_warehouses()` find data stores that can
@@ -321,7 +353,7 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 #'
 #' @inheritParams fabric_items
 #' @param ... Authentication and API arguments forwarded to [fabric_items()].
-#'   Do not supply `type` or `detail`; each helper sets those values.
+#'   Do not supply `type`; each helper sets that value.
 #' @return A tibble with one row per matching item, common item metadata, and
 #'   applicable connection fields. See [fabric_items()] for the column groups.
 #' @name fabric_typed_items
@@ -329,50 +361,50 @@ NULL
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_lakehouses <- function(workspace, ...) {
-  fabric_items(workspace, type = "Lakehouse", detail = TRUE, ...)
+fabric_lakehouses <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "Lakehouse", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_warehouses <- function(workspace, ...) {
-  fabric_items(workspace, type = "Warehouse", detail = TRUE, ...)
+fabric_warehouses <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "Warehouse", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_sql_databases <- function(workspace, ...) {
-  fabric_items(workspace, type = "SQLDatabase", detail = TRUE, ...)
+fabric_sql_databases <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "SQLDatabase", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_semantic_models <- function(workspace, ...) {
-  fabric_items(workspace, type = "SemanticModel", detail = TRUE, ...)
+fabric_semantic_models <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "SemanticModel", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_eventhouses <- function(workspace, ...) {
-  fabric_items(workspace, type = "Eventhouse", detail = TRUE, ...)
+fabric_eventhouses <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "Eventhouse", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_kql_databases <- function(workspace, ...) {
-  fabric_items(workspace, type = "KQLDatabase", detail = TRUE, ...)
+fabric_kql_databases <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "KQLDatabase", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_notebooks <- function(workspace, ...) {
-  fabric_items(workspace, type = "Notebook", detail = TRUE, ...)
+fabric_notebooks <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "Notebook", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_graphql_apis <- function(workspace, ...) {
-  fabric_items(workspace, type = "GraphQLApi", detail = TRUE, ...)
+fabric_graphql_apis <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "GraphQLApi", detail = detail, ...)
 }
 
 fabric_api_base <- function(api_base) {
@@ -685,7 +717,9 @@ fabric_item_tbl <- function(records) {
     "livy_url",
     "query_service_uri",
     "ingestion_service_uri",
-    "graphql_endpoint"
+    "graphql_endpoint",
+    "detail_error",
+    "detail_error_class"
   )
   if (!length(records)) {
     out <- stats::setNames(

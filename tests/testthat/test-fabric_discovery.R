@@ -139,6 +139,59 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
   expect_match(urls[[2L]], "/lakehouses/")
 })
 
+test_that("item discovery records partial detail failures", {
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(id = "workspace-id", displayName = "Analytics")
+    },
+    .httr2_collection = function(...) {
+      list(
+        list(id = "available", displayName = "Available", type = "Lakehouse"),
+        list(id = "forbidden", displayName = "Forbidden", type = "Lakehouse")
+      )
+    },
+    fabric_enrich_item = function(record, ...) {
+      if (identical(record$id, "forbidden")) {
+        rlang::abort("detail request was forbidden")
+      }
+      record$properties <- list(defaultSchema = "dbo")
+      fabric_add_derived_targets(record, .fabric_api_base)
+    }
+  )
+
+  expect_warning(
+    result <- fabric_items(
+      "Analytics",
+      detail = TRUE,
+      token = "token"
+    ),
+    "Could not retrieve workload details for 1 Fabric item",
+    fixed = TRUE
+  )
+  expect_equal(nrow(result), 2L)
+  expect_true(is.na(result$detail_error[result$id == "available"]))
+  expect_match(
+    result$detail_error[result$id == "forbidden"],
+    "forbidden",
+    fixed = TRUE
+  )
+  expect_equal(
+    result$detail_error_class[result$id == "forbidden"],
+    "rlang_error"
+  )
+
+  expect_error(
+    fabric_items(
+      "Analytics",
+      detail = TRUE,
+      detail_errors = "abort",
+      token = "token"
+    ),
+    "detail request was forbidden",
+    fixed = TRUE
+  )
+})
+
 test_that("typed routes and derived targets cover supported workloads", {
   expect_equal(
     unname(vapply(
@@ -253,6 +306,8 @@ test_that("typed convenience helpers forward their workload types", {
   expect_true(all(
     vapply(calls, `[[`, character(1), "workspace") == "Workspace"
   ))
+  fabric_lakehouses("Workspace", detail = FALSE, token = "token")
+  expect_false(calls[[length(calls)]]$detail)
 })
 
 test_that("empty discovery results retain their public schema", {
@@ -263,7 +318,9 @@ test_that("empty discovery results retain their public schema", {
   expect_equal(nrow(workspaces), 0L)
   expect_equal(nrow(items), 0L)
   expect_true(all(c("id", "displayName", "tags", "raw") %in% names(workspaces)))
-  expect_true(all(c("id", "properties", "raw") %in% names(items)))
+  expect_true(all(
+    c("id", "detail_error", "properties", "raw") %in% names(items)
+  ))
 })
 
 test_that("fabric_item resolves names and rejects type mismatches", {

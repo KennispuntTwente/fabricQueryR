@@ -12,29 +12,35 @@
 \alias{fabric_graphql_apis}
 \title{Typed Microsoft Fabric item discovery}
 \usage{
-fabric_lakehouses(workspace, ...)
+fabric_lakehouses(workspace, detail = TRUE, ...)
 
-fabric_warehouses(workspace, ...)
+fabric_warehouses(workspace, detail = TRUE, ...)
 
-fabric_sql_databases(workspace, ...)
+fabric_sql_databases(workspace, detail = TRUE, ...)
 
-fabric_semantic_models(workspace, ...)
+fabric_semantic_models(workspace, detail = TRUE, ...)
 
-fabric_eventhouses(workspace, ...)
+fabric_eventhouses(workspace, detail = TRUE, ...)
 
-fabric_kql_databases(workspace, ...)
+fabric_kql_databases(workspace, detail = TRUE, ...)
 
-fabric_notebooks(workspace, ...)
+fabric_notebooks(workspace, detail = TRUE, ...)
 
-fabric_graphql_apis(workspace, ...)
+fabric_graphql_apis(workspace, detail = TRUE, ...)
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
 returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
 a name is often easier for interactive use.}
 
+\item{detail}{Logical. \code{FALSE} makes the fewest API calls and is sufficient
+for names and IDs. \code{TRUE} also retrieves supported workload properties,
+such as SQL connection strings and Livy or KQL endpoints, but is slower
+and can require additional permissions. The typed helpers below use
+\code{TRUE}.}
+
 \item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}.
-Do not supply \code{type} or \code{detail}; each helper sets those values.}
+Do not supply \code{type}; each helper sets that value.}
 }
 \value{
 A tibble with one row per matching item, common item metadata, and
@@ -43,7 +49,8 @@ applicable connection fields. See \code{\link[=fabric_items]{fabric_items()}} fo
 \description{
 These shortcuts list one kind of item and include the detailed connection
 fields used by the matching query functions. They are equivalent to
-\code{\link[=fabric_items]{fabric_items()}} with a fixed item type and \code{detail = TRUE}.
+\code{\link[=fabric_items]{fabric_items()}} with a fixed item type and \code{detail = TRUE}. Set
+\code{detail = FALSE} when only names and identifiers are needed.
 }
 \section{Choosing a helper}{
 
