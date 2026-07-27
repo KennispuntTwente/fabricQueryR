@@ -62,7 +62,9 @@ deleted or superseded files are not accidentally included.</p>
 <span>  version <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dest_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span></span>
+<span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
+<span>  columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  limit <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -140,6 +142,17 @@ or reuse, and ensure it has enough free space.</p></dd>
 <dd><p>OneLake DFS endpoint. Keep the default unless using a
 regional or workspace-private endpoint.</p></dd>
 
+
+<dt id="arg-columns">columns<a class="anchor" aria-label="anchor" href="#arg-columns"></a></dt>
+<dd><p>Optional character vector of logical Delta column names to
+return, in the requested order. <code>NULL</code> returns every column.</p></dd>
+
+
+<dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
+<dd><p>Optional non-negative whole number limiting returned rows.
+<code>NULL</code> returns every row. This limits DuckDB collection but not OneLake
+file downloads.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -178,8 +191,10 @@ or <strong>Lakehouse &gt; Manage OneLake data access</strong>.</p></li>
 caching behavior; you may want to call <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code>
 if the wrong account or tenant is being reused.</p></li>
 <li><p>The active files are downloaded locally and the final table is collected
-into R memory. For very large tables, a SQL query that filters rows in
-Fabric may transfer much less data.</p></li>
+into R memory. <code>columns</code> and <code>limit</code> can reduce the data read by DuckDB and
+materialised in R, but they do not reduce the active Parquet files
+downloaded from OneLake. For very large tables, a SQL query that filters
+rows in Fabric may transfer much less data.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -206,7 +221,9 @@ Fabric may transfer much less data.</p></li>
 <span class="r-in"><span>  table_path     <span class="op">=</span> <span class="st">"PatientInfo"</span>,</span></span>
 <span class="r-in"><span>  workspace_name <span class="op">=</span> <span class="st">"PatientsWorkspace"</span>,</span></span>
 <span class="r-in"><span>  lakehouse_name <span class="op">=</span> <span class="st">"Lakehouse.Lakehouse"</span>,</span></span>
-<span class="r-in"><span>  schema         <span class="op">=</span> <span class="st">"dbo"</span></span></span>
+<span class="r-in"><span>  schema         <span class="op">=</span> <span class="st">"dbo"</span>,</span></span>
+<span class="r-in"><span>  columns        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"PatientId"</span>, <span class="st">"Status"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  limit          <span class="op">=</span> <span class="fl">1000</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
