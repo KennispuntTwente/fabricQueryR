@@ -4,6 +4,7 @@
   "Cancelled",
   "Deduped"
 )
+.fabric_job_active_states <- c("NotStarted", "InProgress")
 
 .fabric_job_parameter_types <- c(
   "VariableReference",
@@ -74,6 +75,11 @@
 #'   Job submission and cancellation require `Item.Execute.All` or
 #'   the corresponding workload-specific execute permission.
 #' @param api_base Fabric REST API base URL. Most users should keep the default.
+#' @details Notebook status uses Fabric's workload-specific beta endpoint first
+#'   and falls back to the core scheduler when that endpoint is unavailable.
+#'   Because Fabric may add job statuses over time, [fabric_job_wait()] raises a
+#'   `fabric_job_unknown_status` condition for an unrecognised state instead of
+#'   polling until timeout.
 #' @references
 #' [Core Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 #'
@@ -375,6 +381,17 @@ fabric_job_wait <- function(
     )
     retry_after <- last$retry_after
     if (!last$status %in% .fabric_job_terminal_states) {
+      if (!last$status %in% .fabric_job_active_states) {
+        rlang::abort(
+          paste0(
+            "Fabric returned an unknown job status: ",
+            last$status
+          ),
+          class = c("fabric_job_unknown_status", "fabric_job_error"),
+          job = job,
+          job_status = last
+        )
+      }
       next
     }
     if (identical(last$status, "Completed") || !isTRUE(error_on_failure)) {
@@ -727,13 +744,15 @@ print.fabric_job_instance <- function(x, ...) {
     url,
     context$credential,
     idempotent = TRUE,
-    accepted_status = if (notebook || isTRUE(allow_not_found)) {
+    accepted_status = if (notebook) {
+      c(400L, 404L, 410L)
+    } else if (isTRUE(allow_not_found)) {
       404L
     } else {
       integer()
     }
   )
-  if (notebook && identical(result$status_code, 404L)) {
+  if (notebook && result$status_code %in% c(400L, 404L, 410L)) {
     result <- .fabric_job_request(
       "GET",
       .fabric_job_core_status_url(context),

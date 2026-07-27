@@ -344,8 +344,8 @@ test_that("notebook status falls back to the core scheduler", {
       urls <<- c(urls, url)
       expect_equal(method, "GET")
       if (length(urls) == 1L) {
-        expect_equal(accepted_status, 404L)
-        return(list(status_code = 404L, retry_after = 5, body = list()))
+        expect_equal(accepted_status, c(400L, 404L, 410L))
+        return(list(status_code = 410L, retry_after = 5, body = list()))
       }
       expect_length(accepted_status, 0L)
       list(
@@ -370,7 +370,11 @@ test_that("status represents delays in both notebook job stores", {
   local_mocked_bindings(
     .fabric_job_request = function(..., accepted_status = integer()) {
       calls <<- calls + 1L
-      expect_equal(accepted_status, 404L)
+      if (calls == 1L) {
+        expect_equal(accepted_status, c(400L, 404L, 410L))
+      } else {
+        expect_equal(accepted_status, 404L)
+      }
       list(status_code = 404L, retry_after = 5, body = list())
     }
   )
@@ -437,14 +441,15 @@ test_that("wait tolerates visibility delays until its timeout", {
       accepted_status = integer()
     ) {
       expect_equal(method, "GET")
-      expect_equal(accepted_status, 404L)
       if (grepl("/notebooks/", url, fixed = TRUE)) {
+        expect_equal(accepted_status, c(400L, 404L, 410L))
         return(list(
           status_code = 404L,
           retry_after = NULL,
           body = list()
         ))
       }
+      expect_equal(accepted_status, 404L)
       polls <<- polls + 1L
       if (polls <= 15L) {
         return(list(
@@ -475,6 +480,32 @@ test_that("wait tolerates visibility delays until its timeout", {
 
   expect_equal(result$status, "Completed")
   expect_equal(polls, 16L)
+})
+
+test_that("wait fails fast for statuses added by the service", {
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(id = "job", status = "Paused")
+      )
+    }
+  )
+
+  condition <- rlang::catch_cnd(
+    fabric_job_wait(
+      job_test_handle(),
+      poll_interval = 0,
+      timeout = 30
+    ),
+    classes = "error"
+  )
+
+  expect_s3_class(condition, "fabric_job_unknown_status")
+  expect_s3_class(condition, "fabric_job_error")
+  expect_equal(condition$job_status$status, "Paused")
+  expect_match(condition$message, "Paused", fixed = TRUE)
 })
 
 test_that("failed, cancelled, and deduped jobs have distinct conditions", {

@@ -186,6 +186,13 @@ wait for, or cancel that run. Typical examples are running a Notebook, data
 pipeline, or Spark job definition. This is for immediate runs; configure a
 recurring timetable with Fabric's scheduler in the portal or scheduler API.
 }
+\details{
+Notebook status uses Fabric's workload-specific beta endpoint first
+and falls back to the core scheduler when that endpoint is unavailable.
+Because Fabric may add job statuses over time, \code{\link[=fabric_job_wait]{fabric_job_wait()}} raises a
+\code{fabric_job_unknown_status} condition for an unrecognised state instead of
+polling until timeout.
+}
 \examples{
 \dontrun{
 notebook <- fabric_notebooks("Analytics workspace")[1, ]
