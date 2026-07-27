@@ -11,6 +11,7 @@ fabric_items(
   workspace,
   type = NULL,
   detail = FALSE,
+  detail_errors = c("record", "abort"),
   recursive = TRUE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -43,6 +44,12 @@ fabric_items(
   such as SQL connection strings and Livy or KQL endpoints, but is
   slower and can require additional permissions. The typed helpers below
   use `TRUE`.
+
+- detail_errors:
+
+  How workload-detail failures are handled. `"record"` retains the item,
+  stores the message in `detail_error`, and emits one summary warning.
+  `"abort"` preserves strict all-or-nothing behavior.
 
 - recursive:
 
@@ -86,8 +93,8 @@ A tibble with one row per item and common columns including `id`,
 `detail = TRUE`, applicable rows also contain ready-to-use
 `sql_connection_string`, `one_lake_*_path`, `dax_connection_string`,
 `livy_url`, `query_service_uri`, or `graphql_endpoint` values. Fields
-that do not apply to an item are `NA`; `properties` and `raw` retain
-nested service data.
+that do not apply to an item are `NA`; `detail_error` records failed
+enrichment requests; `properties` and `raw` retain nested service data.
 
 ## Details
 

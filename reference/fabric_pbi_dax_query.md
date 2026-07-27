@@ -117,7 +117,10 @@ fabric_pbi_dax_query(
   `api = "arrow"`, `"arrow_stream"` returns a `nanoarrow_array_stream`
   compatible with
   [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
-  and other Arrow C stream consumers.
+  and other Arrow C stream consumers. The HTTP response is streamed to a
+  temporary file before Arrow reads it, but the returned Arrow table is
+  materialized in memory so that concatenated data, error, and metrics
+  rowsets can be validated.
 
 - arrow_options:
 

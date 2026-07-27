@@ -47,6 +47,7 @@ such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.</p>
 <span>  <span class="va">workspace</span>,</span>
 <span>  type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  detail <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  detail_errors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"record"</span>, <span class="st">"abort"</span><span class="op">)</span>,</span>
 <span>  recursive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
@@ -79,6 +80,12 @@ for names and IDs. <code>TRUE</code> also retrieves supported workload propertie
 such as SQL connection strings and Livy or KQL endpoints, but is slower
 and can require additional permissions. The typed helpers below use
 <code>TRUE</code>.</p></dd>
+
+
+<dt id="arg-detail-errors">detail_errors<a class="anchor" aria-label="anchor" href="#arg-detail-errors"></a></dt>
+<dd><p>How workload-detail failures are handled. <code>"record"</code>
+retains the item, stores the message in <code>detail_error</code>, and emits one
+summary warning. <code>"abort"</code> preserves strict all-or-nothing behavior.</p></dd>
 
 
 <dt id="arg-recursive">recursive<a class="anchor" aria-label="anchor" href="#arg-recursive"></a></dt>
@@ -123,7 +130,8 @@ different Fabric cloud or a test service.</p></dd>
 applicable rows also contain ready-to-use <code>sql_connection_string</code>,
 <code>one_lake_*_path</code>, <code>dax_connection_string</code>, <code>livy_url</code>,
 <code>query_service_uri</code>, or <code>graphql_endpoint</code> values. Fields that do not apply
-to an item are <code>NA</code>; <code>properties</code> and <code>raw</code> retain nested service data.</p>
+to an item are <code>NA</code>; <code>detail_error</code> records failed enrichment requests;
+<code>properties</code> and <code>raw</code> retain nested service data.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

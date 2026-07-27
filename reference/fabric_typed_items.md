@@ -4,26 +4,27 @@ These shortcuts list one kind of item and include the detailed
 connection fields used by the matching query functions. They are
 equivalent to
 [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
-with a fixed item type and `detail = TRUE`.
+with a fixed item type and `detail = TRUE`. Set `detail = FALSE` when
+only names and identifiers are needed.
 
 ## Usage
 
 ``` r
-fabric_lakehouses(workspace, ...)
+fabric_lakehouses(workspace, detail = TRUE, ...)
 
-fabric_warehouses(workspace, ...)
+fabric_warehouses(workspace, detail = TRUE, ...)
 
-fabric_sql_databases(workspace, ...)
+fabric_sql_databases(workspace, detail = TRUE, ...)
 
-fabric_semantic_models(workspace, ...)
+fabric_semantic_models(workspace, detail = TRUE, ...)
 
-fabric_eventhouses(workspace, ...)
+fabric_eventhouses(workspace, detail = TRUE, ...)
 
-fabric_kql_databases(workspace, ...)
+fabric_kql_databases(workspace, detail = TRUE, ...)
 
-fabric_notebooks(workspace, ...)
+fabric_notebooks(workspace, detail = TRUE, ...)
 
-fabric_graphql_apis(workspace, ...)
+fabric_graphql_apis(workspace, detail = TRUE, ...)
 ```
 
 ## Arguments
@@ -35,11 +36,19 @@ fabric_graphql_apis(workspace, ...)
   A record or GUID avoids an extra lookup; a name is often easier for
   interactive use.
 
+- detail:
+
+  Logical. `FALSE` makes the fewest API calls and is sufficient for
+  names and IDs. `TRUE` also retrieves supported workload properties,
+  such as SQL connection strings and Livy or KQL endpoints, but is
+  slower and can require additional permissions. The typed helpers below
+  use `TRUE`.
+
 - ...:
 
   Authentication and API arguments forwarded to
   [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md).
-  Do not supply `type` or `detail`; each helper sets those values.
+  Do not supply `type`; each helper sets that value.
 
 ## Value
 
