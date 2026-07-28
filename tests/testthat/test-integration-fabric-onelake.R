@@ -699,6 +699,28 @@ test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {
   expect_true(
     "v2Checkpoint" %in% unlist(snapshot$protocol$readerFeatures)
   )
+  checkpoint_sets <- fabric_delta_checkpoint_sets(checkpoint_files)
+  selected_set <- checkpoint_sets[[
+    which(vapply(
+      checkpoint_sets,
+      function(candidate) {
+        identical(candidate$version, snapshot$checkpoint_version)
+      },
+      logical(1)
+    ))[[1L]]
+  ]]
+  expect_gte(length(selected_set$alternatives), 1L)
+  referenced_sidecars <- unique(unlist(lapply(
+    selected_set$alternatives,
+    function(candidate) {
+      fabric_delta_checkpoint_sidecar_paths(candidate$paths)
+    }
+  )))
+  expect_gt(length(referenced_sidecars), 0L)
+  staged_sidecars <- basename(checkpoint_files[
+    grepl("[/\\\\]_sidecars[/\\\\]", checkpoint_files)
+  ])
+  expect_true(all(referenced_sidecars %in% staged_sidecars))
 
   clone <- fabric_onelake_read_delta_table(
     table_path = lakehouse$tables$shallow_clone,

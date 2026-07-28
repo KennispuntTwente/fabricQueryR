@@ -412,7 +412,9 @@ fabric_onelake_read_delta_table <- function(
     credential
   )
   checkpoint_sidecars <- fabric_delta_checkpoint_sidecar_paths(
-    log_staged$destination
+    log_staged$destination,
+    target = target,
+    table_dir = table_dir
   )
   if (length(checkpoint_sidecars)) {
     sidecar_staged <- fabric_delta_stage_paths(
@@ -428,11 +430,16 @@ fabric_onelake_read_delta_table <- function(
       verbose,
       "Downloading {nrow(sidecar_staged)} checkpoint sidecar file{?s}"
     )
-    fabric_delta_download_staged(
-      sidecar_staged,
-      target,
-      credential
-    )
+    for (index in seq_len(nrow(sidecar_staged))) {
+      try(
+        fabric_delta_download_staged(
+          sidecar_staged[index, , drop = FALSE],
+          target,
+          credential
+        ),
+        silent = TRUE
+      )
+    }
   }
 
   snapshot <- fabric_delta_resolve_snapshot(dest_dir, version = version)
@@ -591,7 +598,9 @@ fabric_delta_select_log_paths <- function(paths, version = NULL) {
   eligible <- checkpoint_versions[checkpoint_versions <= target]
   checkpoint_version <- if (length(eligible)) max(eligible) else NULL
   checkpoint_paths <- if (!is.null(checkpoint_version)) {
-    checkpoints[[match(checkpoint_version, checkpoint_versions)]]$paths
+    checkpoint <- checkpoints[[match(checkpoint_version, checkpoint_versions)]]
+    candidates <- checkpoint$alternatives %||% list(checkpoint)
+    unique(unlist(lapply(candidates, `[[`, "paths"), use.names = FALSE))
   } else {
     character()
   }
@@ -2463,81 +2472,112 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
 
   if (!is.null(checkpoint_version)) {
     checkpoint_index <- match(checkpoint_version, checkpoint_versions)
-    checkpoint_paths <- checkpoint_sets[[checkpoint_index]]$paths
-    checkpoint <- fabric_delta_read_checkpoint(checkpoint_paths)
-    state <- fabric_delta_apply_checkpoint(state, checkpoint)
-    checkpoint_actions <- checkpoint$actions %||% list()
-    is_v2 <- isTRUE(attr(checkpoint, "fabric_delta_v2")) ||
-      any(vapply(
-        checkpoint_actions,
-        function(action) !is.null(action$checkpointMetadata),
-        logical(1)
-      )) ||
-      isTRUE(checkpoint_sets[[checkpoint_index]]$v2_named)
-    if (is_v2) {
-      metadata_versions <- if (length(checkpoint_actions)) {
-        unlist(
-          lapply(checkpoint_actions, function(action) {
-            action$checkpointMetadata$version %||% NULL
-          }),
-          use.names = FALSE
+    checkpoint_set <- checkpoint_sets[[checkpoint_index]]
+    candidates <- checkpoint_set$alternatives %||% list(checkpoint_set)
+    errors <- list()
+    selected <- FALSE
+    for (candidate in candidates) {
+      attempt <- tryCatch({
+        candidate_state <- state
+        checkpoint_paths <- candidate$paths
+        checkpoint <- fabric_delta_read_checkpoint(checkpoint_paths)
+        candidate_state <- fabric_delta_apply_checkpoint(
+          candidate_state,
+          checkpoint
         )
-      } else {
-        attr(checkpoint, "fabric_delta_checkpoint_versions") %||% numeric()
-      }
-      if (
-        length(metadata_versions) != 1L ||
-          is.na(metadata_versions) ||
-          as.numeric(metadata_versions) != checkpoint_version
-      ) {
-        rlang::abort(
-          "Delta V2 checkpoint must contain exactly one matching checkpointMetadata action"
-        )
-      }
-    }
-    sidecar_names <- if (is_v2) {
-      fabric_delta_checkpoint_sidecar_paths(checkpoint_paths)
-    } else {
-      character()
-    }
-    embedded_file_actions <- if (length(checkpoint_actions)) {
-      any(vapply(
-        checkpoint_actions,
-        function(action) {
-          !is.null(action$add$path) || !is.null(action$remove$path)
-        },
-        logical(1)
-      ))
-    } else {
-      isTRUE(attr(checkpoint, "fabric_delta_has_file_actions"))
-    }
-    if (length(sidecar_names) && embedded_file_actions) {
-      rlang::abort(
-        "Delta V2 checkpoint mixes embedded and sidecar file actions"
-      )
-    }
-    if (length(sidecar_names)) {
-      sidecar_paths <- fs::path(
-        table_dir,
-        "_delta_log",
-        "_sidecars",
-        sidecar_names
-      )
-      missing_sidecars <- !fs::file_exists(sidecar_paths)
-      if (any(missing_sidecars)) {
-        rlang::abort(c(
-          "Delta V2 checkpoint references a sidecar that was not staged",
-          "x" = cli::format_inline(
-            "{.path {sidecar_paths[which(missing_sidecars)[1L]]}} is missing"
+        checkpoint_actions <- checkpoint$actions %||% list()
+        is_v2 <- isTRUE(attr(checkpoint, "fabric_delta_v2")) ||
+          any(vapply(
+            checkpoint_actions,
+            function(action) !is.null(action$checkpointMetadata),
+            logical(1)
+          )) ||
+          isTRUE(candidate$v2_named)
+        if (is_v2) {
+          metadata_versions <- if (length(checkpoint_actions)) {
+            unlist(
+              lapply(checkpoint_actions, function(action) {
+                action$checkpointMetadata$version %||% NULL
+              }),
+              use.names = FALSE
+            )
+          } else {
+            attr(checkpoint, "fabric_delta_checkpoint_versions") %||% numeric()
+          }
+          if (
+            length(metadata_versions) != 1L ||
+              is.na(metadata_versions) ||
+              as.numeric(metadata_versions) != checkpoint_version
+          ) {
+            rlang::abort(
+              "Delta V2 checkpoint must contain exactly one matching checkpointMetadata action"
+            )
+          }
+        }
+        sidecar_names <- if (is_v2) {
+          fabric_delta_checkpoint_sidecar_paths(checkpoint_paths)
+        } else {
+          character()
+        }
+        embedded_file_actions <- if (length(checkpoint_actions)) {
+          any(vapply(
+            checkpoint_actions,
+            function(action) {
+              !is.null(action$add$path) || !is.null(action$remove$path)
+            },
+            logical(1)
+          ))
+        } else {
+          isTRUE(attr(checkpoint, "fabric_delta_has_file_actions"))
+        }
+        if (length(sidecar_names) && embedded_file_actions) {
+          rlang::abort(
+            "Delta V2 checkpoint mixes embedded and sidecar file actions"
           )
-        ))
+        }
+        if (length(sidecar_names)) {
+          sidecar_paths <- fs::path(
+            table_dir,
+            "_delta_log",
+            "_sidecars",
+            sidecar_names
+          )
+          missing_sidecars <- !fs::file_exists(sidecar_paths)
+          if (any(missing_sidecars)) {
+            rlang::abort(c(
+              "Delta V2 checkpoint references a sidecar that was not staged",
+              "x" = cli::format_inline(
+                "{.path {sidecar_paths[which(missing_sidecars)[1L]]}} is missing"
+              )
+            ))
+          }
+          for (sidecar_path in sidecar_paths) {
+            candidate_state <- fabric_delta_apply_checkpoint(
+              candidate_state,
+              fabric_delta_read_checkpoint(sidecar_path)
+            )
+          }
+        }
+        candidate_state
+      }, error = function(error) {
+        error
+      })
+      if (!inherits(attempt, "error")) {
+        state <- attempt
+        selected <- TRUE
+        break
+      } else {
+        errors[[length(errors) + 1L]] <- attempt
       }
-      for (sidecar_path in sidecar_paths) {
-        state <- fabric_delta_apply_checkpoint(
-          state,
-          fabric_delta_read_checkpoint(sidecar_path)
-        )
-      }
+    }
+    if (!selected) {
+      rlang::abort(
+        paste0(
+          "No usable Delta checkpoint was found for version ",
+          checkpoint_version
+        ),
+        parent = errors[[length(errors)]]
+      )
     }
   }
 
@@ -2629,30 +2669,36 @@ fabric_delta_checkpoint_sets <- function(paths) {
     vapply(records, `[[`, character(1), "version_text")
   )
   complete <- lapply(by_version, function(version_records) {
+    candidates <- list()
     uuid <- Filter(
       function(record) identical(record$kind, "uuid"),
       version_records
     )
     if (length(uuid)) {
       uuid <- uuid[order(vapply(uuid, `[[`, character(1), "path"))]
-      return(list(
-        version = uuid[[1L]]$version,
-        paths = uuid[[1L]]$path,
-        format = uuid[[1L]]$format,
-        v2_named = TRUE
-      ))
+      candidates <- c(
+        candidates,
+        lapply(uuid, function(record) {
+          list(
+            version = record$version,
+            paths = record$path,
+            format = record$format,
+            v2_named = TRUE
+          )
+        })
+      )
     }
     classic <- Filter(
       function(record) identical(record$kind, "classic"),
       version_records
     )
     if (length(classic)) {
-      return(list(
+      candidates <- c(candidates, list(list(
         version = classic[[1L]]$version,
         paths = classic[[1L]]$path,
         format = "parquet",
         v2_named = FALSE
-      ))
+    )))
     }
 
     totals <- sort(unique(vapply(
@@ -2662,26 +2708,29 @@ fabric_delta_checkpoint_sets <- function(paths) {
       "total"
     )))
     for (total in totals) {
-      candidates <- Filter(
+      part_candidates <- Filter(
         function(record) identical(record$total, total),
         version_records
       )
-      part_numbers <- vapply(candidates, `[[`, integer(1), "part")
+      part_numbers <- vapply(part_candidates, `[[`, integer(1), "part")
       if (
         total > 1L &&
           !anyDuplicated(part_numbers) &&
           identical(sort(part_numbers), seq_len(total))
       ) {
-        ordered <- candidates[order(part_numbers)]
-        return(list(
+        ordered <- part_candidates[order(part_numbers)]
+        candidates <- c(candidates, list(list(
           version = ordered[[1L]]$version,
           paths = vapply(ordered, `[[`, character(1), "path"),
           format = "parquet",
           v2_named = FALSE
-        ))
+        )))
       }
     }
-    NULL
+    if (!length(candidates)) {
+      return(NULL)
+    }
+    c(candidates[[1L]], list(alternatives = candidates))
   })
   complete <- Filter(Negate(is.null), complete)
   complete[order(vapply(complete, `[[`, numeric(1), "version"))]
@@ -2791,7 +2840,11 @@ fabric_delta_read_checkpoint <- function(paths) {
 #' Discover and validate V2 checkpoint sidecar paths
 #' @keywords internal
 #' @noRd
-fabric_delta_checkpoint_sidecar_paths <- function(paths) {
+fabric_delta_checkpoint_sidecar_paths <- function(
+  paths,
+  target = NULL,
+  table_dir = NULL
+) {
   paths <- paths[grepl("\\.checkpoint\\.", basename(paths))]
   if (!length(paths)) {
     return(character())
@@ -2844,20 +2897,57 @@ fabric_delta_checkpoint_sidecar_paths <- function(paths) {
     use.names = FALSE
   )
   sidecars <- utils::URLdecode(sidecars[nzchar(sidecars)])
-  parts <- strsplit(gsub("\\\\", "/", sidecars), "/", fixed = TRUE)
-  if (
-    any(lengths(parts) != 1L) ||
-      any(vapply(
-        parts,
-        function(value) !nzchar(value) || value %in% c(".", ".."),
-        logical(1)
-      ))
-  ) {
-    rlang::abort(
-      "Delta V2 checkpoint contains an unsafe sidecar-file path"
+  names <- vapply(sidecars, function(sidecar) {
+    normalized <- gsub("\\\\", "/", sidecar)
+    absolute <- grepl(
+      "^(?:https|abfss?)://",
+      normalized,
+      ignore.case = TRUE
     )
-  }
-  unique(sidecars)
+    if (absolute) {
+      parsed <- onelake_parse_uri(normalized)
+      parts <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
+      if (!is.null(target) && !is.null(table_dir)) {
+        expected <- paste0(table_dir, "/_delta_log/_sidecars/")
+        same_target <- identical(parsed$workspace, target$workspace) &&
+          identical(parsed$item, target$item) &&
+          startsWith(sub("^/+", "", parsed$path), expected)
+        if (!same_target) {
+          rlang::abort(
+            "Delta V2 checkpoint references a sidecar outside its table"
+          )
+        }
+      }
+    } else {
+      if (grepl("^/", normalized)) {
+        rlang::abort(
+          "Delta V2 checkpoint contains an unsafe sidecar-file path"
+        )
+      }
+      parts <- strsplit(normalized, "/", fixed = TRUE)[[1L]]
+    }
+    if (
+      any(!nzchar(parts) | parts %in% c(".", "..")) ||
+        length(parts) < 1L
+    ) {
+      rlang::abort(
+        "Delta V2 checkpoint contains an unsafe sidecar-file path"
+      )
+    }
+    name <- utils::tail(parts, 1L)
+    parent <- parts[seq_len(length(parts) - 1L)]
+    qualified <- length(parent) >= 1L &&
+      identical(utils::tail(parent, 1L), "_sidecars") &&
+      (length(parent) == 1L ||
+        identical(utils::tail(parent, 2L), c("_delta_log", "_sidecars")))
+    if (length(parent) && !qualified) {
+      rlang::abort(
+        "Delta V2 checkpoint sidecar path is not under _delta_log/_sidecars"
+      )
+    }
+    name
+  }, character(1))
+  unique(names)
 }
 
 #' Apply actions stored in a Delta checkpoint

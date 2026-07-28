@@ -1544,6 +1544,67 @@ test_that("Delta multipart checkpoints require every declared part", {
   )
 })
 
+test_that("Delta reader replays a real multipart Parquet checkpoint", {
+  table_dir <- fs::path_temp(paste0("delta-multipart-read-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parts <- fs::path(
+    log_dir,
+    sprintf(
+      "00000000000000000010.checkpoint.%010d.0000000002.parquet",
+      1:2
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "id",
+        type = "integer",
+        nullable = FALSE,
+        metadata = list()
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  quote_string <- function(value) {
+    as.character(DBI::dbQuoteString(con, value))
+  }
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT ",
+      "struct_pack(minReaderVersion := 1, minWriterVersion := 2) ",
+      "AS protocol, ",
+      "struct_pack(id := 'multipart-table', schemaString := ",
+      quote_string(schema),
+      ", partitionColumns := []::VARCHAR[], ",
+      "configuration := map([]::VARCHAR[], []::VARCHAR[])) AS metaData) TO ",
+      quote_string(gsub("\\\\", "/", parts[[1L]])),
+      " (FORMAT PARQUET)"
+    )
+  )
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT struct_pack(path := 'part.parquet', ",
+      "partitionValues := map([]::VARCHAR[], []::VARCHAR[])) AS add) TO ",
+      quote_string(gsub("\\\\", "/", parts[[2L]])),
+      " (FORMAT PARQUET)"
+    )
+  )
+
+  snapshot <- fabric_delta_resolve_snapshot(table_dir)
+
+  expect_equal(snapshot$version, 10)
+  expect_equal(snapshot$checkpoint_version, 10)
+  expect_identical(snapshot$active, "part.parquet")
+  expect_identical(snapshot$metadata$schemaString, as.character(schema))
+})
+
 test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
   table_dir <- fs::path_temp(paste0("delta-v2-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
@@ -1621,6 +1682,60 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
     fabric_delta_checkpoint_sidecar_paths(checkpoint),
     sidecar_name
   )
+  actions[[4L]]$sidecar$path <- paste0(
+    "_delta_log%2F_sidecars%2F",
+    sidecar_name
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    checkpoint,
+    useBytes = TRUE
+  )
+  expect_identical(
+    fabric_delta_checkpoint_sidecar_paths(checkpoint),
+    sidecar_name
+  )
+  workspace <- "11111111-1111-1111-1111-111111111111"
+  item <- "22222222-2222-2222-2222-222222222222"
+  actions[[4L]]$sidecar$path <- paste0(
+    "abfss://",
+    workspace,
+    "@onelake.dfs.fabric.microsoft.com/",
+    item,
+    "/Tables/dbo/table/_delta_log/_sidecars/",
+    sidecar_name
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    checkpoint,
+    useBytes = TRUE
+  )
+  expect_identical(
+    fabric_delta_checkpoint_sidecar_paths(
+      checkpoint,
+      target = list(workspace = workspace, item = item),
+      table_dir = "Tables/dbo/table"
+    ),
+    sidecar_name
+  )
+  expect_error(
+    fabric_delta_checkpoint_sidecar_paths(
+      checkpoint,
+      target = list(
+        workspace = workspace,
+        item = "33333333-3333-3333-3333-333333333333"
+      ),
+      table_dir = "Tables/dbo/table"
+    ),
+    "outside its table",
+    fixed = TRUE
+  )
+  actions[[4L]]$sidecar$path <- sidecar_name
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    checkpoint,
+    useBytes = TRUE
+  )
   snapshot <- fabric_delta_resolve_snapshot(table_dir)
   expect_equal(snapshot$version, 10)
   expect_equal(snapshot$checkpoint_version, 10)
@@ -1637,6 +1752,83 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
     "exactly one matching checkpointMetadata",
     fixed = TRUE
   )
+})
+
+test_that("Delta reader falls back across same-version UUID checkpoints", {
+  table_dir <- fs::path_temp(paste0("delta-v2-fallback-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "id",
+        type = "integer",
+        nullable = FALSE,
+        metadata = list()
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  common <- list(
+    list(checkpointMetadata = list(version = 10L, tags = list())),
+    list(protocol = list(
+      minReaderVersion = 3L,
+      minWriterVersion = 7L,
+      readerFeatures = list("v2Checkpoint"),
+      writerFeatures = list("v2Checkpoint")
+    )),
+    list(metaData = list(
+      id = "fallback-table",
+      format = list(provider = "parquet", options = list()),
+      schemaString = schema,
+      partitionColumns = list(),
+      configuration = list()
+    ))
+  )
+  broken <- c(common, list(list(sidecar = list(
+    path = "missing.parquet",
+    sizeInBytes = 1L,
+    modificationTime = 1L
+  ))))
+  valid <- c(common, list(list(add = list(
+    path = "part.parquet",
+    partitionValues = list()
+  ))))
+  broken_path <- fs::path(
+    log_dir,
+    paste0(
+      "00000000000000000010.checkpoint.",
+      "00000000-0000-0000-0000-000000000001.json"
+    )
+  )
+  valid_path <- fs::path(
+    log_dir,
+    paste0(
+      "00000000000000000010.checkpoint.",
+      "ffffffff-ffff-ffff-ffff-ffffffffffff.json"
+    )
+  )
+  writeLines(
+    vapply(broken, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    broken_path,
+    useBytes = TRUE
+  )
+  writeLines(
+    vapply(valid, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    valid_path,
+    useBytes = TRUE
+  )
+
+  sets <- fabric_delta_checkpoint_sets(c(broken_path, valid_path))
+  expect_length(sets, 1L)
+  expect_length(sets[[1L]]$alternatives, 2L)
+
+  snapshot <- fabric_delta_resolve_snapshot(table_dir)
+
+  expect_equal(snapshot$checkpoint_version, 10)
+  expect_identical(snapshot$active, "part.parquet")
 })
 
 test_that("Delta snapshot ignores an incomplete multipart checkpoint", {
