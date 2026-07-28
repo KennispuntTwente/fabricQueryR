@@ -922,7 +922,7 @@ test_that("Delta logical schemas cover primitive and nested types", {
 
   expect_equal(
     fabric_delta_duckdb_type(con, "variant"),
-    "STRUCT(value BLOB, metadata BLOB)"
+    "VARIANT"
   )
   expect_error(
     fabric_delta_duckdb_type(con, list(type = "struct", fields = list())),
@@ -1081,7 +1081,7 @@ test_that("Delta reader preserves exact BIGINT and DECIMAL values", {
   )
 })
 
-test_that("Delta reader exposes unshredded Variant physical values", {
+test_that("Delta reader exposes native and shredded Variant values", {
   table_dir <- fs::path_temp(paste0("delta-variant-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
   fs::dir_create(log_dir, recurse = TRUE)
@@ -1092,11 +1092,12 @@ test_that("Delta reader exposes unshredded Variant physical values", {
   DBI::dbExecute(
     con,
     paste0(
-      "COPY (SELECT struct_pack(",
-      "value := CAST('variant-value' AS BLOB), ",
-      "metadata := CAST('variant-metadata' AS BLOB)) AS payload) TO ",
+      "COPY (SELECT {'action': 'checkout', 'items': [1, 2, 3], ",
+      "'user_id': 4471}::VARIANT AS payload) TO ",
       as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
-      " (FORMAT PARQUET)"
+      " (FORMAT PARQUET, SHREDDING {",
+      "'payload': 'STRUCT(action VARCHAR, items INTEGER[], user_id INTEGER)'",
+      "})"
     )
   )
   schema <- jsonlite::toJSON(
@@ -1116,8 +1117,8 @@ test_that("Delta reader exposes unshredded Variant physical values", {
       protocol = list(
         minReaderVersion = 3L,
         minWriterVersion = 7L,
-        readerFeatures = list("variantType"),
-        writerFeatures = list("variantType")
+        readerFeatures = list("variantType", "variantShredding"),
+        writerFeatures = list("variantType", "variantShredding")
       )
     ),
     list(
@@ -1138,12 +1139,11 @@ test_that("Delta reader exposes unshredded Variant physical values", {
 
   result <- fabric_delta_read_staged(table_dir)
 
-  expect_s3_class(result$payload, "data.frame")
-  expect_identical(rawToChar(result$payload$value[[1L]]), "variant-value")
-  expect_identical(
-    rawToChar(result$payload$metadata[[1L]]),
-    "variant-metadata"
-  )
+  expect_type(result$payload, "list")
+  expect_s3_class(result$payload[[1L]], "data.frame")
+  expect_identical(result$payload[[1L]]$action, "checkout")
+  expect_identical(result$payload[[1L]]$items[[1L]], 1:3)
+  expect_identical(result$payload[[1L]]$user_id, 4471L)
 })
 
 test_that("Delta partition serialization treats empty strings as null", {
@@ -1658,7 +1658,9 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
         "deletionVectors",
         "timestampNtz",
         "typeWidening",
-        "vacuumProtocolCheck"
+        "vacuumProtocolCheck",
+        "variantType",
+        "variantShredding"
       )
     ),
     metadata = list(
@@ -1675,6 +1677,15 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
     )
   )
   expect_invisible(fabric_delta_validate_reader(state))
+
+  invalid_variant <- state
+  invalid_variant$protocol$readerFeatures <- list("variantShredding")
+  expect_error(
+    fabric_delta_validate_reader(invalid_variant),
+    "without its required variantType",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
 
   state$protocol <- list(minReaderVersion = 1L)
   expect_error(

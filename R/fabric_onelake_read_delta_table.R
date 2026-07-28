@@ -1185,7 +1185,7 @@ fabric_delta_duckdb_type <- function(con, type) {
       date = "DATE",
       timestamp = "TIMESTAMPTZ",
       timestamp_ntz = "TIMESTAMP",
-      variant = "STRUCT(value BLOB, metadata BLOB)"
+      variant = "VARIANT"
     )
     if (normalized %in% names(primitive)) {
       return(unname(primitive[[normalized]]))
@@ -2877,7 +2877,8 @@ fabric_delta_validate_reader <- function(state) {
     "typeWidening-preview",
     "vacuumProtocolCheck",
     "v2Checkpoint",
-    "variantType"
+    "variantType",
+    "variantShredding"
   )
   unsupported <- setdiff(features, supported_features)
 
@@ -2929,6 +2930,14 @@ fabric_delta_validate_reader <- function(state) {
   if (length(unsupported)) {
     fabric_delta_abort_unsupported(
       paste0("Delta reader feature(s): ", paste(unsupported, collapse = ", "))
+    )
+  }
+  if (
+    "variantShredding" %in% features &&
+      !"variantType" %in% features
+  ) {
+    fabric_delta_abort_unsupported(
+      "Delta variantShredding without its required variantType feature"
     )
   }
   if (

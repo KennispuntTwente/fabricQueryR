@@ -27,7 +27,7 @@ Suggests:
     adbi,
     arrow,
     DBI (>= 1.2.0),
-    duckdb (>= 0.10.3),
+    duckdb (>= 1.5.4),
     fs,
     knitr,
     nanoarrow,
