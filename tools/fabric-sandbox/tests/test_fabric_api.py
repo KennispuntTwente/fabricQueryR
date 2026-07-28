@@ -50,7 +50,9 @@ def test_list_workspaces_filters_admin_role_and_follows_continuation():
             },
         )
 
-    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
         workspaces = api.list_workspaces()
 
     assert [workspace["id"] for workspace in workspaces] == ["one", "two"]
@@ -65,11 +67,93 @@ def test_delete_workspace_uses_core_workspace_route():
         requests.append(request)
         return httpx.Response(200)
 
-    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
         api.delete_workspace("workspace-id")
 
     assert requests[0].method == "DELETE"
     assert requests[0].url.path == "/v1/workspaces/workspace-id"
+
+
+def test_configure_workspace_spark_runtime_updates_an_unbound_workspace():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "environment": {
+                        "name": "",
+                        "runtimeVersion": "1.3",
+                    }
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "environment": {
+                    "name": "",
+                    "runtimeVersion": "2.0",
+                }
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        result = api.configure_workspace_spark_runtime("workspace-id", "2.0")
+
+    assert result["environment"]["runtimeVersion"] == "2.0"
+    assert [request.method for request in requests] == ["GET", "PATCH"]
+    assert json.loads(requests[1].content) == {
+        "environment": {"name": "", "runtimeVersion": "2.0"}
+    }
+
+
+def test_configure_workspace_spark_runtime_is_idempotent():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "environment": {
+                    "name": "",
+                    "runtimeVersion": "2.0",
+                }
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        result = api.configure_workspace_spark_runtime("workspace-id", "2.0")
+
+    assert result["environment"]["runtimeVersion"] == "2.0"
+    assert [request.method for request in requests] == ["GET"]
+
+
+def test_configure_workspace_spark_runtime_preserves_named_environments():
+    def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "environment": {
+                    "name": "managed-runtime",
+                    "runtimeVersion": "1.3",
+                }
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        with pytest.raises(RuntimeError, match="managed-runtime"):
+            api.configure_workspace_spark_runtime("workspace-id", "2.0")
 
 
 def test_find_item_rejects_ambiguous_names():

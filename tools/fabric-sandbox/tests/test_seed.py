@@ -125,6 +125,19 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         def __exit__(self, *_args):
             return None
 
+        def configure_workspace_spark_runtime(
+            self,
+            workspace_id,
+            runtime_version,
+        ):
+            calls.append(("spark_runtime", workspace_id, runtime_version))
+            return {
+                "environment": {
+                    "name": "",
+                    "runtimeVersion": runtime_version,
+                }
+            }
+
         def find_item(self, workspace_id, display_name, item_type):
             calls.append(("find_item", workspace_id, display_name, item_type))
             return {
@@ -293,6 +306,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
 
     seed(settings)
 
+    assert ("spark_runtime", "workspace-id", "2.0") in calls
     assert ("upload", settings, "workspace-id", "TestLakehouse-id") in calls
     assert (
         "run_notebook",

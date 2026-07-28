@@ -59,6 +59,18 @@ def upload_fixtures(
 def seed(settings: SandboxSettings) -> None:
     workspace_id = settings.require_workspace()
     with FabricApi(get_credential()) as api:
+        spark_settings = api.configure_workspace_spark_runtime(
+            workspace_id,
+            settings.spark_runtime_version,
+        )
+        actual_runtime = spark_settings.get("environment", {}).get(
+            "runtimeVersion"
+        )
+        if actual_runtime != settings.spark_runtime_version:
+            raise RuntimeError(
+                "Fabric did not apply the requested Spark runtime "
+                f"{settings.spark_runtime_version!r}; got {actual_runtime!r}"
+            )
         lakehouse = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook = api.find_item(workspace_id, "SeedFixtures", "Notebook")
         graphql_api = api.find_item(

@@ -42,6 +42,18 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     as.numeric(result$loaded_at),
     rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3)
   )
+
+  projected <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$basic,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = discovered,
+    token = token,
+    columns = c("name", "id"),
+    limit = 2,
+    verbose = FALSE
+  )
+  expect_named(projected, c("name", "id"))
+  expect_equal(nrow(projected), 2L)
 })
 
 test_that("Delta reader preserves empty schemas and typed log partitions", {
@@ -340,6 +352,19 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
       )
     ))
   )
+  expect_error(
+    fabric_onelake_read_delta_table(
+      table_path = lakehouse$tables$basic,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+      dest_dir = dest_dir,
+      verbose = FALSE
+    ),
+    "dest_dir must be a new or empty directory",
+    fixed = TRUE
+  )
 
   historical <- fabric_onelake_read_delta_table(
     table_path = lakehouse$tables$partitioned,
@@ -382,7 +407,20 @@ test_that("Delta reader covers current Fabric Delta reader features", {
   column_mapped <- read_table(lakehouse$tables$column_mapped)
   column_mapped <- column_mapped[order(column_mapped$id), ]
   expect_equal(column_mapped$id, 1:3)
-  expect_equal(column_mapped$name, c("alpha", "beta", "gamma"))
+  expect_named(column_mapped, c("id", "display_name"))
+  expect_equal(
+    column_mapped$display_name,
+    c("alpha", "beta", "gamma")
+  )
+
+  column_mapped_id <- read_table(lakehouse$tables$column_mapped_id)
+  column_mapped_id <- column_mapped_id[order(column_mapped_id$id), ]
+  expect_equal(column_mapped_id$id, 1:3)
+  expect_named(column_mapped_id, c("id", "display_name"))
+  expect_equal(
+    column_mapped_id$display_name,
+    c("alpha", "beta", "gamma")
+  )
 
   deletion_vectors <- read_table(lakehouse$tables$deletion_vectors)
   deletion_vectors <- deletion_vectors[order(deletion_vectors$id), ]
@@ -396,4 +434,233 @@ test_that("Delta reader covers current Fabric Delta reader features", {
     type_widened$label,
     c("before", "tinyint-limit", "after")
   )
+})
+
+test_that("Delta reader preserves exact and complex Fabric values", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  read_table <- function(table) {
+    fabric_onelake_read_delta_table(
+      table_path = table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      verbose = FALSE
+    )
+  }
+
+  exact <- read_table(lakehouse$tables$exact_types)
+  expect_s3_class(exact$above_double_limit, "integer64")
+  expect_s3_class(exact$maximum_long, "integer64")
+  expect_identical(
+    as.character(exact$above_double_limit),
+    "9007199254740993"
+  )
+  expect_identical(
+    as.character(exact$maximum_long),
+    "9223372036854775807"
+  )
+  expect_identical(
+    exact$whole_decimal,
+    "12345678901234567890123456789012345678"
+  )
+  expect_identical(
+    exact$scaled_decimal,
+    "123456789012345678901234567890123456.78"
+  )
+  expect_s3_class(exact$observed_at, "POSIXct")
+  expect_equal(
+    as.numeric(exact$observed_at),
+    as.numeric(as.POSIXct("2026-07-28 12:34:56.123456", tz = "UTC")),
+    tolerance = 1e-6
+  )
+  expect_identical(exact$payload[[1L]], as.raw(c(0L, 255L, 16L)))
+  expect_identical(exact$unicode_text, "café-数据-🙂")
+  expect_true(is.nan(exact$not_a_number))
+  expect_identical(exact$positive_infinity, Inf)
+
+  complex <- read_table(lakehouse$tables$complex_types)
+  expect_named(
+    complex,
+    c("id", "profile", "scores", "counts", "display name")
+  )
+  expect_s3_class(complex$profile, "data.frame")
+  expect_identical(complex$profile$label, "nested")
+  expect_identical(
+    complex$profile$amount,
+    "1234567890123456789012345678901234.56"
+  )
+  expect_identical(complex$scores[[1L]], 1:3)
+  expect_identical(complex$counts[[1L]]$key, c("large", "small"))
+  expect_s3_class(complex$counts[[1L]]$value, "integer64")
+  expect_identical(
+    as.character(complex$counts[[1L]]$value),
+    c("9007199254740993", "2")
+  )
+  expect_identical(complex[["display name"]], "display café-数据")
+})
+
+test_that("Delta reader handles DV stress and exact widening", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  read_table <- function(table) {
+    fabric_onelake_read_delta_table(
+      table_path = table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      verbose = FALSE
+    )
+  }
+
+  deletion_vectors <- read_table(
+    lakehouse$tables$deletion_vectors_stress
+  )
+  ids <- as.numeric(deletion_vectors$id)
+  expect_equal(nrow(deletion_vectors), 4501L)
+  expect_false(any(ids %% 10 == 0 & ids < 5000))
+  expect_true(all(c(1, 4999, 5000) %in% ids))
+  expect_identical(
+    deletion_vectors$label[ids == 1],
+    "merged"
+  )
+  expect_identical(
+    deletion_vectors$label[ids == 5000],
+    "inserted"
+  )
+  updated <- ids %% 13 == 0 & ids %% 10 != 0 & ids < 5000
+  expect_true(all(deletion_vectors$label[updated] == "updated"))
+
+  widened <- read_table(lakehouse$tables$type_widened_exact)
+  widened <- widened[order(widened$label), ]
+  expect_s3_class(widened$id, "integer64")
+  expect_identical(
+    sort(as.character(widened$id)),
+    c("1", "9007199254740993")
+  )
+  expect_identical(
+    widened$amount,
+    c("1234567890.1234", "12.3400")
+  )
+  expect_s3_class(widened$occurred, "POSIXct")
+  expect_equal(
+    as.numeric(widened$occurred),
+    c(
+      as.numeric(as.POSIXct("2026-07-28 12:34:56.123456", tz = "UTC")),
+      as.numeric(as.POSIXct("2026-01-01", tz = "UTC"))
+    ),
+    tolerance = 1e-6
+  )
+})
+
+test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+
+  v2_stage <- tempfile("fabricqueryr-v2-")
+  on.exit(
+    if (fs::dir_exists(v2_stage)) fs::dir_delete(v2_stage),
+    add = TRUE
+  )
+  v2 <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$v2_checkpoint,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    dest_dir = v2_stage,
+    verbose = FALSE
+  )
+  expect_equal(nrow(v2), 1000L)
+  expect_equal(sort(unique(v2$batch)), 0:3)
+  checkpoint_files <- fs::dir_ls(
+    fs::path(v2_stage, "_delta_log"),
+    recurse = TRUE,
+    type = "file"
+  )
+  expect_true(any(grepl("\\.checkpoint\\.", basename(checkpoint_files))))
+  expect_true(
+    any(grepl("[/\\\\]_sidecars[/\\\\]", checkpoint_files))
+  )
+  expect_true(
+    any(grepl(
+      "checkpoint\\.[0-9a-f-]{36}\\.(json|parquet)$",
+      basename(checkpoint_files)
+    ))
+  )
+  snapshot <- fabric_delta_resolve_snapshot(v2_stage)
+  expect_gt(snapshot$checkpoint_version, 0)
+  expect_true(
+    "v2Checkpoint" %in% unlist(snapshot$protocol$readerFeatures)
+  )
+
+  clone <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$shallow_clone,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    verbose = FALSE
+  )
+  clone <- clone[order(clone$id), ]
+  expect_equal(clone$id, 1:3)
+  expect_identical(clone$name, c("alpha", "beta", "gamma"))
+})
+
+test_that("Delta reader exposes Fabric Variant physical values", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  result <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$variant,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    verbose = FALSE
+  )
+
+  expect_s3_class(result$event_id, "integer64")
+  expect_identical(as.character(result$event_id), "1")
+  expect_type(result$data, "list")
+  expect_s3_class(result$data[[1L]], "data.frame")
+  expect_identical(result$data[[1L]]$action, "checkout")
+  expect_identical(result$data[[1L]]$items[[1L]], 1:3)
+  expect_identical(result$data[[1L]]$user_id, 4471L)
+})
+
+test_that("Delta reader reads the Fabric Warehouse export profile", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  manifest <- fabric_test_manifest()
+  warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  result <- fabric_onelake_read_delta_table(
+    table_path = warehouse$tables$types,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = warehouse$id,
+    schema = "dbo",
+    token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+    verbose = FALSE
+  )
+  result <- result[order(result$id), ]
+
+  expect_equal(result$id, 1:3)
+  expect_identical(result$name, c("alpha", "beta", "gamma"))
+  expect_identical(result$amount, c("10.50", "20.00", NA_character_))
+  expect_identical(result$active, c(TRUE, FALSE, NA))
+  expect_s3_class(result$event_date, "Date")
+  expect_s3_class(result$loaded_at, "POSIXct")
 })

@@ -44,3 +44,4 @@ def test_paths_are_derived_from_repository_root(tmp_path):
         "SparkJobDefinition",
         "SemanticModel",
     ]
+    assert settings.spark_runtime_version == "2.0"

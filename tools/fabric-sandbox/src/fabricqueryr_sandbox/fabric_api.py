@@ -96,6 +96,35 @@ class FabricApi:
     def delete_workspace(self, workspace_id: str) -> None:
         self.request("DELETE", f"/workspaces/{workspace_id}")
 
+    def configure_workspace_spark_runtime(
+        self,
+        workspace_id: str,
+        runtime_version: str,
+    ) -> dict[str, Any]:
+        """Set the sandbox runtime without replacing a named environment."""
+        url = f"/workspaces/{workspace_id}/spark/settings"
+        settings = self.request("GET", url).json()
+        environment = settings.get("environment", {})
+        environment_name = environment.get("name") or ""
+        if environment_name:
+            raise RuntimeError(
+                "the Fabric integration workspace uses the named default "
+                f"environment {environment_name!r}; remove it or set that "
+                f"environment to Spark Runtime {runtime_version}"
+            )
+        if environment.get("runtimeVersion") == runtime_version:
+            return settings
+        return self.request(
+            "PATCH",
+            url,
+            json={
+                "environment": {
+                    "name": "",
+                    "runtimeVersion": runtime_version,
+                }
+            },
+        ).json()
+
     def find_item(
         self, workspace_id: str, display_name: str, item_type: str
     ) -> dict[str, Any]:

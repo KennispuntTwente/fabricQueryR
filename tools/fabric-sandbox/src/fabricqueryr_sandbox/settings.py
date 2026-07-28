@@ -19,6 +19,7 @@ class SandboxSettings:
     environment: str
     repository_root: Path
     manifest_path: Path
+    spark_runtime_version: str = "2.0"
 
     @classmethod
     def from_environment(cls) -> "SandboxSettings":
@@ -38,6 +39,9 @@ class SandboxSettings:
                     "FABRIC_TEST_MANIFEST",
                     repository_root / ".fabric-test-manifest.json",
                 )
+            ),
+            spark_runtime_version=environ.get(
+                "FABRIC_SPARK_RUNTIME_VERSION", "2.0"
             ),
         )
 

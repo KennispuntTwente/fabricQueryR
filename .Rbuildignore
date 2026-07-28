@@ -12,3 +12,4 @@ playground/*
 ^infra$
 ^tools$
 ^roadmap\.md$
+^\.fabric-test-manifest\.json$
