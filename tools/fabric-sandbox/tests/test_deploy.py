@@ -34,7 +34,22 @@ def test_seed_notebook_ids_are_parameterized():
     assert '"beta-updated"' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_empty")' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_typed_partitions")' in notebook
-    assert '.partitionBy("event_date", "active")' in notebook
+    partition_start = notebook.index(
+        ".partitionBy(",
+        notebook.index('stage = "write typed and null partition Delta table"'),
+    )
+    partition_end = notebook.index(".option(", partition_start)
+    partition_block = notebook[partition_start:partition_end]
+    for column in (
+        "event_date",
+        "active",
+        "integer_part",
+        "decimal_part",
+        "timestamp_part",
+        "timestamp_ntz_part",
+        "binary_part",
+    ):
+        assert f'"{column}"' in partition_block
 
 
 def test_job_notebook_exposes_deterministic_job_modes():
