@@ -93,8 +93,10 @@ fabric_onelake_read_delta_table(
 
   Local staging directory for the Delta log and active data files, or
   `NULL`. The default creates a temporary directory and removes it on
-  exit. Supply a directory to retain the downloaded files for inspection
-  or reuse, and ensure it has enough free space.
+  exit. Supply a new or empty directory to retain the downloaded files
+  for inspection, and ensure it has enough free space. Non-empty
+  directories are rejected so stale files cannot affect snapshot
+  resolution.
 
 - verbose:
 
