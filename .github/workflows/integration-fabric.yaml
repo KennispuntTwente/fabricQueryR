@@ -1,6 +1,31 @@
 name: Fabric integration
 
 on:
+  push:
+    branches: [main, master]
+    paths:
+      - R/fabric_onelake_files.R
+      - R/fabric_onelake_read_delta_table.R
+      - tests/testthat/helper-fabric-integration.R
+      - tests/testthat/test-fabric_onelake_files.R
+      - tests/testthat/test-fabric_onelake_read_delta_table.R
+      - tests/testthat/test-integration-fabric-onelake.R
+      - infra/fabric/**
+      - tools/fabric-sandbox/**
+      - DESCRIPTION
+      - .github/workflows/integration-fabric.yaml
+  pull_request:
+    paths:
+      - R/fabric_onelake_files.R
+      - R/fabric_onelake_read_delta_table.R
+      - tests/testthat/helper-fabric-integration.R
+      - tests/testthat/test-fabric_onelake_files.R
+      - tests/testthat/test-fabric_onelake_read_delta_table.R
+      - tests/testthat/test-integration-fabric-onelake.R
+      - infra/fabric/**
+      - tools/fabric-sandbox/**
+      - DESCRIPTION
+      - .github/workflows/integration-fabric.yaml
   schedule:
     - cron: "0 4 * * 1"
   workflow_dispatch:
@@ -16,6 +41,9 @@ concurrency:
 jobs:
   provision:
     name: Provision Fabric sandbox
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: fabric-integration
     timeout-minutes: 110
@@ -31,6 +59,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify tested revision
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Mark workspace ownership and creation time
         run: |
