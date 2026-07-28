@@ -100,6 +100,79 @@ fabric_local_auth_context <- function(
   list(tenant_id = tenant_id, client_id = client_id)
 }
 
+fabric_local_cached_token <- function(audience, tenant_id, client_id) {
+  tokens <- unname(AzureAuth::list_azure_tokens())
+  matches <- Filter(
+    function(token) {
+      scopes <- c(token[["scope"]], token[["resource"]])
+      tenant <- tryCatch(token[["tenant"]], error = function(error) "")
+      client <- tryCatch(
+        token[["client"]][["client_id"]],
+        error = function(error) ""
+      )
+      audience %in%
+        scopes &&
+        identical(tenant, tenant_id) &&
+        identical(client, client_id)
+    },
+    tokens
+  )
+  if (length(matches)) matches[[1L]] else NULL
+}
+
+fabric_local_exchange_token <- function(token, audience) {
+  source <- if (AzureAuth::is_azure_token(token)) {
+    list(
+      tenant_id = token[["tenant"]],
+      client_id = token[["client"]][["client_id"]],
+      refresh_token = token[["credentials"]][["refresh_token"]]
+    )
+  } else {
+    token
+  }
+  if (
+    is.null(source$refresh_token) ||
+      !is.character(source$refresh_token) ||
+      length(source$refresh_token) != 1L ||
+      !nzchar(source$refresh_token)
+  ) {
+    stop("The cached AzureAuth token cannot be refreshed", call. = FALSE)
+  }
+
+  response <- httr2::request(sprintf(
+    "https://login.microsoftonline.com/%s/oauth2/v2.0/token",
+    source$tenant_id
+  )) |>
+    httr2::req_body_form(
+      client_id = source$client_id,
+      grant_type = "refresh_token",
+      refresh_token = source$refresh_token,
+      scope = paste(audience, "offline_access")
+    ) |>
+    httr2::req_perform()
+  body <- httr2::resp_body_json(response, simplifyVector = TRUE)
+  if (
+    is.null(body$access_token) ||
+      !is.character(body$access_token) ||
+      length(body$access_token) != 1L ||
+      !nzchar(body$access_token)
+  ) {
+    stop("Microsoft Entra returned an empty access token", call. = FALSE)
+  }
+
+  structure(
+    list(
+      tenant_id = source$tenant_id,
+      client_id = source$client_id,
+      audience = audience,
+      access_token = body$access_token,
+      refresh_token = body$refresh_token,
+      expires_on = as.numeric(Sys.time()) + as.numeric(body$expires_in)
+    ),
+    class = "fabric_local_token"
+  )
+}
+
 fabric_local_acquire_tokens <- function(
   tenant_id,
   client_id,
@@ -138,9 +211,44 @@ fabric_local_acquire_tokens <- function(
     Kusto = "https://api.kusto.windows.net/.default"
   )
   tokens <- list()
+  refresh_source <- fabric_local_cached_token(
+    "https://api.fabric.microsoft.com/.default",
+    tenant_id,
+    client_id
+  )
+  use_cache <- !identical(auth_args$use_cache, FALSE)
+  exchange_cached <- use_cache && is.null(auth_args$auth_type)
   for (label in names(audiences)) {
     audience <- unname(audiences[[label]])
     message("Acquiring ", label, " token (cached tokens are reused)...")
+    cached <- if (use_cache) {
+      fabric_local_cached_token(audience, tenant_id, client_id)
+    } else {
+      NULL
+    }
+    if (!is.null(cached)) {
+      tokens[[audience]] <- cached
+      if (is.null(refresh_source)) {
+        refresh_source <- cached
+      }
+      next
+    }
+    if (exchange_cached && !is.null(refresh_source)) {
+      exchanged <- tryCatch(
+        fabric_local_exchange_token(refresh_source, audience),
+        error = identity
+      )
+      if (!inherits(exchanged, "error")) {
+        tokens[[audience]] <- exchanged
+        refresh_source <- exchanged
+        next
+      }
+      message(
+        "Cached refresh could not acquire the ",
+        label,
+        " audience; AzureAuth will prompt for sign-in."
+      )
+    }
     args <- c(
       list(
         resource = c(audience, "offline_access"),
@@ -158,6 +266,7 @@ fabric_local_acquire_tokens <- function(
       stop("AzureAuth did not return an AzureToken", call. = FALSE)
     }
     tokens[[audience]] <- token
+    refresh_source <- token
   }
   tokens
 }
@@ -188,11 +297,22 @@ fabric_local_token_provider <- function(tokens) {
         call. = FALSE
       )
     }
-    valid <- is.function(token$validate) && isTRUE(token$validate())
-    if (isTRUE(force_refresh) || !valid) {
-      token$refresh()
+    if (inherits(token, "fabric_local_token")) {
+      valid <- is.numeric(token$expires_on) &&
+        length(token$expires_on) == 1L &&
+        token$expires_on > as.numeric(Sys.time()) + 60
+      if (isTRUE(force_refresh) || !valid) {
+        token <- fabric_local_exchange_token(token, audience)
+        tokens[[audience]] <<- token
+      }
+      value <- token$access_token
+    } else {
+      valid <- is.function(token$validate) && isTRUE(token$validate())
+      if (isTRUE(force_refresh) || !valid) {
+        token$refresh()
+      }
+      value <- token$credentials$access_token
     }
-    value <- token$credentials$access_token
     if (
       !is.character(value) ||
         length(value) != 1L ||

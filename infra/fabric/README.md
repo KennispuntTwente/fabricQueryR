@@ -155,8 +155,10 @@ run_fabric_integration_tests()
 The local runner:
 
 1. checks the R, ODBC, ADBC, `uv`, and sandbox-tool dependencies;
-2. reuses the tenant and client ID from a cached Fabric `AzureAuth` token;
-3. obtains user tokens for Fabric, Power BI, SQL, OneLake, and Kusto;
+2. reuses the tenant, client ID, and offline refresh token from a cached Fabric
+   `AzureAuth` token;
+3. silently obtains user tokens for Fabric, Power BI, SQL, OneLake, and Kusto,
+   prompting through AzureAuth only when the cached login cannot do so;
 4. verifies the Fabric token's `oid` claim is the configured workspace admin;
 5. resolves the single marked `fabricqueryr-dev-dhrkoning` workspace;
 6. regenerates `.fabric-test-manifest.json` from its live items; and
