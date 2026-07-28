@@ -1122,13 +1122,15 @@ test_that("Delta reader reconstructs top-level and nested void fields", {
   )
   actions <- list(
     list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
-    list(metaData = list(
-      id = "void-table",
-      format = list(provider = "parquet", options = list()),
-      schemaString = schema,
-      partitionColumns = list(),
-      configuration = list()
-    )),
+    list(
+      metaData = list(
+        id = "void-table",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    ),
     list(add = list(path = "part.parquet", partitionValues = list()))
   )
   writeLines(
@@ -1529,10 +1531,12 @@ test_that("Delta metadata accepts only supported Parquet data formats", {
 
 test_that("Delta commits reject mutually reconciling actions", {
   path <- "00000000000000000001.json"
-  protocol <- list(protocol = list(
-    minReaderVersion = 1L,
-    minWriterVersion = 2L
-  ))
+  protocol <- list(
+    protocol = list(
+      minReaderVersion = 1L,
+      minWriterVersion = 2L
+    )
+  )
   metadata <- list(metaData = list(id = "table"))
   expect_error(
     fabric_delta_validate_commit_actions(list(protocol, protocol), path),
@@ -1566,20 +1570,24 @@ test_that("Delta commits reject mutually reconciling actions", {
   )
   expect_invisible(fabric_delta_validate_commit_actions(
     list(
-      list(add = list(
-        path = "part.parquet",
-        deletionVector = list(
-          storageType = "i",
-          pathOrInlineDv = "first"
+      list(
+        add = list(
+          path = "part.parquet",
+          deletionVector = list(
+            storageType = "i",
+            pathOrInlineDv = "first"
+          )
         )
-      )),
-      list(remove = list(
-        path = "part.parquet",
-        deletionVector = list(
-          storageType = "i",
-          pathOrInlineDv = "second"
+      ),
+      list(
+        remove = list(
+          path = "part.parquet",
+          deletionVector = list(
+            storageType = "i",
+            pathOrInlineDv = "second"
+          )
         )
-      ))
+      )
     ),
     path
   ))
@@ -1722,33 +1730,39 @@ test_that("Delta reader decodes typed partition values in UTC", {
     auto_unbox = TRUE
   )
   actions <- list(
-    list(protocol = list(
-      minReaderVersion = 3L,
-      minWriterVersion = 7L,
-      readerFeatures = list("timestampNtz"),
-      writerFeatures = list("timestampNtz")
-    )),
-    list(metaData = list(
-      id = "table",
-      format = list(provider = "parquet", options = list()),
-      schemaString = schema,
-      partitionColumns = list(
-        "event_time",
-        "local_time",
-        "amount",
-        "payload"
-      ),
-      configuration = list()
-    )),
-    list(add = list(
-      path = "part.parquet",
-      partitionValues = list(
-        event_time = "2026-01-01T12:34:56.123456Z",
-        local_time = "2026-07-28 09:08:07.654321",
-        amount = "12.30",
-        payload = rawToChar(as.raw(c(1L, 2L, 3L)))
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("timestampNtz"),
+        writerFeatures = list("timestampNtz")
       )
-    ))
+    ),
+    list(
+      metaData = list(
+        id = "table",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(
+          "event_time",
+          "local_time",
+          "amount",
+          "payload"
+        ),
+        configuration = list()
+      )
+    ),
+    list(
+      add = list(
+        path = "part.parquet",
+        partitionValues = list(
+          event_time = "2026-01-01T12:34:56.123456Z",
+          local_time = "2026-07-28 09:08:07.654321",
+          amount = "12.30",
+          payload = rawToChar(as.raw(c(1L, 2L, 3L)))
+        )
+      )
+    )
   )
   writeLines(
     vapply(
@@ -1938,7 +1952,10 @@ test_that("Delta multipart checkpoints require every declared part", {
 })
 
 test_that("Delta reader replays a real multipart Parquet checkpoint", {
-  table_dir <- fs::path_temp(paste0("delta-multipart-read-", sample.int(1e9, 1)))
+  table_dir <- fs::path_temp(paste0(
+    "delta-multipart-read-",
+    sample.int(1e9, 1)
+  ))
   log_dir <- fs::path(table_dir, "_delta_log")
   fs::dir_create(log_dir, recurse = TRUE)
   on.exit(fs::dir_delete(table_dir), add = TRUE)
@@ -2171,29 +2188,43 @@ test_that("Delta reader falls back across same-version UUID checkpoints", {
   )
   common <- list(
     list(checkpointMetadata = list(version = 10L, tags = list())),
-    list(protocol = list(
-      minReaderVersion = 3L,
-      minWriterVersion = 7L,
-      readerFeatures = list("v2Checkpoint"),
-      writerFeatures = list("v2Checkpoint")
-    )),
-    list(metaData = list(
-      id = "fallback-table",
-      format = list(provider = "parquet", options = list()),
-      schemaString = schema,
-      partitionColumns = list(),
-      configuration = list()
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("v2Checkpoint"),
+        writerFeatures = list("v2Checkpoint")
+      )
+    ),
+    list(
+      metaData = list(
+        id = "fallback-table",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    )
+  )
+  broken <- c(
+    common,
+    list(list(
+      sidecar = list(
+        path = "missing.parquet",
+        sizeInBytes = 1L,
+        modificationTime = 1L
+      )
     ))
   )
-  broken <- c(common, list(list(sidecar = list(
-    path = "missing.parquet",
-    sizeInBytes = 1L,
-    modificationTime = 1L
-  ))))
-  valid <- c(common, list(list(add = list(
-    path = "part.parquet",
-    partitionValues = list()
-  ))))
+  valid <- c(
+    common,
+    list(list(
+      add = list(
+        path = "part.parquet",
+        partitionValues = list()
+      )
+    ))
+  )
   broken_path <- fs::path(
     log_dir,
     paste0(
@@ -2717,31 +2748,37 @@ test_that("Delta file reconciliation distinguishes deletion-vector identities", 
 
   state <- fabric_delta_apply_actions(
     state,
-    list(list(add = list(
-      path = "part.parquet",
-      partitionValues = list(),
-      deletionVector = dv_a
-    )))
+    list(list(
+      add = list(
+        path = "part.parquet",
+        partitionValues = list(),
+        deletionVector = dv_a
+      )
+    ))
   )
   state <- fabric_delta_apply_actions(
     state,
     list(
       list(remove = list(path = "part.parquet", deletionVector = dv_a)),
-      list(add = list(
-        path = "part.parquet",
-        partitionValues = list(),
-        deletionVector = dv_b
-      ))
+      list(
+        add = list(
+          path = "part.parquet",
+          partitionValues = list(),
+          deletionVector = dv_b
+        )
+      )
     )
   )
 
   # A later tombstone for the old logical file must not remove the current DV.
   state <- fabric_delta_apply_actions(
     state,
-    list(list(remove = list(
-      path = "part.parquet",
-      deletionVector = dv_a
-    )))
+    list(list(
+      remove = list(
+        path = "part.parquet",
+        deletionVector = dv_a
+      )
+    ))
   )
   expect_identical(state$active, "part.parquet")
   expect_identical(
@@ -2751,17 +2788,21 @@ test_that("Delta file reconciliation distinguishes deletion-vector identities", 
 
   # Checkpoint sidecars are independent and unordered. A stale tombstone in a
   # later sidecar must likewise leave the current logical file active.
-  stale_sidecar <- list(remove = data.frame(
-    path = "part.parquet",
-    deletionVector = I(list(dv_a))
-  ))
+  stale_sidecar <- list(
+    remove = data.frame(
+      path = "part.parquet",
+      deletionVector = I(list(dv_a))
+    )
+  )
   state <- fabric_delta_apply_checkpoint(state, stale_sidecar)
   expect_identical(state$active, "part.parquet")
 
-  current_sidecar <- list(remove = data.frame(
-    path = "part.parquet",
-    deletionVector = I(list(dv_b))
-  ))
+  current_sidecar <- list(
+    remove = data.frame(
+      path = "part.parquet",
+      deletionVector = I(list(dv_b))
+    )
+  )
   state <- fabric_delta_apply_checkpoint(state, current_sidecar)
   expect_length(state$active, 0L)
 })
