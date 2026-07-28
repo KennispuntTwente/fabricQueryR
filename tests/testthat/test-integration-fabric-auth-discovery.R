@@ -30,7 +30,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
 
   find_item <- function(items, id) {
     matches <- purrr::keep(items, ~ identical(.x$id, id))
-    expect_length(matches, 1L, info = id)
+    expect_equal(length(matches), 1L, info = id)
     matches[[1L]]
   }
 
