@@ -44,6 +44,7 @@ Imports:
     httr2,
     R6,
     dplyr,
+    digest,
     tibble,
     purrr,
     stringr,

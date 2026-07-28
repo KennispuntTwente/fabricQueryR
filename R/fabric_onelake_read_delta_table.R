@@ -752,14 +752,22 @@ fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
 #' @keywords internal
 #' @noRd
 fabric_delta_external_relative <- function(target) {
-  host <- httr2::url_parse(target$dfs_base)$hostname
+  canonical <- paste(
+    sub("/+$", "", target$dfs_base),
+    target$workspace,
+    target$item,
+    sub("^/+", "", target$path),
+    sep = "/"
+  )
+  extension <- fs::path_ext(target$path)
+  suffix <- if (nzchar(extension)) paste0(".", extension) else ""
   fs::path(
     "_delta_log",
     ".fabricqueryr-external",
-    host,
-    target$workspace,
-    target$item,
-    target$path
+    paste0(
+      digest::digest(canonical, algo = "sha256", serialize = FALSE),
+      suffix
+    )
   )
 }
 

@@ -382,6 +382,16 @@ test_that("Delta stages and reads absolute OneLake AddFile paths", {
     gsub("\\\\", "/", staged$relative),
     "^_delta_log/\\.fabricqueryr-external/"
   )
+  expect_lt(nchar(staged$relative), 120L)
+  second <- sub("part\\.parquet$", "nested/part.parquet", absolute)
+  second_staged <- fabric_delta_stage_files(
+    second,
+    current_target,
+    "Tables/current",
+    "stage"
+  )
+  expect_false(identical(staged$relative, second_staged$relative))
+  expect_match(staged$relative, "\\.parquet$")
 
   table_dir <- fs::path_temp(
     paste0("delta-absolute-", sample.int(1e9, 1))
