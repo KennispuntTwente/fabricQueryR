@@ -202,6 +202,40 @@ test_that("Delta records validate workspace ownership", {
   )
 })
 
+test_that("Delta reads accept Warehouse discovery records", {
+  warehouse <- tibble::tibble(
+    id = "22222222-2222-2222-2222-222222222222",
+    type = "Warehouse",
+    workspaceId = "11111111-1111-1111-1111-111111111111"
+  )
+  local_mocked_bindings(
+    onelake_resolve_target = function(
+      workspace,
+      item,
+      path,
+      item_type,
+      dfs_base
+    ) {
+      expect_equal(item_type, "Warehouse")
+      expect_equal(fabric_record_value(item, "id"), warehouse$id)
+      rlang::abort("target captured")
+    }
+  )
+
+  expect_error(
+    fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = warehouse$workspaceId,
+      lakehouse_name = warehouse,
+      schema = "dbo",
+      token = "token",
+      verbose = FALSE
+    ),
+    "target captured",
+    fixed = TRUE
+  )
+})
+
 test_that("Delta reads do not download tombstoned or historical data files", {
   downloaded <- character()
   local_mocked_bindings(

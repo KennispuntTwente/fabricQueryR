@@ -144,17 +144,30 @@ fabric_onelake_read_delta_table <- function(
     workspace_name <- fabric_record_value(workspace_record, "id", "workspaceId")
   }
   lakehouse_target <- lakehouse_name
+  item_type <- if (
+    is.character(lakehouse_name) &&
+      length(lakehouse_name) == 1L &&
+      !is.na(lakehouse_name) &&
+      grepl("\\.warehouse$", lakehouse_name, ignore.case = TRUE)
+  ) {
+    "Warehouse"
+  } else {
+    "Lakehouse"
+  }
   lakehouse_record <- fabric_as_record(lakehouse_name)
   if (!is.null(lakehouse_record)) {
-    if (
-      !identical(
-        tolower(fabric_record_value(lakehouse_record, "type") %||% ""),
-        "lakehouse"
-      )
-    ) {
+    record_type <- tolower(
+      fabric_record_value(lakehouse_record, "type") %||% ""
+    )
+    if (!record_type %in% c("lakehouse", "warehouse")) {
       rlang::abort(
-        "lakehouse_name discovery record must be a Lakehouse item"
+        "lakehouse_name discovery record must be a Lakehouse or Warehouse item"
       )
+    }
+    item_type <- if (identical(record_type, "warehouse")) {
+      "Warehouse"
+    } else {
+      "Lakehouse"
     }
     lakehouse_name <- fabric_record_value(lakehouse_record, "id")
     schema <- schema %||%
@@ -276,7 +289,7 @@ fabric_onelake_read_delta_table <- function(
     workspace_target,
     lakehouse_target,
     path = table_dir,
-    item_type = "Lakehouse",
+    item_type = item_type,
     dfs_base = dfs_base
   )
 
