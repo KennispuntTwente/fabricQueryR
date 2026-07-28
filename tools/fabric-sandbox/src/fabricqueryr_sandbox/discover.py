@@ -201,6 +201,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "deletion_vectors_stress": (
                         "fabricqueryr_deletion_vectors_stress"
                     ),
+                    "deletion_vectors_checkpoint": (
+                        "fabricqueryr_deletion_vectors_checkpoint"
+                    ),
                     "exact_types": "fabricqueryr_exact_types",
                     "complex_types": "fabricqueryr_complex_types",
                     "shallow_clone": "fabricqueryr_shallow_clone",

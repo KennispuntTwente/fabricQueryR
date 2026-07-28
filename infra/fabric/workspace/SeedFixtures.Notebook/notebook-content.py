@@ -294,6 +294,46 @@ try:
         """
     )
 
+    stage = "write deletion-vector V2 checkpoint table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_deletion_vectors_checkpoint")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_deletion_vectors_checkpoint (
+          id BIGINT,
+          label STRING
+        )
+        USING DELTA
+        TBLPROPERTIES (
+          'delta.enableDeletionVectors' = 'true',
+          'delta.checkpointPolicy' = 'v2',
+          'delta.checkpointInterval' = '1'
+        )
+        """
+    )
+    (
+        spark.range(0, 1000)
+        .coalesce(1)
+        .select(
+            F.col("id"),
+            F.concat(F.lit("row-"), F.col("id")).alias("label"),
+        )
+        .write.format("delta")
+        .mode("append")
+        .saveAsTable("dbo.fabricqueryr_deletion_vectors_checkpoint")
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_deletion_vectors_checkpoint
+        WHERE id % 10 = 0
+        """
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_deletion_vectors_checkpoint
+        WHERE id % 10 = 1
+        """
+    )
+
     stage = "write type-widening Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened")
     spark.sql(

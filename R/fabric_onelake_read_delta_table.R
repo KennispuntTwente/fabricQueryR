@@ -1777,6 +1777,41 @@ fabric_delta_deletion_vector_value <- function(value) {
   })
 }
 
+#' Derive the protocol-defined identity of a deletion vector
+#' @keywords internal
+#' @noRd
+fabric_delta_deletion_vector_id <- function(descriptor) {
+  if (is.null(descriptor) || !length(descriptor)) {
+    return(NA_character_)
+  }
+  storage_type <- as.character(descriptor$storageType %||% "")
+  encoded <- as.character(descriptor$pathOrInlineDv %||% "")
+  if (
+    length(storage_type) != 1L ||
+      is.na(storage_type) ||
+      !nzchar(storage_type) ||
+      length(encoded) != 1L ||
+      is.na(encoded) ||
+      !nzchar(encoded)
+  ) {
+    rlang::abort("Delta deletion vector contains an invalid identity")
+  }
+  offset <- descriptor$offset %||% NULL
+  if (is.null(offset)) {
+    return(paste0(storage_type, encoded))
+  }
+  offset <- as.numeric(offset)
+  if (
+    length(offset) != 1L ||
+      !is.finite(offset) ||
+      offset < 0 ||
+      offset != floor(offset)
+  ) {
+    rlang::abort("Delta deletion vector contains an invalid identity")
+  }
+  paste0(storage_type, encoded, "@", format(offset, scientific = FALSE))
+}
+
 #' Resolve the table-relative path of a persisted deletion vector
 #' @keywords internal
 #' @noRd
@@ -2708,8 +2743,20 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
   }
   adds <- checkpoint$add$path %||% character()
   removes <- checkpoint$remove$path %||% character()
-  for (path in removes[!is.na(removes)]) {
-    state <- fabric_delta_remove_file(state, path)
+  remove_rows <- which(!is.na(removes))
+  for (i in remove_rows) {
+    deletion_vector <- fabric_delta_checkpoint_value(
+      checkpoint$remove$deletionVector %||% NULL,
+      i,
+      length(removes)
+    )
+    state <- fabric_delta_remove_file(
+      state,
+      list(
+        path = removes[[i]],
+        deletionVector = fabric_delta_deletion_vector_value(deletion_vector)
+      )
+    )
   }
   add_rows <- which(!is.na(adds))
   for (i in add_rows) {
@@ -2802,23 +2849,38 @@ fabric_delta_checkpoint_value <- function(column, index, row_count) {
 #' @noRd
 fabric_delta_add_file <- function(state, add) {
   path <- add$path
+  deletion_vector <- add$deletionVector %||% NULL
   state$active <- c(setdiff(state$active, path), path)
   state$files[[path]] <- list(
     path = path,
     partitionValues = fabric_delta_partition_values(
       add$partitionValues %||% list()
     ),
-    deletionVector = add$deletionVector %||% NULL
+    deletionVector = deletion_vector,
+    deletionVectorId = fabric_delta_deletion_vector_id(deletion_vector)
   )
   state$has_deletion_vectors <- state$has_deletion_vectors ||
-    !is.null(add$deletionVector)
+    !is.null(deletion_vector)
   state
 }
 
 #' Apply a Delta remove-file action
 #' @keywords internal
 #' @noRd
-fabric_delta_remove_file <- function(state, path) {
+fabric_delta_remove_file <- function(state, remove) {
+  path <- remove$path
+  current <- state$files[[path]] %||% NULL
+  if (is.null(current)) {
+    return(state)
+  }
+  removed_id <- fabric_delta_deletion_vector_id(
+    remove$deletionVector %||% NULL
+  )
+  current_id <- current$deletionVectorId %||%
+    fabric_delta_deletion_vector_id(current$deletionVector %||% NULL)
+  if (!identical(removed_id, current_id)) {
+    return(state)
+  }
   state$active <- setdiff(state$active, path)
   state$files[[path]] <- NULL
   state
@@ -2854,7 +2916,7 @@ fabric_delta_apply_json_log <- function(state, path) {
 fabric_delta_apply_actions <- function(state, actions) {
   for (action in actions) {
     if (!is.null(action$remove$path)) {
-      state <- fabric_delta_remove_file(state, action$remove$path)
+      state <- fabric_delta_remove_file(state, action$remove)
     }
   }
   for (action in actions) {

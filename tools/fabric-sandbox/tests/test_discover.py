@@ -235,6 +235,9 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "column_mapped_id": "fabricqueryr_column_mapped_id",
         "deletion_vectors": "fabricqueryr_deletion_vectors",
         "deletion_vectors_stress": "fabricqueryr_deletion_vectors_stress",
+        "deletion_vectors_checkpoint": (
+            "fabricqueryr_deletion_vectors_checkpoint"
+        ),
         "exact_types": "fabricqueryr_exact_types",
         "complex_types": "fabricqueryr_complex_types",
         "shallow_clone": "fabricqueryr_shallow_clone",

@@ -539,6 +539,33 @@ test_that("Delta reader handles DV stress and exact widening", {
   updated <- ids %% 13 == 0 & ids %% 10 != 0 & ids < 5000
   expect_true(all(deletion_vectors$label[updated] == "updated"))
 
+  checkpoint_stage <- tempfile("fabricqueryr-dv-checkpoint-")
+  on.exit(
+    if (fs::dir_exists(checkpoint_stage)) fs::dir_delete(checkpoint_stage),
+    add = TRUE
+  )
+  checkpoint_dv <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$deletion_vectors_checkpoint,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    dest_dir = checkpoint_stage,
+    verbose = FALSE
+  )
+  checkpoint_ids <- as.numeric(checkpoint_dv$id)
+  expect_equal(nrow(checkpoint_dv), 800L)
+  expect_equal(
+    sort(checkpoint_ids),
+    setdiff(0:999, c(seq(0, 990, 10), seq(1, 991, 10)))
+  )
+  checkpoint_snapshot <- fabric_delta_resolve_snapshot(checkpoint_stage)
+  expect_true(
+    "v2Checkpoint" %in%
+      unlist(checkpoint_snapshot$protocol$readerFeatures)
+  )
+  expect_true(checkpoint_snapshot$has_deletion_vectors)
+
   widened <- read_table(lakehouse$tables$type_widened_exact)
   widened <- widened[order(widened$label), ]
   expect_s3_class(widened$id, "integer64")

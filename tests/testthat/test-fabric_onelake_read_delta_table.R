@@ -685,7 +685,7 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
     c(
       paste0(
         '{"add":{"path":"category=B/part.parquet",',
-        '"deletionVector":{"storageType":"i"}}}'
+        '"deletionVector":{"storageType":"i","pathOrInlineDv":"00000"}}}'
       ),
       '{"remove":{"path":"category=B/part.parquet"}}'
     ),
@@ -1901,6 +1901,88 @@ test_that("Delta deletion vectors decode inline and persisted storage", {
     "checksum",
     fixed = TRUE
   )
+})
+
+test_that("Delta file reconciliation distinguishes deletion-vector identities", {
+  state <- list(
+    active = character(),
+    files = list(),
+    protocol = NULL,
+    metadata = NULL,
+    has_deletion_vectors = FALSE
+  )
+  dv_a <- list(
+    storageType = "u",
+    pathOrInlineDv = "aa^-aqEH.-t@S}K{vb[*k^",
+    offset = 1L
+  )
+  dv_b <- list(
+    storageType = "u",
+    pathOrInlineDv = "bb^-aqEH.-t@S}K{vb[*k^",
+    offset = 17L
+  )
+  expect_identical(
+    fabric_delta_deletion_vector_id(dv_a),
+    "uaa^-aqEH.-t@S}K{vb[*k^@1"
+  )
+  expect_identical(
+    fabric_delta_deletion_vector_id(list(
+      storageType = "i",
+      pathOrInlineDv = "inline"
+    )),
+    "iinline"
+  )
+  expect_true(is.na(fabric_delta_deletion_vector_id(NULL)))
+
+  state <- fabric_delta_apply_actions(
+    state,
+    list(list(add = list(
+      path = "part.parquet",
+      partitionValues = list(),
+      deletionVector = dv_a
+    )))
+  )
+  state <- fabric_delta_apply_actions(
+    state,
+    list(
+      list(remove = list(path = "part.parquet", deletionVector = dv_a)),
+      list(add = list(
+        path = "part.parquet",
+        partitionValues = list(),
+        deletionVector = dv_b
+      ))
+    )
+  )
+
+  # A later tombstone for the old logical file must not remove the current DV.
+  state <- fabric_delta_apply_actions(
+    state,
+    list(list(remove = list(
+      path = "part.parquet",
+      deletionVector = dv_a
+    )))
+  )
+  expect_identical(state$active, "part.parquet")
+  expect_identical(
+    state$files[["part.parquet"]]$deletionVectorId,
+    fabric_delta_deletion_vector_id(dv_b)
+  )
+
+  # Checkpoint sidecars are independent and unordered. A stale tombstone in a
+  # later sidecar must likewise leave the current logical file active.
+  stale_sidecar <- list(remove = data.frame(
+    path = "part.parquet",
+    deletionVector = I(list(dv_a))
+  ))
+  state <- fabric_delta_apply_checkpoint(state, stale_sidecar)
+  expect_identical(state$active, "part.parquet")
+
+  current_sidecar <- list(remove = data.frame(
+    path = "part.parquet",
+    deletionVector = I(list(dv_b))
+  ))
+  state <- fabric_delta_apply_checkpoint(state, current_sidecar)
+  expect_length(state$active, 0L)
 })
 
 test_that("persisted deletion vectors support legacy and sidecar offsets", {
