@@ -2940,6 +2940,39 @@ fabric_delta_validate_reader <- function(state) {
       "Delta variantShredding without its required variantType feature"
     )
   }
+  schema_string <- state$metadata$schemaString %||% NULL
+  requirements <- if (!is.null(schema_string)) {
+    fabric_delta_schema_requirements(jsonlite::fromJSON(
+      schema_string,
+      simplifyVector = FALSE
+    ))
+  } else {
+    list(timestamp_ntz = FALSE, variant = FALSE, type_widening = FALSE)
+  }
+  if (
+    requirements$timestamp_ntz &&
+      !(reader_version == 3 && "timestampNtz" %in% features)
+  ) {
+    fabric_delta_abort_unsupported(
+      "Delta timestamp_ntz schema without matching timestampNtz support"
+    )
+  }
+  if (
+    requirements$variant &&
+      !(reader_version == 3 && "variantType" %in% features)
+  ) {
+    fabric_delta_abort_unsupported(
+      "Delta variant schema without matching variantType support"
+    )
+  }
+  if (
+    requirements$type_widening &&
+      !any(c("typeWidening", "typeWidening-preview") %in% features)
+  ) {
+    fabric_delta_abort_unsupported(
+      "Delta type-change metadata without matching type-widening support"
+    )
+  }
   if (
     !identical(mapping, "none") &&
       !(reader_version == 2 ||
@@ -2968,14 +3001,57 @@ fabric_delta_validate_reader <- function(state) {
   invisible(state)
 }
 
+#' Collect table-feature requirements encoded in a Delta schema
+#' @keywords internal
+#' @noRd
+fabric_delta_schema_requirements <- function(schema) {
+  requirements <- list(
+    timestamp_ntz = FALSE,
+    variant = FALSE,
+    type_widening = FALSE
+  )
+  visit_field <- function(field) {
+    if (length(field$metadata[["delta.typeChanges"]] %||% list())) {
+      requirements$type_widening <<- TRUE
+    }
+    visit_type(field$type)
+  }
+  visit_type <- function(type) {
+    if (is.character(type) && length(type) == 1L) {
+      normalized <- tolower(type)
+      if (identical(normalized, "timestamp_ntz")) {
+        requirements$timestamp_ntz <<- TRUE
+      } else if (identical(normalized, "variant")) {
+        requirements$variant <<- TRUE
+      }
+      return(invisible())
+    }
+    if (!is.list(type)) {
+      return(invisible())
+    }
+    kind <- tolower(as.character(type$type %||% ""))
+    if (identical(kind, "struct")) {
+      lapply(type$fields %||% list(), visit_field)
+    } else if (identical(kind, "array")) {
+      visit_type(type$elementType)
+    } else if (identical(kind, "map")) {
+      visit_type(type$keyType)
+      visit_type(type$valueType)
+    }
+    invisible()
+  }
+  lapply(schema$fields %||% list(), visit_field)
+  requirements
+}
+
 fabric_delta_abort_unsupported <- function(feature) {
   rlang::abort(
     c(
       paste0(feature, " by the staged reader."),
       "i" = paste(
         "This reader supports Delta reader protocols 1 through 3 with",
-        "name-based column mapping, deletion vectors, timestampNtz,",
-        "type widening, and vacuumProtocolCheck."
+        "name- and ID-based column mapping, deletion vectors, timestampNtz,",
+        "type widening, V2 checkpoints, Variant, and vacuumProtocolCheck."
       ),
       "i" = paste(
         "Query the table through its Fabric SQL analytics endpoint or",

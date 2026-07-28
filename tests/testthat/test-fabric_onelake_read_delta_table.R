@@ -1740,6 +1740,90 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
   )
 })
 
+test_that("Delta reader enforces schema feature dependencies", {
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "observed_at",
+          type = "timestamp_ntz",
+          nullable = TRUE,
+          metadata = list()
+        ),
+        list(
+          name = "payloads",
+          type = list(
+            type = "array",
+            elementType = "variant",
+            containsNull = TRUE
+          ),
+          nullable = TRUE,
+          metadata = list()
+        ),
+        list(
+          name = "id",
+          type = "long",
+          nullable = TRUE,
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "integer",
+              toType = "long"
+            ))
+          )
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  state <- list(
+    protocol = list(
+      minReaderVersion = 3L,
+      minWriterVersion = 7L,
+      readerFeatures = list(
+        "timestampNtz",
+        "variantType",
+        "typeWidening"
+      )
+    ),
+    metadata = list(
+      schemaString = schema,
+      partitionColumns = list(),
+      configuration = list()
+    ),
+    active = character(),
+    files = list()
+  )
+  expect_invisible(fabric_delta_validate_reader(state))
+
+  without <- function(feature) {
+    candidate <- state
+    candidate$protocol$readerFeatures <- setdiff(
+      unlist(candidate$protocol$readerFeatures),
+      feature
+    )
+    candidate
+  }
+  expect_error(
+    fabric_delta_validate_reader(without("timestampNtz")),
+    "without matching timestampNtz",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+  expect_error(
+    fabric_delta_validate_reader(without("variantType")),
+    "without matching variantType",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+  expect_error(
+    fabric_delta_validate_reader(without("typeWidening")),
+    "without matching type-widening",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+})
+
 test_that("Delta reader fails safely for incomplete snapshots", {
   table_dir <- fs::path_temp(paste0("delta-incomplete-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")
