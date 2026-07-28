@@ -402,10 +402,26 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
   expect_equal(connect_args$backend, "adbc")
   expect_equal(connect_args$adbc_driver, "mssql")
   expect_equal(query_args$sql, "SELECT @p1 AS value, '?' AS literal")
-  expect_identical(query_args$params, list("p1" = 42L))
+  expect_identical(query_args$params, list("@p1" = 42L))
   expect_equal(query_args$result, "arrow_stream")
   expect_true(disconnected)
   expect_false(disconnect_force)
+})
+
+test_that("ADBC bind frames preserve SQL Server placeholder names", {
+  params <- list(
+    "@p1" = 42L,
+    "@p2" = as.Date("2026-07-24"),
+    "@p3" = NA_character_
+  )
+
+  frame <- .fabric_sql_adbc_bind_frame(params)
+
+  expect_s3_class(frame, "data.frame")
+  expect_identical(names(frame), names(params))
+  expect_identical(frame[["@p1"]], I(42L))
+  expect_identical(frame[["@p2"]], I(as.Date("2026-07-24")))
+  expect_identical(frame[["@p3"]], I(NA_character_))
 })
 
 test_that("ADBC bind failures clear the result before disconnecting", {

@@ -503,8 +503,7 @@ fabric_sql_query <- function(
     sql
   }
   query_params <- if (adbc_params) {
-    # SQL Server writes @p1 in SQL but exposes p1 in the ADBC parameter schema.
-    stats::setNames(params, paste0("p", seq_along(params)))
+    stats::setNames(params, paste0("@p", seq_along(params)))
   } else {
     params
   }
@@ -1103,7 +1102,27 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 }
 
 .fabric_sql_db_bind <- function(result, params) {
+  if (
+    inherits(result, "AdbiResult") &&
+      is.list(params) &&
+      !inherits(params, "data.frame")
+  ) {
+    params <- .fabric_sql_adbc_bind_frame(params)
+  }
   DBI::dbBind(result, params)
+}
+
+.fabric_sql_adbc_bind_frame <- function(params) {
+  # adbi converts lists with syntactic name repair, changing @p1 to X.p1.
+  # Supplying a data frame with exact names keeps it aligned with the driver.
+  parameter_names <- names(params)
+  frame <- as.data.frame(
+    lapply(params, I),
+    fix.empty.names = FALSE,
+    check.names = FALSE
+  )
+  names(frame) <- parameter_names
+  frame
 }
 
 .fabric_sql_db_fetch <- function(result, output) {
