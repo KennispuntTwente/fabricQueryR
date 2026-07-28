@@ -955,35 +955,102 @@ test_that("Delta logical schemas cover primitive and nested types", {
     "STRUCT(amount VARCHAR, history VARCHAR[], id BIGINT)"
   )
 
+  mapped_field <- function(name, type, id, physical) {
+    list(
+      name = name,
+      type = type,
+      metadata = list(
+        "delta.columnMapping.id" = id,
+        "delta.columnMapping.physicalName" = physical
+      )
+    )
+  }
   id_schema <- list(
     partitionColumns = character(),
-    fields = list(list(
-      name = "outer",
-      type = list(
-        type = "struct",
-        fields = list(list(
-          name = "inner",
-          type = "integer",
-          metadata = list(
-            "delta.columnMapping.id" = 2L,
-            "delta.columnMapping.physicalName" = "physical-inner"
-          )
-        ))
+    fields = list(
+      mapped_field(
+        "outer",
+        list(
+          type = "struct",
+          fields = list(mapped_field(
+            "inner",
+            "integer",
+            2L,
+            "physical-inner"
+          ))
+        ),
+        1L,
+        "physical-outer"
       ),
-      metadata = list(
-        "delta.columnMapping.id" = 1L,
-        "delta.columnMapping.physicalName" = "physical-outer"
+      mapped_field(
+        "items",
+        list(
+          type = "array",
+          elementType = list(
+            type = "struct",
+            fields = list(mapped_field(
+              "label",
+              "string",
+              4L,
+              "physical-label"
+            ))
+          )
+        ),
+        3L,
+        "physical-items"
+      ),
+      mapped_field(
+        "attributes",
+        list(
+          type = "map",
+          keyType = "string",
+          valueType = list(
+            type = "struct",
+            fields = list(mapped_field(
+              "enabled",
+              "boolean",
+              6L,
+              "physical-enabled"
+            ))
+          )
+        ),
+        5L,
+        "physical-attributes"
       )
-    ))
+    )
   )
   id_projection <- fabric_delta_id_file_projection(
     con,
     id_schema,
-    c("1" = "file-outer", "2" = "file-inner")
+    c(
+      "1" = "file-outer",
+      "2" = "file-inner",
+      "3" = "file-items",
+      "4" = "file-label",
+      "5" = "file-attributes",
+      "6" = "file-enabled"
+    )
   )
   expect_match(id_projection, '"file-outer"."file-inner"', fixed = TRUE)
   expect_match(id_projection, '"physical-inner" :=', fixed = TRUE)
   expect_match(id_projection, 'AS "physical-outer"', fixed = TRUE)
+  expect_match(id_projection, "list_transform(", fixed = TRUE)
+  expect_match(id_projection, '"file-label"', fixed = TRUE)
+  expect_match(id_projection, "map_values(", fixed = TRUE)
+  expect_match(id_projection, '"file-enabled"', fixed = TRUE)
+
+  name_expression <- fabric_delta_type_expression(
+    con,
+    id_schema$fields[[2L]]$type,
+    '"physical-items"',
+    "name"
+  )
+  expect_match(name_expression, "list_transform(", fixed = TRUE)
+  expect_match(
+    name_expression,
+    'fabric_delta_element."physical-label"',
+    fixed = TRUE
+  )
 })
 
 test_that("Delta reader reconstructs top-level and nested void fields", {
@@ -1175,29 +1242,58 @@ test_that("Delta reader exposes native and shredded Variant values", {
   log_dir <- fs::path(table_dir, "_delta_log")
   fs::dir_create(log_dir, recurse = TRUE)
   on.exit(fs::dir_delete(table_dir), add = TRUE)
-  parquet <- fs::path(table_dir, "part.parquet")
+  unshredded <- fs::path(table_dir, "unshredded.parquet")
+  shredded <- fs::path(table_dir, "shredded.parquet")
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
   DBI::dbExecute(
     con,
     paste0(
-      "COPY (SELECT {'action': 'checkout', 'items': [1, 2, 3], ",
-      "'user_id': 4471}::VARIANT AS payload) TO ",
-      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      "COPY (",
+      "SELECT 1::BIGINT AS event_id, ",
+      "{'kind': 'object', 'large': 9007199254740993::BIGINT}::VARIANT ",
+      "AS payload UNION ALL ",
+      "SELECT 2::BIGINT, NULL::VARIANT UNION ALL ",
+      "SELECT 3::BIGINT, ",
+      "[1::VARIANT, 'two'::VARIANT, true::VARIANT, NULL::VARIANT]",
+      "::VARIANT UNION ALL ",
+      "SELECT 4::BIGINT, 9007199254740993::BIGINT::VARIANT",
+      ") TO ",
+      as.character(DBI::dbQuoteString(
+        con,
+        gsub("\\\\", "/", unshredded)
+      )),
+      " (FORMAT PARQUET)"
+    )
+  )
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 5::BIGINT AS event_id, ",
+      "{'kind': 'shredded', 'large': 7::BIGINT}::VARIANT AS payload) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", shredded))),
       " (FORMAT PARQUET, SHREDDING {",
-      "'payload': 'STRUCT(action VARCHAR, items INTEGER[], user_id INTEGER)'",
+      "'payload': 'STRUCT(kind VARCHAR, large BIGINT)'",
       "})"
     )
   )
   schema <- jsonlite::toJSON(
     list(
       type = "struct",
-      fields = list(list(
-        name = "payload",
-        type = "variant",
-        nullable = FALSE,
-        metadata = list()
-      ))
+      fields = list(
+        list(
+          name = "event_id",
+          type = "long",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "payload",
+          type = "variant",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
     ),
     auto_unbox = TRUE
   )
@@ -1218,7 +1314,8 @@ test_that("Delta reader exposes native and shredded Variant values", {
         configuration = list()
       )
     ),
-    list(add = list(path = "part.parquet", partitionValues = list()))
+    list(add = list(path = "unshredded.parquet", partitionValues = list())),
+    list(add = list(path = "shredded.parquet", partitionValues = list()))
   )
   writeLines(
     vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
@@ -1227,12 +1324,23 @@ test_that("Delta reader exposes native and shredded Variant values", {
   )
 
   result <- fabric_delta_read_staged(table_dir)
+  result <- result[order(as.numeric(result$event_id)), ]
 
   expect_type(result$payload, "list")
   expect_s3_class(result$payload[[1L]], "data.frame")
-  expect_identical(result$payload[[1L]]$action, "checkout")
-  expect_identical(result$payload[[1L]]$items[[1L]], 1:3)
-  expect_identical(result$payload[[1L]]$user_id, 4471L)
+  expect_identical(result$payload[[1L]]$kind, "object")
+  expect_identical(
+    as.character(result$payload[[1L]]$large),
+    "9007199254740993"
+  )
+  expect_null(result$payload[[2L]])
+  expect_identical(result$payload[[3L]][[1L]], 1L)
+  expect_identical(result$payload[[3L]][[2L]], "two")
+  expect_identical(result$payload[[3L]][[3L]], TRUE)
+  expect_null(result$payload[[3L]][[4L]])
+  expect_identical(as.character(result$payload[[4L]]), "9007199254740993")
+  expect_identical(result$payload[[5L]]$kind, "shredded")
+  expect_identical(as.character(result$payload[[5L]]$large), "7")
 })
 
 test_that("Delta partition serialization treats empty strings as null", {
@@ -1394,6 +1502,121 @@ test_that("Delta reader applies schema projection and log partition values", {
   expect_true(is.na(result$added))
   expect_equal(result$category, "from-log")
   expect_false("dropped" %in% names(result))
+})
+
+test_that("Delta reader decodes typed partition values in UTC", {
+  table_dir <- fs::path_temp(paste0(
+    "delta-typed-partitions-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 1::INTEGER AS id) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  fields <- list(
+    list(name = "id", type = "integer", nullable = FALSE, metadata = list()),
+    list(
+      name = "event_time",
+      type = "timestamp",
+      nullable = TRUE,
+      metadata = list()
+    ),
+    list(
+      name = "local_time",
+      type = "timestamp_ntz",
+      nullable = TRUE,
+      metadata = list()
+    ),
+    list(
+      name = "amount",
+      type = "decimal(8,2)",
+      nullable = TRUE,
+      metadata = list()
+    ),
+    list(
+      name = "payload",
+      type = "binary",
+      nullable = TRUE,
+      metadata = list()
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(type = "struct", fields = fields),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(
+      minReaderVersion = 3L,
+      minWriterVersion = 7L,
+      readerFeatures = list("timestampNtz"),
+      writerFeatures = list("timestampNtz")
+    )),
+    list(metaData = list(
+      id = "table",
+      schemaString = schema,
+      partitionColumns = list(
+        "event_time",
+        "local_time",
+        "amount",
+        "payload"
+      ),
+      configuration = list()
+    )),
+    list(add = list(
+      path = "part.parquet",
+      partitionValues = list(
+        event_time = "2026-01-01T12:34:56.123456Z",
+        local_time = "2026-07-28 09:08:07.654321",
+        amount = "12.30",
+        payload = rawToChar(as.raw(c(1L, 2L, 3L)))
+      )
+    ))
+  )
+  writeLines(
+    vapply(
+      actions,
+      jsonlite::toJSON,
+      character(1),
+      auto_unbox = TRUE
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+  old_timezone <- Sys.getenv("TZ", unset = NA_character_)
+  Sys.setenv(TZ = "Pacific/Auckland")
+  on.exit(
+    if (is.na(old_timezone)) {
+      Sys.unsetenv("TZ")
+    } else {
+      Sys.setenv(TZ = old_timezone)
+    },
+    add = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(
+    as.numeric(result$event_time),
+    as.numeric(as.POSIXct("2026-01-01 12:34:56.123456", tz = "UTC")),
+    tolerance = 1e-6
+  )
+  expect_equal(
+    as.numeric(result$local_time),
+    as.numeric(as.POSIXct("2026-07-28 09:08:07.654321", tz = "UTC")),
+    tolerance = 2e-6
+  )
+  expect_identical(result$amount, "12.30")
+  expect_identical(result$payload[[1L]], as.raw(c(1L, 2L, 3L)))
 })
 
 test_that("Delta reader supports a physical filename column", {

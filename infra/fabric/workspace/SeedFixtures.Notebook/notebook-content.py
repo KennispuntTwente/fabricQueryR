@@ -23,6 +23,7 @@ from pyspark.sql import functions as F
 
 workspace_id = "00000000-0000-0000-0000-000000000002"
 lakehouse_id = "00000000-0000-0000-0000-000000000001"
+spark.conf.set("spark.sql.session.timeZone", "UTC")
 fixture_path = (
     f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
     f"{lakehouse_id}/Files/fixtures/basic.csv"
@@ -104,11 +105,74 @@ try:
                 F.lit(None).cast("boolean"),
             ).otherwise((F.col("id") % 2) == 1),
         )
+        .withColumn(
+            "integer_part",
+            F.when(
+                F.col("id") == 3,
+                F.lit(None).cast("integer"),
+            ).otherwise((F.col("id") * 10).cast("integer")),
+        )
+        .withColumn(
+            "decimal_part",
+            F.when(
+                F.col("id") == 1,
+                F.lit("12.30").cast("decimal(8,2)"),
+            )
+            .when(
+                F.col("id") == 2,
+                F.lit("-0.50").cast("decimal(8,2)"),
+            )
+            .otherwise(F.lit(None).cast("decimal(8,2)")),
+        )
+        .withColumn(
+            "timestamp_part",
+            F.when(
+                F.col("id") == 1,
+                F.lit("2026-01-01 12:34:56.123456").cast("timestamp"),
+            )
+            .when(
+                F.col("id") == 2,
+                F.lit("1969-12-31 23:59:59.000001").cast("timestamp"),
+            )
+            .otherwise(F.lit(None).cast("timestamp")),
+        )
+        .withColumn(
+            "timestamp_ntz_part",
+            F.when(
+                F.col("id") == 1,
+                F.lit("2026-07-28 09:08:07.654321").cast("timestamp_ntz"),
+            )
+            .when(
+                F.col("id") == 2,
+                F.lit("1900-01-01 00:00:00.000001").cast("timestamp_ntz"),
+            )
+            .otherwise(F.lit(None).cast("timestamp_ntz")),
+        )
+        .withColumn(
+            "binary_part",
+            F.when(
+                F.col("id") == 1,
+                F.unhex(F.lit("010203")),
+            )
+            .when(
+                F.col("id") == 2,
+                F.unhex(F.lit("7f")),
+            )
+            .otherwise(F.lit(None).cast("binary")),
+        )
     )
     (
         typed_partitions.write.format("delta")
         .mode("overwrite")
-        .partitionBy("event_date", "active")
+        .partitionBy(
+            "event_date",
+            "active",
+            "integer_part",
+            "decimal_part",
+            "timestamp_part",
+            "timestamp_ntz_part",
+            "binary_part",
+        )
         .option("overwriteSchema", True)
         .saveAsTable("dbo.fabricqueryr_typed_partitions")
     )
@@ -200,6 +264,14 @@ try:
             'small',
             CAST('2' AS BIGINT)
           ) AS counts,
+          array(
+            named_struct('label', 'first', 'score', 10),
+            named_struct('label', 'second', 'score', 20)
+          ) AS items,
+          map(
+            'primary',
+            named_struct('label', 'mapped', 'enabled', true)
+          ) AS attributes,
           'display café-数据' AS `display name`
         """
     )
@@ -209,6 +281,32 @@ try:
     (
         fixture.filter(F.col("id") < 3)
         .select("id", "name", "amount")
+        .withColumn(
+            "profile",
+            F.struct(
+                F.col("name").alias("label"),
+                F.col("amount").alias("obsolete"),
+            ),
+        )
+        .withColumn(
+            "items",
+            F.array(
+                F.struct(
+                    F.col("name").alias("label"),
+                    F.col("id").cast("integer").alias("rank"),
+                )
+            ),
+        )
+        .withColumn(
+            "attributes",
+            F.create_map(
+                F.lit("primary"),
+                F.struct(
+                    F.col("name").alias("label"),
+                    F.col("id").cast("integer").alias("rank"),
+                ),
+            ),
+        )
         .write.format("delta")
         .mode("overwrite")
         .option("delta.columnMapping.mode", "name")
@@ -226,9 +324,44 @@ try:
         DROP COLUMN amount
         """
     )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped
+        RENAME COLUMN profile.label TO profile.display_label
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped
+        DROP COLUMN profile.obsolete
+        """
+    )
     (
         fixture.filter(F.col("id") == 3)
         .select("id", F.col("name").alias("display_name"))
+        .withColumn(
+            "profile",
+            F.struct(F.col("display_name").alias("display_label")),
+        )
+        .withColumn(
+            "items",
+            F.array(
+                F.struct(
+                    F.col("display_name").alias("label"),
+                    F.col("id").cast("integer").alias("rank"),
+                )
+            ),
+        )
+        .withColumn(
+            "attributes",
+            F.create_map(
+                F.lit("primary"),
+                F.struct(
+                    F.col("display_name").alias("label"),
+                    F.col("id").cast("integer").alias("rank"),
+                ),
+            ),
+        )
         .write.format("delta")
         .mode("append")
         .saveAsTable("dbo.fabricqueryr_column_mapped")
@@ -239,6 +372,19 @@ try:
     (
         fixture.filter(F.col("id") < 3)
         .select("id", "name")
+        .withColumn(
+            "profile",
+            F.struct(F.col("name").alias("label")),
+        )
+        .withColumn(
+            "items",
+            F.array(
+                F.struct(
+                    F.col("name").alias("label"),
+                    F.col("id").cast("integer").alias("rank"),
+                )
+            ),
+        )
         .write.format("delta")
         .mode("overwrite")
         .option("delta.columnMapping.mode", "id")
@@ -250,9 +396,28 @@ try:
         RENAME COLUMN name TO display_name
         """
     )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped_id
+        RENAME COLUMN profile.label TO profile.display_label
+        """
+    )
     (
         fixture.filter(F.col("id") == 3)
         .select("id", F.col("name").alias("display_name"))
+        .withColumn(
+            "profile",
+            F.struct(F.col("display_name").alias("display_label")),
+        )
+        .withColumn(
+            "items",
+            F.array(
+                F.struct(
+                    F.col("display_name").alias("label"),
+                    F.col("id").cast("integer").alias("rank"),
+                )
+            ),
+        )
         .write.format("delta")
         .mode("append")
         .saveAsTable("dbo.fabricqueryr_column_mapped_id")
@@ -584,15 +749,43 @@ try:
           data VARIANT
         )
         USING DELTA
+        TBLPROPERTIES ('delta.enableVariantShredding' = 'false')
         """
     )
     spark.sql(
         """
         INSERT INTO dbo.fabricqueryr_variant
-        SELECT
-          1,
+        SELECT 1, PARSE_JSON(
+          '{"user_id":4471,"action":"checkout","items":[1,2,3]}'
+        )
+        UNION ALL
+        SELECT 2, CAST(NULL AS VARIANT)
+        UNION ALL
+        SELECT 3, PARSE_JSON('null')
+        UNION ALL
+        SELECT 4, PARSE_JSON('9007199254740993')
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_variant
+        SET TBLPROPERTIES ('delta.enableVariantShredding' = 'true')
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_variant
+        SELECT 5, PARSE_JSON(
+          '{"user_id":9007199254740993,"action":"refund","items":[]}'
+        )
+        UNION ALL
+        SELECT 6, PARSE_JSON('[1,"two",true,null,{"nested":3}]')
+        UNION ALL
+        SELECT 7, PARSE_JSON('"root string"')
+        UNION ALL
+        SELECT 8,
           PARSE_JSON(
-            '{"user_id":4471,"action":"checkout","items":[1,2,3]}'
+            '{"unicode":"café-数据-🙂","decimal":1234567890.125}'
           )
         """
     )

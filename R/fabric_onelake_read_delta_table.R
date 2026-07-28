@@ -2388,6 +2388,23 @@ fabric_delta_read_projection <- function(
             paste0("fabric_delta_partition_", partition_index)
           ))
         )
+        if (
+          is.character(field$type) &&
+            length(field$type) == 1L &&
+            identical(tolower(field$type), "timestamp")
+        ) {
+          expression <- paste0(
+            "CASE WHEN ",
+            expression,
+            " IS NULL THEN NULL WHEN regexp_matches(",
+            expression,
+            ", '(Z|[+-][0-9]{2}:?[0-9]{2})$') THEN CAST(",
+            expression,
+            " AS TIMESTAMPTZ) ELSE CAST(",
+            expression,
+            " || '+00' AS TIMESTAMPTZ) END"
+          )
+        }
       } else {
         physical_name <- fabric_delta_field_physical_name(
           field,

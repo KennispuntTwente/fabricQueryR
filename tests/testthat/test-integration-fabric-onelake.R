@@ -104,6 +104,41 @@ test_that("Delta reader preserves empty schemas and typed log partitions", {
   )
   expect_type(partitioned$active, "logical")
   expect_equal(partitioned$active, c(TRUE, FALSE, NA))
+  expect_equal(partitioned$integer_part, c(10L, 20L, NA_integer_))
+  expect_identical(
+    partitioned$decimal_part,
+    c("12.30", "-0.50", NA_character_)
+  )
+  expect_s3_class(partitioned$timestamp_part, "POSIXct")
+  expect_equal(
+    as.numeric(partitioned$timestamp_part),
+    as.numeric(as.POSIXct(
+      c(
+        "2026-01-01 12:34:56.123456",
+        "1969-12-31 23:59:59.000001",
+        NA
+      ),
+      tz = "UTC"
+    )),
+    tolerance = 1e-6
+  )
+  expect_s3_class(partitioned$timestamp_ntz_part, "POSIXct")
+  expect_equal(
+    as.numeric(partitioned$timestamp_ntz_part),
+    as.numeric(as.POSIXct(
+      c(
+        "2026-07-28 09:08:07.654321",
+        "1900-01-01 00:00:00.000001",
+        NA
+      ),
+      tz = "UTC"
+    )),
+    tolerance = 2e-6
+  )
+  expect_identical(
+    partitioned$binary_part,
+    list(as.raw(c(1L, 2L, 3L)), as.raw(127L), NULL)
+  )
 })
 
 test_that("OneLake file helpers cover hierarchy, ranges, conflicts, and Unicode", {
@@ -422,14 +457,42 @@ test_that("Delta reader covers current Fabric Delta reader features", {
     column_mapped$display_name,
     c("alpha", "beta", "gamma")
   )
+  expect_s3_class(column_mapped$profile, "data.frame")
+  expect_identical(
+    column_mapped$profile$display_label,
+    c("alpha", "beta", "gamma")
+  )
+  expect_false("obsolete" %in% names(column_mapped$profile))
+  expect_identical(
+    lapply(column_mapped$items, function(value) value$label),
+    list("alpha", "beta", "gamma")
+  )
+  expect_identical(
+    lapply(
+      column_mapped$attributes,
+      function(value) value$value$label
+    ),
+    list("alpha", "beta", "gamma")
+  )
 
   column_mapped_id <- read_table(lakehouse$tables$column_mapped_id)
   column_mapped_id <- column_mapped_id[order(column_mapped_id$id), ]
   expect_equal(column_mapped_id$id, 1:3)
-  expect_named(column_mapped_id, c("id", "display_name"))
+  expect_named(
+    column_mapped_id,
+    c("id", "display_name", "profile", "items")
+  )
   expect_equal(
     column_mapped_id$display_name,
     c("alpha", "beta", "gamma")
+  )
+  expect_identical(
+    column_mapped_id$profile$display_label,
+    c("alpha", "beta", "gamma")
+  )
+  expect_identical(
+    lapply(column_mapped_id$items, function(value) value$label),
+    list("alpha", "beta", "gamma")
   )
 
   deletion_vectors <- read_table(lakehouse$tables$deletion_vectors)
@@ -496,7 +559,15 @@ test_that("Delta reader preserves exact and complex Fabric values", {
   complex <- read_table(lakehouse$tables$complex_types)
   expect_named(
     complex,
-    c("id", "profile", "scores", "counts", "display name")
+    c(
+      "id",
+      "profile",
+      "scores",
+      "counts",
+      "items",
+      "attributes",
+      "display name"
+    )
   )
   expect_s3_class(complex$profile, "data.frame")
   expect_identical(complex$profile$label, "nested")
@@ -511,6 +582,11 @@ test_that("Delta reader preserves exact and complex Fabric values", {
     as.character(complex$counts[[1L]]$value),
     c("9007199254740993", "2")
   )
+  expect_identical(complex$items[[1L]]$label, c("first", "second"))
+  expect_identical(complex$items[[1L]]$score, c(10L, 20L))
+  expect_identical(complex$attributes[[1L]]$key, "primary")
+  expect_identical(complex$attributes[[1L]]$value$label, "mapped")
+  expect_identical(complex$attributes[[1L]]$value$enabled, TRUE)
   expect_identical(complex[["display name"]], "display café-数据")
 })
 
@@ -750,13 +826,32 @@ test_that("Delta reader exposes Fabric Variant physical values", {
     verbose = FALSE
   )
 
+  result <- result[order(as.numeric(result$event_id)), ]
   expect_s3_class(result$event_id, "integer64")
-  expect_identical(as.character(result$event_id), "1")
+  expect_identical(as.character(result$event_id), as.character(1:8))
   expect_type(result$data, "list")
   expect_s3_class(result$data[[1L]], "data.frame")
   expect_identical(result$data[[1L]]$action, "checkout")
   expect_identical(result$data[[1L]]$items[[1L]], 1:3)
   expect_identical(result$data[[1L]]$user_id, 4471L)
+  expect_null(result$data[[2L]])
+  expect_null(result$data[[3L]])
+  expect_s3_class(result$data[[4L]], "integer64")
+  expect_identical(as.character(result$data[[4L]]), "9007199254740993")
+  expect_s3_class(result$data[[5L]], "data.frame")
+  expect_identical(result$data[[5L]]$action, "refund")
+  expect_identical(
+    as.character(result$data[[5L]]$user_id),
+    "9007199254740993"
+  )
+  expect_identical(result$data[[6L]][[1L]], 1L)
+  expect_identical(result$data[[6L]][[2L]], "two")
+  expect_identical(result$data[[6L]][[3L]], TRUE)
+  expect_null(result$data[[6L]][[4L]])
+  expect_identical(result$data[[6L]][[5L]]$nested, 3L)
+  expect_identical(result$data[[7L]], "root string")
+  expect_identical(result$data[[8L]]$unicode, "café-数据-🙂")
+  expect_equal(result$data[[8L]]$decimal, 1234567890.125)
 })
 
 test_that("Delta reader reads the Fabric Warehouse export profile", {
