@@ -208,7 +208,7 @@ tests/testthat/
 </div>
 <div class="section level2">
 <h2 id="priority-1-make-delta-table-reads-protocol-correct">Priority 1: Make Delta table reads protocol-correct<a class="anchor" aria-label="anchor" href="#priority-1-make-delta-table-reads-protocol-correct"></a></h2>
-<p><strong>Status (July 2026): implemented for the supported reader contract.</strong> The reader stages the transaction log, supports classic and complete multipart checkpoints, preserves relative paths, downloads only active snapshot files, supports version selection, and rejects unsupported reader features before returning data.</p>
+<p><strong>Status (July 2026): implemented for the supported reader contract.</strong> The reader stages the transaction log, supports V1 and V2 checkpoints, preserves relative and absolute OneLake paths, downloads only active snapshot files, supports version selection, preserves exact numeric values, and rejects unsupported reader features before returning data.</p>
 <div class="section level3">
 <h3 id="problem">Problem<a class="anchor" aria-label="anchor" href="#problem"></a></h3>
 <p>The original implementation replayed only JSON transaction-log files and staged data by basename, which was unsafe for checkpoints, newer Delta features, and duplicate partition filenames.</p>
@@ -225,7 +225,7 @@ tests/testthat/
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-1">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-1"></a></h3>
-<ul><li>The integration fixture matrix for basic, partitioned, checkpointed, schema-evolved, column-mapped, and deletion-vector tables passes, or unsupported features fail before data is returned.</li>
+<ul><li>The integration fixture matrix for basic, partitioned, V1/V2 checkpointed, schema-evolved, name/ID column-mapped, deletion-vector, type-widened, shallow-clone, nested/exact-numeric, Variant, and Warehouse-export tables passes, or unsupported features fail before data is returned.</li>
 <li>Duplicate Parquet basenames in different partitions are handled correctly.</li>
 <li>Existing simple-table behavior remains compatible.</li>
 </ul></div>

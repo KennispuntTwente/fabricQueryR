@@ -1,10 +1,10 @@
-# Read a Delta table from a Microsoft Fabric Lakehouse
+# Read a Delta table from Microsoft Fabric OneLake
 
-Downloads a Lakehouse Delta table from OneLake and returns it as a
-tibble. Delta tables consist of Parquet data files plus a transaction
-log that says which files make up the current table. This function reads
-that log so that deleted or superseded files are not accidentally
-included.
+Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
+returns it as a tibble. Delta tables consist of Parquet data files plus
+a transaction log that says which files make up the current table. This
+function reads that log so deleted or superseded files are not
+accidentally included.
 
 ## Usage
 
@@ -45,10 +45,10 @@ fabric_onelake_read_delta_table(
 
 - lakehouse_name:
 
-  Lakehouse item name or GUID, or an item from
-  [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-  A character name may include the `.Lakehouse` suffix; a discovered
-  record avoids suffix and renaming ambiguity.
+  Lakehouse or Warehouse item name, GUID, or discovery record. A
+  character name may include its `.Lakehouse` or `.Warehouse` suffix; a
+  discovered record avoids suffix and renaming ambiguity. The argument
+  name is retained for backward compatibility.
 
 - schema:
 
@@ -121,9 +121,12 @@ fabric_onelake_read_delta_table(
 ## Value
 
 A tibble containing the rows and logical schema of the selected Delta
-snapshot. An empty table returns a zero-row tibble. Delta/R type
-conversion follows DuckDB; schema evolution is applied and partition
-values are included as columns.
+snapshot. An empty table returns a zero-row tibble. Delta `long` columns
+use
+[`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
+decimal columns use exact character values; other conversions follow
+DuckDB. Schema evolution is applied and partition values are included as
+columns.
 
 ## Details
 
@@ -134,21 +137,31 @@ values are included as columns.
   log, then downloads only the Parquet files active in the requested
   version.
 
-- Checkpoint Parquet and data Parquet files are read with DuckDB. The
-  staged reader supports Delta reader protocols 1 through 3, name-based
-  column mapping, deletion vectors stored inline or in table-relative
-  sidecar files, timestamps without time zones, and supported type
-  widening. This covers the reader 3/writer 7 format currently emitted
-  by Fabric Warehouse Delta export. ID-based column mapping, absolute
-  deletion-vector paths, v2 checkpoints, and unrecognised reader
-  features are rejected with a `fabric_delta_unsupported_error` before
-  any data is returned.
+- Checkpoint and data Parquet files are read with DuckDB. The staged
+  reader supports Delta reader protocols 1 through 3; classic,
+  multipart, and V2 checkpoints; name- and ID-based column mapping;
+  inline, relative, and absolute deletion vectors; timestamps without
+  time zones; supported type widening; and native Variant values,
+  including Variant shredding. Absolute AddFile and deletion-vector URIs
+  must point to Microsoft Fabric OneLake. This includes Fabric shallow
+  clones and the reader 3/writer 7 Warehouse export profile.
+
+- Unrecognised reader features, catalog-managed commits, non-OneLake
+  absolute URIs, and unsupported schema types fail with a
+  `fabric_delta_unsupported_error` before data is returned.
 
 - The returned columns follow the logical schema in the selected Delta
   snapshot. Schema additions are filled with typed missing values,
   removed physical columns are omitted, and partition values come from
   Delta add-file actions rather than being inferred from directory
   names.
+
+- Delta `long` values are returned as
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html).
+  Delta decimals are returned as character vectors, including decimals
+  nested in complex types, so all 38 digits remain exact. Variant
+  columns use DuckDB's native decoding and are returned as nested R
+  list/data-frame values.
 
 - Schema-enabled lakehouses (the default for new lakehouses) organise
   tables into named schemas. If the Fabric Lakehouse explorer shows the
@@ -172,6 +185,9 @@ values are included as columns.
 
 ## References
 
+[Delta Transaction Log
+Protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md)
+
 [Connect to OneLake with ADLS
 APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 
@@ -180,6 +196,12 @@ schemas](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sch
 
 [Delta Lake tables in
 OneLake](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
+
+[Schema evolution for Delta
+tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution)
+
+[Variant data type for Delta
+tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant)
 
 ## Examples
 

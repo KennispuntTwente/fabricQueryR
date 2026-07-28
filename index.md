@@ -192,6 +192,32 @@ OneLake data access**. This function downloads the active table files
 locally, so a filtered SQL query can be more efficient for very large
 tables.
 
+The reader follows Delta reader protocols 1–3 and supports Fabric’s
+current classic and V2 checkpoints, name/ID column mapping, deletion
+vectors, type widening, timestamp-NTZ, shallow-clone paths, and native
+Variant values, including Variant shredding. Delta `long` values are
+returned as
+[`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
+decimals are returned as character so values through precision 38 remain
+exact. Unknown reader features, catalog-managed commits, and absolute
+paths outside OneLake fail before any rows are returned. A
+caller-supplied `dest_dir` must be new or empty.
+
+Compatibility reviewed against the Delta protocol and Fabric
+documentation in July 2026:
+
+| Delta capability | Reader status |
+|----|----|
+| Reader protocols 1–3 | Supported |
+| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported |
+| Name- and ID-based column mapping | Supported |
+| Inline, relative-file, and absolute-OneLake deletion vectors | Supported |
+| Absolute OneLake AddFile paths and Fabric shallow clones | Supported |
+| Type widening and timestamp without time zone | Supported |
+| Variant, including shredded and unshredded files | Supported through DuckDB’s native Variant decoding |
+| Catalog-managed commits and unknown reader features | Rejected before reading data |
+| Absolute paths outside OneLake | Rejected before reading data |
+
 ### 5. Work with OneLake files
 
 List, inspect, download, upload, or delete files in OneLake. Paths in a

@@ -81,12 +81,14 @@
   remains the one-shot interface.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  now reads snapshots from JSON commits and Parquet checkpoints,
-  supports historical reads through `version`, preserves logical schemas
-  and typed partition values, and supports current Fabric reader 3
-  tables with name-based column mapping, deletion vectors,
-  `timestampNtz`, and type widening. Unsupported Delta features still
-  fail closed instead of risking incorrect results.
+  now reads snapshots from JSON commits, V1 Parquet checkpoints, and V2
+  Parquet/JSON checkpoints; supports historical reads through `version`;
+  preserves logical schemas and typed partition values; and supports
+  current Fabric reader 3 tables with name- or ID-based column mapping,
+  deletion vectors, `timestampNtz`, type widening, shallow-clone paths,
+  and native Variant values. BIGINT and DECIMAL values now remain exact
+  across the R boundary. Unsafe retained staging and unsupported Delta
+  features fail closed instead of risking incorrect results.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset
