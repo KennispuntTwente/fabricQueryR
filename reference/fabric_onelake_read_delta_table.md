@@ -146,15 +146,21 @@ columns.
   must point to Microsoft Fabric OneLake. This includes Fabric shallow
   clones and the reader 3/writer 7 Warehouse export profile.
 
-- Unrecognised reader features, catalog-managed commits, non-OneLake
-  absolute URIs, and unsupported schema types fail with a
-  `fabric_delta_unsupported_error` before data is returned.
+- Metadata must declare the Parquet provider with no provider-specific
+  options. Recursive schema shape, case-insensitive sibling-name
+  uniqueness, partition columns, and singleton protocol/metadata actions
+  are validated before data is read. Unrecognised reader features,
+  catalog-managed commits, non-OneLake absolute URIs, and unsupported
+  schema types fail with a `fabric_delta_unsupported_error` before data
+  is returned.
 
 - The returned columns follow the logical schema in the selected Delta
   snapshot. Schema additions are filled with typed missing values,
   removed physical columns are omitted, and partition values come from
   Delta add-file actions rather than being inferred from directory
-  names.
+  names. Legacy `void` fields are retained as logical all-missing
+  columns. Timestamp partition values without an explicit offset are
+  interpreted as UTC, matching the Fabric Runtime integration profile.
 
 - Delta `long` values are returned as
   [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html).

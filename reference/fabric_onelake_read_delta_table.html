@@ -183,13 +183,19 @@ widening; and native Variant values, including Variant shredding. Absolute
 AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
 This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
 export profile.</p></li>
-<li><p>Unrecognised reader features, catalog-managed commits, non-OneLake absolute
-URIs, and unsupported schema types fail with a
+<li><p>Metadata must declare the Parquet provider with no provider-specific
+options. Recursive schema shape, case-insensitive sibling-name uniqueness,
+partition columns, and singleton protocol/metadata actions are validated
+before data is read. Unrecognised reader features, catalog-managed commits,
+non-OneLake absolute URIs, and unsupported schema types fail with a
 <code>fabric_delta_unsupported_error</code> before data is returned.</p></li>
 <li><p>The returned columns follow the logical schema in the selected Delta
 snapshot. Schema additions are filled with typed missing values, removed
 physical columns are omitted, and partition values come from Delta add-file
-actions rather than being inferred from directory names.</p></li>
+actions rather than being inferred from directory names. Legacy <code>void</code>
+fields are retained as logical all-missing columns. Timestamp partition
+values without an explicit offset are interpreted as UTC, matching the
+Fabric Runtime integration profile.</p></li>
 <li><p>Delta <code>long</code> values are returned as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>. Delta decimals are
 returned as character vectors, including decimals nested in complex types,
 so all 38 digits remain exact. Variant columns use DuckDB's native decoding
