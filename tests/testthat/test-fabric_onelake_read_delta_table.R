@@ -428,6 +428,7 @@ test_that("Delta stages and reads absolute OneLake AddFile paths", {
     list(
       metaData = list(
         id = "absolute-table",
+        format = list(provider = "parquet", options = list()),
         schemaString = schema,
         partitionColumns = list(),
         configuration = list()
@@ -674,7 +675,12 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
         '{"protocol":{"minReaderVersion":3,"minWriterVersion":7,',
         '"readerFeatures":["deletionVectors"]}}'
       ),
-      '{"metaData":{"id":"table","configuration":{}}}',
+      paste0(
+        '{"metaData":{"id":"table",',
+        '"format":{"provider":"parquet","options":{}},',
+        '"schemaString":"{\\"type\\":\\"struct\\",\\"fields\\":[]}",',
+        '"partitionColumns":[],"configuration":{}}}'
+      ),
       '{"add":{"path":"category=A/part.parquet"}}',
       '{"add":{"path":"category=B/part.parquet"}}'
     ),
@@ -771,6 +777,7 @@ test_that("Delta reads preserve duplicate basenames in separate partitions", {
         list(
           metaData = list(
             id = "table",
+            format = list(provider = "parquet", options = list()),
             schemaString = schema,
             partitionColumns = list("category"),
             configuration = list()
@@ -835,6 +842,7 @@ test_that("Delta reader preserves the logical schema for empty tables", {
         list(
           metaData = list(
             id = "table",
+            format = list(provider = "parquet", options = list()),
             schemaString = schema,
             partitionColumns = list(),
             configuration = list()
@@ -1202,6 +1210,7 @@ test_that("Delta reader preserves exact BIGINT and DECIMAL values", {
         list(
           metaData = list(
             id = "table",
+            format = list(provider = "parquet", options = list()),
             schemaString = schema,
             partitionColumns = list(),
             configuration = list()
@@ -1309,6 +1318,7 @@ test_that("Delta reader exposes native and shredded Variant values", {
     list(
       metaData = list(
         id = "variant-table",
+        format = list(provider = "parquet", options = list()),
         schemaString = schema,
         partitionColumns = list(),
         configuration = list()
@@ -1422,6 +1432,162 @@ test_that("Delta metadata schemas reject malformed and ambiguous fields", {
     "unknown partition column(s): missing",
     fixed = TRUE
   )
+
+  nested_duplicate <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "profile",
+        type = list(
+          type = "struct",
+          fields = list(
+            list(name = "Value", type = "string"),
+            list(name = "value", type = "string")
+          )
+        )
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  expect_error(
+    fabric_delta_schema(list(schemaString = nested_duplicate)),
+    "struct at <root>.profile contains missing or duplicate field names",
+    fixed = TRUE
+  )
+
+  missing_element <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "items",
+        type = list(type = "array", containsNull = TRUE)
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  expect_error(
+    fabric_delta_schema(list(schemaString = missing_element)),
+    "array at <root>.items has no elementType",
+    fixed = TRUE
+  )
+
+  missing_map_value <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "lookup",
+        type = list(type = "map", keyType = "string")
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  expect_error(
+    fabric_delta_schema(list(schemaString = missing_map_value)),
+    "map at <root>.lookup has no key/value type",
+    fixed = TRUE
+  )
+
+  expect_error(
+    fabric_delta_schema(list(
+      schemaString = valid,
+      partitionColumns = list("id", "ID")
+    )),
+    "partitionColumns contains invalid or duplicate names",
+    fixed = TRUE
+  )
+})
+
+test_that("Delta metadata accepts only supported Parquet data formats", {
+  expect_invisible(fabric_delta_validate_metadata_format(list(
+    format = list(provider = "parquet", options = list())
+  )))
+  expect_error(
+    fabric_delta_validate_metadata_format(list()),
+    "valid data format",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_validate_metadata_format(list(
+      format = list(provider = "orc", options = list())
+    )),
+    "Delta data format orc",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+  expect_error(
+    fabric_delta_validate_metadata_format(list(
+      format = list(
+        provider = "parquet",
+        options = list(compression = "gzip")
+      )
+    )),
+    "Delta Parquet format options",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+})
+
+test_that("Delta commits reject mutually reconciling actions", {
+  path <- "00000000000000000001.json"
+  protocol <- list(protocol = list(
+    minReaderVersion = 1L,
+    minWriterVersion = 2L
+  ))
+  metadata <- list(metaData = list(id = "table"))
+  expect_error(
+    fabric_delta_validate_commit_actions(list(protocol, protocol), path),
+    "multiple protocol actions",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_validate_commit_actions(list(metadata, metadata), path),
+    "multiple metadata actions",
+    fixed = TRUE
+  )
+  transaction <- list(txn = list(appId = "writer", version = 1L))
+  expect_error(
+    fabric_delta_validate_commit_actions(
+      list(transaction, transaction),
+      path
+    ),
+    "duplicate transaction actions",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_validate_commit_actions(
+      list(
+        list(add = list(path = "part.parquet")),
+        list(remove = list(path = "part.parquet"))
+      ),
+      path
+    ),
+    "conflicting file actions",
+    fixed = TRUE
+  )
+  expect_invisible(fabric_delta_validate_commit_actions(
+    list(
+      list(add = list(
+        path = "part.parquet",
+        deletionVector = list(
+          storageType = "i",
+          pathOrInlineDv = "first"
+        )
+      )),
+      list(remove = list(
+        path = "part.parquet",
+        deletionVector = list(
+          storageType = "i",
+          pathOrInlineDv = "second"
+        )
+      ))
+    ),
+    path
+  ))
+  expect_error(
+    fabric_delta_validate_checkpoint_actions(list(protocol, protocol)),
+    "multiple protocol actions",
+    fixed = TRUE
+  )
 })
 
 test_that("Delta reader applies schema projection and log partition values", {
@@ -1474,6 +1640,7 @@ test_that("Delta reader applies schema projection and log partition values", {
         list(
           metaData = list(
             id = "table",
+            format = list(provider = "parquet", options = list()),
             schemaString = schema,
             partitionColumns = list("category"),
             configuration = list()
@@ -1563,6 +1730,7 @@ test_that("Delta reader decodes typed partition values in UTC", {
     )),
     list(metaData = list(
       id = "table",
+      format = list(provider = "parquet", options = list()),
       schemaString = schema,
       partitionColumns = list(
         "event_time",
@@ -1658,6 +1826,7 @@ test_that("Delta reader supports a physical filename column", {
         list(
           metaData = list(
             id = "table",
+            format = list(provider = "parquet", options = list()),
             schemaString = schema,
             partitionColumns = list(),
             configuration = list()
@@ -1707,7 +1876,8 @@ test_that("Delta checkpoints allow earlier JSON commits to be absent", {
         ),
         metaData = list(
           id = "table-id",
-          schemaString = "{}",
+          format = list(provider = "parquet", options = list()),
+          schemaString = '{"type":"struct","fields":[]}',
           partitionColumns = list(list()),
           configuration = list(data.frame(
             key = character(),
@@ -1804,6 +1974,8 @@ test_that("Delta reader replays a real multipart Parquet checkpoint", {
       "AS protocol, ",
       "struct_pack(id := 'multipart-table', schemaString := ",
       quote_string(schema),
+      ", format := struct_pack(provider := 'parquet', ",
+      "options := map([]::VARCHAR[], []::VARCHAR[]))",
       ", partitionColumns := []::VARCHAR[], ",
       "configuration := map([]::VARCHAR[], []::VARCHAR[])) AS metaData) TO ",
       quote_string(gsub("\\\\", "/", parts[[1L]])),
@@ -1825,6 +1997,7 @@ test_that("Delta reader replays a real multipart Parquet checkpoint", {
   expect_equal(snapshot$version, 10)
   expect_equal(snapshot$checkpoint_version, 10)
   expect_identical(snapshot$active, "part.parquet")
+  expect_identical(snapshot$metadata$format$provider, "parquet")
   expect_identical(snapshot$metadata$schemaString, as.character(schema))
 })
 
@@ -1865,6 +2038,7 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
     list(
       metaData = list(
         id = "v2-table",
+        format = list(provider = "parquet", options = list()),
         schemaString = schema,
         partitionColumns = list(),
         configuration = list()
@@ -1963,6 +2137,7 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
   expect_equal(snapshot$version, 10)
   expect_equal(snapshot$checkpoint_version, 10)
   expect_equal(snapshot$active, "part.parquet")
+  expect_identical(snapshot$metadata$format$provider, "parquet")
 
   actions[[1L]]$checkpointMetadata$version <- 9L
   writeLines(
@@ -2065,7 +2240,12 @@ test_that("Delta snapshot ignores an incomplete multipart checkpoint", {
   writeLines(
     c(
       '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
-      '{"metaData":{"id":"table","configuration":{}}}',
+      paste0(
+        '{"metaData":{"id":"table",',
+        '"format":{"provider":"parquet","options":{}},',
+        '"schemaString":"{\\"type\\":\\"struct\\",\\"fields\\":[]}",',
+        '"partitionColumns":[],"configuration":{}}}'
+      ),
       '{"add":{"path":"part.parquet"}}'
     ),
     fs::path(log_dir, "00000000000000000000.json"),
@@ -2230,6 +2410,9 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
       )
     ),
     metadata = list(
+      format = list(provider = "parquet", options = list()),
+      schemaString = '{"type":"struct","fields":[]}',
+      partitionColumns = list(),
       configuration = list(
         "delta.columnMapping.mode" = "name"
       )
@@ -2353,6 +2536,7 @@ test_that("Delta reader enforces schema feature dependencies", {
       )
     ),
     metadata = list(
+      format = list(provider = "parquet", options = list()),
       schemaString = schema,
       partitionColumns = list(),
       configuration = list()
@@ -2722,6 +2906,7 @@ test_that("Delta reader applies name mapping and deletion vectors", {
     list(
       metaData = list(
         id = "table",
+        format = list(provider = "parquet", options = list()),
         schemaString = schema,
         partitionColumns = list(),
         configuration = list("delta.columnMapping.mode" = "name")

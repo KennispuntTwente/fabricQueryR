@@ -25,13 +25,19 @@
 #'  AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
 #'  This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
 #'  export profile.
-#' - Unrecognised reader features, catalog-managed commits, non-OneLake absolute
-#'  URIs, and unsupported schema types fail with a
+#' - Metadata must declare the Parquet provider with no provider-specific
+#'  options. Recursive schema shape, case-insensitive sibling-name uniqueness,
+#'  partition columns, and singleton protocol/metadata actions are validated
+#'  before data is read. Unrecognised reader features, catalog-managed commits,
+#'  non-OneLake absolute URIs, and unsupported schema types fail with a
 #'  `fabric_delta_unsupported_error` before data is returned.
 #' - The returned columns follow the logical schema in the selected Delta
 #'  snapshot. Schema additions are filled with typed missing values, removed
 #'  physical columns are omitted, and partition values come from Delta add-file
-#'  actions rather than being inferred from directory names.
+#'  actions rather than being inferred from directory names. Legacy `void`
+#'  fields are retained as logical all-missing columns. Timestamp partition
+#'  values without an explicit offset are interpreted as UTC, matching the
+#'  Fabric Runtime integration profile.
 #' - Delta `long` values are returned as `bit64::integer64`. Delta decimals are
 #'  returned as character vectors, including decimals nested in complex types,
 #'  so all 38 digits remain exact. Variant columns use DuckDB's native decoding
@@ -1050,20 +1056,30 @@ fabric_delta_schema <- function(metadata) {
   if (!identical(schema$type, "struct") || !is.list(schema$fields)) {
     rlang::abort("Delta metadata schemaString must describe a struct")
   }
-  field_names <- vapply(
-    schema$fields,
-    function(field) as.character(field$name %||% ""),
-    character(1)
-  )
-  if (!all(nzchar(field_names)) || anyDuplicated(tolower(field_names))) {
-    rlang::abort(
-      "Delta metadata schema contains missing or duplicate field names"
-    )
+  fabric_delta_validate_schema_type(schema, path = "<root>")
+  field_names <- vapply(schema$fields, `[[`, character(1), "name")
+  partition_columns <- metadata$partitionColumns %||% list()
+  if (
+    !is.list(partition_columns) &&
+      !is.character(partition_columns)
+  ) {
+    rlang::abort("Delta metadata partitionColumns must be an array of names")
   }
   schema$partitionColumns <- unlist(
-    metadata$partitionColumns %||% list(),
+    partition_columns,
     use.names = FALSE
   )
+  if (
+    length(schema$partitionColumns) &&
+      (!is.character(schema$partitionColumns) ||
+        anyNA(schema$partitionColumns) ||
+        any(!nzchar(schema$partitionColumns)) ||
+        anyDuplicated(tolower(schema$partitionColumns)))
+  ) {
+    rlang::abort(
+      "Delta metadata partitionColumns contains invalid or duplicate names"
+    )
+  }
   configuration <- metadata$configuration %||% list()
   schema$columnMappingMode <- tolower(as.character(
     configuration[["delta.columnMapping.mode"]] %||% "none"
@@ -1076,6 +1092,124 @@ fabric_delta_schema <- function(metadata) {
     ))
   }
   schema
+}
+
+#' Validate the recursive shape and sibling names of a Delta schema type
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_schema_type <- function(type, path) {
+  if (is.character(type) && length(type) == 1L && !is.na(type) &&
+    nzchar(type)) {
+    return(invisible(type))
+  }
+  if (!is.list(type)) {
+    rlang::abort(paste0("Delta schema type at ", path, " is invalid"))
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (length(kind) != 1L || is.na(kind) || !nzchar(kind)) {
+    rlang::abort(paste0("Delta schema type at ", path, " is invalid"))
+  }
+  if (identical(kind, "struct")) {
+    fields <- type$fields %||% NULL
+    if (!is.list(fields)) {
+      rlang::abort(paste0("Delta struct at ", path, " has invalid fields"))
+    }
+    names <- vapply(fields, function(field) {
+      if (!is.list(field)) {
+        return("")
+      }
+      name <- field$name %||% ""
+      if (
+        !is.character(name) ||
+          length(name) != 1L ||
+          is.na(name)
+      ) {
+        return("")
+      }
+      name
+    }, character(1))
+    if (!all(nzchar(names)) || anyDuplicated(tolower(names))) {
+      prefix <- if (identical(path, "<root>")) {
+        "Delta metadata schema"
+      } else {
+        paste0("Delta struct at ", path)
+      }
+      rlang::abort(
+        paste0(prefix, " contains missing or duplicate field names")
+      )
+    }
+    for (index in seq_along(fields)) {
+      field <- fields[[index]]
+      if (is.null(field$type)) {
+        rlang::abort(paste0(
+          "Delta schema field ",
+          paste0(path, ".", names[[index]]),
+          " has no type"
+        ))
+      }
+      nullable <- field$nullable %||% TRUE
+      if (!is.logical(nullable) || length(nullable) != 1L || is.na(nullable)) {
+        rlang::abort(paste0(
+          "Delta schema field ",
+          paste0(path, ".", names[[index]]),
+          " has invalid nullability"
+        ))
+      }
+      metadata <- field$metadata %||% list()
+      if (!is.list(metadata)) {
+        rlang::abort(paste0(
+          "Delta schema field ",
+          paste0(path, ".", names[[index]]),
+          " has invalid metadata"
+        ))
+      }
+      fabric_delta_validate_schema_type(
+        field$type,
+        paste0(path, ".", names[[index]])
+      )
+    }
+    return(invisible(type))
+  }
+  if (identical(kind, "array")) {
+    if (is.null(type$elementType)) {
+      rlang::abort(paste0("Delta array at ", path, " has no elementType"))
+    }
+    contains_null <- type$containsNull %||% TRUE
+    if (
+      !is.logical(contains_null) ||
+        length(contains_null) != 1L ||
+        is.na(contains_null)
+    ) {
+      rlang::abort(paste0("Delta array at ", path, " has invalid nullability"))
+    }
+    fabric_delta_validate_schema_type(
+      type$elementType,
+      paste0(path, ".element")
+    )
+    return(invisible(type))
+  }
+  if (identical(kind, "map")) {
+    if (is.null(type$keyType) || is.null(type$valueType)) {
+      rlang::abort(paste0("Delta map at ", path, " has no key/value type"))
+    }
+    value_contains_null <- type$valueContainsNull %||% TRUE
+    if (
+      !is.logical(value_contains_null) ||
+        length(value_contains_null) != 1L ||
+        is.na(value_contains_null)
+    ) {
+      rlang::abort(paste0("Delta map at ", path, " has invalid nullability"))
+    }
+    fabric_delta_validate_schema_type(type$keyType, paste0(path, ".key"))
+    fabric_delta_validate_schema_type(type$valueType, paste0(path, ".value"))
+    return(invisible(type))
+  }
+  rlang::abort(paste0(
+    "Delta schema at ",
+    path,
+    " contains unsupported complex type ",
+    kind
+  ))
 }
 
 #' Validate every recorded Delta type-widening transition
@@ -2972,6 +3106,7 @@ fabric_delta_checkpoint_sidecar_paths <- function(
 #' @noRd
 fabric_delta_apply_checkpoint <- function(state, checkpoint) {
   if (!is.null(checkpoint$actions)) {
+    fabric_delta_validate_checkpoint_actions(checkpoint$actions)
     return(fabric_delta_apply_actions(state, checkpoint$actions))
   }
   adds <- checkpoint$add$path %||% character()
@@ -3019,6 +3154,9 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
     )
   )
   if (length(protocol_rows)) {
+    if (length(protocol_rows) > 1L) {
+      rlang::abort("Delta checkpoint contains multiple protocol actions")
+    }
     i <- utils::tail(protocol_rows, 1L)
     state$protocol <- list(
       minReaderVersion = checkpoint$protocol$minReaderVersion[[i]],
@@ -3029,6 +3167,9 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
   }
   metadata_rows <- which(!is.na(checkpoint$metaData$id %||% character()))
   if (length(metadata_rows)) {
+    if (length(metadata_rows) > 1L) {
+      rlang::abort("Delta checkpoint contains multiple metadata actions")
+    }
     i <- utils::tail(metadata_rows, 1L)
     config <- fabric_delta_checkpoint_value(
       checkpoint$metaData$configuration,
@@ -3040,7 +3181,14 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
     } else {
       fabric_delta_partition_values(config)
     }
+    format <- fabric_delta_checkpoint_value(
+      checkpoint$metaData$format %||% NULL,
+      i,
+      length(checkpoint$metaData$id)
+    )
     state$metadata <- list(
+      id = checkpoint$metaData$id[[i]],
+      format = format,
       schemaString = fabric_delta_checkpoint_value(
         checkpoint$metaData$schemaString %||% NULL,
         i,
@@ -3097,6 +3245,26 @@ fabric_delta_add_file <- function(state, add) {
   state
 }
 
+#' Validate singleton state actions in a JSON checkpoint
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_checkpoint_actions <- function(actions) {
+  count <- function(name) {
+    sum(vapply(
+      actions,
+      function(action) !is.null(action[[name]]),
+      logical(1)
+    ))
+  }
+  if (count("protocol") > 1L) {
+    rlang::abort("Delta checkpoint contains multiple protocol actions")
+  }
+  if (count("metaData") > 1L) {
+    rlang::abort("Delta checkpoint contains multiple metadata actions")
+  }
+  invisible(actions)
+}
+
 #' Apply a Delta remove-file action
 #' @keywords internal
 #' @noRd
@@ -3140,7 +3308,74 @@ fabric_delta_apply_json_log <- function(state, path) {
       )
     }
   )
+  fabric_delta_validate_commit_actions(actions, path)
   fabric_delta_apply_actions(state, actions)
+}
+
+#' Validate mutually reconciling actions within one Delta commit
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_commit_actions <- function(actions, path) {
+  count <- function(name) {
+    sum(vapply(
+      actions,
+      function(action) !is.null(action[[name]]),
+      logical(1)
+    ))
+  }
+  label <- basename(path)
+  if (count("metaData") > 1L) {
+    rlang::abort(cli::format_inline(
+      "Delta commit {.path {label}} contains multiple metadata actions"
+    ))
+  }
+  if (count("protocol") > 1L) {
+    rlang::abort(cli::format_inline(
+      "Delta commit {.path {label}} contains multiple protocol actions"
+    ))
+  }
+  transactions <- Filter(
+    function(action) !is.null(action$txn$appId),
+    actions
+  )
+  if (length(transactions)) {
+    app_ids <- vapply(
+      transactions,
+      function(action) as.character(action$txn$appId),
+      character(1)
+    )
+    if (anyDuplicated(app_ids)) {
+      rlang::abort(cli::format_inline(
+        "Delta commit {.path {label}} contains duplicate transaction actions"
+      ))
+    }
+  }
+  file_keys <- unlist(lapply(actions, function(action) {
+    values <- list()
+    if (!is.null(action$add$path)) {
+      values <- c(values, list(paste0(
+        action$add$path,
+        "\r",
+        fabric_delta_deletion_vector_id(action$add$deletionVector %||% NULL)
+      )))
+    }
+    if (!is.null(action$remove$path)) {
+      values <- c(values, list(paste0(
+        action$remove$path,
+        "\r",
+        fabric_delta_deletion_vector_id(
+          action$remove$deletionVector %||% NULL
+        )
+      )))
+    }
+    values
+  }), use.names = FALSE)
+  if (anyDuplicated(file_keys)) {
+    rlang::abort(cli::format_inline(
+      "Delta commit {.path {label}} contains conflicting file actions"
+    ))
+  }
+  invisible(actions)
 }
 
 #' Apply a collection of Delta actions with remove-before-add reconciliation
@@ -3193,6 +3428,11 @@ fabric_delta_validate_reader <- function(state) {
   )
   unsupported <- setdiff(features, supported_features)
 
+  if (is.null(state$metadata)) {
+    rlang::abort("Delta snapshot does not contain a metadata action")
+  }
+  fabric_delta_validate_metadata_format(state$metadata)
+  schema <- fabric_delta_schema(state$metadata)
   configuration <- state$metadata$configuration %||% list()
   mapping <- tolower(as.character(
     configuration[["delta.columnMapping.mode"]] %||% "none"
@@ -3251,15 +3491,7 @@ fabric_delta_validate_reader <- function(state) {
       "Delta variantShredding without its required variantType feature"
     )
   }
-  schema_string <- state$metadata$schemaString %||% NULL
-  requirements <- if (!is.null(schema_string)) {
-    fabric_delta_schema_requirements(jsonlite::fromJSON(
-      schema_string,
-      simplifyVector = FALSE
-    ))
-  } else {
-    list(timestamp_ntz = FALSE, variant = FALSE, type_widening = FALSE)
-  }
+  requirements <- fabric_delta_schema_requirements(schema)
   if (
     requirements$timestamp_ntz &&
       !(reader_version == 3 && "timestampNtz" %in% features)
@@ -3310,6 +3542,38 @@ fabric_delta_validate_reader <- function(state) {
     )
   }
   invisible(state)
+}
+
+#' Validate the Delta metadata data-file format
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_metadata_format <- function(metadata) {
+  format <- metadata$format %||% NULL
+  if (!is.list(format)) {
+    rlang::abort("Delta metadata does not contain a valid data format")
+  }
+  provider <- format$provider %||% NULL
+  if (
+    !is.character(provider) ||
+      length(provider) != 1L ||
+      is.na(provider) ||
+      !nzchar(provider)
+  ) {
+    rlang::abort("Delta metadata does not contain a valid format provider")
+  }
+  if (!identical(tolower(provider), "parquet")) {
+    fabric_delta_abort_unsupported(
+      paste0("Delta data format ", provider)
+    )
+  }
+  options <- format$options %||% list()
+  options <- fabric_delta_partition_values(options)
+  if (length(options)) {
+    fabric_delta_abort_unsupported(
+      "Delta Parquet format options"
+    )
+  }
+  invisible(metadata)
 }
 
 #' Collect table-feature requirements encoded in a Delta schema

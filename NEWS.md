@@ -56,8 +56,15 @@
   values; and supports current Fabric reader 3 tables with name- or ID-based
   column mapping, deletion vectors, `timestampNtz`, type widening,
   shallow-clone paths, and native Variant values. BIGINT and DECIMAL values
-  now remain exact across the R boundary. Unsafe retained staging and
-  unsupported Delta features fail closed instead of risking incorrect results.
+  now remain exact across the R boundary, while legacy `void` fields are
+  reconstructed as logical missing values. Checkpoint candidates and deletion
+  vectors are reconciled by their protocol identities. Recursive schemas,
+  metadata formats, and mutually reconciling commit actions are validated
+  before reading. The Fabric Runtime 2.0 integration matrix now covers nested
+  column mapping, dense/checkpoint deletion vectors, nested type widening,
+  typed and null partitions, and mixed shredded/unshredded Variant files.
+  Unsafe retained staging and unsupported Delta features fail closed instead
+  of risking incorrect results.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
   workspace/dataset IDs, supports optional RLS impersonation, handles paginated

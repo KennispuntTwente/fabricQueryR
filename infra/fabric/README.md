@@ -71,6 +71,14 @@ are tested deterministically. Override this with
 `FABRIC_SPARK_RUNTIME_VERSION`; seeding fails instead of replacing a named
 workspace default Environment.
 
+The Delta seed matrix includes classic and V2 checkpoints, checkpoint
+sidecars, sparse/dense/checkpoint deletion vectors, name- and ID-mapped nested
+struct/array/map values across renames and drops, top-level and nested type
+widening, `void`, exact scalar values, date/boolean/integer/decimal/timestamp/
+timestamp-NTZ/binary/null partitions, a shallow clone, and Variant files written
+before and after shredding is enabled. The R integration tests assert exact row
+sets and logical values rather than only checking that each read succeeds.
+
 Always remove the workspace after testing:
 
 ```bash

@@ -772,6 +772,14 @@ test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {
   )
   snapshot <- fabric_delta_resolve_snapshot(v2_stage)
   expect_gt(snapshot$checkpoint_version, 0)
+  expect_identical(
+    tolower(snapshot$metadata$format$provider),
+    "parquet"
+  )
+  expect_length(
+    fabric_delta_partition_values(snapshot$metadata$format$options),
+    0L
+  )
   expect_true(
     "v2Checkpoint" %in% unlist(snapshot$protocol$readerFeatures)
   )
