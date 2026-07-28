@@ -351,6 +351,24 @@ try:
         """
     )
 
+    stage = "write dense deletion-vector Delta table"
+    (
+        spark.range(0, 100000)
+        .coalesce(1)
+        .write.format("delta")
+        .mode("overwrite")
+        .option("delta.enableDeletionVectors", "true")
+        .option("maxRecordsPerFile", 100000)
+        .saveAsTable("dbo.fabricqueryr_deletion_vectors_dense")
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_deletion_vectors_dense
+        WHERE (id < 10000 AND id % 2 = 0)
+           OR (id >= 70000 AND id < 80000)
+        """
+    )
+
     stage = "write type-widening Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened")
     spark.sql(

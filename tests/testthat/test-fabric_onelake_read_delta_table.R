@@ -1992,6 +1992,37 @@ test_that("Delta deletion vectors decode inline and persisted storage", {
   )
 })
 
+test_that("Delta deletion vectors decode portable Roaring golden vectors", {
+  # Generated with pyroaring (CRoaring portable serialization), then wrapped
+  # in Delta's RoaringBitmapArray framing and gzip-compressed for readability.
+  golden <- list(
+    bitmap = paste0(
+      "H4sIAAAAAAACCu3HQQ2AMAAEwasDEoz0Cz7qAC/V12CIJjzwUGYem+y4j6vk",
+      "c9bk/b5vsw1gWQEAAAAAAIDfeAA3Mc+MICAAAA=="
+    ),
+    run = paste0(
+      "H4sIAAAAAAACCrt42TKFkQEBrA0YGID81WqMDClAEgDiPXjoHwAAAA=="
+    ),
+    buckets = paste0(
+      "H4sIAAAAAAACCrt42TKFiQEBrAwYGBjBLCYGAQYQm5mBFSyCLsPEwMLAx",
+      "gAAMstVqUAAAAA="
+    )
+  )
+  decode <- function(value) {
+    bytes <- memDecompress(jsonlite::base64_dec(value), type = "gzip")
+    magic <- fabric_delta_raw_uint32(bytes, 1L, endian = "little")
+    expect_identical(as.numeric(magic), 1681511377)
+    fabric_delta_roaring64(bytes[-seq_len(4L)])
+  }
+
+  expect_identical(decode(golden$bitmap), as.numeric(seq(0, 9998, 2)))
+  expect_identical(decode(golden$run), as.numeric(100:9999))
+  expect_identical(
+    decode(golden$buckets),
+    c(1, 3, 5, 4294967296 + c(2, 4, 6))
+  )
+})
+
 test_that("Delta file reconciliation distinguishes deletion-vector identities", {
   state <- list(
     active = character(),

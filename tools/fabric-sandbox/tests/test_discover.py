@@ -239,6 +239,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "deletion_vectors_checkpoint": (
             "fabricqueryr_deletion_vectors_checkpoint"
         ),
+        "deletion_vectors_dense": "fabricqueryr_deletion_vectors_dense",
         "exact_types": "fabricqueryr_exact_types",
         "complex_types": "fabricqueryr_complex_types",
         "shallow_clone": "fabricqueryr_shallow_clone",

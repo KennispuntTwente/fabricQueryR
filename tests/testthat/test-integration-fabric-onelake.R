@@ -576,6 +576,38 @@ test_that("Delta reader handles DV stress and exact widening", {
   )
   expect_true(checkpoint_snapshot$has_deletion_vectors)
 
+  dense_stage <- tempfile("fabricqueryr-dv-dense-")
+  on.exit(
+    if (fs::dir_exists(dense_stage)) fs::dir_delete(dense_stage),
+    add = TRUE
+  )
+  dense <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$deletion_vectors_dense,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    dest_dir = dense_stage,
+    verbose = FALSE
+  )
+  dense_ids <- sort(as.numeric(dense$id))
+  expected_dense <- setdiff(
+    0:99999,
+    c(seq(0, 9998, 2), 70000:79999)
+  )
+  expect_equal(nrow(dense), 85000L)
+  expect_equal(dense_ids, expected_dense)
+  dense_snapshot <- fabric_delta_resolve_snapshot(dense_stage)
+  dense_descriptors <- Filter(
+    Negate(is.null),
+    lapply(
+      dense_snapshot$active,
+      function(path) dense_snapshot$files[[path]]$deletionVector
+    )
+  )
+  expect_length(dense_descriptors, 1L)
+  expect_equal(as.numeric(dense_descriptors[[1L]]$cardinality), 15000)
+
   widened <- read_table(lakehouse$tables$type_widened_exact)
   widened <- widened[order(widened$label), ]
   expect_s3_class(widened$id, "integer64")
