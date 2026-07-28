@@ -20,6 +20,7 @@ supported by the Microsoft Fabric Terraform provider.
 - A capacity/region that supports Warehouse and SQL Database items
 - A capacity/region that supports Eventhouse and KQL Database items
 - A capacity/region that supports API for GraphQL items
+- A capacity/region that supports Fabric Spark Runtime 2.0
 - Tenant settings that permit the executing identity to use Fabric APIs and create
   workspaces
 - Power BI tenant settings that permit service principals to use Power BI APIs
@@ -64,6 +65,11 @@ Both the sandbox command and the R test helper resolve
 `.fabric-test-manifest.json` at the repository root by default, even though
 `testthat` runs tests from a nested working directory. Set
 `FABRIC_TEST_MANIFEST` only to override that shared location.
+Before running the seed notebook, the sandbox sets the dedicated workspace to
+Fabric Spark Runtime 2.0 so V2 checkpoints, stable type widening, and Variant
+are tested deterministically. Override this with
+`FABRIC_SPARK_RUNTIME_VERSION`; seeding fails instead of replacing a named
+workspace default Environment.
 
 Always remove the workspace after testing:
 
@@ -212,13 +218,17 @@ installation is operating-system specific.
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
 `TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, `SeedFixtures`,
 `JobFixtures`, `TestPipeline`, and `TestSparkJob`, then creates a small
-ephemeral Power BI semantic model through the supported push-dataset API. It
-creates basic, empty, partitioned, typed/null-partition, schema-evolved,
-column-mapped, and deletion-vector Delta tables. These cover empty logical
-schemas, checkpoint replay, partition replacement and typed log partition
-values, schema merging, and explicit rejection of unsupported Delta protocol
-features. It also creates matching deterministic typed SQL tables in the
-Warehouse and SQL Database, plus a deterministic typed Kusto table.
+ephemeral Power BI semantic model through the supported push-dataset API. Its
+Delta matrix includes basic, empty, partitioned, typed/null-partition,
+schema-evolved, name- and ID-column-mapped, deletion-vector stress,
+exact-numeric, nested, type-widened, V2-checkpoint, shallow-clone, and Variant
+tables. These exercise active-file replay, partition replacement, metadata-only
+rename/drop, exact BIGINT/DECIMAL boundaries, timestamp-NTZ, multiple files and
+DV mutations, V2 sidecars, absolute OneLake AddFile paths, and current reader
+features. The OneLake suite also reads the Warehouse Delta export and compares
+all fixtures with deterministic expected rows and types. The sandbox creates
+matching deterministic typed SQL tables in the Warehouse and SQL Database,
+plus a deterministic typed Kusto table.
 
 After the seed table is available, the sandbox refreshes the SQL analytics
 endpoint and requires a successful per-table sync status before applying the

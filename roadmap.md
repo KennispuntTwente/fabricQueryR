@@ -241,10 +241,11 @@ description.
 
 ## Priority 1: Make Delta table reads protocol-correct
 
-**Status (July 2026): implemented for the supported reader contract.** The reader
-stages the transaction log, supports classic and complete multipart checkpoints,
-preserves relative paths, downloads only active snapshot files, supports version
-selection, and rejects unsupported reader features before returning data.
+**Status (July 2026): implemented for the supported reader contract.** The
+reader stages the transaction log, supports V1 and V2 checkpoints, preserves
+relative and absolute OneLake paths, downloads only active snapshot files,
+supports version selection, preserves exact numeric values, and rejects
+unsupported reader features before returning data.
 
 ### Problem
 
@@ -270,9 +271,10 @@ duplicate partition filenames.
 
 ### Acceptance criteria
 
-- The integration fixture matrix for basic, partitioned, checkpointed,
-  schema-evolved, column-mapped, and deletion-vector tables passes, or unsupported
-  features fail before data is returned.
+- The integration fixture matrix for basic, partitioned, V1/V2 checkpointed,
+  schema-evolved, name/ID column-mapped, deletion-vector, type-widened,
+  shallow-clone, nested/exact-numeric, Variant, and Warehouse-export tables
+  passes, or unsupported features fail before data is returned.
 - Duplicate Parquet basenames in different partitions are handled correctly.
 - Existing simple-table behavior remains compatible.
 

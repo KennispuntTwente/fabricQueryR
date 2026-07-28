@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_onelake_read_delta_table.R
 \name{fabric_onelake_read_delta_table}
 \alias{fabric_onelake_read_delta_table}
-\title{Read a Delta table from a Microsoft Fabric Lakehouse}
+\title{Read a Delta table from Microsoft Fabric OneLake}
 \usage{
 fabric_onelake_read_delta_table(
   table_path,
@@ -31,9 +31,10 @@ used; select a schema with \code{schema}, not by adding it to \code{table_path}.
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}. GUIDs are safest for scheduled code and names are
 convenient interactively.}
 
-\item{lakehouse_name}{Lakehouse item name or GUID, or an item from
-\code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A character name may include the \code{.Lakehouse}
-suffix; a discovered record avoids suffix and renaming ambiguity.}
+\item{lakehouse_name}{Lakehouse or Warehouse item name, GUID, or discovery
+record. A character name may include its \code{.Lakehouse} or \code{.Warehouse}
+suffix; a discovered record avoids suffix and renaming ambiguity. The
+argument name is retained for backward compatibility.}
 
 \item{schema}{Lakehouse schema name, for example \code{"dbo"}, or \code{NULL}.
 When supplied, the table is resolved under \verb{Tables/<schema>/<table>}
@@ -80,15 +81,17 @@ file downloads.}
 }
 \value{
 A tibble containing the rows and logical schema of the selected Delta
-snapshot. An empty table returns a zero-row tibble. Delta/R type conversion
-follows DuckDB; schema evolution is applied and partition values are
-included as columns.
+snapshot. An empty table returns a zero-row tibble. Delta \code{long} columns
+use \code{bit64::integer64}; decimal columns use exact character values; other
+conversions follow DuckDB. Schema evolution is applied and partition
+values are included as columns.
 }
 \description{
-Downloads a Lakehouse Delta table from OneLake and returns it as a tibble.
-Delta tables consist of Parquet data files plus a transaction log that says
-which files make up the current table. This function reads that log so that
-deleted or superseded files are not accidentally included.
+Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
+returns it as a tibble. Delta tables consist of Parquet data files plus a
+transaction log that says which files make up the current table. This
+function reads that log so deleted or superseded files are not accidentally
+included.
 }
 \details{
 \itemize{
@@ -97,18 +100,25 @@ filesystem. Within a Lakehouse item, Delta tables are stored under
 \verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
 (schema-enabled lakehouse). The function first stages the transaction log,
 then downloads only the Parquet files active in the requested version.
-\item Checkpoint Parquet and data Parquet files are read with DuckDB. The staged
-reader supports Delta reader protocols 1 through 3, name-based column
-mapping, deletion vectors stored inline or in table-relative sidecar files,
-timestamps without time zones, and supported type widening. This covers
-the reader 3/writer 7 format currently emitted by Fabric Warehouse Delta
-export. ID-based column mapping, absolute deletion-vector paths, v2
-checkpoints, and unrecognised reader features are rejected with a
-\code{fabric_delta_unsupported_error} before any data is returned.
+\item Checkpoint and data Parquet files are read with DuckDB. The staged reader
+supports Delta reader protocols 1 through 3; classic, multipart, and V2
+checkpoints; name- and ID-based column mapping; inline, relative, and
+absolute deletion vectors; timestamps without time zones; supported type
+widening; and native Variant values, including Variant shredding. Absolute
+AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
+This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
+export profile.
+\item Unrecognised reader features, catalog-managed commits, non-OneLake absolute
+URIs, and unsupported schema types fail with a
+\code{fabric_delta_unsupported_error} before data is returned.
 \item The returned columns follow the logical schema in the selected Delta
 snapshot. Schema additions are filled with typed missing values, removed
 physical columns are omitted, and partition values come from Delta add-file
 actions rather than being inferred from directory names.
+\item Delta \code{long} values are returned as \code{bit64::integer64}. Delta decimals are
+returned as character vectors, including decimals nested in complex types,
+so all 38 digits remain exact. Variant columns use DuckDB's native decoding
+and are returned as nested R list/data-frame values.
 \item Schema-enabled lakehouses (the default for new lakehouses) organise
 tables into named schemas. If the Fabric Lakehouse explorer shows the table
 under a schema such as \code{dbo}, supply that name in \code{schema}.
@@ -149,9 +159,15 @@ df2 <- fabric_onelake_read_delta_table(
 }
 }
 \references{
+\href{https://github.com/delta-io/delta/blob/master/PROTOCOL.md}{Delta Transaction Log Protocol}
+
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connect to OneLake with ADLS APIs}
 
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-schemas}{Lakehouse schemas}
 
 \href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Delta Lake tables in OneLake}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution}{Schema evolution for Delta tables}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant}{Variant data type for Delta tables}
 }
