@@ -317,6 +317,89 @@ test_that("Delta staging rejects paths outside the requested table", {
   )
 })
 
+test_that("Delta stages and reads absolute OneLake AddFile paths", {
+  current_target <- onelake_resolve_target(
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222",
+    "Tables/current",
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  )
+  absolute <- paste0(
+    "abfss://33333333-3333-3333-3333-333333333333",
+    "@onelake.dfs.fabric.microsoft.com/",
+    "44444444-4444-4444-4444-444444444444/",
+    "Tables/source/part.parquet"
+  )
+  staged <- fabric_delta_stage_files(
+    absolute,
+    current_target,
+    "Tables/current",
+    "stage"
+  )
+  expect_equal(
+    staged$target[[1L]]$workspace,
+    "33333333-3333-3333-3333-333333333333"
+  )
+  expect_equal(
+    staged$target[[1L]]$item,
+    "44444444-4444-4444-4444-444444444444"
+  )
+  expect_match(
+    gsub("\\\\", "/", staged$relative),
+    "^_delta_log/\\.fabricqueryr-external/"
+  )
+
+  table_dir <- fs::path_temp(
+    paste0("delta-absolute-", sample.int(1e9, 1))
+  )
+  log_dir <- fs::path(table_dir, "_delta_log")
+  parquet <- fabric_delta_local_file(table_dir, absolute)
+  fs::dir_create(log_dir, recurse = TRUE)
+  fs::dir_create(fs::path_dir(parquet), recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 42::INTEGER AS id) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "id",
+        type = "integer",
+        nullable = FALSE,
+        metadata = list()
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
+    list(metaData = list(
+      id = "absolute-table",
+      schemaString = schema,
+      partitionColumns = list(),
+      configuration = list()
+    )),
+    list(add = list(path = absolute, partitionValues = list()))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(result$id, 42L)
+})
+
 test_that("automatic Delta staging is unique and cleaned after each read", {
   staging_dirs <- character()
   local_mocked_bindings(
@@ -791,10 +874,9 @@ test_that("Delta logical schemas cover primitive and nested types", {
   expect_match(complex_type, "labels VARCHAR\\[\\]")
   expect_match(complex_type, "counts MAP\\(VARCHAR, BIGINT\\)")
 
-  expect_error(
+  expect_equal(
     fabric_delta_duckdb_type(con, "variant"),
-    "Unsupported Delta schema type: variant",
-    fixed = TRUE
+    "STRUCT(value BLOB, metadata BLOB)"
   )
   expect_error(
     fabric_delta_duckdb_type(con, list(type = "struct", fields = list())),
@@ -825,6 +907,36 @@ test_that("Delta logical schemas cover primitive and nested types", {
     exact_result_type,
     "STRUCT(amount VARCHAR, history VARCHAR[], id BIGINT)"
   )
+
+  id_schema <- list(
+    partitionColumns = character(),
+    fields = list(list(
+      name = "outer",
+      type = list(
+        type = "struct",
+        fields = list(list(
+          name = "inner",
+          type = "integer",
+          metadata = list(
+            "delta.columnMapping.id" = 2L,
+            "delta.columnMapping.physicalName" = "physical-inner"
+          )
+        ))
+      ),
+      metadata = list(
+        "delta.columnMapping.id" = 1L,
+        "delta.columnMapping.physicalName" = "physical-outer"
+      )
+    ))
+  )
+  id_projection <- fabric_delta_id_file_projection(
+    con,
+    id_schema,
+    c("1" = "file-outer", "2" = "file-inner")
+  )
+  expect_match(id_projection, '"file-outer"."file-inner"', fixed = TRUE)
+  expect_match(id_projection, '"physical-inner" :=', fixed = TRUE)
+  expect_match(id_projection, 'AS "physical-outer"', fixed = TRUE)
 })
 
 test_that("Delta reader preserves exact BIGINT and DECIMAL values", {
@@ -920,6 +1032,67 @@ test_that("Delta reader preserves exact BIGINT and DECIMAL values", {
   expect_identical(
     result$scaled_decimal,
     "123456789012345678901234567890123456.78"
+  )
+})
+
+test_that("Delta reader exposes unshredded Variant physical values", {
+  table_dir <- fs::path_temp(paste0("delta-variant-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT struct_pack(",
+      "value := CAST('variant-value' AS BLOB), ",
+      "metadata := CAST('variant-metadata' AS BLOB)) AS payload) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "payload",
+        type = "variant",
+        nullable = FALSE,
+        metadata = list()
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(
+      minReaderVersion = 3L,
+      minWriterVersion = 7L,
+      readerFeatures = list("variantType"),
+      writerFeatures = list("variantType")
+    )),
+    list(metaData = list(
+      id = "variant-table",
+      schemaString = schema,
+      partitionColumns = list(),
+      configuration = list()
+    )),
+    list(add = list(path = "part.parquet", partitionValues = list()))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_s3_class(result$payload, "data.frame")
+  expect_identical(rawToChar(result$payload$value[[1L]]), "variant-value")
+  expect_identical(
+    rawToChar(result$payload$metadata[[1L]]),
+    "variant-metadata"
   )
 })
 
@@ -1232,6 +1405,95 @@ test_that("Delta multipart checkpoints require every declared part", {
   )
 })
 
+test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
+  table_dir <- fs::path_temp(paste0("delta-v2-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  sidecar_dir <- fs::path(log_dir, "_sidecars")
+  fs::dir_create(sidecar_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  uuid <- "80a083e8-7026-4e79-81be-64bd76c43a11"
+  sidecar_name <- "016ae953-37a9-438e-8683-9a9a4a79a395.parquet"
+  checkpoint <- fs::path(
+    log_dir,
+    paste0("00000000000000000010.checkpoint.", uuid, ".json")
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(list(
+        name = "id",
+        type = "integer",
+        nullable = FALSE,
+        metadata = list()
+      ))
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(checkpointMetadata = list(version = 10L, tags = list())),
+    list(protocol = list(
+      minReaderVersion = 3L,
+      minWriterVersion = 7L,
+      readerFeatures = list("v2Checkpoint"),
+      writerFeatures = list("v2Checkpoint")
+    )),
+    list(metaData = list(
+      id = "v2-table",
+      schemaString = schema,
+      partitionColumns = list(),
+      configuration = list()
+    )),
+    list(sidecar = list(
+      path = sidecar_name,
+      sizeInBytes = 1L,
+      modificationTime = 1L,
+      tags = list()
+    ))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    checkpoint,
+    useBytes = TRUE
+  )
+  sidecar <- fs::path(sidecar_dir, sidecar_name)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT struct_pack(",
+      "path := 'part.parquet', ",
+      "partitionValues := map([], [])) AS add) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", sidecar))),
+      " (FORMAT PARQUET)"
+    )
+  )
+
+  sets <- fabric_delta_checkpoint_sets(checkpoint)
+  expect_length(sets, 1L)
+  expect_true(sets[[1L]]$v2_named)
+  expect_equal(
+    fabric_delta_checkpoint_sidecar_paths(checkpoint),
+    sidecar_name
+  )
+  snapshot <- fabric_delta_resolve_snapshot(table_dir)
+  expect_equal(snapshot$version, 10)
+  expect_equal(snapshot$checkpoint_version, 10)
+  expect_equal(snapshot$active, "part.parquet")
+
+  actions[[1L]]$checkpointMetadata$version <- 9L
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    checkpoint,
+    useBytes = TRUE
+  )
+  expect_error(
+    fabric_delta_resolve_snapshot(table_dir),
+    "exactly one matching checkpointMetadata",
+    fixed = TRUE
+  )
+})
+
 test_that("Delta snapshot ignores an incomplete multipart checkpoint", {
   table_dir <- fs::path_temp(
     paste0("delta-incomplete-checkpoint-", sample.int(1e9, 1))
@@ -1373,12 +1635,7 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
   )
 
   state$metadata$configuration[["delta.columnMapping.mode"]] <- "id"
-  expect_error(
-    fabric_delta_validate_reader(state),
-    'column mapping mode "id"',
-    fixed = TRUE,
-    class = "fabric_delta_unsupported_error"
-  )
+  expect_invisible(fabric_delta_validate_reader(state))
   state$metadata$configuration[["delta.columnMapping.mode"]] <- "none"
   state$protocol <- list(
     minReaderVersion = 3L,
@@ -1393,10 +1650,24 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
   )
   state$protocol$readerFeatures <- list("deletionVectors")
   state$has_deletion_vectors <- TRUE
-  state$files[["part.parquet"]]$deletionVector <- list(storageType = "p")
+  state$files[["part.parquet"]]$deletionVector <- list(
+    storageType = "p",
+    pathOrInlineDv = paste0(
+      "abfss://11111111-1111-1111-1111-111111111111",
+      "@onelake.dfs.fabric.microsoft.com/",
+      "22222222-2222-2222-2222-222222222222/",
+      "Tables/source/deletion-vector.bin"
+    )
+  )
+  expect_invisible(fabric_delta_validate_reader(state))
+
+  state$protocol <- list(
+    minReaderVersion = 3L,
+    minWriterVersion = 7L
+  )
   expect_error(
     fabric_delta_validate_reader(state),
-    "absolute paths",
+    "without readerFeatures",
     fixed = TRUE,
     class = "fabric_delta_unsupported_error"
   )
@@ -1535,6 +1806,23 @@ test_that("persisted deletion vectors support legacy and sidecar offsets", {
   second_descriptor$offset <- 1L + length(block)
   expect_equal(
     fabric_delta_read_deletion_vector(second_descriptor, table_dir),
+    expected
+  )
+
+  absolute <- paste0(
+    "abfss://11111111-1111-1111-1111-111111111111",
+    "@onelake.dfs.fabric.microsoft.com/",
+    "22222222-2222-2222-2222-222222222222/",
+    "Tables/source/deletion-vector.bin"
+  )
+  absolute_path <- fabric_delta_local_file(table_dir, absolute)
+  fs::dir_create(fs::path_dir(absolute_path), recurse = TRUE)
+  writeBin(block, absolute_path)
+  absolute_descriptor <- descriptor
+  absolute_descriptor$storageType <- "p"
+  absolute_descriptor$pathOrInlineDv <- absolute
+  expect_equal(
+    fabric_delta_read_deletion_vector(absolute_descriptor, table_dir),
     expected
   )
 })
