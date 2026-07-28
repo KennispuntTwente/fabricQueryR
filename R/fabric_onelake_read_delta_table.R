@@ -1201,6 +1201,7 @@ fabric_delta_duckdb_type <- function(con, type) {
       date = "DATE",
       timestamp = "TIMESTAMPTZ",
       timestamp_ntz = "TIMESTAMP",
+      void = "BOOLEAN",
       variant = "VARIANT"
     )
     if (normalized %in% names(primitive)) {
@@ -1497,6 +1498,13 @@ fabric_delta_id_file_projection <- function(con, schema, mapping) {
 #' @noRd
 fabric_delta_id_type_expression <- function(con, type, expression, mapping) {
   if (
+    is.character(type) &&
+      length(type) == 1L &&
+      identical(tolower(type), "void")
+  ) {
+    return("NULL")
+  }
+  if (
     identical(expression, "NULL") ||
       (is.character(type) && length(type) == 1L)
   ) {
@@ -1583,6 +1591,13 @@ fabric_delta_field_expression <- function(
   expression,
   mapping_mode = "none"
 ) {
+  if (
+    is.character(field$type) &&
+      length(field$type) == 1L &&
+      identical(tolower(field$type), "void")
+  ) {
+    return("NULL")
+  }
   if (identical(mapping_mode, "none")) {
     return(expression)
   }
@@ -1604,6 +1619,9 @@ fabric_delta_type_expression <- function(
   mapping_mode = "none"
 ) {
   if (is.character(type) && length(type) == 1L) {
+    if (identical(tolower(type), "void")) {
+      return("NULL")
+    }
     return(expression)
   }
   kind <- tolower(as.character(type$type %||% ""))
@@ -2243,7 +2261,13 @@ fabric_delta_read_projection <- function(
       name <- projection$names[[index]]
       type <- projection$types[[index]]
       alias <- as.character(DBI::dbQuoteIdentifier(con, name))
-      if (name %in% schema$partitionColumns) {
+      field <- schema$fields[[index]]
+      is_void <- is.character(field$type) &&
+        length(field$type) == 1L &&
+        identical(tolower(field$type), "void")
+      if (is_void) {
+        expression <- "NULL"
+      } else if (name %in% schema$partitionColumns) {
         partition_index <- match(name, schema$partitionColumns)
         expression <- paste0(
           "delta_partitions.",
@@ -2253,7 +2277,6 @@ fabric_delta_read_projection <- function(
           ))
         )
       } else {
-        field <- schema$fields[[index]]
         physical_name <- fabric_delta_field_physical_name(
           field,
           schema$columnMappingMode

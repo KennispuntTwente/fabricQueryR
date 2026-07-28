@@ -886,6 +886,7 @@ test_that("Delta logical schemas cover primitive and nested types", {
     date = "DATE",
     timestamp = "TIMESTAMPTZ",
     timestamp_ntz = "TIMESTAMP",
+    void = "BOOLEAN",
     "decimal(18,4)" = "DECIMAL(18,4)"
   )
   converted <- vapply(
@@ -983,6 +984,94 @@ test_that("Delta logical schemas cover primitive and nested types", {
   expect_match(id_projection, '"file-outer"."file-inner"', fixed = TRUE)
   expect_match(id_projection, '"physical-inner" :=', fixed = TRUE)
   expect_match(id_projection, 'AS "physical-outer"', fixed = TRUE)
+})
+
+test_that("Delta reader reconstructs top-level and nested void fields", {
+  table_dir <- fs::path_temp(paste0("delta-void-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 1::INTEGER AS id, ",
+      "struct_pack(value := 2::INTEGER) AS details) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "integer",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "always_null",
+          type = "void",
+          nullable = TRUE,
+          metadata = list()
+        ),
+        list(
+          name = "details",
+          type = list(
+            type = "struct",
+            fields = list(
+              list(
+                name = "value",
+                type = "integer",
+                nullable = FALSE,
+                metadata = list()
+              ),
+              list(
+                name = "pending",
+                type = "void",
+                nullable = TRUE,
+                metadata = list()
+              )
+            )
+          ),
+          nullable = FALSE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
+    list(metaData = list(
+      id = "void-table",
+      format = list(provider = "parquet", options = list()),
+      schemaString = schema,
+      partitionColumns = list(),
+      configuration = list()
+    )),
+    list(add = list(path = "part.parquet", partitionValues = list()))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_named(result, c("id", "always_null", "details"))
+  expect_identical(result$id, 1L)
+  expect_type(result$always_null, "logical")
+  expect_true(is.na(result$always_null))
+  expect_s3_class(result$details, "data.frame")
+  expect_identical(result$details$value, 2L)
+  expect_type(result$details$pending, "logical")
+  expect_true(is.na(result$details$pending))
 })
 
 test_that("Delta reader preserves exact BIGINT and DECIMAL values", {

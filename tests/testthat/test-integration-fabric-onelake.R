@@ -82,6 +82,16 @@ test_that("Delta reader preserves empty schemas and typed log partitions", {
   expect_type(empty$category, "character")
   expect_type(empty$amount, "double")
 
+  void <- read_table(lakehouse$tables$void)
+  void <- void[order(void$id), ]
+  expect_equal(void$id, 0:2)
+  expect_type(void$always_null, "logical")
+  expect_true(all(is.na(void$always_null)))
+  expect_s3_class(void$details, "data.frame")
+  expect_equal(void$details$value, 0:2)
+  expect_type(void$details$pending, "logical")
+  expect_true(all(is.na(void$details$pending)))
+
   partitioned <- read_table(lakehouse$tables$typed_partitions)
   partitioned <- partitioned[order(partitioned$id), ]
   expect_equal(partitioned$id, 1:3)

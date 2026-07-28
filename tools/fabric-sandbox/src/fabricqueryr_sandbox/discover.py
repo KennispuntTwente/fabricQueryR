@@ -192,6 +192,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "tables": {
                     "basic": "fabricqueryr_basic",
                     "empty": "fabricqueryr_empty",
+                    "void": "fabricqueryr_void",
                     "partitioned": "fabricqueryr_partitioned",
                     "typed_partitions": "fabricqueryr_typed_partitions",
                     "schema_evolved": "fabricqueryr_schema_evolved",

@@ -56,6 +56,23 @@ try:
         .saveAsTable("dbo.fabricqueryr_empty")
     )
 
+    stage = "write Delta void columns"
+    (
+        spark.range(0, 3)
+        .select(
+            F.col("id"),
+            F.lit(None).alias("always_null"),
+            F.struct(
+                F.col("id").cast("int").alias("value"),
+                F.lit(None).alias("pending"),
+            ).alias("details"),
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_void")
+    )
+
     stage = "write partitioned Delta table"
     (
         fixture.write.format("delta")
