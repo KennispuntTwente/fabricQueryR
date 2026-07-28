@@ -354,6 +354,44 @@ test_that("automatic Delta staging is unique and cleaned after each read", {
   expect_false(any(fs::dir_exists(staging_dirs)))
 })
 
+test_that("Delta reads reject retained files in a supplied staging directory", {
+  dest <- fs::path_temp(paste0("delta-stale-", sample.int(1e9, 1)))
+  stale_log <- fs::path(
+    dest,
+    "_delta_log",
+    "00000000000000000099.json"
+  )
+  fs::dir_create(fs::path_dir(stale_log), recurse = TRUE)
+  writeLines(
+    '{"add":{"path":"wrong-table.parquet"}}',
+    stale_log,
+    useBytes = TRUE
+  )
+  on.exit(fs::dir_delete(dest), add = TRUE)
+  listed <- FALSE
+  local_mocked_bindings(
+    onelake_list_target = function(...) {
+      listed <<- TRUE
+      data.frame()
+    }
+  )
+
+  expect_error(
+    fabric_onelake_read_delta_table(
+      table_path = "other_table",
+      workspace_name = "workspace",
+      lakehouse_name = "lakehouse",
+      token = "token",
+      dest_dir = dest,
+      verbose = FALSE
+    ),
+    "dest_dir must be a new or empty directory",
+    fixed = TRUE
+  )
+  expect_false(listed)
+  expect_true(fs::file_exists(stale_log))
+})
+
 test_that("Delta log selection stages only the newest checkpoint tail", {
   old_commits <- sprintf(
     "Tables/table/_delta_log/%020.0f.json",

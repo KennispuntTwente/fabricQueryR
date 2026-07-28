@@ -73,8 +73,9 @@
 #'   through `2^53` are represented exactly; larger versions are rejected.
 #' @param dest_dir Local staging directory for the Delta log and active data
 #'   files, or `NULL`. The default creates a temporary directory and removes it
-#'   on exit. Supply a directory to retain the downloaded files for inspection
-#'   or reuse, and ensure it has enough free space.
+#'   on exit. Supply a new or empty directory to retain the downloaded files
+#'   for inspection, and ensure it has enough free space. Non-empty directories
+#'   are rejected so stale files cannot affect snapshot resolution.
 #' @param verbose Logical. Show download and read progress.
 #' @param dfs_base OneLake DFS endpoint. Keep the default unless using a
 #'   regional or workspace-private endpoint.
@@ -283,6 +284,17 @@ fabric_onelake_read_delta_table <- function(
 
   auto_cleanup <- is.null(dest_dir)
   dest_dir <- dest_dir %||% fs::file_temp("onelake_tbl_")
+  if (
+    fs::dir_exists(dest_dir) &&
+      length(fs::dir_ls(dest_dir, all = TRUE, fail = FALSE))
+  ) {
+    rlang::abort(c(
+      "dest_dir must be a new or empty directory",
+      "x" = cli::format_inline(
+        "{.path {dest_dir}} contains files from an earlier operation"
+      )
+    ))
+  }
   fs::dir_create(dest_dir, recurse = TRUE)
   if (auto_cleanup) {
     on.exit(try(fs::dir_delete(dest_dir), silent = TRUE), add = TRUE)

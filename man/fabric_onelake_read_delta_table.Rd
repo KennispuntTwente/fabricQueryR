@@ -62,8 +62,9 @@ through \code{2^53} are represented exactly; larger versions are rejected.}
 
 \item{dest_dir}{Local staging directory for the Delta log and active data
 files, or \code{NULL}. The default creates a temporary directory and removes it
-on exit. Supply a directory to retain the downloaded files for inspection
-or reuse, and ensure it has enough free space.}
+on exit. Supply a new or empty directory to retain the downloaded files
+for inspection, and ensure it has enough free space. Non-empty directories
+are rejected so stale files cannot affect snapshot resolution.}
 
 \item{verbose}{Logical. Show download and read progress.}
 
