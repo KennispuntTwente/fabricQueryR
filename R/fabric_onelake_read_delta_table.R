@@ -690,7 +690,11 @@ fabric_delta_read_staged <- function(
   ) {
     rlang::abort("Delta log contains an unsafe data-file path")
   }
-  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  con <- DBI::dbConnect(
+    duckdb::duckdb(),
+    dbdir = ":memory:",
+    bigint = "integer64"
+  )
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
   projection <- fabric_delta_schema_projection(con, schema)
   selected_indexes <- if (is.null(columns)) {
@@ -1049,6 +1053,61 @@ fabric_delta_duckdb_type <- function(con, type) {
   rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
 }
 
+#' Translate a Delta type into an exact R-facing DuckDB result type
+#'
+#' DuckDB's R client preserves BIGINT as `bit64::integer64` when the connection
+#' requests it, but currently materializes DECIMAL values as binary doubles.
+#' Project DECIMAL values to text at every nesting level so no precision is
+#' discarded while crossing the DBI boundary.
+#' @keywords internal
+#' @noRd
+fabric_delta_duckdb_result_type <- function(con, type) {
+  if (is.character(type) && length(type) == 1L) {
+    normalized <- tolower(type)
+    if (grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized)) {
+      return("VARCHAR")
+    }
+    return(fabric_delta_duckdb_type(con, type))
+  }
+  if (!is.list(type)) {
+    rlang::abort("Delta schema contains an invalid field type")
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (identical(kind, "struct")) {
+    fields <- type$fields %||% list()
+    if (!length(fields)) {
+      rlang::abort("Empty Delta struct fields are not supported")
+    }
+    definitions <- vapply(
+      fields,
+      function(field) {
+        paste(
+          as.character(DBI::dbQuoteIdentifier(con, field$name)),
+          fabric_delta_duckdb_result_type(con, field$type)
+        )
+      },
+      character(1)
+    )
+    return(paste0("STRUCT(", paste(definitions, collapse = ", "), ")"))
+  }
+  if (identical(kind, "array")) {
+    return(paste0(
+      fabric_delta_duckdb_result_type(con, type$elementType),
+      "[]"
+    ))
+  }
+  if (identical(kind, "map")) {
+    return(paste0(
+      "MAP(",
+      fabric_delta_duckdb_result_type(con, type$keyType),
+      ", ",
+      fabric_delta_duckdb_result_type(con, type$valueType),
+      ")"
+    ))
+  }
+  rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
+}
+
 #' Build logical and empty-table schema projections
 #' @keywords internal
 #' @noRd
@@ -1056,7 +1115,7 @@ fabric_delta_schema_projection <- function(con, schema) {
   names <- vapply(schema$fields, `[[`, character(1), "name")
   types <- vapply(
     schema$fields,
-    function(field) fabric_delta_duckdb_type(con, field$type),
+    function(field) fabric_delta_duckdb_result_type(con, field$type),
     character(1)
   )
   aliases <- as.character(DBI::dbQuoteIdentifier(con, names))

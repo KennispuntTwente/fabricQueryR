@@ -684,7 +684,7 @@ test_that("Delta reader preserves the logical schema for empty tables", {
 
   expect_equal(nrow(result), 0L)
   expect_equal(names(result), c("id", "label"))
-  expect_type(result$id, "double")
+  expect_s3_class(result$id, "integer64")
   expect_type(result$label, "character")
 
   projected <- fabric_delta_read_staged(
@@ -767,6 +767,121 @@ test_that("Delta logical schemas cover primitive and nested types", {
     fabric_delta_duckdb_type(con, list(type = "interval")),
     "Unsupported Delta complex schema type: interval",
     fixed = TRUE
+  )
+
+  exact_result_type <- fabric_delta_duckdb_result_type(
+    con,
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "amount", type = "decimal(38,2)"),
+        list(
+          name = "history",
+          type = list(type = "array", elementType = "decimal(20,0)")
+        ),
+        list(name = "id", type = "long")
+      )
+    )
+  )
+  expect_equal(
+    exact_result_type,
+    "STRUCT(amount VARCHAR, history VARCHAR[], id BIGINT)"
+  )
+})
+
+test_that("Delta reader preserves exact BIGINT and DECIMAL values", {
+  table_dir <- fs::path_temp(paste0("delta-exact-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT ",
+      "CAST('9007199254740993' AS BIGINT) AS above_double_limit, ",
+      "CAST('9223372036854775807' AS BIGINT) AS maximum_long, ",
+      "CAST('12345678901234567890123456789012345678' ",
+      "AS DECIMAL(38,0)) AS whole_decimal, ",
+      "CAST('123456789012345678901234567890123456.78' ",
+      "AS DECIMAL(38,2)) AS scaled_decimal) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "above_double_limit",
+          type = "long",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "maximum_long",
+          type = "long",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "whole_decimal",
+          type = "decimal(38,0)",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "scaled_decimal",
+          type = "decimal(38,2)",
+          nullable = FALSE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      ),
+      '{"add":{"path":"part.parquet","partitionValues":{}}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_s3_class(result$above_double_limit, "integer64")
+  expect_s3_class(result$maximum_long, "integer64")
+  expect_identical(
+    as.character(result$above_double_limit),
+    "9007199254740993"
+  )
+  expect_identical(
+    as.character(result$maximum_long),
+    "9223372036854775807"
+  )
+  expect_identical(
+    result$whole_decimal,
+    "12345678901234567890123456789012345678"
+  )
+  expect_identical(
+    result$scaled_decimal,
+    "123456789012345678901234567890123456.78"
   )
 })
 
