@@ -453,6 +453,88 @@ try:
         """
     )
 
+    stage = "write nested type-widening Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_nested")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_type_widened_nested (
+          id INT,
+          nested STRUCT<count: INT, ratio: FLOAT>,
+          readings ARRAY<INT>,
+          lookup MAP<STRING, INT>,
+          decimal_value INT,
+          double_value SMALLINT
+        )
+        USING DELTA
+        TBLPROPERTIES ('delta.enableTypeWidening' = 'true')
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened_nested
+        SELECT
+          1,
+          named_struct(
+            'count', CAST(10 AS INT),
+            'ratio', CAST(1.5 AS FLOAT)
+          ),
+          array(CAST(1 AS INT), CAST(2 AS INT)),
+          map('before', CAST(3 AS INT)),
+          CAST(123 AS INT),
+          CAST(7 AS SMALLINT)
+        """
+    )
+    wide_nested = spark.sql(
+        """
+        SELECT
+          2 AS id,
+          named_struct(
+            'count', CAST('9007199254740993' AS BIGINT),
+            'ratio', CAST(2.5 AS DOUBLE)
+          ) AS nested,
+          array(
+            CAST('9007199254740993' AS BIGINT),
+            CAST('4' AS BIGINT)
+          ) AS readings,
+          map('after', CAST('9007199254740993' AS BIGINT)) AS lookup,
+          CAST(456 AS INT) AS decimal_value,
+          CAST(8 AS SMALLINT) AS double_value
+        """
+    )
+    (
+        wide_nested.write.format("delta")
+        .mode("append")
+        .option("mergeSchema", "true")
+        .saveAsTable("dbo.fabricqueryr_type_widened_nested")
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_type_widened_nested
+        ALTER COLUMN decimal_value TYPE DECIMAL(12, 2)
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_type_widened_nested
+        ALTER COLUMN double_value TYPE DOUBLE
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened_nested
+        SELECT
+          3,
+          named_struct(
+            'count', CAST(11 AS BIGINT),
+            'ratio', CAST(3.5 AS DOUBLE)
+          ),
+          array(CAST(5 AS BIGINT), CAST(6 AS BIGINT)),
+          map('manual', CAST(7 AS BIGINT)),
+          CAST('9007199254.25' AS DECIMAL(12, 2)),
+          CAST(9.5 AS DOUBLE)
+        """
+    )
+
     stage = "write V2 checkpoint Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_v2_checkpoint")
     spark.sql(

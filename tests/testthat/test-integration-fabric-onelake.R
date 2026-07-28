@@ -628,6 +628,32 @@ test_that("Delta reader handles DV stress and exact widening", {
     ),
     tolerance = 1e-6
   )
+
+  nested <- read_table(lakehouse$tables$type_widened_nested)
+  nested <- nested[order(nested$id), ]
+  expect_s3_class(nested$nested$count, "integer64")
+  expect_identical(
+    as.character(nested$nested$count),
+    c("10", "9007199254740993", "11")
+  )
+  expect_equal(nested$nested$ratio, c(1.5, 2.5, 3.5))
+  expect_identical(
+    lapply(nested$readings, as.character),
+    list(
+      c("1", "2"),
+      c("9007199254740993", "4"),
+      c("5", "6")
+    )
+  )
+  expect_identical(
+    lapply(nested$lookup, function(value) as.character(value$value)),
+    list("3", "9007199254740993", "7")
+  )
+  expect_identical(
+    nested$decimal_value,
+    c("123.00", "456.00", "9007199254.25")
+  )
+  expect_equal(nested$double_value, c(7, 8, 9.5))
 })
 
 test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {

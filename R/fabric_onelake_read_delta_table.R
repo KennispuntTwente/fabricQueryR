@@ -1081,21 +1081,124 @@ fabric_delta_validate_type_widening <- function(schema, reader_features) {
     return(invisible(schema))
   }
   preview <- identical(feature[[1L]], "typeWidening-preview")
+  resolve_path <- function(type, path) {
+    current <- type
+    if (nzchar(path)) {
+      components <- strsplit(path, ".", fixed = TRUE)[[1L]]
+      if (any(!nzchar(components))) {
+        fabric_delta_abort_unsupported(
+          paste0("Delta type-widening fieldPath ", path, " is invalid")
+        )
+      }
+      for (component in components) {
+        if (!is.list(current)) {
+          fabric_delta_abort_unsupported(
+            paste0(
+              "Delta type-widening fieldPath ",
+              path,
+              " does not resolve through the current schema"
+            )
+          )
+        }
+        kind <- tolower(as.character(current$type %||% ""))
+        current <- if (identical(kind, "array") &&
+          identical(component, "element")) {
+          current$elementType
+        } else if (identical(kind, "map") &&
+          identical(component, "key")) {
+          current$keyType
+        } else if (identical(kind, "map") &&
+          identical(component, "value")) {
+          current$valueType
+        } else {
+          fabric_delta_abort_unsupported(
+            paste0(
+              "Delta type-widening fieldPath ",
+              path,
+              " does not resolve through the current schema"
+            )
+          )
+        }
+      }
+    }
+    if (!is.character(current) || length(current) != 1L || is.na(current)) {
+      fabric_delta_abort_unsupported(
+        paste0(
+          "Delta type-widening fieldPath ",
+          if (nzchar(path)) path else "<field>",
+          " does not identify a primitive field"
+        )
+      )
+    }
+    tolower(current)
+  }
   visit_field <- function(field) {
     changes <- field$metadata[["delta.typeChanges"]] %||% list()
-    for (change in changes) {
-      from <- tolower(as.character(change$fromType %||% ""))
-      to <- tolower(as.character(change$toType %||% ""))
-      if (!fabric_delta_supported_type_change(from, to, preview = preview)) {
-        fabric_delta_abort_unsupported(
-          paste0(
-            "Delta type-widening transition ",
-            from,
-            " -> ",
-            to,
-            " is not supported"
+    if (length(changes)) {
+      paths <- vapply(changes, function(change) {
+        path <- change$fieldPath %||% ""
+        if (
+          !is.character(path) ||
+            length(path) != 1L ||
+            is.na(path)
+        ) {
+          fabric_delta_abort_unsupported(
+            "Delta type-widening fieldPath is invalid"
           )
-        )
+        }
+        path
+      }, character(1))
+      for (path in unique(paths)) {
+        path_changes <- changes[paths == path]
+        previous_to <- NULL
+        for (change in path_changes) {
+          from <- tolower(as.character(change$fromType %||% ""))
+          to <- tolower(as.character(change$toType %||% ""))
+          if (
+            length(from) != 1L ||
+              is.na(from) ||
+              length(to) != 1L ||
+              is.na(to) ||
+              !fabric_delta_supported_type_change(
+                from,
+                to,
+                preview = preview
+              )
+          ) {
+            fabric_delta_abort_unsupported(
+              paste0(
+                "Delta type-widening transition ",
+                from,
+                " -> ",
+                to,
+                " is not supported"
+              )
+            )
+          }
+          if (!is.null(previous_to) && !identical(from, previous_to)) {
+            fabric_delta_abort_unsupported(
+              paste0(
+                "Delta type-widening history for fieldPath ",
+                if (nzchar(path)) path else "<field>",
+                " is not contiguous"
+              )
+            )
+          }
+          previous_to <- to
+        }
+        current <- resolve_path(field$type, path)
+        if (!identical(previous_to, current)) {
+          fabric_delta_abort_unsupported(
+            paste0(
+              "Delta type-widening history for fieldPath ",
+              if (nzchar(path)) path else "<field>",
+              " ends at ",
+              previous_to,
+              " but the current schema type is ",
+              current
+            )
+          )
+        }
       }
     }
     visit_type(field$type)

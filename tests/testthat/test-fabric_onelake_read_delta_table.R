@@ -1735,6 +1735,68 @@ test_that("Delta type widening validates stable and preview transitions", {
   expect_false(
     fabric_delta_supported_type_change("byte", "double", preview = TRUE)
   )
+
+  nested <- list(
+    fields = list(list(
+      name = "values",
+      type = list(
+        type = "array",
+        elementType = list(
+          type = "map",
+          keyType = "string",
+          valueType = "decimal(14,4)"
+        )
+      ),
+      metadata = list(
+        "delta.typeChanges" = list(
+          list(
+            fromType = "decimal(8,2)",
+            toType = "decimal(10,2)",
+            fieldPath = "element.value"
+          ),
+          list(
+            fromType = "decimal(10,2)",
+            toType = "decimal(14,4)",
+            fieldPath = "element.value"
+          )
+        )
+      )
+    ))
+  )
+  expect_invisible(
+    fabric_delta_validate_type_widening(nested, "typeWidening")
+  )
+
+  invalid_path <- nested
+  invalid_path$fields[[1L]]$metadata[["delta.typeChanges"]][[1L]]$fieldPath <-
+    "element.element"
+  invalid_path$fields[[1L]]$metadata[["delta.typeChanges"]][[2L]]$fieldPath <-
+    "element.element"
+  expect_error(
+    fabric_delta_validate_type_widening(invalid_path, "typeWidening"),
+    "does not resolve through the current schema",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+
+  broken_history <- nested
+  broken_history$fields[[1L]]$metadata[["delta.typeChanges"]][[2L]]$fromType <-
+    "decimal(11,2)"
+  expect_error(
+    fabric_delta_validate_type_widening(broken_history, "typeWidening"),
+    "is not contiguous",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+
+  stale_history <- nested
+  stale_history$fields[[1L]]$type$elementType$valueType <- "decimal(16,4)"
+  expect_error(
+    fabric_delta_validate_type_widening(stale_history, "typeWidening"),
+    "current schema type is decimal(16,4)",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
 })
 
 test_that("Delta reader accepts supported features and rejects unsafe ones", {

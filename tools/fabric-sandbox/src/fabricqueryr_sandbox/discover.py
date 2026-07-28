@@ -213,6 +213,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "shallow_clone": "fabricqueryr_shallow_clone",
                     "type_widened": "fabricqueryr_type_widened",
                     "type_widened_exact": "fabricqueryr_type_widened_exact",
+                    "type_widened_nested": (
+                        "fabricqueryr_type_widened_nested"
+                    ),
                     "v2_checkpoint": "fabricqueryr_v2_checkpoint",
                     "variant": "fabricqueryr_variant",
                     "livy_batch_result": "fabricqueryr_livy_batch_result",
