@@ -423,8 +423,17 @@ run_fabric_integration_tests <- function(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID"),
   auth_args = list(),
   install_adbc_driver = TRUE,
+  filter = "integration-fabric",
   repository_root = .fabric_local_repository
 ) {
+  if (
+    !is.character(filter) ||
+      length(filter) != 1L ||
+      is.na(filter) ||
+      !nzchar(filter)
+  ) {
+    stop("filter must be one non-empty testthat filter", call. = FALSE)
+  }
   repository_root <- normalizePath(
     repository_root,
     winslash = "/",
@@ -601,14 +610,16 @@ run_fabric_integration_tests <- function(
   )
 
   message(
-    "Running all Fabric integration tests against ",
+    "Running Fabric integration tests matching ",
+    shQuote(filter),
+    " against ",
     workspace_name,
     " (",
     workspace$id,
     ")..."
   )
   devtools::test(
-    filter = "integration-fabric",
+    filter = filter,
     stop_on_failure = TRUE
   )
 }

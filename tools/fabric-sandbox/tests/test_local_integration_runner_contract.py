@@ -14,5 +14,6 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert "fabric_local_exchange_token" in runner
     assert 'grant_type = "refresh_token"' in runner
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" in runner
-    assert '"integration-fabric"' in runner
+    assert 'filter = "integration-fabric"' in runner
+    assert "filter = filter" in runner
     assert "stop_on_failure = TRUE" in runner

@@ -152,6 +152,13 @@ source("tools/fabric-sandbox/local-integration.R")
 run_fabric_integration_tests()
 ```
 
+To run one of the split feature groups while developing, pass its testthat
+filter. For example:
+
+```r
+run_fabric_integration_tests(filter = "integration-fabric-sql")
+```
+
 The local runner:
 
 1. checks the R, ODBC, ADBC, `uv`, and sandbox-tool dependencies;
