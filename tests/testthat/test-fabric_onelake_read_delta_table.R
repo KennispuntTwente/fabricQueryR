@@ -381,12 +381,14 @@ test_that("Delta stages and reads absolute OneLake AddFile paths", {
   )
   actions <- list(
     list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
-    list(metaData = list(
-      id = "absolute-table",
-      schemaString = schema,
-      partitionColumns = list(),
-      configuration = list()
-    )),
+    list(
+      metaData = list(
+        id = "absolute-table",
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    ),
     list(add = list(path = absolute, partitionValues = list()))
   )
   writeLines(
@@ -1066,18 +1068,22 @@ test_that("Delta reader exposes unshredded Variant physical values", {
     auto_unbox = TRUE
   )
   actions <- list(
-    list(protocol = list(
-      minReaderVersion = 3L,
-      minWriterVersion = 7L,
-      readerFeatures = list("variantType"),
-      writerFeatures = list("variantType")
-    )),
-    list(metaData = list(
-      id = "variant-table",
-      schemaString = schema,
-      partitionColumns = list(),
-      configuration = list()
-    )),
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("variantType"),
+        writerFeatures = list("variantType")
+      )
+    ),
+    list(
+      metaData = list(
+        id = "variant-table",
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    ),
     list(add = list(path = "part.parquet", partitionValues = list()))
   )
   writeLines(
@@ -1431,24 +1437,30 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
   )
   actions <- list(
     list(checkpointMetadata = list(version = 10L, tags = list())),
-    list(protocol = list(
-      minReaderVersion = 3L,
-      minWriterVersion = 7L,
-      readerFeatures = list("v2Checkpoint"),
-      writerFeatures = list("v2Checkpoint")
-    )),
-    list(metaData = list(
-      id = "v2-table",
-      schemaString = schema,
-      partitionColumns = list(),
-      configuration = list()
-    )),
-    list(sidecar = list(
-      path = sidecar_name,
-      sizeInBytes = 1L,
-      modificationTime = 1L,
-      tags = list()
-    ))
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("v2Checkpoint"),
+        writerFeatures = list("v2Checkpoint")
+      )
+    ),
+    list(
+      metaData = list(
+        id = "v2-table",
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    ),
+    list(
+      sidecar = list(
+        path = sidecar_name,
+        sizeInBytes = 1L,
+        modificationTime = 1L,
+        tags = list()
+      )
+    )
   )
   writeLines(
     vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),

@@ -760,9 +760,7 @@ fabric_delta_local_file <- function(table_dir, path) {
     decoded,
     ignore.case = TRUE
   )
-  relative <- if (
-    absolute
-  ) {
+  relative <- if (absolute) {
     fabric_delta_external_relative(onelake_parse_uri(decoded))
   } else {
     parts <- strsplit(gsub("\\\\", "/", decoded), "/", fixed = TRUE)[[1L]]
@@ -1338,37 +1336,40 @@ fabric_delta_id_fields <- function(schema) {
     list()
   }
   collect <- function(fields, top_level = FALSE) {
-    unlist(lapply(fields, function(field) {
-      is_partition <- top_level &&
-        as.character(field$name) %in% schema$partitionColumns
-      own <- if (is_partition) {
-        list()
-      } else {
-        id <- field$metadata[["delta.columnMapping.id"]] %||% NULL
-        if (
-          is.null(id) ||
-            length(id) != 1L ||
-            is.na(id) ||
-            !is.numeric(id) ||
-            id < 0 ||
-            id != floor(id)
-        ) {
-          fabric_delta_abort_unsupported(
-            paste0(
-              "Delta ID column mapping field ",
-              as.character(field$name),
-              " has no valid column ID"
+    unlist(
+      lapply(fields, function(field) {
+        is_partition <- top_level &&
+          as.character(field$name) %in% schema$partitionColumns
+        own <- if (is_partition) {
+          list()
+        } else {
+          id <- field$metadata[["delta.columnMapping.id"]] %||% NULL
+          if (
+            is.null(id) ||
+              length(id) != 1L ||
+              is.na(id) ||
+              !is.numeric(id) ||
+              id < 0 ||
+              id != floor(id)
+          ) {
+            fabric_delta_abort_unsupported(
+              paste0(
+                "Delta ID column mapping field ",
+                as.character(field$name),
+                " has no valid column ID"
+              )
             )
-          )
+          }
+          list(list(
+            id = as.numeric(id),
+            physical = fabric_delta_field_physical_name(field, "id")
+          ))
         }
-        list(list(
-          id = as.numeric(id),
-          physical = fabric_delta_field_physical_name(field, "id")
-        ))
-      }
-      nested <- collect_type(field$type)
-      c(own, nested)
-    }), recursive = FALSE)
+        nested <- collect_type(field$type)
+        c(own, nested)
+      }),
+      recursive = FALSE
+    )
   }
   collect(schema$fields, top_level = TRUE)
 }
@@ -1424,27 +1425,34 @@ fabric_delta_id_file_projection <- function(con, schema, mapping) {
     function(field) !field$name %in% schema$partitionColumns,
     schema$fields
   )
-  paste(vapply(fields, function(field) {
-    id <- as.character(field$metadata[["delta.columnMapping.id"]])
-    actual <- unname(mapping[[id]] %||% "")
-    expected <- fabric_delta_field_physical_name(field, "id")
-    expression <- if (nzchar(actual)) {
-      as.character(DBI::dbQuoteIdentifier(con, actual))
-    } else {
-      "NULL"
-    }
-    expression <- fabric_delta_id_type_expression(
-      con,
-      field$type,
-      expression,
-      mapping
-    )
-    paste0(
-      expression,
-      " AS ",
-      as.character(DBI::dbQuoteIdentifier(con, expected))
-    )
-  }, character(1)), collapse = ", ")
+  paste(
+    vapply(
+      fields,
+      function(field) {
+        id <- as.character(field$metadata[["delta.columnMapping.id"]])
+        actual <- unname(mapping[[id]] %||% "")
+        expected <- fabric_delta_field_physical_name(field, "id")
+        expression <- if (nzchar(actual)) {
+          as.character(DBI::dbQuoteIdentifier(con, actual))
+        } else {
+          "NULL"
+        }
+        expression <- fabric_delta_id_type_expression(
+          con,
+          field$type,
+          expression,
+          mapping
+        )
+        paste0(
+          expression,
+          " AS ",
+          as.character(DBI::dbQuoteIdentifier(con, expected))
+        )
+      },
+      character(1)
+    ),
+    collapse = ", "
+  )
 }
 
 #' Rebuild nested ID-mapped values using canonical physical names
@@ -1459,30 +1467,34 @@ fabric_delta_id_type_expression <- function(con, type, expression, mapping) {
   }
   kind <- tolower(as.character(type$type %||% ""))
   if (identical(kind, "struct")) {
-    packed <- vapply(type$fields %||% list(), function(field) {
-      id <- as.character(field$metadata[["delta.columnMapping.id"]])
-      actual <- unname(mapping[[id]] %||% "")
-      nested <- if (nzchar(actual)) {
+    packed <- vapply(
+      type$fields %||% list(),
+      function(field) {
+        id <- as.character(field$metadata[["delta.columnMapping.id"]])
+        actual <- unname(mapping[[id]] %||% "")
+        nested <- if (nzchar(actual)) {
+          paste0(
+            expression,
+            ".",
+            as.character(DBI::dbQuoteIdentifier(con, actual))
+          )
+        } else {
+          "NULL"
+        }
+        expected <- fabric_delta_field_physical_name(field, "id")
         paste0(
-          expression,
-          ".",
-          as.character(DBI::dbQuoteIdentifier(con, actual))
+          as.character(DBI::dbQuoteIdentifier(con, expected)),
+          " := ",
+          fabric_delta_id_type_expression(
+            con,
+            field$type,
+            nested,
+            mapping
+          )
         )
-      } else {
-        "NULL"
-      }
-      expected <- fabric_delta_field_physical_name(field, "id")
-      paste0(
-        as.character(DBI::dbQuoteIdentifier(con, expected)),
-        " := ",
-        fabric_delta_id_type_expression(
-          con,
-          field$type,
-          nested,
-          mapping
-        )
-      )
-    }, character(1))
+      },
+      character(1)
+    )
     return(paste0("struct_pack(", paste(packed, collapse = ", "), ")"))
   }
   if (identical(kind, "array")) {
@@ -2266,9 +2278,12 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
       isTRUE(checkpoint_sets[[checkpoint_index]]$v2_named)
     if (is_v2) {
       metadata_versions <- if (length(checkpoint_actions)) {
-        unlist(lapply(checkpoint_actions, function(action) {
-          action$checkpointMetadata$version %||% NULL
-        }), use.names = FALSE)
+        unlist(
+          lapply(checkpoint_actions, function(action) {
+            action$checkpointMetadata$version %||% NULL
+          }),
+          use.names = FALSE
+        )
       } else {
         attr(checkpoint, "fabric_delta_checkpoint_versions") %||% numeric()
       }
@@ -2540,12 +2555,18 @@ fabric_delta_read_checkpoint <- function(paths) {
   if (!length(columns)) {
     rlang::abort("Delta checkpoint contains no snapshot actions")
   }
-  result <- DBI::dbGetQuery(con, paste0(
-    "SELECT ",
-    paste(as.character(DBI::dbQuoteIdentifier(con, columns)), collapse = ", "),
-    " FROM ",
-    source
-  ))
+  result <- DBI::dbGetQuery(
+    con,
+    paste0(
+      "SELECT ",
+      paste(
+        as.character(DBI::dbQuoteIdentifier(con, columns)),
+        collapse = ", "
+      ),
+      " FROM ",
+      source
+    )
+  )
   attr(result, "fabric_delta_v2") <- "checkpointMetadata" %in% available
   attr(result, "fabric_delta_has_file_actions") <- any(vapply(
     c("add", "remove"),
@@ -2577,46 +2598,53 @@ fabric_delta_checkpoint_sidecar_paths <- function(paths) {
   if (!length(paths)) {
     return(character())
   }
-  sidecars <- unlist(lapply(paths, function(path) {
-    if (identical(tolower(tools::file_ext(path)), "json")) {
-      actions <- fabric_delta_read_checkpoint_json(path)$actions
-      return(vapply(
-        Filter(function(action) !is.null(action$sidecar$path), actions),
-        function(action) as.character(action$sidecar$path),
-        character(1)
+  sidecars <- unlist(
+    lapply(paths, function(path) {
+      if (identical(tolower(tools::file_ext(path)), "json")) {
+        actions <- fabric_delta_read_checkpoint_json(path)$actions
+        return(vapply(
+          Filter(function(action) !is.null(action$sidecar$path), actions),
+          function(action) as.character(action$sidecar$path),
+          character(1)
+        ))
+      }
+      con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+      literal <- as.character(DBI::dbQuoteString(
+        con,
+        gsub("\\\\", "/", normalizePath(path, mustWork = TRUE))
       ))
-    }
-    con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-    on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-    literal <- as.character(DBI::dbQuoteString(
-      con,
-      gsub("\\\\", "/", normalizePath(path, mustWork = TRUE))
-    ))
-    available <- DBI::dbGetQuery(
-      con,
-      paste0("DESCRIBE SELECT * FROM read_parquet(", literal, ")")
-    )$column_name
-    if (!"sidecar" %in% available) {
-      return(character())
-    }
-    rows <- DBI::dbGetQuery(
-      con,
-      paste0(
-        "SELECT sidecar FROM read_parquet(",
-        literal,
-        ") WHERE sidecar IS NOT NULL"
+      available <- DBI::dbGetQuery(
+        con,
+        paste0("DESCRIBE SELECT * FROM read_parquet(", literal, ")")
+      )$column_name
+      if (!"sidecar" %in% available) {
+        return(character())
+      }
+      rows <- DBI::dbGetQuery(
+        con,
+        paste0(
+          "SELECT sidecar FROM read_parquet(",
+          literal,
+          ") WHERE sidecar IS NOT NULL"
+        )
       )
-    )
-    if (!nrow(rows)) {
-      return(character())
-    }
-    values <- lapply(seq_len(nrow(rows)), function(index) {
-      fabric_delta_checkpoint_value(rows$sidecar, index, nrow(rows))
-    })
-    vapply(values, function(value) {
-      as.character(value$path %||% "")
-    }, character(1))
-  }), use.names = FALSE)
+      if (!nrow(rows)) {
+        return(character())
+      }
+      values <- lapply(seq_len(nrow(rows)), function(index) {
+        fabric_delta_checkpoint_value(rows$sidecar, index, nrow(rows))
+      })
+      vapply(
+        values,
+        function(value) {
+          as.character(value$path %||% "")
+        },
+        character(1)
+      )
+    }),
+    use.names = FALSE
+  )
   sidecars <- utils::URLdecode(sidecars[nzchar(sidecars)])
   parts <- strsplit(gsub("\\\\", "/", sidecars), "/", fixed = TRUE)
   if (
@@ -2668,9 +2696,11 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
     )
   }
 
-  protocol_rows <- which(!is.na(
-    checkpoint$protocol$minReaderVersion %||% numeric()
-  ))
+  protocol_rows <- which(
+    !is.na(
+      checkpoint$protocol$minReaderVersion %||% numeric()
+    )
+  )
   if (length(protocol_rows)) {
     i <- utils::tail(protocol_rows, 1L)
     state$protocol <- list(
