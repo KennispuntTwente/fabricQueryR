@@ -966,6 +966,13 @@ fabric_delta_supported_type_change <- function(from, to, preview = FALSE) {
     from_scale <- as.numeric(from_parts[[3L]])
     to_precision <- as.numeric(to_parts[[2L]])
     to_scale <- as.numeric(to_parts[[3L]])
+    valid_decimals <- from_precision <= 38 &&
+      to_precision <= 38 &&
+      from_scale <= from_precision &&
+      to_scale <= to_precision
+    if (!valid_decimals) {
+      return(FALSE)
+    }
     precision_change <- to_precision - from_precision
     scale_change <- to_scale - from_scale
     return(
@@ -992,7 +999,14 @@ fabric_delta_supported_type_change <- function(from, to, preview = FALSE) {
       grepl(decimal, to) &&
         from %in% c("byte", "short", "integer", "long")
     ) {
-      return(TRUE)
+      to_precision <- as.numeric(to_parts[[2L]])
+      to_scale <- as.numeric(to_parts[[3L]])
+      required_integer_digits <- if (identical(from, "long")) 20 else 10
+      return(
+        to_precision <= 38 &&
+          to_scale <= to_precision &&
+          to_precision >= required_integer_digits + to_scale
+      )
     }
   }
   to %in% (allowed[[from]] %||% character())

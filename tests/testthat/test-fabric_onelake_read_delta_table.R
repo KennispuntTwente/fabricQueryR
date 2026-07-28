@@ -1308,6 +1308,26 @@ test_that("Delta type widening validates stable and preview transitions", {
       "timestamp_ntz"
     )
   )
+  expect_false(fabric_delta_supported_type_change("long", "double"))
+  expect_true(
+    fabric_delta_supported_type_change("integer", "decimal(12,2)")
+  )
+  expect_false(
+    fabric_delta_supported_type_change("integer", "decimal(10,1)")
+  )
+  expect_true(
+    fabric_delta_supported_type_change("long", "decimal(23,3)")
+  )
+  expect_false(
+    fabric_delta_supported_type_change("long", "decimal(20,1)")
+  )
+  expect_false(
+    fabric_delta_supported_type_change("long", "decimal(39,0)")
+  )
+  expect_true(fabric_delta_supported_type_change("byte", "double"))
+  expect_false(
+    fabric_delta_supported_type_change("byte", "double", preview = TRUE)
+  )
 })
 
 test_that("Delta reader accepts supported features and rejects unsafe ones", {
