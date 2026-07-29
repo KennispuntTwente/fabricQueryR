@@ -175,6 +175,16 @@ test_that("Delta public projection and limit arguments are validated", {
   expect_error(read_table(limit = -1), "limit must be NULL", fixed = TRUE)
   expect_error(read_table(limit = 1.5), "limit must be NULL", fixed = TRUE)
   expect_error(read_table(limit = Inf), "limit must be NULL", fixed = TRUE)
+  expect_error(
+    read_table(timestamp_partition_timezone = ""),
+    "timestamp_partition_timezone must be NULL",
+    fixed = TRUE
+  )
+  expect_error(
+    read_table(timestamp_partition_timezone = c("UTC", "Europe/Amsterdam")),
+    "timestamp_partition_timezone must be NULL",
+    fixed = TRUE
+  )
   expect_error(read_table(result = "data.frame"), class = "rlang_error")
 })
 
@@ -1470,6 +1480,103 @@ test_that("Delta partition serialization treats empty strings as null", {
   expect_equal(
     mapping$fabric_delta_partition_2,
     c(NA_character_, "false")
+  )
+})
+
+test_that("Delta timestamp partitions use the writer timezone", {
+  table_dir <- fs::path_temp(paste0(
+    "delta-timestamp-partition-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+
+  for (index in 1:2) {
+    path <- fs::path(table_dir, paste0("part-", index, ".parquet"))
+    DBI::dbExecute(
+      con,
+      paste0(
+        "COPY (SELECT ",
+        index,
+        "::INTEGER AS id) TO ",
+        as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", path))),
+        " (FORMAT PARQUET)"
+      )
+    )
+  }
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "integer",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "recorded_at",
+          type = "timestamp",
+          nullable = FALSE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
+    list(metaData = list(
+      id = "timestamp-partition-table",
+      format = list(provider = "parquet", options = list()),
+      schemaString = schema,
+      partitionColumns = list("recorded_at"),
+      configuration = list()
+    )),
+    list(add = list(
+      path = "part-1.parquet",
+      partitionValues = list(recorded_at = "2026-01-01 12:00:00")
+    )),
+    list(add = list(
+      path = "part-2.parquet",
+      partitionValues = list(recorded_at = "2026-07-01 12:00:00")
+    ))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  expect_error(
+    fabric_delta_read_staged(table_dir),
+    "require timestamp_partition_timezone",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_read_staged(
+      table_dir,
+      timestamp_partition_timezone = "Not/A-Timezone"
+    ),
+    "not a recognized IANA timezone",
+    fixed = TRUE
+  )
+
+  result <- fabric_delta_read_staged(
+    table_dir,
+    timestamp_partition_timezone = "Europe/Amsterdam"
+  )
+  result <- result[order(result$id), ]
+  expect_s3_class(result$recorded_at, "POSIXct")
+  expect_equal(
+    as.numeric(result$recorded_at),
+    as.numeric(as.POSIXct(
+      c("2026-01-01 11:00:00", "2026-07-01 10:00:00"),
+      tz = "UTC"
+    ))
   )
 })
 

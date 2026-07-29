@@ -81,6 +81,7 @@ test_that("Delta reader preserves empty schemas and typed log partitions", {
       lakehouse_name = lakehouse$id,
       schema = lakehouse$schema,
       token = token,
+      timestamp_partition_timezone = "UTC",
       verbose = FALSE
     )
   }
@@ -645,6 +646,7 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       table = lakehouse$tables$typed_partitions,
       expected_rows = 3,
       reader_features = "timestampNtz",
+      timestamp_partition_timezone = "UTC",
       partition_columns = c(
         "event_date",
         "active",
@@ -805,6 +807,8 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       token = token,
       version = version,
       columns = columns,
+      timestamp_partition_timezone =
+        case$timestamp_partition_timezone %||% NULL,
       verbose = FALSE
     )
     oracle <- fabric_test_delta_oracle_read(

@@ -101,6 +101,13 @@
 #'   the latest snapshot; supplying a version provides time travel when that
 #'   version and its active files are still available in OneLake. Versions
 #'   through `2^53` are represented exactly; larger versions are rejected.
+#' @param timestamp_partition_timezone Timezone used to interpret legacy Delta
+#'   `timestamp` partition values that do not contain a UTC offset. Supply the
+#'   timezone of the system that wrote the table, for example `"UTC"` or
+#'   `"Europe/Amsterdam"`. The Delta log does not record this timezone, so the
+#'   default `NULL` rejects offset-less timestamp partition values rather than
+#'   silently returning a shifted instant. ISO8601 partition values containing
+#'   `Z` or an explicit offset do not require this argument.
 #' @param dest_dir Local staging directory for the Delta log and active data
 #'   files, or `NULL`. The default creates a temporary directory and removes it
 #'   on exit. Supply a new or empty directory to retain the downloaded files
@@ -183,6 +190,7 @@ fabric_onelake_read_delta_table <- function(
   token = NULL,
   auth_args = list(),
   version = NULL,
+  timestamp_partition_timezone = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
@@ -299,6 +307,17 @@ fabric_onelake_read_delta_table <- function(
   }
   if (!is.null(limit)) {
     limit <- as.numeric(limit)
+  }
+  if (
+    !is.null(timestamp_partition_timezone) &&
+      (!is.character(timestamp_partition_timezone) ||
+        length(timestamp_partition_timezone) != 1L ||
+        is.na(timestamp_partition_timezone) ||
+        !nzchar(timestamp_partition_timezone))
+  ) {
+    rlang::abort(
+      "timestamp_partition_timezone must be NULL or one non-empty timezone string"
+    )
   }
 
   # ---- deps ----
@@ -524,12 +543,16 @@ fabric_onelake_read_delta_table <- function(
 
   # ---- read the requested Delta snapshot ----
   inform(verbose, "Reading the Delta snapshot with {.pkg duckdb}")
-  df <- fabric_delta_read_staged(
-    dest_dir,
+  read_args <- list(
+    table_dir = dest_dir,
     version = version,
     columns = columns,
     limit = limit
   )
+  if (!is.null(timestamp_partition_timezone)) {
+    read_args$timestamp_partition_timezone <- timestamp_partition_timezone
+  }
+  df <- do.call(fabric_delta_read_staged, read_args)
 
   inform(verbose, "Loaded {nrow(df)} row{?s}", type = "success")
   fabric_delta_format_result(df, result)
@@ -955,6 +978,8 @@ fabric_delta_local_file <- function(table_dir, path) {
 #' @param version Optional Delta table version.
 #' @param columns Optional logical columns to return.
 #' @param limit Optional maximum number of rows to return.
+#' @param timestamp_partition_timezone Writer timezone for offset-less
+#'   `timestamp` partition values.
 #' @return A data frame.
 #' @keywords internal
 #' @noRd
@@ -962,7 +987,8 @@ fabric_delta_read_staged <- function(
   table_dir,
   version = NULL,
   columns = NULL,
-  limit = NULL
+  limit = NULL,
+  timestamp_partition_timezone = NULL
 ) {
   snapshot <- fabric_delta_resolve_snapshot(table_dir, version = version)
   schema <- fabric_delta_schema(snapshot$metadata)
@@ -981,6 +1007,9 @@ fabric_delta_read_staged <- function(
     bigint = "integer64"
   )
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  if (fabric_delta_schema_has_timestamp(schema)) {
+    fabric_delta_load_icu(con)
+  }
   projection <- fabric_delta_schema_projection(con, schema)
   selected_indexes <- if (is.null(columns)) {
     seq_along(projection$names)
@@ -1112,6 +1141,11 @@ fabric_delta_read_staged <- function(
     snapshot,
     normalized_paths,
     schema
+  )
+  mapping <- fabric_delta_normalize_timestamp_partitions(
+    mapping,
+    schema,
+    timestamp_partition_timezone
   )
   DBI::dbWriteTable(con, "fabric_delta_partitions", mapping, temporary = TRUE)
   deletions <- fabric_delta_deletion_mapping(
@@ -2629,6 +2663,138 @@ fabric_delta_roaring32 <- function(bytes, start) {
   list(values = unlist(values, use.names = FALSE), cursor = cursor)
 }
 
+#' Detect whether a Delta schema contains an instant timestamp
+#' @keywords internal
+#' @noRd
+fabric_delta_schema_has_timestamp <- function(schema) {
+  visit <- function(type) {
+    if (is.character(type) && length(type) == 1L) {
+      return(identical(tolower(type), "timestamp"))
+    }
+    if (!is.list(type)) {
+      return(FALSE)
+    }
+    kind <- tolower(as.character(type$type %||% ""))
+    if (identical(kind, "struct")) {
+      return(any(vapply(
+        type$fields %||% list(),
+        function(field) visit(field$type),
+        logical(1)
+      )))
+    }
+    if (identical(kind, "array")) {
+      return(visit(type$elementType))
+    }
+    if (identical(kind, "map")) {
+      return(visit(type$keyType) || visit(type$valueType))
+    }
+    FALSE
+  }
+  any(vapply(schema$fields %||% list(), function(field) {
+    visit(field$type)
+  }, logical(1)))
+}
+
+#' Load DuckDB's timezone support with a deterministic install fallback
+#' @keywords internal
+#' @noRd
+fabric_delta_load_icu <- function(con) {
+  loaded <- tryCatch(
+    {
+      DBI::dbExecute(con, "LOAD icu")
+      TRUE
+    },
+    error = function(error) FALSE
+  )
+  if (!loaded) {
+    tryCatch(
+      {
+        DBI::dbExecute(con, "INSTALL icu")
+        DBI::dbExecute(con, "LOAD icu")
+      },
+      error = function(error) {
+        rlang::abort(
+          "DuckDB's ICU extension is required to read Delta timestamp values",
+          parent = error
+        )
+      }
+    )
+  }
+  invisible(con)
+}
+
+#' Normalize legacy timestamp partition values to explicit UTC instants
+#' @keywords internal
+#' @noRd
+fabric_delta_normalize_timestamp_partitions <- function(
+  mapping,
+  schema,
+  timezone
+) {
+  timestamp_indexes <- which(vapply(
+    schema$partitionColumns,
+    function(name) {
+      field <- schema$fields[[match(name, vapply(
+        schema$fields,
+        `[[`,
+        character(1),
+        "name"
+      ))]]
+      is.character(field$type) &&
+        length(field$type) == 1L &&
+        identical(tolower(field$type), "timestamp")
+    },
+    logical(1)
+  ))
+  for (index in timestamp_indexes) {
+    column <- paste0("fabric_delta_partition_", index)
+    values <- mapping[[column]]
+    naive <- !is.na(values) & !grepl(
+      "(Z|[+-][0-9]{2}:?[0-9]{2})$",
+      values,
+      ignore.case = TRUE
+    )
+    if (!any(naive)) {
+      next
+    }
+    if (is.null(timezone)) {
+      rlang::abort(paste0(
+        "Delta timestamp partition values without UTC offsets require ",
+        "timestamp_partition_timezone to identify the writer timezone"
+      ))
+    }
+    if (
+      !is.character(timezone) ||
+        length(timezone) != 1L ||
+        is.na(timezone) ||
+        !nzchar(timezone) ||
+        !timezone %in% OlsonNames()
+    ) {
+      rlang::abort(paste0(
+        "timestamp_partition_timezone is not a recognized IANA timezone: ",
+        paste(timezone, collapse = ", ")
+      ))
+    }
+    local <- sub("T", " ", values[naive], fixed = TRUE)
+    parsed <- as.POSIXct(
+      local,
+      format = "%Y-%m-%d %H:%M:%OS",
+      tz = timezone
+    )
+    if (anyNA(parsed)) {
+      rlang::abort(
+        "Delta log contains an invalid offset-less timestamp partition value"
+      )
+    }
+    mapping[[column]][naive] <- format(
+      parsed,
+      "%Y-%m-%dT%H:%M:%OS6Z",
+      tz = "UTC"
+    )
+  }
+  mapping
+}
+
 #' Project physical Parquet data through the current Delta schema
 #' @keywords internal
 #' @noRd
@@ -2670,11 +2836,11 @@ fabric_delta_read_projection <- function(
             expression,
             " IS NULL THEN NULL WHEN regexp_matches(",
             expression,
-            ", '(Z|[+-][0-9]{2}:?[0-9]{2})$') THEN CAST(",
+            ", '([Zz]|[+-][0-9]{2}:?[0-9]{2})$') THEN CAST(",
             expression,
             " AS TIMESTAMPTZ) ELSE CAST(",
             expression,
-            " || '+00' AS TIMESTAMPTZ) END"
+            " AS TIMESTAMPTZ) END"
           )
         }
       } else {

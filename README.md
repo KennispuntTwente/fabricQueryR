@@ -189,12 +189,14 @@ timestamp-NTZ, shallow-clone paths, and native Variant values, including
 Variant shredding.
 Delta `long` values are returned as `bit64::integer64`; decimals are returned as
 character so values through precision 38 remain exact. Legacy `void` fields are
-returned as logical all-`NA` columns. Timestamp partition values without an
-offset are interpreted as UTC, matching the Fabric test runtime. Metadata must
-declare Parquet with no provider-specific options. Unknown reader features,
-malformed recursive schemas/commits, catalog-managed commits, and absolute
-paths outside OneLake fail before any rows are returned. A caller-supplied
-`dest_dir` must be new or empty.
+returned as logical all-`NA` columns. For legacy `timestamp` partition values
+without an offset, supply `timestamp_partition_timezone` with the timezone of
+the writing system, such as `"UTC"` or `"Europe/Amsterdam"`. The Delta log does
+not record that timezone, so the reader fails rather than silently assuming one.
+Metadata must declare Parquet with no provider-specific options. Unknown reader
+features, malformed recursive schemas/commits, catalog-managed commits, and
+absolute paths outside OneLake fail before any rows are returned. A
+caller-supplied `dest_dir` must be new or empty.
 
 Compatibility reviewed against the Delta protocol and Fabric documentation in
 July 2026:

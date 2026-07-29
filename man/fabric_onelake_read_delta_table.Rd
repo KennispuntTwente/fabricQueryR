@@ -15,6 +15,7 @@ fabric_onelake_read_delta_table(
   token = NULL,
   auth_args = list(),
   version = NULL,
+  timestamp_partition_timezone = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
@@ -61,6 +62,14 @@ token or starts its normal interactive login flow.}
 the latest snapshot; supplying a version provides time travel when that
 version and its active files are still available in OneLake. Versions
 through \code{2^53} are represented exactly; larger versions are rejected.}
+
+\item{timestamp_partition_timezone}{Timezone used to interpret legacy Delta
+\code{timestamp} partition values that do not contain a UTC offset. Supply the
+timezone of the system that wrote the table, for example \code{"UTC"} or
+\code{"Europe/Amsterdam"}. The Delta log does not record this timezone, so the
+default \code{NULL} rejects offset-less timestamp partition values rather than
+silently returning a shifted instant. ISO8601 partition values containing
+\code{Z} or an explicit offset do not require this argument.}
 
 \item{dest_dir}{Local staging directory for the Delta log and active data
 files, or \code{NULL}. The default creates a temporary directory and removes it
