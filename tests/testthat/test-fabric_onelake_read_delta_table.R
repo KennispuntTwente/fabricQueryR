@@ -116,6 +116,7 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   on.exit(if (fs::dir_exists(dest)) fs::dir_delete(dest), add = TRUE)
 
   result <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = "table",
     workspace_name = data.frame(
       id = "11111111-1111-1111-1111-111111111111"
@@ -153,6 +154,7 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
 test_that("Delta public projection and limit arguments are validated", {
   read_table <- function(...) {
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = "table",
       workspace_name = "workspace",
       lakehouse_name = "lakehouse",
@@ -190,6 +192,7 @@ test_that("Delta records validate workspace ownership", {
 
   expect_error(
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = "table",
       workspace_name = workspace,
       lakehouse_name = lakehouse,
@@ -224,6 +227,7 @@ test_that("Delta reads accept Warehouse discovery records", {
 
   expect_error(
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = "table",
       workspace_name = warehouse$workspaceId,
       lakehouse_name = warehouse,
@@ -285,6 +289,7 @@ test_that("Delta reads do not download tombstoned or historical data files", {
   on.exit(if (fs::dir_exists(dest)) fs::dir_delete(dest), add = TRUE)
 
   fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = "table",
     workspace_name = "workspace",
     lakehouse_name = "lakehouse",
@@ -471,6 +476,7 @@ test_that("automatic Delta staging is unique and cleaned after each read", {
 
   for (index in 1:2) {
     result <- fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = "table",
       workspace_name = "workspace",
       lakehouse_name = "lakehouse",
@@ -508,6 +514,7 @@ test_that("Delta reads reject retained files in a supplied staging directory", {
 
   expect_error(
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = "other_table",
       workspace_name = "workspace",
       lakehouse_name = "lakehouse",
@@ -612,6 +619,7 @@ test_that("Delta versions must be non-negative integers", {
   for (version in list(-1, 1.5, NA_real_, c(1, 2), "1", 2^53 + 2)) {
     expect_error(
       fabric_onelake_read_delta_table(
+        engine = "R",
         table_path = "table",
         workspace_name = "workspace",
         lakehouse_name = "lakehouse",
@@ -640,6 +648,7 @@ test_that("Delta versions are not narrowed to 32-bit integers", {
 
   expect_error(
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = "table",
       workspace_name = "workspace",
       lakehouse_name = "lakehouse",

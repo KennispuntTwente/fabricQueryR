@@ -55,5 +55,7 @@ Imports:
 URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.github.io/fabricQueryR/
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues
 Depends: 
-    R (>= 4.1.0)
+    R (>= 4.2)
 Config/roxygen2/version: 8.0.0
+Config/rextendr/version: 0.5.0
+SystemRequirements: Cargo (Rust's package manager), rustc >= 1.91.1, xz

@@ -19,29 +19,25 @@ fabric_onelake_read_delta_table(
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
-  limit = NULL
+  limit = NULL,
+  engine = c("delta-rs", "R"),
+  result = c("tibble", "arrow_stream")
 )
 }
 \arguments{
-\item{table_path}{Table name, for example \code{"PatientInfo"}. For backward
-compatibility a nested string is accepted, but only its final segment is
-used; select a schema with \code{schema}, not by adding it to \code{table_path}.}
+\item{table_path}{Table name, for example \code{"PatientInfo"}. A nested string
+is accepted for backward compatibility, but only its final segment is
+used; select a schema with \code{schema}.}
 
-\item{workspace_name}{Fabric workspace display name or GUID, or a record from
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}. GUIDs are safest for scheduled code and names are
-convenient interactively.}
+\item{workspace_name}{Fabric workspace display name or GUID, or a record
+from \code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
 
 \item{lakehouse_name}{Lakehouse or Warehouse item name, GUID, or discovery
-record. A character name may include its \code{.Lakehouse} or \code{.Warehouse}
-suffix; a discovered record avoids suffix and renaming ambiguity. The
-argument name is retained for backward compatibility.}
+record. The argument name is retained for backward compatibility.}
 
 \item{schema}{Lakehouse schema name, for example \code{"dbo"}, or \code{NULL}.
-When supplied, the table is resolved under \verb{Tables/<schema>/<table>}
-instead of \verb{Tables/<table>}. When \code{lakehouse_name} is a discovered
-schema-enabled Lakehouse and \code{schema} is \code{NULL}, its \code{defaultSchema} is
-used automatically. Use \code{NULL} with a name or GUID for a non-schema
-Lakehouse. Schema support in this reader is experimental.}
+A discovered schema-enabled Lakehouse supplies its default schema
+automatically.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -50,130 +46,113 @@ Lakehouse. Schema support in this reader is experimental.}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
 \item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+token-provider function.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+\item{auth_args}{Named list passed to \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no
+token source is supplied.}
 
 \item{version}{Optional non-negative Delta transaction version. \code{NULL} reads
-the latest snapshot; supplying a version provides time travel when that
-version and its active files are still available in OneLake. Versions
-through \code{2^53} are represented exactly; larger versions are rejected.}
+the latest snapshot. Versions through \code{2^53} are represented exactly.}
 
-\item{dest_dir}{Local staging directory for the Delta log and active data
-files, or \code{NULL}. The default creates a temporary directory and removes it
-on exit. Supply a new or empty directory to retain the downloaded files
-for inspection, and ensure it has enough free space. Non-empty directories
-are rejected so stale files cannot affect snapshot resolution.}
+\item{dest_dir}{Local work directory or \code{NULL}. The default creates a
+temporary directory and removes it on exit. With \code{engine = "R"}, a supplied
+directory retains the staged transaction log and active files. With
+\code{engine = "delta-rs"}, it retains the Arrow IPC result. A supplied
+directory must be new or empty.}
 
-\item{verbose}{Logical. Show download and read progress.}
+\item{verbose}{Logical. Show progress.}
 
-\item{dfs_base}{OneLake DFS endpoint. Keep the default unless using a
-regional or workspace-private endpoint.}
+\item{dfs_base}{OneLake DFS endpoint.}
 
 \item{columns}{Optional character vector of logical Delta column names to
-return, in the requested order. \code{NULL} returns every column.}
+return, in the requested order.}
 
-\item{limit}{Optional non-negative whole number limiting returned rows.
-\code{NULL} returns every row. This limits DuckDB collection but not OneLake
-file downloads.}
+\item{limit}{Optional non-negative whole number limiting returned rows.}
+
+\item{engine}{Reader implementation. \code{"delta-rs"} is the default native
+engine; \code{"R"} selects the original staged R and DuckDB engine.}
+
+\item{result}{Return format. \code{"tibble"} returns a tibble.
+\code{"arrow_stream"} returns a \code{nanoarrow_array_stream} compatible with
+\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} and other Arrow C stream consumers.}
 }
 \value{
-A tibble containing the rows and logical schema of the selected Delta
-snapshot. An empty table returns a zero-row tibble. Delta \code{long} columns
-use \code{bit64::integer64}; decimal columns use exact character values; other
-conversions follow DuckDB. Schema evolution is applied and partition
-values are included as columns.
+With \code{result = "tibble"}, a tibble containing the selected Delta
+snapshot. With \code{result = "arrow_stream"}, a
+\code{nanoarrow_array_stream}. Empty tables keep their column schema in either
+format.
 }
 \description{
-Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
-returns it as a tibble. Delta tables consist of Parquet data files plus a
-transaction log that says which files make up the current table. This
-function reads that log so deleted or superseded files are not accidentally
-included.
+Reads a Delta table from a Fabric Lakehouse or Warehouse export. By default,
+the result is returned as a tibble, so it works like a regular R data frame.
 }
 \details{
+\strong{Choosing an engine}
 \itemize{
-\item In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
-filesystem. Within a Lakehouse item, Delta tables are stored under
-\verb{Tables/<table>} (non-schema lakehouse) or \verb{Tables/<schema>/<table>}
-(schema-enabled lakehouse). The function first stages the transaction log,
-then downloads only the Parquet files active in the requested version.
-\item Checkpoint and data Parquet files are read with DuckDB. The staged reader
-supports Delta reader protocols 1 through 3; classic, multipart, and V2
-checkpoints; name- and ID-based column mapping; inline, relative, and
-absolute deletion vectors; timestamps without time zones; supported type
-widening; and native Variant values, including Variant shredding. Absolute
-AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
-This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
-export profile.
-\item Metadata must declare the Parquet provider with no provider-specific
-options. Recursive schema shape, case-insensitive sibling-name uniqueness,
-partition columns, and singleton protocol/metadata actions are validated
-before data is read. Unrecognised reader features, catalog-managed commits,
-non-OneLake absolute URIs, and unsupported schema types fail with a
-\code{fabric_delta_unsupported_error} before data is returned.
-\item The returned columns follow the logical schema in the selected Delta
-snapshot. Schema additions are filled with typed missing values, removed
-physical columns are omitted, and partition values come from Delta add-file
-actions rather than being inferred from directory names. Legacy \code{void}
-fields are retained as logical all-missing columns. Timestamp partition
-values without an explicit offset are interpreted as UTC, matching the
-Fabric Runtime integration profile.
-\item Delta \code{long} values are returned as \code{bit64::integer64}. Delta decimals are
-returned as character vectors, including decimals nested in complex types,
-so all 38 digits remain exact. Variant columns use DuckDB's native decoding
-and are returned as nested R list/data-frame values.
-\item Schema-enabled lakehouses (the default for new lakehouses) organise
-tables into named schemas. If the Fabric Lakehouse explorer shows the table
-under a schema such as \code{dbo}, supply that name in \code{schema}.
-\item Give the signed-in user or application Read access through a workspace role
-or \strong{Lakehouse > Manage OneLake data access}.
-\item Tokens use the \verb{https://storage.azure.com/.default} audience.
-\item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
-if the wrong account or tenant is being reused.
-\item The active files are downloaded locally and the final table is collected
-into R memory. \code{columns} and \code{limit} can reduce the data read by DuckDB and
-materialised in R, but they do not reduce the active Parquet files
-downloaded from OneLake. For very large tables, a SQL query that filters
-rows in Fabric may transfer much less data.
+\item \code{"delta-rs"} is the default and is the best choice for most tables. It
+reads OneLake directly with the native
+\href{https://github.com/delta-io/delta-rs}{\code{delta-rs}} library.
+\item \code{"R"} selects the package's original R and DuckDB reader. Use it for V2
+checkpoints, type widening, shredded Variant data, or when you want to
+keep a local copy of the table files in \code{dest_dir}.
 }
+
+If the selected engine cannot read a table feature, the function returns a
+clear error. It never silently switches engines.
+
+\strong{Choosing a result}
+
+\code{result = "tibble"} is simplest for normal R analysis. Use
+\code{result = "arrow_stream"} to return a \code{nanoarrow_array_stream}, which can be
+passed to \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} or another Arrow C stream
+consumer without first collecting the table as a tibble.
+
+\strong{Technical notes}
+
+Both engines use the same OneLake target resolution, authentication, input
+validation, and return formats. The native engine pushes \code{columns} and
+\code{limit} into DataFusion and exchanges data with R through Arrow IPC. The R
+engine stages the Delta log and active Parquet files, then reads them with
+DuckDB.
+
+Delta \code{long} values are returned as \code{bit64::integer64}. Delta decimals are
+returned as character vectors so all digits remain exact. Other conversions
+follow the selected engine's Arrow or DuckDB conversion.
+
+Tokens use the \verb{https://storage.azure.com/.default} audience. Give the
+signed-in user or application Read access through a workspace role or
+\strong{Lakehouse > Manage OneLake data access}.
 }
 \examples{
-# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
 df <- fabric_onelake_read_delta_table(
-  table_path     = "PatientInfo",
+  table_path = "PatientInfo",
   workspace_name = "PatientsWorkspace",
-  lakehouse_name = "Lakehouse.Lakehouse",
-  tenant_id      = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id      = Sys.getenv("FABRICQUERYR_CLIENT_ID")
+  lakehouse_name = "Lakehouse.Lakehouse"
 )
-dplyr::glimpse(df)
 
-# Schema-enabled lakehouse: read from Tables/dbo/PatientInfo
-df2 <- fabric_onelake_read_delta_table(
-  table_path     = "PatientInfo",
+# Use the original staged implementation explicitly.
+staged <- fabric_onelake_read_delta_table(
+  table_path = "PatientInfo",
   workspace_name = "PatientsWorkspace",
   lakehouse_name = "Lakehouse.Lakehouse",
-  schema         = "dbo",
-  columns        = c("PatientId", "Status"),
-  limit          = 1000
+  engine = "R"
 )
+
+# Keep the result in an Arrow-compatible stream.
+stream <- fabric_onelake_read_delta_table(
+  table_path = "PatientInfo",
+  workspace_name = "PatientsWorkspace",
+  lakehouse_name = "Lakehouse.Lakehouse",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
 }
 }
 \references{
-\href{https://github.com/delta-io/delta/blob/master/PROTOCOL.md}{Delta Transaction Log Protocol}
+\href{https://github.com/delta-io/delta/blob/master/PROTOCOL.md}{Delta Lake protocol}
 
-\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connect to OneLake with ADLS APIs}
+\href{https://github.com/delta-io/delta-rs}{delta-rs}
 
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-schemas}{Lakehouse schemas}
-
-\href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Delta Lake tables in OneLake}
-
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution}{Schema evolution for Delta tables}
-
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant}{Variant data type for Delta tables}
+\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connect to OneLake}
 }

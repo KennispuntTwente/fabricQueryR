@@ -3,8 +3,6 @@
 # lakehouse to check file operations and reading current, typed Delta data.
 
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
-  fabric_test_require_package("duckdb")
-  fabric_test_require_package("fs")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token_provider()
@@ -15,7 +13,7 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     token = fabric_test_token("FABRIC_TEST_API_TOKEN")
   )
 
-  result <- fabric_onelake_read_delta_table(
+  results <- fabric_test_read_delta_engines(
     table_path = lakehouse$tables$basic,
     workspace_name = manifest$workspace_id,
     lakehouse_name = discovered,
@@ -24,36 +22,56 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     token = token,
     verbose = FALSE
   )
-  result <- result[order(result$id), ]
-
-  expect_s3_class(result, "tbl_df")
-  expect_named(
-    result,
-    c("id", "name", "category", "amount", "loaded_at"),
-    ignore.order = TRUE
+  normalize <- function(result) {
+    result[order(result$id), ]
+  }
+  fabric_test_expect_each_delta_engine(
+    results,
+    function(result, engine) {
+      result <- normalize(result)
+      expect_s3_class(result, "tbl_df")
+      expect_named(
+        result,
+        c("id", "name", "category", "amount", "loaded_at"),
+        ignore.order = TRUE,
+        info = engine
+      )
+      expect_equal(nrow(result), 3L, info = engine)
+      expect_equal(result$id, c(1L, 2L, 3L), info = engine)
+      expect_equal(result$name, c("alpha", "beta", "gamma"), info = engine)
+      expect_equal(result$category, c("A", "B", "A"), info = engine)
+      expect_equal(result$amount, c(10.5, 20, NA), info = engine)
+      expect_true(inherits(result$loaded_at, "POSIXct"), info = engine)
+      expect_equal(
+        as.numeric(result$loaded_at),
+        rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3),
+        info = engine
+      )
+    }
   )
-  expect_equal(nrow(result), 3L)
-  expect_equal(result$id, c(1L, 2L, 3L))
-  expect_equal(result$name, c("alpha", "beta", "gamma"))
-  expect_equal(result$category, c("A", "B", "A"))
-  expect_equal(result$amount, c(10.5, 20, NA))
-  expect_true(inherits(result$loaded_at, "POSIXct"))
-  expect_equal(
-    as.numeric(result$loaded_at),
-    rep(as.numeric(as.POSIXct("2026-01-01", tz = "UTC")), 3)
-  )
+  fabric_test_expect_delta_engine_parity(results, normalize)
 
-  projected <- fabric_onelake_read_delta_table(
+  projected <- fabric_test_read_delta_engines(
     table_path = lakehouse$tables$basic,
     workspace_name = manifest$workspace_id,
     lakehouse_name = discovered,
     token = token,
     columns = c("name", "id"),
     limit = 2,
+    result = "arrow_stream",
     verbose = FALSE
   )
-  expect_named(projected, c("name", "id"))
-  expect_equal(nrow(projected), 2L)
+  fabric_test_expect_each_delta_engine(
+    projected,
+    function(result, engine) {
+      expect_s3_class(result, "nanoarrow_array_stream")
+      result <- as.data.frame(
+        arrow::as_record_batch_reader(result)$read_table()
+      )
+      expect_named(result, c("name", "id"), info = engine)
+      expect_equal(nrow(result), 2L, info = engine)
+    }
+  )
 })
 
 test_that("Delta reader preserves empty schemas and typed log partitions", {
@@ -64,6 +82,7 @@ test_that("Delta reader preserves empty schemas and typed log partitions", {
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   read_table <- function(table) {
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = table,
       workspace_name = manifest$workspace_id,
       lakehouse_name = lakehouse$id,
@@ -363,6 +382,7 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
   )
 
   result <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$partitioned,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -399,6 +419,7 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
   )
   expect_error(
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = lakehouse$tables$basic,
       workspace_name = manifest$workspace_id,
       lakehouse_name = lakehouse$id,
@@ -412,6 +433,7 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
   )
 
   historical <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$partitioned,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -433,6 +455,7 @@ test_that("Delta reader covers current Fabric Delta reader features", {
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   read_table <- function(table) {
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = table,
       workspace_name = manifest$workspace_id,
       lakehouse_name = lakehouse$id,
@@ -509,6 +532,142 @@ test_that("Delta reader covers current Fabric Delta reader features", {
   )
 })
 
+test_that("Delta engines agree across supported Fabric transaction profiles", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  cases <- list(
+    list(
+      table = lakehouse$tables$empty,
+      columns = c("id", "name", "category", "amount"),
+      order_by = "id"
+    ),
+    list(
+      table = lakehouse$tables$typed_partitions,
+      columns = c(
+        "id",
+        "name",
+        "amount",
+        "event_date",
+        "active",
+        "integer_part",
+        "decimal_part",
+        "timestamp_part",
+        "timestamp_ntz_part",
+        "binary_part"
+      ),
+      order_by = "id"
+    ),
+    list(
+      table = lakehouse$tables$schema_evolved,
+      columns = c("id", "evolved_value"),
+      order_by = "id"
+    ),
+    list(
+      table = lakehouse$tables$column_mapped,
+      columns = c("id", "display_name"),
+      order_by = "id"
+    ),
+    list(
+      table = lakehouse$tables$column_mapped_id,
+      columns = c("id", "display_name"),
+      order_by = "id"
+    ),
+    list(
+      table = lakehouse$tables$deletion_vectors,
+      columns = c("id", "name"),
+      order_by = "id"
+    ),
+    list(
+      table = lakehouse$tables$exact_types,
+      columns = c(
+        "above_double_limit",
+        "maximum_long",
+        "whole_decimal",
+        "scaled_decimal",
+        "observed_at",
+        "payload",
+        "unicode_text",
+        "not_a_number",
+        "positive_infinity"
+      ),
+      order_by = "above_double_limit"
+    ),
+    list(
+      table = lakehouse$tables$partitioned,
+      columns = c("id", "name", "category", "amount"),
+      order_by = c("id", "name", "category"),
+      version = 10
+    ),
+    list(
+      table = lakehouse$tables$shallow_clone,
+      columns = c("id", "name"),
+      order_by = "id"
+    )
+  )
+
+  for (case in cases) {
+    results <- fabric_test_read_delta_engines(
+      table_path = case$table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      columns = case$columns,
+      version = case$version %||% NULL,
+      verbose = FALSE
+    )
+    normalize <- function(result) {
+      result[do.call(order, result[case$order_by]), , drop = FALSE]
+    }
+    fabric_test_expect_each_delta_engine(
+      results,
+      function(result, engine) {
+        expect_s3_class(result, "tbl_df")
+        expect_named(result, case$columns, info = engine)
+      }
+    )
+    fabric_test_expect_delta_engine_parity(results, normalize)
+  }
+})
+
+test_that("delta-rs reports Fabric protocol features it cannot read", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  unsupported <- c(
+    lakehouse$tables$type_widened,
+    lakehouse$tables$v2_checkpoint
+  )
+
+  for (table in unsupported) {
+    expect_error(
+      fabric_onelake_read_delta_table(
+        table_path = table,
+        workspace_name = manifest$workspace_id,
+        lakehouse_name = lakehouse$id,
+        schema = lakehouse$schema,
+        token = token,
+        engine = "delta-rs",
+        verbose = FALSE
+      ),
+      class = "fabric_delta_rs_unsupported_error"
+    )
+  }
+  expect_error(
+    fabric_onelake_read_delta_table(
+      table_path = lakehouse$tables$variant,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      engine = "delta-rs",
+      verbose = FALSE
+    ),
+    class = "fabric_delta_rs_error"
+  )
+})
+
 test_that("Delta reader preserves exact and complex Fabric values", {
   fabric_test_require_package("duckdb")
   fabric_test_require_package("fs")
@@ -517,6 +676,7 @@ test_that("Delta reader preserves exact and complex Fabric values", {
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   read_table <- function(table) {
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = table,
       workspace_name = manifest$workspace_id,
       lakehouse_name = lakehouse$id,
@@ -598,6 +758,7 @@ test_that("Delta reader handles DV stress and exact widening", {
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   read_table <- function(table) {
     fabric_onelake_read_delta_table(
+      engine = "R",
       table_path = table,
       workspace_name = manifest$workspace_id,
       lakehouse_name = lakehouse$id,
@@ -631,6 +792,7 @@ test_that("Delta reader handles DV stress and exact widening", {
     add = TRUE
   )
   checkpoint_dv <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$deletion_vectors_checkpoint,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -658,6 +820,7 @@ test_that("Delta reader handles DV stress and exact widening", {
     add = TRUE
   )
   dense <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$deletion_vectors_dense,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -745,6 +908,7 @@ test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {
     add = TRUE
   )
   v2 <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$v2_checkpoint,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -807,6 +971,7 @@ test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {
   expect_true(all(referenced_sidecars %in% staged_sidecars))
 
   clone <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$shallow_clone,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -826,6 +991,7 @@ test_that("Delta reader exposes Fabric Variant physical values", {
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   result <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = lakehouse$tables$variant,
     workspace_name = manifest$workspace_id,
     lakehouse_name = lakehouse$id,
@@ -868,6 +1034,7 @@ test_that("Delta reader reads the Fabric Warehouse export profile", {
   manifest <- fabric_test_manifest()
   warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
   result <- fabric_onelake_read_delta_table(
+    engine = "R",
     table_path = warehouse$tables$types,
     workspace_name = manifest$workspace_id,
     lakehouse_name = warehouse$id,

@@ -187,6 +187,49 @@ fabric_test_require_package <- function(package) {
   invisible(TRUE)
 }
 
+fabric_test_delta_engines <- function() {
+  c("delta-rs", "R")
+}
+
+fabric_test_read_delta_engines <- function(
+  ...,
+  engines = fabric_test_delta_engines()
+) {
+  fabric_test_require_package("arrow")
+  if ("R" %in% engines) {
+    fabric_test_require_package("duckdb")
+    fabric_test_require_package("fs")
+  }
+  reads <- lapply(
+    engines,
+    function(engine) {
+      fabric_onelake_read_delta_table(..., engine = engine)
+    }
+  )
+  stats::setNames(reads, engines)
+}
+
+fabric_test_expect_each_delta_engine <- function(results, expectation) {
+  for (engine in names(results)) {
+    expectation(results[[engine]], engine)
+  }
+  invisible(results)
+}
+
+fabric_test_expect_delta_engine_parity <- function(
+  results,
+  normalize = identity,
+  tolerance = sqrt(.Machine$double.eps)
+) {
+  expect_named(results, fabric_test_delta_engines())
+  expect_equal(
+    normalize(results[["delta-rs"]]),
+    normalize(results[["R"]]),
+    tolerance = tolerance
+  )
+  invisible(results)
+}
+
 fabric_test_sql_backends <- function() {
   for (package in c(
     "DBI",

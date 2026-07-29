@@ -1,145 +1,122 @@
 .fabric_delta_max_exact_version <- 2^53
 .fabric_delta_max_exact_version_text <- "00009007199254740992"
+.fabric_delta_engines <- c("delta-rs", "R")
+.fabric_delta_result_types <- c("tibble", "arrow_stream")
 
-#' @title
 #' Read a Delta table from Microsoft Fabric OneLake
 #'
 #' @description
-#' Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
-#' returns it as a tibble. Delta tables consist of Parquet data files plus a
-#' transaction log that says which files make up the current table. This
-#' function reads that log so deleted or superseded files are not accidentally
-#' included.
+#' Reads a Delta table from a Fabric Lakehouse or Warehouse export. By default,
+#' the result is returned as a tibble, so it works like a regular R data frame.
 #'
 #' @details
-#' - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
-#'  filesystem. Within a Lakehouse item, Delta tables are stored under
-#'  `Tables/<table>` (non-schema lakehouse) or `Tables/<schema>/<table>`
-#'  (schema-enabled lakehouse). The function first stages the transaction log,
-#'  then downloads only the Parquet files active in the requested version.
-#' - Checkpoint and data Parquet files are read with DuckDB. The staged reader
-#'  supports Delta reader protocols 1 through 3; classic, multipart, and V2
-#'  checkpoints; name- and ID-based column mapping; inline, relative, and
-#'  absolute deletion vectors; timestamps without time zones; supported type
-#'  widening; and native Variant values, including Variant shredding. Absolute
-#'  AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
-#'  This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
-#'  export profile.
-#' - Metadata must declare the Parquet provider with no provider-specific
-#'  options. Recursive schema shape, case-insensitive sibling-name uniqueness,
-#'  partition columns, and singleton protocol/metadata actions are validated
-#'  before data is read. Unrecognised reader features, catalog-managed commits,
-#'  non-OneLake absolute URIs, and unsupported schema types fail with a
-#'  `fabric_delta_unsupported_error` before data is returned.
-#' - The returned columns follow the logical schema in the selected Delta
-#'  snapshot. Schema additions are filled with typed missing values, removed
-#'  physical columns are omitted, and partition values come from Delta add-file
-#'  actions rather than being inferred from directory names. Legacy `void`
-#'  fields are retained as logical all-missing columns. Timestamp partition
-#'  values without an explicit offset are interpreted as UTC, matching the
-#'  Fabric Runtime integration profile.
-#' - Delta `long` values are returned as `bit64::integer64`. Delta decimals are
-#'  returned as character vectors, including decimals nested in complex types,
-#'  so all 38 digits remain exact. Variant columns use DuckDB's native decoding
-#'  and are returned as nested R list/data-frame values.
-#' - Schema-enabled lakehouses (the default for new lakehouses) organise
-#'  tables into named schemas. If the Fabric Lakehouse explorer shows the table
-#'  under a schema such as `dbo`, supply that name in `schema`.
-#' - Give the signed-in user or application Read access through a workspace role
-#'  or **Lakehouse > Manage OneLake data access**.
-#' - Tokens use the `https://storage.azure.com/.default` audience.
-#' - \pkg{AzureAuth} is used to acquire the token. Be wary of
-#'  caching behavior; you may want to call [AzureAuth::clean_token_directory()]
-#'  if the wrong account or tenant is being reused.
-#' - The active files are downloaded locally and the final table is collected
-#'  into R memory. `columns` and `limit` can reduce the data read by DuckDB and
-#'  materialised in R, but they do not reduce the active Parquet files
-#'  downloaded from OneLake. For very large tables, a SQL query that filters
-#'  rows in Fabric may transfer much less data.
+#' **Choosing an engine**
 #'
-#' @param table_path Table name, for example `"PatientInfo"`. For backward
-#'   compatibility a nested string is accepted, but only its final segment is
-#'   used; select a schema with `schema`, not by adding it to `table_path`.
-#' @param workspace_name Fabric workspace display name or GUID, or a record from
-#'   [fabric_workspaces()]. GUIDs are safest for scheduled code and names are
-#'   convenient interactively.
+#' - `"delta-rs"` is the default and is the best choice for most tables. It
+#'   reads OneLake directly with the native
+#'   [`delta-rs`](https://github.com/delta-io/delta-rs) library.
+#' - `"R"` selects the package's original R and DuckDB reader. Use it for V2
+#'   checkpoints, type widening, shredded Variant data, or when you want to
+#'   keep a local copy of the table files in `dest_dir`.
+#'
+#' If the selected engine cannot read a table feature, the function returns a
+#' clear error. It never silently switches engines.
+#'
+#' **Choosing a result**
+#'
+#' `result = "tibble"` is simplest for normal R analysis. Use
+#' `result = "arrow_stream"` to return a `nanoarrow_array_stream`, which can be
+#' passed to [arrow::as_record_batch_reader()] or another Arrow C stream
+#' consumer without first collecting the table as a tibble.
+#'
+#' **Technical notes**
+#'
+#' Both engines use the same OneLake target resolution, authentication, input
+#' validation, and return formats. The native engine pushes `columns` and
+#' `limit` into DataFusion and exchanges data with R through Arrow IPC. The R
+#' engine stages the Delta log and active Parquet files, then reads them with
+#' DuckDB.
+#'
+#' Delta `long` values are returned as `bit64::integer64`. Delta decimals are
+#' returned as character vectors so all digits remain exact. Other conversions
+#' follow the selected engine's Arrow or DuckDB conversion.
+#'
+#' Tokens use the `https://storage.azure.com/.default` audience. Give the
+#' signed-in user or application Read access through a workspace role or
+#' **Lakehouse > Manage OneLake data access**.
+#'
+#' @param table_path Table name, for example `"PatientInfo"`. A nested string
+#'   is accepted for backward compatibility, but only its final segment is
+#'   used; select a schema with `schema`.
+#' @param workspace_name Fabric workspace display name or GUID, or a record
+#'   from [fabric_workspaces()].
 #' @param lakehouse_name Lakehouse or Warehouse item name, GUID, or discovery
-#'   record. A character name may include its `.Lakehouse` or `.Warehouse`
-#'   suffix; a discovered record avoids suffix and renaming ambiguity. The
-#'   argument name is retained for backward compatibility.
+#'   record. The argument name is retained for backward compatibility.
 #' @param schema Lakehouse schema name, for example `"dbo"`, or `NULL`.
-#'   When supplied, the table is resolved under `Tables/<schema>/<table>`
-#'   instead of `Tables/<table>`. When `lakehouse_name` is a discovered
-#'   schema-enabled Lakehouse and `schema` is `NULL`, its `defaultSchema` is
-#'   used automatically. Use `NULL` with a name or GUID for a non-schema
-#'   Lakehouse. Schema support in this reader is experimental.
+#'   A discovered schema-enabled Lakehouse supplies its default schema
+#'   automatically.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
-#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
-#'   token or starts its normal interactive login flow.
-#' @param auth_args Named list of additional arguments passed to
-#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#'   token-provider function.
+#' @param auth_args Named list passed to [AzureAuth::get_azure_token()] when no
+#'   token source is supplied.
 #' @param version Optional non-negative Delta transaction version. `NULL` reads
-#'   the latest snapshot; supplying a version provides time travel when that
-#'   version and its active files are still available in OneLake. Versions
-#'   through `2^53` are represented exactly; larger versions are rejected.
-#' @param dest_dir Local staging directory for the Delta log and active data
-#'   files, or `NULL`. The default creates a temporary directory and removes it
-#'   on exit. Supply a new or empty directory to retain the downloaded files
-#'   for inspection, and ensure it has enough free space. Non-empty directories
-#'   are rejected so stale files cannot affect snapshot resolution.
-#' @param verbose Logical. Show download and read progress.
-#' @param dfs_base OneLake DFS endpoint. Keep the default unless using a
-#'   regional or workspace-private endpoint.
+#'   the latest snapshot. Versions through `2^53` are represented exactly.
+#' @param dest_dir Local work directory or `NULL`. The default creates a
+#'   temporary directory and removes it on exit. With `engine = "R"`, a supplied
+#'   directory retains the staged transaction log and active files. With
+#'   `engine = "delta-rs"`, it retains the Arrow IPC result. A supplied
+#'   directory must be new or empty.
+#' @param verbose Logical. Show progress.
+#' @param dfs_base OneLake DFS endpoint.
 #' @param columns Optional character vector of logical Delta column names to
-#'   return, in the requested order. `NULL` returns every column.
+#'   return, in the requested order.
 #' @param limit Optional non-negative whole number limiting returned rows.
-#'   `NULL` returns every row. This limits DuckDB collection but not OneLake
-#'   file downloads.
+#' @param engine Reader implementation. `"delta-rs"` is the default native
+#'   engine; `"R"` selects the original staged R and DuckDB engine.
+#' @param result Return format. `"tibble"` returns a tibble.
+#'   `"arrow_stream"` returns a `nanoarrow_array_stream` compatible with
+#'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers.
 #'
-#' @return A tibble containing the rows and logical schema of the selected Delta
-#'   snapshot. An empty table returns a zero-row tibble. Delta `long` columns
-#'   use `bit64::integer64`; decimal columns use exact character values; other
-#'   conversions follow DuckDB. Schema evolution is applied and partition
-#'   values are included as columns.
+#' @return With `result = "tibble"`, a tibble containing the selected Delta
+#'   snapshot. With `result = "arrow_stream"`, a
+#'   `nanoarrow_array_stream`. Empty tables keep their column schema in either
+#'   format.
 #' @references
-#' [Delta Transaction Log Protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md)
+#' [Delta Lake protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md)
 #'
-#' [Connect to OneLake with ADLS APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+#' [delta-rs](https://github.com/delta-io/delta-rs)
 #'
-#' [Lakehouse schemas](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-schemas)
-#'
-#' [Delta Lake tables in OneLake](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
-#'
-#' [Schema evolution for Delta tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution)
-#'
-#' [Variant data type for Delta tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant)
+#' [Connect to OneLake](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 #' @export
 #'
 #' @examples
-#' # Example is not executed since it requires configured credentials for Fabric
 #' \dontrun{
 #' df <- fabric_onelake_read_delta_table(
-#'   table_path     = "PatientInfo",
+#'   table_path = "PatientInfo",
 #'   workspace_name = "PatientsWorkspace",
-#'   lakehouse_name = "Lakehouse.Lakehouse",
-#'   tenant_id      = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-#'   client_id      = Sys.getenv("FABRICQUERYR_CLIENT_ID")
+#'   lakehouse_name = "Lakehouse.Lakehouse"
 #' )
-#' dplyr::glimpse(df)
 #'
-#' # Schema-enabled lakehouse: read from Tables/dbo/PatientInfo
-#' df2 <- fabric_onelake_read_delta_table(
-#'   table_path     = "PatientInfo",
+#' # Use the original staged implementation explicitly.
+#' staged <- fabric_onelake_read_delta_table(
+#'   table_path = "PatientInfo",
 #'   workspace_name = "PatientsWorkspace",
 #'   lakehouse_name = "Lakehouse.Lakehouse",
-#'   schema         = "dbo",
-#'   columns        = c("PatientId", "Status"),
-#'   limit          = 1000
+#'   engine = "R"
 #' )
+#'
+#' # Keep the result in an Arrow-compatible stream.
+#' stream <- fabric_onelake_read_delta_table(
+#'   table_path = "PatientInfo",
+#'   workspace_name = "PatientsWorkspace",
+#'   lakehouse_name = "Lakehouse.Lakehouse",
+#'   result = "arrow_stream"
+#' )
+#' reader <- arrow::as_record_batch_reader(stream)
 #' }
 fabric_onelake_read_delta_table <- function(
   table_path,
@@ -158,13 +135,75 @@ fabric_onelake_read_delta_table <- function(
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
-  limit = NULL
+  limit = NULL,
+  engine = c("delta-rs", "R"),
+  result = c("tibble", "arrow_stream")
+) {
+  engine <- rlang::arg_match(engine, .fabric_delta_engines)
+  result <- rlang::arg_match(result, .fabric_delta_result_types)
+  context <- fabric_delta_read_context(
+    table_path = table_path,
+    workspace_name = workspace_name,
+    lakehouse_name = lakehouse_name,
+    schema = schema,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    version = version,
+    dest_dir = dest_dir,
+    verbose = verbose,
+    dfs_base = dfs_base,
+    columns = columns,
+    limit = limit,
+    engine = engine
+  )
+  if (isTRUE(context$cleanup)) {
+    on.exit(
+      unlink(context$dest_dir, recursive = TRUE, force = TRUE),
+      add = TRUE
+    )
+  }
+
+  inform(verbose, "Table root: {.path {context$table_dir}}")
+  inform(verbose, "Reading the Delta snapshot with the {.val {engine}} engine")
+  value <- switch(
+    engine,
+    "delta-rs" = fabric_onelake_read_delta_table_delta_rs(context),
+    "R" = fabric_onelake_read_delta_table_r(context)
+  )
+  row_count <- fabric_delta_result_rows(value)
+  value <- fabric_delta_format_result(value, result)
+  inform(verbose, "Loaded {row_count} row{?s}", type = "success")
+  value
+}
+
+#' Resolve and validate input shared by both Delta reader engines
+#' @keywords internal
+#' @noRd
+fabric_delta_read_context <- function(
+  table_path,
+  workspace_name,
+  lakehouse_name,
+  schema,
+  tenant_id,
+  client_id,
+  token,
+  auth_args,
+  version,
+  dest_dir,
+  verbose,
+  dfs_base,
+  columns,
+  limit,
+  engine
 ) {
   workspace_target <- workspace_name
   workspace_record <- fabric_as_record(workspace_name)
   if (!is.null(workspace_record)) {
     workspace_name <- fabric_record_value(workspace_record, "id", "workspaceId")
   }
+
   lakehouse_target <- lakehouse_name
   item_type <- if (
     is.character(lakehouse_name) &&
@@ -193,52 +232,108 @@ fabric_onelake_read_delta_table <- function(
     }
     lakehouse_name <- fabric_record_value(lakehouse_record, "id")
     schema <- schema %||%
-      fabric_record_value(
-        lakehouse_record,
-        "default_schema",
-        "defaultSchema"
-      )
+      fabric_record_value(lakehouse_record, "default_schema", "defaultSchema")
   }
-  # ---- validate args ----
-  if (
-    !is.character(table_path) ||
-      length(table_path) != 1L ||
-      is.na(table_path) ||
-      !nzchar(table_path)
-  ) {
+
+  fabric_delta_validate_read_arguments(
+    table_path,
+    workspace_name,
+    lakehouse_name,
+    schema,
+    version,
+    columns,
+    limit
+  )
+  if (!is.null(version)) {
+    version <- as.numeric(version)
+  }
+  if (!is.null(limit)) {
+    limit <- as.numeric(limit)
+  }
+
+  if (is.null(token)) {
+    inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2)")
+  }
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+
+  parts <- strsplit(table_path, "/", fixed = TRUE)[[1L]]
+  table_name <- parts[[length(parts)]]
+  table_dir <- if (is.null(schema)) {
+    paste("Tables", table_name, sep = "/")
+  } else {
+    paste("Tables", schema, table_name, sep = "/")
+  }
+  target <- onelake_resolve_target(
+    workspace_target,
+    lakehouse_target,
+    path = table_dir,
+    item_type = item_type,
+    dfs_base = dfs_base
+  )
+  work <- fabric_delta_work_dir(dest_dir)
+
+  list(
+    target = target,
+    table_dir = table_dir,
+    credential = credential,
+    version = version,
+    dest_dir = work$path,
+    cleanup = work$cleanup,
+    verbose = verbose,
+    columns = columns,
+    limit = limit,
+    engine = engine
+  )
+}
+
+#' Validate public Delta reader arguments
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_read_arguments <- function(
+  table_path,
+  workspace_name,
+  lakehouse_name,
+  schema,
+  version,
+  columns,
+  limit
+) {
+  scalar_string <- function(value) {
+    is.character(value) &&
+      length(value) == 1L &&
+      !is.na(value) &&
+      nzchar(value)
+  }
+  if (!scalar_string(table_path)) {
     rlang::abort("table_path must be one non-empty string")
   }
-  if (
-    !is.character(workspace_name) ||
-      length(workspace_name) != 1L ||
-      is.na(workspace_name) ||
-      !nzchar(workspace_name)
-  ) {
+  if (!scalar_string(workspace_name)) {
     rlang::abort("workspace_name must be one non-empty string or record")
   }
-  if (
-    !is.character(lakehouse_name) ||
-      length(lakehouse_name) != 1L ||
-      is.na(lakehouse_name) ||
-      !nzchar(lakehouse_name)
-  ) {
+  if (!scalar_string(lakehouse_name)) {
     rlang::abort("lakehouse_name must be one non-empty string or record")
   }
-  if (!is.null(version)) {
-    if (
-      length(version) != 1L ||
+  if (!is.null(schema) && !scalar_string(schema)) {
+    rlang::abort("schema must be one non-empty string")
+  }
+  if (
+    !is.null(version) &&
+      (length(version) != 1L ||
         is.na(version) ||
         !is.numeric(version) ||
         version < 0 ||
         version != floor(version) ||
-        version > .fabric_delta_max_exact_version
-    ) {
-      rlang::abort(paste0(
-        "version must be one exactly representable non-negative integer ",
-        "no greater than 2^53"
-      ))
-    }
-    version <- as.numeric(version)
+        version > .fabric_delta_max_exact_version)
+  ) {
+    rlang::abort(paste0(
+      "version must be one exactly representable non-negative integer ",
+      "no greater than 2^53"
+    ))
   }
   if (
     !is.null(columns) &&
@@ -266,3408 +361,109 @@ fabric_onelake_read_delta_table <- function(
       "limit must be NULL or one exactly representable non-negative integer"
     )
   }
-  if (!is.null(limit)) {
-    limit <- as.numeric(limit)
-  }
+  invisible(NULL)
+}
 
-  # ---- deps ----
-  rlang::check_installed(
-    c(
-      "DBI",
-      "duckdb",
-      "fs"
-    ),
-    reason = "to read OneLake Delta tables"
-  )
-
-  # ---- auth (MSAL v2 + refresh) ----
-  if (is.null(token)) {
-    inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2)")
-  }
-  credential <- fabric_credential(
-    tenant_id = tenant_id,
-    client_id = client_id,
-    token = token,
-    auth_args = auth_args
-  )
-  # ---- normalize lakehouse item + table dir ----
-  parts <- strsplit(table_path, "/", fixed = TRUE)[[1]]
-  table_name <- parts[length(parts)]
-
-  if (!is.null(schema)) {
-    if (
-      !is.character(schema) ||
-        length(schema) != 1L ||
-        is.na(schema) ||
-        !nzchar(schema)
-    ) {
-      rlang::abort("schema must be one non-empty string")
-    }
-    table_dir <- paste("Tables", schema, table_name, sep = "/")
-  } else {
-    table_dir <- paste("Tables", table_name, sep = "/")
-  }
-  target <- onelake_resolve_target(
-    workspace_target,
-    lakehouse_target,
-    path = table_dir,
-    item_type = item_type,
-    dfs_base = dfs_base
-  )
-
-  inform(verbose, "Table root: {.path {table_dir}}")
-
-  auto_cleanup <- is.null(dest_dir)
-  dest_dir <- dest_dir %||% fs::file_temp("onelake_tbl_")
+#' Prepare an isolated work directory shared by Delta reader engines
+#' @keywords internal
+#' @noRd
+fabric_delta_work_dir <- function(dest_dir) {
+  cleanup <- is.null(dest_dir)
+  path <- dest_dir %||% tempfile("onelake_tbl_")
   if (
-    fs::dir_exists(dest_dir) &&
-      length(fs::dir_ls(dest_dir, all = TRUE, fail = FALSE))
+    !is.character(path) ||
+      length(path) != 1L ||
+      is.na(path) ||
+      !nzchar(path)
   ) {
-    rlang::abort(c(
-      "dest_dir must be a new or empty directory",
-      "x" = cli::format_inline(
-        "{.path {dest_dir}} contains files from an earlier operation"
-      )
-    ))
+    rlang::abort("dest_dir must be NULL or one non-empty path")
   }
-  fs::dir_create(dest_dir, recurse = TRUE)
-  if (auto_cleanup) {
-    on.exit(try(fs::dir_delete(dest_dir), silent = TRUE), add = TRUE)
-  }
-
-  # ---- locate and stage the transaction log ----
-  log_target <- target
-  log_target$path <- paste0(table_dir, "/_delta_log")
-  last_checkpoint <- if (is.null(version)) {
-    fabric_delta_last_checkpoint_version(log_target, credential)
-  } else {
-    NULL
-  }
-  files <- onelake_list_target(
-    log_target,
-    credential,
-    recursive = FALSE,
-    page_size = 5000L,
-    begin_from = if (!is.null(last_checkpoint)) {
-      sprintf("%020.0f", last_checkpoint)
-    }
-  )
-  files <- fabric_delta_file_rows(files)
-  if (NROW(files) > 0) {
-    file_paths <- if ("path" %in% names(files)) files$path else files$name
-  } else {
-    file_paths <- character()
-  }
-  selection <- if (length(file_paths)) {
-    fabric_delta_select_log_paths(file_paths, version = version)
-  } else {
-    NULL
-  }
-  checkpoint_missing <- !is.null(last_checkpoint) &&
-    (is.null(selection) ||
-      is.null(selection$checkpoint_version) ||
-      selection$checkpoint_version < last_checkpoint)
-  if (checkpoint_missing) {
-    files <- onelake_list_target(
-      log_target,
-      credential,
-      recursive = FALSE,
-      page_size = 5000L
+  if (dir.exists(path)) {
+    entries <- list.files(
+      path,
+      all.files = TRUE,
+      no.. = TRUE,
+      full.names = TRUE
     )
-    files <- fabric_delta_file_rows(files)
-    file_paths <- if (NROW(files) > 0 && "path" %in% names(files)) {
-      files$path
-    } else if (NROW(files) > 0) {
-      files$name
-    } else {
-      character()
-    }
-    selection <- if (length(file_paths)) {
-      fabric_delta_select_log_paths(file_paths, version = version)
-    } else {
-      NULL
-    }
-  }
-  if (NROW(files) == 0) {
-    rlang::abort(cli::format_inline(
-      "No {.path _delta_log} files found under {.path {table_dir}}"
-    ))
-  }
-  if (is.null(selection) || !length(selection$paths)) {
-    rlang::abort("No supported Delta commits or checkpoints were found")
-  }
-
-  log_staged <- fabric_delta_stage_paths(
-    selection$paths,
-    table_dir,
-    dest_dir
-  )
-  if (!all(grepl("^_delta_log/", log_staged$relative))) {
-    rlang::abort(cli::format_inline(
-      "OneLake returned a file outside the requested {.path _delta_log}"
-    ))
-  }
-
-  inform(
-    verbose,
-    "Downloading {nrow(log_staged)} Delta log file{?s} to {.path {dest_dir}}"
-  )
-  fabric_delta_download_staged(
-    log_staged,
-    target,
-    credential
-  )
-  checkpoint_sidecars <- fabric_delta_checkpoint_sidecar_paths(
-    log_staged$destination,
-    target = target,
-    table_dir = table_dir
-  )
-  if (length(checkpoint_sidecars)) {
-    sidecar_staged <- fabric_delta_stage_paths(
-      paste0(
-        table_dir,
-        "/_delta_log/_sidecars/",
-        checkpoint_sidecars
-      ),
-      table_dir,
-      dest_dir
-    )
-    inform(
-      verbose,
-      "Downloading {nrow(sidecar_staged)} checkpoint sidecar file{?s}"
-    )
-    for (index in seq_len(nrow(sidecar_staged))) {
-      try(
-        fabric_delta_download_staged(
-          sidecar_staged[index, , drop = FALSE],
-          target,
-          credential
-        ),
-        silent = TRUE
-      )
-    }
-  }
-
-  snapshot <- fabric_delta_resolve_snapshot(dest_dir, version = version)
-  if (length(snapshot$active)) {
-    data_staged <- fabric_delta_stage_files(
-      unique(snapshot$active),
-      target,
-      table_dir,
-      dest_dir
-    )
-    inform(
-      verbose,
-      "Downloading {nrow(data_staged)} active data file{?s}"
-    )
-    fabric_delta_download_staged(
-      data_staged,
-      target,
-      credential
-    )
-  }
-  deletion_vector_paths <- fabric_delta_deletion_vector_paths(snapshot)
-  if (length(deletion_vector_paths)) {
-    deletion_staged <- fabric_delta_stage_files(
-      unique(deletion_vector_paths),
-      target,
-      table_dir,
-      dest_dir
-    )
-    inform(
-      verbose,
-      "Downloading {nrow(deletion_staged)} deletion-vector sidecar file{?s}"
-    )
-    fabric_delta_download_staged(
-      deletion_staged,
-      target,
-      credential
-    )
-  }
-
-  # ---- read the requested Delta snapshot ----
-  inform(verbose, "Reading the Delta snapshot with {.pkg duckdb}")
-  df <- fabric_delta_read_staged(
-    dest_dir,
-    version = version,
-    columns = columns,
-    limit = limit
-  )
-
-  inform(verbose, "Loaded {nrow(df)} row{?s}", type = "success")
-  tibble::as_tibble(df)
-}
-
-#' Read the recent checkpoint pointer without listing the full Delta log
-#' @keywords internal
-#' @noRd
-fabric_delta_last_checkpoint_version <- function(log_target, credential) {
-  checkpoint_target <- log_target
-  checkpoint_target$path <- paste0(log_target$path, "/_last_checkpoint")
-  response <- .httr2_perform(
-    onelake_request(onelake_path_url(checkpoint_target)),
-    credential = credential,
-    audience = .fabric_audience$storage,
-    accepted_status = 404L
-  )
-  if (identical(httr2::resp_status(response), 404L)) {
-    return(NULL)
-  }
-  checkpoint <- tryCatch(
-    jsonlite::fromJSON(
-      rawToChar(httr2::resp_body_raw(response)),
-      simplifyVector = FALSE,
-      bigint_as_char = TRUE
-    ),
-    error = function(error) NULL
-  )
-  checkpoint_version <- checkpoint$version %||% NULL
-  if (
-    length(checkpoint_version) != 1L ||
-      !is.numeric(checkpoint_version) ||
-      is.na(checkpoint_version) ||
-      !is.finite(checkpoint_version) ||
-      checkpoint_version < 0 ||
-      checkpoint_version != floor(checkpoint_version)
-  ) {
-    return(NULL)
-  }
-  if (checkpoint_version > .fabric_delta_max_exact_version) {
-    fabric_delta_abort_version_range()
-  }
-  as.numeric(checkpoint_version)
-}
-
-#' Parse zero-padded Delta versions without silently losing precision
-#' @keywords internal
-#' @noRd
-fabric_delta_versions_from_text <- function(versions) {
-  if (
-    !all(grepl("^[0-9]{20}$", versions)) ||
-      any(versions > .fabric_delta_max_exact_version_text)
-  ) {
-    fabric_delta_abort_version_range()
-  }
-  as.numeric(versions)
-}
-
-#' Reject Delta versions outside R's exact numeric range
-#' @keywords internal
-#' @noRd
-fabric_delta_abort_version_range <- function() {
-  rlang::abort(
-    paste0(
-      "Delta versions greater than 2^53 are not supported because R cannot ",
-      "represent them exactly"
-    ),
-    class = "fabric_delta_unsupported_error"
-  )
-}
-
-#' Select the checkpoint and commits required for one Delta snapshot
-#' @keywords internal
-#' @noRd
-fabric_delta_select_log_paths <- function(paths, version = NULL) {
-  filenames <- basename(paths)
-  json_match <- regexec("^([0-9]{20})\\.json$", filenames)
-  json_parts <- regmatches(filenames, json_match)
-  json_keep <- lengths(json_parts) > 0L
-  json_versions <- fabric_delta_versions_from_text(vapply(
-    json_parts[json_keep],
-    `[[`,
-    character(1),
-    2L
-  ))
-  json_paths <- paths[json_keep]
-  checkpoints <- fabric_delta_checkpoint_sets(paths)
-  checkpoint_versions <- vapply(
-    checkpoints,
-    `[[`,
-    numeric(1),
-    "version"
-  )
-  available <- c(json_versions, checkpoint_versions)
-  if (!length(available)) {
-    return(NULL)
-  }
-
-  latest <- max(available)
-  target <- version %||% latest
-  if (target > latest) {
-    rlang::abort(cli::format_inline(
-      paste0(
-        "Delta version {target} does not exist; ",
-        "the latest available version is {latest}"
-      )
-    ))
-  }
-  eligible <- checkpoint_versions[checkpoint_versions <= target]
-  checkpoint_version <- if (length(eligible)) max(eligible) else NULL
-  checkpoint_paths <- if (!is.null(checkpoint_version)) {
-    checkpoint <- checkpoints[[match(checkpoint_version, checkpoint_versions)]]
-    candidates <- checkpoint$alternatives %||% list(checkpoint)
-    unique(unlist(lapply(candidates, `[[`, "paths"), use.names = FALSE))
-  } else {
-    character()
-  }
-  first_json <- if (is.null(checkpoint_version)) 0 else checkpoint_version + 1
-  json_needed <- json_paths[
-    json_versions >= first_json & json_versions <= target
-  ]
-  list(
-    paths = unique(c(checkpoint_paths, json_needed)),
-    target = target,
-    checkpoint_version = checkpoint_version
-  )
-}
-
-#' Download files into their validated Delta staging locations
-#' @keywords internal
-#' @noRd
-fabric_delta_download_staged <- function(staged, target, credential) {
-  purrr::walk(
-    unique(fs::path_dir(staged$destination)),
-    fs::dir_create,
-    recurse = TRUE
-  )
-  purrr::walk(
-    seq_len(nrow(staged)),
-    function(index) {
-      file_target <- if ("target" %in% names(staged)) {
-        staged$target[[index]]
-      } else {
-        current <- target
-        current$path <- staged$source[[index]]
-        current
-      }
-      onelake_download_target(
-        file_target,
-        credential,
-        dest = staged$destination[[index]],
-        overwrite = TRUE
-      )
-    }
-  )
-  invisible(staged)
-}
-
-#' Keep downloadable files from a OneLake storage listing
-#' @param files Data frame returned by the shared OneLake transport.
-#' @return The rows that represent files rather than directories.
-#' @keywords internal
-#' @noRd
-fabric_delta_file_rows <- function(files) {
-  if (!is.data.frame(files) || !any(c("name", "path") %in% names(files))) {
-    rlang::abort("OneLake returned an invalid storage listing")
-  }
-  if (!"name" %in% names(files)) {
-    files$name <- files$path
-  }
-  if ("isdir" %in% names(files)) {
-    files <- files[is.na(files$isdir) | !files$isdir, , drop = FALSE]
-  } else if ("is_directory" %in% names(files)) {
-    files <- files[
-      is.na(files$is_directory) | !files$is_directory,
-      ,
-      drop = FALSE
-    ]
-  }
-  files
-}
-
-#' Normalize a Lakehouse item name to include the `.Lakehouse` suffix
-#' @keywords internal
-#' @noRd
-fabric_normalize_lakehouse_item <- function(lakehouse_name) {
-  if (
-    stringr::str_detect(
-      lakehouse_name,
-      stringr::regex(
-        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        ignore_case = TRUE
-      )
-    )
-  ) {
-    return(lakehouse_name)
-  }
-  if (
-    stringr::str_ends(
-      lakehouse_name,
-      stringr::regex("\\.lakehouse$", ignore_case = TRUE)
-    )
-  ) {
-    lakehouse_name
-  } else {
-    paste0(lakehouse_name, ".Lakehouse")
-  }
-}
-
-#' Map OneLake table files to safe local staging paths
-#' @param sources Character vector returned by `list_storage_files()`.
-#' @param table_dir OneLake table root.
-#' @param dest_dir Local staging root.
-#' @return A data frame containing source, relative, and destination paths.
-#' @keywords internal
-#' @noRd
-fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
-  sources <- gsub("\\\\", "/", sources)
-  table_dir <- sub("/+$", "", gsub("\\\\", "/", table_dir))
-  prefix <- paste0(table_dir, "/")
-  if (!length(sources) || !all(startsWith(sources, prefix))) {
-    rlang::abort("OneLake returned a file outside the requested Delta table")
-  }
-
-  relative <- substring(sources, nchar(prefix) + 1L)
-  parts <- strsplit(relative, "/", fixed = TRUE)
-  unsafe <- !nzchar(relative) |
-    vapply(
-      parts,
-      function(x) !all(nzchar(x)) || any(x %in% c(".", "..")),
-      logical(1)
-    )
-  if (any(unsafe)) {
-    rlang::abort("OneLake returned an unsafe relative Delta table path")
-  }
-
-  data.frame(
-    source = sources,
-    relative = relative,
-    destination = fs::path(dest_dir, relative),
-    stringsAsFactors = FALSE
-  )
-}
-
-#' Map relative or absolute OneLake Delta files to local staging paths
-#' @keywords internal
-#' @noRd
-fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
-  records <- lapply(paths, function(path) {
-    decoded <- utils::URLdecode(as.character(path))
-    if (grepl("^(?:https|abfss?)://", decoded, ignore.case = TRUE)) {
-      file_target <- onelake_parse_uri(decoded)
-      relative <- fabric_delta_external_relative(file_target)
-    } else {
-      parts <- strsplit(gsub("\\\\", "/", decoded), "/", fixed = TRUE)[[1L]]
-      if (
-        grepl("^[/\\\\]", decoded) ||
-          any(!nzchar(parts) | parts %in% c(".", ".."))
-      ) {
-        rlang::abort("Delta log contains an unsafe data-file path")
-      }
-      file_target <- target
-      file_target$path <- paste0(table_dir, "/", decoded)
-      relative <- decoded
-    }
-    list(
-      source = file_target$path,
-      relative = relative,
-      destination = fs::path(dest_dir, relative),
-      target = file_target
-    )
-  })
-  data.frame(
-    source = vapply(records, `[[`, character(1), "source"),
-    relative = vapply(records, `[[`, character(1), "relative"),
-    destination = fs::path(vapply(
-      records,
-      `[[`,
-      character(1),
-      "destination"
-    )),
-    target = I(lapply(records, `[[`, "target")),
-    stringsAsFactors = FALSE
-  )
-}
-
-#' Derive a collision-resistant local path for an absolute OneLake URI
-#' @keywords internal
-#' @noRd
-fabric_delta_external_relative <- function(target) {
-  canonical <- paste(
-    sub("/+$", "", target$dfs_base),
-    target$workspace,
-    target$item,
-    sub("^/+", "", target$path),
-    sep = "/"
-  )
-  extension <- fs::path_ext(target$path)
-  suffix <- if (nzchar(extension)) paste0(".", extension) else ""
-  fs::path(
-    "_delta_log",
-    ".fabricqueryr-external",
-    paste0(
-      digest::digest(canonical, algo = "sha256", serialize = FALSE),
-      suffix
-    )
-  )
-}
-
-#' Resolve a transaction-log data path to its staged local file
-#' @keywords internal
-#' @noRd
-fabric_delta_local_file <- function(table_dir, path) {
-  decoded <- utils::URLdecode(as.character(path))
-  absolute <- grepl(
-    "^(?:https|abfss?)://",
-    decoded,
-    ignore.case = TRUE
-  )
-  relative <- if (absolute) {
-    fabric_delta_external_relative(onelake_parse_uri(decoded))
-  } else {
-    parts <- strsplit(gsub("\\\\", "/", decoded), "/", fixed = TRUE)[[1L]]
-    if (
-      grepl("^[/\\\\]", decoded) ||
-        any(!nzchar(parts) | parts %in% c(".", ".."))
-    ) {
-      rlang::abort("Delta log contains an unsafe data-file path")
-    }
-    decoded
-  }
-  fs::path(table_dir, relative)
-}
-
-#' Read a locally staged Delta snapshot
-#' @param table_dir Local Delta table root.
-#' @param version Optional Delta table version.
-#' @param columns Optional logical columns to return.
-#' @param limit Optional maximum number of rows to return.
-#' @return A data frame.
-#' @keywords internal
-#' @noRd
-fabric_delta_read_staged <- function(
-  table_dir,
-  version = NULL,
-  columns = NULL,
-  limit = NULL
-) {
-  snapshot <- fabric_delta_resolve_snapshot(table_dir, version = version)
-  schema <- fabric_delta_schema(snapshot$metadata)
-  fabric_delta_validate_type_widening(
-    schema,
-    unlist(
-      snapshot$protocol$readerFeatures %||% list(),
-      use.names = FALSE
-    )
-  )
-
-  relative <- snapshot$active
-  con <- DBI::dbConnect(
-    duckdb::duckdb(),
-    dbdir = ":memory:",
-    bigint = "integer64"
-  )
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-  projection <- fabric_delta_schema_projection(con, schema)
-  selected_indexes <- if (is.null(columns)) {
-    seq_along(projection$names)
-  } else {
-    unknown <- setdiff(columns, projection$names)
-    if (length(unknown)) {
-      rlang::abort(paste0(
-        "Requested Delta column",
-        if (length(unknown) == 1L) " is" else "s are",
-        " not present in the selected snapshot: ",
-        paste(unknown, collapse = ", ")
-      ))
-    }
-    match(columns, projection$names)
-  }
-  limit_sql <- if (is.null(limit)) {
-    ""
-  } else {
-    paste0(" LIMIT ", sprintf("%.0f", limit))
-  }
-  if (!length(snapshot$active)) {
-    return(DBI::dbGetQuery(
-      con,
-      paste0(
-        "SELECT ",
-        paste(projection$empty[selected_indexes], collapse = ", "),
-        " WHERE FALSE",
-        limit_sql
-      )
-    ))
-  }
-
-  paths <- vapply(
-    relative,
-    function(path) fabric_delta_local_file(table_dir, path),
-    character(1)
-  )
-  missing <- !fs::file_exists(paths)
-  if (any(missing)) {
-    rlang::abort(c(
-      "Delta snapshot references data files that were not staged",
-      "x" = cli::format_inline(
-        "{.path {paths[which(missing)[1L]]}} is missing"
-      )
-    ))
-  }
-
-  normalized_paths <- gsub(
-    "\\\\",
-    "/",
-    normalizePath(paths, mustWork = TRUE)
-  )
-  id_mappings <- if (identical(schema$columnMappingMode, "id")) {
-    fabric_delta_validate_id_mapping(con, normalized_paths, schema)
-  } else {
-    NULL
-  }
-  literals <- as.character(DBI::dbQuoteString(
-    con,
-    normalized_paths
-  ))
-  physical <- if (is.null(id_mappings)) {
-    parquet_without_source <- paste0(
-      "read_parquet([",
-      paste(literals, collapse = ", "),
-      "], union_by_name = true, hive_partitioning = false)"
-    )
-    DBI::dbGetQuery(
-      con,
-      paste0("DESCRIBE SELECT * FROM ", parquet_without_source)
-    )$column_name
-  } else {
-    vapply(
-      schema$fields[
-        !vapply(
-          schema$fields,
-          function(field) field$name %in% schema$partitionColumns,
-          logical(1)
-        )
-      ],
-      fabric_delta_field_physical_name,
-      character(1),
-      mapping_mode = "id"
-    )
-  }
-  source_column <- "fabric_delta_source_path_internal"
-  while (source_column %in% physical) {
-    source_column <- paste0(source_column, "_")
-  }
-  row_column <- "fabric_delta_row_index_internal"
-  while (row_column %in% c(physical, source_column)) {
-    row_column <- paste0(row_column, "_")
-  }
-  quoted_source <- as.character(DBI::dbQuoteIdentifier(con, source_column))
-  quoted_row <- as.character(DBI::dbQuoteIdentifier(con, row_column))
-  parquet <- paste(
-    vapply(
-      seq_along(literals),
-      function(index) {
-        file_columns <- if (is.null(id_mappings)) {
-          "*"
-        } else {
-          fabric_delta_id_file_projection(
-            con,
-            schema,
-            id_mappings[[index]]
-          )
-        }
-        paste0(
-          "SELECT ",
-          file_columns,
-          if (nzchar(file_columns)) ", " else "",
-          literals[[index]],
-          " AS ",
-          quoted_source,
-          ", row_number() OVER () - 1 AS ",
-          quoted_row,
-          " FROM read_parquet(",
-          literals[[index]],
-          ", hive_partitioning = false)"
-        )
-      },
-      character(1)
-    ),
-    collapse = " UNION ALL BY NAME "
-  )
-  parquet <- paste0("(", parquet, ")")
-  mapping <- fabric_delta_partition_mapping(
-    snapshot,
-    normalized_paths,
-    schema
-  )
-  DBI::dbWriteTable(con, "fabric_delta_partitions", mapping, temporary = TRUE)
-  deletions <- fabric_delta_deletion_mapping(
-    snapshot,
-    normalized_paths,
-    table_dir
-  )
-  DBI::dbWriteTable(con, "fabric_delta_deletions", deletions, temporary = TRUE)
-  source <- paste0(
-    parquet,
-    " AS delta_source LEFT JOIN fabric_delta_partitions AS delta_partitions ",
-    "ON delta_source.",
-    as.character(DBI::dbQuoteIdentifier(con, source_column)),
-    " = delta_partitions.fabric_delta_source_path ",
-    "LEFT JOIN fabric_delta_deletions AS delta_deletions ON delta_source.",
-    as.character(DBI::dbQuoteIdentifier(con, source_column)),
-    " = delta_deletions.fabric_delta_source_path AND delta_source.",
-    as.character(DBI::dbQuoteIdentifier(con, row_column)),
-    " = delta_deletions.fabric_delta_row_index"
-  )
-  selected <- fabric_delta_read_projection(
-    con,
-    schema,
-    physical,
-    source_column
-  )[selected_indexes]
-  DBI::dbGetQuery(
-    con,
-    paste0(
-      "SELECT ",
-      paste(selected, collapse = ", "),
-      " FROM ",
-      source,
-      " WHERE delta_deletions.fabric_delta_row_index IS NULL",
-      limit_sql
-    )
-  )
-}
-
-#' Parse and validate the current logical Delta schema
-#' @keywords internal
-#' @noRd
-fabric_delta_schema <- function(metadata) {
-  schema_string <- metadata$schemaString %||% NULL
-  if (
-    is.null(schema_string) ||
-      !is.character(schema_string) ||
-      length(schema_string) != 1L ||
-      is.na(schema_string) ||
-      !nzchar(schema_string)
-  ) {
-    rlang::abort(
-      "Delta snapshot does not contain a valid metadata schemaString"
-    )
-  }
-  schema <- tryCatch(
-    jsonlite::fromJSON(schema_string, simplifyVector = FALSE),
-    error = function(error) {
-      rlang::abort(
-        "Could not parse the Delta metadata schemaString",
-        parent = error
-      )
-    }
-  )
-  if (!identical(schema$type, "struct") || !is.list(schema$fields)) {
-    rlang::abort("Delta metadata schemaString must describe a struct")
-  }
-  fabric_delta_validate_schema_type(schema, path = "<root>")
-  field_names <- vapply(schema$fields, `[[`, character(1), "name")
-  partition_columns <- metadata$partitionColumns %||% list()
-  if (
-    !is.list(partition_columns) &&
-      !is.character(partition_columns)
-  ) {
-    rlang::abort("Delta metadata partitionColumns must be an array of names")
-  }
-  schema$partitionColumns <- unlist(
-    partition_columns,
-    use.names = FALSE
-  )
-  if (
-    length(schema$partitionColumns) &&
-      (!is.character(schema$partitionColumns) ||
-        anyNA(schema$partitionColumns) ||
-        !all(nzchar(schema$partitionColumns)) ||
-        anyDuplicated(tolower(schema$partitionColumns)))
-  ) {
-    rlang::abort(
-      "Delta metadata partitionColumns contains invalid or duplicate names"
-    )
-  }
-  configuration <- metadata$configuration %||% list()
-  schema$columnMappingMode <- tolower(as.character(
-    configuration[["delta.columnMapping.mode"]] %||% "none"
-  ))
-  unknown_partitions <- setdiff(schema$partitionColumns, field_names)
-  if (length(unknown_partitions)) {
-    rlang::abort(paste0(
-      "Delta metadata references unknown partition column(s): ",
-      paste(unknown_partitions, collapse = ", ")
-    ))
-  }
-  schema
-}
-
-#' Validate the recursive shape and sibling names of a Delta schema type
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_schema_type <- function(type, path) {
-  if (
-    is.character(type) && length(type) == 1L && !is.na(type) && nzchar(type)
-  ) {
-    return(invisible(type))
-  }
-  if (!is.list(type)) {
-    rlang::abort(paste0("Delta schema type at ", path, " is invalid"))
-  }
-  kind <- tolower(as.character(type$type %||% ""))
-  if (length(kind) != 1L || is.na(kind) || !nzchar(kind)) {
-    rlang::abort(paste0("Delta schema type at ", path, " is invalid"))
-  }
-  if (identical(kind, "struct")) {
-    fields <- type$fields %||% NULL
-    if (!is.list(fields)) {
-      rlang::abort(paste0("Delta struct at ", path, " has invalid fields"))
-    }
-    names <- vapply(
-      fields,
-      function(field) {
-        if (!is.list(field)) {
-          return("")
-        }
-        name <- field$name %||% ""
-        if (
-          !is.character(name) ||
-            length(name) != 1L ||
-            is.na(name)
-        ) {
-          return("")
-        }
-        name
-      },
-      character(1)
-    )
-    if (!all(nzchar(names)) || anyDuplicated(tolower(names))) {
-      prefix <- if (identical(path, "<root>")) {
-        "Delta metadata schema"
-      } else {
-        paste0("Delta struct at ", path)
-      }
-      rlang::abort(
-        paste0(prefix, " contains missing or duplicate field names")
-      )
-    }
-    for (index in seq_along(fields)) {
-      field <- fields[[index]]
-      if (is.null(field$type)) {
-        rlang::abort(paste0(
-          "Delta schema field ",
-          paste0(path, ".", names[[index]]),
-          " has no type"
-        ))
-      }
-      nullable <- field$nullable %||% TRUE
-      if (!is.logical(nullable) || length(nullable) != 1L || is.na(nullable)) {
-        rlang::abort(paste0(
-          "Delta schema field ",
-          paste0(path, ".", names[[index]]),
-          " has invalid nullability"
-        ))
-      }
-      metadata <- field$metadata %||% list()
-      if (!is.list(metadata)) {
-        rlang::abort(paste0(
-          "Delta schema field ",
-          paste0(path, ".", names[[index]]),
-          " has invalid metadata"
-        ))
-      }
-      fabric_delta_validate_schema_type(
-        field$type,
-        paste0(path, ".", names[[index]])
-      )
-    }
-    return(invisible(type))
-  }
-  if (identical(kind, "array")) {
-    if (is.null(type$elementType)) {
-      rlang::abort(paste0("Delta array at ", path, " has no elementType"))
-    }
-    contains_null <- type$containsNull %||% TRUE
-    if (
-      !is.logical(contains_null) ||
-        length(contains_null) != 1L ||
-        is.na(contains_null)
-    ) {
-      rlang::abort(paste0("Delta array at ", path, " has invalid nullability"))
-    }
-    fabric_delta_validate_schema_type(
-      type$elementType,
-      paste0(path, ".element")
-    )
-    return(invisible(type))
-  }
-  if (identical(kind, "map")) {
-    if (is.null(type$keyType) || is.null(type$valueType)) {
-      rlang::abort(paste0("Delta map at ", path, " has no key/value type"))
-    }
-    value_contains_null <- type$valueContainsNull %||% TRUE
-    if (
-      !is.logical(value_contains_null) ||
-        length(value_contains_null) != 1L ||
-        is.na(value_contains_null)
-    ) {
-      rlang::abort(paste0("Delta map at ", path, " has invalid nullability"))
-    }
-    fabric_delta_validate_schema_type(type$keyType, paste0(path, ".key"))
-    fabric_delta_validate_schema_type(type$valueType, paste0(path, ".value"))
-    return(invisible(type))
-  }
-  rlang::abort(paste0(
-    "Delta schema at ",
-    path,
-    " contains unsupported complex type ",
-    kind
-  ))
-}
-
-#' Validate every recorded Delta type-widening transition
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_type_widening <- function(schema, reader_features) {
-  feature <- intersect(
-    as.character(reader_features),
-    c("typeWidening", "typeWidening-preview")
-  )
-  if (!length(feature)) {
-    return(invisible(schema))
-  }
-  preview <- identical(feature[[1L]], "typeWidening-preview")
-  resolve_path <- function(type, path) {
-    current <- type
-    if (nzchar(path)) {
-      components <- strsplit(path, ".", fixed = TRUE)[[1L]]
-      if (!all(nzchar(components))) {
-        fabric_delta_abort_unsupported(
-          paste0("Delta type-widening fieldPath ", path, " is invalid")
-        )
-      }
-      for (component in components) {
-        if (!is.list(current)) {
-          fabric_delta_abort_unsupported(
-            paste0(
-              "Delta type-widening fieldPath ",
-              path,
-              " does not resolve through the current schema"
-            )
-          )
-        }
-        kind <- tolower(as.character(current$type %||% ""))
-        current <- if (
-          identical(kind, "array") &&
-            identical(component, "element")
-        ) {
-          current$elementType
-        } else if (
-          identical(kind, "map") &&
-            identical(component, "key")
-        ) {
-          current$keyType
-        } else if (
-          identical(kind, "map") &&
-            identical(component, "value")
-        ) {
-          current$valueType
-        } else {
-          fabric_delta_abort_unsupported(
-            paste0(
-              "Delta type-widening fieldPath ",
-              path,
-              " does not resolve through the current schema"
-            )
-          )
-        }
-      }
-    }
-    if (!is.character(current) || length(current) != 1L || is.na(current)) {
-      fabric_delta_abort_unsupported(
-        paste0(
-          "Delta type-widening fieldPath ",
-          if (nzchar(path)) path else "<field>",
-          " does not identify a primitive field"
-        )
-      )
-    }
-    tolower(current)
-  }
-  visit_field <- function(field) {
-    changes <- field$metadata[["delta.typeChanges"]] %||% list()
-    if (length(changes)) {
-      paths <- vapply(
-        changes,
-        function(change) {
-          path <- change$fieldPath %||% ""
-          if (
-            !is.character(path) ||
-              length(path) != 1L ||
-              is.na(path)
-          ) {
-            fabric_delta_abort_unsupported(
-              "Delta type-widening fieldPath is invalid"
-            )
-          }
-          path
-        },
-        character(1)
-      )
-      for (path in unique(paths)) {
-        path_changes <- changes[paths == path]
-        previous_to <- NULL
-        for (change in path_changes) {
-          from <- tolower(as.character(change$fromType %||% ""))
-          to <- tolower(as.character(change$toType %||% ""))
-          if (
-            length(from) != 1L ||
-              is.na(from) ||
-              length(to) != 1L ||
-              is.na(to) ||
-              !fabric_delta_supported_type_change(
-                from,
-                to,
-                preview = preview
-              )
-          ) {
-            fabric_delta_abort_unsupported(
-              paste0(
-                "Delta type-widening transition ",
-                from,
-                " -> ",
-                to,
-                " is not supported"
-              )
-            )
-          }
-          if (!is.null(previous_to) && !identical(from, previous_to)) {
-            fabric_delta_abort_unsupported(
-              paste0(
-                "Delta type-widening history for fieldPath ",
-                if (nzchar(path)) path else "<field>",
-                " is not contiguous"
-              )
-            )
-          }
-          previous_to <- to
-        }
-        current <- resolve_path(field$type, path)
-        if (!identical(previous_to, current)) {
-          fabric_delta_abort_unsupported(
-            paste0(
-              "Delta type-widening history for fieldPath ",
-              if (nzchar(path)) path else "<field>",
-              " ends at ",
-              previous_to,
-              " but the current schema type is ",
-              current
-            )
-          )
-        }
-      }
-    }
-    visit_type(field$type)
-  }
-  visit_type <- function(type) {
-    if (!is.list(type)) {
-      return(invisible())
-    }
-    kind <- tolower(as.character(type$type %||% ""))
-    if (identical(kind, "struct")) {
-      lapply(type$fields %||% list(), visit_field)
-    } else if (identical(kind, "array")) {
-      visit_type(type$elementType)
-    } else if (identical(kind, "map")) {
-      visit_type(type$keyType)
-      visit_type(type$valueType)
-    }
-    invisible()
-  }
-  lapply(schema$fields, visit_field)
-  invisible(schema)
-}
-
-#' Check one documented Delta widening transition
-#' @keywords internal
-#' @noRd
-fabric_delta_supported_type_change <- function(from, to, preview = FALSE) {
-  if (!nzchar(from) || !nzchar(to)) {
-    return(FALSE)
-  }
-  decimal <- "^decimal\\(([0-9]+),([0-9]+)\\)$"
-  from_decimal <- regexec(decimal, from)
-  to_decimal <- regexec(decimal, to)
-  from_parts <- regmatches(from, from_decimal)[[1L]]
-  to_parts <- regmatches(to, to_decimal)[[1L]]
-  if (length(from_parts) && length(to_parts)) {
-    from_precision <- as.numeric(from_parts[[2L]])
-    from_scale <- as.numeric(from_parts[[3L]])
-    to_precision <- as.numeric(to_parts[[2L]])
-    to_scale <- as.numeric(to_parts[[3L]])
-    valid_decimals <- from_precision <= 38 &&
-      to_precision <= 38 &&
-      from_scale <= from_precision &&
-      to_scale <= to_precision
-    if (!valid_decimals) {
-      return(FALSE)
-    }
-    precision_change <- to_precision - from_precision
-    scale_change <- to_scale - from_scale
-    return(
-      precision_change >= 0 &&
-        scale_change >= 0 &&
-        precision_change >= scale_change
-    )
-  }
-  if (preview) {
-    allowed <- list(
-      byte = c("short", "integer"),
-      short = "integer",
-      float = "double"
-    )
-  } else {
-    allowed <- list(
-      byte = c("short", "integer", "long", "double"),
-      short = c("integer", "long", "double"),
-      integer = c("long", "double"),
-      float = "double",
-      date = "timestamp_ntz"
-    )
-    if (
-      grepl(decimal, to) &&
-        from %in% c("byte", "short", "integer", "long")
-    ) {
-      to_precision <- as.numeric(to_parts[[2L]])
-      to_scale <- as.numeric(to_parts[[3L]])
-      required_integer_digits <- if (identical(from, "long")) 20 else 10
-      return(
-        to_precision <= 38 &&
-          to_scale <= to_precision &&
-          to_precision >= required_integer_digits + to_scale
-      )
-    }
-  }
-  to %in% (allowed[[from]] %||% character())
-}
-
-#' Translate a Delta schema type into a DuckDB type
-#' @keywords internal
-#' @noRd
-fabric_delta_duckdb_type <- function(con, type) {
-  if (is.character(type) && length(type) == 1L) {
-    normalized <- tolower(type)
-    primitive <- c(
-      string = "VARCHAR",
-      long = "BIGINT",
-      integer = "INTEGER",
-      short = "SMALLINT",
-      byte = "TINYINT",
-      float = "FLOAT",
-      double = "DOUBLE",
-      boolean = "BOOLEAN",
-      binary = "BLOB",
-      date = "DATE",
-      timestamp = "TIMESTAMPTZ",
-      timestamp_ntz = "TIMESTAMP",
-      void = "BOOLEAN",
-      variant = "VARIANT"
-    )
-    if (normalized %in% names(primitive)) {
-      return(unname(primitive[[normalized]]))
-    }
-    if (grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized)) {
-      return(toupper(normalized))
-    }
-    rlang::abort(paste0("Unsupported Delta schema type: ", type))
-  }
-  if (!is.list(type)) {
-    rlang::abort("Delta schema contains an invalid field type")
-  }
-  kind <- tolower(as.character(type$type %||% ""))
-  if (identical(kind, "struct")) {
-    fields <- type$fields %||% list()
-    if (!length(fields)) {
-      rlang::abort("Empty Delta struct fields are not supported")
-    }
-    definitions <- vapply(
-      fields,
-      function(field) {
-        paste(
-          as.character(DBI::dbQuoteIdentifier(con, field$name)),
-          fabric_delta_duckdb_type(con, field$type)
-        )
-      },
-      character(1)
-    )
-    return(paste0("STRUCT(", paste(definitions, collapse = ", "), ")"))
-  }
-  if (identical(kind, "array")) {
-    return(paste0(
-      fabric_delta_duckdb_type(con, type$elementType),
-      "[]"
-    ))
-  }
-  if (identical(kind, "map")) {
-    return(paste0(
-      "MAP(",
-      fabric_delta_duckdb_type(con, type$keyType),
-      ", ",
-      fabric_delta_duckdb_type(con, type$valueType),
-      ")"
-    ))
-  }
-  rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
-}
-
-#' Translate a Delta type into an exact R-facing DuckDB result type
-#'
-#' DuckDB's R client preserves BIGINT as `bit64::integer64` when the connection
-#' requests it, but currently materializes DECIMAL values as binary doubles.
-#' Project DECIMAL values to text at every nesting level so no precision is
-#' discarded while crossing the DBI boundary.
-#' @keywords internal
-#' @noRd
-fabric_delta_duckdb_result_type <- function(con, type) {
-  if (is.character(type) && length(type) == 1L) {
-    normalized <- tolower(type)
-    if (grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized)) {
-      return("VARCHAR")
-    }
-    return(fabric_delta_duckdb_type(con, type))
-  }
-  if (!is.list(type)) {
-    rlang::abort("Delta schema contains an invalid field type")
-  }
-  kind <- tolower(as.character(type$type %||% ""))
-  if (identical(kind, "struct")) {
-    fields <- type$fields %||% list()
-    if (!length(fields)) {
-      rlang::abort("Empty Delta struct fields are not supported")
-    }
-    definitions <- vapply(
-      fields,
-      function(field) {
-        paste(
-          as.character(DBI::dbQuoteIdentifier(con, field$name)),
-          fabric_delta_duckdb_result_type(con, field$type)
-        )
-      },
-      character(1)
-    )
-    return(paste0("STRUCT(", paste(definitions, collapse = ", "), ")"))
-  }
-  if (identical(kind, "array")) {
-    return(paste0(
-      fabric_delta_duckdb_result_type(con, type$elementType),
-      "[]"
-    ))
-  }
-  if (identical(kind, "map")) {
-    return(paste0(
-      "MAP(",
-      fabric_delta_duckdb_result_type(con, type$keyType),
-      ", ",
-      fabric_delta_duckdb_result_type(con, type$valueType),
-      ")"
-    ))
-  }
-  rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
-}
-
-#' Build logical and empty-table schema projections
-#' @keywords internal
-#' @noRd
-fabric_delta_schema_projection <- function(con, schema) {
-  names <- vapply(schema$fields, `[[`, character(1), "name")
-  types <- vapply(
-    schema$fields,
-    function(field) fabric_delta_duckdb_result_type(con, field$type),
-    character(1)
-  )
-  aliases <- as.character(DBI::dbQuoteIdentifier(con, names))
-  list(
-    names = names,
-    types = types,
-    empty = paste0("CAST(NULL AS ", types, ") AS ", aliases)
-  )
-}
-
-#' Resolve the Parquet name for one Delta schema field
-#' @keywords internal
-#' @noRd
-fabric_delta_field_physical_name <- function(field, mapping_mode = "none") {
-  if (identical(mapping_mode, "none")) {
-    return(as.character(field$name))
-  }
-  physical <- field$metadata[["delta.columnMapping.physicalName"]] %||% NULL
-  if (
-    is.null(physical) ||
-      !is.character(physical) ||
-      length(physical) != 1L ||
-      is.na(physical) ||
-      !nzchar(physical)
-  ) {
-    fabric_delta_abort_unsupported(
-      paste0(
-        "Delta column mapping metadata for field ",
-        as.character(field$name),
-        " is missing a physical name"
-      )
-    )
-  }
-  physical
-}
-
-#' Collect ID-mapped fields from a Delta schema
-#' @keywords internal
-#' @noRd
-fabric_delta_id_fields <- function(schema) {
-  collect_type <- function(type) {
-    if (!is.list(type)) {
-      return(list())
-    }
-    kind <- tolower(as.character(type$type %||% ""))
-    if (identical(kind, "struct")) {
-      return(collect(type$fields %||% list(), top_level = FALSE))
-    }
-    if (identical(kind, "array")) {
-      return(collect_type(type$elementType))
-    }
-    if (identical(kind, "map")) {
-      return(c(
-        collect_type(type$keyType),
-        collect_type(type$valueType)
-      ))
-    }
-    list()
-  }
-  collect <- function(fields, top_level = FALSE) {
-    unlist(
-      lapply(fields, function(field) {
-        is_partition <- top_level &&
-          as.character(field$name) %in% schema$partitionColumns
-        own <- if (is_partition) {
-          list()
-        } else {
-          id <- field$metadata[["delta.columnMapping.id"]] %||% NULL
-          if (
-            is.null(id) ||
-              length(id) != 1L ||
-              is.na(id) ||
-              !is.numeric(id) ||
-              id < 0 ||
-              id != floor(id)
-          ) {
-            fabric_delta_abort_unsupported(
-              paste0(
-                "Delta ID column mapping field ",
-                as.character(field$name),
-                " has no valid column ID"
-              )
-            )
-          }
-          list(list(
-            id = as.numeric(id),
-            physical = fabric_delta_field_physical_name(field, "id")
-          ))
-        }
-        nested <- collect_type(field$type)
-        c(own, nested)
-      }),
-      recursive = FALSE
-    )
-  }
-  collect(schema$fields, top_level = TRUE)
-}
-
-#' Validate ID-mapped Delta fields against Parquet field IDs
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_id_mapping <- function(con, paths, schema) {
-  expected <- fabric_delta_id_fields(schema)
-  expected_ids <- vapply(expected, `[[`, numeric(1), "id")
-  if (anyDuplicated(expected_ids)) {
-    fabric_delta_abort_unsupported(
-      "Delta ID column mapping metadata contains duplicate column IDs"
-    )
-  }
-  mappings <- lapply(paths, function(path) {
-    literal <- as.character(DBI::dbQuoteString(con, path))
-    parquet <- DBI::dbGetQuery(
-      con,
-      paste0(
-        "SELECT name, field_id FROM parquet_schema(",
-        literal,
-        ")"
-      )
-    )
-    present_ids <- !is.na(parquet$field_id)
-    parquet_ids <- as.numeric(parquet$field_id[present_ids])
-    parquet_names <- as.character(parquet$name[present_ids])
-    if (length(expected) && !length(parquet_ids)) {
-      fabric_delta_abort_unsupported(
-        cli::format_inline(
-          "Parquet file {.path {path}} has no field IDs for Delta ID column mapping"
-        )
-      )
-    }
-    if (anyDuplicated(parquet_ids)) {
-      fabric_delta_abort_unsupported(
-        cli::format_inline(
-          "Parquet file {.path {path}} contains duplicate field IDs"
-        )
-      )
-    }
-    stats::setNames(parquet_names, as.character(parquet_ids))
-  })
-  mappings
-}
-
-#' Project one ID-mapped Parquet file into canonical physical names
-#' @keywords internal
-#' @noRd
-fabric_delta_id_file_projection <- function(con, schema, mapping) {
-  fields <- Filter(
-    function(field) !field$name %in% schema$partitionColumns,
-    schema$fields
-  )
-  paste(
-    vapply(
-      fields,
-      function(field) {
-        id <- as.character(field$metadata[["delta.columnMapping.id"]])
-        actual <- unname(mapping[[id]] %||% "")
-        expected <- fabric_delta_field_physical_name(field, "id")
-        expression <- if (nzchar(actual)) {
-          as.character(DBI::dbQuoteIdentifier(con, actual))
-        } else {
-          "NULL"
-        }
-        expression <- fabric_delta_id_type_expression(
-          con,
-          field$type,
-          expression,
-          mapping
-        )
-        paste0(
-          expression,
-          " AS ",
-          as.character(DBI::dbQuoteIdentifier(con, expected))
-        )
-      },
-      character(1)
-    ),
-    collapse = ", "
-  )
-}
-
-#' Rebuild nested ID-mapped values using canonical physical names
-#' @keywords internal
-#' @noRd
-fabric_delta_id_type_expression <- function(con, type, expression, mapping) {
-  if (
-    is.character(type) &&
-      length(type) == 1L &&
-      identical(tolower(type), "void")
-  ) {
-    return("NULL")
-  }
-  if (
-    identical(expression, "NULL") ||
-      (is.character(type) && length(type) == 1L)
-  ) {
-    return(expression)
-  }
-  kind <- tolower(as.character(type$type %||% ""))
-  if (identical(kind, "struct")) {
-    packed <- vapply(
-      type$fields %||% list(),
-      function(field) {
-        id <- as.character(field$metadata[["delta.columnMapping.id"]])
-        actual <- unname(mapping[[id]] %||% "")
-        nested <- if (nzchar(actual)) {
-          paste0(
-            expression,
-            ".",
-            as.character(DBI::dbQuoteIdentifier(con, actual))
-          )
-        } else {
-          "NULL"
-        }
-        expected <- fabric_delta_field_physical_name(field, "id")
-        paste0(
-          as.character(DBI::dbQuoteIdentifier(con, expected)),
-          " := ",
-          fabric_delta_id_type_expression(
-            con,
-            field$type,
-            nested,
-            mapping
-          )
-        )
-      },
-      character(1)
-    )
-    return(paste0("struct_pack(", paste(packed, collapse = ", "), ")"))
-  }
-  if (identical(kind, "array")) {
-    return(paste0(
-      "list_transform(",
-      expression,
-      ", fabric_delta_id_element -> ",
-      fabric_delta_id_type_expression(
-        con,
-        type$elementType,
-        "fabric_delta_id_element",
-        mapping
-      ),
-      ")"
-    ))
-  }
-  if (identical(kind, "map")) {
-    return(paste0(
-      "map(list_transform(map_keys(",
-      expression,
-      "), fabric_delta_id_key -> ",
-      fabric_delta_id_type_expression(
-        con,
-        type$keyType,
-        "fabric_delta_id_key",
-        mapping
-      ),
-      "), list_transform(map_values(",
-      expression,
-      "), fabric_delta_id_value -> ",
-      fabric_delta_id_type_expression(
-        con,
-        type$valueType,
-        "fabric_delta_id_value",
-        mapping
-      ),
-      "))"
-    ))
-  }
-  expression
-}
-
-#' Rebuild nested name-mapped values with their logical field names
-#' @keywords internal
-#' @noRd
-fabric_delta_field_expression <- function(
-  con,
-  field,
-  expression,
-  mapping_mode = "none"
-) {
-  if (
-    is.character(field$type) &&
-      length(field$type) == 1L &&
-      identical(tolower(field$type), "void")
-  ) {
-    return("NULL")
-  }
-  if (identical(mapping_mode, "none")) {
-    return(expression)
-  }
-  fabric_delta_type_expression(
-    con,
-    field$type,
-    expression,
-    mapping_mode
-  )
-}
-
-#' Recursively project a physical Delta value through a logical data type
-#' @keywords internal
-#' @noRd
-fabric_delta_type_expression <- function(
-  con,
-  type,
-  expression,
-  mapping_mode = "none"
-) {
-  if (is.character(type) && length(type) == 1L) {
-    if (identical(tolower(type), "void")) {
-      return("NULL")
-    }
-    return(expression)
-  }
-  kind <- tolower(as.character(type$type %||% ""))
-  if (identical(kind, "struct")) {
-    fields <- type$fields %||% list()
-    packed <- vapply(
-      fields,
-      function(field) {
-        physical <- fabric_delta_field_physical_name(field, mapping_mode)
-        logical <- as.character(DBI::dbQuoteIdentifier(con, field$name))
-        nested <- paste0(
-          expression,
-          ".",
-          as.character(DBI::dbQuoteIdentifier(con, physical))
-        )
-        paste0(
-          logical,
-          " := ",
-          fabric_delta_type_expression(
-            con,
-            field$type,
-            nested,
-            mapping_mode
-          )
-        )
-      },
-      character(1)
-    )
-    return(paste0("struct_pack(", paste(packed, collapse = ", "), ")"))
-  }
-  if (identical(kind, "array")) {
-    return(paste0(
-      "list_transform(",
-      expression,
-      ", fabric_delta_element -> ",
-      fabric_delta_type_expression(
-        con,
-        type$elementType,
-        "fabric_delta_element",
-        mapping_mode
-      ),
-      ")"
-    ))
-  }
-  if (identical(kind, "map")) {
-    return(paste0(
-      "map(list_transform(map_keys(",
-      expression,
-      "), fabric_delta_key -> ",
-      fabric_delta_type_expression(
-        con,
-        type$keyType,
-        "fabric_delta_key",
-        mapping_mode
-      ),
-      "), list_transform(map_values(",
-      expression,
-      "), fabric_delta_value -> ",
-      fabric_delta_type_expression(
-        con,
-        type$valueType,
-        "fabric_delta_value",
-        mapping_mode
-      ),
-      "))"
-    ))
-  }
-  expression
-}
-
-#' Normalize a Delta partition-values map
-#' @keywords internal
-#' @noRd
-fabric_delta_partition_values <- function(value) {
-  if (is.null(value) || !length(value)) {
-    return(list())
-  }
-  if (is.data.frame(value) && all(c("key", "value") %in% names(value))) {
-    return(stats::setNames(as.list(value$value), value$key))
-  }
-  if (
-    is.list(value) &&
-      all(c("key", "value") %in% names(value)) &&
-      length(value$key) == length(value$value)
-  ) {
-    return(stats::setNames(as.list(value$value), unlist(value$key)))
-  }
-  if (!is.null(names(value))) {
-    return(as.list(value))
-  }
-  rlang::abort("Delta log contains an invalid partitionValues map")
-}
-
-#' Construct a temporary per-file partition mapping for DuckDB
-#' @keywords internal
-#' @noRd
-fabric_delta_partition_mapping <- function(snapshot, paths, schema) {
-  partitions <- schema$partitionColumns
-  mapping <- data.frame(
-    fabric_delta_source_path = paths,
-    stringsAsFactors = FALSE
-  )
-  if (!length(partitions)) {
-    return(mapping)
-  }
-  files <- snapshot$files %||% list()
-  for (index in seq_along(partitions)) {
-    partition <- partitions[[index]]
-    mapping_mode <- schema$columnMappingMode %||% "none"
-    physical_partition <- if (identical(mapping_mode, "none")) {
-      partition
-    } else {
-      field_names <- vapply(schema$fields, `[[`, character(1), "name")
-      fabric_delta_field_physical_name(
-        schema$fields[[match(partition, field_names)]],
-        mapping_mode
-      )
-    }
-    values <- lapply(snapshot$active, function(path) {
-      record <- files[[path]] %||% list(partitionValues = list())
-      map <- record$partitionValues %||% list()
-      if (!physical_partition %in% names(map)) {
-        rlang::abort(cli::format_inline(
-          "Delta file {.path {path}} has no value for partition column {.field {partition}}"
-        ))
-      }
-      map[[physical_partition]]
-    })
-    mapping[[paste0("fabric_delta_partition_", index)]] <- vapply(
-      values,
-      function(value) {
-        if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) {
-          NA_character_
-        } else {
-          text <- as.character(value[[1L]])
-          if (nzchar(text)) text else NA_character_
-        }
-      },
-      character(1)
-    )
-  }
-  mapping
-}
-
-#' Normalize one checkpoint deletion-vector descriptor
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_vector_value <- function(value) {
-  if (is.null(value) || !length(value)) {
-    return(NULL)
-  }
-  if (!is.list(value)) {
-    if (length(value) == 1L && is.na(value)) {
-      return(NULL)
-    }
-    rlang::abort("Delta checkpoint contains an invalid deletion vector")
-  }
-  if (is.data.frame(value)) {
-    value <- lapply(value, function(column) column[[1L]])
-  }
-  storage_type <- value$storageType %||% NULL
-  if (
-    is.null(storage_type) ||
-      !length(storage_type) ||
-      is.na(storage_type[[1L]])
-  ) {
-    return(NULL)
-  }
-  lapply(value, function(field) {
-    if (!length(field) || is.na(field[[1L]])) NULL else field[[1L]]
-  })
-}
-
-#' Derive the protocol-defined identity of a deletion vector
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_vector_id <- function(descriptor) {
-  if (is.null(descriptor) || !length(descriptor)) {
-    return(NA_character_)
-  }
-  storage_type <- as.character(descriptor$storageType %||% "")
-  encoded <- as.character(descriptor$pathOrInlineDv %||% "")
-  if (
-    length(storage_type) != 1L ||
-      is.na(storage_type) ||
-      !nzchar(storage_type) ||
-      length(encoded) != 1L ||
-      is.na(encoded) ||
-      !nzchar(encoded)
-  ) {
-    rlang::abort("Delta deletion vector contains an invalid identity")
-  }
-  offset <- descriptor$offset %||% NULL
-  if (is.null(offset)) {
-    return(paste0(storage_type, encoded))
-  }
-  offset <- as.numeric(offset)
-  if (
-    length(offset) != 1L ||
-      !is.finite(offset) ||
-      offset < 0 ||
-      offset != floor(offset)
-  ) {
-    rlang::abort("Delta deletion vector contains an invalid identity")
-  }
-  paste0(storage_type, encoded, "@", format(offset, scientific = FALSE))
-}
-
-#' Resolve the table-relative path of a persisted deletion vector
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_vector_path <- function(descriptor) {
-  storage_type <- as.character(descriptor$storageType %||% "")
-  encoded <- as.character(descriptor$pathOrInlineDv %||% "")
-  if (identical(storage_type, "p")) {
-    decoded <- utils::URLdecode(encoded)
-    onelake_parse_uri(decoded)
-    return(decoded)
-  }
-  if (!identical(storage_type, "u")) {
-    return(NULL)
-  }
-  if (nchar(encoded, type = "bytes") < 20L) {
-    rlang::abort("Delta deletion vector contains an invalid relative path")
-  }
-  prefix_length <- nchar(encoded, type = "bytes") - 20L
-  prefix <- if (prefix_length) {
-    substr(encoded, 1L, prefix_length)
-  } else {
-    ""
-  }
-  uuid_bytes <- fabric_delta_z85_decode(
-    substr(encoded, prefix_length + 1L, prefix_length + 20L)
-  )
-  if (length(uuid_bytes) != 16L) {
-    rlang::abort("Delta deletion vector contains an invalid UUID")
-  }
-  hex <- paste0(sprintf("%02x", as.integer(uuid_bytes)), collapse = "")
-  uuid <- paste(
-    substr(hex, 1L, 8L),
-    substr(hex, 9L, 12L),
-    substr(hex, 13L, 16L),
-    substr(hex, 17L, 20L),
-    substr(hex, 21L, 32L),
-    sep = "-"
-  )
-  relative <- if (nzchar(prefix)) {
-    paste0(prefix, "/deletion_vector_", uuid, ".bin")
-  } else {
-    paste0("deletion_vector_", uuid, ".bin")
-  }
-  parts <- strsplit(gsub("\\\\", "/", relative), "/", fixed = TRUE)[[1L]]
-  if (
-    grepl("^[/\\\\]", relative) ||
-      any(!nzchar(parts) | parts %in% c(".", ".."))
-  ) {
-    rlang::abort("Delta deletion vector contains an unsafe relative path")
-  }
-  relative
-}
-
-#' List persisted deletion-vector sidecars required by a snapshot
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_vector_paths <- function(snapshot) {
-  paths <- unlist(
-    lapply(snapshot$active %||% character(), function(path) {
-      descriptor <- snapshot$files[[path]]$deletionVector %||% NULL
-      if (is.null(descriptor)) {
-        return(NULL)
-      }
-      fabric_delta_deletion_vector_path(descriptor)
-    }),
-    use.names = FALSE
-  )
-  unique(paths[nzchar(paths)])
-}
-
-#' Build the per-file row-index deletion relation used by DuckDB
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_mapping <- function(snapshot, paths, table_dir) {
-  rows <- Map(
-    function(path, normalized_path) {
-      descriptor <- snapshot$files[[path]]$deletionVector %||% NULL
-      if (is.null(descriptor)) {
-        return(NULL)
-      }
-      indexes <- fabric_delta_read_deletion_vector(descriptor, table_dir)
-      if (!length(indexes)) {
-        return(NULL)
-      }
-      data.frame(
-        fabric_delta_source_path = rep(normalized_path, length(indexes)),
-        fabric_delta_row_index = indexes,
-        stringsAsFactors = FALSE
-      )
-    },
-    snapshot$active,
-    paths
-  )
-  rows <- Filter(Negate(is.null), rows)
-  if (!length(rows)) {
-    return(data.frame(
-      fabric_delta_source_path = character(),
-      fabric_delta_row_index = numeric(),
-      stringsAsFactors = FALSE
-    ))
-  }
-  do.call(rbind, rows)
-}
-
-#' Read and validate one Delta deletion vector
-#' @keywords internal
-#' @noRd
-fabric_delta_read_deletion_vector <- function(descriptor, table_dir) {
-  storage_type <- as.character(descriptor$storageType %||% "")
-  size <- as.numeric(descriptor$sizeInBytes %||% NA_real_)
-  cardinality <- as.numeric(descriptor$cardinality %||% NA_real_)
-  if (
-    !storage_type %in% c("u", "i", "p") ||
-      !is.finite(size) ||
-      size < 4 ||
-      size != floor(size) ||
-      !is.finite(cardinality) ||
-      cardinality < 0 ||
-      cardinality != floor(cardinality)
-  ) {
-    rlang::abort("Delta deletion vector contains an invalid descriptor")
-  }
-
-  if (identical(storage_type, "i")) {
-    if (!is.null(descriptor$offset)) {
-      rlang::abort("Inline Delta deletion vectors must not contain an offset")
-    }
-    bitmap_data <- fabric_delta_z85_decode(
-      as.character(descriptor$pathOrInlineDv %||% "")
-    )
-    if (length(bitmap_data) != size) {
-      rlang::abort(
-        "Inline Delta deletion vector size does not match its descriptor"
-      )
-    }
-  } else {
-    stored_path <- fabric_delta_deletion_vector_path(descriptor)
-    path <- fabric_delta_local_file(table_dir, stored_path)
-    if (!fs::file_exists(path)) {
+    if (length(entries)) {
       rlang::abort(c(
-        "Delta snapshot references a deletion-vector file that was not staged",
-        "x" = cli::format_inline("{.path {path}} is missing")
+        "dest_dir must be a new or empty directory",
+        "x" = cli::format_inline(
+          "{.path {path}} contains files from an earlier operation"
+        )
       ))
     }
-    bytes <- readBin(path, "raw", n = fs::file_size(path))
-    offset <- as.numeric(descriptor$offset %||% 0)
-    start <- offset + 1L
-    if (
-      !is.finite(offset) ||
-        offset < 0 ||
-        offset != floor(offset) ||
-        start + 3L > length(bytes)
-    ) {
-      rlang::abort("Delta deletion-vector sidecar offset is invalid")
-    }
-    if (
-      offset > 0 &&
-        (!length(bytes) || as.integer(bytes[[1L]]) != 1L)
-    ) {
-      rlang::abort("Delta deletion-vector sidecar has an unsupported version")
-    }
-    stored_size <- fabric_delta_raw_uint32(bytes, start, endian = "big")
-    if (!identical(as.numeric(stored_size), as.numeric(size))) {
-      rlang::abort(
-        "Delta deletion-vector sidecar size does not match its descriptor"
-      )
-    }
-    data_start <- start + 4L
-    data_end <- data_start + size - 1L
-    crc_start <- data_end + 1L
-    if (crc_start + 3L > length(bytes)) {
-      rlang::abort("Delta deletion-vector sidecar is truncated")
-    }
-    bitmap_data <- bytes[data_start:data_end]
-    stored_crc <- fabric_delta_raw_uint32(bytes, crc_start, endian = "big")
-    actual_crc <- fabric_delta_crc32(bitmap_data)
-    if (!identical(as.numeric(stored_crc), as.numeric(actual_crc))) {
-      rlang::abort("Delta deletion-vector sidecar checksum is invalid")
-    }
-  }
-
-  magic <- fabric_delta_raw_uint32(bitmap_data, 1L, endian = "little")
-  if (!identical(as.numeric(magic), 1681511377)) {
-    rlang::abort("Delta deletion vector has an unsupported bitmap format")
-  }
-  parsed <- fabric_delta_roaring64(bitmap_data[-seq_len(4L)])
-  if (!identical(as.numeric(length(parsed)), cardinality)) {
-    rlang::abort(
-      "Delta deletion vector cardinality does not match its descriptor"
-    )
-  }
-  parsed
-}
-
-#' Decode a ZeroMQ Z85 string
-#' @keywords internal
-#' @noRd
-fabric_delta_z85_decode <- function(value) {
-  if (
-    !is.character(value) ||
-      length(value) != 1L ||
-      is.na(value) ||
-      nchar(value, type = "bytes") %% 5L != 0L
-  ) {
-    rlang::abort("Delta deletion vector contains invalid Z85 data")
-  }
-  if (!nzchar(value)) {
-    return(raw())
-  }
-  alphabet <- strsplit(
-    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#",
-    "",
-    fixed = TRUE
-  )[[1L]]
-  lookup <- stats::setNames(seq_along(alphabet) - 1L, alphabet)
-  chars <- strsplit(value, "", fixed = TRUE)[[1L]]
-  digits <- unname(lookup[chars])
-  if (anyNA(digits)) {
-    rlang::abort("Delta deletion vector contains invalid Z85 data")
-  }
-  groups <- matrix(digits, nrow = 5L)
-  decoded <- apply(groups, 2L, function(group) {
-    number <- sum(group * 85^(4:0))
-    if (number > 4294967295) {
-      rlang::abort("Delta deletion vector contains invalid Z85 data")
-    }
-    as.raw(c(
-      floor(number / 16777216) %% 256,
-      floor(number / 65536) %% 256,
-      floor(number / 256) %% 256,
-      number %% 256
+  } else if (!dir.create(path, recursive = TRUE, showWarnings = FALSE)) {
+    rlang::abort(cli::format_inline(
+      "Could not create Delta work directory {.path {path}}"
     ))
-  })
-  as.raw(as.vector(decoded))
+  }
+  list(path = path, cleanup = cleanup)
 }
 
-#' Read an unsigned integer from a raw vector without precision loss
+#' Count rows before formatting a Delta reader result
 #' @keywords internal
 #' @noRd
-fabric_delta_raw_uint32 <- function(bytes, start, endian = c("little", "big")) {
-  endian <- match.arg(endian)
-  indexes <- start + 0:3
-  if (start < 1L || max(indexes) > length(bytes)) {
-    rlang::abort("Delta deletion vector is truncated")
+fabric_delta_result_rows <- function(value) {
+  if (inherits(value, "ArrowTabular")) {
+    return(as.numeric(value$num_rows))
   }
-  value <- as.numeric(as.integer(bytes[indexes]))
-  powers <- if (identical(endian, "little")) 256^(0:3) else 256^(3:0)
-  sum(value * powers)
+  NROW(value)
 }
 
-fabric_delta_raw_uint16 <- function(bytes, start) {
-  indexes <- start + 0:1
-  if (start < 1L || max(indexes) > length(bytes)) {
-    rlang::abort("Delta deletion vector is truncated")
-  }
-  value <- as.numeric(as.integer(bytes[indexes]))
-  sum(value * c(1, 256))
-}
-
-#' Compute the CRC-32/ISO-HDLC checksum used by DV sidecars
+#' Format a Delta reader result as a tibble or Arrow C stream
 #' @keywords internal
 #' @noRd
-fabric_delta_crc32 <- function(bytes) {
-  crc <- -1L
-  polynomial <- -306674912L
-  for (byte in as.integer(bytes)) {
-    crc <- bitwXor(crc, byte)
-    for (bit in seq_len(8L)) {
-      crc <- if (bitwAnd(crc, 1L)) {
-        bitwXor(bitwShiftR(crc, 1L), polynomial)
-      } else {
-        bitwShiftR(crc, 1L)
-      }
-    }
-  }
-  crc <- bitwXor(crc, -1L)
-  if (crc < 0) as.numeric(crc) + 4294967296 else as.numeric(crc)
-}
-
-#' Decode the portable 64-bit Roaring bitmap used by Delta
-#' @keywords internal
-#' @noRd
-fabric_delta_roaring64 <- function(bytes) {
-  if (length(bytes) < 8L) {
-    rlang::abort("Delta deletion vector contains a truncated Roaring bitmap")
-  }
-  low <- fabric_delta_raw_uint32(bytes, 1L, "little")
-  high <- fabric_delta_raw_uint32(bytes, 5L, "little")
-  bucket_count <- low + high * 4294967296
-  if (bucket_count > .Machine$integer.max) {
-    rlang::abort("Delta deletion vector contains too many Roaring buckets")
-  }
-  cursor <- 9L
-  values <- vector("list", as.integer(bucket_count))
-  for (index in seq_len(as.integer(bucket_count))) {
-    bucket <- fabric_delta_raw_uint32(bytes, cursor, "little")
-    if (bucket >= 2147483648) {
-      rlang::abort("Delta deletion vector contains an invalid signed row index")
-    }
-    parsed <- fabric_delta_roaring32(bytes, cursor + 4L)
-    values[[index]] <- bucket * 4294967296 + parsed$values
-    cursor <- parsed$cursor
-  }
-  if (cursor != length(bytes) + 1L) {
-    rlang::abort("Delta deletion vector contains trailing bitmap data")
-  }
-  unlist(values, use.names = FALSE)
-}
-
-#' Decode one standard portable 32-bit Roaring bitmap
-#' @keywords internal
-#' @noRd
-fabric_delta_roaring32 <- function(bytes, start) {
-  cookie <- fabric_delta_raw_uint32(bytes, start, "little")
-  if (identical(cookie, 12346)) {
-    size <- fabric_delta_raw_uint32(bytes, start + 4L, "little")
-    cursor <- start + 8L
-    runs <- rep(FALSE, size)
-    has_offsets <- TRUE
-  } else if (cookie %% 65536 == 12347) {
-    size <- floor(cookie / 65536) + 1L
-    cursor <- start + 4L
-    run_bytes <- ceiling(size / 8)
-    if (cursor + run_bytes - 1L > length(bytes)) {
-      rlang::abort("Delta deletion vector contains a truncated Roaring header")
-    }
-    flags <- as.integer(bytes[cursor:(cursor + run_bytes - 1L)])
-    runs <- vapply(
-      seq_len(size),
-      function(index) {
-        bitwAnd(
-          flags[[floor((index - 1L) / 8L) + 1L]],
-          2^((index - 1L) %% 8L)
-        ) !=
-          0L
-      },
-      logical(1)
+fabric_delta_format_result <- function(value, result) {
+  if (identical(result, "arrow_stream")) {
+    rlang::check_installed(
+      c("arrow", "nanoarrow"),
+      reason = "to return result = \"arrow_stream\""
     )
-    cursor <- cursor + run_bytes
-    has_offsets <- size >= 4L
+    table <- if (inherits(value, "ArrowTabular")) {
+      value
+    } else {
+      arrow::Table$create(value)
+    }
+    return(nanoarrow::as_nanoarrow_array_stream(table))
+  }
+
+  if (inherits(value, "ArrowTabular")) {
+    value <- as.data.frame(value)
   } else {
-    rlang::abort("Delta deletion vector contains an invalid Roaring cookie")
+    value <- as.data.frame(value, optional = TRUE)
   }
-  if (size > 65536 || cursor + 4 * size - 1L > length(bytes)) {
-    rlang::abort("Delta deletion vector contains an invalid Roaring header")
-  }
-  keys <- cards <- numeric(size)
-  for (index in seq_len(size)) {
-    keys[[index]] <- fabric_delta_raw_uint16(bytes, cursor)
-    cards[[index]] <- fabric_delta_raw_uint16(bytes, cursor + 2L) + 1
-    cursor <- cursor + 4L
-  }
-  if (has_offsets) {
-    cursor <- cursor + 4L * size
-    if (cursor - 1L > length(bytes)) {
-      rlang::abort(
-        "Delta deletion vector contains a truncated Roaring offset table"
-      )
+  for (name in names(value)) {
+    column <- value[[name]]
+    if (
+      inherits(column, "POSIXct") &&
+        (is.null(attr(column, "tzone")) || !nzchar(attr(column, "tzone")))
+    ) {
+      attr(column, "tzone") <- "UTC"
+      value[[name]] <- column
     }
   }
-
-  values <- vector("list", size)
-  for (index in seq_len(size)) {
-    card <- cards[[index]]
-    if (runs[[index]]) {
-      count <- fabric_delta_raw_uint16(bytes, cursor)
-      cursor <- cursor + 2L
-      container <- numeric()
-      for (run in seq_len(count)) {
-        first <- fabric_delta_raw_uint16(bytes, cursor)
-        length_minus_one <- fabric_delta_raw_uint16(bytes, cursor + 2L)
-        container <- c(container, seq(first, first + length_minus_one))
-        cursor <- cursor + 4L
-      }
-    } else if (card <= 4096) {
-      container <- vapply(
-        seq_len(card),
-        function(item) {
-          fabric_delta_raw_uint16(bytes, cursor + 2L * (item - 1L))
-        },
-        numeric(1)
-      )
-      cursor <- cursor + 2L * card
-    } else {
-      if (cursor + 8191L > length(bytes)) {
-        rlang::abort(
-          "Delta deletion vector contains a truncated Roaring bitset"
-        )
-      }
-      bitset <- as.integer(bytes[cursor:(cursor + 8191L)])
-      present <- which(bitset != 0L)
-      container <- unlist(
-        lapply(present, function(byte_index) {
-          bits <- which(vapply(
-            0:7,
-            function(bit) bitwAnd(bitset[[byte_index]], 2^bit) != 0L,
-            logical(1)
-          )) -
-            1L
-          (byte_index - 1L) * 8 + bits
-        }),
-        use.names = FALSE
-      )
-      cursor <- cursor + 8192L
-    }
-    if (length(container) != card) {
-      rlang::abort(
-        "Delta deletion vector contains an invalid Roaring cardinality"
-      )
-    }
-    values[[index]] <- keys[[index]] * 65536 + container
-  }
-  list(values = unlist(values, use.names = FALSE), cursor = cursor)
+  tibble::as_tibble(value)
 }
 
-#' Project physical Parquet data through the current Delta schema
+#' Convert a resolved OneLake target to a delta-rs ABFSS URI
 #' @keywords internal
 #' @noRd
-fabric_delta_read_projection <- function(
-  con,
-  schema,
-  physical,
-  source_column
-) {
-  projection <- fabric_delta_schema_projection(con, schema)
-  vapply(
-    seq_along(projection$names),
-    function(index) {
-      name <- projection$names[[index]]
-      type <- projection$types[[index]]
-      alias <- as.character(DBI::dbQuoteIdentifier(con, name))
-      field <- schema$fields[[index]]
-      is_void <- is.character(field$type) &&
-        length(field$type) == 1L &&
-        identical(tolower(field$type), "void")
-      if (is_void) {
-        expression <- "NULL"
-      } else if (name %in% schema$partitionColumns) {
-        partition_index <- match(name, schema$partitionColumns)
-        expression <- paste0(
-          "delta_partitions.",
-          as.character(DBI::dbQuoteIdentifier(
-            con,
-            paste0("fabric_delta_partition_", partition_index)
-          ))
-        )
-        if (
-          is.character(field$type) &&
-            length(field$type) == 1L &&
-            identical(tolower(field$type), "timestamp")
-        ) {
-          expression <- paste0(
-            "CASE WHEN ",
-            expression,
-            " IS NULL THEN NULL WHEN regexp_matches(",
-            expression,
-            ", '(Z|[+-][0-9]{2}:?[0-9]{2})$') THEN CAST(",
-            expression,
-            " AS TIMESTAMPTZ) ELSE CAST(",
-            expression,
-            " || '+00' AS TIMESTAMPTZ) END"
-          )
-        }
-      } else {
-        physical_name <- fabric_delta_field_physical_name(
-          field,
-          schema$columnMappingMode
-        )
-        if (physical_name %in% physical) {
-          expression <- fabric_delta_field_expression(
-            con,
-            field,
-            paste0(
-              "delta_source.",
-              as.character(DBI::dbQuoteIdentifier(con, physical_name))
-            ),
-            schema$columnMappingMode
-          )
-        } else {
-          expression <- "NULL"
-        }
-      }
-      paste0("CAST(", expression, " AS ", type, ") AS ", alias)
-    },
-    character(1)
-  )
-}
-
-#' Resolve a Delta snapshot from checkpoints and JSON commits
-#' @param table_dir Local Delta table root.
-#' @param version Optional requested version.
-#' @return Snapshot metadata and active data-file paths.
-#' @keywords internal
-#' @noRd
-fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
-  log_dir <- fs::path(table_dir, "_delta_log")
-  if (!fs::dir_exists(log_dir)) {
-    rlang::abort(cli::format_inline(
-      "No {.path _delta_log} directory found in the staged table"
-    ))
+fabric_delta_abfss_uri <- function(target) {
+  endpoint <- httr2::url_parse(target$dfs_base)
+  host <- endpoint$hostname %||% ""
+  if (!nzchar(host)) {
+    rlang::abort("The OneLake DFS endpoint has no hostname")
   }
-
-  logs <- fs::dir_ls(log_dir, type = "file")
-  names <- basename(logs)
-  json_match <- regexec("^([0-9]{20})\\.json$", names)
-  json_parts <- regmatches(names, json_match)
-  json_keep <- lengths(json_parts) > 0L
-  json_versions <- fabric_delta_versions_from_text(vapply(
-    json_parts[json_keep],
-    `[[`,
-    character(1),
-    2L
-  ))
-  json_paths <- logs[json_keep]
-
-  checkpoint_sets <- fabric_delta_checkpoint_sets(logs)
-  checkpoint_versions <- vapply(
-    checkpoint_sets,
-    `[[`,
-    numeric(1),
-    "version"
-  )
-
-  available <- c(json_versions, checkpoint_versions)
-  if (!length(available)) {
-    rlang::abort("No Delta commits or checkpoints were found")
-  }
-  latest <- max(available)
-  target <- version %||% latest
-  if (target > latest) {
-    rlang::abort(cli::format_inline(
-      "Delta version {target} does not exist; the latest staged version is {latest}"
-    ))
-  }
-
-  eligible <- unique(checkpoint_versions[checkpoint_versions <= target])
-  checkpoint_version <- if (length(eligible)) max(eligible) else NULL
-  state <- list(
-    active = character(),
-    files = list(),
-    protocol = NULL,
-    metadata = NULL,
-    has_deletion_vectors = FALSE
-  )
-
-  if (!is.null(checkpoint_version)) {
-    checkpoint_index <- match(checkpoint_version, checkpoint_versions)
-    checkpoint_set <- checkpoint_sets[[checkpoint_index]]
-    candidates <- checkpoint_set$alternatives %||% list(checkpoint_set)
-    errors <- list()
-    selected <- FALSE
-    for (candidate in candidates) {
-      attempt <- tryCatch(
-        {
-          candidate_state <- state
-          checkpoint_paths <- candidate$paths
-          checkpoint <- fabric_delta_read_checkpoint(checkpoint_paths)
-          candidate_state <- fabric_delta_apply_checkpoint(
-            candidate_state,
-            checkpoint
-          )
-          checkpoint_actions <- checkpoint$actions %||% list()
-          is_v2 <- isTRUE(attr(checkpoint, "fabric_delta_v2")) ||
-            any(vapply(
-              checkpoint_actions,
-              function(action) !is.null(action$checkpointMetadata),
-              logical(1)
-            )) ||
-            isTRUE(candidate$v2_named)
-          if (is_v2) {
-            metadata_versions <- if (length(checkpoint_actions)) {
-              unlist(
-                lapply(checkpoint_actions, function(action) {
-                  action$checkpointMetadata$version %||% NULL
-                }),
-                use.names = FALSE
-              )
-            } else {
-              attr(checkpoint, "fabric_delta_checkpoint_versions") %||%
-                numeric()
-            }
-            if (
-              length(metadata_versions) != 1L ||
-                is.na(metadata_versions) ||
-                as.numeric(metadata_versions) != checkpoint_version
-            ) {
-              rlang::abort(
-                "Delta V2 checkpoint must contain exactly one matching checkpointMetadata action"
-              )
-            }
-          }
-          sidecar_names <- if (is_v2) {
-            fabric_delta_checkpoint_sidecar_paths(checkpoint_paths)
-          } else {
-            character()
-          }
-          embedded_file_actions <- if (length(checkpoint_actions)) {
-            any(vapply(
-              checkpoint_actions,
-              function(action) {
-                !is.null(action$add$path) || !is.null(action$remove$path)
-              },
-              logical(1)
-            ))
-          } else {
-            isTRUE(attr(checkpoint, "fabric_delta_has_file_actions"))
-          }
-          if (length(sidecar_names) && embedded_file_actions) {
-            rlang::abort(
-              "Delta V2 checkpoint mixes embedded and sidecar file actions"
-            )
-          }
-          if (length(sidecar_names)) {
-            sidecar_paths <- fs::path(
-              table_dir,
-              "_delta_log",
-              "_sidecars",
-              sidecar_names
-            )
-            missing_sidecars <- !fs::file_exists(sidecar_paths)
-            if (any(missing_sidecars)) {
-              rlang::abort(c(
-                "Delta V2 checkpoint references a sidecar that was not staged",
-                "x" = cli::format_inline(
-                  "{.path {sidecar_paths[which(missing_sidecars)[1L]]}} is missing"
-                )
-              ))
-            }
-            for (sidecar_path in sidecar_paths) {
-              candidate_state <- fabric_delta_apply_checkpoint(
-                candidate_state,
-                fabric_delta_read_checkpoint(sidecar_path)
-              )
-            }
-          }
-          candidate_state
-        },
-        error = function(error) {
-          error
-        }
-      )
-      if (!inherits(attempt, "error")) {
-        state <- attempt
-        selected <- TRUE
-        break
-      } else {
-        errors[[length(errors) + 1L]] <- attempt
-      }
-    }
-    if (!selected) {
-      rlang::abort(
-        paste0(
-          "No usable Delta checkpoint was found for version ",
-          checkpoint_version
-        ),
-        parent = errors[[length(errors)]]
-      )
-    }
-  }
-
-  first_json <- if (is.null(checkpoint_version)) 0 else checkpoint_version + 1
-  needed <- if (first_json <= target) seq(first_json, target) else numeric()
-  present <- sort(json_versions[
-    json_versions >= first_json & json_versions <= target
-  ])
-  if (!identical(as.numeric(present), as.numeric(needed))) {
-    rlang::abort(cli::format_inline(
-      "Delta log is incomplete for version {target}; a required commit is missing"
-    ))
-  }
-  if (length(present)) {
-    ordered_paths <- json_paths[match(present, json_versions)]
-    for (path in ordered_paths) {
-      state <- fabric_delta_apply_json_log(state, path)
-    }
-  }
-
-  fabric_delta_validate_reader(state)
-  c(state, list(version = target, checkpoint_version = checkpoint_version))
-}
-
-#' Find complete classic, multipart, or UUID-named Delta checkpoints
-#' @param paths Paths in a Delta log directory.
-#' @return A list of complete checkpoint records with `version` and `paths`.
-#' @keywords internal
-#' @noRd
-fabric_delta_checkpoint_sets <- function(paths) {
-  filenames <- basename(paths)
-  classic_matches <- regexec(
-    "^([0-9]{20})\\.checkpoint(?:\\.([0-9]{10})\\.([0-9]{10}))?\\.parquet$",
-    filenames
-  )
-  classic_parts <- regmatches(filenames, classic_matches)
-  classic_keep <- lengths(classic_parts) > 0L
-  uuid_matches <- regexec(
-    paste0(
-      "^([0-9]{20})\\.checkpoint\\.",
-      "([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-",
-      "[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\\.(json|parquet)$"
-    ),
-    filenames
-  )
-  uuid_parts <- regmatches(filenames, uuid_matches)
-  uuid_keep <- lengths(uuid_parts) > 0L
-  if (!any(classic_keep) && !any(uuid_keep)) {
-    return(list())
-  }
-
-  classic_records <- Map(
-    function(match, path) {
-      multipart <- length(match) >= 4L &&
-        nzchar(match[[3L]]) &&
-        nzchar(match[[4L]])
-      list(
-        version_text = match[[2L]],
-        version = fabric_delta_versions_from_text(match[[2L]]),
-        part = if (multipart) as.integer(match[[3L]]) else NA_integer_,
-        total = if (multipart) as.integer(match[[4L]]) else NA_integer_,
-        path = path,
-        kind = if (multipart) "multipart" else "classic",
-        format = "parquet"
-      )
-    },
-    classic_parts[classic_keep],
-    as.list(paths[classic_keep])
-  )
-  uuid_records <- Map(
-    function(match, path) {
-      list(
-        version_text = match[[2L]],
-        version = fabric_delta_versions_from_text(match[[2L]]),
-        part = NA_integer_,
-        total = NA_integer_,
-        path = path,
-        kind = "uuid",
-        format = tolower(match[[4L]])
-      )
-    },
-    uuid_parts[uuid_keep],
-    as.list(paths[uuid_keep])
-  )
-  records <- c(classic_records, uuid_records)
-
-  by_version <- split(
-    records,
-    vapply(records, `[[`, character(1), "version_text")
-  )
-  complete <- lapply(by_version, function(version_records) {
-    candidates <- list()
-    uuid <- Filter(
-      function(record) identical(record$kind, "uuid"),
-      version_records
-    )
-    if (length(uuid)) {
-      uuid <- uuid[order(vapply(uuid, `[[`, character(1), "path"))]
-      candidates <- c(
-        candidates,
-        lapply(uuid, function(record) {
-          list(
-            version = record$version,
-            paths = record$path,
-            format = record$format,
-            v2_named = TRUE
-          )
-        })
-      )
-    }
-    classic <- Filter(
-      function(record) identical(record$kind, "classic"),
-      version_records
-    )
-    if (length(classic)) {
-      candidates <- c(
-        candidates,
-        list(list(
-          version = classic[[1L]]$version,
-          paths = classic[[1L]]$path,
-          format = "parquet",
-          v2_named = FALSE
-        ))
-      )
-    }
-
-    totals <- sort(unique(vapply(
-      version_records,
-      `[[`,
-      integer(1),
-      "total"
-    )))
-    for (total in totals) {
-      part_candidates <- Filter(
-        function(record) identical(record$total, total),
-        version_records
-      )
-      part_numbers <- vapply(part_candidates, `[[`, integer(1), "part")
-      if (
-        total > 1L &&
-          !anyDuplicated(part_numbers) &&
-          identical(sort(part_numbers), seq_len(total))
-      ) {
-        ordered <- part_candidates[order(part_numbers)]
-        candidates <- c(
-          candidates,
-          list(list(
-            version = ordered[[1L]]$version,
-            paths = vapply(ordered, `[[`, character(1), "path"),
-            format = "parquet",
-            v2_named = FALSE
-          ))
-        )
-      }
-    }
-    if (!length(candidates)) {
-      return(NULL)
-    }
-    c(candidates[[1L]], list(alternatives = candidates))
-  })
-  complete <- Filter(Negate(is.null), complete)
-  complete[order(vapply(complete, `[[`, numeric(1), "version"))]
-}
-
-#' Parse actions from a JSON checkpoint
-#' @keywords internal
-#' @noRd
-fabric_delta_read_checkpoint_json <- function(path) {
-  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-  actions <- lapply(lines[nzchar(lines)], function(line) {
-    tryCatch(
-      jsonlite::fromJSON(line, simplifyVector = FALSE),
-      error = function(error) {
-        rlang::abort(
-          cli::format_inline(
-            "Could not parse Delta checkpoint {.path {basename(path)}}"
-          ),
-          parent = error
-        )
-      }
-    )
-  })
-  result <- list(actions = actions)
-  attr(result, "fabric_delta_v2") <- any(vapply(
-    actions,
-    function(action) !is.null(action$checkpointMetadata),
-    logical(1)
-  ))
-  result
-}
-
-#' Read Delta checkpoint rows with DuckDB's built-in Parquet reader
-#' @keywords internal
-#' @noRd
-fabric_delta_read_checkpoint <- function(paths) {
-  if (
-    length(paths) == 1L &&
-      identical(tolower(tools::file_ext(paths)), "json")
-  ) {
-    return(fabric_delta_read_checkpoint_json(paths))
-  }
-  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-  literals <- as.character(DBI::dbQuoteString(
-    con,
-    gsub("\\\\", "/", normalizePath(paths, mustWork = TRUE))
-  ))
-  source <- paste0(
-    "read_parquet([",
-    paste(literals, collapse = ", "),
-    "], union_by_name = true)"
-  )
-  available <- DBI::dbGetQuery(
-    con,
-    paste0("DESCRIBE SELECT * FROM ", source)
-  )$column_name
-  columns <- intersect(
-    c("add", "remove", "protocol", "metaData", "checkpointMetadata"),
-    available
-  )
-  is_sidecar <- all(basename(dirname(paths)) == "_sidecars")
-  if (
-    is_sidecar &&
-      any(c("protocol", "metaData", "checkpointMetadata") %in% available)
-  ) {
-    rlang::abort("Delta V2 checkpoint sidecar contains non-file actions")
-  }
-  if (!length(columns)) {
-    rlang::abort("Delta checkpoint contains no snapshot actions")
-  }
-  result <- DBI::dbGetQuery(
-    con,
-    paste0(
-      "SELECT ",
-      paste(
-        as.character(DBI::dbQuoteIdentifier(con, columns)),
-        collapse = ", "
-      ),
-      " FROM ",
-      source
-    )
-  )
-  attr(result, "fabric_delta_v2") <- "checkpointMetadata" %in% available
-  attr(result, "fabric_delta_has_file_actions") <- any(vapply(
-    c("add", "remove"),
-    function(action) {
-      values <- result[[action]]$path %||% character()
-      !all(is.na(values))
-    },
-    logical(1)
-  ))
-  if ("checkpointMetadata" %in% available) {
-    versions <- DBI::dbGetQuery(
-      con,
-      paste0(
-        "SELECT checkpointMetadata.version AS version FROM ",
-        source,
-        " WHERE checkpointMetadata IS NOT NULL"
-      )
-    )$version
-    attr(result, "fabric_delta_checkpoint_versions") <- versions
-  }
-  result
-}
-
-#' Discover and validate V2 checkpoint sidecar paths
-#' @keywords internal
-#' @noRd
-fabric_delta_checkpoint_sidecar_paths <- function(
-  paths,
-  target = NULL,
-  table_dir = NULL
-) {
-  paths <- paths[grepl("\\.checkpoint\\.", basename(paths))]
-  if (!length(paths)) {
-    return(character())
-  }
-  sidecars <- unlist(
-    lapply(paths, function(path) {
-      if (identical(tolower(tools::file_ext(path)), "json")) {
-        actions <- fabric_delta_read_checkpoint_json(path)$actions
-        return(vapply(
-          Filter(function(action) !is.null(action$sidecar$path), actions),
-          function(action) as.character(action$sidecar$path),
-          character(1)
-        ))
-      }
-      con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-      on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
-      literal <- as.character(DBI::dbQuoteString(
-        con,
-        gsub("\\\\", "/", normalizePath(path, mustWork = TRUE))
-      ))
-      available <- DBI::dbGetQuery(
-        con,
-        paste0("DESCRIBE SELECT * FROM read_parquet(", literal, ")")
-      )$column_name
-      if (!"sidecar" %in% available) {
-        return(character())
-      }
-      rows <- DBI::dbGetQuery(
-        con,
-        paste0(
-          "SELECT sidecar FROM read_parquet(",
-          literal,
-          ") WHERE sidecar IS NOT NULL"
-        )
-      )
-      if (!nrow(rows)) {
-        return(character())
-      }
-      values <- lapply(seq_len(nrow(rows)), function(index) {
-        fabric_delta_checkpoint_value(rows$sidecar, index, nrow(rows))
-      })
-      vapply(
-        values,
-        function(value) {
-          as.character(value$path %||% "")
-        },
-        character(1)
-      )
-    }),
-    use.names = FALSE
-  )
-  sidecars <- utils::URLdecode(sidecars[nzchar(sidecars)])
-  names <- vapply(
-    sidecars,
-    function(sidecar) {
-      normalized <- gsub("\\\\", "/", sidecar)
-      absolute <- grepl(
-        "^(?:https|abfss?)://",
-        normalized,
-        ignore.case = TRUE
-      )
-      if (absolute) {
-        parsed <- onelake_parse_uri(normalized)
-        parts <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
-        if (!is.null(target) && !is.null(table_dir)) {
-          expected <- paste0(table_dir, "/_delta_log/_sidecars/")
-          same_target <- identical(parsed$workspace, target$workspace) &&
-            identical(parsed$item, target$item) &&
-            startsWith(sub("^/+", "", parsed$path), expected)
-          if (!same_target) {
-            rlang::abort(
-              "Delta V2 checkpoint references a sidecar outside its table"
-            )
-          }
-        }
-      } else {
-        if (grepl("^/", normalized)) {
-          rlang::abort(
-            "Delta V2 checkpoint contains an unsafe sidecar-file path"
-          )
-        }
-        parts <- strsplit(normalized, "/", fixed = TRUE)[[1L]]
-      }
-      if (
-        any(!nzchar(parts) | parts %in% c(".", "..")) ||
-          length(parts) < 1L
-      ) {
-        rlang::abort(
-          "Delta V2 checkpoint contains an unsafe sidecar-file path"
-        )
-      }
-      name <- utils::tail(parts, 1L)
-      parent <- parts[seq_len(length(parts) - 1L)]
-      qualified <- length(parent) >= 1L &&
-        identical(utils::tail(parent, 1L), "_sidecars") &&
-        (length(parent) == 1L ||
-          identical(utils::tail(parent, 2L), c("_delta_log", "_sidecars")))
-      if (length(parent) && !qualified) {
-        rlang::abort(
-          "Delta V2 checkpoint sidecar path is not under _delta_log/_sidecars"
-        )
-      }
-      name
-    },
-    character(1)
-  )
-  unique(names)
-}
-
-#' Apply actions stored in a Delta checkpoint
-#' @keywords internal
-#' @noRd
-fabric_delta_apply_checkpoint <- function(state, checkpoint) {
-  if (!is.null(checkpoint$actions)) {
-    fabric_delta_validate_checkpoint_actions(checkpoint$actions)
-    return(fabric_delta_apply_actions(state, checkpoint$actions))
-  }
-  adds <- checkpoint$add$path %||% character()
-  removes <- checkpoint$remove$path %||% character()
-  remove_rows <- which(!is.na(removes))
-  for (i in remove_rows) {
-    deletion_vector <- fabric_delta_checkpoint_value(
-      checkpoint$remove$deletionVector %||% NULL,
-      i,
-      length(removes)
-    )
-    state <- fabric_delta_remove_file(
-      state,
-      list(
-        path = removes[[i]],
-        deletionVector = fabric_delta_deletion_vector_value(deletion_vector)
-      )
-    )
-  }
-  add_rows <- which(!is.na(adds))
-  for (i in add_rows) {
-    partition_values <- fabric_delta_checkpoint_value(
-      checkpoint$add$partitionValues %||% NULL,
-      i,
-      length(adds)
-    )
-    deletion_vector <- fabric_delta_checkpoint_value(
-      checkpoint$add$deletionVector %||% NULL,
-      i,
-      length(adds)
-    )
-    state <- fabric_delta_add_file(
-      state,
-      list(
-        path = adds[[i]],
-        partitionValues = fabric_delta_partition_values(partition_values),
-        deletionVector = fabric_delta_deletion_vector_value(deletion_vector)
-      )
-    )
-  }
-
-  protocol_rows <- which(
-    !is.na(
-      checkpoint$protocol$minReaderVersion %||% numeric()
-    )
-  )
-  if (length(protocol_rows)) {
-    if (length(protocol_rows) > 1L) {
-      rlang::abort("Delta checkpoint contains multiple protocol actions")
-    }
-    i <- utils::tail(protocol_rows, 1L)
-    state$protocol <- list(
-      minReaderVersion = checkpoint$protocol$minReaderVersion[[i]],
-      minWriterVersion = (checkpoint$protocol$minWriterVersion %||%
-        rep(NA_integer_, i))[[i]],
-      readerFeatures = checkpoint$protocol$readerFeatures[[i]]
-    )
-  }
-  metadata_rows <- which(!is.na(checkpoint$metaData$id %||% character()))
-  if (length(metadata_rows)) {
-    if (length(metadata_rows) > 1L) {
-      rlang::abort("Delta checkpoint contains multiple metadata actions")
-    }
-    i <- utils::tail(metadata_rows, 1L)
-    config <- fabric_delta_checkpoint_value(
-      checkpoint$metaData$configuration,
-      i,
-      length(checkpoint$metaData$id)
-    )
-    configuration <- if (is.null(config) || !NROW(config)) {
-      list()
-    } else {
-      fabric_delta_partition_values(config)
-    }
-    format <- fabric_delta_checkpoint_value(
-      checkpoint$metaData$format %||% NULL,
-      i,
-      length(checkpoint$metaData$id)
-    )
-    state$metadata <- list(
-      id = checkpoint$metaData$id[[i]],
-      format = format,
-      schemaString = fabric_delta_checkpoint_value(
-        checkpoint$metaData$schemaString %||% NULL,
-        i,
-        length(checkpoint$metaData$id)
-      ),
-      partitionColumns = fabric_delta_checkpoint_value(
-        checkpoint$metaData$partitionColumns %||% NULL,
-        i,
-        length(checkpoint$metaData$id)
-      ) %||%
-        list(),
-      configuration = configuration
-    )
-  }
-  state
-}
-
-#' Extract one nested value from a DuckDB checkpoint column
-#' @keywords internal
-#' @noRd
-fabric_delta_checkpoint_value <- function(column, index, row_count) {
-  if (is.null(column)) {
-    return(NULL)
-  }
-  if (is.data.frame(column)) {
-    return(lapply(column, function(value) value[[index]]))
-  }
-  if (is.list(column) && length(column) == row_count) {
-    return(column[[index]])
-  }
-  if (length(column) == row_count) {
-    return(column[[index]])
-  }
-  column
-}
-
-#' Apply an active Delta add-file action
-#' @keywords internal
-#' @noRd
-fabric_delta_add_file <- function(state, add) {
-  path <- add$path
-  deletion_vector <- add$deletionVector %||% NULL
-  state$active <- c(setdiff(state$active, path), path)
-  state$files[[path]] <- list(
-    path = path,
-    partitionValues = fabric_delta_partition_values(
-      add$partitionValues %||% list()
-    ),
-    deletionVector = deletion_vector,
-    deletionVectorId = fabric_delta_deletion_vector_id(deletion_vector)
-  )
-  state$has_deletion_vectors <- state$has_deletion_vectors ||
-    !is.null(deletion_vector)
-  state
-}
-
-#' Validate singleton state actions in a JSON checkpoint
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_checkpoint_actions <- function(actions) {
-  count <- function(name) {
-    sum(vapply(
-      actions,
-      function(action) !is.null(action[[name]]),
-      logical(1)
-    ))
-  }
-  if (count("protocol") > 1L) {
-    rlang::abort("Delta checkpoint contains multiple protocol actions")
-  }
-  if (count("metaData") > 1L) {
-    rlang::abort("Delta checkpoint contains multiple metadata actions")
-  }
-  invisible(actions)
-}
-
-#' Apply a Delta remove-file action
-#' @keywords internal
-#' @noRd
-fabric_delta_remove_file <- function(state, remove) {
-  path <- remove$path
-  current <- state$files[[path]] %||% NULL
-  if (is.null(current)) {
-    return(state)
-  }
-  removed_id <- fabric_delta_deletion_vector_id(
-    remove$deletionVector %||% NULL
-  )
-  current_id <- current$deletionVectorId %||%
-    fabric_delta_deletion_vector_id(current$deletionVector %||% NULL)
-  if (!identical(removed_id, current_id)) {
-    return(state)
-  }
-  state$active <- setdiff(state$active, path)
-  state$files[[path]] <- NULL
-  state
-}
-
-#' Apply actions from one Delta JSON commit
-#' @keywords internal
-#' @noRd
-fabric_delta_apply_json_log <- function(state, path) {
-  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-  actions <- lapply(
-    lines[nzchar(lines)],
-    function(line) {
-      tryCatch(
-        jsonlite::fromJSON(line, simplifyVector = FALSE),
-        error = function(e) {
-          rlang::abort(
-            cli::format_inline(
-              "Could not parse Delta commit {.path {basename(path)}}"
-            ),
-            parent = e
-          )
-        }
-      )
-    }
-  )
-  fabric_delta_validate_commit_actions(actions, path)
-  fabric_delta_apply_actions(state, actions)
-}
-
-#' Validate mutually reconciling actions within one Delta commit
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_commit_actions <- function(actions, path) {
-  count <- function(name) {
-    sum(vapply(
-      actions,
-      function(action) !is.null(action[[name]]),
-      logical(1)
-    ))
-  }
-  label <- basename(path)
-  if (count("metaData") > 1L) {
-    rlang::abort(cli::format_inline(
-      "Delta commit {.path {label}} contains multiple metadata actions"
-    ))
-  }
-  if (count("protocol") > 1L) {
-    rlang::abort(cli::format_inline(
-      "Delta commit {.path {label}} contains multiple protocol actions"
-    ))
-  }
-  transactions <- Filter(
-    function(action) !is.null(action$txn$appId),
-    actions
-  )
-  if (length(transactions)) {
-    app_ids <- vapply(
-      transactions,
-      function(action) as.character(action$txn$appId),
-      character(1)
-    )
-    if (anyDuplicated(app_ids)) {
-      rlang::abort(cli::format_inline(
-        "Delta commit {.path {label}} contains duplicate transaction actions"
-      ))
-    }
-  }
-  file_keys <- unlist(
-    lapply(actions, function(action) {
-      values <- list()
-      if (!is.null(action$add$path)) {
-        values <- c(
-          values,
-          list(paste0(
-            action$add$path,
-            "\r",
-            fabric_delta_deletion_vector_id(action$add$deletionVector %||% NULL)
-          ))
-        )
-      }
-      if (!is.null(action$remove$path)) {
-        values <- c(
-          values,
-          list(paste0(
-            action$remove$path,
-            "\r",
-            fabric_delta_deletion_vector_id(
-              action$remove$deletionVector %||% NULL
-            )
-          ))
-        )
-      }
-      values
-    }),
-    use.names = FALSE
-  )
-  if (anyDuplicated(file_keys)) {
-    rlang::abort(cli::format_inline(
-      "Delta commit {.path {label}} contains conflicting file actions"
-    ))
-  }
-  invisible(actions)
-}
-
-#' Apply a collection of Delta actions with remove-before-add reconciliation
-#' @keywords internal
-#' @noRd
-fabric_delta_apply_actions <- function(state, actions) {
-  for (action in actions) {
-    if (!is.null(action$remove$path)) {
-      state <- fabric_delta_remove_file(state, action$remove)
-    }
-  }
-  for (action in actions) {
-    if (!is.null(action$add$path)) {
-      state <- fabric_delta_add_file(state, action$add)
-    }
-    if (!is.null(action$protocol)) {
-      state$protocol <- action$protocol
-    }
-    if (!is.null(action$metaData)) {
-      state$metadata <- action$metaData
-    }
-  }
-  state
-}
-
-#' Reject Delta reader features not implemented by the staged reader
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_reader <- function(state) {
-  if (is.null(state$protocol$minReaderVersion)) {
-    rlang::abort("Delta snapshot does not contain a reader protocol action")
-  }
-  reader_version <- as.numeric(state$protocol$minReaderVersion)
-  writer_version <- as.numeric(state$protocol$minWriterVersion %||% NA_real_)
-  features <- unlist(
-    state$protocol$readerFeatures %||% list(),
-    use.names = FALSE
-  )
-  features <- as.character(features[!is.na(features) & nzchar(features)])
-  supported_features <- c(
-    "columnMapping",
-    "deletionVectors",
-    "timestampNtz",
-    "typeWidening",
-    "typeWidening-preview",
-    "vacuumProtocolCheck",
-    "v2Checkpoint",
-    "variantType",
-    "variantShredding"
-  )
-  unsupported <- setdiff(features, supported_features)
-
-  if (is.null(state$metadata)) {
-    rlang::abort("Delta snapshot does not contain a metadata action")
-  }
-  fabric_delta_validate_metadata_format(state$metadata)
-  schema <- fabric_delta_schema(state$metadata)
-  configuration <- state$metadata$configuration %||% list()
-  mapping <- tolower(as.character(
-    configuration[["delta.columnMapping.mode"]] %||% "none"
-  ))
-  if (!mapping %in% c("none", "name", "id")) {
-    fabric_delta_abort_unsupported(
-      cli::format_inline(
-        "Delta column mapping mode {.val {mapping}} is invalid"
-      )
-    )
-  }
-  if (reader_version < 1 || reader_version > 3) {
-    fabric_delta_abort_unsupported(
-      paste0("Delta reader protocol version ", reader_version)
-    )
-  }
-  if (reader_version < 3 && length(features)) {
-    fabric_delta_abort_unsupported(
-      paste0(
-        "Delta reader protocol version ",
-        reader_version,
-        " with reader features: ",
-        paste(features, collapse = ", ")
-      )
-    )
-  }
-  if (
-    reader_version == 3 &&
-      (!is.finite(writer_version) || writer_version != 7)
-  ) {
-    fabric_delta_abort_unsupported(
-      paste0(
-        "Delta reader protocol version 3 with writer protocol version ",
-        writer_version
-      )
-    )
-  }
-  if (
-    reader_version == 3 &&
-      is.null(state$protocol$readerFeatures)
-  ) {
-    fabric_delta_abort_unsupported(
-      "Delta reader protocol version 3 without readerFeatures"
-    )
-  }
-  if (length(unsupported)) {
-    fabric_delta_abort_unsupported(
-      paste0("Delta reader feature(s): ", paste(unsupported, collapse = ", "))
-    )
-  }
-  if ("variantShredding" %in% features && !"variantType" %in% features) {
-    fabric_delta_abort_unsupported(
-      "Delta variantShredding without its required variantType feature"
-    )
-  }
-  requirements <- fabric_delta_schema_requirements(schema)
-  if (
-    requirements$timestamp_ntz &&
-      !(reader_version == 3 && "timestampNtz" %in% features)
-  ) {
-    fabric_delta_abort_unsupported(
-      "Delta timestamp_ntz schema without matching timestampNtz support"
-    )
-  }
-  if (
-    requirements$variant &&
-      !(reader_version == 3 && "variantType" %in% features)
-  ) {
-    fabric_delta_abort_unsupported(
-      "Delta variant schema without matching variantType support"
-    )
-  }
-  if (
-    requirements$type_widening &&
-      !any(c("typeWidening", "typeWidening-preview") %in% features)
-  ) {
-    fabric_delta_abort_unsupported(
-      "Delta type-change metadata without matching type-widening support"
-    )
-  }
-  if (
-    !identical(mapping, "none") &&
-      !(reader_version == 2 ||
-        (reader_version == 3 && "columnMapping" %in% features))
-  ) {
-    fabric_delta_abort_unsupported(
-      "Delta column mapping without matching protocol support"
-    )
-  }
-  active_deletion_vectors <- any(vapply(
-    state$active %||% character(),
-    function(path) {
-      !is.null(state$files[[path]]$deletionVector %||% NULL)
-    },
-    logical(1)
-  ))
-  if (
-    active_deletion_vectors &&
-      !(reader_version == 3 &&
-        "deletionVectors" %in% features)
-  ) {
-    fabric_delta_abort_unsupported(
-      "Delta deletion vectors without matching protocol support"
-    )
-  }
-  invisible(state)
-}
-
-#' Validate the Delta metadata data-file format
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_metadata_format <- function(metadata) {
-  format <- metadata$format %||% NULL
-  if (!is.list(format)) {
-    rlang::abort("Delta metadata does not contain a valid data format")
-  }
-  provider <- format$provider %||% NULL
-  if (
-    !is.character(provider) ||
-      length(provider) != 1L ||
-      is.na(provider) ||
-      !nzchar(provider)
-  ) {
-    rlang::abort("Delta metadata does not contain a valid format provider")
-  }
-  if (!identical(tolower(provider), "parquet")) {
-    fabric_delta_abort_unsupported(
-      paste0("Delta data format ", provider)
-    )
-  }
-  options <- format$options %||% list()
-  options <- fabric_delta_partition_values(options)
-  if (length(options)) {
-    fabric_delta_abort_unsupported(
-      "Delta Parquet format options"
-    )
-  }
-  invisible(metadata)
-}
-
-#' Collect table-feature requirements encoded in a Delta schema
-#' @keywords internal
-#' @noRd
-fabric_delta_schema_requirements <- function(schema) {
-  requirements <- list(
-    timestamp_ntz = FALSE,
-    variant = FALSE,
-    type_widening = FALSE
-  )
-  visit_field <- function(field) {
-    if (length(field$metadata[["delta.typeChanges"]] %||% list())) {
-      requirements$type_widening <<- TRUE
-    }
-    visit_type(field$type)
-  }
-  visit_type <- function(type) {
-    if (is.character(type) && length(type) == 1L) {
-      normalized <- tolower(type)
-      if (identical(normalized, "timestamp_ntz")) {
-        requirements$timestamp_ntz <<- TRUE
-      } else if (identical(normalized, "variant")) {
-        requirements$variant <<- TRUE
-      }
-      return(invisible())
-    }
-    if (!is.list(type)) {
-      return(invisible())
-    }
-    kind <- tolower(as.character(type$type %||% ""))
-    if (identical(kind, "struct")) {
-      lapply(type$fields %||% list(), visit_field)
-    } else if (identical(kind, "array")) {
-      visit_type(type$elementType)
-    } else if (identical(kind, "map")) {
-      visit_type(type$keyType)
-      visit_type(type$valueType)
-    }
-    invisible()
-  }
-  lapply(schema$fields %||% list(), visit_field)
-  requirements
-}
-
-fabric_delta_abort_unsupported <- function(feature) {
-  rlang::abort(
-    c(
-      paste0(feature, " by the staged reader."),
-      "i" = paste(
-        "This reader supports Delta reader protocols 1 through 3 with",
-        "name- and ID-based column mapping, deletion vectors, timestampNtz,",
-        "type widening, V2 checkpoints, Variant, and vacuumProtocolCheck."
-      ),
-      "i" = paste(
-        "Query the table through its Fabric SQL analytics endpoint or",
-        "Fabric Spark instead."
-      )
-    ),
-    class = "fabric_delta_unsupported_error"
+  workspace <- utils::URLencode(target$workspace, reserved = TRUE)
+  values <- c(target$item, target$path)
+  values <- values[nzchar(values)]
+  paste0(
+    "abfss://",
+    workspace,
+    "@",
+    host,
+    "/",
+    onelake_encode_path(values)
   )
 }

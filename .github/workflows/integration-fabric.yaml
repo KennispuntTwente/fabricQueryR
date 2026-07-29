@@ -6,9 +6,17 @@ on:
     paths:
       - R/fabric_onelake_files.R
       - R/fabric_onelake_read_delta_table.R
+      - R/fabric_onelake_read_delta_table__*.R
+      - R/extendr-wrappers.R
+      - src/**
+      - configure
+      - configure.win
+      - tools/config.R
+      - tools/msrv.R
       - tests/testthat/helper-fabric-integration.R
       - tests/testthat/test-fabric_onelake_files.R
       - tests/testthat/test-fabric_onelake_read_delta_table.R
+      - tests/testthat/test-fabric_onelake_read_delta_table-engines.R
       - tests/testthat/test-integration-fabric-onelake.R
       - infra/fabric/**
       - tools/fabric-sandbox/**
@@ -18,9 +26,17 @@ on:
     paths:
       - R/fabric_onelake_files.R
       - R/fabric_onelake_read_delta_table.R
+      - R/fabric_onelake_read_delta_table__*.R
+      - R/extendr-wrappers.R
+      - src/**
+      - configure
+      - configure.win
+      - tools/config.R
+      - tools/msrv.R
       - tests/testthat/helper-fabric-integration.R
       - tests/testthat/test-fabric_onelake_files.R
       - tests/testthat/test-fabric_onelake_read_delta_table.R
+      - tests/testthat/test-fabric_onelake_read_delta_table-engines.R
       - tests/testthat/test-integration-fabric-onelake.R
       - infra/fabric/**
       - tools/fabric-sandbox/**
@@ -203,6 +219,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@1.91.1
 
       - name: Download Fabric test manifest
         uses: actions/download-artifact@v4

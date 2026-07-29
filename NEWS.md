@@ -50,8 +50,9 @@
   cancellation, while sessions also provide explicit cleanup;
   `fabric_livy_query()` remains the one-shot interface.
 
-* `fabric_onelake_read_delta_table()` now reads snapshots from JSON commits,
-  V1 Parquet checkpoints, and V2 Parquet/JSON checkpoints; supports historical
+* The `engine = "R"` implementation of
+  `fabric_onelake_read_delta_table()` reads snapshots from JSON commits, V1
+  Parquet checkpoints, and V2 Parquet/JSON checkpoints; supports historical
   reads through `version`; preserves logical schemas and typed partition
   values; and supports current Fabric reader 3 tables with name- or ID-based
   column mapping, deletion vectors, `timestampNtz`, type widening,
@@ -65,6 +66,15 @@
   typed and null partitions, and mixed shredded/unshredded Variant files.
   Unsafe retained staging and unsupported Delta features fail closed instead
   of risking incorrect results.
+
+* `fabric_onelake_read_delta_table()` now defaults to a native `delta-rs`
+  0.32.4 engine, called through `extendr`, so Delta protocol handling and
+  scanning are delegated to the upstream Rust implementation. The original
+  staged R and DuckDB reader remains available with `engine = "R"`. Shared
+  integration scenarios exercise both engines and compare their results;
+  features not supported by the pinned `delta-rs` release fail explicitly and
+  can still be read with the R engine. Results default to a tibble and can
+  optionally be returned as an Arrow-compatible `nanoarrow_array_stream`.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
   workspace/dataset IDs, supports optional RLS impersonation, handles paginated

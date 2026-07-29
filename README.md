@@ -173,37 +173,45 @@ df_onelake <- fabric_onelake_read_delta_table(
 ```
 
 The account needs access through the workspace or **Lakehouse > Manage OneLake
-data access**. This function downloads the active table files locally, so a
-filtered SQL query can be more efficient for very large tables.
+data access**. The default `engine = "delta-rs"` reads OneLake directly with the
+native delta-rs library and pushes projection and row limits into DataFusion.
+The original implementation remains available with `engine = "R"`; it stages
+the active files locally and is useful for Delta features not yet implemented
+upstream or when inspecting the staged snapshot.
 
-The reader follows Delta reader protocols 1–3 and supports the profiles emitted
-by Fabric Spark Runtime 2.0 and Fabric Warehouse exports: classic and V2
-checkpoints, name/ID column mapping, deletion vectors, type widening,
-timestamp-NTZ, shallow-clone paths, and native Variant values, including
-Variant shredding.
+The default `result = "tibble"` is convenient for ordinary R analysis. Set
+`result = "arrow_stream"` when an Arrow-compatible tool should consume the
+result without first turning it into a tibble:
+
+``` r
+stream <- fabric_onelake_read_delta_table(
+  "Customers",
+  workspace,
+  lakehouse,
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
+```
+
 Delta `long` values are returned as `bit64::integer64`; decimals are returned as
-character so values through precision 38 remain exact. Legacy `void` fields are
-returned as logical all-`NA` columns. Timestamp partition values without an
-offset are interpreted as UTC, matching the Fabric test runtime. Metadata must
-declare Parquet with no provider-specific options. Unknown reader features,
-malformed recursive schemas/commits, catalog-managed commits, and absolute
-paths outside OneLake fail before any rows are returned. A caller-supplied
+character so values through precision 38 remain exact. Timestamp values without
+an offset are interpreted as UTC. Unsupported protocol features produce an
+explicit error; the default engine never silently falls back. A caller-supplied
 `dest_dir` must be new or empty.
 
 Compatibility reviewed against the Delta protocol and Fabric documentation in
 July 2026:
 
-| Delta capability | Reader behavior | Verification |
+| Delta capability | `delta-rs` engine | `R` engine |
 |---|---|---|
-| Reader protocols 1–3 | Supported | Protocol-focused unit tests and live Fabric tables |
-| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported, including same-version fallback | Real Parquet/JSON unit fixtures and live Fabric V2 checkpoints |
-| Name- and ID-based column mapping | Supported recursively through structs, arrays, and maps | Projection unit tests and live rename/drop fixtures |
-| Inline, relative-file, and absolute-OneLake deletion vectors | Supported; file identity includes the DV unique ID | Golden Roaring vectors and live sparse/dense/checkpoint DV tables |
-| Absolute OneLake AddFile paths and Fabric shallow clones | Supported when scoped to OneLake | Unit path checks and a live shallow clone |
-| Typed partitions, `void`, type widening, and timestamp without time zone | Supported; exact decimals remain character | Unit matrices and live Fabric edge-value tables |
-| Variant, including mixed shredded and unshredded files | Supported through DuckDB's native Variant decoding | Mixed physical unit files and live pre/post-shredding writes |
-| Non-Parquet formats/options, malformed commits/schemas, catalog-managed commits, and unknown reader features | Rejected before reading data | Negative unit tests |
-| Absolute paths outside OneLake | Rejected before reading data | Negative unit tests |
+| Classic checkpoints | Supported | Supported, including multipart checkpoints |
+| V2 checkpoints with sidecars | Not supported by delta-rs 0.32.4 | Supported |
+| Name- and ID-based column mapping | Supported | Supported recursively through structs, arrays, and maps |
+| Deletion vectors | Supported | Supported for inline, relative-file, and absolute-OneLake vectors |
+| Typed partitions and timestamp without time zone | Supported | Supported |
+| Type widening | Not supported by delta-rs 0.32.4 | Supported for the covered Fabric profiles |
+| Variant | Unshredded Variant is supported; shredded Variant is not | Supported for mixed shredded and unshredded files |
+| Fabric shallow clones | Supported for the covered OneLake profile | Supported when paths remain scoped to OneLake |
 
 The Fabric integration workflow provisions Runtime 2.0 tables on pushes to
 `main`/`master`, in-repository pull requests that touch the reader, a weekly

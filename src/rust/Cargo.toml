@@ -1,0 +1,30 @@
+[package]
+name = 'fabricqueryr'
+publish = false
+version = '0.1.0'
+edition = '2024'
+rust-version = '1.91.1'
+
+[lib]
+crate-type = [ 'rlib', 'staticlib' ]
+name = 'fabricqueryr'
+
+[[bin]]
+name = 'document'
+path = 'document.rs'
+
+[dependencies]
+anyhow = "1"
+arrow-ipc = "=58.0.0"
+datafusion = "=53.1.0"
+deltalake = { version = "=0.32.4", default-features = false, features = [ "azure", "datafusion", "rustls" ] }
+extendr-api = "=0.9.0"
+tokio = { version = "1", features = [ "rt-multi-thread" ] }
+url = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+[profile.dev]
+debug = 0
