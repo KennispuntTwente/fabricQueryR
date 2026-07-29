@@ -89,10 +89,10 @@ test_that("delta-rs oracle URIs cover Lakehouse and Warehouse items", {
 test_that("every supported Delta reader feature has an oracle strategy", {
   delta_rs_parity <- c(
     "columnMapping",
-    "deletionVectors",
     "timestampNtz"
   )
   direct_r_coverage <- c(
+    deletionVectors = "delta-rs 1.6 rejects deletion-vector table features",
     typeWidening = "delta-rs 1.6 has no type-widening scan support",
     `typeWidening-preview` = "covered with the stable widening implementation",
     vacuumProtocolCheck = "has no row-scan semantics to compare",

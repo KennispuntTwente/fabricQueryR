@@ -709,31 +709,6 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       column_mapping_mode = "id"
     ),
     list(
-      name = "deletion_vectors",
-      key = "deletion_vectors",
-      item = lakehouse,
-      table = lakehouse$tables$deletion_vectors,
-      expected_rows = 2,
-      reader_features = "deletionVectors"
-    ),
-    list(
-      name = "deletion_vectors_stress",
-      key = "deletion_vectors_stress",
-      item = lakehouse,
-      table = lakehouse$tables$deletion_vectors_stress,
-      expected_rows = 4501,
-      reader_features = "deletionVectors"
-    ),
-    list(
-      name = "deletion_vectors_dense",
-      key = "deletion_vectors_dense",
-      item = lakehouse,
-      table = lakehouse$tables$deletion_vectors_dense,
-      columns = "id",
-      expected_rows = 85000,
-      reader_features = "deletionVectors"
-    ),
-    list(
       name = "exact_types",
       key = "exact_types",
       item = lakehouse,
@@ -774,6 +749,18 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     deletion_vectors_checkpoint = paste(
       "this combines deletion vectors with V2 checkpoint sidecars;",
       "delta-rs 1.6 does not claim V2 checkpoint support"
+    ),
+    deletion_vectors = paste(
+      "delta-rs 1.6 rejects the deletionVectors reader feature;",
+      "the R reader has direct exact-row Fabric assertions"
+    ),
+    deletion_vectors_stress = paste(
+      "delta-rs 1.6 rejects the deletionVectors reader feature;",
+      "the R reader has direct mutation and exact-row Fabric assertions"
+    ),
+    deletion_vectors_dense = paste(
+      "delta-rs 1.6 rejects the deletionVectors reader feature;",
+      "the R reader has a direct 85,000-row Fabric assertion"
     ),
     type_widened = paste(
       "delta-rs 1.6 does not claim Delta typeWidening support;",
