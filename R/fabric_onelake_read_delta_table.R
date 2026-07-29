@@ -10,7 +10,8 @@
   "vacuumProtocolCheck",
   "v2Checkpoint",
   "variantType",
-  "variantShredding"
+  "variantShredding",
+  "variantShredding-preview"
 )
 
 #' @title
@@ -789,7 +790,8 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
 #' @noRd
 fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
   records <- lapply(paths, function(path) {
-    decoded <- utils::URLdecode(as.character(path))
+    path <- as.character(path)
+    decoded <- utils::URLdecode(path)
     if (grepl("^(?:https|abfss?)://", decoded, ignore.case = TRUE)) {
       file_target <- onelake_parse_uri(decoded)
       relative <- fabric_delta_external_relative(file_target)
@@ -803,6 +805,11 @@ fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
       }
       file_target <- target
       file_target$path <- paste0(table_dir, "/", decoded)
+      file_target$.encoded_path <- paste0(
+        onelake_encode_path(table_dir),
+        "/",
+        fabric_delta_encode_uri_path(path)
+      )
       relative <- decoded
     }
     list(
@@ -824,6 +831,75 @@ fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
     target = I(lapply(records, `[[`, "target")),
     stringsAsFactors = FALSE
   )
+}
+
+#' Encode a Delta URI path without decoding its existing percent escapes
+#' @keywords internal
+#' @noRd
+fabric_delta_encode_uri_path <- function(path) {
+  path <- gsub("\\\\", "/", as.character(path))
+  segments <- strsplit(path, "/", fixed = TRUE)[[1L]]
+  if (!length(segments) || !all(nzchar(segments))) {
+    rlang::abort("Delta log contains an unsafe data-file path")
+  }
+  encoded <- vapply(
+    segments,
+    function(segment) {
+      invalid <- grepl(
+        "%(?![[:xdigit:]]{2})",
+        segment,
+        perl = TRUE
+      )
+      if (invalid) {
+        rlang::abort("Delta log contains an invalid percent-encoded path")
+      }
+      matches <- gregexpr(
+        "%[[:xdigit:]]{2}",
+        segment,
+        perl = TRUE
+      )[[1L]]
+      if (matches[[1L]] == -1L) {
+        return(utils::URLencode(segment, reserved = TRUE))
+      }
+      lengths <- attr(matches, "match.length")
+      pieces <- character()
+      cursor <- 1L
+      for (index in seq_along(matches)) {
+        start <- matches[[index]]
+        if (start > cursor) {
+          pieces <- c(
+            pieces,
+            utils::URLencode(
+              substr(segment, cursor, start - 1L),
+              reserved = TRUE
+            )
+          )
+        }
+        pieces <- c(
+          pieces,
+          toupper(substr(
+            segment,
+            start,
+            start + lengths[[index]] - 1L
+          ))
+        )
+        cursor <- start + lengths[[index]]
+      }
+      if (cursor <= nchar(segment)) {
+        pieces <- c(
+          pieces,
+          utils::URLencode(
+            substr(segment, cursor, nchar(segment)),
+            reserved = TRUE
+          )
+        )
+      }
+      paste0(pieces, collapse = "")
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
+  paste(encoded, collapse = "/")
 }
 
 #' Derive a collision-resistant local path for an absolute OneLake URI
@@ -3560,7 +3636,10 @@ fabric_delta_validate_reader <- function(state) {
       paste0("Delta reader feature(s): ", paste(unsupported, collapse = ", "))
     )
   }
-  if ("variantShredding" %in% features && !"variantType" %in% features) {
+  variant_shredding <- any(
+    c("variantShredding", "variantShredding-preview") %in% features
+  )
+  if (variant_shredding && !"variantType" %in% features) {
     fabric_delta_abort_unsupported(
       "Delta variantShredding without its required variantType feature"
     )

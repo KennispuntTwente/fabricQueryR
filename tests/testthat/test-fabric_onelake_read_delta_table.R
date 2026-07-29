@@ -376,6 +376,57 @@ test_that("Delta staging rejects paths outside the requested table", {
   )
 })
 
+test_that("Delta staging preserves encoded binary partition paths", {
+  target <- onelake_resolve_target(
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222",
+    "Tables/dbo/table",
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  )
+  path <- paste0(
+    "event_date=2026-01-01/",
+    "timestamp_part=2026-01-01%2012%3A34%3A56.123456/",
+    "binary_part=%01%02%03/",
+    "part.parquet"
+  )
+  staged <- fabric_delta_stage_files(
+    path,
+    target,
+    "Tables/dbo/table",
+    "stage"
+  )
+
+  expect_identical(staged$relative, utils::URLdecode(path))
+  expect_match(
+    onelake_path_url(staged$target[[1L]]),
+    paste0(
+      "Tables/dbo/table/event_date%3D2026-01-01/",
+      "timestamp_part%3D2026-01-01%2012%3A34%3A56.123456/",
+      "binary_part%3D%01%02%03/part.parquet$"
+    )
+  )
+  expect_false(grepl(
+    "[\001\002\003]",
+    onelake_path_url(staged$target[[1L]])
+  ))
+
+  expect_error(
+    fabric_delta_stage_files(
+      "%2E%2E/part.parquet",
+      target,
+      "Tables/dbo/table",
+      "stage"
+    ),
+    "unsafe data-file path",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_encode_uri_path("category=bad%escape/part.parquet"),
+    "invalid percent-encoded path",
+    fixed = TRUE
+  )
+})
+
 test_that("Delta stages and reads absolute OneLake AddFile paths", {
   current_target <- onelake_resolve_target(
     "11111111-1111-1111-1111-111111111111",
@@ -1338,8 +1389,14 @@ test_that("Delta reader exposes native and shredded Variant values", {
       protocol = list(
         minReaderVersion = 3L,
         minWriterVersion = 7L,
-        readerFeatures = list("variantType", "variantShredding"),
-        writerFeatures = list("variantType", "variantShredding")
+        readerFeatures = list(
+          "variantType",
+          "variantShredding-preview"
+        ),
+        writerFeatures = list(
+          "variantType",
+          "variantShredding-preview"
+        )
       )
     ),
     list(
@@ -2483,10 +2540,30 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
   )
   expect_invisible(fabric_delta_validate_reader(state))
 
+  preview_variant <- state
+  preview_variant$protocol$readerFeatures <- as.list(c(
+    setdiff(
+      unlist(preview_variant$protocol$readerFeatures),
+      "variantShredding"
+    ),
+    "variantShredding-preview"
+  ))
+  expect_invisible(fabric_delta_validate_reader(preview_variant))
+
   invalid_variant <- state
   invalid_variant$protocol$readerFeatures <- list("variantShredding")
   expect_error(
     fabric_delta_validate_reader(invalid_variant),
+    "without its required variantType",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
+  invalid_preview_variant <- state
+  invalid_preview_variant$protocol$readerFeatures <- list(
+    "variantShredding-preview"
+  )
+  expect_error(
+    fabric_delta_validate_reader(invalid_preview_variant),
     "without its required variantType",
     fixed = TRUE,
     class = "fabric_delta_unsupported_error"

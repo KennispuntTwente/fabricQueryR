@@ -62,6 +62,28 @@ test_that("delta-rs oracle URIs cover Lakehouse and Warehouse items", {
       "warehouse%20id.Warehouse/Tables/dbo/fact%20table"
     )
   )
+
+  guid_manifest <- list(
+    workspace_id = "11111111-1111-1111-1111-111111111111"
+  )
+  guid_lakehouse <- list(
+    id = "22222222-2222-2222-2222-222222222222",
+    type = "Lakehouse",
+    schema = "dbo"
+  )
+  expect_identical(
+    fabric_test_delta_oracle_uri(
+      guid_manifest,
+      guid_lakehouse,
+      "fact table"
+    ),
+    paste0(
+      "abfss://11111111-1111-1111-1111-111111111111",
+      "@onelake.dfs.fabric.microsoft.com/",
+      "22222222-2222-2222-2222-222222222222/",
+      "Tables/dbo/fact%20table"
+    )
+  )
 })
 
 test_that("every supported Delta reader feature has an oracle strategy", {
@@ -76,7 +98,8 @@ test_that("every supported Delta reader feature has an oracle strategy", {
     vacuumProtocolCheck = "has no row-scan semantics to compare",
     v2Checkpoint = "delta-rs 1.6 has no UUID sidecar-checkpoint support",
     variantType = "only preliminary unshredded Variant support is available",
-    variantShredding = "mixed shredded files are not a supported oracle profile"
+    variantShredding = "mixed shredded files are not a supported oracle profile",
+    `variantShredding-preview` = "the Fabric preview alias uses the same direct Variant coverage"
   )
 
   expect_setequal(

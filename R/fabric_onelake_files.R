@@ -608,10 +608,12 @@ onelake_encode_path <- function(...) {
 
 onelake_path_url <- function(target) {
   values <- c(target$workspace, target$item)
-  if (nzchar(target$path)) {
-    values <- c(values, target$path)
+  prefix <- paste0(target$dfs_base, "/", onelake_encode_path(values))
+  if (!nzchar(target$path)) {
+    return(prefix)
   }
-  paste0(target$dfs_base, "/", onelake_encode_path(values))
+  encoded_path <- target$.encoded_path %||% onelake_encode_path(target$path)
+  paste0(prefix, "/", encoded_path)
 }
 
 onelake_workspace_url <- function(target) {

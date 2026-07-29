@@ -38,20 +38,22 @@ fabric_test_require_delta_oracle <- function() {
 
 fabric_test_delta_oracle_run <- function(arguments) {
   oracle <- fabric_test_require_delta_oracle()
-  output <- system2(
-    oracle$command,
-    c(
-      "--directory",
-      shQuote(oracle$root),
-      "run",
-      "--locked",
-      "python",
-      "-m",
-      "fabricqueryr_sandbox.delta_oracle",
-      arguments
-    ),
-    stdout = TRUE,
-    stderr = TRUE
+  output <- suppressWarnings(
+    system2(
+      oracle$command,
+      c(
+        "--directory",
+        shQuote(oracle$root),
+        "run",
+        "--locked",
+        "python",
+        "-m",
+        "fabricqueryr_sandbox.delta_oracle",
+        arguments
+      ),
+      stdout = TRUE,
+      stderr = TRUE
+    )
   )
   status <- attr(output, "status") %||% 0L
   if (!identical(status, 0L)) {
@@ -111,13 +113,26 @@ fabric_test_delta_oracle_uri <- function(
   item_type = item$type %||% "Lakehouse",
   schema = item$schema %||% "dbo"
 ) {
+  guid <- function(value) {
+    grepl(
+      paste0(
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-",
+        "[0-9a-f]{4}-[0-9a-f]{12}$"
+      ),
+      value,
+      ignore.case = TRUE
+    )
+  }
+  item_reference <- if (guid(manifest$workspace_id) && guid(item$id)) {
+    item$id
+  } else {
+    paste0(item$id, ".", item_type)
+  }
   paste0(
     "abfss://",
     utils::URLencode(manifest$workspace_id, reserved = TRUE),
     "@onelake.dfs.fabric.microsoft.com/",
-    utils::URLencode(item$id, reserved = TRUE),
-    ".",
-    item_type,
+    utils::URLencode(item_reference, reserved = TRUE),
     "/Tables/",
     onelake_encode_path(c(schema, table))
   )

@@ -464,7 +464,10 @@ test_that("Delta reader covers current Fabric Delta reader features", {
   column_mapped <- read_table(lakehouse$tables$column_mapped)
   column_mapped <- column_mapped[order(column_mapped$id), ]
   expect_equal(column_mapped$id, 1:3)
-  expect_named(column_mapped, c("id", "display_name"))
+  expect_named(
+    column_mapped,
+    c("id", "display_name", "profile", "items", "attributes")
+  )
   expect_equal(
     column_mapped$display_name,
     c("alpha", "beta", "gamma")
