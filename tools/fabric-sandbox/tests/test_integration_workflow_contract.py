@@ -22,7 +22,7 @@ def test_live_suite_is_split_into_feature_files():
 
     assert groups == INTEGRATION_GROUPS
     assert not (test_directory / "test-integration-fabric.R").exists()
-    assert sum(path.read_text().count("test_that(") for path in files) == 32
+    assert sum(path.read_text().count("test_that(") for path in files) == 33
     assert all(
         path.read_text().startswith("# Fabric integration coverage:")
         for path in files
@@ -60,10 +60,26 @@ def test_live_workflow_gates_delta_reader_changes_at_the_test_revision():
     assert "push:" in workflow
     assert "pull_request:" in workflow
     assert "R/fabric_onelake_read_delta_table.R" in workflow
+    assert "tests/testthat/helper-delta-rs-oracle.R" in workflow
+    assert "tests/testthat/test-delta-rs-oracle.R" in workflow
     assert "tests/testthat/test-integration-fabric-onelake.R" in workflow
     assert "infra/fabric/**" in workflow
     assert "github.event.pull_request.head.repo.full_name" in workflow
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
+
+
+def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+
+    assert (
+        "if: matrix.adbc || "
+        "matrix.filter == 'integration-fabric-onelake'"
+    ) in workflow
+    assert "Install locked delta-rs oracle environment" in workflow
+    assert "uv --directory tools/fabric-sandbox sync --locked" in workflow
 
 
 def test_live_sql_matrix_installs_required_client_drivers():

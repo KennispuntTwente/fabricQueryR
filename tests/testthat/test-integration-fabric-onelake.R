@@ -5,6 +5,8 @@
 test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   fabric_test_require_package("duckdb")
   fabric_test_require_package("fs")
+  fabric_test_require_package("arrow")
+  fabric_test_require_package("nanoarrow")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token_provider()
@@ -50,7 +52,12 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
     token = token,
     columns = c("name", "id"),
     limit = 2,
+    result = "arrow_stream",
     verbose = FALSE
+  )
+  expect_s3_class(projected, "nanoarrow_array_stream")
+  projected <- as.data.frame(
+    arrow::as_record_batch_reader(projected)$read_table()
   )
   expect_named(projected, c("name", "id"))
   expect_equal(nrow(projected), 2L)
@@ -588,6 +595,83 @@ test_that("Delta reader preserves exact and complex Fabric values", {
   expect_identical(complex$attributes[[1L]]$value$label, "mapped")
   expect_identical(complex$attributes[[1L]]$value$enabled, TRUE)
   expect_identical(complex[["display name"]], "display café-数据")
+})
+
+test_that("R Delta results agree with delta-rs on Fabric tables", {
+  fabric_test_require_package("duckdb")
+  fabric_test_require_package("fs")
+  fabric_test_require_delta_oracle()
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+
+  cases <- list(
+    list(name = "basic", table = lakehouse$tables$basic),
+    list(
+      name = "basic_projection",
+      table = lakehouse$tables$basic,
+      columns = c("name", "id", "amount")
+    ),
+    list(name = "empty", table = lakehouse$tables$empty),
+    list(
+      name = "typed_partitions",
+      table = lakehouse$tables$typed_partitions
+    ),
+    list(name = "partitioned", table = lakehouse$tables$partitioned),
+    list(
+      name = "partitioned_version_10",
+      table = lakehouse$tables$partitioned,
+      version = 10
+    ),
+    list(
+      name = "schema_evolved",
+      table = lakehouse$tables$schema_evolved
+    ),
+    list(
+      name = "column_mapping_by_name",
+      table = lakehouse$tables$column_mapped
+    ),
+    list(
+      name = "column_mapping_by_id",
+      table = lakehouse$tables$column_mapped_id
+    ),
+    list(
+      name = "deletion_vectors",
+      table = lakehouse$tables$deletion_vectors
+    ),
+    list(name = "exact_types", table = lakehouse$tables$exact_types),
+    list(name = "complex_types", table = lakehouse$tables$complex_types),
+    list(name = "shallow_clone", table = lakehouse$tables$shallow_clone)
+  )
+
+  for (case in cases) {
+    version <- case$version %||% NULL
+    columns <- case$columns %||% NULL
+    actual <- fabric_onelake_read_delta_table(
+      table_path = case$table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      version = version,
+      columns = columns,
+      verbose = FALSE
+    )
+    oracle <- fabric_test_delta_oracle_read(
+      fabric_test_delta_oracle_uri(
+        manifest,
+        lakehouse,
+        case$table
+      ),
+      version = version,
+      columns = columns
+    )
+    fabric_test_expect_delta_oracle_equal(
+      actual,
+      oracle,
+      info = case$name
+    )
+  }
 })
 
 test_that("Delta reader handles DV stress and exact widening", {

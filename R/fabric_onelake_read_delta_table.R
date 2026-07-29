@@ -1,15 +1,18 @@
 .fabric_delta_max_exact_version <- 2^53
 .fabric_delta_max_exact_version_text <- "00009007199254740992"
+.fabric_delta_result_types <- c("tibble", "arrow_stream")
 
 #' @title
 #' Read a Delta table from Microsoft Fabric OneLake
 #'
 #' @description
-#' Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
-#' returns it as a tibble. Delta tables consist of Parquet data files plus a
-#' transaction log that says which files make up the current table. This
-#' function reads that log so deleted or superseded files are not accidentally
-#' included.
+#' Downloads a Lakehouse or Warehouse-exported Delta table from OneLake. By
+#' default it returns a tibble. It can instead return an Arrow-compatible stream
+#' for use with the `arrow` R package and other Arrow tools.
+#'
+#' Delta tables consist of Parquet data files plus a transaction log that says
+#' which files make up the current table. This function reads that log so
+#' deleted or superseded files are not accidentally included.
 #'
 #' @details
 #' - In Microsoft Fabric, OneLake exposes each workspace as an ADLS Gen2
@@ -99,12 +102,17 @@
 #' @param limit Optional non-negative whole number limiting returned rows.
 #'   `NULL` returns every row. This limits DuckDB collection but not OneLake
 #'   file downloads.
+#' @param result Return format. `"tibble"` returns a tibble.
+#'   `"arrow_stream"` returns a `nanoarrow_array_stream` compatible with
+#'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers.
+#'   The table is still staged and read into local memory before the stream is
+#'   created.
 #'
-#' @return A tibble containing the rows and logical schema of the selected Delta
-#'   snapshot. An empty table returns a zero-row tibble. Delta `long` columns
-#'   use `bit64::integer64`; decimal columns use exact character values; other
-#'   conversions follow DuckDB. Schema evolution is applied and partition
-#'   values are included as columns.
+#' @return With `result = "tibble"`, a tibble containing the selected Delta
+#'   snapshot. With `result = "arrow_stream"`, a single-use
+#'   `nanoarrow_array_stream`. Empty tables preserve their column schema in
+#'   either format. Delta `long` columns use `bit64::integer64`; decimal columns
+#'   use exact character values; other conversions follow DuckDB.
 #' @references
 #' [Delta Transaction Log Protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md)
 #'
@@ -140,6 +148,15 @@
 #'   columns        = c("PatientId", "Status"),
 #'   limit          = 1000
 #' )
+#'
+#' # Return an Arrow-compatible stream instead of a tibble.
+#' stream <- fabric_onelake_read_delta_table(
+#'   table_path = "PatientInfo",
+#'   workspace_name = "PatientsWorkspace",
+#'   lakehouse_name = "Lakehouse.Lakehouse",
+#'   result = "arrow_stream"
+#' )
+#' reader <- arrow::as_record_batch_reader(stream)
 #' }
 fabric_onelake_read_delta_table <- function(
   table_path,
@@ -158,8 +175,10 @@ fabric_onelake_read_delta_table <- function(
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
-  limit = NULL
+  limit = NULL,
+  result = c("tibble", "arrow_stream")
 ) {
+  result <- rlang::arg_match(result, .fabric_delta_result_types)
   workspace_target <- workspace_name
   workspace_record <- fabric_as_record(workspace_name)
   if (!is.null(workspace_record)) {
@@ -279,6 +298,12 @@ fabric_onelake_read_delta_table <- function(
     ),
     reason = "to read OneLake Delta tables"
   )
+  if (identical(result, "arrow_stream")) {
+    rlang::check_installed(
+      c("arrow", "nanoarrow"),
+      reason = "to return result = \"arrow_stream\""
+    )
+  }
 
   # ---- auth (MSAL v2 + refresh) ----
   if (is.null(token)) {
@@ -495,7 +520,18 @@ fabric_onelake_read_delta_table <- function(
   )
 
   inform(verbose, "Loaded {nrow(df)} row{?s}", type = "success")
-  tibble::as_tibble(df)
+  fabric_delta_format_result(df, result)
+}
+
+#' Format a staged Delta result as a tibble or Arrow C stream
+#' @keywords internal
+#' @noRd
+fabric_delta_format_result <- function(value, result) {
+  if (identical(result, "arrow_stream")) {
+    table <- arrow::Table$create(value)
+    return(nanoarrow::as_nanoarrow_array_stream(table))
+  }
+  tibble::as_tibble(value)
 }
 
 #' Read the recent checkpoint pointer without listing the full Delta log

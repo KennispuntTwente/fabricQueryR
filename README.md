@@ -165,11 +165,22 @@ df_onelake <- fabric_onelake_read_delta_table(
   workspace_name = workspace,
   lakehouse_name = lakehouse
 )
+
+# Optional: return an Arrow C stream instead of a tibble
+stream <- fabric_onelake_read_delta_table(
+  table_path = "Customers",
+  workspace_name = workspace,
+  lakehouse_name = lakehouse,
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
 ```
 
 The account needs access through the workspace or **Lakehouse > Manage OneLake
 data access**. This function downloads the active table files locally, so a
 filtered SQL query can be more efficient for very large tables.
+The Arrow result changes the returned object, but does not avoid the local
+download or in-memory read.
 
 The reader follows Delta reader protocols 1–3 and supports the profiles emitted
 by Fabric Spark Runtime 2.0 and Fabric Warehouse exports: classic and V2
@@ -199,6 +210,14 @@ July 2026:
 | Variant, including mixed shredded and unshredded files | Supported through DuckDB's native Variant decoding | Mixed physical unit files and live pre/post-shredding writes |
 | Non-Parquet formats/options, malformed commits/schemas, catalog-managed commits, and unknown reader features | Rejected before reading data | Negative unit tests |
 | Absolute paths outside OneLake | Rejected before reading data | Negative unit tests |
+
+The test suite also compares this R implementation with the independent
+Python binding of delta-rs. Deterministic local fixtures cover time travel,
+projection, empty and evolving schemas, exact values, and nested data. The
+live Fabric suite compares both readers on partitioning, column mapping,
+deletion vectors, shallow clones, and other supported table profiles.
+delta-rs and Python are test dependencies only; users do not need them to
+install or run fabricQueryR.
 
 The Fabric integration workflow provisions Runtime 2.0 tables on pushes to
 `main`/`master`, in-repository pull requests that touch the reader, a weekly

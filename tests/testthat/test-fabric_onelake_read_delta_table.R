@@ -175,6 +175,31 @@ test_that("Delta public projection and limit arguments are validated", {
   expect_error(read_table(limit = -1), "limit must be NULL", fixed = TRUE)
   expect_error(read_table(limit = 1.5), "limit must be NULL", fixed = TRUE)
   expect_error(read_table(limit = Inf), "limit must be NULL", fixed = TRUE)
+  expect_error(read_table(result = "data.frame"), class = "rlang_error")
+})
+
+test_that("Delta results can be returned as tibbles or Arrow streams", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  values <- list(
+    data.frame(id = 1:2, name = c("alpha", "beta")),
+    data.frame(id = integer(), name = character())
+  )
+
+  for (value in values) {
+    tibble <- fabric_delta_format_result(value, "tibble")
+    expect_s3_class(tibble, "tbl_df")
+    expect_named(tibble, c("id", "name"))
+
+    stream <- fabric_delta_format_result(value, "arrow_stream")
+    expect_s3_class(stream, "nanoarrow_array_stream")
+    restored <- as.data.frame(
+      arrow::as_record_batch_reader(stream)$read_table()
+    )
+    expect_named(restored, c("id", "name"))
+    expect_equal(nrow(restored), nrow(value))
+    expect_equal(restored$id, value$id)
+  }
 })
 
 test_that("Delta records validate workspace ownership", {
