@@ -52,6 +52,18 @@ def test_seed_notebook_ids_are_parameterized():
         assert f'"{column}"' in partition_block
 
 
+def test_seed_notebook_uses_valid_nested_delta_column_rename_syntax():
+    repository_root = Path(__file__).parents[3]
+    notebook = (
+        repository_root
+        / "infra/fabric/workspace/SeedFixtures.Notebook/notebook-content.py"
+    ).read_text()
+
+    valid_rename = "RENAME COLUMN profile.label TO display_label"
+    assert notebook.count(valid_rename) == 2
+    assert "RENAME COLUMN profile.label TO profile.display_label" not in notebook
+
+
 def test_job_notebook_exposes_deterministic_job_modes():
     repository_root = Path(__file__).parents[3]
     notebook = (

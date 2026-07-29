@@ -327,7 +327,7 @@ try:
     spark.sql(
         """
         ALTER TABLE dbo.fabricqueryr_column_mapped
-        RENAME COLUMN profile.label TO profile.display_label
+        RENAME COLUMN profile.label TO display_label
         """
     )
     spark.sql(
@@ -399,7 +399,7 @@ try:
     spark.sql(
         """
         ALTER TABLE dbo.fabricqueryr_column_mapped_id
-        RENAME COLUMN profile.label TO profile.display_label
+        RENAME COLUMN profile.label TO display_label
         """
     )
     (
