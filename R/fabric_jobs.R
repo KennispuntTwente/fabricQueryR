@@ -1381,6 +1381,14 @@ print.fabric_job_instance <- function(x, ...) {
   if (tolower(status) == "canceled") {
     status <- "Cancelled"
   }
+  failure_reason <- body$failureReason
+  # Failure details are authoritative when the service fields disagree.
+  if (
+    identical(status, "Completed") &&
+      nzchar(.fabric_job_failure_text(failure_reason))
+  ) {
+    status <- "Failed"
+  }
   exit_value <- body$exitValue %||%
     body$properties$exitValue
   structure(
@@ -1393,7 +1401,7 @@ print.fabric_job_instance <- function(x, ...) {
       root_activity_id = body$rootActivityId,
       start_time = .fabric_job_time(body$startTimeUtc %||% body$startTime),
       end_time = .fabric_job_time(body$endTimeUtc %||% body$endTime),
-      failure_reason = body$failureReason,
+      failure_reason = failure_reason,
       exit_value = exit_value,
       properties = body$properties,
       retry_after = retry_after,

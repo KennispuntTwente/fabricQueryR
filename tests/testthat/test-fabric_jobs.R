@@ -324,6 +324,34 @@ test_that("status normalizes documented metadata and notebook exit value", {
   expect_match(called_url, "?beta=true", fixed = TRUE)
 })
 
+test_that("status treats a completed response with failure details as failed", {
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "33333333-3333-3333-3333-333333333333",
+          status = "Completed",
+          rootActivityId = "77777777-7777-7777-7777-777777777777",
+          failureReason = list(
+            message = "FABRICQUERYR_INTENTIONAL_JOB_FAILURE"
+          )
+        )
+      )
+    }
+  )
+
+  result <- fabric_job_status(job_test_handle())
+
+  expect_equal(result$status, "Failed")
+  expect_match(
+    .fabric_job_failure_text(result$failure_reason),
+    "FABRICQUERYR_INTENTIONAL_JOB_FAILURE",
+    fixed = TRUE
+  )
+})
+
 test_that("core timestamps without an explicit UTC suffix are parsed as UTC", {
   parsed <- .fabric_job_time("2023-04-22T06:35:00.7812154")
 

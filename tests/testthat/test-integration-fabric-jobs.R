@@ -13,9 +13,14 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     type = notebook$type,
     displayName = notebook$display_name
   )
+  # Do not inherit a high-concurrency session from an earlier test invocation.
   session_tag <- paste0(
     "fabricqueryr_job_integration_",
-    substr(notebook$id, 1L, 8L)
+    substr(notebook$id, 1L, 8L),
+    "_",
+    Sys.getpid(),
+    "_",
+    format(Sys.time(), "%Y%m%d%H%M%S", tz = "UTC")
   )
   completed_job <- fabric_job_run(
     item,
