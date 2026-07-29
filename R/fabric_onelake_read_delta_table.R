@@ -1,6 +1,17 @@
 .fabric_delta_max_exact_version <- 2^53
 .fabric_delta_max_exact_version_text <- "00009007199254740992"
 .fabric_delta_result_types <- c("tibble", "arrow_stream")
+.fabric_delta_supported_reader_features <- c(
+  "columnMapping",
+  "deletionVectors",
+  "timestampNtz",
+  "typeWidening",
+  "typeWidening-preview",
+  "vacuumProtocolCheck",
+  "v2Checkpoint",
+  "variantType",
+  "variantShredding"
+)
 
 #' @title
 #' Read a Delta table from Microsoft Fabric OneLake
@@ -3489,18 +3500,10 @@ fabric_delta_validate_reader <- function(state) {
     use.names = FALSE
   )
   features <- as.character(features[!is.na(features) & nzchar(features)])
-  supported_features <- c(
-    "columnMapping",
-    "deletionVectors",
-    "timestampNtz",
-    "typeWidening",
-    "typeWidening-preview",
-    "vacuumProtocolCheck",
-    "v2Checkpoint",
-    "variantType",
-    "variantShredding"
+  unsupported <- setdiff(
+    features,
+    .fabric_delta_supported_reader_features
   )
-  unsupported <- setdiff(features, supported_features)
 
   if (is.null(state$metadata)) {
     rlang::abort("Delta snapshot does not contain a metadata action")

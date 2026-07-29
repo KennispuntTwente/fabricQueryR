@@ -61,6 +61,11 @@ test_that("fabric_onelake_read_delta_table reads schema-enabled Delta data", {
   )
   expect_named(projected, c("name", "id"))
   expect_equal(nrow(projected), 2L)
+  expect_true(all(projected$id %in% 1:3))
+  expect_identical(
+    projected$name,
+    c("alpha", "beta", "gamma")[projected$id]
+  )
 })
 
 test_that("Delta reader preserves empty schemas and typed log partitions", {
@@ -603,55 +608,210 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
   fabric_test_require_delta_oracle()
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
+  warehouse <- manifest$items$TestWarehouse
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
 
   cases <- list(
-    list(name = "basic", table = lakehouse$tables$basic),
+    list(
+      name = "basic",
+      key = "basic",
+      item = lakehouse,
+      table = lakehouse$tables$basic,
+      expected_rows = 3
+    ),
     list(
       name = "basic_projection",
+      key = "basic",
+      item = lakehouse,
       table = lakehouse$tables$basic,
-      columns = c("name", "id", "amount")
+      columns = c("name", "id", "amount"),
+      expected_rows = 3
     ),
-    list(name = "empty", table = lakehouse$tables$empty),
+    list(
+      name = "empty",
+      key = "empty",
+      item = lakehouse,
+      table = lakehouse$tables$empty,
+      expected_rows = 0,
+      min_active_files = 0
+    ),
     list(
       name = "typed_partitions",
-      table = lakehouse$tables$typed_partitions
+      key = "typed_partitions",
+      item = lakehouse,
+      table = lakehouse$tables$typed_partitions,
+      expected_rows = 3,
+      reader_features = "timestampNtz",
+      partition_columns = c(
+        "event_date",
+        "active",
+        "integer_part",
+        "decimal_part",
+        "timestamp_part",
+        "timestamp_ntz_part",
+        "binary_part"
+      )
     ),
-    list(name = "partitioned", table = lakehouse$tables$partitioned),
+    list(
+      name = "partitioned",
+      key = "partitioned",
+      item = lakehouse,
+      table = lakehouse$tables$partitioned,
+      expected_rows = 13,
+      min_active_files = 2,
+      partition_columns = "category"
+    ),
     list(
       name = "partitioned_version_10",
+      key = "partitioned",
+      item = lakehouse,
       table = lakehouse$tables$partitioned,
-      version = 10
+      version = 10,
+      expected_rows = 13,
+      min_active_files = 2,
+      partition_columns = "category"
     ),
     list(
       name = "schema_evolved",
-      table = lakehouse$tables$schema_evolved
+      key = "schema_evolved",
+      item = lakehouse,
+      table = lakehouse$tables$schema_evolved,
+      expected_rows = 3,
+      min_active_files = 2
+    ),
+    list(
+      name = "schema_evolved_version_0",
+      key = "schema_evolved",
+      item = lakehouse,
+      table = lakehouse$tables$schema_evolved,
+      version = 0,
+      expected_rows = 2
     ),
     list(
       name = "column_mapping_by_name",
-      table = lakehouse$tables$column_mapped
+      key = "column_mapped",
+      item = lakehouse,
+      table = lakehouse$tables$column_mapped,
+      expected_rows = 3,
+      min_active_files = 2,
+      column_mapping_mode = "name"
     ),
     list(
       name = "column_mapping_by_id",
-      table = lakehouse$tables$column_mapped_id
+      key = "column_mapped_id",
+      item = lakehouse,
+      table = lakehouse$tables$column_mapped_id,
+      expected_rows = 3,
+      min_active_files = 2,
+      column_mapping_mode = "id"
     ),
     list(
       name = "deletion_vectors",
-      table = lakehouse$tables$deletion_vectors
+      key = "deletion_vectors",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors,
+      expected_rows = 2,
+      reader_features = "deletionVectors"
     ),
-    list(name = "exact_types", table = lakehouse$tables$exact_types),
-    list(name = "complex_types", table = lakehouse$tables$complex_types),
-    list(name = "shallow_clone", table = lakehouse$tables$shallow_clone)
+    list(
+      name = "deletion_vectors_stress",
+      key = "deletion_vectors_stress",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors_stress,
+      expected_rows = 4501,
+      reader_features = "deletionVectors"
+    ),
+    list(
+      name = "deletion_vectors_dense",
+      key = "deletion_vectors_dense",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors_dense,
+      columns = "id",
+      expected_rows = 85000,
+      reader_features = "deletionVectors"
+    ),
+    list(
+      name = "exact_types",
+      key = "exact_types",
+      item = lakehouse,
+      table = lakehouse$tables$exact_types,
+      expected_rows = 1,
+      reader_features = "timestampNtz"
+    ),
+    list(
+      name = "complex_types",
+      key = "complex_types",
+      item = lakehouse,
+      table = lakehouse$tables$complex_types,
+      expected_rows = 1,
+      column_mapping_mode = "name"
+    ),
+    list(
+      name = "shallow_clone",
+      key = "shallow_clone",
+      item = lakehouse,
+      table = lakehouse$tables$shallow_clone,
+      expected_rows = 3
+    ),
+    list(
+      name = "warehouse_export",
+      key = NA_character_,
+      item = warehouse,
+      table = warehouse$tables$types,
+      schema = "dbo",
+      expected_rows = 3
+    )
   )
+
+  exclusions <- c(
+    void = paste(
+      "Spark legacy void has no portable delta-rs/PyArrow value type;",
+      "the R reader has direct unit and Fabric assertions"
+    ),
+    deletion_vectors_checkpoint = paste(
+      "this combines deletion vectors with V2 checkpoint sidecars;",
+      "delta-rs 1.6 does not claim V2 checkpoint support"
+    ),
+    type_widened = paste(
+      "delta-rs 1.6 does not claim Delta typeWidening support;",
+      "the R reader has direct unit and Fabric assertions"
+    ),
+    type_widened_exact = paste(
+      "delta-rs 1.6 does not claim exact/date typeWidening support;",
+      "the R reader has direct unit and Fabric assertions"
+    ),
+    type_widened_nested = paste(
+      "delta-rs 1.6 does not claim nested typeWidening support;",
+      "the R reader has direct unit and Fabric assertions"
+    ),
+    v2_checkpoint = paste(
+      "delta-rs 1.6 does not claim UUID V2 checkpoint-sidecar support;",
+      "the R reader replays this in direct unit and Fabric tests"
+    ),
+    variant = paste(
+      "delta-rs 1.6 has preliminary Variant support but does not claim",
+      "Fabric mixed shredded/unshredded Variant parity"
+    ),
+    livy_batch_result = "created by the Livy job suite, not the seed matrix",
+    spark_job_result = "created by the item-job suite, not the seed matrix"
+  )
+  compared_keys <- unique(vapply(cases, `[[`, character(1), "key"))
+  compared_keys <- compared_keys[!is.na(compared_keys)]
+  expect_setequal(
+    names(lakehouse$tables),
+    c(compared_keys, names(exclusions))
+  )
+  expect_true(all(nzchar(exclusions)))
 
   for (case in cases) {
     version <- case$version %||% NULL
     columns <- case$columns %||% NULL
+    schema <- case$schema %||% case$item$schema %||% "dbo"
     actual <- fabric_onelake_read_delta_table(
       table_path = case$table,
       workspace_name = manifest$workspace_id,
-      lakehouse_name = lakehouse$id,
-      schema = lakehouse$schema,
+      lakehouse_name = case$item$id,
+      schema = schema,
       token = token,
       version = version,
       columns = columns,
@@ -660,8 +820,9 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     oracle <- fabric_test_delta_oracle_read(
       fabric_test_delta_oracle_uri(
         manifest,
-        lakehouse,
-        case$table
+        case$item,
+        case$table,
+        schema = schema
       ),
       version = version,
       columns = columns
@@ -669,6 +830,21 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     fabric_test_expect_delta_oracle_equal(
       actual,
       oracle,
+      info = case$name
+    )
+    expect_equal(
+      nrow(actual),
+      case$expected_rows,
+      info = case$name
+    )
+    fabric_test_expect_delta_oracle_profile(
+      oracle,
+      version = version,
+      reader_features = case$reader_features %||% character(),
+      partition_columns = case$partition_columns %||% NULL,
+      column_mapping_mode = case$column_mapping_mode %||% NULL,
+      min_active_files = case$min_active_files %||%
+        if (case$expected_rows == 0) 0 else 1,
       info = case$name
     )
   }

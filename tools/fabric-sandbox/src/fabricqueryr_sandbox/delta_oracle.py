@@ -55,16 +55,53 @@ def read_delta_table(
     limit: int | None = None,
 ) -> pa.Table:
     """Read one Delta snapshot with the independent delta-rs Python binding."""
-    table = DeltaTable(
+    table, _ = read_delta_snapshot(
+        table_uri,
+        version=version,
+        columns=columns,
+        limit=limit,
+    )
+    return table
+
+
+def read_delta_snapshot(
+    table_uri: str,
+    *,
+    version: int | None = None,
+    columns: Sequence[str] | None = None,
+    limit: int | None = None,
+) -> tuple[pa.Table, dict[str, Any]]:
+    """Read rows plus independent snapshot metadata used by parity assertions."""
+    delta = DeltaTable(
         table_uri,
         version=version,
         storage_options=storage_options(table_uri),
-    ).to_pyarrow_table(columns=list(columns) if columns else None)
+    )
+    table = delta.to_pyarrow_table(
+        columns=list(columns) if columns else None
+    )
     if limit is not None:
         if limit < 0:
             raise ValueError("limit must be non-negative")
         table = table.slice(0, limit)
-    return normalize_exact_decimals(table)
+    table = normalize_exact_decimals(table)
+    protocol = delta.protocol()
+    delta_metadata = delta.metadata()
+    metadata = {
+        "version": delta.version(),
+        "min_reader_version": protocol.min_reader_version,
+        "min_writer_version": protocol.min_writer_version,
+        "reader_features": sorted(protocol.reader_features or []),
+        "writer_features": sorted(protocol.writer_features or []),
+        "active_file_count": len(delta.file_uris()),
+        "row_count": table.num_rows,
+        "column_names": table.column_names,
+        "partition_columns": delta_metadata.partition_columns,
+        "configuration": delta_metadata.configuration,
+        "delta_schema": json.loads(delta.schema().to_json()),
+        "arrow_schema": str(table.schema),
+    }
+    return table, metadata
 
 
 def _normalize_array(array: pa.Array) -> pa.Array:
@@ -218,6 +255,19 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     "local_at": datetime(2000, 2, 29),
                     "payload": b"",
                 },
+                {
+                    "id": 5,
+                    "name": "encoded partition",
+                    "category": "café / 数据=100%",
+                    "amount": Decimal("1.0000"),
+                    "active": True,
+                    "event_date": date(2038, 1, 19),
+                    "observed_at": datetime(
+                        2038, 1, 19, 3, 14, 7, 999999, tzinfo=timezone.utc
+                    ),
+                    "local_at": datetime(2038, 1, 19, 3, 14, 7, 999999),
+                    "payload": b"\xc3\xa9",
+                },
             ]
         ),
         mode="append",
@@ -265,6 +315,30 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
             ),
             pa.field("scores", pa.list_(pa.int32())),
             pa.field("counts", pa.map_(pa.string(), pa.int64())),
+            pa.field(
+                "items",
+                pa.list_(
+                    pa.struct(
+                        [
+                            pa.field("label", pa.string()),
+                            pa.field("amount", pa.decimal128(20, 3)),
+                            pa.field("code", pa.int64()),
+                        ]
+                    )
+                ),
+            ),
+            pa.field(
+                "attributes",
+                pa.map_(
+                    pa.string(),
+                    pa.struct(
+                        [
+                            pa.field("enabled", pa.bool_()),
+                            pa.field("amount", pa.decimal128(20, 2)),
+                        ]
+                    ),
+                ),
+            ),
         ]
     )
     write_deltalake(
@@ -279,12 +353,46 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     },
                     "scores": [1, 2, 3],
                     "counts": [("large", 9_007_199_254_740_993), ("small", 2)],
+                    "items": [
+                        {
+                            "label": "first",
+                            "amount": Decimal("1.250"),
+                            "code": 9_007_199_254_740_993,
+                        },
+                        {
+                            "label": "second",
+                            "amount": None,
+                            "code": 2,
+                        },
+                    ],
+                    "attributes": [
+                        (
+                            "primary",
+                            {
+                                "enabled": True,
+                                "amount": Decimal("99.99"),
+                            },
+                        )
+                    ],
                 },
                 {
                     "id": 2,
                     "profile": None,
                     "scores": [],
                     "counts": [],
+                    "items": [],
+                    "attributes": [],
+                },
+                {
+                    "id": 3,
+                    "profile": {
+                        "label": None,
+                        "amount": None,
+                    },
+                    "scores": None,
+                    "counts": None,
+                    "items": None,
+                    "attributes": None,
                 },
             ],
             schema=nested_schema,
@@ -292,17 +400,208 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         mode="overwrite",
     )
 
+    scalars = directory / "scalar_boundaries"
+    scalar_schema = pa.schema(
+        [
+            pa.field("row_id", pa.int32()),
+            pa.field("tiny", pa.int8()),
+            pa.field("small", pa.int16()),
+            pa.field("regular", pa.int32()),
+            pa.field("large", pa.int64()),
+            pa.field("single", pa.float32()),
+            pa.field("double", pa.float64()),
+            pa.field("whole_decimal", pa.decimal128(38, 0)),
+            pa.field("scaled_decimal", pa.decimal128(38, 18)),
+            pa.field("text", pa.string()),
+            pa.field("payload", pa.binary()),
+            pa.field("event_date", pa.date32()),
+            pa.field("observed_at", pa.timestamp("us", tz="UTC")),
+            pa.field("local_at", pa.timestamp("us")),
+            pa.field("active", pa.bool_()),
+        ]
+    )
+    write_deltalake(
+        scalars,
+        pa.Table.from_pylist(
+            [
+                {
+                    "row_id": 1,
+                    "tiny": -128,
+                    "small": -32768,
+                    "regular": -2147483648,
+                    "large": -9_223_372_036_854_775_807,
+                    "single": float("nan"),
+                    "double": float("inf"),
+                    "whole_decimal": Decimal(
+                        "-99999999999999999999999999999999999999"
+                    ),
+                    "scaled_decimal": Decimal(
+                        "-99999999999999999999.999999999999999999"
+                    ),
+                    "text": "",
+                    "payload": b"",
+                    "event_date": date(1900, 1, 1),
+                    "observed_at": datetime(
+                        1900, 1, 1, 0, 0, 0, 1, tzinfo=timezone.utc
+                    ),
+                    "local_at": datetime(1900, 1, 1, 0, 0, 0, 1),
+                    "active": False,
+                },
+                {
+                    "row_id": 2,
+                    "tiny": 127,
+                    "small": 32767,
+                    "regular": 2147483647,
+                    "large": 9_223_372_036_854_775_807,
+                    "single": float("-inf"),
+                    "double": -0.0,
+                    "whole_decimal": Decimal(
+                        "99999999999999999999999999999999999999"
+                    ),
+                    "scaled_decimal": Decimal(
+                        "99999999999999999999.999999999999999999"
+                    ),
+                    "text": "café-数据-🙂",
+                    "payload": b"\x00\xff",
+                    "event_date": date(2038, 1, 19),
+                    "observed_at": datetime(
+                        2038, 1, 19, 3, 14, 7, 999999, tzinfo=timezone.utc
+                    ),
+                    "local_at": datetime(2038, 1, 19, 3, 14, 7, 999999),
+                    "active": True,
+                },
+                {
+                    "row_id": 3,
+                    "tiny": None,
+                    "small": None,
+                    "regular": None,
+                    "large": None,
+                    "single": None,
+                    "double": float("nan"),
+                    "whole_decimal": None,
+                    "scaled_decimal": None,
+                    "text": None,
+                    "payload": None,
+                    "event_date": None,
+                    "observed_at": None,
+                    "local_at": None,
+                    "active": None,
+                },
+            ],
+            schema=scalar_schema,
+        ),
+        mode="overwrite",
+    )
+
+    mutated = directory / "mutated"
+    write_deltalake(
+        mutated,
+        pa.table(
+            {
+                "id": pa.array([1, 2, 3], pa.int64()),
+                "label": ["one", "two", "three"],
+            }
+        ),
+        mode="overwrite",
+    )
+    DeltaTable(str(mutated)).delete("id = 2")
+    DeltaTable(str(mutated)).update(
+        updates={"label": "'three-updated'"},
+        predicate="id = 3",
+    )
+    write_deltalake(
+        mutated,
+        pa.table(
+            {
+                "id": pa.array([4], pa.int64()),
+                "label": ["four"],
+            }
+        ),
+        mode="append",
+    )
+
     cases = [
-        {"name": "primitive_latest", "table": "primitive"},
-        {"name": "primitive_version_0", "table": "primitive", "version": 0},
+        {
+            "name": "primitive_latest",
+            "table": "primitive",
+            "expected_rows": 5,
+            "expected_version": 1,
+            "expected_columns": [field.name for field in _primitive_schema()],
+        },
+        {
+            "name": "primitive_version_0",
+            "table": "primitive",
+            "version": 0,
+            "expected_rows": 2,
+            "expected_version": 0,
+            "expected_columns": [field.name for field in _primitive_schema()],
+        },
         {
             "name": "primitive_projection",
             "table": "primitive",
             "columns": ["name", "id", "amount"],
+            "expected_rows": 5,
+            "expected_version": 1,
+            "expected_columns": ["name", "id", "amount"],
         },
-        {"name": "empty", "table": "empty"},
-        {"name": "schema_evolved", "table": "schema_evolved"},
-        {"name": "nested", "table": "nested"},
+        {
+            "name": "empty",
+            "table": "empty",
+            "expected_rows": 0,
+            "expected_version": 0,
+            "expected_columns": [field.name for field in _primitive_schema()],
+        },
+        {
+            "name": "schema_evolved",
+            "table": "schema_evolved",
+            "expected_rows": 3,
+            "expected_version": 1,
+            "expected_columns": ["id", "name", "evolved_value"],
+        },
+        {
+            "name": "schema_evolved_version_0",
+            "table": "schema_evolved",
+            "version": 0,
+            "expected_rows": 2,
+            "expected_version": 0,
+            "expected_columns": ["id", "name"],
+        },
+        {
+            "name": "nested",
+            "table": "nested",
+            "expected_rows": 3,
+            "expected_version": 0,
+            "expected_columns": [
+                "id",
+                "profile",
+                "scores",
+                "counts",
+                "items",
+                "attributes",
+            ],
+        },
+        {
+            "name": "scalar_boundaries",
+            "table": "scalar_boundaries",
+            "expected_rows": 3,
+            "expected_version": 0,
+            "expected_columns": [field.name for field in scalar_schema],
+        },
+        {
+            "name": "mutated_latest",
+            "table": "mutated",
+            "expected_rows": 3,
+            "expected_version": 3,
+            "expected_columns": ["id", "label"],
+        },
+        {
+            "name": "mutated_version_0",
+            "table": "mutated",
+            "version": 0,
+            "expected_rows": 3,
+            "expected_version": 0,
+            "expected_columns": ["id", "label"],
+        },
     ]
     manifest = {
         "deltalake_version": __import__("deltalake").__version__,
@@ -323,6 +622,7 @@ def _parser() -> argparse.ArgumentParser:
     read = commands.add_parser("read", help="read a Delta snapshot to Arrow IPC")
     read.add_argument("--uri", required=True)
     read.add_argument("--output", type=Path, required=True)
+    read.add_argument("--metadata-output", type=Path)
     read.add_argument("--version", type=int)
     read.add_argument("--column", action="append", dest="columns")
     read.add_argument("--limit", type=int)
@@ -338,15 +638,22 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "read":
+        table, metadata = read_delta_snapshot(
+            args.uri,
+            version=args.version,
+            columns=args.columns,
+            limit=args.limit,
+        )
         write_ipc(
-            read_delta_table(
-                args.uri,
-                version=args.version,
-                columns=args.columns,
-                limit=args.limit,
-            ),
+            table,
             args.output,
         )
+        if args.metadata_output is not None:
+            args.metadata_output.parent.mkdir(parents=True, exist_ok=True)
+            args.metadata_output.write_text(
+                json.dumps(metadata, indent=2) + "\n",
+                encoding="utf-8",
+            )
         return 0
     if args.command == "write-fixtures":
         _write_local_fixtures(args.directory)
