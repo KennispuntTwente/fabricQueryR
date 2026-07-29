@@ -137,7 +137,10 @@
 #'   use exact character values. Delta Variant columns are list columns whose
 #'   non-missing elements have class `fabric_delta_variant`; each element
 #'   retains the exact Parquet Variant metadata and value bytes, its DuckDB
-#'   logical type, and a display value.
+#'   logical type, and a display value. In Arrow results, Variant columns are
+#'   structs with `type`, `display`, `metadata`, and `value` fields. SQL NULL
+#'   has four missing fields; Variant Null has type `VARIANT_NULL` and non-null
+#'   metadata/value bytes.
 #' @references
 #' [Delta Transaction Log Protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md)
 #'
@@ -569,10 +572,46 @@ fabric_onelake_read_delta_table <- function(
 #' @noRd
 fabric_delta_format_result <- function(value, result) {
   if (identical(result, "arrow_stream")) {
-    table <- arrow::Table$create(value)
+    value <- fabric_delta_arrow_compatible(value)
+    table <- do.call(arrow::Table$create, value)
     return(nanoarrow::as_nanoarrow_array_stream(table))
   }
   tibble::as_tibble(value)
+}
+
+#' Convert exact Delta Variant columns to homogeneous Arrow structs
+#' @keywords internal
+#' @noRd
+fabric_delta_arrow_compatible <- function(value) {
+  columns <- as.list(value)
+  for (name in names(value)) {
+    column <- value[[name]]
+    if (!inherits(column, "fabric_delta_variant_column")) {
+      next
+    }
+    fields <- list(
+      type = arrow::Array$create(vapply(
+        column,
+        function(cell) if (is.null(cell)) NA_character_ else cell$type,
+        character(1)
+      ), type = arrow::utf8()),
+      display = arrow::Array$create(vapply(
+        column,
+        function(cell) if (is.null(cell)) NA_character_ else cell$display,
+        character(1)
+      ), type = arrow::utf8()),
+      metadata = arrow::Array$create(lapply(
+        column,
+        function(cell) if (is.null(cell)) NULL else cell$metadata
+      ), type = arrow::binary()),
+      value = arrow::Array$create(lapply(
+        column,
+        function(cell) if (is.null(cell)) NULL else cell$value
+      ), type = arrow::binary())
+    )
+    columns[[name]] <- do.call(arrow::StructArray$create, fields)
+  }
+  columns
 }
 
 #' Read the recent checkpoint pointer without listing the full Delta log
@@ -1046,7 +1085,7 @@ fabric_delta_read_staged <- function(
     paste0(" LIMIT ", sprintf("%.0f", limit))
   }
   if (!length(snapshot$active)) {
-    return(DBI::dbGetQuery(
+    empty <- DBI::dbGetQuery(
       con,
       paste0(
         "SELECT ",
@@ -1054,6 +1093,10 @@ fabric_delta_read_staged <- function(
         " WHERE FALSE",
         limit_sql
       )
+    )
+    return(fabric_delta_mark_variant_columns(
+      empty,
+      schema$fields[selected_indexes]
     ))
   }
 
@@ -2926,10 +2969,30 @@ fabric_delta_restore_variants <- function(
         )
       }
     }
+    class(values) <- c("fabric_delta_variant_column", "list")
     result[[field$name]] <- values
   }
   result[[source_column]] <- NULL
   result[[row_column]] <- NULL
+  result
+}
+
+#' Mark empty or schema-evolved top-level Variant list columns
+#' @keywords internal
+#' @noRd
+fabric_delta_mark_variant_columns <- function(result, fields) {
+  for (field in fields) {
+    if (
+      is.character(field$type) &&
+        length(field$type) == 1L &&
+        identical(tolower(field$type), "variant")
+    ) {
+      result[[field$name]] <- structure(
+        as.list(result[[field$name]]),
+        class = c("fabric_delta_variant_column", "list")
+      )
+    }
+  }
   result
 }
 

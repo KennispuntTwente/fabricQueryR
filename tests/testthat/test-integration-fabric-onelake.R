@@ -1115,6 +1115,37 @@ test_that("Delta reader exposes Fabric Variant physical values", {
   )
   expect_type(result$data[[9L]]$metadata, "raw")
   expect_type(result$data[[9L]]$value, "raw")
+
+  stream <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$variant,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    result = "arrow_stream",
+    verbose = FALSE
+  )
+  arrow_result <- as.data.frame(
+    arrow::as_record_batch_reader(stream)$read_table()
+  )
+  arrow_result <- arrow_result[order(as.numeric(arrow_result$event_id)), ]
+  expect_s3_class(arrow_result$data, "data.frame")
+  expect_named(
+    arrow_result$data,
+    c("type", "display", "metadata", "value")
+  )
+  expect_true(all(vapply(
+    arrow_result$data[2L, ],
+    function(value) {
+      is.null(value[[1L]]) || isTRUE(is.na(value[[1L]]))
+    },
+    logical(1)
+  )))
+  expect_identical(arrow_result$data$type[[3L]], "VARIANT_NULL")
+  expect_identical(
+    arrow_result$data$display[[9L]],
+    "123456789012345678901234567890123456.78"
+  )
 })
 
 test_that("Delta reader reads the Fabric Warehouse export profile", {

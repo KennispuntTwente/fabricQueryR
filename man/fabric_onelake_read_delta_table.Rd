@@ -103,7 +103,10 @@ either format. Delta \code{long} columns use \code{bit64::integer64}; decimal co
 use exact character values. Delta Variant columns are list columns whose
 non-missing elements have class \code{fabric_delta_variant}; each element
 retains the exact Parquet Variant metadata and value bytes, its DuckDB
-logical type, and a display value.
+logical type, and a display value. In Arrow results, Variant columns are
+structs with \code{type}, \code{display}, \code{metadata}, and \code{value} fields. SQL NULL
+has four missing fields; Variant Null has type \code{VARIANT_NULL} and non-null
+metadata/value bytes.
 }
 \description{
 Downloads a Lakehouse or Warehouse-exported Delta table from OneLake. By

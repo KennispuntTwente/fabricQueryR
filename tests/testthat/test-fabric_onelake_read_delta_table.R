@@ -243,6 +243,41 @@ test_that("Delta Variant restoration distinguishes SQL and Variant null", {
   expect_identical(format(restored$payload[[2L]]), "null")
   expect_false("fabric_delta_source_path_internal" %in% names(restored))
   expect_false("fabric_delta_row_index_internal" %in% names(restored))
+
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  stream <- fabric_delta_format_result(restored, "arrow_stream")
+  expect_s3_class(stream, "nanoarrow_array_stream")
+  arrow_result <- as.data.frame(
+    arrow::as_record_batch_reader(stream)$read_table()
+  )
+  expect_s3_class(arrow_result$payload, "data.frame")
+  expect_named(
+    arrow_result$payload,
+    c("type", "display", "metadata", "value")
+  )
+  expect_true(all(vapply(
+    arrow_result$payload[1L, ],
+    function(value) {
+      is.null(value[[1L]]) || isTRUE(is.na(value[[1L]]))
+    },
+    logical(1)
+  )))
+  expect_identical(arrow_result$payload$type[[2L]], "VARIANT_NULL")
+  expect_identical(arrow_result$payload$value[[2L]], as.raw(0L))
+
+  empty_variant <- data.frame(id = integer())
+  empty_variant$payload <- structure(
+    list(),
+    class = c("fabric_delta_variant_column", "list")
+  )
+  empty_stream <- fabric_delta_format_result(empty_variant, "arrow_stream")
+  empty_result <- as.data.frame(
+    arrow::as_record_batch_reader(empty_stream)$read_table()
+  )
+  expect_equal(nrow(empty_result), 0L)
+  expect_s3_class(empty_result$payload, "data.frame")
+  expect_named(empty_result$payload, c("type", "display", "metadata", "value"))
 })
 
 test_that("Delta records validate workspace ownership", {
