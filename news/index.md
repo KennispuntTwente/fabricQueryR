@@ -101,7 +101,11 @@
   can now return an Arrow C stream with `result = "arrow_stream"`; the
   default remains a tibble. Its pure-R Delta implementation is
   independently checked against the Python delta-rs binding using
-  deterministic local fixtures and live Fabric integration tables.
+  deterministic local fixtures and live Fabric integration tables. The
+  parity suite verifies schemas and protocol metadata as well as rows,
+  and covers historical snapshots, rewrites, nested/exact boundary
+  values, column mapping, deletion-vector stress profiles, and Warehouse
+  exports.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset

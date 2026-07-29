@@ -234,11 +234,18 @@ documentation in July 2026:
 
 The test suite also compares this R implementation with the independent
 Python binding of delta-rs. Deterministic local fixtures cover time
-travel, projection, empty and evolving schemas, exact values, and nested
-data. The live Fabric suite compares both readers on partitioning,
-column mapping, deletion vectors, shallow clones, and other supported
-table profiles. delta-rs and Python are test dependencies only; users do
-not need them to install or run fabricQueryR.
+travel, projection, empty and evolving schemas, delete/update rewrites,
+encoded and null partitions, scalar boundaries, exact values, and nested
+null/empty data. The comparison checks logical R column types and
+delta-rs snapshot metadata as well as row values. The live Fabric suite
+compares both readers on typed partitioning, historical checkpoints,
+column mapping, sparse/stress/dense deletion vectors, shallow clones,
+and Lakehouse and Warehouse profiles. Profiles that delta-rs 1.6 cannot
+independently validate, such as type widening, V2 checkpoint sidecars,
+legacy `void`, and mixed shredded Variant, remain covered by dedicated
+protocol fixtures and live Fabric assertions. delta-rs and Python are
+test dependencies only; users do not need them to install or run
+fabricQueryR.
 
 The Fabric integration workflow provisions Runtime 2.0 tables on pushes
 to `main`/`master`, in-repository pull requests that touch the reader, a
