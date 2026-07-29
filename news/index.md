@@ -97,6 +97,12 @@
   Variant files. Unsafe retained staging and unsupported Delta features
   fail closed instead of risking incorrect results.
 
+- [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
+  can now return an Arrow C stream with `result = "arrow_stream"`; the
+  default remains a tibble. Its pure-R Delta implementation is
+  independently checked against the Python delta-rs binding using
+  deterministic local fixtures and live Fabric integration tables.
+
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset
   IDs, supports optional RLS impersonation, handles paginated name

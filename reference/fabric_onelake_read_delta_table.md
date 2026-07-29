@@ -1,10 +1,12 @@
 # Read a Delta table from Microsoft Fabric OneLake
 
-Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
-returns it as a tibble. Delta tables consist of Parquet data files plus
-a transaction log that says which files make up the current table. This
-function reads that log so deleted or superseded files are not
-accidentally included.
+Downloads a Lakehouse or Warehouse-exported Delta table from OneLake. By
+default it returns a tibble. It can instead return an Arrow-compatible
+stream for use with the `arrow` R package and other Arrow tools.
+
+Delta tables consist of Parquet data files plus a transaction log that
+says which files make up the current table. This function reads that log
+so deleted or superseded files are not accidentally included.
 
 ## Usage
 
@@ -24,7 +26,8 @@ fabric_onelake_read_delta_table(
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
-  limit = NULL
+  limit = NULL,
+  result = c("tibble", "arrow_stream")
 )
 ```
 
@@ -118,15 +121,23 @@ fabric_onelake_read_delta_table(
   returns every row. This limits DuckDB collection but not OneLake file
   downloads.
 
+- result:
+
+  Return format. `"tibble"` returns a tibble. `"arrow_stream"` returns a
+  `nanoarrow_array_stream` compatible with
+  [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
+  and other Arrow C stream consumers. The table is still staged and read
+  into local memory before the stream is created.
+
 ## Value
 
-A tibble containing the rows and logical schema of the selected Delta
-snapshot. An empty table returns a zero-row tibble. Delta `long` columns
-use
+With `result = "tibble"`, a tibble containing the selected Delta
+snapshot. With `result = "arrow_stream"`, a single-use
+`nanoarrow_array_stream`. Empty tables preserve their column schema in
+either format. Delta `long` columns use
 [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
 decimal columns use exact character values; other conversions follow
-DuckDB. Schema evolution is applied and partition values are included as
-columns.
+DuckDB.
 
 ## Details
 
@@ -232,5 +243,14 @@ df2 <- fabric_onelake_read_delta_table(
   columns        = c("PatientId", "Status"),
   limit          = 1000
 )
+
+# Return an Arrow-compatible stream instead of a tibble.
+stream <- fabric_onelake_read_delta_table(
+  table_path = "PatientInfo",
+  workspace_name = "PatientsWorkspace",
+  lakehouse_name = "Lakehouse.Lakehouse",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
 } # }
 ```
