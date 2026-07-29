@@ -43,39 +43,31 @@ so:
 ``` r
 
 library(fabricQueryR)
+library(purrr)
 
+# Always set your tenant ID:
 Sys.setenv(FABRICQUERYR_TENANT_ID = "your-tenant-id")
-# Optional (if your tenant does not permit the public Azure CLI client ID):
+
+# Optional, if your tenant does not permit the public Azure CLI client ID:
 # Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")
 
+# Find all workspaces and select one by name
 workspaces <- fabric_workspaces()
-workspace <- purrr::keep(
-  workspaces,
-  ~ .x$displayName == "ExampleWorkspace"
-)[[1]]
+workspace <- workspaces |>
+  keep(~ .x$displayName == "ExampleWorkspace") |>
+  first()
 
 # Find all items in the workspace
 items <- fabric_items(workspace)
-item_names <- purrr::map_chr(items, "displayName")
-lakehouse_items <- purrr::keep(items, ~ .x$type == "Lakehouse")
 
-# Find specific items by type, 
-# e.g. the first Lakehouse, Semantic Model, KQL Database, GraphQL API, and Notebook:
-lakehouse <- fabric_lakehouses(workspace)[[1]]
-semantic_model <- fabric_semantic_models(workspace)[[1]]
-kql_database <- fabric_kql_databases(workspace)[[1]]
-graphql_api <- fabric_graphql_apis(workspace)[[1]]
-notebook <- fabric_notebooks(workspace)[[1]]
+# Find the first item of each type
+lakehouse <- fabric_lakehouses(workspace) |> first()
+sql_database <- fabric_sql_databases(workspace) |> first()
+semantic_model <- fabric_semantic_models(workspace) |> first()
+kql_database <- fabric_kql_databases(workspace) |> first()
+graphql_api <- fabric_graphql_apis(workspace) |> first()
+notebook <- fabric_notebooks(workspace) |> first()
 ```
-
-Discovery functions return ordinary lists of named objects:
-`fabric_workspace` objects for workspaces and `fabric_item` objects for
-items. Fields are available directly, for example `workspace$id`,
-`lakehouse$properties`, and `lakehouse$sql_server`. Use
-[`purrr::map()`](https://purrr.tidyverse.org/reference/map.html) to
-transform a collection or
-[`purrr::keep()`](https://purrr.tidyverse.org/reference/keep.html) to
-select matching objects.
 
 In the next sections, you can see how to use these items to query data,
 run Spark code, and more.
