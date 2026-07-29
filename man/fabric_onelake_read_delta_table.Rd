@@ -100,7 +100,10 @@ With \code{result = "tibble"}, a tibble containing the selected Delta
 snapshot. With \code{result = "arrow_stream"}, a single-use
 \code{nanoarrow_array_stream}. Empty tables preserve their column schema in
 either format. Delta \code{long} columns use \code{bit64::integer64}; decimal columns
-use exact character values; other conversions follow DuckDB.
+use exact character values. Delta Variant columns are list columns whose
+non-missing elements have class \code{fabric_delta_variant}; each element
+retains the exact Parquet Variant metadata and value bytes, its DuckDB
+logical type, and a display value.
 }
 \description{
 Downloads a Lakehouse or Warehouse-exported Delta table from OneLake. By
@@ -137,12 +140,15 @@ snapshot. Schema additions are filled with typed missing values, removed
 physical columns are omitted, and partition values come from Delta add-file
 actions rather than being inferred from directory names. Legacy \code{void}
 fields are retained as logical all-missing columns. Timestamp partition
-values without an explicit offset are interpreted as UTC, matching the
-Fabric Runtime integration profile.
+values without an explicit offset require \code{timestamp_partition_timezone}
+because the Delta log does not record the writer timezone.
 \item Delta \code{long} values are returned as \code{bit64::integer64}. Delta decimals are
 returned as character vectors, including decimals nested in complex types,
-so all 38 digits remain exact. Variant columns use DuckDB's native decoding
-and are returned as nested R list/data-frame values.
+so all 38 digits remain exact. Top-level Variant columns are returned as
+exact \code{fabric_delta_variant} cells containing their type, display value, and
+Parquet metadata/value bytes. SQL NULL is returned as a missing list element
+and remains distinct from a Variant Null cell. Nested Variant fields fail
+closed because their independent Parquet validity cannot yet be retained.
 \item Schema-enabled lakehouses (the default for new lakehouses) organise
 tables into named schemas. If the Fabric Lakehouse explorer shows the table
 under a schema such as \code{dbo}, supply that name in \code{schema}.

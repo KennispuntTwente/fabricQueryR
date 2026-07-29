@@ -209,7 +209,7 @@ July 2026:
 | Inline, relative-file, and absolute-OneLake deletion vectors | Supported; file identity includes the DV unique ID | Golden Roaring vectors and live sparse/dense/checkpoint DV tables |
 | Absolute OneLake AddFile paths and Fabric shallow clones | Supported when scoped to OneLake | Unit path checks and a live shallow clone |
 | Typed partitions, `void`, type widening, and timestamp without time zone | Supported; exact decimals remain character | Unit matrices and live Fabric edge-value tables |
-| Variant, including mixed shredded and unshredded files | Supported through DuckDB's native Variant decoding | Mixed physical unit files and live pre/post-shredding writes |
+| Top-level Variant, including mixed shredded and unshredded files | Exact `fabric_delta_variant` cells retain type plus Parquet metadata/value bytes; SQL NULL remains distinct from Variant Null; nested Variant fields fail closed | Mixed physical unit files, Decimal128 boundaries, and live pre/post-shredding writes |
 | Non-Parquet formats/options, malformed commits/schemas, catalog-managed commits, and unknown reader features | Rejected before reading data | Negative unit tests |
 | Absolute paths outside OneLake | Rejected before reading data | Negative unit tests |
 

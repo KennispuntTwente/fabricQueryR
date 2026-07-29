@@ -1090,30 +1090,31 @@ test_that("Delta reader exposes Fabric Variant physical values", {
 
   result <- result[order(as.numeric(result$event_id)), ]
   expect_s3_class(result$event_id, "integer64")
-  expect_identical(as.character(result$event_id), as.character(1:8))
+  expect_identical(as.character(result$event_id), as.character(1:9))
   expect_type(result$data, "list")
-  expect_s3_class(result$data[[1L]], "data.frame")
-  expect_identical(result$data[[1L]]$action, "checkout")
-  expect_identical(result$data[[1L]]$items[[1L]], 1:3)
-  expect_identical(result$data[[1L]]$user_id, 4471L)
+  expect_s3_class(result$data[[1L]], "fabric_delta_variant")
+  expect_match(result$data[[1L]]$type, "^OBJECT")
+  expect_match(result$data[[1L]]$display, "checkout", fixed = TRUE)
   expect_null(result$data[[2L]])
-  expect_null(result$data[[3L]])
-  expect_s3_class(result$data[[4L]], "integer64")
-  expect_identical(as.character(result$data[[4L]]), "9007199254740993")
-  expect_s3_class(result$data[[5L]], "data.frame")
-  expect_identical(result$data[[5L]]$action, "refund")
+  expect_s3_class(result$data[[3L]], "fabric_delta_variant")
+  expect_identical(result$data[[3L]]$type, "VARIANT_NULL")
+  expect_identical(result$data[[3L]]$value, as.raw(0L))
+  expect_identical(result$data[[4L]]$type, "INT64")
+  expect_identical(result$data[[4L]]$display, "9007199254740993")
+  expect_match(result$data[[5L]]$display, "refund", fixed = TRUE)
+  expect_match(result$data[[5L]]$display, "9007199254740993", fixed = TRUE)
+  expect_match(result$data[[6L]]$type, "^ARRAY")
+  expect_identical(result$data[[7L]]$type, "VARCHAR")
+  expect_identical(result$data[[7L]]$display, "root string")
+  expect_match(result$data[[8L]]$display, "café-数据-🙂", fixed = TRUE)
+  expect_match(result$data[[8L]]$display, "1234567890.125", fixed = TRUE)
+  expect_identical(result$data[[9L]]$type, "DECIMAL(38, 2)")
   expect_identical(
-    as.character(result$data[[5L]]$user_id),
-    "9007199254740993"
+    result$data[[9L]]$display,
+    "123456789012345678901234567890123456.78"
   )
-  expect_identical(result$data[[6L]][[1L]], 1L)
-  expect_identical(result$data[[6L]][[2L]], "two")
-  expect_identical(result$data[[6L]][[3L]], TRUE)
-  expect_null(result$data[[6L]][[4L]])
-  expect_identical(result$data[[6L]][[5L]]$nested, 3L)
-  expect_identical(result$data[[7L]], "root string")
-  expect_identical(result$data[[8L]]$unicode, "café-数据-🙂")
-  expect_equal(result$data[[8L]]$decimal, 1234567890.125)
+  expect_type(result$data[[9L]]$metadata, "raw")
+  expect_type(result$data[[9L]]$value, "raw")
 })
 
 test_that("Delta reader reads the Fabric Warehouse export profile", {

@@ -212,6 +212,39 @@ test_that("Delta results can be returned as tibbles or Arrow streams", {
   }
 })
 
+test_that("Delta Variant restoration distinguishes SQL and Variant null", {
+  physical <- data.frame(row.names = 1:2)
+  physical$metadata <- I(list(as.raw(c(17L, 0L, 0L)), as.raw(c(17L, 0L, 0L))))
+  physical$value <- I(list(as.raw(0L), as.raw(0L)))
+  payload <- data.frame(
+    type = c("VARIANT_NULL", "VARIANT_NULL"),
+    display = c(NA_character_, NA_character_)
+  )
+  payload$physical <- physical
+  result <- data.frame(
+    fabric_delta_source_path_internal = rep("part.parquet", 2),
+    fabric_delta_row_index_internal = 0:1,
+    check.names = FALSE
+  )
+  result$payload <- payload
+
+  restored <- fabric_delta_restore_variants(
+    result,
+    fields = list(list(name = "payload")),
+    masks = list(payload = list("part.parquet" = c(TRUE, FALSE))),
+    source_column = "fabric_delta_source_path_internal",
+    row_column = "fabric_delta_row_index_internal"
+  )
+
+  expect_null(restored$payload[[1L]])
+  expect_s3_class(restored$payload[[2L]], "fabric_delta_variant")
+  expect_identical(restored$payload[[2L]]$type, "VARIANT_NULL")
+  expect_identical(restored$payload[[2L]]$value, as.raw(0L))
+  expect_identical(format(restored$payload[[2L]]), "null")
+  expect_false("fabric_delta_source_path_internal" %in% names(restored))
+  expect_false("fabric_delta_row_index_internal" %in% names(restored))
+})
+
 test_that("Delta records validate workspace ownership", {
   workspace <- data.frame(
     id = "11111111-1111-1111-1111-111111111111"
@@ -1355,6 +1388,8 @@ test_that("Delta reader exposes native and shredded Variant values", {
       "[1::VARIANT, 'two'::VARIANT, true::VARIANT, NULL::VARIANT]",
       "::VARIANT UNION ALL ",
       "SELECT 4::BIGINT, 9007199254740993::BIGINT::VARIANT",
+      " UNION ALL SELECT 6::BIGINT, ",
+      "123456789012345678901234567890123456.78::DECIMAL(38,2)::VARIANT",
       ") TO ",
       as.character(DBI::dbQuoteString(
         con,
@@ -1431,20 +1466,28 @@ test_that("Delta reader exposes native and shredded Variant values", {
   result <- result[order(as.numeric(result$event_id)), ]
 
   expect_type(result$payload, "list")
-  expect_s3_class(result$payload[[1L]], "data.frame")
-  expect_identical(result$payload[[1L]]$kind, "object")
+  expect_true(all(vapply(
+    result$payload,
+    inherits,
+    logical(1),
+    "fabric_delta_variant"
+  )))
+  expect_match(result$payload[[1L]]$type, "^OBJECT")
+  expect_match(result$payload[[1L]]$display, "9007199254740993", fixed = TRUE)
+  expect_identical(result$payload[[2L]]$type, "VARIANT_NULL")
+  expect_identical(result$payload[[2L]]$value, as.raw(0L))
+  expect_match(result$payload[[3L]]$type, "^ARRAY")
+  expect_identical(result$payload[[4L]]$type, "INT64")
+  expect_identical(result$payload[[4L]]$display, "9007199254740993")
+  expect_match(result$payload[[5L]]$type, "^OBJECT")
+  expect_match(result$payload[[5L]]$display, "shredded", fixed = TRUE)
+  expect_identical(result$payload[[6L]]$type, "DECIMAL(38, 2)")
   expect_identical(
-    as.character(result$payload[[1L]]$large),
-    "9007199254740993"
+    result$payload[[6L]]$display,
+    "123456789012345678901234567890123456.78"
   )
-  expect_null(result$payload[[2L]])
-  expect_identical(result$payload[[3L]][[1L]], 1L)
-  expect_identical(result$payload[[3L]][[2L]], "two")
-  expect_identical(result$payload[[3L]][[3L]], TRUE)
-  expect_null(result$payload[[3L]][[4L]])
-  expect_identical(as.character(result$payload[[4L]]), "9007199254740993")
-  expect_identical(result$payload[[5L]]$kind, "shredded")
-  expect_identical(as.character(result$payload[[5L]]$large), "7")
+  expect_type(result$payload[[6L]]$metadata, "raw")
+  expect_type(result$payload[[6L]]$value, "raw")
 })
 
 test_that("Delta partition serialization treats empty strings as null", {
@@ -2741,12 +2784,8 @@ test_that("Delta reader enforces schema feature dependencies", {
           metadata = list()
         ),
         list(
-          name = "payloads",
-          type = list(
-            type = "array",
-            elementType = "variant",
-            containsNull = TRUE
-          ),
+          name = "payload",
+          type = "variant",
           nullable = TRUE,
           metadata = list()
         ),
@@ -2785,6 +2824,24 @@ test_that("Delta reader enforces schema feature dependencies", {
     files = list()
   )
   expect_invisible(fabric_delta_validate_reader(state))
+
+  nested_variant <- state
+  nested_schema <- jsonlite::fromJSON(schema, simplifyVector = FALSE)
+  nested_schema$fields[[2L]]$type <- list(
+    type = "array",
+    elementType = "variant",
+    containsNull = TRUE
+  )
+  nested_variant$metadata$schemaString <- jsonlite::toJSON(
+    nested_schema,
+    auto_unbox = TRUE
+  )
+  expect_error(
+    fabric_delta_validate_reader(nested_variant),
+    "Variant fields nested inside another complex field",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
+  )
 
   without <- function(feature) {
     candidate <- state

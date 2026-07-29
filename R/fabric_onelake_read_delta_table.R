@@ -51,12 +51,15 @@
 #'  physical columns are omitted, and partition values come from Delta add-file
 #'  actions rather than being inferred from directory names. Legacy `void`
 #'  fields are retained as logical all-missing columns. Timestamp partition
-#'  values without an explicit offset are interpreted as UTC, matching the
-#'  Fabric Runtime integration profile.
+#'  values without an explicit offset require `timestamp_partition_timezone`
+#'  because the Delta log does not record the writer timezone.
 #' - Delta `long` values are returned as `bit64::integer64`. Delta decimals are
 #'  returned as character vectors, including decimals nested in complex types,
-#'  so all 38 digits remain exact. Variant columns use DuckDB's native decoding
-#'  and are returned as nested R list/data-frame values.
+#'  so all 38 digits remain exact. Top-level Variant columns are returned as
+#'  exact `fabric_delta_variant` cells containing their type, display value, and
+#'  Parquet metadata/value bytes. SQL NULL is returned as a missing list element
+#'  and remains distinct from a Variant Null cell. Nested Variant fields fail
+#'  closed because their independent Parquet validity cannot yet be retained.
 #' - Schema-enabled lakehouses (the default for new lakehouses) organise
 #'  tables into named schemas. If the Fabric Lakehouse explorer shows the table
 #'  under a schema such as `dbo`, supply that name in `schema`.
@@ -131,7 +134,10 @@
 #'   snapshot. With `result = "arrow_stream"`, a single-use
 #'   `nanoarrow_array_stream`. Empty tables preserve their column schema in
 #'   either format. Delta `long` columns use `bit64::integer64`; decimal columns
-#'   use exact character values; other conversions follow DuckDB.
+#'   use exact character values. Delta Variant columns are list columns whose
+#'   non-missing elements have class `fabric_delta_variant`; each element
+#'   retains the exact Parquet Variant metadata and value bytes, its DuckDB
+#'   logical type, and a display value.
 #' @references
 #' [Delta Transaction Log Protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md)
 #'
@@ -992,6 +998,15 @@ fabric_delta_read_staged <- function(
 ) {
   snapshot <- fabric_delta_resolve_snapshot(table_dir, version = version)
   schema <- fabric_delta_schema(snapshot$metadata)
+  requirements <- fabric_delta_schema_requirements(schema)
+  if (requirements$variant) {
+    rlang::check_installed(
+      "arrow",
+      reason = paste(
+        "to preserve SQL NULL separately from Delta Variant null values"
+      )
+    )
+  }
   fabric_delta_validate_type_widening(
     schema,
     unlist(
@@ -1096,11 +1111,11 @@ fabric_delta_read_staged <- function(
     )
   }
   source_column <- "fabric_delta_source_path_internal"
-  while (source_column %in% physical) {
+  while (source_column %in% c(physical, projection$names)) {
     source_column <- paste0(source_column, "_")
   }
   row_column <- "fabric_delta_row_index_internal"
-  while (row_column %in% c(physical, source_column)) {
+  while (row_column %in% c(physical, projection$names, source_column)) {
     row_column <- paste0(row_column, "_")
   }
   quoted_source <- as.character(DBI::dbQuoteIdentifier(con, source_column))
@@ -1172,17 +1187,48 @@ fabric_delta_read_staged <- function(
     physical,
     source_column
   )[selected_indexes]
-  DBI::dbGetQuery(
+  variant_fields <- Filter(
+    function(field) {
+      is.character(field$type) &&
+        length(field$type) == 1L &&
+        identical(tolower(field$type), "variant")
+    },
+    schema$fields[selected_indexes]
+  )
+  variant_masks <- if (length(variant_fields)) {
+    fabric_delta_variant_null_masks(paths, variant_fields, schema)
+  } else {
+    NULL
+  }
+  internal <- if (length(variant_fields)) {
+    c(
+      paste0("delta_source.", quoted_source, " AS ", quoted_source),
+      paste0("delta_source.", quoted_row, " AS ", quoted_row)
+    )
+  } else {
+    character()
+  }
+  result <- DBI::dbGetQuery(
     con,
     paste0(
       "SELECT ",
-      paste(selected, collapse = ", "),
+      paste(c(selected, internal), collapse = ", "),
       " FROM ",
       source,
       " WHERE delta_deletions.fabric_delta_row_index IS NULL",
       limit_sql
     )
   )
+  if (length(variant_fields)) {
+    result <- fabric_delta_restore_variants(
+      result,
+      variant_fields,
+      variant_masks,
+      source_column,
+      row_column
+    )
+  }
+  result
 }
 
 #' Parse and validate the current logical Delta schema
@@ -2795,6 +2841,132 @@ fabric_delta_normalize_timestamp_partitions <- function(
   mapping
 }
 
+#' Read outer Parquet validity for top-level Delta Variant columns
+#' @keywords internal
+#' @noRd
+fabric_delta_variant_null_masks <- function(paths, fields, schema) {
+  masks <- stats::setNames(vector("list", length(fields)), vapply(
+    fields,
+    `[[`,
+    character(1),
+    "name"
+  ))
+  for (path in paths) {
+    data <- arrow::read_parquet(path, as_data_frame = TRUE)
+    for (field in fields) {
+      physical_name <- fabric_delta_field_physical_name(
+        field,
+        schema$columnMappingMode
+      )
+      sql_null <- if (!physical_name %in% names(data)) {
+        rep(TRUE, nrow(data))
+      } else {
+        value <- data[[physical_name]]
+        if (!is.data.frame(value) || !"metadata" %in% names(value)) {
+          rlang::abort(paste0(
+            "Arrow did not expose the physical Parquet Variant structure for ",
+            field$name
+          ))
+        }
+        vapply(
+          value$metadata,
+          function(metadata) is.null(metadata) || !length(metadata),
+          logical(1)
+        )
+      }
+      masks[[field$name]][[path]] <- sql_null
+    }
+  }
+  masks
+}
+
+#' Restore exact Delta Variant cells after DuckDB row selection
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_variants <- function(
+  result,
+  fields,
+  masks,
+  source_column,
+  row_column
+) {
+  sources <- result[[source_column]]
+  rows <- as.numeric(result[[row_column]]) + 1
+  for (field in fields) {
+    column <- result[[field$name]]
+    if (
+      !is.data.frame(column) ||
+        !all(c("type", "display", "physical") %in% names(column)) ||
+        !is.data.frame(column$physical) ||
+        !all(c("metadata", "value") %in% names(column$physical))
+    ) {
+      rlang::abort(paste0(
+        "DuckDB did not return an exact Parquet Variant representation for ",
+        field$name
+      ))
+    }
+    values <- vector("list", nrow(result))
+    for (index in seq_len(nrow(result))) {
+      source_mask <- masks[[field$name]][[sources[[index]]]]
+      if (
+        is.null(source_mask) ||
+          rows[[index]] < 1 ||
+          rows[[index]] > length(source_mask)
+      ) {
+        rlang::abort("Could not reconcile a Delta Variant value with its file row")
+      }
+      if (isTRUE(source_mask[[rows[[index]]]])) {
+        values[index] <- list(NULL)
+      } else {
+        values[[index]] <- fabric_delta_variant(
+          type = column$type[[index]],
+          display = column$display[[index]],
+          metadata = column$physical$metadata[[index]],
+          value = column$physical$value[[index]]
+        )
+      }
+    }
+    result[[field$name]] <- values
+  }
+  result[[source_column]] <- NULL
+  result[[row_column]] <- NULL
+  result
+}
+
+#' Construct one exact Delta Variant value
+#' @keywords internal
+#' @noRd
+fabric_delta_variant <- function(type, display, metadata, value) {
+  structure(
+    list(
+      type = as.character(type),
+      display = as.character(display),
+      metadata = metadata,
+      value = value
+    ),
+    class = "fabric_delta_variant"
+  )
+}
+
+#' Format an exact Delta Variant value
+#' @param x A `fabric_delta_variant` object.
+#' @param ... Unused.
+#' @return A readable character representation.
+#' @export
+format.fabric_delta_variant <- function(x, ...) {
+  if (length(x$display) != 1L || is.na(x$display)) {
+    "null"
+  } else {
+    x$display
+  }
+}
+
+#' @export
+print.fabric_delta_variant <- function(x, ...) {
+  cat("<fabric_delta_variant:", x$type, ">", format(x), "\n")
+  invisible(x)
+}
+
 #' Project physical Parquet data through the current Delta schema
 #' @keywords internal
 #' @noRd
@@ -2861,6 +3033,23 @@ fabric_delta_read_projection <- function(
         } else {
           expression <- "NULL"
         }
+      }
+      if (
+        is.character(field$type) &&
+          length(field$type) == 1L &&
+          identical(tolower(field$type), "variant")
+      ) {
+        return(paste0(
+          "struct_pack(",
+          "type := variant_typeof(",
+          expression,
+          "), display := CAST(",
+          expression,
+          " AS VARCHAR), physical := variant_to_parquet_variant(",
+          expression,
+          ")) AS ",
+          alias
+        ))
       }
       paste0("CAST(", expression, " AS ", type, ") AS ", alias)
     },
@@ -3827,6 +4016,11 @@ fabric_delta_validate_reader <- function(state) {
       "Delta variant schema without matching variantType support"
     )
   }
+  if (requirements$variant && fabric_delta_has_nested_variant(schema)) {
+    fabric_delta_abort_unsupported(
+      "Delta Variant fields nested inside another complex field"
+    )
+  }
   if (
     requirements$type_widening &&
       !any(c("typeWidening", "typeWidening-preview") %in% features)
@@ -3936,6 +4130,40 @@ fabric_delta_schema_requirements <- function(schema) {
   }
   lapply(schema$fields %||% list(), visit_field)
   requirements
+}
+
+#' Detect Variant fields that cannot retain their Parquet validity independently
+#' @keywords internal
+#' @noRd
+fabric_delta_has_nested_variant <- function(schema) {
+  visit <- function(type, nested) {
+    if (is.character(type) && length(type) == 1L) {
+      return(nested && identical(tolower(type), "variant"))
+    }
+    if (!is.list(type)) {
+      return(FALSE)
+    }
+    kind <- tolower(as.character(type$type %||% ""))
+    if (identical(kind, "struct")) {
+      return(any(vapply(
+        type$fields %||% list(),
+        function(field) visit(field$type, TRUE),
+        logical(1)
+      )))
+    }
+    if (identical(kind, "array")) {
+      return(visit(type$elementType, TRUE))
+    }
+    if (identical(kind, "map")) {
+      return(visit(type$keyType, TRUE) || visit(type$valueType, TRUE))
+    }
+    FALSE
+  }
+  any(vapply(
+    schema$fields %||% list(),
+    function(field) visit(field$type, FALSE),
+    logical(1)
+  ))
 }
 
 fabric_delta_abort_unsupported <- function(feature) {

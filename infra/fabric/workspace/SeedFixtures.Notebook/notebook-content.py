@@ -787,6 +787,9 @@ try:
           PARSE_JSON(
             '{"unicode":"café-数据-🙂","decimal":1234567890.125}'
           )
+        UNION ALL
+        SELECT 9,
+          PARSE_JSON('123456789012345678901234567890123456.78')
         """
     )
 except Exception:
