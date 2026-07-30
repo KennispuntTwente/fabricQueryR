@@ -4277,7 +4277,7 @@ fabric_delta_protocol_features <- function(value, name) {
   if (
     !is.character(features) ||
       anyNA(features) ||
-      any(!nzchar(features)) ||
+      !all(nzchar(features)) ||
       anyDuplicated(features)
   ) {
     fabric_delta_abort_unsupported(paste0(
