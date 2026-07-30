@@ -55,14 +55,22 @@ V1 Parquet checkpoints, and V2 Parquet/JSON checkpoints; supports historical
 reads through `version`; preserves logical schemas and typed partition
 values; and supports current Fabric reader 3 tables with name- or ID-based
 column mapping, deletion vectors, `timestampNtz`, type widening,
-shallow-clone paths, and native Variant values. BIGINT and DECIMAL values
+shallow-clone paths, and top-level native Variant values. This is an explicit
+feature set rather than a blanket claim for every experimental feature writable
+by Delta Lake 4.2; unknown reader features fail closed. BIGINT and DECIMAL values
 now remain exact across the R boundary, while legacy `void` fields are
 reconstructed as logical missing values. Checkpoint candidates and deletion
 vectors are reconciled by their protocol identities. Recursive schemas,
 metadata formats, and mutually reconciling commit actions are validated
-before reading. The Fabric Runtime 2.0 integration matrix now covers nested
-column mapping, dense/checkpoint deletion vectors, nested type widening,
-typed and null partitions, and mixed shredded/unshredded Variant files.
+before reading. Binary partition values retain NUL and high-bit bytes;
+metadata-only nested mapped fields are filled with null; struct parent validity
+is retained recursively; `timestamp_ntz` uses an exact wall-clock class; and
+physical user `file_row_number` columns can coexist with DV/Variant row
+tracking. The Fabric Runtime 2.0 integration matrix now asserts Spark 4.1 and
+Delta Lake 4.2 and covers nested column mapping, struct validity, binary
+partition boundaries, dense/checkpoint/collision deletion vectors, nested type
+widening, typed and null partitions, mixed shredded/unshredded Variant files,
+and update/delete/insert Warehouse exports.
 If the newest staged checkpoint is corrupt, incomplete, or has an unavailable
 V2 sidecar, the reader now progressively stages older checkpoints and their
 JSON tails instead of failing while a reconstructible snapshot still exists.
@@ -73,9 +81,10 @@ of risking incorrect results.
 `result = "arrow_stream"`; the default remains a tibble. Its pure-R Delta
 implementation is independently checked against the Python delta-rs binding
 using deterministic local fixtures and live Fabric integration tables. The
-parity suite verifies schemas and protocol metadata as well as rows, and
-covers historical snapshots, rewrites, nested/exact boundary values, and
-typed partitions. Live parity uses explicitly DV-disabled compatibility
+parity suite verifies selected Delta schemas, recursive struct validity,
+protocol metadata, and rows, and covers historical snapshots, rewrites,
+nested/exact boundary values, and typed partitions. Live parity uses explicitly
+DV-disabled compatibility
 tables because Fabric Runtime 2.0 enables deletion vectors by default while
 delta-rs 1.6 rejects that reader feature. Runtime-default deletion vectors,
 column mapping, type widening, V2 checkpoints, Variant, clones, and Warehouse
