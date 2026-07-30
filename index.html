@@ -192,7 +192,7 @@
 <span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></code></pre></div>
-<p>The account needs access through the workspace or <strong>Lakehouse &gt; Manage OneLake data access</strong>. This function downloads the active table files locally, so a filtered SQL query can be more efficient for very large tables. The Arrow result changes the returned object, but does not avoid the local download or in-memory read.</p>
+<p>The account needs access through the workspace or <strong>Lakehouse &gt; Manage OneLake data access</strong>. This function downloads the active table files locally, so a filtered SQL query can be more efficient for very large tables. The Arrow result changes the returned object, but does not avoid the local download or in-memory read. Supported Delta features include name- and ID-based column mapping, deletion vectors, V2 checkpoints, <code>timestampNtz</code>, type widening, shallow clones, and top-level Variant values. Support is feature-specific; unknown reader features fail closed. Recursive struct nullness is preserved in tibbles and Arrow streams, including structs inside arrays and map keys or values.</p>
 </div>
 <div class="section level3">
 <h3 id="id_5-work-with-onelake-files">5. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_5-work-with-onelake-files"></a>

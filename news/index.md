@@ -103,12 +103,15 @@
   validity, binary partition boundaries, dense/checkpoint/collision
   deletion vectors, nested type widening, typed and null partitions,
   mixed shredded/unshredded Variant files, and update/delete/insert
-  Warehouse exports. If the newest staged checkpoint is corrupt,
-  incomplete, or has an unavailable V2 sidecar, the reader now
-  progressively stages older checkpoints and their JSON tails instead of
-  failing while a reconstructible snapshot still exists. Unsafe retained
-  staging and unsupported Delta features fail closed instead of risking
-  incorrect results.
+  Warehouse exports. Combination profiles cover ID mapping with
+  partitions and deletion vectors, Variant with ID mapping and deletion
+  vectors, map-key widening, recursive map-key validity, and Arrow
+  streams over mapped/deletion-vector data. If the newest staged
+  checkpoint is corrupt, incomplete, or has an unavailable V2 sidecar,
+  the reader now progressively stages older checkpoints and their JSON
+  tails instead of failing while a reconstructible snapshot still
+  exists. Unsafe retained staging and unsupported Delta features fail
+  closed instead of risking incorrect results.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   can now return an Arrow C stream with `result = "arrow_stream"`; the
@@ -120,9 +123,11 @@
   snapshots, rewrites, nested/exact boundary values, and typed
   partitions. Live parity uses explicitly DV-disabled compatibility
   tables because Fabric Runtime 2.0 enables deletion vectors by default
-  while delta-rs 1.6 rejects that reader feature. Runtime-default
-  deletion vectors, column mapping, type widening, V2 checkpoints,
-  Variant, clones, and Warehouse exports retain dedicated exact-result
+  while delta-rs 1.6 rejects that reader feature. Fabric Spark now
+  materializes feature-neutral mirrors of the advanced profiles, which
+  delta-rs reads as an independent result oracle for deletion vectors,
+  column mapping, type widening, V2 checkpoints, Variant, and clones.
+  Warehouse exports retain dedicated publication and exact-result
   integration assertions.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
