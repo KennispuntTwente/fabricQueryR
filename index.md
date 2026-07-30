@@ -192,12 +192,7 @@ The account needs access through the workspace or **Lakehouse \> Manage
 OneLake data access**. This function downloads the active table files
 locally, so a filtered SQL query can be more efficient for very large
 tables. The Arrow result changes the returned object, but does not avoid
-the local download or in-memory read. Supported Delta features include
-name- and ID-based column mapping, deletion vectors, V2 checkpoints,
-`timestampNtz`, type widening, shallow clones, and top-level Variant
-values. Support is feature-specific; unknown reader features fail
-closed. Recursive struct nullness is preserved in tibbles and Arrow
-streams, including structs inside arrays and map keys or values.
+the local download or in-memory read.
 
 ### 5. Work with OneLake files
 
