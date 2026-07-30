@@ -827,7 +827,8 @@ test_that("Delta JSON logs resolve latest and versioned snapshots", {
     c(
       paste0(
         '{"protocol":{"minReaderVersion":3,"minWriterVersion":7,',
-        '"readerFeatures":["deletionVectors"]}}'
+        '"readerFeatures":["deletionVectors"],',
+        '"writerFeatures":["deletionVectors"]}}'
       ),
       paste0(
         '{"metaData":{"id":"table",',
@@ -1858,6 +1859,23 @@ test_that("Delta commits reject mutually reconciling actions", {
     ),
     path
   ))
+  for (action_name in c("add", "remove")) {
+    actions <- lapply(c("first", "second"), function(dv) {
+      action <- list(
+        path = "part.parquet",
+        deletionVector = list(
+          storageType = "i",
+          pathOrInlineDv = dv
+        )
+      )
+      stats::setNames(list(action), action_name)
+    })
+    expect_error(
+      fabric_delta_validate_commit_actions(actions, path),
+      paste0("multiple ", action_name, " actions for one file path"),
+      fixed = TRUE
+    )
+  }
   expect_error(
     fabric_delta_validate_checkpoint_actions(list(protocol, protocol)),
     "multiple protocol actions",
@@ -2153,7 +2171,7 @@ test_that("Delta checkpoints allow earlier JSON commits to be absent", {
         remove = list(path = "category=A/from-checkpoint.parquet"),
         protocol = list(
           minReaderVersion = 1L,
-          readerFeatures = list(NULL)
+          minWriterVersion = 2L
         ),
         metaData = list(
           id = "table-id",
@@ -2422,7 +2440,25 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
   expect_equal(snapshot$checkpoint_version, 10)
   expect_equal(snapshot$active, "part.parquet")
   expect_identical(snapshot$metadata$format$provider, "parquet")
+  expect_identical(
+    unlist(snapshot$protocol$writerFeatures, use.names = FALSE),
+    "v2Checkpoint"
+  )
 
+  actions[[2L]]$protocol$readerFeatures <- list()
+  actions[[2L]]$protocol$writerFeatures <- list()
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    checkpoint,
+    useBytes = TRUE
+  )
+  expect_error(
+    fabric_delta_resolve_snapshot(table_dir),
+    "requires the v2Checkpoint reader feature",
+    fixed = TRUE
+  )
+  actions[[2L]]$protocol$readerFeatures <- list("v2Checkpoint")
+  actions[[2L]]$protocol$writerFeatures <- list("v2Checkpoint")
   actions[[1L]]$checkpointMetadata$version <- 9L
   writeLines(
     vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
@@ -2705,6 +2741,15 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
         "vacuumProtocolCheck",
         "variantType",
         "variantShredding"
+      ),
+      writerFeatures = list(
+        "columnMapping",
+        "deletionVectors",
+        "timestampNtz",
+        "typeWidening",
+        "vacuumProtocolCheck",
+        "variantType",
+        "variantShredding"
       )
     ),
     metadata = list(
@@ -2733,10 +2778,12 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
     ),
     "variantShredding-preview"
   ))
+  preview_variant$protocol$writerFeatures <- preview_variant$protocol$readerFeatures
   expect_invisible(fabric_delta_validate_reader(preview_variant))
 
   invalid_variant <- state
   invalid_variant$protocol$readerFeatures <- list("variantShredding")
+  invalid_variant$protocol$writerFeatures <- list("variantShredding")
   expect_error(
     fabric_delta_validate_reader(invalid_variant),
     "without its required variantType",
@@ -2747,6 +2794,9 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
   invalid_preview_variant$protocol$readerFeatures <- list(
     "variantShredding-preview"
   )
+  invalid_preview_variant$protocol$writerFeatures <- list(
+    "variantShredding-preview"
+  )
   expect_error(
     fabric_delta_validate_reader(invalid_preview_variant),
     "without its required variantType",
@@ -2754,7 +2804,7 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
     class = "fabric_delta_unsupported_error"
   )
 
-  state$protocol <- list(minReaderVersion = 1L)
+  state$protocol <- list(minReaderVersion = 1L, minWriterVersion = 1L)
   expect_error(
     fabric_delta_validate_reader(state),
     "column mapping without matching protocol support",
@@ -2774,7 +2824,8 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
   state$protocol <- list(
     minReaderVersion = 3L,
     minWriterVersion = 7L,
-    readerFeatures = list("variant")
+    readerFeatures = list("variant"),
+    writerFeatures = list("variant")
   )
   expect_error(
     fabric_delta_validate_reader(state),
@@ -2783,6 +2834,7 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
     class = "fabric_delta_unsupported_error"
   )
   state$protocol$readerFeatures <- list("deletionVectors")
+  state$protocol$writerFeatures <- list("deletionVectors")
   state$has_deletion_vectors <- TRUE
   state$files[["part.parquet"]]$deletionVector <- list(
     storageType = "p",
@@ -2797,13 +2849,96 @@ test_that("Delta reader accepts supported features and rejects unsafe ones", {
 
   state$protocol <- list(
     minReaderVersion = 3L,
-    minWriterVersion = 7L
+    minWriterVersion = 7L,
+    writerFeatures = list()
   )
   expect_error(
     fabric_delta_validate_reader(state),
     "without readerFeatures",
     fixed = TRUE,
     class = "fabric_delta_unsupported_error"
+  )
+})
+
+test_that("Delta reader validates protocol field shape and feature invariants", {
+  state <- list(
+    protocol = list(minReaderVersion = 1L, minWriterVersion = 2L),
+    metadata = list(
+      format = list(provider = "parquet", options = list()),
+      schemaString = '{"type":"struct","fields":[]}',
+      partitionColumns = list(),
+      configuration = list()
+    ),
+    active = character(),
+    files = list()
+  )
+  expect_invisible(fabric_delta_validate_reader(state))
+
+  invalid <- state
+  invalid$protocol$minWriterVersion <- NULL
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "minWriterVersion must be one whole number",
+    fixed = TRUE
+  )
+  invalid <- state
+  invalid$protocol$minReaderVersion <- 1.5
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "minReaderVersion must be one whole number",
+    fixed = TRUE
+  )
+  invalid <- state
+  invalid$protocol$readerFeatures <- list()
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "reader protocol version 1 with a readerFeatures field",
+    fixed = TRUE
+  )
+  invalid <- state
+  invalid$protocol$writerFeatures <- list()
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "writer protocol version 2 with a writerFeatures field",
+    fixed = TRUE
+  )
+
+  feature_state <- state
+  feature_state$protocol <- list(
+    minReaderVersion = 3L,
+    minWriterVersion = 7L,
+    readerFeatures = list("timestampNtz"),
+    writerFeatures = list("timestampNtz")
+  )
+  expect_invisible(fabric_delta_validate_reader(feature_state))
+
+  invalid <- feature_state
+  invalid$protocol$writerFeatures <- NULL
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "writer protocol version 7 without writerFeatures",
+    fixed = TRUE
+  )
+  invalid <- feature_state
+  invalid$protocol$writerFeatures <- list()
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "reader feature(s) absent from writerFeatures: timestampNtz",
+    fixed = TRUE
+  )
+  invalid <- feature_state
+  invalid$protocol$readerFeatures <- list("timestampNtz", "timestampNtz")
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "readerFeatures must contain unique non-empty strings",
+    fixed = TRUE
+  )
+  invalid <- feature_state
+  invalid$protocol$writerFeatures <- list("timestampNtz", 1L)
+  expect_error(
+    fabric_delta_validate_reader(invalid),
+    "writerFeatures must contain unique non-empty strings",
+    fixed = TRUE
   )
 })
 
@@ -2844,6 +2979,11 @@ test_that("Delta reader enforces schema feature dependencies", {
       minReaderVersion = 3L,
       minWriterVersion = 7L,
       readerFeatures = list(
+        "timestampNtz",
+        "variantType",
+        "typeWidening"
+      ),
+      writerFeatures = list(
         "timestampNtz",
         "variantType",
         "typeWidening"

@@ -3202,6 +3202,15 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
             )) ||
             isTRUE(candidate$v2_named)
           if (is_v2) {
+            checkpoint_features <- unlist(
+              candidate_state$protocol$readerFeatures %||% list(),
+              use.names = FALSE
+            )
+            if (!"v2Checkpoint" %in% checkpoint_features) {
+              rlang::abort(
+                "Delta V2 checkpoint requires the v2Checkpoint reader feature"
+              )
+            }
             metadata_versions <- if (length(checkpoint_actions)) {
               unlist(
                 lapply(checkpoint_actions, function(action) {
@@ -3728,11 +3737,21 @@ fabric_delta_apply_checkpoint <- function(state, checkpoint) {
       rlang::abort("Delta checkpoint contains multiple protocol actions")
     }
     i <- utils::tail(protocol_rows, 1L)
+    protocol_row_count <- length(checkpoint$protocol$minReaderVersion)
     state$protocol <- list(
       minReaderVersion = checkpoint$protocol$minReaderVersion[[i]],
       minWriterVersion = (checkpoint$protocol$minWriterVersion %||%
         rep(NA_integer_, i))[[i]],
-      readerFeatures = checkpoint$protocol$readerFeatures[[i]]
+      readerFeatures = fabric_delta_checkpoint_value(
+        checkpoint$protocol$readerFeatures %||% NULL,
+        i,
+        protocol_row_count
+      ),
+      writerFeatures = fabric_delta_checkpoint_value(
+        checkpoint$protocol$writerFeatures %||% NULL,
+        i,
+        protocol_row_count
+      )
     )
   }
   metadata_rows <- which(!is.na(checkpoint$metaData$id %||% character()))
@@ -3954,6 +3973,20 @@ fabric_delta_validate_commit_actions <- function(actions, path) {
       "Delta commit {.path {label}} contains conflicting file actions"
     ))
   }
+  for (action_name in c("add", "remove")) {
+    paths <- unlist(lapply(actions, function(action) {
+      action[[action_name]]$path %||% NULL
+    }), use.names = FALSE)
+    if (anyDuplicated(paths)) {
+      rlang::abort(cli::format_inline(
+        paste0(
+          "Delta commit {.path {label}} contains multiple ",
+          action_name,
+          " actions for one file path"
+        )
+      ))
+    }
+  }
   invisible(actions)
 }
 
@@ -3980,20 +4013,102 @@ fabric_delta_apply_actions <- function(state, actions) {
   state
 }
 
+#' Validate one Delta protocol version field
+#' @keywords internal
+#' @noRd
+fabric_delta_protocol_version <- function(value, name, supported) {
+  if (
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !is.finite(value) ||
+      value != floor(value)
+  ) {
+    fabric_delta_abort_unsupported(paste0(
+      "Delta protocol ",
+      name,
+      " must be one whole number"
+    ))
+  }
+  value <- as.integer(value)
+  if (!value %in% supported) {
+    fabric_delta_abort_unsupported(paste0(
+      "Delta protocol ",
+      name,
+      " ",
+      value
+    ))
+  }
+  value
+}
+
+#' Validate one Delta table-feature array
+#' @keywords internal
+#' @noRd
+fabric_delta_protocol_features <- function(value, name) {
+  if (is.null(value)) {
+    return(character())
+  }
+  is_character_tree <- function(item) {
+    if (is.character(item)) {
+      return(TRUE)
+    }
+    is.list(item) && all(vapply(item, is_character_tree, logical(1)))
+  }
+  if (!is_character_tree(value)) {
+    fabric_delta_abort_unsupported(paste0(
+      "Delta protocol ",
+      name,
+      " must contain unique non-empty strings"
+    ))
+  }
+  features <- unlist(value, use.names = FALSE)
+  if (!length(features)) {
+    return(character())
+  }
+  if (
+    !is.character(features) ||
+      anyNA(features) ||
+      any(!nzchar(features)) ||
+      anyDuplicated(features)
+  ) {
+    fabric_delta_abort_unsupported(paste0(
+      "Delta protocol ",
+      name,
+      " must contain unique non-empty strings"
+    ))
+  }
+  features
+}
+
 #' Reject Delta reader features not implemented by the staged reader
 #' @keywords internal
 #' @noRd
 fabric_delta_validate_reader <- function(state) {
-  if (is.null(state$protocol$minReaderVersion)) {
+  protocol <- state$protocol %||% list()
+  if (is.null(protocol$minReaderVersion)) {
     rlang::abort("Delta snapshot does not contain a reader protocol action")
   }
-  reader_version <- as.numeric(state$protocol$minReaderVersion)
-  writer_version <- as.numeric(state$protocol$minWriterVersion %||% NA_real_)
-  features <- unlist(
-    state$protocol$readerFeatures %||% list(),
-    use.names = FALSE
+  reader_version <- fabric_delta_protocol_version(
+    protocol$minReaderVersion,
+    "minReaderVersion",
+    1:3
   )
-  features <- as.character(features[!is.na(features) & nzchar(features)])
+  writer_version <- fabric_delta_protocol_version(
+    protocol$minWriterVersion,
+    "minWriterVersion",
+    1:7
+  )
+  reader_features_present <- !is.null(protocol$readerFeatures)
+  writer_features_present <- !is.null(protocol$writerFeatures)
+  features <- fabric_delta_protocol_features(
+    protocol$readerFeatures,
+    "readerFeatures"
+  )
+  writer_features <- fabric_delta_protocol_features(
+    protocol$writerFeatures,
+    "writerFeatures"
+  )
   unsupported <- setdiff(
     features,
     .fabric_delta_supported_reader_features
@@ -4015,18 +4130,12 @@ fabric_delta_validate_reader <- function(state) {
       )
     )
   }
-  if (reader_version < 1 || reader_version > 3) {
-    fabric_delta_abort_unsupported(
-      paste0("Delta reader protocol version ", reader_version)
-    )
-  }
-  if (reader_version < 3 && length(features)) {
+  if (reader_version < 3 && reader_features_present) {
     fabric_delta_abort_unsupported(
       paste0(
         "Delta reader protocol version ",
         reader_version,
-        " with reader features: ",
-        paste(features, collapse = ", ")
+        " with a readerFeatures field"
       )
     )
   }
@@ -4043,7 +4152,7 @@ fabric_delta_validate_reader <- function(state) {
   }
   if (
     reader_version == 3 &&
-      is.null(state$protocol$readerFeatures)
+      !reader_features_present
   ) {
     fabric_delta_abort_unsupported(
       "Delta reader protocol version 3 without readerFeatures"
@@ -4078,6 +4187,27 @@ fabric_delta_validate_reader <- function(state) {
     fabric_delta_abort_unsupported(
       "Delta variant schema without matching variantType support"
     )
+  }
+  if (writer_version < 7 && writer_features_present) {
+    fabric_delta_abort_unsupported(
+      paste0(
+        "Delta writer protocol version ",
+        writer_version,
+        " with a writerFeatures field"
+      )
+    )
+  }
+  if (writer_version == 7 && !writer_features_present) {
+    fabric_delta_abort_unsupported(
+      "Delta writer protocol version 7 without writerFeatures"
+    )
+  }
+  missing_writer_features <- setdiff(features, writer_features)
+  if (length(missing_writer_features)) {
+    fabric_delta_abort_unsupported(paste0(
+      "Delta reader feature(s) absent from writerFeatures: ",
+      paste(missing_writer_features, collapse = ", ")
+    ))
   }
   if (requirements$variant && fabric_delta_has_nested_variant(schema)) {
     fabric_delta_abort_unsupported(
