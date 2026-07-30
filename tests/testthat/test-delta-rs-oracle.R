@@ -115,29 +115,24 @@ test_that("delta-rs oracle URIs cover Lakehouse and Warehouse items", {
   )
 })
 
-test_that("every supported Delta reader feature has an oracle strategy", {
+test_that("every row-affecting reader feature has an independent oracle", {
   delta_rs_parity <- "timestampNtz"
-  direct_r_coverage <- c(
-    columnMapping = paste(
-      "Fabric documents column mapping as unsupported by its pinned",
-      "delta-rs reader; recursive name/ID mapping has direct unit and live",
-      "rename/drop assertions"
-    ),
-    deletionVectors = "delta-rs 1.6 rejects deletion-vector table features",
-    typeWidening = "delta-rs 1.6 has no type-widening scan support",
-    `typeWidening-preview` = "covered with the stable widening implementation",
-    vacuumProtocolCheck = "has no row-scan semantics to compare",
-    v2Checkpoint = "delta-rs 1.6 has no UUID sidecar-checkpoint support",
-    variantType = "only preliminary unshredded Variant support is available",
-    variantShredding = "mixed shredded files are not a supported oracle profile",
-    `variantShredding-preview` = "the Fabric preview alias uses the same direct Variant coverage"
+  spark_materialized_parity <- c(
+    "columnMapping",
+    "deletionVectors",
+    "typeWidening",
+    "typeWidening-preview",
+    "v2Checkpoint",
+    "variantType",
+    "variantShredding",
+    "variantShredding-preview"
   )
+  non_scan_features <- "vacuumProtocolCheck"
 
   expect_setequal(
     .fabric_delta_supported_reader_features,
-    c(delta_rs_parity, names(direct_r_coverage))
+    c(delta_rs_parity, spark_materialized_parity, non_scan_features)
   )
-  expect_true(all(nzchar(direct_r_coverage)))
 })
 
 test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {

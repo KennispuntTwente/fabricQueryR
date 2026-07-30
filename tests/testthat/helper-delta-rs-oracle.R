@@ -502,3 +502,27 @@ fabric_test_expect_delta_oracle_equal <- function(actual, oracle, info = NULL) {
   )
   invisible(actual)
 }
+
+fabric_test_expect_delta_oracle_rows_equal <- function(
+  actual,
+  oracle,
+  info = NULL
+) {
+  expect_true(is.data.frame(actual), info = info)
+  expect_true(is.data.frame(oracle), info = info)
+  expect_false(anyDuplicated(names(actual)) > 0L, info = info)
+  expect_false(anyDuplicated(names(oracle)) > 0L, info = info)
+  expect_named(actual, names(oracle), info = info)
+  expect_equal(nrow(actual), nrow(oracle), info = info)
+  expect_identical(
+    fabric_test_delta_column_signatures(actual),
+    fabric_test_delta_column_signatures(oracle),
+    info = info
+  )
+  expect_equal(
+    fabric_test_delta_canonical_rows(actual),
+    fabric_test_delta_canonical_rows(oracle),
+    info = info
+  )
+  invisible(actual)
+}

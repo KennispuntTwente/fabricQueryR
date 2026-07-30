@@ -23,6 +23,7 @@ import traceback
 import uuid
 
 from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, MapType, StructField, StructType
 
 workspace_id = "00000000-0000-0000-0000-000000000002"
 lakehouse_id = "00000000-0000-0000-0000-000000000001"
@@ -1183,6 +1184,102 @@ try:
         SELECT 9,
           PARSE_JSON('123456789012345678901234567890123456.78')
         """
+    )
+
+    stage = "materialize independent Spark Delta reader oracles"
+
+    def without_delta_metadata(data_type):
+        if isinstance(data_type, StructType):
+            return StructType(
+                [
+                    StructField(
+                        field.name,
+                        without_delta_metadata(field.dataType),
+                        field.nullable,
+                        {},
+                    )
+                    for field in data_type.fields
+                ]
+            )
+        if isinstance(data_type, ArrayType):
+            return ArrayType(
+                without_delta_metadata(data_type.elementType),
+                data_type.containsNull,
+            )
+        if isinstance(data_type, MapType):
+            return MapType(
+                without_delta_metadata(data_type.keyType),
+                without_delta_metadata(data_type.valueType),
+                data_type.valueContainsNull,
+            )
+        return data_type
+
+    def write_reader_oracle(source, target, query=None):
+        source_frame = spark.sql(query) if query else spark.table(source)
+        clean_frame = spark.createDataFrame(
+            source_frame.rdd,
+            without_delta_metadata(source_frame.schema),
+        )
+        spark.sql(f"DROP TABLE IF EXISTS dbo.{target}")
+        (
+            clean_frame.write.format("delta")
+            .mode("overwrite")
+            .option("overwriteSchema", True)
+            .option("delta.enableDeletionVectors", "false")
+            .option("delta.checkpointPolicy", "classic")
+            .saveAsTable(f"dbo.{target}")
+        )
+
+    reader_oracles = {
+        "fabricqueryr_column_mapped": "fabricqueryr_spark_oracle_column_mapped",
+        "fabricqueryr_column_mapped_id": (
+            "fabricqueryr_spark_oracle_column_mapped_id"
+        ),
+        "fabricqueryr_struct_validity": (
+            "fabricqueryr_spark_oracle_struct_validity"
+        ),
+        "fabricqueryr_deletion_vectors": (
+            "fabricqueryr_spark_oracle_deletion_vectors"
+        ),
+        "fabricqueryr_file_row_number_collision": (
+            "fabricqueryr_spark_oracle_file_row_number_collision"
+        ),
+        "fabricqueryr_deletion_vectors_stress": (
+            "fabricqueryr_spark_oracle_deletion_vectors_stress"
+        ),
+        "fabricqueryr_deletion_vectors_checkpoint": (
+            "fabricqueryr_spark_oracle_deletion_vectors_checkpoint"
+        ),
+        "fabricqueryr_deletion_vectors_dense": (
+            "fabricqueryr_spark_oracle_deletion_vectors_dense"
+        ),
+        "fabricqueryr_type_widened": (
+            "fabricqueryr_spark_oracle_type_widened"
+        ),
+        "fabricqueryr_type_widened_exact": (
+            "fabricqueryr_spark_oracle_type_widened_exact"
+        ),
+        "fabricqueryr_type_widened_nested": (
+            "fabricqueryr_spark_oracle_type_widened_nested"
+        ),
+        "fabricqueryr_v2_checkpoint": (
+            "fabricqueryr_spark_oracle_v2_checkpoint"
+        ),
+        "fabricqueryr_shallow_clone": (
+            "fabricqueryr_spark_oracle_shallow_clone"
+        ),
+    }
+    for source, target in reader_oracles.items():
+        write_reader_oracle(f"dbo.{source}", target)
+    write_reader_oracle(
+        "dbo.fabricqueryr_variant",
+        "fabricqueryr_spark_oracle_variant",
+        """
+        SELECT
+          event_id,
+          CAST(data AS STRING) AS data_display
+        FROM dbo.fabricqueryr_variant
+        """,
     )
 except Exception:
     mssparkutils.notebook.exit(

@@ -749,6 +749,155 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       item = lakehouse,
       table = lakehouse$tables$oracle_complex_types,
       expected_rows = 1
+    ),
+    list(
+      name = "spark_column_mapping",
+      key = "column_mapped",
+      oracle_key = "spark_oracle_column_mapped",
+      item = lakehouse,
+      table = lakehouse$tables$column_mapped,
+      expected_rows = 3,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_id_column_mapping",
+      key = "column_mapped_id",
+      oracle_key = "spark_oracle_column_mapped_id",
+      item = lakehouse,
+      table = lakehouse$tables$column_mapped_id,
+      expected_rows = 3,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_struct_validity",
+      key = "struct_validity",
+      oracle_key = "spark_oracle_struct_validity",
+      item = lakehouse,
+      table = lakehouse$tables$struct_validity,
+      expected_rows = 3,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_deletion_vectors",
+      key = "deletion_vectors",
+      oracle_key = "spark_oracle_deletion_vectors",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors,
+      expected_rows = 2,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_file_row_number_collision",
+      key = "file_row_number_collision",
+      oracle_key = "spark_oracle_file_row_number_collision",
+      item = lakehouse,
+      table = lakehouse$tables$file_row_number_collision,
+      expected_rows = 24,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_deletion_vectors_stress",
+      key = "deletion_vectors_stress",
+      oracle_key = "spark_oracle_deletion_vectors_stress",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors_stress,
+      expected_rows = 4501,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_deletion_vectors_checkpoint",
+      key = "deletion_vectors_checkpoint",
+      oracle_key = "spark_oracle_deletion_vectors_checkpoint",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors_checkpoint,
+      expected_rows = 800,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_deletion_vectors_dense",
+      key = "deletion_vectors_dense",
+      oracle_key = "spark_oracle_deletion_vectors_dense",
+      item = lakehouse,
+      table = lakehouse$tables$deletion_vectors_dense,
+      expected_rows = 85000,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_type_widening",
+      key = "type_widened",
+      oracle_key = "spark_oracle_type_widened",
+      item = lakehouse,
+      table = lakehouse$tables$type_widened,
+      expected_rows = 3,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_exact_type_widening",
+      key = "type_widened_exact",
+      oracle_key = "spark_oracle_type_widened_exact",
+      item = lakehouse,
+      table = lakehouse$tables$type_widened_exact,
+      expected_rows = 2,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_nested_type_widening",
+      key = "type_widened_nested",
+      oracle_key = "spark_oracle_type_widened_nested",
+      item = lakehouse,
+      table = lakehouse$tables$type_widened_nested,
+      expected_rows = 3,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_v2_checkpoint",
+      key = "v2_checkpoint",
+      oracle_key = "spark_oracle_v2_checkpoint",
+      item = lakehouse,
+      table = lakehouse$tables$v2_checkpoint,
+      expected_rows = 1000,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_shallow_clone",
+      key = "shallow_clone",
+      oracle_key = "spark_oracle_shallow_clone",
+      item = lakehouse,
+      table = lakehouse$tables$shallow_clone,
+      expected_rows = 3,
+      rows_only = TRUE
+    ),
+    list(
+      name = "spark_variant",
+      key = "variant",
+      oracle_key = "spark_oracle_variant",
+      item = lakehouse,
+      table = lakehouse$tables$variant,
+      expected_rows = 9,
+      rows_only = TRUE,
+      transform = function(value) {
+        data_display <- vapply(
+          value$data,
+          function(cell) {
+            if (is.null(cell)) {
+              return(NA_character_)
+            }
+            if (identical(cell$type, "VARIANT_NULL")) {
+              return("null")
+            }
+            if (identical(cell$type, "VARCHAR")) {
+              return(jsonlite::toJSON(cell$display, auto_unbox = TRUE))
+            }
+            cell$display
+          },
+          character(1)
+        )
+        data.frame(
+          event_id = value$event_id,
+          data_display = data_display,
+          stringsAsFactors = FALSE
+        )
+      }
     )
   )
 
@@ -782,18 +931,6 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       "Fabric Runtime 2.0 enables deletionVectors by default;",
       "the equivalent oracle_schema_evolved table covers parity and history"
     ),
-    column_mapped = paste(
-      "Fabric documents column mapping as unsupported by its pinned",
-      "delta-rs reader; direct R assertions cover nested renames and drops"
-    ),
-    column_mapped_id = paste(
-      "Fabric documents column mapping as unsupported by its pinned",
-      "delta-rs reader; direct R assertions cover ID mapping"
-    ),
-    struct_validity = paste(
-      "the deterministic local delta-rs fixture covers struct validity parity;",
-      "this table validates Fabric's physical Parquet representation"
-    ),
     exact_types = paste(
       "Fabric Runtime 2.0 enables deletionVectors by default;",
       "the equivalent oracle_exact_types table covers parity"
@@ -802,53 +939,9 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       "the Fabric table combines default deletionVectors with name mapping;",
       "oracle_complex_types covers the same nested logical value kinds"
     ),
-    shallow_clone = paste(
-      "the clone inherits a Runtime 2.0 deletionVectors protocol;",
-      "the R reader has direct clone assertions"
-    ),
     void = paste(
       "Spark legacy void has no portable delta-rs/PyArrow value type;",
       "the R reader has direct unit and Fabric assertions"
-    ),
-    deletion_vectors_checkpoint = paste(
-      "this combines deletion vectors with V2 checkpoint sidecars;",
-      "delta-rs 1.6 does not claim V2 checkpoint support"
-    ),
-    deletion_vectors = paste(
-      "delta-rs 1.6 rejects the deletionVectors reader feature;",
-      "the R reader has direct exact-row Fabric assertions"
-    ),
-    file_row_number_collision = paste(
-      "delta-rs 1.6 rejects the deletionVectors reader feature;",
-      "direct R assertions cover the physical-name collision and exact rows"
-    ),
-    deletion_vectors_stress = paste(
-      "delta-rs 1.6 rejects the deletionVectors reader feature;",
-      "the R reader has direct mutation and exact-row Fabric assertions"
-    ),
-    deletion_vectors_dense = paste(
-      "delta-rs 1.6 rejects the deletionVectors reader feature;",
-      "the R reader has a direct 85,000-row Fabric assertion"
-    ),
-    type_widened = paste(
-      "delta-rs 1.6 does not claim Delta typeWidening support;",
-      "the R reader has direct unit and Fabric assertions"
-    ),
-    type_widened_exact = paste(
-      "delta-rs 1.6 does not claim exact/date typeWidening support;",
-      "the R reader has direct unit and Fabric assertions"
-    ),
-    type_widened_nested = paste(
-      "delta-rs 1.6 does not claim nested typeWidening support;",
-      "the R reader has direct unit and Fabric assertions"
-    ),
-    v2_checkpoint = paste(
-      "delta-rs 1.6 does not claim UUID V2 checkpoint-sidecar support;",
-      "the R reader replays this in direct unit and Fabric tests"
-    ),
-    variant = paste(
-      "delta-rs 1.6 has preliminary Variant support but does not claim",
-      "Fabric mixed shredded/unshredded Variant parity"
     ),
     livy_batch_result = "created by the Livy job suite, not the seed matrix",
     spark_job_result = "created by the item-job suite, not the seed matrix"
@@ -859,7 +952,14 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       "the R reader has direct publication and exact-row assertions"
     )
   )
-  compared_keys <- unique(vapply(cases, `[[`, character(1), "key"))
+  compared_keys <- unique(c(
+    vapply(cases, `[[`, character(1), "key"),
+    vapply(
+      cases,
+      function(case) case$oracle_key %||% NA_character_,
+      character(1)
+    )
+  ))
   compared_keys <- compared_keys[!is.na(compared_keys)]
   expect_setequal(
     names(lakehouse$tables),
@@ -884,21 +984,33 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
         NULL,
       verbose = FALSE
     )
+    if (!is.null(case$transform)) {
+      actual <- case$transform(actual)
+    }
+    oracle_table <- case$oracle_key %||% case$key
     oracle <- fabric_test_delta_oracle_read(
       fabric_test_delta_oracle_uri(
         manifest,
         case$item,
-        case$table,
+        case$item$tables[[oracle_table]],
         schema = schema
       ),
-      version = version,
-      columns = columns
+      version = if (is.null(case$oracle_key)) version else NULL,
+      columns = if (is.null(case$oracle_key)) columns else NULL
     )
-    fabric_test_expect_delta_oracle_equal(
-      actual,
-      oracle,
-      info = case$name
-    )
+    if (isTRUE(case$rows_only)) {
+      fabric_test_expect_delta_oracle_rows_equal(
+        actual,
+        oracle,
+        info = case$name
+      )
+    } else {
+      fabric_test_expect_delta_oracle_equal(
+        actual,
+        oracle,
+        info = case$name
+      )
+    }
     expect_equal(
       nrow(actual),
       case$expected_rows,

@@ -229,6 +229,48 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "oracle_complex_types": (
                         "fabricqueryr_oracle_complex_types"
                     ),
+                    "spark_oracle_column_mapped": (
+                        "fabricqueryr_spark_oracle_column_mapped"
+                    ),
+                    "spark_oracle_column_mapped_id": (
+                        "fabricqueryr_spark_oracle_column_mapped_id"
+                    ),
+                    "spark_oracle_struct_validity": (
+                        "fabricqueryr_spark_oracle_struct_validity"
+                    ),
+                    "spark_oracle_deletion_vectors": (
+                        "fabricqueryr_spark_oracle_deletion_vectors"
+                    ),
+                    "spark_oracle_file_row_number_collision": (
+                        "fabricqueryr_spark_oracle_file_row_number_collision"
+                    ),
+                    "spark_oracle_deletion_vectors_stress": (
+                        "fabricqueryr_spark_oracle_deletion_vectors_stress"
+                    ),
+                    "spark_oracle_deletion_vectors_checkpoint": (
+                        "fabricqueryr_spark_oracle_deletion_vectors_checkpoint"
+                    ),
+                    "spark_oracle_deletion_vectors_dense": (
+                        "fabricqueryr_spark_oracle_deletion_vectors_dense"
+                    ),
+                    "spark_oracle_type_widened": (
+                        "fabricqueryr_spark_oracle_type_widened"
+                    ),
+                    "spark_oracle_type_widened_exact": (
+                        "fabricqueryr_spark_oracle_type_widened_exact"
+                    ),
+                    "spark_oracle_type_widened_nested": (
+                        "fabricqueryr_spark_oracle_type_widened_nested"
+                    ),
+                    "spark_oracle_v2_checkpoint": (
+                        "fabricqueryr_spark_oracle_v2_checkpoint"
+                    ),
+                    "spark_oracle_shallow_clone": (
+                        "fabricqueryr_spark_oracle_shallow_clone"
+                    ),
+                    "spark_oracle_variant": (
+                        "fabricqueryr_spark_oracle_variant"
+                    ),
                     "shallow_clone": "fabricqueryr_shallow_clone",
                     "type_widened": "fabricqueryr_type_widened",
                     "type_widened_exact": "fabricqueryr_type_widened_exact",
