@@ -17,8 +17,10 @@
 
 # CELL ********************
 
+import json
 import re
 import traceback
+import uuid
 
 from pyspark.sql import functions as F
 
@@ -213,22 +215,159 @@ try:
         .saveAsTable("dbo.fabricqueryr_typed_partitions")
     )
 
-    stage = "write binary partition edge-case Delta table"
+    stage = "write protocol-valid binary partition edge-case Delta table"
+    binary_table_path = (
+        f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+        f"{lakehouse_id}/Tables/dbo/fabricqueryr_binary_partitions"
+    )
+    binary_root = spark._jvm.org.apache.hadoop.fs.Path(binary_table_path)
+    binary_fs = binary_root.getFileSystem(
+        spark._jsc.hadoopConfiguration()
+    )
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_binary_partitions")
+    binary_fs.delete(binary_root, True)
+
+    # Spark's directory partition writer cannot safely materialize every byte
+    # in a partition path. Delta does not require partition values in paths:
+    # AddFile.partitionValues is authoritative, so use safe data-file paths.
+    binary_partition_values = [
+        (1, "\u0000"),
+        (2, "\u0080"),
+        (3, "\u00ff"),
+        (4, None),
+    ]
+    binary_adds = []
+    for row_id, binary_value in binary_partition_values:
+        relative_dir = f"data/row-{row_id}"
+        absolute_dir = f"{binary_table_path}/{relative_dir}"
+        (
+            spark.createDataFrame([(row_id,)], "id INT")
+            .coalesce(1)
+            .write.mode("error")
+            .parquet(absolute_dir)
+        )
+        parquet_files = [
+            status
+            for status in binary_fs.listStatus(
+                spark._jvm.org.apache.hadoop.fs.Path(absolute_dir)
+            )
+            if (
+                status.isFile()
+                and str(status.getPath().getName()).startswith("part-")
+                and str(status.getPath().getName()).endswith(".parquet")
+            )
+        ]
+        if len(parquet_files) != 1:
+            raise RuntimeError(
+                f"Expected one binary fixture Parquet file, got "
+                f"{len(parquet_files)} for row {row_id}"
+            )
+        parquet_file = parquet_files[0]
+        relative_file = (
+            f"{relative_dir}/{str(parquet_file.getPath().getName())}"
+        )
+        binary_adds.append(
+            {
+                "add": {
+                    "path": relative_file,
+                    "partitionValues": {"binary_part": binary_value},
+                    "size": parquet_file.getLen(),
+                    "modificationTime": parquet_file.getModificationTime(),
+                    "dataChange": True,
+                    "stats": json.dumps(
+                        {
+                            "numRecords": 1,
+                            "minValues": {"id": row_id},
+                            "maxValues": {"id": row_id},
+                            "nullCount": {"id": 0},
+                        },
+                        separators=(",", ":"),
+                    ),
+                }
+            }
+        )
+
+    binary_schema = {
+        "type": "struct",
+        "fields": [
+            {
+                "name": "id",
+                "type": "integer",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "binary_part",
+                "type": "binary",
+                "nullable": True,
+                "metadata": {},
+            },
+        ],
+    }
+    binary_actions = [
+        {"protocol": {"minReaderVersion": 1, "minWriterVersion": 2}},
+        {
+            "metaData": {
+                "id": str(uuid.uuid4()),
+                "format": {"provider": "parquet", "options": {}},
+                "schemaString": json.dumps(
+                    binary_schema,
+                    separators=(",", ":"),
+                ),
+                "partitionColumns": ["binary_part"],
+                "configuration": {},
+                "createdTime": (
+                    spark._jvm.java.lang.System.currentTimeMillis()
+                ),
+            }
+        },
+        *binary_adds,
+    ]
+    binary_log_staging = f"{binary_table_path}/_fabricqueryr_log_staging"
     (
         spark.createDataFrame(
             [
-                (1, bytearray.fromhex("00")),
-                (2, bytearray.fromhex("80")),
-                (3, bytearray.fromhex("ff")),
-                (4, None),
+                (
+                    json.dumps(
+                        action,
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
+                )
+                for action in binary_actions
             ],
-            "id INT, binary_part BINARY",
+            "value STRING",
         )
-        .write.format("delta")
-        .mode("overwrite")
-        .partitionBy("binary_part")
-        .option("overwriteSchema", True)
-        .saveAsTable("dbo.fabricqueryr_binary_partitions")
+        .coalesce(1)
+        .write.mode("error")
+        .text(binary_log_staging)
+    )
+    staged_logs = [
+        status
+        for status in binary_fs.listStatus(
+            spark._jvm.org.apache.hadoop.fs.Path(binary_log_staging)
+        )
+        if (
+            status.isFile()
+            and str(status.getPath().getName()).startswith("part-")
+        )
+    ]
+    if len(staged_logs) != 1:
+        raise RuntimeError(
+            f"Expected one staged Delta log, got {len(staged_logs)}"
+        )
+    binary_log_dir = spark._jvm.org.apache.hadoop.fs.Path(
+        f"{binary_table_path}/_delta_log"
+    )
+    binary_fs.mkdirs(binary_log_dir)
+    binary_log = spark._jvm.org.apache.hadoop.fs.Path(
+        f"{binary_table_path}/_delta_log/00000000000000000000.json"
+    )
+    if not binary_fs.rename(staged_logs[0].getPath(), binary_log):
+        raise RuntimeError("Could not publish binary fixture Delta log")
+    binary_fs.delete(
+        spark._jvm.org.apache.hadoop.fs.Path(binary_log_staging),
+        True,
     )
 
     stage = "generate Delta checkpoint"

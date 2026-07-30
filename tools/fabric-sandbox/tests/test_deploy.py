@@ -37,7 +37,17 @@ def test_seed_notebook_ids_are_parameterized():
     assert '"beta-updated"' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_empty")' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_typed_partitions")' in notebook
-    assert '.saveAsTable("dbo.fabricqueryr_binary_partitions")' in notebook
+    assert (
+        'stage = "write protocol-valid binary partition edge-case Delta table"'
+        in notebook
+    )
+    assert '.saveAsTable("dbo.fabricqueryr_binary_partitions")' not in notebook
+    assert '"partitionValues": {"binary_part": binary_value}' in notebook
+    assert '(1, "\\u0000")' in notebook
+    assert '(2, "\\u0080")' in notebook
+    assert '(3, "\\u00ff")' in notebook
+    assert "AddFile.partitionValues is authoritative" in notebook
+    assert "00000000000000000000.json" in notebook
     assert "ADD COLUMNS (profile.metadata_only STRING)" in notebook
     assert "dbo.fabricqueryr_struct_validity" in notebook
     assert "dbo.fabricqueryr_file_row_number_collision" in notebook
