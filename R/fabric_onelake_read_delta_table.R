@@ -3036,6 +3036,11 @@ fabric_delta_normalize_timestamp_partitions <- function(
 #' @keywords internal
 #' @noRd
 fabric_delta_variant_null_masks <- function(paths, fields, schema) {
+  paths <- gsub(
+    "\\\\",
+    "/",
+    normalizePath(paths, mustWork = TRUE)
+  )
   masks <- stats::setNames(vector("list", length(fields)), vapply(
     fields,
     `[[`,

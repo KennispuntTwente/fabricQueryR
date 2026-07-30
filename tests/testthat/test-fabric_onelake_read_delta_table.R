@@ -1529,6 +1529,33 @@ test_that("Delta reader exposes native and shredded Variant values", {
       "})"
     )
   )
+  alias_dir <- fs::path(table_dir, "path-alias")
+  fs::dir_create(alias_dir)
+  aliased_unshredded <- file.path(
+    alias_dir,
+    "..",
+    "unshredded.parquet"
+  )
+  canonical_unshredded <- gsub(
+    "\\\\",
+    "/",
+    normalizePath(unshredded, mustWork = TRUE)
+  )
+  expect_false(identical(
+    gsub("\\\\", "/", aliased_unshredded),
+    canonical_unshredded
+  ))
+  aliased_masks <- fabric_delta_variant_null_masks(
+    aliased_unshredded,
+    fields = list(list(
+      name = "payload",
+      type = "variant",
+      metadata = list()
+    )),
+    schema = list(columnMappingMode = "none")
+  )
+  expect_named(aliased_masks$payload, canonical_unshredded)
+
   schema <- jsonlite::toJSON(
     list(
       type = "struct",
