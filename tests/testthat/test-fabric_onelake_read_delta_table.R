@@ -1347,9 +1347,126 @@ test_that("Delta logical schemas cover primitive and nested types", {
   expect_match(name_expression, "list_transform(", fixed = TRUE)
   expect_match(
     name_expression,
-    'fabric_delta_element."physical-label"',
+    'CAST(fabric_delta_element AS STRUCT("physical-label" VARCHAR))',
     fixed = TRUE
   )
+})
+
+test_that("name mapping fills nested metadata-only fields with NULL", {
+  table_dir <- fs::path_temp(paste0(
+    "delta-nested-name-evolution-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT ",
+      "struct_pack(p_existing := 7::INTEGER) AS p_profile, ",
+      "[struct_pack(p_label := 'first')] AS p_items, ",
+      "map(['key'], [struct_pack(p_enabled := true)]) AS p_attributes",
+      ") TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  mapped_field <- function(name, type, id, physical, nullable = TRUE) {
+    list(
+      name = name,
+      type = type,
+      nullable = nullable,
+      metadata = list(
+        "delta.columnMapping.id" = id,
+        "delta.columnMapping.physicalName" = physical
+      )
+    )
+  }
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        mapped_field(
+          "profile",
+          list(
+            type = "struct",
+            fields = list(
+              mapped_field("existing", "integer", 2L, "p_existing"),
+              mapped_field("added", "string", 3L, "p_added")
+            )
+          ),
+          1L,
+          "p_profile"
+        ),
+        mapped_field(
+          "items",
+          list(
+            type = "array",
+            elementType = list(
+              type = "struct",
+              fields = list(
+                mapped_field("label", "string", 5L, "p_label"),
+                mapped_field("added", "long", 6L, "p_added")
+              )
+            ),
+            containsNull = TRUE
+          ),
+          4L,
+          "p_items"
+        ),
+        mapped_field(
+          "attributes",
+          list(
+            type = "map",
+            keyType = "string",
+            valueType = list(
+              type = "struct",
+              fields = list(
+                mapped_field("enabled", "boolean", 8L, "p_enabled"),
+                mapped_field("added", "double", 9L, "p_added")
+              )
+            ),
+            valueContainsNull = TRUE
+          ),
+          7L,
+          "p_attributes"
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(minReaderVersion = 2L, minWriterVersion = 5L)),
+    list(
+      metaData = list(
+        id = "nested-name-evolution",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list("delta.columnMapping.mode" = "name")
+      )
+    ),
+    list(add = list(path = "part.parquet", partitionValues = list()))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_identical(result$profile$existing, 7L)
+  expect_true(is.na(result$profile$added))
+  expect_identical(result$items[[1L]]$label, "first")
+  expect_true(is.na(result$items[[1L]]$added))
+  expect_identical(result$attributes[[1L]]$key, "key")
+  expect_true(result$attributes[[1L]]$value$enabled)
+  expect_true(is.na(result$attributes[[1L]]$value$added))
 })
 
 test_that("Delta reader reconstructs top-level and nested void fields", {

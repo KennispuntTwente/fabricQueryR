@@ -1906,6 +1906,67 @@ fabric_delta_duckdb_type <- function(con, type) {
   rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
 }
 
+#' Translate a mapped Delta type using its physical Parquet field names
+#' @keywords internal
+#' @noRd
+fabric_delta_duckdb_physical_type <- function(
+  con,
+  type,
+  mapping_mode = "none"
+) {
+  if (is.character(type) && length(type) == 1L) {
+    return(fabric_delta_duckdb_type(con, type))
+  }
+  if (!is.list(type)) {
+    rlang::abort("Delta schema contains an invalid field type")
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (identical(kind, "struct")) {
+    fields <- type$fields %||% list()
+    if (!length(fields)) {
+      rlang::abort("Empty Delta struct fields are not supported")
+    }
+    definitions <- vapply(
+      fields,
+      function(field) {
+        paste(
+          as.character(DBI::dbQuoteIdentifier(
+            con,
+            fabric_delta_field_physical_name(field, mapping_mode)
+          )),
+          fabric_delta_duckdb_physical_type(
+            con,
+            field$type,
+            mapping_mode
+          )
+        )
+      },
+      character(1)
+    )
+    return(paste0("STRUCT(", paste(definitions, collapse = ", "), ")"))
+  }
+  if (identical(kind, "array")) {
+    return(paste0(
+      fabric_delta_duckdb_physical_type(
+        con,
+        type$elementType,
+        mapping_mode
+      ),
+      "[]"
+    ))
+  }
+  if (identical(kind, "map")) {
+    return(paste0(
+      "MAP(",
+      fabric_delta_duckdb_physical_type(con, type$keyType, mapping_mode),
+      ", ",
+      fabric_delta_duckdb_physical_type(con, type$valueType, mapping_mode),
+      ")"
+    ))
+  }
+  rlang::abort(paste0("Unsupported Delta complex schema type: ", kind))
+}
+
 #' Translate a Delta type into an exact R-facing DuckDB result type
 #'
 #' DuckDB's R client preserves BIGINT as `bit64::integer64` when the connection
@@ -2280,6 +2341,13 @@ fabric_delta_type_expression <- function(
     return(expression)
   }
   kind <- tolower(as.character(type$type %||% ""))
+  expression <- paste0(
+    "CAST(",
+    expression,
+    " AS ",
+    fabric_delta_duckdb_physical_type(con, type, mapping_mode),
+    ")"
+  )
   if (identical(kind, "struct")) {
     fields <- type$fields %||% list()
     packed <- vapply(
