@@ -37,6 +37,22 @@ test_that("delta-rs parity assertions retain empty schemas and value kinds", {
     fabric_test_delta_canonical_value(struct_forward),
     fabric_test_delta_canonical_value(struct_forward[2:1, , drop = FALSE])
   ))
+
+  oracle <- data.frame(id = 1L)
+  attr(oracle, "fabric_delta_oracle_metadata") <- list(
+    version = 0,
+    min_reader_version = 1,
+    row_count = 1,
+    column_names = list("id"),
+    reader_features = list(),
+    partition_columns = list("region", "date"),
+    active_file_count = 1
+  )
+  expect_invisible(fabric_test_expect_delta_oracle_profile(
+    oracle,
+    partition_columns = c("date", "region"),
+    info = "partition profile compatibility"
+  ))
 })
 
 test_that("delta-rs oracle URIs cover Lakehouse and Warehouse items", {

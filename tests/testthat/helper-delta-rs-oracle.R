@@ -329,9 +329,12 @@ fabric_test_expect_delta_oracle_profile <- function(
     info = info
   )
   if (!is.null(partition_columns)) {
-    expect_setequal(
-      unlist(metadata$partition_columns, use.names = FALSE),
-      partition_columns,
+    expect_equal(
+      sort(unique(unlist(
+        metadata$partition_columns,
+        use.names = FALSE
+      ))),
+      sort(unique(partition_columns)),
       info = info
     )
   }
