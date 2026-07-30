@@ -650,7 +650,15 @@ fabric_delta_arrow_compatible <- function(value) {
         !is.data.frame(column) &&
         !inherits(column, "fabric_delta_variant_column")
     ) {
-      array <- arrow::Array$create(column)
+      elements <- Filter(Negate(is.null), column)
+      array <- if (
+        length(elements) &&
+          all(vapply(elements, is.data.frame, logical(1)))
+      ) {
+        fabric_delta_arrow_data_frame_list(column)
+      } else {
+        arrow::Array$create(column)
+      }
       columns[[name]] <- arrow::as_arrow_array(
         fabric_delta_patch_nested_arrow_validity(
           nanoarrow::as_nanoarrow_array(array),
@@ -697,6 +705,77 @@ fabric_delta_arrow_compatible <- function(value) {
     columns[[name]] <- do.call(arrow::StructArray$create, fields)
   }
   columns
+}
+
+#' Construct an Arrow list whose child values are recursive R data frames
+#' @keywords internal
+#' @noRd
+fabric_delta_arrow_data_frame_list <- function(value) {
+  present <- !vapply(value, is.null, logical(1))
+  fragments <- value[present]
+  child <- fabric_delta_arrow_struct_fragments(fragments)
+  schema <- nanoarrow::as_nanoarrow_schema(arrow::list_of(child$type))
+  array <- nanoarrow::nanoarrow_array_init(schema)
+  offsets <- c(
+    0L,
+    cumsum(vapply(
+      value,
+      function(element) if (is.null(element)) 0L else nrow(element),
+      integer(1)
+    ))
+  )
+  validity <- nanoarrow::as_nanoarrow_array(present)$buffers[[2L]]
+  arrow::as_arrow_array(nanoarrow::nanoarrow_array_modify(
+    array,
+    list(
+      length = length(value),
+      null_count = sum(!present),
+      buffers = list(validity, offsets),
+      children = list(nanoarrow::as_nanoarrow_array(child))
+    )
+  ))
+}
+
+#' Construct a validity-preserving Arrow struct from row fragments
+#' @keywords internal
+#' @noRd
+fabric_delta_arrow_struct_fragments <- function(fragments) {
+  field_names <- names(fragments[[1L]])
+  fields <- stats::setNames(
+    lapply(field_names, function(field_name) {
+      values <- lapply(fragments, `[[`, field_name)
+      if (all(vapply(values, is.data.frame, logical(1)))) {
+        return(fabric_delta_arrow_struct_fragments(values))
+      }
+      arrow::Array$create(do.call(c, unname(values)))
+    }),
+    field_names
+  )
+  struct <- do.call(arrow::StructArray$create, fields)
+  struct_fragments <- vapply(
+    fragments,
+    inherits,
+    logical(1),
+    what = "fabric_delta_struct_column"
+  )
+  if (!all(struct_fragments)) {
+    return(struct)
+  }
+  validity <- unlist(
+    lapply(
+      fragments,
+      attr,
+      which = "fabric_delta_struct_validity",
+      exact = TRUE
+    ),
+    use.names = FALSE
+  )
+  arrow::call_function(
+    "if_else",
+    arrow::Array$create(validity, type = arrow::boolean()),
+    struct,
+    arrow::Scalar$create(NULL)
+  )
 }
 
 #' Restore nested Delta struct validity inside Arrow list/map arrays
@@ -2891,16 +2970,24 @@ fabric_delta_struct_mask_expression <- function(
     return(paste0(
       "map(map_keys(",
       expression,
-      "), list_transform(map_values(",
+      "), list_transform(map_entries(",
       expression,
-      "), fabric_delta_mask_value -> ",
+      "), fabric_delta_mask_entry -> struct_pack(",
+      "key := ",
+      fabric_delta_struct_mask_expression(
+        con,
+        type$keyType,
+        "fabric_delta_mask_entry.key",
+        mapping_mode
+      ),
+      ", value := ",
       fabric_delta_struct_mask_expression(
         con,
         type$valueType,
-        "fabric_delta_mask_value",
+        "fabric_delta_mask_entry.value",
         mapping_mode
       ),
-      "))"
+      ")))"
     ))
   }
   "TRUE"
@@ -2955,10 +3042,16 @@ fabric_delta_apply_struct_mask <- function(value, type, mask) {
       if (is.null(value[[index]]) || is.null(mask[[index]])) {
         next
       }
+      entry_mask <- mask[[index]]$value
+      value[[index]]$key <- fabric_delta_apply_struct_mask(
+        value[[index]]$key,
+        type$keyType,
+        entry_mask$key
+      )
       value[[index]]$value <- fabric_delta_apply_struct_mask(
         value[[index]]$value,
         type$valueType,
-        mask[[index]]$value
+        entry_mask$value
       )
     }
     return(value)

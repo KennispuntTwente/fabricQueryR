@@ -1482,6 +1482,11 @@ test_that("Delta structs preserve parent validity separately from children", {
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
   struct_type <- "STRUCT(p_number INTEGER, p_text VARCHAR)"
+  key_type <- paste0(
+    "STRUCT(p_marker INTEGER, p_nested ",
+    struct_type,
+    ")"
+  )
   DBI::dbExecute(
     con,
     paste0(
@@ -1495,21 +1500,32 @@ test_that("Delta structs preserve parent validity separately from children", {
       "map(['null', 'present'], [NULL::",
       struct_type,
       ", struct_pack(p_number := NULL::INTEGER, ",
-      "p_text := NULL::VARCHAR)]) AS p_attributes ",
+      "p_text := NULL::VARCHAR)]) AS p_attributes, ",
+      "map([",
+      "struct_pack(p_marker := 1::INTEGER, p_nested := NULL::",
+      struct_type,
+      "), ",
+      "struct_pack(p_marker := 2::INTEGER, p_nested := ",
+      "struct_pack(p_number := NULL::INTEGER, p_text := NULL::VARCHAR))",
+      "], ['null', 'present']) AS p_keyed ",
       "UNION ALL SELECT 2::INTEGER, ",
       "struct_pack(p_number := NULL::INTEGER, p_text := NULL::VARCHAR), ",
       "NULL::",
       struct_type,
       "[], NULL::MAP(VARCHAR, ",
       struct_type,
-      ") ",
+      "), NULL::MAP(",
+      key_type,
+      ", VARCHAR) ",
       "UNION ALL SELECT 3::INTEGER, ",
       "struct_pack(p_number := 3::INTEGER, p_text := 'value'), ",
       "[]::",
       struct_type,
       "[], map([]::VARCHAR[], []::",
       struct_type,
-      "[])",
+      "[]), map([]::",
+      key_type,
+      "[], []::VARCHAR[])",
       ") TO ",
       as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
       " (FORMAT PARQUET)"
@@ -1561,6 +1577,28 @@ test_that("Delta structs preserve parent validity separately from children", {
           ),
           8L,
           "p_attributes"
+        ),
+        mapped_field(
+          "keyed",
+          list(
+            type = "map",
+            keyType = list(
+              type = "struct",
+              fields = list(
+                mapped_field("marker", "integer", 12L, "p_marker"),
+                mapped_field(
+                  "nested",
+                  nested_type(14L, 15L),
+                  13L,
+                  "p_nested"
+                )
+              )
+            ),
+            valueType = "string",
+            valueContainsNull = TRUE
+          ),
+          11L,
+          "p_keyed"
         )
       )
     ),
@@ -1600,10 +1638,20 @@ test_that("Delta structs preserve parent validity separately from children", {
     is.na(result$attributes[[1L]]$value),
     c(TRUE, FALSE)
   )
+  expect_s3_class(
+    result$keyed[[1L]]$key$nested,
+    "fabric_delta_struct_column"
+  )
+  expect_identical(
+    is.na(result$keyed[[1L]]$key$nested),
+    c(TRUE, FALSE)
+  )
   expect_null(result$items[[2L]])
   expect_equal(nrow(result$items[[3L]]), 0L)
   expect_null(result$attributes[[2L]])
   expect_equal(nrow(result$attributes[[3L]]), 0L)
+  expect_null(result$keyed[[2L]])
+  expect_equal(nrow(result$keyed[[3L]]), 0L)
   tibble_result <- fabric_delta_format_result(result, "tibble")
   expect_identical(is.na(tibble_result$profile), c(TRUE, FALSE, FALSE))
 
@@ -1624,6 +1672,12 @@ test_that("Delta structs preserve parent validity separately from children", {
   expect_equal(attribute_values$null_count, 1L)
   expect_true(attribute_values$IsNull(0L))
   expect_false(attribute_values$IsNull(1L))
+  keyed <- table$GetColumnByName("keyed")$chunk(0L)
+  keyed_keys <- keyed$values()$GetFieldByName("key")
+  keyed_nested <- keyed_keys$GetFieldByName("nested")
+  expect_equal(keyed_nested$null_count, 1L)
+  expect_true(keyed_nested$IsNull(0L))
+  expect_false(keyed_nested$IsNull(1L))
 })
 
 test_that("Delta reader reconstructs top-level and nested void fields", {

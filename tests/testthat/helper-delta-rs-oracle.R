@@ -166,6 +166,7 @@ fabric_test_delta_attach_arrow_validity <- function(value, array) {
   }
   if (inherits(array, "MapArray")) {
     value <- as.list(value)
+    keys <- array$keys()
     items <- array$items()
     for (index in seq_along(value)) {
       if (array$IsNull(index - 1L) || is.null(value[[index]])) {
@@ -173,6 +174,10 @@ fabric_test_delta_attach_arrow_validity <- function(value, array) {
       }
       offset <- array$value_offset(index - 1L)
       length <- array$value_length(index - 1L)
+      value[[index]]$key <- fabric_test_delta_attach_arrow_validity(
+        value[[index]]$key,
+        keys$Slice(offset, length)
+      )
       value[[index]]$value <- fabric_test_delta_attach_arrow_validity(
         value[[index]]$value,
         items$Slice(offset, length)

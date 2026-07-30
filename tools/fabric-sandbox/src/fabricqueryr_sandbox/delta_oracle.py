@@ -343,6 +343,26 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     ),
                 ),
             ),
+            pa.field(
+                "keyed",
+                pa.map_(
+                    pa.struct(
+                        [
+                            pa.field("marker", pa.int32()),
+                            pa.field(
+                                "nested",
+                                pa.struct(
+                                    [
+                                        pa.field("number", pa.int32()),
+                                        pa.field("text", pa.string()),
+                                    ]
+                                ),
+                            ),
+                        ]
+                    ),
+                    pa.string(),
+                ),
+            ),
         ]
     )
     write_deltalake(
@@ -392,6 +412,16 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                             },
                         ),
                     ],
+                    "keyed": [
+                        ({"marker": 1, "nested": None}, "null"),
+                        (
+                            {
+                                "marker": 2,
+                                "nested": {"number": None, "text": None},
+                            },
+                            "present",
+                        ),
+                    ],
                 },
                 {
                     "id": 2,
@@ -400,6 +430,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     "counts": [],
                     "items": [],
                     "attributes": [],
+                    "keyed": [],
                 },
                 {
                     "id": 3,
@@ -411,6 +442,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     "counts": None,
                     "items": None,
                     "attributes": None,
+                    "keyed": None,
                 },
             ],
             schema=nested_schema,
@@ -596,6 +628,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                 "counts",
                 "items",
                 "attributes",
+                "keyed",
             ],
         },
         {
