@@ -718,8 +718,9 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       "the equivalent oracle_empty table disables it for delta-rs parity"
     ),
     typed_partitions = paste(
-      "Fabric Runtime 2.0 enables deletionVectors by default;",
-      "the equivalent oracle_typed_partitions table covers parity"
+      "Fabric Runtime 2.0 enables deletionVectors by default and delta-rs",
+      "misparses negative decimal partition paths; the oracle mirror covers",
+      "all other typed partition parity while direct R assertions cover -0.50"
     ),
     partitioned = paste(
       "Fabric Runtime 2.0 enables deletionVectors by default;",

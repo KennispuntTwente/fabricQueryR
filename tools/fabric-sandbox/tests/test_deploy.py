@@ -38,6 +38,19 @@ def test_seed_notebook_ids_are_parameterized():
         '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")'
         in notebook
     )
+    assert "oracle_typed_partitions = typed_partitions.withColumn(" in notebook
+    assert 'F.lit("0.50").cast("decimal(8,2)")' in notebook
+    oracle_partition_start = notebook.index(
+        "oracle_typed_partitions.write.format",
+    )
+    oracle_partition_end = notebook.index(
+        '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")',
+        oracle_partition_start,
+    )
+    assert (
+        "\n        typed_partitions.write.format"
+        not in notebook[oracle_partition_start:oracle_partition_end]
+    )
     assert (
         "TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')"
         in notebook

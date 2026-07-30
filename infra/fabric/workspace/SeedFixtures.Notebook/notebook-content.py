@@ -300,8 +300,15 @@ try:
     )
 
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_typed_partitions")
+    oracle_typed_partitions = typed_partitions.withColumn(
+        "decimal_part",
+        F.when(
+            F.col("id") == 2,
+            F.lit("0.50").cast("decimal(8,2)"),
+        ).otherwise(F.col("decimal_part")),
+    )
     (
-        typed_partitions.write.format("delta")
+        oracle_typed_partitions.write.format("delta")
         .mode("overwrite")
         .partitionBy(
             "event_date",
