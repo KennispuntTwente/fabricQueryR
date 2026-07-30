@@ -1881,6 +1881,37 @@ test_that("Delta reader exposes native and shredded Variant values", {
     schema = list(columnMappingMode = "none")
   )
   expect_named(aliased_masks$payload, canonical_unshredded)
+  id_masks <- fabric_delta_variant_null_masks(
+    unshredded,
+    fields = list(list(
+      name = "payload",
+      type = "variant",
+      metadata = list(
+        "delta.columnMapping.id" = 17L,
+        "delta.columnMapping.physicalName" = "not-the-file-name"
+      )
+    )),
+    schema = list(columnMappingMode = "id"),
+    id_mappings = list(c("17" = "payload"))
+  )
+  expect_identical(
+    unname(id_masks$payload[[canonical_unshredded]]),
+    rep(FALSE, 5L)
+  )
+  missing_id_masks <- fabric_delta_variant_null_masks(
+    unshredded,
+    fields = list(list(
+      name = "payload",
+      type = "variant",
+      metadata = list(
+        "delta.columnMapping.id" = 17L,
+        "delta.columnMapping.physicalName" = "payload"
+      )
+    )),
+    schema = list(columnMappingMode = "id"),
+    id_mappings = list(c("17" = "missing-from-file"))
+  )
+  expect_true(all(missing_id_masks$payload[[canonical_unshredded]]))
 
   schema <- jsonlite::toJSON(
     list(

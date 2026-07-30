@@ -1638,7 +1638,12 @@ fabric_delta_read_staged <- function(
     source_column
   )[selected_indexes]
   variant_masks <- if (length(variant_fields)) {
-    fabric_delta_variant_null_masks(paths, variant_fields, schema)
+    fabric_delta_variant_null_masks(
+      paths,
+      variant_fields,
+      schema,
+      id_mappings = id_mappings
+    )
   } else {
     NULL
   }
@@ -4058,12 +4063,21 @@ fabric_delta_normalize_timestamp_partitions <- function(
 #' Read outer Parquet validity for top-level Delta Variant columns
 #' @keywords internal
 #' @noRd
-fabric_delta_variant_null_masks <- function(paths, fields, schema) {
+fabric_delta_variant_null_masks <- function(
+  paths,
+  fields,
+  schema,
+  id_mappings = NULL
+) {
   paths <- gsub(
     "\\\\",
     "/",
     normalizePath(paths, mustWork = TRUE)
   )
+  id_mode <- identical(schema$columnMappingMode, "id")
+  if (id_mode && length(id_mappings) != length(paths)) {
+    rlang::abort("Delta Variant ID mappings do not match the Parquet files")
+  }
   masks <- stats::setNames(
     vector("list", length(fields)),
     vapply(
@@ -4073,26 +4087,31 @@ fabric_delta_variant_null_masks <- function(paths, fields, schema) {
       "name"
     )
   )
-  for (path in paths) {
-    data <- arrow::read_parquet(path, as_data_frame = TRUE)
+  for (path_index in seq_along(paths)) {
+    path <- paths[[path_index]]
+    data <- arrow::read_parquet(path, as_data_frame = FALSE)
     for (field in fields) {
-      physical_name <- fabric_delta_field_physical_name(
-        field,
-        schema$columnMappingMode
-      )
-      sql_null <- if (!physical_name %in% names(data)) {
-        rep(TRUE, nrow(data))
+      physical_name <- if (id_mode) {
+        id <- field$metadata[["delta.columnMapping.id"]] %||% NULL
+        unname(id_mappings[[path_index]][[as.character(id)]] %||% "")
       } else {
-        value <- data[[physical_name]]
-        if (!is.data.frame(value) || !"metadata" %in% names(value)) {
-          rlang::abort(paste0(
-            "Arrow did not expose the physical Parquet Variant structure for ",
-            field$name
-          ))
-        }
+        fabric_delta_field_physical_name(
+          field,
+          schema$columnMappingMode
+        )
+      }
+      column <- if (!physical_name %in% data$ColumnNames()) {
+        NULL
+      } else {
+        data$GetColumnByName(physical_name)
+      }
+      sql_null <- if (is.null(column)) {
+        rep(TRUE, data$num_rows)
+      } else {
+        value <- do.call(arrow::concat_arrays, column$chunks)
         vapply(
-          value$metadata,
-          function(metadata) is.null(metadata) || !length(metadata),
+          seq_len(length(value)) - 1L,
+          value$IsNull,
           logical(1)
         )
       }
