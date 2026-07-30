@@ -56,25 +56,40 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     session_tag = paste0(session_tag, "_failure"),
     token = token
   )
-  failed <- rlang::catch_cnd(
+  failed <- tryCatch(
     fabric_job_wait(
       failed_job,
       timeout = 900,
       cancel_on_timeout = TRUE
     ),
-    classes = "error"
+    error = identity
   )
-  expect_s3_class(failed, "fabric_job_failed")
-  expect_equal(failed$job_status$status, "Failed")
-  expect_true(nzchar(failed$job_status$root_activity_id))
-  expect_true(nzchar(
-    .fabric_job_failure_text(failed$job_status$failure_reason)
-  ))
-  expect_match(
-    .fabric_job_failure_text(failed$job_status$failure_reason),
-    "FABRICQUERYR_INTENTIONAL_JOB_FAILURE",
-    fixed = TRUE
+  failure_info <- if (inherits(failed, "fabric_job_instance")) {
+    paste0(
+      "Fabric returned ", failed$status,
+      "; exit value: ", failed$exit_value %||% "<none>",
+      "; failure reason: ",
+      .fabric_job_failure_text(failed$failure_reason)
+    )
+  } else {
+    NULL
+  }
+  expect_true(
+    inherits(failed, "fabric_job_failed"),
+    info = failure_info
   )
+  if (inherits(failed, "fabric_job_failed")) {
+    expect_equal(failed$job_status$status, "Failed")
+    expect_true(nzchar(failed$job_status$root_activity_id))
+    expect_true(nzchar(
+      .fabric_job_failure_text(failed$job_status$failure_reason)
+    ))
+    expect_match(
+      .fabric_job_failure_text(failed$job_status$failure_reason),
+      "FABRICQUERYR_INTENTIONAL_JOB_FAILURE",
+      fixed = TRUE
+    )
+  }
 
   slow_job <- fabric_job_run(
     item,

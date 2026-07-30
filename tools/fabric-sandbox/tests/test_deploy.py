@@ -67,6 +67,8 @@ def test_job_notebook_exposes_deterministic_job_modes():
     assert 'if mode == "failure":' in notebook
     assert 'if mode == "slow":' in notebook
     assert "FABRICQUERYR_INTENTIONAL_JOB_FAILURE" in notebook
+    assert "SELECT raise_error(" in notebook
+    assert ").collect()" in notebook
     assert "fabricqueryr-job-success:" in notebook
 
 

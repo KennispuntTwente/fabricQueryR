@@ -27,6 +27,9 @@ delay_seconds = 600
 import time
 
 if mode == "failure":
+    spark.sql(
+        "SELECT raise_error('FABRICQUERYR_INTENTIONAL_JOB_FAILURE')"
+    ).collect()
     raise RuntimeError("FABRICQUERYR_INTENTIONAL_JOB_FAILURE")
 
 if mode == "slow":
