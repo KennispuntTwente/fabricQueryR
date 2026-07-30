@@ -114,6 +114,21 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
         nested.schema.field("attributes").type.item_type.field("amount").type
         == pa.string()
     )
+    nested_items = nested.column("items").combine_chunks()
+    assert nested_items.values.null_count == 1
+    assert nested_items.values[2].as_py() is None
+    assert nested_items.values[3].as_py() == {
+        "label": None,
+        "amount": None,
+        "code": None,
+    }
+    nested_attributes = nested.column("attributes").combine_chunks()
+    assert nested_attributes.items.null_count == 1
+    assert nested_attributes.items[1].as_py() is None
+    assert nested_attributes.items[2].as_py() == {
+        "enabled": None,
+        "amount": None,
+    }
     assert scalars.num_rows == 3
     assert scalars.schema.field("whole_decimal").type == pa.string()
     assert scalars.schema.field("scaled_decimal").type == pa.string()

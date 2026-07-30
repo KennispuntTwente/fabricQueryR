@@ -37,6 +37,19 @@ test_that("delta-rs parity assertions retain empty schemas and value kinds", {
     fabric_test_delta_canonical_value(struct_forward),
     fabric_test_delta_canonical_value(struct_forward[2:1, , drop = FALSE])
   ))
+  parent_null <- data.frame(value = NA_integer_)
+  class(parent_null) <- c("fabric_delta_struct_column", "data.frame")
+  attr(parent_null, "fabric_delta_struct_validity") <- FALSE
+  present_all_null <- parent_null
+  attr(present_all_null, "fabric_delta_struct_validity") <- TRUE
+  expect_false(identical(
+    fabric_test_delta_canonical_value(parent_null),
+    fabric_test_delta_canonical_value(present_all_null)
+  ))
+  expect_identical(
+    fabric_test_delta_canonical_value(parent_null),
+    list(list(type = "struct_null"))
+  )
 
   oracle <- data.frame(id = 1L)
   attr(oracle, "fabric_delta_oracle_metadata") <- list(

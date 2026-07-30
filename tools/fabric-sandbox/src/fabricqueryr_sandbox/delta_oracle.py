@@ -364,6 +364,12 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                             "amount": None,
                             "code": 2,
                         },
+                        None,
+                        {
+                            "label": None,
+                            "amount": None,
+                            "code": None,
+                        },
                     ],
                     "attributes": [
                         (
@@ -372,7 +378,15 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                                 "enabled": True,
                                 "amount": Decimal("99.99"),
                             },
-                        )
+                        ),
+                        ("null", None),
+                        (
+                            "all-null",
+                            {
+                                "enabled": None,
+                                "amount": None,
+                            },
+                        ),
                     ],
                 },
                 {

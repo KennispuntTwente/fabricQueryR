@@ -98,11 +98,78 @@ fabric_test_delta_oracle_read <- function(
   fabric_test_delta_oracle_run(arguments)
   old_options <- options(arrow.int64_downcast = FALSE)
   on.exit(options(old_options), add = TRUE)
-  value <- arrow::read_ipc_file(path, as_data_frame = TRUE)
+  table <- arrow::read_ipc_file(path, as_data_frame = FALSE)
+  value <- as.data.frame(table)
+  for (name in names(value)) {
+    column <- table$GetColumnByName(name)
+    array <- do.call(arrow::concat_arrays, column$chunks)
+    value[[name]] <- fabric_test_delta_attach_arrow_validity(
+      value[[name]],
+      array
+    )
+  }
   attr(value, "fabric_delta_oracle_metadata") <- jsonlite::fromJSON(
     metadata_path,
     simplifyVector = FALSE
   )
+  value
+}
+
+#' Attach Arrow struct validity before conversion can erase it
+#' @keywords internal
+#' @noRd
+fabric_test_delta_attach_arrow_validity <- function(value, array) {
+  if (inherits(array, "StructArray")) {
+    if (!is.data.frame(value)) {
+      rlang::abort("delta-rs returned an invalid struct representation")
+    }
+    for (index in seq_along(value)) {
+      value[[index]] <- fabric_test_delta_attach_arrow_validity(
+        value[[index]],
+        array$field(index - 1L)
+      )
+    }
+    validity <- !vapply(
+      seq_len(length(array)) - 1L,
+      array$IsNull,
+      logical(1)
+    )
+    class(value) <- unique(c("fabric_delta_struct_column", class(value)))
+    attr(value, "fabric_delta_struct_validity") <- validity
+    return(value)
+  }
+  if (inherits(array, c("ListArray", "LargeListArray"))) {
+    value <- as.list(value)
+    child <- array$values()
+    for (index in seq_along(value)) {
+      if (array$IsNull(index - 1L) || is.null(value[[index]])) {
+        next
+      }
+      offset <- array$value_offset(index - 1L)
+      length <- array$value_length(index - 1L)
+      value[index] <- list(fabric_test_delta_attach_arrow_validity(
+        value[[index]],
+        child$Slice(offset, length)
+      ))
+    }
+    return(value)
+  }
+  if (inherits(array, "MapArray")) {
+    value <- as.list(value)
+    items <- array$items()
+    for (index in seq_along(value)) {
+      if (array$IsNull(index - 1L) || is.null(value[[index]])) {
+        next
+      }
+      offset <- array$value_offset(index - 1L)
+      length <- array$value_length(index - 1L)
+      value[[index]]$value <- fabric_test_delta_attach_arrow_validity(
+        value[[index]]$value,
+        items$Slice(offset, length)
+      )
+    }
+    return(value)
+  }
   value
 }
 
@@ -191,7 +258,16 @@ fabric_test_delta_canonical_value <- function(value) {
   if (is.data.frame(value)) {
     rows <- lapply(
       seq_len(nrow(value)),
-      function(index) fabric_test_delta_canonical_row(value, index)
+      function(index) {
+        if (
+          inherits(value, "fabric_delta_struct_column") &&
+            is.na(value)[[index]]
+        ) {
+          list(type = "struct_null")
+        } else {
+          fabric_test_delta_canonical_row(value, index)
+        }
+      }
     )
     # Arrow represents a Delta map as a data frame with `key` and `value`
     # fields. Map entry order is not part of Delta's logical value, so compare
@@ -222,6 +298,12 @@ fabric_test_delta_canonical_value <- function(value) {
 
 fabric_test_delta_canonical_cell <- function(column, index) {
   if (is.data.frame(column)) {
+    if (
+      inherits(column, "fabric_delta_struct_column") &&
+        is.na(column)[[index]]
+    ) {
+      return(list(type = "struct_null"))
+    }
     return(fabric_test_delta_canonical_row(column, index))
   }
   if (is.list(column) && !is.raw(column)) {
@@ -281,6 +363,20 @@ fabric_test_delta_column_signature <- function(value) {
 
 fabric_test_delta_column_signatures <- function(value) {
   vapply(value, fabric_test_delta_column_signature, character(1))
+}
+
+#' Canonicalize a Delta schema for exact parity comparison
+#' @keywords internal
+#' @noRd
+fabric_test_delta_schema_canonical <- function(value) {
+  if (!is.list(value)) {
+    return(value)
+  }
+  result <- lapply(value, fabric_test_delta_schema_canonical)
+  if (!is.null(names(result))) {
+    result <- result[order(names(result))]
+  }
+  result
 }
 
 fabric_test_delta_oracle_metadata <- function(value) {
@@ -362,6 +458,19 @@ fabric_test_expect_delta_oracle_equal <- function(actual, oracle, info = NULL) {
   expect_false(anyDuplicated(names(oracle)) > 0L, info = info)
   expect_named(actual, names(oracle), info = info)
   expect_equal(nrow(actual), nrow(oracle), info = info)
+  actual_schema <- attr(actual, "fabric_delta_schema", exact = TRUE)
+  oracle_metadata <- fabric_test_delta_oracle_metadata(oracle)
+  oracle_schema <- oracle_metadata$delta_schema %||% NULL
+  expect_true(is.list(actual_schema), info = info)
+  expect_true(is.list(oracle_schema), info = info)
+  oracle_fields <- oracle_schema$fields %||% list()
+  oracle_field_names <- vapply(oracle_fields, `[[`, character(1), "name")
+  oracle_schema$fields <- oracle_fields[match(names(oracle), oracle_field_names)]
+  expect_identical(
+    fabric_test_delta_schema_canonical(actual_schema[c("type", "fields")]),
+    fabric_test_delta_schema_canonical(oracle_schema[c("type", "fields")]),
+    info = info
+  )
   expect_identical(
     fabric_test_delta_column_signatures(actual),
     fabric_test_delta_column_signatures(oracle),

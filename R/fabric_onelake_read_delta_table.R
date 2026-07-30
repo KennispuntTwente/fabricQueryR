@@ -1252,10 +1252,18 @@ fabric_delta_read_staged <- function(
         limit_sql
       )
     )
-    return(fabric_delta_mark_variant_columns(
+    empty <- fabric_delta_mark_variant_columns(
       empty,
       schema$fields[selected_indexes]
-    ))
+    )
+    selected_schema <- schema
+    selected_schema$fields <- schema$fields[selected_indexes]
+    selected_schema$partitionColumns <- intersect(
+      schema$partitionColumns,
+      projection$names[selected_indexes]
+    )
+    attr(empty, "fabric_delta_schema") <- selected_schema
+    return(empty)
   }
   variant_fields <- Filter(
     function(field) {
@@ -1526,6 +1534,13 @@ fabric_delta_read_staged <- function(
     )
     result[[mask$name]] <- NULL
   }
+  selected_schema <- schema
+  selected_schema$fields <- schema$fields[selected_indexes]
+  selected_schema$partitionColumns <- intersect(
+    schema$partitionColumns,
+    projection$names[selected_indexes]
+  )
+  attr(result, "fabric_delta_schema") <- selected_schema
   result
 }
 
