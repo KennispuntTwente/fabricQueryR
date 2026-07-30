@@ -202,12 +202,14 @@ values, including Variant shredding. Delta `long` values are returned as
 [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
 decimals are returned as character so values through precision 38 remain
 exact. Legacy `void` fields are returned as logical all-`NA` columns.
-Timestamp partition values without an offset are interpreted as UTC,
-matching the Fabric test runtime. Metadata must declare Parquet with no
-provider-specific options. Unknown reader features, malformed recursive
-schemas/commits, catalog-managed commits, and absolute paths outside
-OneLake fail before any rows are returned. A caller-supplied `dest_dir`
-must be new or empty.
+For legacy `timestamp` partition values without an offset, supply
+`timestamp_partition_timezone` with the timezone of the writing system,
+such as `"UTC"` or `"Europe/Amsterdam"`. The Delta log does not record
+that timezone, so the reader fails rather than silently assuming one.
+Metadata must declare Parquet with no provider-specific options. Unknown
+reader features, malformed recursive schemas/commits, catalog-managed
+commits, and absolute paths outside OneLake fail before any rows are
+returned. A caller-supplied `dest_dir` must be new or empty.
 
 Compatibility reviewed against the Delta protocol and Fabric
 documentation in July 2026:
@@ -215,12 +217,12 @@ documentation in July 2026:
 | Delta capability | Reader behavior | Verification |
 |----|----|----|
 | Reader protocols 1–3 | Supported | Protocol-focused unit tests and live Fabric tables |
-| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported, including same-version fallback | Real Parquet/JSON unit fixtures and live Fabric V2 checkpoints |
+| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported, including same-version alternatives and older-checkpoint recovery | Real Parquet/JSON unit fixtures, remote retry tests, and live Fabric V2 checkpoints |
 | Name- and ID-based column mapping | Supported recursively through structs, arrays, and maps | Projection unit tests and live rename/drop fixtures |
 | Inline, relative-file, and absolute-OneLake deletion vectors | Supported; file identity includes the DV unique ID | Golden Roaring vectors and live sparse/dense/checkpoint DV tables |
 | Absolute OneLake AddFile paths and Fabric shallow clones | Supported when scoped to OneLake | Unit path checks and a live shallow clone |
 | Typed partitions, `void`, type widening, and timestamp without time zone | Supported; exact decimals remain character | Unit matrices and live Fabric edge-value tables |
-| Variant, including mixed shredded and unshredded files | Supported through DuckDB’s native Variant decoding | Mixed physical unit files and live pre/post-shredding writes |
+| Top-level Variant, including mixed shredded and unshredded files | Exact `fabric_delta_variant` cells retain type plus Parquet metadata/value bytes; Arrow uses an equivalent typed struct; SQL NULL remains distinct from Variant Null; nested Variant fields fail closed | Mixed physical unit files, Decimal128 boundaries, and live pre/post-shredding writes |
 | Non-Parquet formats/options, malformed commits/schemas, catalog-managed commits, and unknown reader features | Rejected before reading data | Negative unit tests |
 | Absolute paths outside OneLake | Rejected before reading data | Negative unit tests |
 
@@ -229,15 +231,29 @@ Python binding of delta-rs. Deterministic local fixtures cover time
 travel, projection, empty and evolving schemas, delete/update rewrites,
 encoded and null partitions, scalar boundaries, exact values, and nested
 null/empty data. The comparison checks logical R column types and
-delta-rs snapshot metadata as well as row values. The live Fabric suite
-compares both readers on typed partitioning, historical checkpoints,
-column mapping, sparse/stress/dense deletion vectors, shallow clones,
-and Lakehouse and Warehouse profiles. Profiles that delta-rs 1.6 cannot
-independently validate, such as type widening, V2 checkpoint sidecars,
-legacy `void`, and mixed shredded Variant, remain covered by dedicated
-protocol fixtures and live Fabric assertions. delta-rs and Python are
-test dependencies only; users do not need them to install or run
-fabricQueryR.
+delta-rs snapshot metadata as well as row values. Because [Fabric
+Runtime 2.0 enables deletion vectors by
+default](https://learn.microsoft.com/fabric/data-engineering/delta-lake-deletion-vectors)
+and Fabric documents that its pinned `deltalake` reader cannot scan
+them, the live parity matrix uses explicitly DV-disabled Fabric tables.
+Those tables cover projection, empty and evolving schemas, typed
+partitions, historical checkpoints, exact scalar boundaries, and nested
+values. Runtime-default tables separately exercise deletion vectors,
+column mapping, type widening, V2 checkpoint sidecars, shallow clones,
+mixed shredded Variant, and Warehouse exports through exact direct
+assertions. This split prevents an oracle limitation from either failing
+the suite or silently weakening modern Fabric coverage.
+
+Warehouse reads use the latest Delta snapshot that Fabric has published
+to OneLake. Warehouse SQL commits start that publication asynchronously,
+so a just-committed transaction can briefly be newer than the visible
+Delta log. The integration sandbox waits for a post-seed log publication
+before asserting Warehouse rows; production callers that require
+read-after-write coordination must likewise wait for the published
+snapshot.
+
+delta-rs and Python are test dependencies only; users do not need them
+to install or run fabricQueryR.
 
 The Fabric integration workflow provisions Runtime 2.0 tables on pushes
 to `main`/`master`, in-repository pull requests that touch the reader, a
@@ -403,6 +419,8 @@ Resolve and read supported Delta Lake snapshots from OneLake
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Delta table from Microsoft Fabric OneLake
+- [`format(`*`<fabric_delta_variant>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/format.fabric_delta_variant.md)
+  : Format an exact Delta Variant value
 
 ## KQL
 

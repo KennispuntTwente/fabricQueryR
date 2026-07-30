@@ -193,7 +193,7 @@
 <span><span class="op">)</span></span>
 <span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></code></pre></div>
 <p>The account needs access through the workspace or <strong>Lakehouse &gt; Manage OneLake data access</strong>. This function downloads the active table files locally, so a filtered SQL query can be more efficient for very large tables. The Arrow result changes the returned object, but does not avoid the local download or in-memory read.</p>
-<p>The reader follows Delta reader protocols 1–3 and supports the profiles emitted by Fabric Spark Runtime 2.0 and Fabric Warehouse exports: classic and V2 checkpoints, name/ID column mapping, deletion vectors, type widening, timestamp-NTZ, shallow-clone paths, and native Variant values, including Variant shredding. Delta <code>long</code> values are returned as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>; decimals are returned as character so values through precision 38 remain exact. Legacy <code>void</code> fields are returned as logical all-<code>NA</code> columns. Timestamp partition values without an offset are interpreted as UTC, matching the Fabric test runtime. Metadata must declare Parquet with no provider-specific options. Unknown reader features, malformed recursive schemas/commits, catalog-managed commits, and absolute paths outside OneLake fail before any rows are returned. A caller-supplied <code>dest_dir</code> must be new or empty.</p>
+<p>The reader follows Delta reader protocols 1–3 and supports the profiles emitted by Fabric Spark Runtime 2.0 and Fabric Warehouse exports: classic and V2 checkpoints, name/ID column mapping, deletion vectors, type widening, timestamp-NTZ, shallow-clone paths, and native Variant values, including Variant shredding. Delta <code>long</code> values are returned as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>; decimals are returned as character so values through precision 38 remain exact. Legacy <code>void</code> fields are returned as logical all-<code>NA</code> columns. For legacy <code>timestamp</code> partition values without an offset, supply <code>timestamp_partition_timezone</code> with the timezone of the writing system, such as <code>"UTC"</code> or <code>"Europe/Amsterdam"</code>. The Delta log does not record that timezone, so the reader fails rather than silently assuming one. Metadata must declare Parquet with no provider-specific options. Unknown reader features, malformed recursive schemas/commits, catalog-managed commits, and absolute paths outside OneLake fail before any rows are returned. A caller-supplied <code>dest_dir</code> must be new or empty.</p>
 <p>Compatibility reviewed against the Delta protocol and Fabric documentation in July 2026:</p>
 <table class="table">
 <colgroup>
@@ -214,8 +214,8 @@
 </tr>
 <tr>
 <td>V1 classic/multipart and V2 classic/UUID checkpoints with sidecars</td>
-<td>Supported, including same-version fallback</td>
-<td>Real Parquet/JSON unit fixtures and live Fabric V2 checkpoints</td>
+<td>Supported, including same-version alternatives and older-checkpoint recovery</td>
+<td>Real Parquet/JSON unit fixtures, remote retry tests, and live Fabric V2 checkpoints</td>
 </tr>
 <tr>
 <td>Name- and ID-based column mapping</td>
@@ -238,9 +238,9 @@
 <td>Unit matrices and live Fabric edge-value tables</td>
 </tr>
 <tr>
-<td>Variant, including mixed shredded and unshredded files</td>
-<td>Supported through DuckDB’s native Variant decoding</td>
-<td>Mixed physical unit files and live pre/post-shredding writes</td>
+<td>Top-level Variant, including mixed shredded and unshredded files</td>
+<td>Exact <code>fabric_delta_variant</code> cells retain type plus Parquet metadata/value bytes; Arrow uses an equivalent typed struct; SQL NULL remains distinct from Variant Null; nested Variant fields fail closed</td>
+<td>Mixed physical unit files, Decimal128 boundaries, and live pre/post-shredding writes</td>
 </tr>
 <tr>
 <td>Non-Parquet formats/options, malformed commits/schemas, catalog-managed commits, and unknown reader features</td>
@@ -254,7 +254,9 @@
 </tr>
 </tbody>
 </table>
-<p>The test suite also compares this R implementation with the independent Python binding of delta-rs. Deterministic local fixtures cover time travel, projection, empty and evolving schemas, delete/update rewrites, encoded and null partitions, scalar boundaries, exact values, and nested null/empty data. The comparison checks logical R column types and delta-rs snapshot metadata as well as row values. The live Fabric suite compares both readers on typed partitioning, historical checkpoints, column mapping, sparse/stress/dense deletion vectors, shallow clones, and Lakehouse and Warehouse profiles. Profiles that delta-rs 1.6 cannot independently validate, such as type widening, V2 checkpoint sidecars, legacy <code>void</code>, and mixed shredded Variant, remain covered by dedicated protocol fixtures and live Fabric assertions. delta-rs and Python are test dependencies only; users do not need them to install or run fabricQueryR.</p>
+<p>The test suite also compares this R implementation with the independent Python binding of delta-rs. Deterministic local fixtures cover time travel, projection, empty and evolving schemas, delete/update rewrites, encoded and null partitions, scalar boundaries, exact values, and nested null/empty data. The comparison checks logical R column types and delta-rs snapshot metadata as well as row values. Because <a href="https://learn.microsoft.com/fabric/data-engineering/delta-lake-deletion-vectors" class="external-link">Fabric Runtime 2.0 enables deletion vectors by default</a> and Fabric documents that its pinned <code>deltalake</code> reader cannot scan them, the live parity matrix uses explicitly DV-disabled Fabric tables. Those tables cover projection, empty and evolving schemas, typed partitions, historical checkpoints, exact scalar boundaries, and nested values. Runtime-default tables separately exercise deletion vectors, column mapping, type widening, V2 checkpoint sidecars, shallow clones, mixed shredded Variant, and Warehouse exports through exact direct assertions. This split prevents an oracle limitation from either failing the suite or silently weakening modern Fabric coverage.</p>
+<p>Warehouse reads use the latest Delta snapshot that Fabric has published to OneLake. Warehouse SQL commits start that publication asynchronously, so a just-committed transaction can briefly be newer than the visible Delta log. The integration sandbox waits for a post-seed log publication before asserting Warehouse rows; production callers that require read-after-write coordination must likewise wait for the published snapshot.</p>
+<p>delta-rs and Python are test dependencies only; users do not need them to install or run fabricQueryR.</p>
 <p>The Fabric integration workflow provisions Runtime 2.0 tables on pushes to <code>main</code>/<code>master</code>, in-repository pull requests that touch the reader, a weekly schedule, and manual runs. Pull requests from forks do not receive the protected Fabric environment; their protocol/unit suite still runs in the regular R workflow.</p>
 </div>
 <div class="section level3">

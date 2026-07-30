@@ -94,8 +94,12 @@
   reading. The Fabric Runtime 2.0 integration matrix now covers nested
   column mapping, dense/checkpoint deletion vectors, nested type
   widening, typed and null partitions, and mixed shredded/unshredded
-  Variant files. Unsafe retained staging and unsupported Delta features
-  fail closed instead of risking incorrect results.
+  Variant files. If the newest staged checkpoint is corrupt, incomplete,
+  or has an unavailable V2 sidecar, the reader now progressively stages
+  older checkpoints and their JSON tails instead of failing while a
+  reconstructible snapshot still exists. Unsafe retained staging and
+  unsupported Delta features fail closed instead of risking incorrect
+  results.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   can now return an Arrow C stream with `result = "arrow_stream"`; the
@@ -104,8 +108,12 @@
   deterministic local fixtures and live Fabric integration tables. The
   parity suite verifies schemas and protocol metadata as well as rows,
   and covers historical snapshots, rewrites, nested/exact boundary
-  values, column mapping, deletion-vector stress profiles, and Warehouse
-  exports.
+  values, and typed partitions. Live parity uses explicitly DV-disabled
+  compatibility tables because Fabric Runtime 2.0 enables deletion
+  vectors by default while delta-rs 1.6 rejects that reader feature.
+  Runtime-default deletion vectors, column mapping, type widening, V2
+  checkpoints, Variant, clones, and Warehouse exports retain dedicated
+  exact-result integration assertions.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset

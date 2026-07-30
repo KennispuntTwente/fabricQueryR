@@ -55,6 +55,8 @@ Resolve and read supported Delta Lake snapshots from OneLake
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Delta table from Microsoft Fabric OneLake
+- [`format(`*`<fabric_delta_variant>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/format.fabric_delta_variant.md)
+  : Format an exact Delta Variant value
 
 ## KQL
 
