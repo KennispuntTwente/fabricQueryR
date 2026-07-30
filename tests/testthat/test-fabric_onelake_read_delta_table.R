@@ -1333,6 +1333,7 @@ test_that("Delta logical schemas cover primitive and nested types", {
   expect_match(id_projection, '"file-outer"."file-inner"', fixed = TRUE)
   expect_match(id_projection, '"physical-inner" :=', fixed = TRUE)
   expect_match(id_projection, 'AS "physical-outer"', fixed = TRUE)
+  expect_match(id_projection, "CASE WHEN", fixed = TRUE)
   expect_match(id_projection, "list_transform(", fixed = TRUE)
   expect_match(id_projection, '"file-label"', fixed = TRUE)
   expect_match(id_projection, "map_values(", fixed = TRUE)
@@ -1467,6 +1468,153 @@ test_that("name mapping fills nested metadata-only fields with NULL", {
   expect_identical(result$attributes[[1L]]$key, "key")
   expect_true(result$attributes[[1L]]$value$enabled)
   expect_true(is.na(result$attributes[[1L]]$value$added))
+})
+
+test_that("Delta structs preserve parent validity separately from children", {
+  table_dir <- fs::path_temp(paste0(
+    "delta-struct-validity-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  struct_type <- "STRUCT(p_number INTEGER, p_text VARCHAR)"
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (",
+      "SELECT 1::INTEGER AS p_id, NULL::",
+      struct_type,
+      " AS p_profile, [NULL::",
+      struct_type,
+      ", struct_pack(p_number := NULL::INTEGER, ",
+      "p_text := NULL::VARCHAR)] AS p_items, ",
+      "map(['null', 'present'], [NULL::",
+      struct_type,
+      ", struct_pack(p_number := NULL::INTEGER, ",
+      "p_text := NULL::VARCHAR)]) AS p_attributes ",
+      "UNION ALL SELECT 2::INTEGER, ",
+      "struct_pack(p_number := NULL::INTEGER, p_text := NULL::VARCHAR), ",
+      "NULL::",
+      struct_type,
+      "[], NULL::MAP(VARCHAR, ",
+      struct_type,
+      ") ",
+      "UNION ALL SELECT 3::INTEGER, ",
+      "struct_pack(p_number := 3::INTEGER, p_text := 'value'), ",
+      "[]::",
+      struct_type,
+      "[], map([]::VARCHAR[], []::",
+      struct_type,
+      "[])",
+      ") TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  mapped_field <- function(name, type, id, physical) {
+    list(
+      name = name,
+      type = type,
+      nullable = TRUE,
+      metadata = list(
+        "delta.columnMapping.id" = id,
+        "delta.columnMapping.physicalName" = physical
+      )
+    )
+  }
+  nested_type <- function(number_id, text_id) {
+    list(
+      type = "struct",
+      fields = list(
+        mapped_field("number", "integer", number_id, "p_number"),
+        mapped_field("text", "string", text_id, "p_text")
+      )
+    )
+  }
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        mapped_field("id", "integer", 1L, "p_id"),
+        mapped_field("profile", nested_type(3L, 4L), 2L, "p_profile"),
+        mapped_field(
+          "items",
+          list(
+            type = "array",
+            elementType = nested_type(6L, 7L),
+            containsNull = TRUE
+          ),
+          5L,
+          "p_items"
+        ),
+        mapped_field(
+          "attributes",
+          list(
+            type = "map",
+            keyType = "string",
+            valueType = nested_type(9L, 10L),
+            valueContainsNull = TRUE
+          ),
+          8L,
+          "p_attributes"
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(minReaderVersion = 2L, minWriterVersion = 5L)),
+    list(
+      metaData = list(
+        id = "struct-validity",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list("delta.columnMapping.mode" = "name")
+      )
+    ),
+    list(add = list(path = "part.parquet", partitionValues = list()))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_s3_class(result$profile, "fabric_delta_struct_column")
+  expect_identical(is.na(result$profile), c(TRUE, FALSE, FALSE))
+  expect_true(is.na(result$profile$number[[2L]]))
+  expect_true(is.na(result$profile$text[[2L]]))
+  expect_identical(
+    is.na(result$profile[c(2L, 1L), , drop = FALSE]),
+    c(FALSE, TRUE)
+  )
+  expect_identical(is.na(result$items[[1L]]), c(TRUE, FALSE))
+  expect_identical(
+    is.na(result$attributes[[1L]]$value),
+    c(TRUE, FALSE)
+  )
+  expect_null(result$items[[2L]])
+  expect_equal(nrow(result$items[[3L]]), 0L)
+  expect_null(result$attributes[[2L]])
+  expect_equal(nrow(result$attributes[[3L]]), 0L)
+  tibble_result <- fabric_delta_format_result(result, "tibble")
+  expect_identical(is.na(tibble_result$profile), c(TRUE, FALSE, FALSE))
+
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  stream <- fabric_delta_format_result(result, "arrow_stream")
+  table <- arrow::as_record_batch_reader(stream)$read_table()
+  profile <- table$GetColumnByName("profile")
+  expect_equal(profile$null_count, 1L)
+  expect_true(profile$chunk(0L)$IsNull(0L))
+  expect_false(profile$chunk(0L)$IsNull(1L))
 })
 
 test_that("Delta reader reconstructs top-level and nested void fields", {

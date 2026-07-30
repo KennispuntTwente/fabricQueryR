@@ -602,13 +602,29 @@ fabric_delta_format_result <- function(value, result) {
   tibble::as_tibble(value)
 }
 
-#' Convert exact Delta Variant columns to homogeneous Arrow structs
+#' Convert exact Delta nested columns to validity-preserving Arrow arrays
 #' @keywords internal
 #' @noRd
 fabric_delta_arrow_compatible <- function(value) {
   columns <- as.list(value)
   for (name in names(value)) {
     column <- value[[name]]
+    if (inherits(column, "fabric_delta_struct_column")) {
+      validity <- attr(
+        column,
+        "fabric_delta_struct_validity",
+        exact = TRUE
+      )
+      fields <- fabric_delta_arrow_compatible(column)
+      struct <- do.call(arrow::StructArray$create, fields)
+      columns[[name]] <- arrow::call_function(
+        "if_else",
+        arrow::Array$create(validity, type = arrow::boolean()),
+        struct,
+        arrow::Scalar$create(NULL)
+      )
+      next
+    }
     if (!inherits(column, "fabric_delta_variant_column")) {
       next
     }
@@ -635,6 +651,38 @@ fabric_delta_arrow_compatible <- function(value) {
     columns[[name]] <- do.call(arrow::StructArray$create, fields)
   }
   columns
+}
+
+#' Test parent nullness for a Delta struct column
+#' @param x A nested Delta struct column.
+#' @return A logical vector that is `TRUE` for null parent structs.
+#' @export
+is.na.fabric_delta_struct_column <- function(x) {
+  !attr(x, "fabric_delta_struct_validity", exact = TRUE)
+}
+
+#' Subset a Delta struct column while retaining its parent validity
+#' @keywords internal
+#' @noRd
+#' @export
+`[.fabric_delta_struct_column` <- function(x, i, j, drop = FALSE) {
+  validity <- attr(x, "fabric_delta_struct_validity", exact = TRUE)
+  row_index <- seq_len(nrow(x))
+  column_only <- nargs() == 2L
+  selected_rows <- if (column_only || missing(i)) {
+    row_index
+  } else {
+    row_index[i]
+  }
+  result <- NextMethod("[")
+  if (is.data.frame(result)) {
+    class(result) <- unique(c(
+      "fabric_delta_struct_column",
+      class(result)
+    ))
+    attr(result, "fabric_delta_struct_validity") <- validity[selected_rows]
+  }
+  result
 }
 
 #' Read the recent checkpoint pointer without listing the full Delta log
@@ -1391,6 +1439,52 @@ fabric_delta_read_staged <- function(
   } else {
     NULL
   }
+  struct_mask_fields <- Filter(
+    function(index) {
+      fabric_delta_type_has_struct(schema$fields[[index]]$type)
+    },
+    selected_indexes
+  )
+  struct_masks <- lapply(struct_mask_fields, function(index) {
+    field <- schema$fields[[index]]
+    physical_name <- fabric_delta_field_physical_name(
+      field,
+      schema$columnMappingMode
+    )
+    source_expression <- if (
+      field$name %in% schema$partitionColumns ||
+        !physical_name %in% physical
+    ) {
+      "NULL"
+    } else {
+      paste0(
+        "delta_source.",
+        as.character(DBI::dbQuoteIdentifier(con, physical_name))
+      )
+    }
+    mask_name <- paste0("fabric_delta_struct_mask_internal_", index)
+    while (mask_name %in% c(
+      projection$names,
+      source_column,
+      row_column
+    )) {
+      mask_name <- paste0(mask_name, "_")
+    }
+    list(
+      index = index,
+      name = mask_name,
+      expression = paste0(
+        fabric_delta_struct_mask_expression(
+          con,
+          field$type,
+          source_expression,
+          schema$columnMappingMode
+        ),
+        " AS ",
+        as.character(DBI::dbQuoteIdentifier(con, mask_name))
+      )
+    )
+  })
   internal <- if (length(variant_fields)) {
     c(
       paste0("delta_source.", quoted_source, " AS ", quoted_source),
@@ -1399,6 +1493,10 @@ fabric_delta_read_staged <- function(
   } else {
     character()
   }
+  internal <- c(
+    internal,
+    vapply(struct_masks, `[[`, character(1), "expression")
+  )
   result <- DBI::dbGetQuery(
     con,
     paste0(
@@ -1418,6 +1516,15 @@ fabric_delta_read_staged <- function(
       source_column,
       row_column
     )
+  }
+  for (mask in struct_masks) {
+    field <- schema$fields[[mask$index]]
+    result[[field$name]] <- fabric_delta_apply_struct_mask(
+      result[[field$name]],
+      field$type,
+      result[[mask$name]]
+    )
+    result[[mask$name]] <- NULL
   }
   result
 }
@@ -2256,7 +2363,13 @@ fabric_delta_id_type_expression <- function(con, type, expression, mapping) {
       },
       character(1)
     )
-    return(paste0("struct_pack(", paste(packed, collapse = ", "), ")"))
+    return(paste0(
+      "CASE WHEN ",
+      expression,
+      " IS NULL THEN NULL ELSE struct_pack(",
+      paste(packed, collapse = ", "),
+      ") END"
+    ))
   }
   if (identical(kind, "array")) {
     return(paste0(
@@ -2373,7 +2486,13 @@ fabric_delta_type_expression <- function(
       },
       character(1)
     )
-    return(paste0("struct_pack(", paste(packed, collapse = ", "), ")"))
+    return(paste0(
+      "CASE WHEN ",
+      expression,
+      " IS NULL THEN NULL ELSE struct_pack(",
+      paste(packed, collapse = ", "),
+      ") END"
+    ))
   }
   if (identical(kind, "array")) {
     return(paste0(
@@ -2413,6 +2532,193 @@ fabric_delta_type_expression <- function(
     ))
   }
   expression
+}
+
+#' Detect whether a Delta type contains a struct at any nesting level
+#' @keywords internal
+#' @noRd
+fabric_delta_type_has_struct <- function(type) {
+  if (is.character(type) && length(type) == 1L) {
+    return(FALSE)
+  }
+  if (!is.list(type)) {
+    return(FALSE)
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (identical(kind, "struct")) {
+    return(TRUE)
+  }
+  if (identical(kind, "array")) {
+    return(fabric_delta_type_has_struct(type$elementType))
+  }
+  if (identical(kind, "map")) {
+    return(
+      fabric_delta_type_has_struct(type$keyType) ||
+        fabric_delta_type_has_struct(type$valueType)
+    )
+  }
+  FALSE
+}
+
+#' Choose a collision-free validity member for a struct-mask value
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_validity_name <- function(type) {
+  names <- vapply(type$fields %||% list(), `[[`, character(1), "name")
+  result <- "fabric_delta_struct_valid_internal"
+  while (result %in% names) {
+    result <- paste0(result, "_")
+  }
+  result
+}
+
+#' Build a recursive SQL mirror of Delta struct validity
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_mask_expression <- function(
+  con,
+  type,
+  expression,
+  mapping_mode = "none"
+) {
+  if (is.character(type) && length(type) == 1L) {
+    return("TRUE")
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  expression <- paste0(
+    "CAST(",
+    expression,
+    " AS ",
+    fabric_delta_duckdb_physical_type(con, type, mapping_mode),
+    ")"
+  )
+  if (identical(kind, "struct")) {
+    fields <- type$fields %||% list()
+    validity <- as.character(DBI::dbQuoteIdentifier(
+      con,
+      fabric_delta_struct_validity_name(type)
+    ))
+    nested <- unlist(lapply(fields, function(field) {
+      if (!fabric_delta_type_has_struct(field$type)) {
+        return(NULL)
+      }
+      physical <- fabric_delta_field_physical_name(field, mapping_mode)
+      logical <- as.character(DBI::dbQuoteIdentifier(con, field$name))
+      paste0(
+        logical,
+        " := ",
+        fabric_delta_struct_mask_expression(
+          con,
+          field$type,
+          paste0(
+            expression,
+            ".",
+            as.character(DBI::dbQuoteIdentifier(con, physical))
+          ),
+          mapping_mode
+        )
+      )
+    }), use.names = FALSE)
+    return(paste0(
+      "struct_pack(",
+      paste(
+        c(paste0(validity, " := ", expression, " IS NOT NULL"), nested),
+        collapse = ", "
+      ),
+      ")"
+    ))
+  }
+  if (identical(kind, "array")) {
+    return(paste0(
+      "list_transform(",
+      expression,
+      ", fabric_delta_mask_element -> ",
+      fabric_delta_struct_mask_expression(
+        con,
+        type$elementType,
+        "fabric_delta_mask_element",
+        mapping_mode
+      ),
+      ")"
+    ))
+  }
+  if (identical(kind, "map")) {
+    return(paste0(
+      "map(map_keys(",
+      expression,
+      "), list_transform(map_values(",
+      expression,
+      "), fabric_delta_mask_value -> ",
+      fabric_delta_struct_mask_expression(
+        con,
+        type$valueType,
+        "fabric_delta_mask_value",
+        mapping_mode
+      ),
+      "))"
+    ))
+  }
+  "TRUE"
+}
+
+#' Attach recursive struct-validity mirrors to materialized R columns
+#' @keywords internal
+#' @noRd
+fabric_delta_apply_struct_mask <- function(value, type, mask) {
+  if (is.character(type) && length(type) == 1L) {
+    return(value)
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (identical(kind, "struct")) {
+    if (!is.data.frame(value) || !is.data.frame(mask)) {
+      rlang::abort("DuckDB returned an invalid Delta struct validity mirror")
+    }
+    validity_name <- fabric_delta_struct_validity_name(type)
+    validity <- mask[[validity_name]]
+    if (!is.logical(validity) || length(validity) != nrow(value)) {
+      rlang::abort("DuckDB returned an invalid Delta struct validity bitmap")
+    }
+    for (field in type$fields %||% list()) {
+      if (!fabric_delta_type_has_struct(field$type)) {
+        next
+      }
+      value[[field$name]] <- fabric_delta_apply_struct_mask(
+        value[[field$name]],
+        field$type,
+        mask[[field$name]]
+      )
+    }
+    class(value) <- unique(c("fabric_delta_struct_column", class(value)))
+    attr(value, "fabric_delta_struct_validity") <- validity
+    return(value)
+  }
+  if (identical(kind, "array")) {
+    for (index in seq_along(value)) {
+      if (is.null(value[[index]]) || is.null(mask[[index]])) {
+        next
+      }
+      value[index] <- list(fabric_delta_apply_struct_mask(
+        value[[index]],
+        type$elementType,
+        mask[[index]]
+      ))
+    }
+    return(value)
+  }
+  if (identical(kind, "map")) {
+    for (index in seq_along(value)) {
+      if (is.null(value[[index]]) || is.null(mask[[index]])) {
+        next
+      }
+      value[[index]]$value <- fabric_delta_apply_struct_mask(
+        value[[index]]$value,
+        type$valueType,
+        mask[[index]]$value
+      )
+    }
+    return(value)
+  }
+  value
 }
 
 #' Normalize a Delta partition-values map
