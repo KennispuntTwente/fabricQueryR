@@ -612,38 +612,37 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
   fabric_test_require_delta_oracle()
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
-  warehouse <- manifest$items$TestWarehouse
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
 
   cases <- list(
     list(
       name = "basic",
-      key = "basic",
+      key = "oracle_basic",
       item = lakehouse,
-      table = lakehouse$tables$basic,
+      table = lakehouse$tables$oracle_basic,
       expected_rows = 3
     ),
     list(
       name = "basic_projection",
-      key = "basic",
+      key = "oracle_basic",
       item = lakehouse,
-      table = lakehouse$tables$basic,
+      table = lakehouse$tables$oracle_basic,
       columns = c("name", "id", "amount"),
       expected_rows = 3
     ),
     list(
       name = "empty",
-      key = "empty",
+      key = "oracle_empty",
       item = lakehouse,
-      table = lakehouse$tables$empty,
+      table = lakehouse$tables$oracle_empty,
       expected_rows = 0,
       min_active_files = 0
     ),
     list(
       name = "typed_partitions",
-      key = "typed_partitions",
+      key = "oracle_typed_partitions",
       item = lakehouse,
-      table = lakehouse$tables$typed_partitions,
+      table = lakehouse$tables$oracle_typed_partitions,
       expected_rows = 3,
       reader_features = "timestampNtz",
       timestamp_partition_timezone = "UTC",
@@ -659,18 +658,18 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     ),
     list(
       name = "partitioned",
-      key = "partitioned",
+      key = "oracle_partitioned",
       item = lakehouse,
-      table = lakehouse$tables$partitioned,
+      table = lakehouse$tables$oracle_partitioned,
       expected_rows = 13,
       min_active_files = 2,
       partition_columns = "category"
     ),
     list(
       name = "partitioned_version_10",
-      key = "partitioned",
+      key = "oracle_partitioned",
       item = lakehouse,
-      table = lakehouse$tables$partitioned,
+      table = lakehouse$tables$oracle_partitioned,
       version = 10,
       expected_rows = 13,
       min_active_files = 2,
@@ -678,72 +677,78 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     ),
     list(
       name = "schema_evolved",
-      key = "schema_evolved",
+      key = "oracle_schema_evolved",
       item = lakehouse,
-      table = lakehouse$tables$schema_evolved,
+      table = lakehouse$tables$oracle_schema_evolved,
       expected_rows = 3,
       min_active_files = 2
     ),
     list(
       name = "schema_evolved_version_0",
-      key = "schema_evolved",
+      key = "oracle_schema_evolved",
       item = lakehouse,
-      table = lakehouse$tables$schema_evolved,
+      table = lakehouse$tables$oracle_schema_evolved,
       version = 0,
       expected_rows = 2
     ),
     list(
-      name = "column_mapping_by_name",
-      key = "column_mapped",
-      item = lakehouse,
-      table = lakehouse$tables$column_mapped,
-      expected_rows = 3,
-      min_active_files = 2,
-      column_mapping_mode = "name"
-    ),
-    list(
-      name = "column_mapping_by_id",
-      key = "column_mapped_id",
-      item = lakehouse,
-      table = lakehouse$tables$column_mapped_id,
-      expected_rows = 3,
-      min_active_files = 2,
-      column_mapping_mode = "id"
-    ),
-    list(
       name = "exact_types",
-      key = "exact_types",
+      key = "oracle_exact_types",
       item = lakehouse,
-      table = lakehouse$tables$exact_types,
+      table = lakehouse$tables$oracle_exact_types,
       expected_rows = 1,
       reader_features = "timestampNtz"
     ),
     list(
       name = "complex_types",
-      key = "complex_types",
+      key = "oracle_complex_types",
       item = lakehouse,
-      table = lakehouse$tables$complex_types,
-      expected_rows = 1,
-      column_mapping_mode = "name"
-    ),
-    list(
-      name = "shallow_clone",
-      key = "shallow_clone",
-      item = lakehouse,
-      table = lakehouse$tables$shallow_clone,
-      expected_rows = 3
-    ),
-    list(
-      name = "warehouse_export",
-      key = NA_character_,
-      item = warehouse,
-      table = warehouse$tables$types,
-      schema = "dbo",
-      expected_rows = 3
+      table = lakehouse$tables$oracle_complex_types,
+      expected_rows = 1
     )
   )
 
   exclusions <- c(
+    basic = paste(
+      "Fabric Runtime 2.0 enables deletionVectors by default;",
+      "the equivalent oracle_basic table disables it for delta-rs parity"
+    ),
+    empty = paste(
+      "Fabric Runtime 2.0 enables deletionVectors by default;",
+      "the equivalent oracle_empty table disables it for delta-rs parity"
+    ),
+    typed_partitions = paste(
+      "Fabric Runtime 2.0 enables deletionVectors by default;",
+      "the equivalent oracle_typed_partitions table covers parity"
+    ),
+    partitioned = paste(
+      "Fabric Runtime 2.0 enables deletionVectors by default;",
+      "the equivalent oracle_partitioned table covers parity and history"
+    ),
+    schema_evolved = paste(
+      "Fabric Runtime 2.0 enables deletionVectors by default;",
+      "the equivalent oracle_schema_evolved table covers parity and history"
+    ),
+    column_mapped = paste(
+      "Fabric documents column mapping as unsupported by its pinned",
+      "delta-rs reader; direct R assertions cover nested renames and drops"
+    ),
+    column_mapped_id = paste(
+      "Fabric documents column mapping as unsupported by its pinned",
+      "delta-rs reader; direct R assertions cover ID mapping"
+    ),
+    exact_types = paste(
+      "Fabric Runtime 2.0 enables deletionVectors by default;",
+      "the equivalent oracle_exact_types table covers parity"
+    ),
+    complex_types = paste(
+      "the Fabric table combines default deletionVectors with name mapping;",
+      "oracle_complex_types covers the same nested logical value kinds"
+    ),
+    shallow_clone = paste(
+      "the clone inherits a Runtime 2.0 deletionVectors protocol;",
+      "the R reader has direct clone assertions"
+    ),
     void = paste(
       "Spark legacy void has no portable delta-rs/PyArrow value type;",
       "the R reader has direct unit and Fabric assertions"
@@ -787,6 +792,12 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     livy_batch_result = "created by the Livy job suite, not the seed matrix",
     spark_job_result = "created by the item-job suite, not the seed matrix"
   )
+  non_lakehouse_exclusions <- c(
+    warehouse_export = paste(
+      "Fabric Warehouse exports require deletionVectors and name mapping;",
+      "the R reader has direct publication and exact-row assertions"
+    )
+  )
   compared_keys <- unique(vapply(cases, `[[`, character(1), "key"))
   compared_keys <- compared_keys[!is.na(compared_keys)]
   expect_setequal(
@@ -794,6 +805,7 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     c(compared_keys, names(exclusions))
   )
   expect_true(all(nzchar(exclusions)))
+  expect_true(all(nzchar(non_lakehouse_exclusions)))
 
   for (case in cases) {
     version <- case$version %||% NULL
@@ -839,6 +851,14 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       column_mapping_mode = case$column_mapping_mode %||% NULL,
       min_active_files = case$min_active_files %||%
         if (case$expected_rows == 0) 0 else 1,
+      info = case$name
+    )
+    expect_false(
+      "deletionVectors" %in%
+        unlist(
+          fabric_test_delta_oracle_metadata(oracle)$reader_features,
+          use.names = FALSE
+        ),
       info = case$name
     )
   }

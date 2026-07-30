@@ -71,8 +71,12 @@ of risking incorrect results.
 implementation is independently checked against the Python delta-rs binding
 using deterministic local fixtures and live Fabric integration tables. The
 parity suite verifies schemas and protocol metadata as well as rows, and
-covers historical snapshots, rewrites, nested/exact boundary values,
-column mapping, deletion-vector stress profiles, and Warehouse exports.
+covers historical snapshots, rewrites, nested/exact boundary values, and
+typed partitions. Live parity uses explicitly DV-disabled compatibility
+tables because Fabric Runtime 2.0 enables deletion vectors by default while
+delta-rs 1.6 rejects that reader feature. Runtime-default deletion vectors,
+column mapping, type widening, V2 checkpoints, Variant, clones, and Warehouse
+exports retain dedicated exact-result integration assertions.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
 workspace/dataset IDs, supports optional RLS impersonation, handles paginated

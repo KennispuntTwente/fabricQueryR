@@ -34,6 +34,14 @@ def test_seed_notebook_ids_are_parameterized():
     assert '"beta-updated"' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_empty")' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_typed_partitions")' in notebook
+    assert (
+        '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")'
+        in notebook
+    )
+    assert (
+        "TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')"
+        in notebook
+    )
     partition_start = notebook.index(
         ".partitionBy(",
         notebook.index('stage = "write typed and null partition Delta table"'),

@@ -276,6 +276,147 @@ try:
         """
     )
 
+    stage = "write delta-rs compatible parity tables"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_basic")
+    (
+        fixture.withColumn(
+            "loaded_at", F.lit("2026-01-01T00:00:00Z").cast("timestamp")
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_basic")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_empty")
+    (
+        fixture.limit(0)
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_empty")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_typed_partitions")
+    (
+        typed_partitions.write.format("delta")
+        .mode("overwrite")
+        .partitionBy(
+            "event_date",
+            "active",
+            "integer_part",
+            "decimal_part",
+            "timestamp_part",
+            "timestamp_ntz_part",
+            "binary_part",
+        )
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_partitioned")
+    (
+        fixture.write.format("delta")
+        .mode("overwrite")
+        .partitionBy("category")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_partitioned")
+    )
+    for _ in range(10):
+        fixture.limit(1).write.format("delta").mode("append").saveAsTable(
+            "dbo.fabricqueryr_oracle_partitioned"
+        )
+    (
+        replacement.write.format("delta")
+        .mode("overwrite")
+        .option("replaceWhere", "category = 'B'")
+        .saveAsTable("dbo.fabricqueryr_oracle_partitioned")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_schema_evolved")
+    (
+        fixture.filter(F.col("id") < 3)
+        .select("id", "name")
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_schema_evolved")
+    )
+    (
+        fixture.filter(F.col("id") == 3)
+        .select("id", "name")
+        .withColumn("evolved_value", F.lit("introduced"))
+        .write.format("delta")
+        .mode("append")
+        .option("mergeSchema", True)
+        .saveAsTable("dbo.fabricqueryr_oracle_schema_evolved")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_exact_types")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_oracle_exact_types
+        USING DELTA
+        TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')
+        AS SELECT
+          1 AS row_id,
+          CAST('9007199254740993' AS BIGINT) AS above_double_limit,
+          CAST('9223372036854775807' AS BIGINT) AS maximum_long,
+          CAST(
+            '12345678901234567890123456789012345678'
+            AS DECIMAL(38, 0)
+          ) AS whole_decimal,
+          CAST(
+            '123456789012345678901234567890123456.78'
+            AS DECIMAL(38, 2)
+          ) AS scaled_decimal,
+          CAST('2026-07-28 12:34:56.123456' AS TIMESTAMP_NTZ)
+            AS observed_at,
+          X'00FF10' AS payload,
+          'café-数据-🙂' AS unicode_text,
+          CAST('NaN' AS DOUBLE) AS not_a_number,
+          CAST('Infinity' AS DOUBLE) AS positive_infinity
+        """
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_complex_types")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_oracle_complex_types
+        USING DELTA
+        TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')
+        AS SELECT
+          1 AS id,
+          named_struct(
+            'label', 'nested',
+            'amount',
+            CAST('1234567890123456789012345678901234.56'
+              AS DECIMAL(38, 2))
+          ) AS profile,
+          array(1, 2, 3) AS scores,
+          map(
+            'large',
+            CAST('9007199254740993' AS BIGINT),
+            'small',
+            CAST('2' AS BIGINT)
+          ) AS counts,
+          array(
+            named_struct('label', 'first', 'score', 10),
+            named_struct('label', 'second', 'score', 20)
+          ) AS items,
+          map(
+            'primary',
+            named_struct('label', 'mapped', 'enabled', true)
+          ) AS attributes,
+          'display café-数据' AS display_name
+        """
+    )
+
     stage = "write column-mapping Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_column_mapped")
     (

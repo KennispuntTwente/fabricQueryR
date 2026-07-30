@@ -218,12 +218,17 @@ Python binding of delta-rs. Deterministic local fixtures cover time travel,
 projection, empty and evolving schemas, delete/update rewrites, encoded and
 null partitions, scalar boundaries, exact values, and nested null/empty data.
 The comparison checks logical R column types and delta-rs snapshot metadata as
-well as row values. The live Fabric suite compares both readers on typed
-partitioning, historical checkpoints, column mapping, sparse/stress/dense
-deletion vectors, shallow clones, and Lakehouse and Warehouse profiles.
-Profiles that delta-rs 1.6 cannot independently validate, such as type
-widening, V2 checkpoint sidecars, legacy `void`, and mixed shredded Variant,
-remain covered by dedicated protocol fixtures and live Fabric assertions.
+well as row values. Because [Fabric Runtime 2.0 enables deletion vectors by
+default](https://learn.microsoft.com/fabric/data-engineering/delta-lake-deletion-vectors)
+and Fabric documents that its pinned `deltalake` reader cannot scan them, the
+live parity matrix uses explicitly DV-disabled Fabric tables. Those tables
+cover projection, empty and evolving schemas, typed partitions, historical
+checkpoints, exact scalar boundaries, and nested values. Runtime-default
+tables separately exercise deletion vectors, column mapping, type widening,
+V2 checkpoint sidecars, shallow clones, mixed shredded Variant, and Warehouse
+exports through exact direct assertions. This split prevents an oracle
+limitation from either failing the suite or silently weakening modern Fabric
+coverage.
 delta-rs and Python are test dependencies only; users do not need them to
 install or run fabricQueryR.
 
