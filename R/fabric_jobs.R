@@ -77,6 +77,10 @@
 #' @param api_base Fabric REST API base URL. Most users should keep the default.
 #' @details Notebook status uses Fabric's workload-specific beta endpoint first
 #'   and falls back to the core scheduler when that endpoint is unavailable.
+#'   A beta response that says `Completed` but contains neither an exit value
+#'   nor failure details is reconciled with the core scheduler before it is
+#'   returned. This prevents a failed notebook cell from being reported as a
+#'   successful run while the two Fabric status stores converge.
 #'   Because Fabric may add job statuses over time, [fabric_job_wait()] raises a
 #'   `fabric_job_unknown_status` condition for an unrecognised state instead of
 #'   polling until timeout.
@@ -769,12 +773,38 @@ print.fabric_job_instance <- function(x, ...) {
       visible = FALSE
     ))
   }
-  .fabric_job_instance(
+  instance <- .fabric_job_instance(
     result$body,
     context,
     result$retry_after,
     visible = TRUE
   )
+  if (
+    notebook &&
+      identical(instance$status, "Completed") &&
+      is.null(instance$exit_value) &&
+      !nzchar(.fabric_job_failure_text(instance$failure_reason))
+  ) {
+    core_result <- .fabric_job_request(
+      "GET",
+      .fabric_job_core_status_url(context),
+      context$credential,
+      idempotent = TRUE,
+      accepted_status = 404L
+    )
+    if (!identical(core_result$status_code, 404L)) {
+      core_instance <- .fabric_job_instance(
+        core_result$body,
+        context,
+        core_result$retry_after,
+        visible = TRUE
+      )
+      if (!identical(core_instance$status, "Completed")) {
+        return(core_instance)
+      }
+    }
+  }
+  instance
 }
 
 .fabric_job_execution_data <- function(

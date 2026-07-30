@@ -189,6 +189,10 @@ recurring timetable with Fabric's scheduler in the portal or scheduler API.
 \details{
 Notebook status uses Fabric's workload-specific beta endpoint first
 and falls back to the core scheduler when that endpoint is unavailable.
+A beta response that says \code{Completed} but contains neither an exit value
+nor failure details is reconciled with the core scheduler before it is
+returned. This prevents a failed notebook cell from being reported as a
+successful run while the two Fabric status stores converge.
 Because Fabric may add job statuses over time, \code{\link[=fabric_job_wait]{fabric_job_wait()}} raises a
 \code{fabric_job_unknown_status} condition for an unrecognised state instead of
 polling until timeout.

@@ -352,6 +352,65 @@ test_that("status treats a completed response with failure details as failed", {
   )
 })
 
+test_that("notebook completion without an exit reconciles scheduler failure", {
+  urls <- character()
+  local_mocked_bindings(
+    .fabric_job_request = function(
+      method,
+      url,
+      ...,
+      accepted_status = integer()
+    ) {
+      urls <<- c(urls, url)
+      expect_equal(method, "GET")
+      if (grepl("/notebooks/", url, fixed = TRUE)) {
+        expect_equal(accepted_status, c(400L, 404L, 410L))
+        return(list(
+          status_code = 200L,
+          retry_after = NULL,
+          body = list(
+            id = "33333333-3333-3333-3333-333333333333",
+            status = "Completed"
+          )
+        ))
+      }
+      expect_equal(accepted_status, 404L)
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "33333333-3333-3333-3333-333333333333",
+          status = "Failed",
+          rootActivityId = "77777777-7777-7777-7777-777777777777",
+          failureReason = list(
+            message = "FABRICQUERYR_INTENTIONAL_JOB_FAILURE"
+          )
+        )
+      )
+    }
+  )
+
+  condition <- rlang::catch_cnd(
+    fabric_job_wait(
+      job_test_handle(),
+      poll_interval = 0,
+      timeout = 1
+    ),
+    classes = "error"
+  )
+
+  expect_s3_class(condition, "fabric_job_failed")
+  expect_equal(condition$job_status$status, "Failed")
+  expect_match(
+    .fabric_job_failure_text(condition$job_status$failure_reason),
+    "FABRICQUERYR_INTENTIONAL_JOB_FAILURE",
+    fixed = TRUE
+  )
+  expect_length(urls, 2L)
+  expect_match(urls[[1L]], "/notebooks/", fixed = TRUE)
+  expect_match(urls[[2L]], "/items/", fixed = TRUE)
+})
+
 test_that("core timestamps without an explicit UTC suffix are parsed as UTC", {
   parsed <- .fabric_job_time("2023-04-22T06:35:00.7812154")
 
@@ -428,7 +487,11 @@ test_that("wait honors Retry-After and returns a completed result", {
     list(
       status_code = 200L,
       retry_after = NULL,
-      body = list(id = "job", status = "Completed")
+      body = list(
+        id = "job",
+        status = "Completed",
+        properties = list(exitValue = "done")
+      )
     )
   )
   index <- 0L
@@ -489,7 +552,11 @@ test_that("wait tolerates visibility delays until its timeout", {
       list(
         status_code = 200L,
         retry_after = NULL,
-        body = list(id = "job", status = "Completed")
+        body = list(
+          id = "job",
+          status = "Completed",
+          properties = list(exitValue = "done")
+        )
       )
     }
   )
