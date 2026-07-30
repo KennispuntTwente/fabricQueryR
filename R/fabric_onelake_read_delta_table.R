@@ -649,24 +649,36 @@ fabric_delta_arrow_compatible <- function(value) {
       next
     }
     fields <- list(
-      type = arrow::Array$create(vapply(
-        column,
-        function(cell) if (is.null(cell)) NA_character_ else cell$type,
-        character(1)
-      ), type = arrow::utf8()),
-      display = arrow::Array$create(vapply(
-        column,
-        function(cell) if (is.null(cell)) NA_character_ else cell$display,
-        character(1)
-      ), type = arrow::utf8()),
-      metadata = arrow::Array$create(lapply(
-        column,
-        function(cell) if (is.null(cell)) NULL else cell$metadata
-      ), type = arrow::binary()),
-      value = arrow::Array$create(lapply(
-        column,
-        function(cell) if (is.null(cell)) NULL else cell$value
-      ), type = arrow::binary())
+      type = arrow::Array$create(
+        vapply(
+          column,
+          function(cell) if (is.null(cell)) NA_character_ else cell$type,
+          character(1)
+        ),
+        type = arrow::utf8()
+      ),
+      display = arrow::Array$create(
+        vapply(
+          column,
+          function(cell) if (is.null(cell)) NA_character_ else cell$display,
+          character(1)
+        ),
+        type = arrow::utf8()
+      ),
+      metadata = arrow::Array$create(
+        lapply(
+          column,
+          function(cell) if (is.null(cell)) NULL else cell$metadata
+        ),
+        type = arrow::binary()
+      ),
+      value = arrow::Array$create(
+        lapply(
+          column,
+          function(cell) if (is.null(cell)) NULL else cell$value
+        ),
+        type = arrow::binary()
+      )
     )
     columns[[name]] <- do.call(arrow::StructArray$create, fields)
   }
@@ -1433,13 +1445,16 @@ fabric_delta_read_staged <- function(
           row_source %in% file_schema$column_name
         if (collision) {
           row_source <- "fabric_delta_physical_row_internal"
-          while (row_source %in% c(
-            file_schema$column_name,
-            physical,
-            projection$names,
-            source_column,
-            row_column
-          )) {
+          while (
+            row_source %in%
+              c(
+                file_schema$column_name,
+                physical,
+                projection$names,
+                source_column,
+                row_column
+              )
+          ) {
             row_source <- paste0(row_source, "_")
           }
         }
@@ -1548,8 +1563,7 @@ fabric_delta_read_staged <- function(
       schema$columnMappingMode
     )
     source_expression <- if (
-      field$name %in% schema$partitionColumns ||
-        !physical_name %in% physical
+      field$name %in% schema$partitionColumns || !physical_name %in% physical
     ) {
       "NULL"
     } else {
@@ -1559,11 +1573,14 @@ fabric_delta_read_staged <- function(
       )
     }
     mask_name <- paste0("fabric_delta_struct_mask_internal_", index)
-    while (mask_name %in% c(
-      projection$names,
-      source_column,
-      row_column
-    )) {
+    while (
+      mask_name %in%
+        c(
+          projection$names,
+          source_column,
+          row_column
+        )
+    ) {
       mask_name <- paste0(mask_name, "_")
     }
     list(
@@ -2711,27 +2728,30 @@ fabric_delta_struct_mask_expression <- function(
       con,
       fabric_delta_struct_validity_name(type)
     ))
-    nested <- unlist(lapply(fields, function(field) {
-      if (!fabric_delta_type_has_struct(field$type)) {
-        return(NULL)
-      }
-      physical <- fabric_delta_field_physical_name(field, mapping_mode)
-      logical <- as.character(DBI::dbQuoteIdentifier(con, field$name))
-      paste0(
-        logical,
-        " := ",
-        fabric_delta_struct_mask_expression(
-          con,
-          field$type,
-          paste0(
-            expression,
-            ".",
-            as.character(DBI::dbQuoteIdentifier(con, physical))
-          ),
-          mapping_mode
+    nested <- unlist(
+      lapply(fields, function(field) {
+        if (!fabric_delta_type_has_struct(field$type)) {
+          return(NULL)
+        }
+        physical <- fabric_delta_field_physical_name(field, mapping_mode)
+        logical <- as.character(DBI::dbQuoteIdentifier(con, field$name))
+        paste0(
+          logical,
+          " := ",
+          fabric_delta_struct_mask_expression(
+            con,
+            field$type,
+            paste0(
+              expression,
+              ".",
+              as.character(DBI::dbQuoteIdentifier(con, physical))
+            ),
+            mapping_mode
+          )
         )
-      )
-    }), use.names = FALSE)
+      }),
+      use.names = FALSE
+    )
     return(paste0(
       "struct_pack(",
       paste(
@@ -3165,20 +3185,26 @@ fabric_delta_utf8_codepoints <- function(bytes) {
     } else {
       bytes[(cursor + 1L):(cursor + width - 1L)]
     }
-    if (length(continuation) && any(continuation < 128L | continuation > 191L)) {
+    if (
+      length(continuation) && any(continuation < 128L | continuation > 191L)
+    ) {
       rlang::abort("Delta log contains invalid UTF-8 in a partition value")
     }
     value <- switch(
       as.character(width),
       `1` = first,
       `2` = (first - 192L) * 64 + continuation[[1L]] - 128L,
-      `3` = (first - 224L) * 4096 +
+      `3` = (first - 224L) *
+        4096 +
         (continuation[[1L]] - 128L) * 64 +
-        continuation[[2L]] - 128L,
-      `4` = (first - 240L) * 262144 +
+        continuation[[2L]] -
+        128L,
+      `4` = (first - 240L) *
+        262144 +
         (continuation[[1L]] - 128L) * 4096 +
         (continuation[[2L]] - 128L) * 64 +
-        continuation[[3L]] - 128L
+        continuation[[3L]] -
+        128L
     )
     if (
       (width == 2L && value < 128L) ||
@@ -3824,9 +3850,13 @@ fabric_delta_schema_has_timestamp <- function(schema) {
     }
     FALSE
   }
-  any(vapply(schema$fields %||% list(), function(field) {
-    visit(field$type)
-  }, logical(1)))
+  any(vapply(
+    schema$fields %||% list(),
+    function(field) {
+      visit(field$type)
+    },
+    logical(1)
+  ))
 }
 
 #' Load DuckDB's timezone support with a deterministic install fallback
@@ -3868,12 +3898,15 @@ fabric_delta_normalize_timestamp_partitions <- function(
   timestamp_indexes <- which(vapply(
     schema$partitionColumns,
     function(name) {
-      field <- schema$fields[[match(name, vapply(
-        schema$fields,
-        `[[`,
-        character(1),
-        "name"
-      ))]]
+      field <- schema$fields[[match(
+        name,
+        vapply(
+          schema$fields,
+          `[[`,
+          character(1),
+          "name"
+        )
+      )]]
       is.character(field$type) &&
         length(field$type) == 1L &&
         identical(tolower(field$type), "timestamp")
@@ -3883,11 +3916,12 @@ fabric_delta_normalize_timestamp_partitions <- function(
   for (index in timestamp_indexes) {
     column <- paste0("fabric_delta_partition_", index)
     values <- mapping[[column]]
-    naive <- !is.na(values) & !grepl(
-      "(Z|[+-][0-9]{2}:?[0-9]{2})$",
-      values,
-      ignore.case = TRUE
-    )
+    naive <- !is.na(values) &
+      !grepl(
+        "(Z|[+-][0-9]{2}:?[0-9]{2})$",
+        values,
+        ignore.case = TRUE
+      )
     if (!any(naive)) {
       next
     }
@@ -3938,12 +3972,15 @@ fabric_delta_variant_null_masks <- function(paths, fields, schema) {
     "/",
     normalizePath(paths, mustWork = TRUE)
   )
-  masks <- stats::setNames(vector("list", length(fields)), vapply(
-    fields,
-    `[[`,
-    character(1),
-    "name"
-  ))
+  masks <- stats::setNames(
+    vector("list", length(fields)),
+    vapply(
+      fields,
+      `[[`,
+      character(1),
+      "name"
+    )
+  )
   for (path in paths) {
     data <- arrow::read_parquet(path, as_data_frame = TRUE)
     for (field in fields) {
@@ -4006,7 +4043,9 @@ fabric_delta_restore_variants <- function(
           rows[[index]] < 1 ||
           rows[[index]] > length(source_mask)
       ) {
-        rlang::abort("Could not reconcile a Delta Variant value with its file row")
+        rlang::abort(
+          "Could not reconcile a Delta Variant value with its file row"
+        )
       }
       if (isTRUE(source_mask[[rows[[index]]]])) {
         values[index] <- list(NULL)
@@ -5135,9 +5174,12 @@ fabric_delta_validate_commit_actions <- function(actions, path) {
     ))
   }
   for (action_name in c("add", "remove")) {
-    paths <- unlist(lapply(actions, function(action) {
-      action[[action_name]]$path %||% NULL
-    }), use.names = FALSE)
+    paths <- unlist(
+      lapply(actions, function(action) {
+        action[[action_name]]$path %||% NULL
+      }),
+      use.names = FALSE
+    )
     if (anyDuplicated(paths)) {
       rlang::abort(cli::format_inline(
         paste0(

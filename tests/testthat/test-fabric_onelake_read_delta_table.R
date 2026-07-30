@@ -2036,21 +2036,27 @@ test_that("Delta timestamp partitions use the writer timezone", {
   )
   actions <- list(
     list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
-    list(metaData = list(
-      id = "timestamp-partition-table",
-      format = list(provider = "parquet", options = list()),
-      schemaString = schema,
-      partitionColumns = list("recorded_at"),
-      configuration = list()
-    )),
-    list(add = list(
-      path = "part-1.parquet",
-      partitionValues = list(recorded_at = "2026-01-01 12:00:00")
-    )),
-    list(add = list(
-      path = "part-2.parquet",
-      partitionValues = list(recorded_at = "2026-07-01 12:00:00")
-    ))
+    list(
+      metaData = list(
+        id = "timestamp-partition-table",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list("recorded_at"),
+        configuration = list()
+      )
+    ),
+    list(
+      add = list(
+        path = "part-1.parquet",
+        partitionValues = list(recorded_at = "2026-01-01 12:00:00")
+      )
+    ),
+    list(
+      add = list(
+        path = "part-2.parquet",
+        partitionValues = list(recorded_at = "2026-07-01 12:00:00")
+      )
+    )
   )
   writeLines(
     vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),

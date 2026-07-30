@@ -481,7 +481,10 @@ fabric_test_expect_delta_oracle_equal <- function(actual, oracle, info = NULL) {
   expect_true(is.list(oracle_schema), info = info)
   oracle_fields <- oracle_schema$fields %||% list()
   oracle_field_names <- vapply(oracle_fields, `[[`, character(1), "name")
-  oracle_schema$fields <- oracle_fields[match(names(oracle), oracle_field_names)]
+  oracle_schema$fields <- oracle_fields[match(
+    names(oracle),
+    oracle_field_names
+  )]
   expect_identical(
     fabric_test_delta_schema_canonical(actual_schema[c("type", "fields")]),
     fabric_test_delta_schema_canonical(oracle_schema[c("type", "fields")]),

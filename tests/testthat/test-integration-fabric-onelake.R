@@ -880,8 +880,8 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       token = token,
       version = version,
       columns = columns,
-      timestamp_partition_timezone =
-        case$timestamp_partition_timezone %||% NULL,
+      timestamp_partition_timezone = case$timestamp_partition_timezone %||%
+        NULL,
       verbose = FALSE
     )
     oracle <- fabric_test_delta_oracle_read(
