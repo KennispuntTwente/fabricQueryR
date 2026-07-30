@@ -462,58 +462,74 @@ fabric_onelake_read_delta_table <- function(
     rlang::abort("No supported Delta commits or checkpoints were found")
   }
 
-  log_staged <- fabric_delta_stage_paths(
-    selection$paths,
+  fabric_delta_stage_log_selection(
+    selection,
     table_dir,
-    dest_dir
-  )
-  if (!all(grepl("^_delta_log/", log_staged$relative))) {
-    rlang::abort(cli::format_inline(
-      "OneLake returned a file outside the requested {.path _delta_log}"
-    ))
-  }
-
-  inform(
-    verbose,
-    "Downloading {nrow(log_staged)} Delta log file{?s} to {.path {dest_dir}}"
-  )
-  fabric_delta_download_staged(
-    log_staged,
+    dest_dir,
     target,
-    credential
+    credential,
+    verbose
   )
-  checkpoint_sidecars <- fabric_delta_checkpoint_sidecar_paths(
-    log_staged$destination,
-    target = target,
-    table_dir = table_dir
+  snapshot <- tryCatch(
+    fabric_delta_resolve_snapshot(dest_dir, version = version),
+    error = function(error) error
   )
-  if (length(checkpoint_sidecars)) {
-    sidecar_staged <- fabric_delta_stage_paths(
-      paste0(
-        table_dir,
-        "/_delta_log/_sidecars/",
-        checkpoint_sidecars
-      ),
-      table_dir,
-      dest_dir
+  if (inherits(snapshot, "fabric_delta_checkpoint_error")) {
+    files <- onelake_list_target(
+      log_target,
+      credential,
+      recursive = FALSE,
+      page_size = 5000L
     )
-    inform(
-      verbose,
-      "Downloading {nrow(sidecar_staged)} checkpoint sidecar file{?s}"
+    files <- fabric_delta_file_rows(files)
+    file_paths <- if (NROW(files) > 0 && "path" %in% names(files)) {
+      files$path
+    } else if (NROW(files) > 0) {
+      files$name
+    } else {
+      character()
+    }
+    checkpoint_sets <- fabric_delta_checkpoint_sets(file_paths)
+    checkpoint_versions <- vapply(
+      checkpoint_sets,
+      `[[`,
+      numeric(1),
+      "version"
     )
-    for (index in seq_len(nrow(sidecar_staged))) {
-      try(
-        fabric_delta_download_staged(
-          sidecar_staged[index, , drop = FALSE],
-          target,
-          credential
-        ),
-        silent = TRUE
+    fallback_versions <- sort(
+      unique(checkpoint_versions[
+        checkpoint_versions < selection$checkpoint_version &
+          checkpoint_versions <= selection$target
+      ]),
+      decreasing = TRUE
+    )
+    fallback_versions <- c(as.list(fallback_versions), list(NA_real_))
+    for (fallback_version in fallback_versions) {
+      fallback <- fabric_delta_select_log_paths(
+        file_paths,
+        version = selection$target,
+        checkpoint_version_override = fallback_version
       )
+      fabric_delta_stage_log_selection(
+        fallback,
+        table_dir,
+        dest_dir,
+        target,
+        credential,
+        verbose
+      )
+      snapshot <- tryCatch(
+        fabric_delta_resolve_snapshot(dest_dir, version = version),
+        error = function(error) error
+      )
+      if (!inherits(snapshot, "fabric_delta_checkpoint_error")) {
+        break
+      }
     }
   }
-
-  snapshot <- fabric_delta_resolve_snapshot(dest_dir, version = version)
+  if (inherits(snapshot, "error")) {
+    rlang::cnd_signal(snapshot)
+  }
   if (length(snapshot$active)) {
     data_staged <- fabric_delta_stage_files(
       unique(snapshot$active),
@@ -683,7 +699,11 @@ fabric_delta_abort_version_range <- function() {
 #' Select the checkpoint and commits required for one Delta snapshot
 #' @keywords internal
 #' @noRd
-fabric_delta_select_log_paths <- function(paths, version = NULL) {
+fabric_delta_select_log_paths <- function(
+  paths,
+  version = NULL,
+  checkpoint_version_override = NULL
+) {
   filenames <- basename(paths)
   json_match <- regexec("^([0-9]{20})\\.json$", filenames)
   json_parts <- regmatches(filenames, json_match)
@@ -718,7 +738,18 @@ fabric_delta_select_log_paths <- function(paths, version = NULL) {
     ))
   }
   eligible <- checkpoint_versions[checkpoint_versions <= target]
-  checkpoint_version <- if (length(eligible)) max(eligible) else NULL
+  checkpoint_version <- if (is.null(checkpoint_version_override)) {
+    if (length(eligible)) max(eligible) else NULL
+  } else if (is.na(checkpoint_version_override)) {
+    NULL
+  } else {
+    if (!checkpoint_version_override %in% eligible) {
+      rlang::abort(
+        "The requested fallback Delta checkpoint is not available"
+      )
+    }
+    as.numeric(checkpoint_version_override)
+  }
   checkpoint_paths <- if (!is.null(checkpoint_version)) {
     checkpoint <- checkpoints[[match(checkpoint_version, checkpoint_versions)]]
     candidates <- checkpoint$alternatives %||% list(checkpoint)
@@ -735,6 +766,78 @@ fabric_delta_select_log_paths <- function(paths, version = NULL) {
     target = target,
     checkpoint_version = checkpoint_version
   )
+}
+
+#' Stage one Delta checkpoint candidate and its JSON tail
+#' @keywords internal
+#' @noRd
+fabric_delta_stage_log_selection <- function(
+  selection,
+  table_dir,
+  dest_dir,
+  target,
+  credential,
+  verbose
+) {
+  log_staged <- fabric_delta_stage_paths(
+    selection$paths,
+    table_dir,
+    dest_dir
+  )
+  if (!all(grepl("^_delta_log/", log_staged$relative))) {
+    rlang::abort(cli::format_inline(
+      "OneLake returned a file outside the requested {.path _delta_log}"
+    ))
+  }
+  missing_logs <- !fs::file_exists(log_staged$destination)
+  if (any(missing_logs)) {
+    inform(
+      verbose,
+      paste0(
+        "Downloading {sum(missing_logs)} Delta log file{?s} to ",
+        "{.path {dest_dir}}"
+      )
+    )
+    fabric_delta_download_staged(
+      log_staged[missing_logs, , drop = FALSE],
+      target,
+      credential
+    )
+  }
+  checkpoint_sidecars <- fabric_delta_checkpoint_sidecar_paths(
+    log_staged$destination,
+    target = target,
+    table_dir = table_dir
+  )
+  if (length(checkpoint_sidecars)) {
+    sidecar_staged <- fabric_delta_stage_paths(
+      paste0(
+        table_dir,
+        "/_delta_log/_sidecars/",
+        checkpoint_sidecars
+      ),
+      table_dir,
+      dest_dir
+    )
+    missing_sidecars <- !fs::file_exists(sidecar_staged$destination)
+    if (any(missing_sidecars)) {
+      inform(
+        verbose,
+        "Downloading {sum(missing_sidecars)} checkpoint sidecar file{?s}"
+      )
+      for (index in which(missing_sidecars)) {
+        try(
+          fabric_delta_download_staged(
+            sidecar_staged[index, , drop = FALSE],
+            target,
+            credential
+          ),
+          silent = TRUE
+        )
+      }
+    }
+  }
+  invisible(log_staged)
 }
 
 #' Download files into their validated Delta staging locations
@@ -3158,6 +3261,103 @@ fabric_delta_read_projection <- function(
   )
 }
 
+#' Apply one complete Delta checkpoint candidate
+#' @keywords internal
+#' @noRd
+fabric_delta_apply_checkpoint_candidate <- function(
+  state,
+  candidate,
+  checkpoint_version,
+  table_dir
+) {
+  checkpoint_paths <- candidate$paths
+  checkpoint <- fabric_delta_read_checkpoint(checkpoint_paths)
+  state <- fabric_delta_apply_checkpoint(state, checkpoint)
+  checkpoint_actions <- checkpoint$actions %||% list()
+  is_v2 <- isTRUE(attr(checkpoint, "fabric_delta_v2")) ||
+    any(vapply(
+      checkpoint_actions,
+      function(action) !is.null(action$checkpointMetadata),
+      logical(1)
+    )) ||
+    isTRUE(candidate$v2_named)
+  if (is_v2) {
+    checkpoint_features <- unlist(
+      state$protocol$readerFeatures %||% list(),
+      use.names = FALSE
+    )
+    if (!"v2Checkpoint" %in% checkpoint_features) {
+      rlang::abort(
+        "Delta V2 checkpoint requires the v2Checkpoint reader feature"
+      )
+    }
+    metadata_versions <- if (length(checkpoint_actions)) {
+      unlist(
+        lapply(checkpoint_actions, function(action) {
+          action$checkpointMetadata$version %||% NULL
+        }),
+        use.names = FALSE
+      )
+    } else {
+      attr(checkpoint, "fabric_delta_checkpoint_versions") %||% numeric()
+    }
+    if (
+      length(metadata_versions) != 1L ||
+        is.na(metadata_versions) ||
+        as.numeric(metadata_versions) != checkpoint_version
+    ) {
+      rlang::abort(
+        "Delta V2 checkpoint must contain exactly one matching checkpointMetadata action"
+      )
+    }
+  }
+  sidecar_names <- if (is_v2) {
+    fabric_delta_checkpoint_sidecar_paths(checkpoint_paths)
+  } else {
+    character()
+  }
+  embedded_file_actions <- if (length(checkpoint_actions)) {
+    any(vapply(
+      checkpoint_actions,
+      function(action) {
+        !is.null(action$add$path) || !is.null(action$remove$path)
+      },
+      logical(1)
+    ))
+  } else {
+    isTRUE(attr(checkpoint, "fabric_delta_has_file_actions"))
+  }
+  if (length(sidecar_names) && embedded_file_actions) {
+    rlang::abort(
+      "Delta V2 checkpoint mixes embedded and sidecar file actions"
+    )
+  }
+  if (length(sidecar_names)) {
+    sidecar_paths <- fs::path(
+      table_dir,
+      "_delta_log",
+      "_sidecars",
+      sidecar_names
+    )
+    missing_sidecars <- !fs::file_exists(sidecar_paths)
+    if (any(missing_sidecars)) {
+      rlang::abort(c(
+        "Delta V2 checkpoint references a sidecar that was not staged",
+        "x" = cli::format_inline(
+          "{.path {sidecar_paths[which(missing_sidecars)[1L]]}} is missing"
+        )
+      ))
+    }
+    for (sidecar_path in sidecar_paths) {
+      state <- fabric_delta_apply_checkpoint(
+        state,
+        fabric_delta_read_checkpoint(sidecar_path)
+      )
+    }
+  }
+  state
+}
+
 #' Resolve a Delta snapshot from checkpoints and JSON commits
 #' @param table_dir Local Delta table root.
 #' @param version Optional requested version.
@@ -3205,159 +3405,122 @@ fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
     ))
   }
 
-  eligible <- unique(checkpoint_versions[checkpoint_versions <= target])
-  checkpoint_version <- if (length(eligible)) max(eligible) else NULL
-  state <- list(
-    active = character(),
-    files = list(),
-    protocol = NULL,
-    metadata = NULL,
-    has_deletion_vectors = FALSE
-  )
-
-  if (!is.null(checkpoint_version)) {
-    checkpoint_index <- match(checkpoint_version, checkpoint_versions)
-    checkpoint_set <- checkpoint_sets[[checkpoint_index]]
-    candidates <- checkpoint_set$alternatives %||% list(checkpoint_set)
-    errors <- list()
-    selected <- FALSE
-    for (candidate in candidates) {
-      attempt <- tryCatch(
-        {
-          candidate_state <- state
-          checkpoint_paths <- candidate$paths
-          checkpoint <- fabric_delta_read_checkpoint(checkpoint_paths)
-          candidate_state <- fabric_delta_apply_checkpoint(
-            candidate_state,
-            checkpoint
+  eligible_indexes <- which(checkpoint_versions <= target)
+  if (length(eligible_indexes)) {
+    eligible_indexes <- eligible_indexes[
+      order(checkpoint_versions[eligible_indexes], decreasing = TRUE)
+    ]
+  }
+  attempts <- unlist(
+    lapply(eligible_indexes, function(index) {
+      checkpoint_set <- checkpoint_sets[[index]]
+      lapply(
+        checkpoint_set$alternatives %||% list(checkpoint_set),
+        function(candidate) {
+          list(
+            candidate = candidate,
+            version = checkpoint_set$version
           )
-          checkpoint_actions <- checkpoint$actions %||% list()
-          is_v2 <- isTRUE(attr(checkpoint, "fabric_delta_v2")) ||
-            any(vapply(
-              checkpoint_actions,
-              function(action) !is.null(action$checkpointMetadata),
-              logical(1)
-            )) ||
-            isTRUE(candidate$v2_named)
-          if (is_v2) {
-            checkpoint_features <- unlist(
-              candidate_state$protocol$readerFeatures %||% list(),
-              use.names = FALSE
-            )
-            if (!"v2Checkpoint" %in% checkpoint_features) {
-              rlang::abort(
-                "Delta V2 checkpoint requires the v2Checkpoint reader feature"
-              )
-            }
-            metadata_versions <- if (length(checkpoint_actions)) {
-              unlist(
-                lapply(checkpoint_actions, function(action) {
-                  action$checkpointMetadata$version %||% NULL
-                }),
-                use.names = FALSE
-              )
-            } else {
-              attr(checkpoint, "fabric_delta_checkpoint_versions") %||%
-                numeric()
-            }
-            if (
-              length(metadata_versions) != 1L ||
-                is.na(metadata_versions) ||
-                as.numeric(metadata_versions) != checkpoint_version
-            ) {
-              rlang::abort(
-                "Delta V2 checkpoint must contain exactly one matching checkpointMetadata action"
-              )
-            }
-          }
-          sidecar_names <- if (is_v2) {
-            fabric_delta_checkpoint_sidecar_paths(checkpoint_paths)
-          } else {
-            character()
-          }
-          embedded_file_actions <- if (length(checkpoint_actions)) {
-            any(vapply(
-              checkpoint_actions,
-              function(action) {
-                !is.null(action$add$path) || !is.null(action$remove$path)
-              },
-              logical(1)
-            ))
-          } else {
-            isTRUE(attr(checkpoint, "fabric_delta_has_file_actions"))
-          }
-          if (length(sidecar_names) && embedded_file_actions) {
-            rlang::abort(
-              "Delta V2 checkpoint mixes embedded and sidecar file actions"
-            )
-          }
-          if (length(sidecar_names)) {
-            sidecar_paths <- fs::path(
-              table_dir,
-              "_delta_log",
-              "_sidecars",
-              sidecar_names
-            )
-            missing_sidecars <- !fs::file_exists(sidecar_paths)
-            if (any(missing_sidecars)) {
-              rlang::abort(c(
-                "Delta V2 checkpoint references a sidecar that was not staged",
-                "x" = cli::format_inline(
-                  "{.path {sidecar_paths[which(missing_sidecars)[1L]]}} is missing"
-                )
-              ))
-            }
-            for (sidecar_path in sidecar_paths) {
-              candidate_state <- fabric_delta_apply_checkpoint(
-                candidate_state,
-                fabric_delta_read_checkpoint(sidecar_path)
-              )
-            }
-          }
-          candidate_state
-        },
-        error = function(error) {
-          error
         }
       )
-      if (!inherits(attempt, "error")) {
-        state <- attempt
-        selected <- TRUE
-        break
-      } else {
-        errors[[length(errors) + 1L]] <- attempt
-      }
+    }),
+    recursive = FALSE
+  )
+  attempts[[length(attempts) + 1L]] <- list(
+    candidate = NULL,
+    version = NULL
+  )
+  errors <- list()
+  no_checkpoint_error <- NULL
+
+  for (attempt in attempts) {
+    checkpoint_version <- attempt$version
+    first_json <- if (is.null(checkpoint_version)) {
+      0
+    } else {
+      checkpoint_version + 1
     }
-    if (!selected) {
-      rlang::abort(
-        paste0(
-          "No usable Delta checkpoint was found for version ",
-          checkpoint_version
-        ),
-        parent = errors[[length(errors)]]
+    needed <- if (first_json <= target) {
+      seq(first_json, target)
+    } else {
+      numeric()
+    }
+    present <- sort(json_versions[
+      json_versions >= first_json & json_versions <= target
+    ])
+    if (!identical(as.numeric(present), as.numeric(needed))) {
+      incomplete <- rlang::error_cnd(
+        message = cli::format_inline(
+          "Delta log is incomplete for version {target}; a required commit is missing"
+        )
       )
+      if (is.null(checkpoint_version)) {
+        no_checkpoint_error <- incomplete
+      } else {
+        errors[[length(errors) + 1L]] <- incomplete
+      }
+      next
+    }
+
+    result <- tryCatch(
+      {
+        state <- list(
+          active = character(),
+          files = list(),
+          protocol = NULL,
+          metadata = NULL,
+          has_deletion_vectors = FALSE
+        )
+        if (!is.null(attempt$candidate)) {
+          state <- fabric_delta_apply_checkpoint_candidate(
+            state,
+            attempt$candidate,
+            checkpoint_version,
+            table_dir
+          )
+        }
+        if (length(present)) {
+          ordered_paths <- json_paths[match(present, json_versions)]
+          for (path in ordered_paths) {
+            state <- fabric_delta_apply_json_log(state, path)
+          }
+        }
+        fabric_delta_validate_reader(state)
+        c(
+          state,
+          list(
+            version = target,
+            checkpoint_version = checkpoint_version
+          )
+        )
+      },
+      error = function(error) error
+    )
+    if (!inherits(result, "error")) {
+      return(result)
+    }
+    if (is.null(checkpoint_version)) {
+      no_checkpoint_error <- result
+    } else {
+      errors[[length(errors) + 1L]] <- result
     }
   }
 
-  first_json <- if (is.null(checkpoint_version)) 0 else checkpoint_version + 1
-  needed <- if (first_json <= target) seq(first_json, target) else numeric()
-  present <- sort(json_versions[
-    json_versions >= first_json & json_versions <= target
-  ])
-  if (!identical(as.numeric(present), as.numeric(needed))) {
-    rlang::abort(cli::format_inline(
-      "Delta log is incomplete for version {target}; a required commit is missing"
-    ))
+  if (length(eligible_indexes)) {
+    parent <- errors[[length(errors)]] %||% no_checkpoint_error
+    rlang::abort(
+      paste0(
+        "No usable Delta checkpoint was found at or before version ",
+        max(checkpoint_versions[eligible_indexes])
+      ),
+      class = "fabric_delta_checkpoint_error",
+      parent = parent
+    )
   }
-  if (length(present)) {
-    ordered_paths <- json_paths[match(present, json_versions)]
-    for (path in ordered_paths) {
-      state <- fabric_delta_apply_json_log(state, path)
-    }
+  if (!is.null(no_checkpoint_error)) {
+    rlang::cnd_signal(no_checkpoint_error)
   }
-
-  fabric_delta_validate_reader(state)
-  c(state, list(version = target, checkpoint_version = checkpoint_version))
+  rlang::abort("Could not resolve the Delta snapshot")
 }
 
 #' Find complete classic, multipart, or UUID-named Delta checkpoints

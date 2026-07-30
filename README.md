@@ -204,7 +204,7 @@ July 2026:
 | Delta capability | Reader behavior | Verification |
 |---|---|---|
 | Reader protocols 1–3 | Supported | Protocol-focused unit tests and live Fabric tables |
-| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported, including same-version fallback | Real Parquet/JSON unit fixtures and live Fabric V2 checkpoints |
+| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported, including same-version alternatives and older-checkpoint recovery | Real Parquet/JSON unit fixtures, remote retry tests, and live Fabric V2 checkpoints |
 | Name- and ID-based column mapping | Supported recursively through structs, arrays, and maps | Projection unit tests and live rename/drop fixtures |
 | Inline, relative-file, and absolute-OneLake deletion vectors | Supported; file identity includes the DV unique ID | Golden Roaring vectors and live sparse/dense/checkpoint DV tables |
 | Absolute OneLake AddFile paths and Fabric shallow clones | Supported when scoped to OneLake | Unit path checks and a live shallow clone |

@@ -150,6 +150,90 @@ test_that("Delta reads consume the shared OneLake filesystem transport", {
   expect_equal(result$id, 1L)
 })
 
+test_that("Delta staging fetches an older checkpoint after a failed latest one", {
+  list_calls <- 0L
+  downloaded <- character()
+  checkpoint <- function(version) {
+    paste0(
+      "Tables/dbo/table/_delta_log/",
+      sprintf("%020.0f", version),
+      ".checkpoint.parquet"
+    )
+  }
+  commit <- function(version) {
+    paste0(
+      "Tables/dbo/table/_delta_log/",
+      sprintf("%020.0f", version),
+      ".json"
+    )
+  }
+  local_mocked_bindings(
+    fabric_delta_last_checkpoint_version = function(...) 10,
+    onelake_list_target = function(
+      target,
+      credential,
+      recursive,
+      page_size,
+      begin_from = NULL
+    ) {
+      list_calls <<- list_calls + 1L
+      paths <- if (list_calls == 1L) {
+        expect_identical(begin_from, "00000000000000000010")
+        c(checkpoint(10), commit(11))
+      } else {
+        expect_null(begin_from)
+        c(checkpoint(5), checkpoint(10), vapply(6:11, commit, character(1)))
+      }
+      tibble::tibble(path = paths, is_directory = FALSE)
+    },
+    onelake_download_target = function(
+      target,
+      credential,
+      dest,
+      overwrite,
+      ...
+    ) {
+      downloaded <<- c(downloaded, target$path)
+      writeBin(raw(), dest)
+      invisible(dest)
+    },
+    fabric_delta_checkpoint_sidecar_paths = function(...) character(),
+    fabric_delta_resolve_snapshot = function(table_dir, version = NULL) {
+      older <- fs::path(
+        table_dir,
+        "_delta_log",
+        basename(checkpoint(5))
+      )
+      if (!fs::file_exists(older)) {
+        rlang::abort(
+          "newest checkpoint is corrupt",
+          class = "fabric_delta_checkpoint_error"
+        )
+      }
+      list(active = character(), files = list(), version = 11)
+    },
+    fabric_delta_read_staged = function(...) data.frame(id = integer())
+  )
+  dest <- tempfile("delta-checkpoint-retry-")
+  on.exit(if (fs::dir_exists(dest)) fs::dir_delete(dest), add = TRUE)
+
+  result <- fabric_onelake_read_delta_table(
+    table_path = "table",
+    workspace_name = "workspace",
+    lakehouse_name = "lakehouse",
+    schema = "dbo",
+    token = "token",
+    dest_dir = dest,
+    verbose = FALSE
+  )
+
+  expect_equal(list_calls, 2L)
+  expect_true(checkpoint(10) %in% downloaded)
+  expect_true(checkpoint(5) %in% downloaded)
+  expect_true(all(vapply(6:11, commit, character(1)) %in% downloaded))
+  expect_equal(nrow(result), 0L)
+})
+
 test_that("Delta public projection and limit arguments are validated", {
   read_table <- function(...) {
     fabric_onelake_read_delta_table(
@@ -2561,6 +2645,67 @@ test_that("Delta reader falls back across same-version UUID checkpoints", {
 
   expect_equal(snapshot$checkpoint_version, 10)
   expect_identical(snapshot$active, "part.parquet")
+})
+
+test_that("Delta reader falls back to an older complete checkpoint", {
+  table_dir <- fs::path_temp(paste0(
+    "delta-older-checkpoint-fallback-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  older <- fs::path(
+    log_dir,
+    "00000000000000000005.checkpoint.parquet"
+  )
+  newest <- fs::path(
+    log_dir,
+    "00000000000000000010.checkpoint.parquet"
+  )
+  writeBin(raw(), older)
+  writeBin(raw(), newest)
+  for (version in 6:11) {
+    writeLines(
+      "{}",
+      fs::path(log_dir, sprintf("%020.0f.json", version)),
+      useBytes = TRUE
+    )
+  }
+  local_mocked_bindings(
+    fabric_delta_read_checkpoint = function(paths) {
+      if (identical(as.character(paths), as.character(newest))) {
+        rlang::abort("corrupt newest checkpoint")
+      }
+      expect_identical(as.character(paths), as.character(older))
+      list(
+        protocol = list(
+          minReaderVersion = 1L,
+          minWriterVersion = 2L
+        ),
+        metaData = list(
+          id = "fallback-table",
+          format = list(provider = "parquet", options = list()),
+          schemaString = '{"type":"struct","fields":[]}',
+          partitionColumns = list(),
+          configuration = list()
+        ),
+        add = list(
+          path = "from-older-checkpoint.parquet",
+          partitionValues = list()
+        )
+      )
+    }
+  )
+
+  snapshot <- fabric_delta_resolve_snapshot(table_dir)
+
+  expect_equal(snapshot$version, 11)
+  expect_equal(snapshot$checkpoint_version, 5)
+  expect_identical(
+    snapshot$active,
+    "from-older-checkpoint.parquet"
+  )
 })
 
 test_that("Delta snapshot ignores an incomplete multipart checkpoint", {

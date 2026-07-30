@@ -63,6 +63,9 @@ metadata formats, and mutually reconciling commit actions are validated
 before reading. The Fabric Runtime 2.0 integration matrix now covers nested
 column mapping, dense/checkpoint deletion vectors, nested type widening,
 typed and null partitions, and mixed shredded/unshredded Variant files.
+If the newest staged checkpoint is corrupt, incomplete, or has an unavailable
+V2 sidecar, the reader now progressively stages older checkpoints and their
+JSON tails instead of failing while a reconstructible snapshot still exists.
 Unsafe retained staging and unsupported Delta features fail closed instead
 of risking incorrect results.
 
