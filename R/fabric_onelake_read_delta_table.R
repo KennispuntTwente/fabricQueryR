@@ -609,6 +609,13 @@ fabric_delta_arrow_compatible <- function(value) {
   columns <- as.list(value)
   for (name in names(value)) {
     column <- value[[name]]
+    if (inherits(column, "fabric_delta_timestamp_ntz")) {
+      columns[[name]] <- arrow::Array$create(
+        unclass(column),
+        type = arrow::utf8()
+      )$cast(arrow::timestamp("us"))
+      next
+    }
     if (inherits(column, "fabric_delta_struct_column")) {
       validity <- attr(
         column,
@@ -651,6 +658,46 @@ fabric_delta_arrow_compatible <- function(value) {
     columns[[name]] <- do.call(arrow::StructArray$create, fields)
   }
   columns
+}
+
+#' Format a Delta timestamp without time zone as wall-clock text
+#' @param x A Delta `timestamp_ntz` vector.
+#' @param format Optional output format.
+#' @param ... Additional arguments passed to [base::format.POSIXct()] when
+#'   `format` is supplied.
+#' @return Character wall-clock timestamps.
+#' @export
+format.fabric_delta_timestamp_ntz <- function(x, format = NULL, ...) {
+  value <- unclass(x)
+  if (is.null(format)) {
+    return(value)
+  }
+  format(
+    as.POSIXct.fabric_delta_timestamp_ntz(x, tz = "UTC"),
+    format = format,
+    tz = "UTC",
+    ...
+  )
+}
+
+#' Localize a Delta timestamp without time zone
+#' @param x A Delta `timestamp_ntz` vector.
+#' @param tz IANA timezone in which to interpret the wall-clock values.
+#' @param ... Unused.
+#' @return A `POSIXct` vector localized in `tz`.
+#' @export
+as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
+  as.POSIXct(
+    unclass(x),
+    format = "%Y-%m-%d %H:%M:%OS",
+    tz = tz
+  )
+}
+
+#' @export
+#' @noRd
+`[.fabric_delta_timestamp_ntz` <- function(x, ...) {
+  structure(NextMethod("["), class = class(x))
 }
 
 #' Test parent nullness for a Delta struct column
@@ -1256,6 +1303,13 @@ fabric_delta_read_staged <- function(
       empty,
       schema$fields[selected_indexes]
     )
+    for (index in selected_indexes) {
+      field <- schema$fields[[index]]
+      empty[[field$name]] <- fabric_delta_restore_timestamp_ntz(
+        empty[[field$name]],
+        field$type
+      )
+    }
     selected_schema <- schema
     selected_schema$fields <- schema$fields[selected_indexes]
     selected_schema$partitionColumns <- intersect(
@@ -1533,6 +1587,13 @@ fabric_delta_read_staged <- function(
       result[[mask$name]]
     )
     result[[mask$name]] <- NULL
+  }
+  for (index in selected_indexes) {
+    field <- schema$fields[[index]]
+    result[[field$name]] <- fabric_delta_restore_timestamp_ntz(
+      result[[field$name]],
+      field$type
+    )
   }
   selected_schema <- schema
   selected_schema$fields <- schema$fields[selected_indexes]
@@ -2100,7 +2161,10 @@ fabric_delta_duckdb_physical_type <- function(
 fabric_delta_duckdb_result_type <- function(con, type) {
   if (is.character(type) && length(type) == 1L) {
     normalized <- tolower(type)
-    if (grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized)) {
+    if (
+      grepl("^decimal\\([0-9]+,[0-9]+\\)$", normalized) ||
+        identical(normalized, "timestamp_ntz")
+    ) {
       return("VARCHAR")
     }
     return(fabric_delta_duckdb_type(con, type))
@@ -2729,6 +2793,79 @@ fabric_delta_apply_struct_mask <- function(value, type, mask) {
         value[[index]]$value,
         type$valueType,
         mask[[index]]$value
+      )
+    }
+    return(value)
+  }
+  value
+}
+
+#' Mark timezone-free Delta timestamps as wall-clock vectors
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_timestamp_ntz <- function(value, type) {
+  if (is.character(type) && length(type) == 1L) {
+    if (!identical(tolower(type), "timestamp_ntz")) {
+      return(value)
+    }
+    text <- if (inherits(value, "POSIXct")) {
+      format(value, "%Y-%m-%d %H:%M:%OS6", tz = "UTC")
+    } else {
+      as.character(value)
+    }
+    text[is.na(value)] <- NA_character_
+    present <- !is.na(text)
+    text[present] <- sub("T", " ", text[present], fixed = TRUE)
+    fractional <- present & grepl("\\.[0-9]+$", text)
+    if (any(fractional)) {
+      whole <- sub("\\.([0-9]+)$", "", text[fractional])
+      digits <- sub("^.*\\.([0-9]+)$", "\\1", text[fractional])
+      digits <- substr(paste0(digits, "000000"), 1L, 6L)
+      text[fractional] <- paste0(whole, ".", digits)
+    }
+    text[present & !fractional] <- paste0(
+      text[present & !fractional],
+      ".000000"
+    )
+    return(structure(
+      text,
+      class = c("fabric_delta_timestamp_ntz", "character")
+    ))
+  }
+  kind <- tolower(as.character(type$type %||% ""))
+  if (identical(kind, "struct")) {
+    for (field in type$fields %||% list()) {
+      value[[field$name]] <- fabric_delta_restore_timestamp_ntz(
+        value[[field$name]],
+        field$type
+      )
+    }
+    return(value)
+  }
+  if (identical(kind, "array")) {
+    for (index in seq_along(value)) {
+      if (is.null(value[[index]])) {
+        next
+      }
+      value[index] <- list(fabric_delta_restore_timestamp_ntz(
+        value[[index]],
+        type$elementType
+      ))
+    }
+    return(value)
+  }
+  if (identical(kind, "map")) {
+    for (index in seq_along(value)) {
+      if (is.null(value[[index]])) {
+        next
+      }
+      value[[index]]$key <- fabric_delta_restore_timestamp_ntz(
+        value[[index]]$key,
+        type$keyType
+      )
+      value[[index]]$value <- fabric_delta_restore_timestamp_ntz(
+        value[[index]]$value,
+        type$valueType
       )
     }
     return(value)

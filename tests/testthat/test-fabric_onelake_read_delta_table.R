@@ -2505,13 +2505,36 @@ test_that("Delta reader decodes typed partition values in UTC", {
     as.numeric(as.POSIXct("2026-01-01 12:34:56.123456", tz = "UTC")),
     tolerance = 1e-6
   )
+  expect_s3_class(result$local_time, "fabric_delta_timestamp_ntz")
+  expect_identical(
+    unclass(result$local_time),
+    "2026-07-28 09:08:07.654321"
+  )
+  expect_identical(
+    format(result$local_time, tz = "America/Los_Angeles"),
+    "2026-07-28 09:08:07.654321"
+  )
+  localized <- as.POSIXct(result$local_time, tz = "Pacific/Auckland")
+  expect_identical(
+    format(localized, "%Y-%m-%d %H:%M", tz = "Pacific/Auckland"),
+    "2026-07-28 09:08"
+  )
   expect_equal(
-    as.numeric(result$local_time),
-    as.numeric(as.POSIXct("2026-07-28 09:08:07.654321", tz = "UTC")),
-    tolerance = 2e-6
+    as.numeric(localized) %% 60,
+    7.654321,
+    tolerance = 1e-6
   )
   expect_identical(result$amount, "12.30")
   expect_identical(result$payload[[1L]], as.raw(c(1L, 2L, 3L)))
+
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  stream <- fabric_delta_format_result(result["local_time"], "arrow_stream")
+  table <- arrow::as_record_batch_reader(stream)$read_table()
+  expect_identical(
+    table$schema$GetFieldByName("local_time")$type$ToString(),
+    "timestamp[us]"
+  )
 })
 
 test_that("Delta reader supports a physical filename column", {

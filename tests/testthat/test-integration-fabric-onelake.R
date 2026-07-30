@@ -135,18 +135,24 @@ test_that("Delta reader preserves empty schemas and typed log partitions", {
     )),
     tolerance = 1e-6
   )
-  expect_s3_class(partitioned$timestamp_ntz_part, "POSIXct")
-  expect_equal(
-    as.numeric(partitioned$timestamp_ntz_part),
-    as.numeric(as.POSIXct(
-      c(
-        "2026-07-28 09:08:07.654321",
-        "1900-01-01 00:00:00.000001",
-        NA
-      ),
-      tz = "UTC"
-    )),
-    tolerance = 2e-6
+  expect_s3_class(
+    partitioned$timestamp_ntz_part,
+    "fabric_delta_timestamp_ntz"
+  )
+  expect_identical(
+    unclass(partitioned$timestamp_ntz_part),
+    c(
+      "2026-07-28 09:08:07.654321",
+      "1900-01-01 00:00:00.000001",
+      NA_character_
+    )
+  )
+  expect_identical(
+    format(
+      partitioned$timestamp_ntz_part,
+      tz = "America/Los_Angeles"
+    ),
+    unclass(partitioned$timestamp_ntz_part)
   )
   expect_identical(
     partitioned$binary_part,

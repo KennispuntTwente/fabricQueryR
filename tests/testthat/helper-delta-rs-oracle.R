@@ -108,10 +108,20 @@ fabric_test_delta_oracle_read <- function(
       array
     )
   }
-  attr(value, "fabric_delta_oracle_metadata") <- jsonlite::fromJSON(
+  metadata <- jsonlite::fromJSON(
     metadata_path,
     simplifyVector = FALSE
   )
+  oracle_fields <- metadata$delta_schema$fields %||% list()
+  oracle_field_names <- vapply(oracle_fields, `[[`, character(1), "name")
+  for (name in names(value)) {
+    field <- oracle_fields[[match(name, oracle_field_names)]]
+    value[[name]] <- fabric_delta_restore_timestamp_ntz(
+      value[[name]],
+      field$type
+    )
+  }
+  attr(value, "fabric_delta_oracle_metadata") <- metadata
   value
 }
 
@@ -206,6 +216,9 @@ fabric_test_delta_oracle_uri <- function(
 }
 
 fabric_test_delta_canonical_scalar <- function(value) {
+  if (inherits(value, "fabric_delta_timestamp_ntz")) {
+    return(list(type = "timestamp_ntz", value = unclass(value)))
+  }
   if (is.raw(value)) {
     return(list(
       type = "binary",
@@ -334,6 +347,9 @@ fabric_test_delta_canonical_rows <- function(value) {
 }
 
 fabric_test_delta_column_signature <- function(value) {
+  if (inherits(value, "fabric_delta_timestamp_ntz")) {
+    return("timestamp_ntz")
+  }
   if (inherits(value, "integer64")) {
     return("integer64")
   }

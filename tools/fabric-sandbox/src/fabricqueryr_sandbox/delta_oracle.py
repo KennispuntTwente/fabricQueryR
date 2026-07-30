@@ -108,6 +108,10 @@ def _normalize_array(array: pa.Array) -> pa.Array:
     data_type = array.type
     if pa.types.is_decimal(data_type):
         return pc.cast(array, pa.string())
+    if pa.types.is_timestamp(data_type) and data_type.tz is None:
+        # R's POSIXct has instant semantics and binary-double precision. Keep
+        # Delta timestamp_ntz values as exact wall-clock text for comparison.
+        return pc.cast(array, pa.string())
     if pa.types.is_struct(data_type):
         children = [
             _normalize_array(array.field(index))
