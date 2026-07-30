@@ -1099,6 +1099,22 @@ fabric_delta_read_staged <- function(
       schema$fields[selected_indexes]
     ))
   }
+  variant_fields <- Filter(
+    function(field) {
+      is.character(field$type) &&
+        length(field$type) == 1L &&
+        identical(tolower(field$type), "variant")
+    },
+    schema$fields[selected_indexes]
+  )
+  has_active_deletion_vectors <- any(vapply(
+    snapshot$active,
+    function(path) {
+      !is.null(snapshot$files[[path]]$deletionVector)
+    },
+    logical(1)
+  ))
+  needs_file_rows <- length(variant_fields) || has_active_deletion_vectors
 
   paths <- vapply(
     relative,
@@ -1167,7 +1183,36 @@ fabric_delta_read_staged <- function(
     vapply(
       seq_along(literals),
       function(index) {
-        file_columns <- if (is.null(id_mappings)) {
+        parquet_source <- paste0(
+          "read_parquet(",
+          literals[[index]],
+          ", hive_partitioning = false)"
+        )
+        if (needs_file_rows) {
+          file_schema <- DBI::dbGetQuery(
+            con,
+            paste0("DESCRIBE SELECT * FROM ", parquet_source)
+          )
+          if ("file_row_number" %in% file_schema$column_name) {
+            rlang::abort(paste0(
+              "A Delta table that requires physical file row positions ",
+              "cannot contain a physical Parquet column named ",
+              "file_row_number"
+            ))
+          }
+        }
+        numbered_source <- if (needs_file_rows) {
+          paste0(
+            "read_parquet(",
+            literals[[index]],
+            ", hive_partitioning = false, file_row_number = true)"
+          )
+        } else {
+          parquet_source
+        }
+        file_columns <- if (is.null(id_mappings) && needs_file_rows) {
+          "* EXCLUDE (file_row_number)"
+        } else if (is.null(id_mappings)) {
           "*"
         } else {
           fabric_delta_id_file_projection(
@@ -1183,11 +1228,12 @@ fabric_delta_read_staged <- function(
           literals[[index]],
           " AS ",
           quoted_source,
-          ", row_number() OVER () - 1 AS ",
+          ", ",
+          if (needs_file_rows) "file_row_number" else "0::BIGINT",
+          " AS ",
           quoted_row,
-          " FROM read_parquet(",
-          literals[[index]],
-          ", hive_partitioning = false)"
+          " FROM ",
+          numbered_source
         )
       },
       character(1)
@@ -1230,14 +1276,6 @@ fabric_delta_read_staged <- function(
     physical,
     source_column
   )[selected_indexes]
-  variant_fields <- Filter(
-    function(field) {
-      is.character(field$type) &&
-        length(field$type) == 1L &&
-        identical(tolower(field$type), "variant")
-    },
-    schema$fields[selected_indexes]
-  )
   variant_masks <- if (length(variant_fields)) {
     fabric_delta_variant_null_masks(paths, variant_fields, schema)
   } else {
