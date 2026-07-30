@@ -48,6 +48,7 @@ reference:
     desc: Resolve and read supported Delta Lake snapshots from OneLake
     contents:
       - fabric_onelake_read_delta_table
+      - format.fabric_delta_variant
 
   - title: KQL
     desc: Query Eventhouse and KQL Database data
