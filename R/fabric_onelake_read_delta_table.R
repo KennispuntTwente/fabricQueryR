@@ -691,6 +691,7 @@ fabric_delta_arrow_compatible <- function(value) {
 #' @param ... Additional arguments passed to [base::format.POSIXct()] when
 #'   `format` is supplied.
 #' @return Character wall-clock timestamps.
+#' @keywords internal
 #' @export
 format.fabric_delta_timestamp_ntz <- function(x, format = NULL, ...) {
   value <- unclass(x)
@@ -710,6 +711,7 @@ format.fabric_delta_timestamp_ntz <- function(x, format = NULL, ...) {
 #' @param tz IANA timezone in which to interpret the wall-clock values.
 #' @param ... Unused.
 #' @return A `POSIXct` vector localized in `tz`.
+#' @keywords internal
 #' @export
 as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
   as.POSIXct(
@@ -728,6 +730,7 @@ as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
 #' Test parent nullness for a Delta struct column
 #' @param x A nested Delta struct column.
 #' @return A logical vector that is `TRUE` for null parent structs.
+#' @keywords internal
 #' @export
 is.na.fabric_delta_struct_column <- function(x) {
   !attr(x, "fabric_delta_struct_validity", exact = TRUE)

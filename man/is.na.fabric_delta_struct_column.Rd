@@ -15,3 +15,4 @@ A logical vector that is \code{TRUE} for null parent structs.
 \description{
 Test parent nullness for a Delta struct column
 }
+\keyword{internal}

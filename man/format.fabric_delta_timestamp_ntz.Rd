@@ -20,3 +20,4 @@ Character wall-clock timestamps.
 \description{
 Format a Delta timestamp without time zone as wall-clock text
 }
+\keyword{internal}

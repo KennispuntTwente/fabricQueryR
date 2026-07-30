@@ -19,3 +19,4 @@ A \code{POSIXct} vector localized in \code{tz}.
 \description{
 Localize a Delta timestamp without time zone
 }
+\keyword{internal}
