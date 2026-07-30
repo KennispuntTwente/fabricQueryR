@@ -200,6 +200,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "schema_evolved": "fabricqueryr_schema_evolved",
                     "column_mapped": "fabricqueryr_column_mapped",
                     "column_mapped_id": "fabricqueryr_column_mapped_id",
+                    "column_mapped_id_partitioned_dv": (
+                        "fabricqueryr_column_mapped_id_partitioned_dv"
+                    ),
                     "struct_validity": "fabricqueryr_struct_validity",
                     "deletion_vectors": "fabricqueryr_deletion_vectors",
                     "file_row_number_collision": (
@@ -235,6 +238,10 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "spark_oracle_column_mapped_id": (
                         "fabricqueryr_spark_oracle_column_mapped_id"
                     ),
+                    "spark_oracle_column_mapped_id_partitioned_dv": (
+                        "fabricqueryr_spark_oracle_"
+                        "column_mapped_id_partitioned_dv"
+                    ),
                     "spark_oracle_struct_validity": (
                         "fabricqueryr_spark_oracle_struct_validity"
                     ),
@@ -262,6 +269,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "spark_oracle_type_widened_nested": (
                         "fabricqueryr_spark_oracle_type_widened_nested"
                     ),
+                    "spark_oracle_type_widened_map_key": (
+                        "fabricqueryr_spark_oracle_type_widened_map_key"
+                    ),
                     "spark_oracle_v2_checkpoint": (
                         "fabricqueryr_spark_oracle_v2_checkpoint"
                     ),
@@ -271,14 +281,21 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "spark_oracle_variant": (
                         "fabricqueryr_spark_oracle_variant"
                     ),
+                    "spark_oracle_variant_id_dv": (
+                        "fabricqueryr_spark_oracle_variant_id_dv"
+                    ),
                     "shallow_clone": "fabricqueryr_shallow_clone",
                     "type_widened": "fabricqueryr_type_widened",
                     "type_widened_exact": "fabricqueryr_type_widened_exact",
                     "type_widened_nested": (
                         "fabricqueryr_type_widened_nested"
                     ),
+                    "type_widened_map_key": (
+                        "fabricqueryr_type_widened_map_key"
+                    ),
                     "v2_checkpoint": "fabricqueryr_v2_checkpoint",
                     "variant": "fabricqueryr_variant",
+                    "variant_id_dv": "fabricqueryr_variant_id_dv",
                     "livy_batch_result": "fabricqueryr_livy_batch_result",
                     "spark_job_result": "fabricqueryr_spark_job_result",
                 },

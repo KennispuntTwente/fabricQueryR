@@ -98,7 +98,7 @@ def test_seed_notebook_uses_valid_nested_delta_column_rename_syntax():
     ).read_text()
 
     valid_rename = "RENAME COLUMN profile.label TO display_label"
-    assert notebook.count(valid_rename) == 2
+    assert notebook.count(valid_rename) == 3
     assert "RENAME COLUMN profile.label TO profile.display_label" not in notebook
 
 

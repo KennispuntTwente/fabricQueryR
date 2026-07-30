@@ -447,6 +447,8 @@ test_that("fabric_onelake_read_delta_table resolves Delta removals and partition
 test_that("Delta reader covers current Fabric Delta reader features", {
   fabric_test_require_package("duckdb")
   fabric_test_require_package("fs")
+  fabric_test_require_package("arrow")
+  fabric_test_require_package("nanoarrow")
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
@@ -523,6 +525,44 @@ test_that("Delta reader covers current Fabric Delta reader features", {
     lapply(column_mapped_id$items, function(value) value$label),
     list("alpha", "beta", "gamma")
   )
+  mapped_partitioned_dv <- read_table(
+    lakehouse$tables$column_mapped_id_partitioned_dv
+  )
+  mapped_partitioned_dv <- mapped_partitioned_dv[
+    order(mapped_partitioned_dv$id),
+  ]
+  expected_mapped_ids <- setdiff(0:999, seq(0, 990, 10))
+  expect_identical(mapped_partitioned_dv$id, expected_mapped_ids)
+  expect_identical(
+    mapped_partitioned_dv$name,
+    paste0("row-", expected_mapped_ids)
+  )
+  expect_identical(
+    mapped_partitioned_dv$profile$display_label,
+    paste0("profile-", expected_mapped_ids)
+  )
+  expect_identical(
+    mapped_partitioned_dv$category,
+    ifelse(expected_mapped_ids %% 2 == 0, "even", "odd")
+  )
+  mapped_stream <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$column_mapped_id_partitioned_dv,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    result = "arrow_stream",
+    verbose = FALSE
+  )
+  mapped_arrow <- as.data.frame(
+    arrow::as_record_batch_reader(mapped_stream)$read_table()
+  )
+  mapped_arrow <- mapped_arrow[order(mapped_arrow$id), ]
+  expect_identical(mapped_arrow$id, expected_mapped_ids)
+  expect_identical(
+    mapped_arrow$profile$display_label,
+    paste0("profile-", expected_mapped_ids)
+  )
 
   deletion_vectors <- read_table(lakehouse$tables$deletion_vectors)
   deletion_vectors <- deletion_vectors[order(deletion_vectors$id), ]
@@ -548,10 +588,40 @@ test_that("Delta reader covers current Fabric Delta reader features", {
   )
   expect_true(is.na(struct_validity$profile$number[[2L]]))
   expect_true(is.na(struct_validity$profile$text[[2L]]))
+  expect_identical(is.na(struct_validity$items[[1L]]), c(TRUE, FALSE))
+  expect_identical(
+    is.na(struct_validity$attributes[[1L]]$value),
+    c(TRUE, FALSE)
+  )
+  expect_identical(
+    is.na(struct_validity$keyed[[1L]]$key$nested),
+    c(TRUE, FALSE)
+  )
+  validity_stream <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$struct_validity,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    result = "arrow_stream",
+    verbose = FALSE
+  )
+  validity_table <- arrow::as_record_batch_reader(validity_stream)$read_table()
+  validity_items <- validity_table$GetColumnByName("items")$chunk(0L)
+  expect_equal(validity_items$values()$null_count, 1L)
+  validity_keyed <- validity_table$GetColumnByName("keyed")$chunk(0L)
+  validity_keys <- validity_keyed$values()$GetFieldByName("key")
+  expect_equal(
+    validity_keys$GetFieldByName("nested")$null_count,
+    1L
+  )
 
   collision <- read_table(lakehouse$tables$file_row_number_collision)
   collision <- collision[order(collision$id), ]
-  expected_ids <- setdiff(0:29, c(3, 4, 7, 11, 18, 29))
+  expected_ids <- setdiff(
+    0:4999,
+    c(3, 2047, 2048, 4095, 4096, 4999)
+  )
   expect_identical(collision$id, expected_ids)
   expect_equal(
     as.numeric(collision$file_row_number),
@@ -769,6 +839,15 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       rows_only = TRUE
     ),
     list(
+      name = "spark_partitioned_id_mapping_deletion_vectors",
+      key = "column_mapped_id_partitioned_dv",
+      oracle_key = "spark_oracle_column_mapped_id_partitioned_dv",
+      item = lakehouse,
+      table = lakehouse$tables$column_mapped_id_partitioned_dv,
+      expected_rows = 900,
+      rows_only = TRUE
+    ),
+    list(
       name = "spark_struct_validity",
       key = "struct_validity",
       oracle_key = "spark_oracle_struct_validity",
@@ -792,7 +871,7 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       oracle_key = "spark_oracle_file_row_number_collision",
       item = lakehouse,
       table = lakehouse$tables$file_row_number_collision,
-      expected_rows = 24,
+      expected_rows = 4994,
       rows_only = TRUE
     ),
     list(
@@ -850,6 +929,15 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       rows_only = TRUE
     ),
     list(
+      name = "spark_map_key_type_widening",
+      key = "type_widened_map_key",
+      oracle_key = "spark_oracle_type_widened_map_key",
+      item = lakehouse,
+      table = lakehouse$tables$type_widened_map_key,
+      expected_rows = 2,
+      rows_only = TRUE
+    ),
+    list(
       name = "spark_v2_checkpoint",
       key = "v2_checkpoint",
       oracle_key = "spark_oracle_v2_checkpoint",
@@ -895,6 +983,38 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
         data.frame(
           event_id = value$event_id,
           data_display = data_display,
+          stringsAsFactors = FALSE
+        )
+      }
+    ),
+    list(
+      name = "spark_id_mapped_variant_deletion_vectors",
+      key = "variant_id_dv",
+      oracle_key = "spark_oracle_variant_id_dv",
+      item = lakehouse,
+      table = lakehouse$tables$variant_id_dv,
+      expected_rows = 4,
+      rows_only = TRUE,
+      transform = function(value) {
+        payload_display <- vapply(
+          value$payload,
+          function(cell) {
+            if (is.null(cell)) {
+              return(NA_character_)
+            }
+            if (identical(cell$type, "VARIANT_NULL")) {
+              return("null")
+            }
+            if (identical(cell$type, "VARCHAR")) {
+              return(jsonlite::toJSON(cell$display, auto_unbox = TRUE))
+            }
+            cell$display
+          },
+          character(1)
+        )
+        data.frame(
+          id = value$id,
+          payload_display = payload_display,
           stringsAsFactors = FALSE
         )
       }
@@ -1179,6 +1299,18 @@ test_that("Delta reader handles DV stress and exact widening", {
     c("123.00", "456.00", "9007199254.25")
   )
   expect_equal(nested$double_value, c(7, 8, 9.5))
+
+  map_key <- read_table(lakehouse$tables$type_widened_map_key)
+  map_key <- map_key[order(map_key$id), ]
+  expect_identical(map_key$id, 1:2)
+  expect_equal(
+    lapply(map_key$keyed, function(value) value$key),
+    list(1.25, 16777217.5)
+  )
+  expect_identical(
+    lapply(map_key$keyed, function(value) value$value),
+    list("before", "after")
+  )
 })
 
 test_that("Delta reader handles Fabric V2 checkpoints and shallow clones", {
@@ -1339,6 +1471,26 @@ test_that("Delta reader exposes Fabric Variant physical values", {
   expect_identical(arrow_result$data$type[[3L]], "VARIANT_NULL")
   expect_identical(
     arrow_result$data$display[[9L]],
+    "123456789012345678901234567890123456.78"
+  )
+
+  combined <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$variant_id_dv,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    verbose = FALSE
+  )
+  combined <- combined[order(as.numeric(combined$id)), ]
+  expect_identical(as.character(combined$id), c("1", "3", "4", "5"))
+  expect_match(combined$payload[[1L]]$display, "object", fixed = TRUE)
+  expect_identical(combined$payload[[2L]]$type, "VARIANT_NULL")
+  expect_identical(combined$payload[[3L]]$type, "VARCHAR")
+  expect_identical(combined$payload[[3L]]$display, "mapped string")
+  expect_identical(combined$payload[[4L]]$type, "DECIMAL(38, 2)")
+  expect_identical(
+    combined$payload[[4L]]$display,
     "123456789012345678901234567890123456.78"
   )
 })

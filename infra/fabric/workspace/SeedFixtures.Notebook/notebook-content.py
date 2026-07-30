@@ -669,18 +669,59 @@ try:
         USING DELTA
         AS SELECT
           1 AS id,
-          CAST(NULL AS STRUCT<number: INT, text: STRING>) AS profile
+          CAST(NULL AS STRUCT<number: INT, text: STRING>) AS profile,
+          array(
+            CAST(NULL AS STRUCT<number: INT, text: STRING>),
+            named_struct(
+              'number', CAST(NULL AS INT),
+              'text', CAST(NULL AS STRING)
+            )
+          ) AS items,
+          map(
+            'null', CAST(NULL AS STRUCT<number: INT, text: STRING>),
+            'present', named_struct(
+              'number', CAST(NULL AS INT),
+              'text', CAST(NULL AS STRING)
+            )
+          ) AS attributes,
+          map(
+            named_struct(
+              'marker', 1,
+              'nested', CAST(NULL AS STRUCT<number: INT, text: STRING>)
+            ), 'null',
+            named_struct(
+              'marker', 2,
+              'nested', named_struct(
+                'number', CAST(NULL AS INT),
+                'text', CAST(NULL AS STRING)
+              )
+            ), 'present'
+          ) AS keyed
         UNION ALL
         SELECT
           2,
           named_struct(
             'number', CAST(NULL AS INT),
             'text', CAST(NULL AS STRING)
+          ),
+          CAST(NULL AS ARRAY<STRUCT<number: INT, text: STRING>>),
+          CAST(NULL AS MAP<STRING, STRUCT<number: INT, text: STRING>>),
+          CAST(
+            NULL AS MAP<
+              STRUCT<
+                marker: INT,
+                nested: STRUCT<number: INT, text: STRING>
+              >,
+              STRING
+            >
           )
         UNION ALL
         SELECT
           3,
-          named_struct('number', 3, 'text', 'present')
+          named_struct('number', 3, 'text', 'present'),
+          array(),
+          map(),
+          map()
         """
     )
     spark.sql(
@@ -794,6 +835,56 @@ try:
         .saveAsTable("dbo.fabricqueryr_column_mapped_id")
     )
 
+    stage = "write partitioned ID-mapped deletion-vector Delta table"
+    spark.sql(
+        "DROP TABLE IF EXISTS dbo.fabricqueryr_column_mapped_id_partitioned_dv"
+    )
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_column_mapped_id_partitioned_dv (
+          id INT,
+          display_name STRING,
+          profile STRUCT<label: STRING>,
+          category STRING
+        )
+        USING DELTA
+        PARTITIONED BY (category)
+        TBLPROPERTIES (
+          'delta.columnMapping.mode' = 'id',
+          'delta.enableDeletionVectors' = 'true'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        SELECT
+          CAST(id AS INT),
+          concat('row-', id),
+          named_struct('label', concat('profile-', id)),
+          CASE WHEN id % 2 = 0 THEN 'even' ELSE 'odd' END
+        FROM range(0, 1000)
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        RENAME COLUMN display_name TO name
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        RENAME COLUMN profile.label TO display_label
+        """
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        WHERE id % 10 = 0
+        """
+    )
+
     stage = "write deletion-vector Delta table"
     (
         fixture.write.format("delta")
@@ -817,13 +908,13 @@ try:
         AS SELECT
           CAST(id AS INT) AS id,
           CAST(id + 1000 AS BIGINT) AS file_row_number
-        FROM range(0, 30)
+        FROM range(0, 5000)
         """
     )
     spark.sql(
         """
         DELETE FROM dbo.fabricqueryr_file_row_number_collision
-        WHERE id IN (3, 4, 7, 11, 18, 29)
+        WHERE id IN (3, 2047, 2048, 4095, 4096, 4999)
         """
     )
 
@@ -1093,6 +1184,38 @@ try:
         """
     )
 
+    stage = "write map-key type-widening Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_map_key")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_type_widened_map_key (
+          id INT,
+          keyed MAP<FLOAT, STRING>
+        )
+        USING DELTA
+        TBLPROPERTIES ('delta.enableTypeWidening' = 'true')
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened_map_key
+        SELECT 1, map(CAST(1.25 AS FLOAT), 'before')
+        """
+    )
+    widened_map_key = spark.sql(
+        """
+        SELECT
+          2 AS id,
+          map(CAST(16777217.5 AS DOUBLE), 'after') AS keyed
+        """
+    )
+    (
+        widened_map_key.write.format("delta")
+        .mode("append")
+        .option("mergeSchema", "true")
+        .saveAsTable("dbo.fabricqueryr_type_widened_map_key")
+    )
+
     stage = "write V2 checkpoint Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_v2_checkpoint")
     spark.sql(
@@ -1186,6 +1309,53 @@ try:
         """
     )
 
+    stage = "write ID-mapped Variant deletion-vector Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_variant_id_dv")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_variant_id_dv (
+          event_id BIGINT,
+          data VARIANT
+        )
+        USING DELTA
+        TBLPROPERTIES (
+          'delta.columnMapping.mode' = 'id',
+          'delta.enableDeletionVectors' = 'true',
+          'delta.enableVariantShredding' = 'true'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_variant_id_dv
+        SELECT 1, PARSE_JSON('{"kind":"object","value":1}')
+        UNION ALL SELECT 2, PARSE_JSON('{"deleted":true}')
+        UNION ALL SELECT 3, PARSE_JSON('null')
+        UNION ALL SELECT 4, PARSE_JSON('"mapped string"')
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_variant_id_dv
+        RENAME COLUMN event_id TO id
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_variant_id_dv
+        RENAME COLUMN data TO payload
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_variant_id_dv
+        SELECT
+          5,
+          PARSE_JSON('123456789012345678901234567890123456.78')
+        """
+    )
+    spark.sql("DELETE FROM dbo.fabricqueryr_variant_id_dv WHERE id = 2")
+
     stage = "materialize independent Spark Delta reader oracles"
 
     def without_delta_metadata(data_type):
@@ -1235,6 +1405,9 @@ try:
         "fabricqueryr_column_mapped_id": (
             "fabricqueryr_spark_oracle_column_mapped_id"
         ),
+        "fabricqueryr_column_mapped_id_partitioned_dv": (
+            "fabricqueryr_spark_oracle_column_mapped_id_partitioned_dv"
+        ),
         "fabricqueryr_struct_validity": (
             "fabricqueryr_spark_oracle_struct_validity"
         ),
@@ -1262,6 +1435,9 @@ try:
         "fabricqueryr_type_widened_nested": (
             "fabricqueryr_spark_oracle_type_widened_nested"
         ),
+        "fabricqueryr_type_widened_map_key": (
+            "fabricqueryr_spark_oracle_type_widened_map_key"
+        ),
         "fabricqueryr_v2_checkpoint": (
             "fabricqueryr_spark_oracle_v2_checkpoint"
         ),
@@ -1279,6 +1455,16 @@ try:
           event_id,
           CAST(data AS STRING) AS data_display
         FROM dbo.fabricqueryr_variant
+        """,
+    )
+    write_reader_oracle(
+        "dbo.fabricqueryr_variant_id_dv",
+        "fabricqueryr_spark_oracle_variant_id_dv",
+        """
+        SELECT
+          id,
+          CAST(payload AS STRING) AS payload_display
+        FROM dbo.fabricqueryr_variant_id_dv
         """,
     )
 except Exception:

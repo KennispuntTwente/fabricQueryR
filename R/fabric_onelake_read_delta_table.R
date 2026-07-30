@@ -43,6 +43,10 @@
 #'  Support is feature-specific, not a blanket claim for every table writable
 #'  by Delta Lake 4.2. In particular, experimental Runtime 2.0 features not
 #'  listed here are rejected when they add an unknown reader feature.
+#'  The live compatibility matrix exercises these features both individually
+#'  and in combination, including ID mapping with partitions and deletion
+#'  vectors, Variant with ID mapping and deletion vectors, map-key type
+#'  widening, and V2 checkpoints containing deletion-vector sidecars.
 #' - Warehouse commits are published to Delta logs by a Fabric background
 #'  process. For Warehouse items, this function reads the latest *published*
 #'  OneLake snapshot, which can briefly lag a just-committed SQL transaction.
@@ -68,7 +72,9 @@
 #'  wall-clock value; use `as.POSIXct(x, tz = "...")` to localise them.
 #'  Struct columns use `fabric_delta_struct_column`; `is.na(x)` reports parent
 #'  nullness and distinguishes a null struct from a present struct whose
-#'  children are all null. Top-level Variant columns are returned as
+#'  children are all null. The same distinction is retained recursively inside
+#'  arrays and both map keys and values, including in Arrow stream results.
+#'  Top-level Variant columns are returned as
 #'  exact `fabric_delta_variant` cells containing their type, display value, and
 #'  Parquet metadata/value bytes. SQL NULL is returned as a missing list element
 #'  and remains distinct from a Variant Null cell. Nested Variant fields fail
