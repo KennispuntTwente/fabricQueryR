@@ -531,3 +531,79 @@ fabric_test_expect_delta_oracle_rows_equal <- function(
   )
   invisible(actual)
 }
+
+fabric_test_delta_variant_display <- function(cell) {
+  if (is.null(cell) || identical(cell$type, "VARIANT_NULL")) {
+    return(NA_character_)
+  }
+  cell$display
+}
+
+fabric_test_delta_variant_spark_display <- function(value) {
+  if (length(value) != 1L || is.na(value)) {
+    return(NA_character_)
+  }
+  if (!grepl("^[{[]", value)) {
+    return(value)
+  }
+  parsed <- jsonlite::fromJSON(
+    value,
+    simplifyVector = FALSE,
+    bigint_as_char = TRUE
+  )
+  fabric_test_delta_variant_duckdb_display(parsed)
+}
+
+fabric_test_delta_variant_duckdb_display <- function(value) {
+  if (is.null(value)) {
+    return("NULL")
+  }
+  if (is.logical(value)) {
+    return(tolower(as.character(value)))
+  }
+  if (is.character(value)) {
+    return(value)
+  }
+  if (is.numeric(value)) {
+    return(format(
+      value,
+      scientific = FALSE,
+      trim = TRUE,
+      digits = 17
+    ))
+  }
+  if (!is.list(value)) {
+    stop("Unexpected Spark Variant oracle value", call. = FALSE)
+  }
+  if (is.null(names(value))) {
+    return(paste0(
+      "[",
+      paste(
+        vapply(
+          value,
+          fabric_test_delta_variant_duckdb_display,
+          character(1)
+        ),
+        collapse = ", "
+      ),
+      "]"
+    ))
+  }
+  paste0(
+    "{",
+    paste(
+      paste0(
+        "'",
+        names(value),
+        "': ",
+        vapply(
+          value,
+          fabric_test_delta_variant_duckdb_display,
+          character(1)
+        )
+      ),
+      collapse = ", "
+    ),
+    "}"
+  )
+}

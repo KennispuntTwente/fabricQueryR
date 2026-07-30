@@ -135,6 +135,55 @@ test_that("every row-affecting reader feature has an independent oracle", {
   )
 })
 
+test_that("Spark Variant oracle displays normalize to DuckDB semantics", {
+  object <- paste0(
+    '{"action":"checkout","items":[1,2,3],',
+    '"user_id":4471}'
+  )
+  mixed <- '[1,"two",true,null,{"nested":3}]'
+  unicode <- '{"decimal":1234567890.125,"unicode":"café-数据-🙂"}'
+
+  expect_identical(
+    fabric_test_delta_variant_spark_display(object),
+    "{'action': checkout, 'items': [1, 2, 3], 'user_id': 4471}"
+  )
+  expect_identical(
+    fabric_test_delta_variant_spark_display(mixed),
+    "[1, two, true, NULL, {'nested': 3}]"
+  )
+  expect_identical(
+    fabric_test_delta_variant_spark_display(unicode),
+    "{'decimal': 1234567890.125, 'unicode': café-数据-🙂}"
+  )
+  expect_identical(
+    unname(vapply(
+      c(NA_character_, "root string", "9007199254740993"),
+      fabric_test_delta_variant_spark_display,
+      character(1)
+    )),
+    c(NA_character_, "root string", "9007199254740993")
+  )
+
+  expect_identical(
+    fabric_test_delta_variant_display(NULL),
+    NA_character_
+  )
+  expect_identical(
+    fabric_test_delta_variant_display(list(
+      type = "VARIANT_NULL",
+      display = "null"
+    )),
+    NA_character_
+  )
+  expect_identical(
+    fabric_test_delta_variant_display(list(
+      type = "VARCHAR",
+      display = "root string"
+    )),
+    "root string"
+  )
+})
+
 test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {
   fabric_test_require_package("DBI")
   fabric_test_require_package("duckdb")

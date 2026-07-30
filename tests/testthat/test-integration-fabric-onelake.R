@@ -966,18 +966,7 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       transform = function(value) {
         data_display <- vapply(
           value$data,
-          function(cell) {
-            if (is.null(cell)) {
-              return(NA_character_)
-            }
-            if (identical(cell$type, "VARIANT_NULL")) {
-              return("null")
-            }
-            if (identical(cell$type, "VARCHAR")) {
-              return(jsonlite::toJSON(cell$display, auto_unbox = TRUE))
-            }
-            cell$display
-          },
+          fabric_test_delta_variant_display,
           character(1)
         )
         data.frame(
@@ -985,6 +974,14 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
           data_display = data_display,
           stringsAsFactors = FALSE
         )
+      },
+      oracle_transform = function(value) {
+        value$data_display <- vapply(
+          value$data_display,
+          fabric_test_delta_variant_spark_display,
+          character(1)
+        )
+        value
       }
     ),
     list(
@@ -998,18 +995,7 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       transform = function(value) {
         payload_display <- vapply(
           value$payload,
-          function(cell) {
-            if (is.null(cell)) {
-              return(NA_character_)
-            }
-            if (identical(cell$type, "VARIANT_NULL")) {
-              return("null")
-            }
-            if (identical(cell$type, "VARCHAR")) {
-              return(jsonlite::toJSON(cell$display, auto_unbox = TRUE))
-            }
-            cell$display
-          },
+          fabric_test_delta_variant_display,
           character(1)
         )
         data.frame(
@@ -1017,6 +1003,14 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
           payload_display = payload_display,
           stringsAsFactors = FALSE
         )
+      },
+      oracle_transform = function(value) {
+        value$payload_display <- vapply(
+          value$payload_display,
+          fabric_test_delta_variant_spark_display,
+          character(1)
+        )
+        value
       }
     )
   )
@@ -1118,6 +1112,9 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       version = if (is.null(case$oracle_key)) version else NULL,
       columns = if (is.null(case$oracle_key)) columns else NULL
     )
+    if (!is.null(case$oracle_transform)) {
+      oracle <- case$oracle_transform(oracle)
+    }
     if (isTRUE(case$rows_only)) {
       fabric_test_expect_delta_oracle_rows_equal(
         actual,
