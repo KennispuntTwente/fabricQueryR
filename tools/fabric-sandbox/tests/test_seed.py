@@ -335,8 +335,8 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.seed_sql_fixture",
-        lambda connection_string, database, token: calls.append(
-            ("seed_sql", connection_string, database, token)
+        lambda connection_string, database, token, *, mutate=False: calls.append(
+            ("seed_sql", connection_string, database, token, mutate)
         ),
     )
     monkeypatch.setattr(
@@ -415,6 +415,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "warehouse.sql.test",
         "TestWarehouse",
         "token-for-https://database.windows.net/.default",
+        True,
     ) in calls
     delta_log_call = next(
         call for call in calls if call[0] == "wait_for_delta_log"
@@ -422,7 +423,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     assert delta_log_call[1:4] == (
         "workspace-id",
         "TestWarehouse-id",
-        "fabricqueryr_sql_types",
+        "fabricqueryr_sql_mutations",
     )
     assert delta_log_call[4].tzinfo is not None
     assert calls.index(delta_log_call) > calls.index(
@@ -431,6 +432,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "warehouse.sql.test",
             "TestWarehouse",
             "token-for-https://database.windows.net/.default",
+            True,
         )
     )
     assert calls.index(graphql_call) > max(
@@ -444,6 +446,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         ),
         "TestSQLDatabase-internal",
         "token-for-https://database.windows.net/.default",
+        False,
     ) in calls
     assert ("seed_power_bi", credential, "workspace-id") in calls
     assert ("prepare_arrow_power_bi", credential, "workspace-id") in calls

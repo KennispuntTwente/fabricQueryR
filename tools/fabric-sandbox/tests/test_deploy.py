@@ -30,10 +30,17 @@ def test_seed_notebook_ids_are_parameterized():
         assert pattern in parameters
         assert len(re.findall(pattern, notebook)) == 1
     assert "abfss://" in notebook
+    assert 'spark.version.startswith("4.1.")' in notebook
+    assert 'delta_version.startswith("4.2.")' in notebook
+    assert '.saveAsTable("dbo.fabricqueryr_runtime")' in notebook
     assert '.option("replaceWhere", "category = \'B\'")' in notebook
     assert '"beta-updated"' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_empty")' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_typed_partitions")' in notebook
+    assert '.saveAsTable("dbo.fabricqueryr_binary_partitions")' in notebook
+    assert "ADD COLUMNS (profile.metadata_only STRING)" in notebook
+    assert "dbo.fabricqueryr_struct_validity" in notebook
+    assert "dbo.fabricqueryr_file_row_number_collision" in notebook
     assert (
         '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")'
         in notebook

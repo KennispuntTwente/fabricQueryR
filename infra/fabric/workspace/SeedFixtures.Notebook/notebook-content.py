@@ -17,6 +17,7 @@
 
 # CELL ********************
 
+import re
 import traceback
 
 from pyspark.sql import functions as F
@@ -31,6 +32,41 @@ fixture_path = (
 
 stage = "read uploaded CSV fixture"
 try:
+    stage = "verify and record Fabric Spark runtime"
+    delta_class = spark._jvm.java.lang.Class.forName(
+        "org.apache.spark.sql.delta.DeltaLog"
+    )
+    delta_version = delta_class.getPackage().getImplementationVersion()
+    delta_source = str(
+        delta_class.getProtectionDomain().getCodeSource().getLocation()
+    )
+    if not delta_version:
+        delta_match = re.search(
+            r"delta-(?:spark|core)_[^-/]+[-_](\d+\.\d+(?:\.\d+)?)",
+            delta_source,
+        )
+        delta_version = delta_match.group(1) if delta_match else None
+    if not spark.version.startswith("4.1."):
+        raise RuntimeError(
+            f"Expected Fabric Runtime 2.0 Spark 4.1, got {spark.version}"
+        )
+    if not delta_version or not delta_version.startswith("4.2."):
+        raise RuntimeError(
+            "Expected Fabric Runtime 2.0 Delta Lake 4.2, got "
+            f"{delta_version!r} from {delta_source!r}"
+        )
+    (
+        spark.createDataFrame(
+            [("2.0", spark.version, delta_version)],
+            ["fabric_runtime", "spark_version", "delta_version"],
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_runtime")
+    )
+
+    stage = "read uploaded CSV fixture"
     fixture = (
         spark.read.option("header", True)
         .option("inferSchema", True)
@@ -175,6 +211,24 @@ try:
         )
         .option("overwriteSchema", True)
         .saveAsTable("dbo.fabricqueryr_typed_partitions")
+    )
+
+    stage = "write binary partition edge-case Delta table"
+    (
+        spark.createDataFrame(
+            [
+                (1, bytearray.fromhex("00")),
+                (2, bytearray.fromhex("80")),
+                (3, bytearray.fromhex("ff")),
+                (4, None),
+            ],
+            "id INT, binary_part BINARY",
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .partitionBy("binary_part")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_binary_partitions")
     )
 
     stage = "generate Delta checkpoint"
@@ -463,6 +517,35 @@ try:
     spark.sql(
         """
         ALTER TABLE dbo.fabricqueryr_column_mapped
+        ADD COLUMNS (profile.metadata_only STRING)
+        """
+    )
+
+    stage = "write struct parent-validity Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_struct_validity")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_struct_validity
+        USING DELTA
+        AS SELECT
+          1 AS id,
+          CAST(NULL AS STRUCT<number: INT, text: STRING>) AS profile
+        UNION ALL
+        SELECT
+          2,
+          named_struct(
+            'number', CAST(NULL AS INT),
+            'text', CAST(NULL AS STRING)
+          )
+        UNION ALL
+        SELECT
+          3,
+          named_struct('number', 3, 'text', 'present')
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped
         RENAME COLUMN name TO display_name
         """
     )
@@ -580,6 +663,28 @@ try:
     )
     spark.sql(
         "DELETE FROM dbo.fabricqueryr_deletion_vectors WHERE id = 1"
+    )
+
+    stage = "write deletion-vector file-row-number collision table"
+    spark.sql(
+        "DROP TABLE IF EXISTS dbo.fabricqueryr_file_row_number_collision"
+    )
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_file_row_number_collision
+        USING DELTA
+        TBLPROPERTIES ('delta.enableDeletionVectors' = 'true')
+        AS SELECT
+          CAST(id AS INT) AS id,
+          CAST(id + 1000 AS BIGINT) AS file_row_number
+        FROM range(0, 30)
+        """
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_file_row_number_collision
+        WHERE id IN (3, 4, 7, 11, 18, 29)
+        """
     )
 
     stage = "write deletion-vector stress Delta table"

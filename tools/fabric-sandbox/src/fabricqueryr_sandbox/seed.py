@@ -26,7 +26,12 @@ from .power_bi_api import (
     seed_test_semantic_model,
 )
 from .settings import SandboxSettings
-from .sql_api import SQL_AUDIENCE, SQL_FIXTURE_TABLE, seed_sql_fixture
+from .sql_api import (
+    SQL_AUDIENCE,
+    SQL_FIXTURE_TABLE,
+    SQL_MUTATION_TABLE,
+    seed_sql_fixture,
+)
 
 
 def wait_for_delta_log_publication(
@@ -190,13 +195,18 @@ def seed(settings: SandboxSettings) -> None:
     )
     for display_name, connection_string, database_name in sql_targets:
         publication_start = datetime.now(timezone.utc)
-        seed_sql_fixture(connection_string, database_name, sql_token)
+        seed_sql_fixture(
+            connection_string,
+            database_name,
+            sql_token,
+            mutate=display_name == warehouse_item["displayName"],
+        )
         print(f"SQL fixture seeded: {display_name}.dbo.fabricqueryr_sql_types")
         if display_name == warehouse_item["displayName"]:
             published = wait_for_delta_log_publication(
                 workspace_id,
                 warehouse_item["id"],
-                SQL_FIXTURE_TABLE,
+                SQL_MUTATION_TABLE,
                 not_before=publication_start,
             )
             print(f"Warehouse Delta log published: {published}")

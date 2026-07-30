@@ -181,7 +181,10 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "display_name": "TestWarehouse",
         "connection_string": "warehouse.sql.test",
         "database_name": "TestWarehouse",
-        "tables": {"types": "fabricqueryr_sql_types"},
+        "tables": {
+            "types": "fabricqueryr_sql_types",
+            "mutations": "fabricqueryr_sql_mutations",
+        },
     }
     assert manifest.items["TestSQLDatabase"] == {
         "id": "TestSQLDatabase-id",
@@ -226,15 +229,21 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     }
     lakehouse = manifest.items["TestLakehouse"]
     assert lakehouse["tables"] == {
+        "runtime": "fabricqueryr_runtime",
         "basic": "fabricqueryr_basic",
         "empty": "fabricqueryr_empty",
         "void": "fabricqueryr_void",
         "partitioned": "fabricqueryr_partitioned",
         "typed_partitions": "fabricqueryr_typed_partitions",
+        "binary_partitions": "fabricqueryr_binary_partitions",
         "schema_evolved": "fabricqueryr_schema_evolved",
         "column_mapped": "fabricqueryr_column_mapped",
         "column_mapped_id": "fabricqueryr_column_mapped_id",
+        "struct_validity": "fabricqueryr_struct_validity",
         "deletion_vectors": "fabricqueryr_deletion_vectors",
+        "file_row_number_collision": (
+            "fabricqueryr_file_row_number_collision"
+        ),
         "deletion_vectors_stress": "fabricqueryr_deletion_vectors_stress",
         "deletion_vectors_checkpoint": (
             "fabricqueryr_deletion_vectors_checkpoint"

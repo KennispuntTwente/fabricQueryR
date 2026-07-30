@@ -461,6 +461,11 @@ test_that("Delta reader covers current Fabric Delta reader features", {
     )
   }
 
+  runtime <- read_table(lakehouse$tables$runtime)
+  expect_identical(runtime$fabric_runtime, "2.0")
+  expect_match(runtime$spark_version, "^4[.]1[.]")
+  expect_match(runtime$delta_version, "^4[.]2[.]")
+
   evolved <- read_table(lakehouse$tables$schema_evolved)
   evolved <- evolved[order(evolved$id), ]
   expect_equal(evolved$id, 1:3)
@@ -485,6 +490,8 @@ test_that("Delta reader covers current Fabric Delta reader features", {
     c("alpha", "beta", "gamma")
   )
   expect_false("obsolete" %in% names(column_mapped$profile))
+  expect_true("metadata_only" %in% names(column_mapped$profile))
+  expect_true(all(is.na(column_mapped$profile$metadata_only)))
   expect_identical(
     lapply(column_mapped$items, function(value) value$label),
     list("alpha", "beta", "gamma")
@@ -521,6 +528,35 @@ test_that("Delta reader covers current Fabric Delta reader features", {
   deletion_vectors <- deletion_vectors[order(deletion_vectors$id), ]
   expect_equal(deletion_vectors$id, 2:3)
   expect_equal(deletion_vectors$name, c("beta", "gamma"))
+
+  binary_partitions <- read_table(lakehouse$tables$binary_partitions)
+  binary_partitions <- binary_partitions[order(binary_partitions$id), ]
+  expect_identical(
+    binary_partitions$binary_part,
+    list(as.raw(0L), as.raw(128L), as.raw(255L), NULL)
+  )
+
+  struct_validity <- read_table(lakehouse$tables$struct_validity)
+  struct_validity <- struct_validity[order(struct_validity$id), ]
+  expect_s3_class(
+    struct_validity$profile,
+    "fabric_delta_struct_column"
+  )
+  expect_identical(
+    is.na(struct_validity$profile),
+    c(TRUE, FALSE, FALSE)
+  )
+  expect_true(is.na(struct_validity$profile$number[[2L]]))
+  expect_true(is.na(struct_validity$profile$text[[2L]]))
+
+  collision <- read_table(lakehouse$tables$file_row_number_collision)
+  collision <- collision[order(collision$id), ]
+  expected_ids <- setdiff(0:29, c(3, 4, 7, 11, 18, 29))
+  expect_identical(collision$id, expected_ids)
+  expect_equal(
+    as.numeric(collision$file_row_number),
+    1000 + expected_ids
+  )
 
   type_widened <- read_table(lakehouse$tables$type_widened)
   type_widened <- type_widened[order(type_widened$id), ]
@@ -567,11 +603,13 @@ test_that("Delta reader preserves exact and complex Fabric values", {
     exact$scaled_decimal,
     "123456789012345678901234567890123456.78"
   )
-  expect_s3_class(exact$observed_at, "POSIXct")
-  expect_equal(
-    as.numeric(exact$observed_at),
-    as.numeric(as.POSIXct("2026-07-28 12:34:56.123456", tz = "UTC")),
-    tolerance = 1e-6
+  expect_s3_class(
+    exact$observed_at,
+    "fabric_delta_timestamp_ntz"
+  )
+  expect_identical(
+    unclass(exact$observed_at),
+    "2026-07-28 12:34:56.123456"
   )
   expect_identical(exact$payload[[1L]], as.raw(c(0L, 255L, 16L)))
   expect_identical(exact$unicode_text, "café-数据-🙂")
@@ -715,6 +753,10 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
   )
 
   exclusions <- c(
+    runtime = paste(
+      "records the Fabric Spark and Delta implementation under test;",
+      "it is validated directly before the feature matrix"
+    ),
     basic = paste(
       "Fabric Runtime 2.0 enables deletionVectors by default;",
       "the equivalent oracle_basic table disables it for delta-rs parity"
@@ -727,6 +769,10 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       "Fabric Runtime 2.0 enables deletionVectors by default and delta-rs",
       "misparses negative decimal partition paths; the oracle mirror covers",
       "all other typed partition parity while direct R assertions cover -0.50"
+    ),
+    binary_partitions = paste(
+      "delta-rs does not expose Fabric binary partition bytes losslessly;",
+      "direct R assertions cover 00, 80, FF, and SQL NULL"
     ),
     partitioned = paste(
       "Fabric Runtime 2.0 enables deletionVectors by default;",
@@ -743,6 +789,10 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     column_mapped_id = paste(
       "Fabric documents column mapping as unsupported by its pinned",
       "delta-rs reader; direct R assertions cover ID mapping"
+    ),
+    struct_validity = paste(
+      "the deterministic local delta-rs fixture covers struct validity parity;",
+      "this table validates Fabric's physical Parquet representation"
     ),
     exact_types = paste(
       "Fabric Runtime 2.0 enables deletionVectors by default;",
@@ -767,6 +817,10 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
     deletion_vectors = paste(
       "delta-rs 1.6 rejects the deletionVectors reader feature;",
       "the R reader has direct exact-row Fabric assertions"
+    ),
+    file_row_number_collision = paste(
+      "delta-rs 1.6 rejects the deletionVectors reader feature;",
+      "direct R assertions cover the physical-name collision and exact rows"
     ),
     deletion_vectors_stress = paste(
       "delta-rs 1.6 rejects the deletionVectors reader feature;",
@@ -976,14 +1030,16 @@ test_that("Delta reader handles DV stress and exact widening", {
     widened$amount,
     c("1234567890.1234", "12.3400")
   )
-  expect_s3_class(widened$occurred, "POSIXct")
-  expect_equal(
-    as.numeric(widened$occurred),
+  expect_s3_class(
+    widened$occurred,
+    "fabric_delta_timestamp_ntz"
+  )
+  expect_identical(
+    unclass(widened$occurred),
     c(
-      as.numeric(as.POSIXct("2026-07-28 12:34:56.123456", tz = "UTC")),
-      as.numeric(as.POSIXct("2026-01-01", tz = "UTC"))
-    ),
-    tolerance = 1e-6
+      "2026-07-28 12:34:56.123456",
+      "2026-01-01 00:00:00.000000"
+    )
   )
 
   nested <- read_table(lakehouse$tables$type_widened_nested)
@@ -1196,4 +1252,23 @@ test_that("Delta reader reads the Fabric Warehouse export profile", {
   expect_identical(result$active, c(TRUE, FALSE, NA))
   expect_s3_class(result$event_date, "Date")
   expect_s3_class(result$loaded_at, "POSIXct")
+
+  mutations <- fabric_onelake_read_delta_table(
+    table_path = warehouse$tables$mutations,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = warehouse$id,
+    schema = "dbo",
+    token = fabric_test_token("FABRIC_TEST_STORAGE_TOKEN"),
+    verbose = FALSE
+  )
+  mutations <- mutations[order(mutations$id), ]
+  expect_equal(mutations$id, c(2L, 3L, 4L))
+  expect_identical(
+    mutations$name,
+    c("beta-updated", "gamma", "alpha-replacement")
+  )
+  expect_identical(
+    mutations$amount,
+    c("20.00", NA_character_, "10.50")
+  )
 })

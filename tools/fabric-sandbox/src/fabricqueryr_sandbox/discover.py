@@ -20,7 +20,7 @@ from .power_bi_api import (
     SEMANTIC_MODEL_NAME,
 )
 from .settings import SandboxSettings
-from .sql_api import SQL_FIXTURE_TABLE
+from .sql_api import SQL_FIXTURE_TABLE, SQL_MUTATION_TABLE
 
 
 def _wait_for_lakehouse_sql_endpoint(
@@ -190,15 +190,21 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     f"{lakehouse_item['id']}/Files/fixtures/livy_batch.py"
                 ),
                 "tables": {
+                    "runtime": "fabricqueryr_runtime",
                     "basic": "fabricqueryr_basic",
                     "empty": "fabricqueryr_empty",
                     "void": "fabricqueryr_void",
                     "partitioned": "fabricqueryr_partitioned",
                     "typed_partitions": "fabricqueryr_typed_partitions",
+                    "binary_partitions": "fabricqueryr_binary_partitions",
                     "schema_evolved": "fabricqueryr_schema_evolved",
                     "column_mapped": "fabricqueryr_column_mapped",
                     "column_mapped_id": "fabricqueryr_column_mapped_id",
+                    "struct_validity": "fabricqueryr_struct_validity",
                     "deletion_vectors": "fabricqueryr_deletion_vectors",
+                    "file_row_number_collision": (
+                        "fabricqueryr_file_row_number_collision"
+                    ),
                     "deletion_vectors_stress": (
                         "fabricqueryr_deletion_vectors_stress"
                     ),
@@ -263,6 +269,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "database_name": warehouse_item["displayName"],
                 "tables": {
                     "types": SQL_FIXTURE_TABLE,
+                    "mutations": SQL_MUTATION_TABLE,
                 },
             },
             "TestSQLDatabase": {
