@@ -132,6 +132,11 @@ widening; and native Variant values, including Variant shredding. Absolute
 AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
 This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
 export profile.
+\item Warehouse commits are published to Delta logs by a Fabric background
+process. For Warehouse items, this function reads the latest \emph{published}
+OneLake snapshot, which can briefly lag a just-committed SQL transaction.
+Warehouse Delta exports are read-only; writes belong to the Warehouse
+engine.
 \item Metadata must declare the Parquet provider with no provider-specific
 options. Recursive schema shape, case-insensitive sibling-name uniqueness,
 partition columns, and singleton protocol/metadata actions are validated
@@ -208,6 +213,8 @@ reader <- arrow::as_record_batch_reader(stream)
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-schemas}{Lakehouse schemas}
 
 \href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Delta Lake tables in OneLake}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Fabric Warehouse}
 
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution}{Schema evolution for Delta tables}
 

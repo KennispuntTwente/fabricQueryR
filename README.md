@@ -229,6 +229,14 @@ V2 checkpoint sidecars, shallow clones, mixed shredded Variant, and Warehouse
 exports through exact direct assertions. This split prevents an oracle
 limitation from either failing the suite or silently weakening modern Fabric
 coverage.
+
+Warehouse reads use the latest Delta snapshot that Fabric has published to
+OneLake. Warehouse SQL commits start that publication asynchronously, so a
+just-committed transaction can briefly be newer than the visible Delta log.
+The integration sandbox waits for a post-seed log publication before asserting
+Warehouse rows; production callers that require read-after-write coordination
+must likewise wait for the published snapshot.
+
 delta-rs and Python are test dependencies only; users do not need them to
 install or run fabricQueryR.
 

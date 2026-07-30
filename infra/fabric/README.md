@@ -238,6 +238,10 @@ all fixtures with deterministic expected rows and types. The sandbox creates
 matching deterministic typed SQL tables in the Warehouse and SQL Database,
 plus a deterministic typed Kusto table.
 
+Warehouse Delta-log publication is asynchronous after a SQL commit. Seeding
+therefore polls OneLake until a log file modified after the fixture rebuild is
+visible before allowing integration tests to start.
+
 After the seed table is available, the sandbox refreshes the SQL analytics
 endpoint and requires a successful per-table sync status before applying the
 supported GraphQL public definition. A missing or `NotRun` fixture is retried

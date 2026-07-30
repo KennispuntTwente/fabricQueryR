@@ -1,6 +1,12 @@
 """Upload fixture files and run the deterministic seed notebook."""
 
-from azure.core.exceptions import ResourceExistsError
+from __future__ import annotations
+
+import time
+from collections.abc import Callable
+from datetime import datetime, timezone
+
+from azure.core.exceptions import AzureError, ResourceExistsError
 from azure.storage.filedatalake import DataLakeServiceClient
 
 from .credentials import get_credential
@@ -20,7 +26,55 @@ from .power_bi_api import (
     seed_test_semantic_model,
 )
 from .settings import SandboxSettings
-from .sql_api import SQL_AUDIENCE, seed_sql_fixture
+from .sql_api import SQL_AUDIENCE, SQL_FIXTURE_TABLE, seed_sql_fixture
+
+
+def wait_for_delta_log_publication(
+    workspace_id: str,
+    item_id: str,
+    table: str,
+    *,
+    not_before: datetime,
+    attempts: int = 60,
+    retry_delay: float = 10,
+    service_client: DataLakeServiceClient | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> str:
+    """Wait for Fabric's background Warehouse Delta-log publication."""
+    if attempts < 1:
+        raise ValueError("attempts must be positive")
+    if not_before.tzinfo is None:
+        raise ValueError("not_before must be timezone-aware")
+    service = service_client or DataLakeServiceClient(
+        account_url="https://onelake.dfs.fabric.microsoft.com",
+        credential=get_credential(),
+    )
+    filesystem = service.get_file_system_client(workspace_id)
+    log_path = f"{item_id}/Tables/dbo/{table}/_delta_log"
+    last_error: AzureError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            paths = filesystem.get_paths(path=log_path, recursive=False)
+            for path in paths:
+                name = getattr(path, "name", "")
+                modified = getattr(path, "last_modified", None)
+                if (
+                    not getattr(path, "is_directory", False)
+                    and name.endswith((".json", ".parquet"))
+                    and modified is not None
+                    and modified.astimezone(timezone.utc)
+                    >= not_before.astimezone(timezone.utc)
+                ):
+                    return name
+            last_error = None
+        except AzureError as error:
+            last_error = error
+        if attempt < attempts:
+            sleep(retry_delay)
+    raise RuntimeError(
+        "Warehouse Delta log was not published after "
+        f"{attempts} attempts: {log_path}"
+    ) from last_error
 
 
 def upload_fixtures(
@@ -135,8 +189,17 @@ def seed(settings: SandboxSettings) -> None:
         ),
     )
     for display_name, connection_string, database_name in sql_targets:
+        publication_start = datetime.now(timezone.utc)
         seed_sql_fixture(connection_string, database_name, sql_token)
         print(f"SQL fixture seeded: {display_name}.dbo.fabricqueryr_sql_types")
+        if display_name == warehouse_item["displayName"]:
+            published = wait_for_delta_log_publication(
+                workspace_id,
+                warehouse_item["id"],
+                SQL_FIXTURE_TABLE,
+                not_before=publication_start,
+            )
+            print(f"Warehouse Delta log published: {published}")
 
     with FabricApi(get_credential()) as api:
         api.update_graphql_definition(
