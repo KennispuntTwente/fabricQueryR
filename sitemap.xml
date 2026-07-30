@@ -10,6 +10,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/as.POSIXct.fabric_delta_timestamp_ntz.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabricQueryR-package.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.html</loc></url>
@@ -29,8 +30,10 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/format.fabric_delta_timestamp_ntz.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/format.fabric_delta_variant.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/index.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/is.na.fabric_delta_struct_column.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/roadmap.html</loc></url>
 </urlset>
 

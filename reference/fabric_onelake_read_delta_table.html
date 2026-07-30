@@ -188,7 +188,10 @@ created.</p></dd>
 snapshot. With <code>result = "arrow_stream"</code>, a single-use
 <code>nanoarrow_array_stream</code>. Empty tables preserve their column schema in
 either format. Delta <code>long</code> columns use <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>; decimal columns
-use exact character values. Delta Variant columns are list columns whose
+use exact character values; <code>timestamp_ntz</code> columns use
+<code>fabric_delta_timestamp_ntz</code>. Struct columns use
+<code>fabric_delta_struct_column</code>, for which <code><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na()</a></code> reports parent nullness.
+Delta Variant columns are list columns whose
 non-missing elements have class <code>fabric_delta_variant</code>; each element
 retains the exact Parquet Variant metadata and value bytes, its DuckDB
 logical type, and a display value. In Arrow results, Variant columns are
@@ -211,7 +214,10 @@ absolute deletion vectors; timestamps without time zones; supported type
 widening; and native Variant values, including Variant shredding. Absolute
 AddFile and deletion-vector URIs must point to Microsoft Fabric OneLake.
 This includes Fabric shallow clones and the reader 3/writer 7 Warehouse
-export profile.</p></li>
+export profile.
+Support is feature-specific, not a blanket claim for every table writable
+by Delta Lake 4.2. In particular, experimental Runtime 2.0 features not
+listed here are rejected when they add an unknown reader feature.</p></li>
 <li><p>Warehouse commits are published to Delta logs by a Fabric background
 process. For Warehouse items, this function reads the latest <em>published</em>
 OneLake snapshot, which can briefly lag a just-committed SQL transaction.
@@ -232,7 +238,12 @@ values without an explicit offset require <code>timestamp_partition_timezone</co
 because the Delta log does not record the writer timezone.</p></li>
 <li><p>Delta <code>long</code> values are returned as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>. Delta decimals are
 returned as character vectors, including decimals nested in complex types,
-so all 38 digits remain exact. Top-level Variant columns are returned as
+so all 38 digits remain exact. Delta <code>timestamp_ntz</code> values use the
+character-backed <code>fabric_delta_timestamp_ntz</code> class and retain the exact
+wall-clock value; use <code>as.POSIXct(x, tz = "...")</code> to localise them.
+Struct columns use <code>fabric_delta_struct_column</code>; <code>is.na(x)</code> reports parent
+nullness and distinguishes a null struct from a present struct whose
+children are all null. Top-level Variant columns are returned as
 exact <code>fabric_delta_variant</code> cells containing their type, display value, and
 Parquet metadata/value bytes. SQL NULL is returned as a missing list element
 and remains distinct from a Variant Null cell. Nested Variant fields fail
@@ -261,6 +272,7 @@ rows in Fabric may transfer much less data.</p></li>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs" class="external-link">Delta Lake logs in Fabric Warehouse</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution" class="external-link">Schema evolution for Delta tables</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant" class="external-link">Variant data type for Delta tables</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0" class="external-link">Fabric Runtime 2.0</a></p>
     </div>
 
     <div class="section level2">

@@ -147,13 +147,17 @@ snapshot. With `result = "arrow_stream"`, a single-use
 `nanoarrow_array_stream`. Empty tables preserve their column schema in
 either format. Delta `long` columns use
 [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
-decimal columns use exact character values. Delta Variant columns are
-list columns whose non-missing elements have class
-`fabric_delta_variant`; each element retains the exact Parquet Variant
-metadata and value bytes, its DuckDB logical type, and a display value.
-In Arrow results, Variant columns are structs with `type`, `display`,
-`metadata`, and `value` fields. SQL NULL has four missing fields;
-Variant Null has type `VARIANT_NULL` and non-null metadata/value bytes.
+decimal columns use exact character values; `timestamp_ntz` columns use
+`fabric_delta_timestamp_ntz`. Struct columns use
+`fabric_delta_struct_column`, for which
+[`is.na()`](https://rdrr.io/r/base/NA.html) reports parent nullness.
+Delta Variant columns are list columns whose non-missing elements have
+class `fabric_delta_variant`; each element retains the exact Parquet
+Variant metadata and value bytes, its DuckDB logical type, and a display
+value. In Arrow results, Variant columns are structs with `type`,
+`display`, `metadata`, and `value` fields. SQL NULL has four missing
+fields; Variant Null has type `VARIANT_NULL` and non-null metadata/value
+bytes.
 
 ## Details
 
@@ -171,7 +175,10 @@ Variant Null has type `VARIANT_NULL` and non-null metadata/value bytes.
   time zones; supported type widening; and native Variant values,
   including Variant shredding. Absolute AddFile and deletion-vector URIs
   must point to Microsoft Fabric OneLake. This includes Fabric shallow
-  clones and the reader 3/writer 7 Warehouse export profile.
+  clones and the reader 3/writer 7 Warehouse export profile. Support is
+  feature-specific, not a blanket claim for every table writable by
+  Delta Lake 4.2. In particular, experimental Runtime 2.0 features not
+  listed here are rejected when they add an unknown reader feature.
 
 - Warehouse commits are published to Delta logs by a Fabric background
   process. For Warehouse items, this function reads the latest
@@ -199,12 +206,18 @@ Variant Null has type `VARIANT_NULL` and non-null metadata/value bytes.
 - Delta `long` values are returned as
   [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html).
   Delta decimals are returned as character vectors, including decimals
-  nested in complex types, so all 38 digits remain exact. Top-level
-  Variant columns are returned as exact `fabric_delta_variant` cells
-  containing their type, display value, and Parquet metadata/value
-  bytes. SQL NULL is returned as a missing list element and remains
-  distinct from a Variant Null cell. Nested Variant fields fail closed
-  because their independent Parquet validity cannot yet be retained.
+  nested in complex types, so all 38 digits remain exact. Delta
+  `timestamp_ntz` values use the character-backed
+  `fabric_delta_timestamp_ntz` class and retain the exact wall-clock
+  value; use `as.POSIXct(x, tz = "...")` to localise them. Struct
+  columns use `fabric_delta_struct_column`; `is.na(x)` reports parent
+  nullness and distinguishes a null struct from a present struct whose
+  children are all null. Top-level Variant columns are returned as exact
+  `fabric_delta_variant` cells containing their type, display value, and
+  Parquet metadata/value bytes. SQL NULL is returned as a missing list
+  element and remains distinct from a Variant Null cell. Nested Variant
+  fields fail closed because their independent Parquet validity cannot
+  yet be retained.
 
 - Schema-enabled lakehouses (the default for new lakehouses) organise
   tables into named schemas. If the Fabric Lakehouse explorer shows the
@@ -248,6 +261,9 @@ tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-sch
 
 [Variant data type for Delta
 tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant)
+
+[Fabric Runtime
+2.0](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0)
 
 ## Examples
 
