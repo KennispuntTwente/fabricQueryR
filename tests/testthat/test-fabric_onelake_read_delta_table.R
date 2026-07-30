@@ -1615,6 +1615,15 @@ test_that("Delta structs preserve parent validity separately from children", {
   expect_equal(profile$null_count, 1L)
   expect_true(profile$chunk(0L)$IsNull(0L))
   expect_false(profile$chunk(0L)$IsNull(1L))
+  items <- table$GetColumnByName("items")$chunk(0L)
+  expect_equal(items$values()$null_count, 1L)
+  expect_true(items$values()$IsNull(0L))
+  expect_false(items$values()$IsNull(1L))
+  attributes <- table$GetColumnByName("attributes")$chunk(0L)
+  attribute_values <- attributes$values()$GetFieldByName("value")
+  expect_equal(attribute_values$null_count, 1L)
+  expect_true(attribute_values$IsNull(0L))
+  expect_false(attribute_values$IsNull(1L))
 })
 
 test_that("Delta reader reconstructs top-level and nested void fields", {

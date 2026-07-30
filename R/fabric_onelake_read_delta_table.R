@@ -645,6 +645,20 @@ fabric_delta_arrow_compatible <- function(value) {
       )
       next
     }
+    if (
+      is.list(column) &&
+        !is.data.frame(column) &&
+        !inherits(column, "fabric_delta_variant_column")
+    ) {
+      array <- arrow::Array$create(column)
+      columns[[name]] <- arrow::as_arrow_array(
+        fabric_delta_patch_nested_arrow_validity(
+          nanoarrow::as_nanoarrow_array(array),
+          list(column)
+        )
+      )
+      next
+    }
     if (!inherits(column, "fabric_delta_variant_column")) {
       next
     }
@@ -683,6 +697,81 @@ fabric_delta_arrow_compatible <- function(value) {
     columns[[name]] <- do.call(arrow::StructArray$create, fields)
   }
   columns
+}
+
+#' Restore nested Delta struct validity inside Arrow list/map arrays
+#' @keywords internal
+#' @noRd
+fabric_delta_patch_nested_arrow_validity <- function(array, fragments) {
+  fragments <- Filter(Negate(is.null), fragments)
+  if (!length(fragments)) {
+    return(array)
+  }
+  data_frame_fragments <- vapply(fragments, is.data.frame, logical(1))
+  if (all(data_frame_fragments)) {
+    children <- array$children
+    if (length(children)) {
+      child_names <- names(children)
+      for (index in seq_along(children)) {
+        child_name <- child_names[[index]]
+        if (is.null(child_name) || !nzchar(child_name)) {
+          child_name <- names(fragments[[1L]])[[index]]
+        }
+        child_fragments <- lapply(
+          fragments,
+          function(fragment) fragment[[child_name]]
+        )
+        children[[index]] <- fabric_delta_patch_nested_arrow_validity(
+          children[[index]],
+          child_fragments
+        )
+      }
+    }
+    changes <- list(children = children)
+    struct_fragments <- vapply(
+      fragments,
+      inherits,
+      logical(1),
+      what = "fabric_delta_struct_column"
+    )
+    if (all(struct_fragments)) {
+      validity <- unlist(
+        lapply(
+          fragments,
+          attr,
+          which = "fabric_delta_struct_validity",
+          exact = TRUE
+        ),
+        use.names = FALSE
+      )
+      if (!is.logical(validity) || length(validity) != array$length) {
+        rlang::abort("Delta struct validity does not match its Arrow array")
+      }
+      changes$null_count <- sum(!validity)
+      changes$buffers <- list(
+        nanoarrow::as_nanoarrow_array(validity)$buffers[[2L]]
+      )
+    }
+    return(nanoarrow::nanoarrow_array_modify(array, changes))
+  }
+  list_fragments <- vapply(
+    fragments,
+    function(fragment) is.list(fragment) && !is.data.frame(fragment),
+    logical(1)
+  )
+  if (all(list_fragments) && length(array$children) == 1L) {
+    elements <- unlist(fragments, recursive = FALSE, use.names = FALSE)
+    elements <- Filter(Negate(is.null), elements)
+    child <- fabric_delta_patch_nested_arrow_validity(
+      array$children[[1L]],
+      elements
+    )
+    return(nanoarrow::nanoarrow_array_modify(
+      array,
+      list(children = list(child))
+    ))
+  }
+  array
 }
 
 #' Format a Delta timestamp without time zone as wall-clock text
