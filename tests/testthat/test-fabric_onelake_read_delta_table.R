@@ -589,6 +589,58 @@ test_that("Delta staging preserves encoded binary partition paths", {
   )
 })
 
+test_that("Delta binary partitions preserve NUL and high-bit bytes", {
+  values <- c("\\u0000", "\\u0080", "\\u00ff", "\\u0001\\u00ff")
+  actions <- lapply(seq_along(values), function(index) {
+    line <- paste0(
+      '{"add":{"path":"part-',
+      index,
+      '.parquet","partitionValues":{"binary_part":"',
+      values[[index]],
+      '"}}}'
+    )
+    action <- jsonlite::fromJSON(line, simplifyVector = FALSE)
+    fabric_delta_preserve_partition_tokens(action, line)
+  })
+  state <- fabric_delta_apply_actions(
+    list(
+      active = character(),
+      files = list(),
+      has_deletion_vectors = FALSE
+    ),
+    actions
+  )
+  schema <- list(
+    fields = list(list(name = "binary_part", type = "binary")),
+    partitionColumns = "binary_part",
+    columnMappingMode = "none"
+  )
+  paths <- paste0("C:/staged/part-", seq_along(values), ".parquet")
+
+  mapping <- fabric_delta_partition_mapping(state, paths, schema)
+
+  expect_identical(
+    unclass(mapping$fabric_delta_partition_1),
+    list(
+      as.raw(0L),
+      as.raw(128L),
+      as.raw(255L),
+      as.raw(c(1L, 255L))
+    )
+  )
+  con <- DBI::dbConnect(duckdb::duckdb())
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbWriteTable(con, "binary_partitions", mapping, temporary = TRUE)
+  roundtrip <- DBI::dbGetQuery(
+    con,
+    "SELECT fabric_delta_partition_1 FROM binary_partitions"
+  )
+  expect_identical(
+    roundtrip$fabric_delta_partition_1,
+    unclass(mapping$fabric_delta_partition_1)
+  )
+})
+
 test_that("Delta stages and reads absolute OneLake AddFile paths", {
   current_target <- onelake_resolve_target(
     "11111111-1111-1111-1111-111111111111",
@@ -2412,6 +2464,55 @@ test_that("Delta reader replays a real multipart Parquet checkpoint", {
   expect_identical(snapshot$active, "part.parquet")
   expect_identical(snapshot$metadata$format$provider, "parquet")
   expect_identical(snapshot$metadata$schemaString, as.character(schema))
+})
+
+test_that("Delta Parquet checkpoints preserve binary partition bytes", {
+  checkpoint <- tempfile("binary-partitions-", fileext = ".checkpoint.parquet")
+  on.exit(unlink(checkpoint), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  quoted_checkpoint <- as.character(DBI::dbQuoteString(
+    con,
+    gsub("\\\\", "/", checkpoint)
+  ))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (",
+      "SELECT struct_pack(path := 'zero.parquet', ",
+      "partitionValues := map(['binary_part'], [chr(0)])) AS add ",
+      "UNION ALL SELECT struct_pack(path := 'high.parquet', ",
+      "partitionValues := map(['binary_part'], [chr(128)])) AS add ",
+      "UNION ALL SELECT struct_pack(path := 'max.parquet', ",
+      "partitionValues := map(['binary_part'], [chr(255)])) AS add",
+      ") TO ",
+      quoted_checkpoint,
+      " (FORMAT PARQUET)"
+    )
+  )
+
+  checkpoint_actions <- fabric_delta_read_checkpoint(checkpoint)
+  state <- fabric_delta_apply_checkpoint(
+    list(
+      active = character(),
+      files = list(),
+      has_deletion_vectors = FALSE
+    ),
+    checkpoint_actions
+  )
+  schema <- list(
+    fields = list(list(name = "binary_part", type = "binary")),
+    partitionColumns = "binary_part",
+    columnMappingMode = "none"
+  )
+  paths <- fs::path_temp(state$active)
+
+  mapping <- fabric_delta_partition_mapping(state, paths, schema)
+
+  expect_identical(
+    unclass(mapping$fabric_delta_partition_1),
+    list(as.raw(0L), as.raw(128L), as.raw(255L))
+  )
 })
 
 test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {

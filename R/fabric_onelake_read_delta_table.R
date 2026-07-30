@@ -2365,9 +2365,319 @@ fabric_delta_partition_values <- function(value) {
     return(stats::setNames(as.list(value$value), unlist(value$key)))
   }
   if (!is.null(names(value))) {
-    return(as.list(value))
+    result <- as.list(value)
+    attr(result, "fabric_delta_partition_tokens") <-
+      attr(value, "fabric_delta_partition_tokens", exact = TRUE)
+    return(result)
   }
   rlang::abort("Delta log contains an invalid partitionValues map")
+}
+
+#' Extract lossless JSON string tokens from a partitionValues object
+#' @keywords internal
+#' @noRd
+fabric_delta_json_partition_tokens <- function(line) {
+  bytes <- as.integer(charToRaw(enc2utf8(line)))
+  length_bytes <- length(bytes)
+  whitespace <- c(9L, 10L, 13L, 32L)
+  skip_whitespace <- function(index) {
+    while (index <= length_bytes && bytes[[index]] %in% whitespace) {
+      index <- index + 1L
+    }
+    index
+  }
+  scan_string <- function(index) {
+    if (index > length_bytes || bytes[[index]] != 34L) {
+      return(NA_integer_)
+    }
+    cursor <- index + 1L
+    while (cursor <= length_bytes) {
+      if (bytes[[cursor]] == 92L) {
+        cursor <- cursor + 2L
+      } else if (bytes[[cursor]] == 34L) {
+        return(cursor)
+      } else {
+        cursor <- cursor + 1L
+      }
+    }
+    NA_integer_
+  }
+  token_text <- function(start, end) {
+    rawToChar(as.raw(bytes[start:end]))
+  }
+  decode_string <- function(start, end) {
+    tryCatch(
+      jsonlite::fromJSON(token_text(start, end), simplifyVector = FALSE),
+      error = function(error) NULL
+    )
+  }
+
+  cursor <- 1L
+  object_start <- NA_integer_
+  while (cursor <= length_bytes) {
+    if (bytes[[cursor]] != 34L) {
+      cursor <- cursor + 1L
+      next
+    }
+    string_end <- scan_string(cursor)
+    if (is.na(string_end)) {
+      return(NULL)
+    }
+    property <- decode_string(cursor, string_end)
+    after <- skip_whitespace(string_end + 1L)
+    if (
+      identical(property, "partitionValues") &&
+        after <= length_bytes &&
+        bytes[[after]] == 58L
+    ) {
+      after <- skip_whitespace(after + 1L)
+      if (after <= length_bytes && bytes[[after]] == 123L) {
+        object_start <- after
+        break
+      }
+    }
+    cursor <- string_end + 1L
+  }
+  if (is.na(object_start)) {
+    return(NULL)
+  }
+
+  tokens <- list()
+  cursor <- skip_whitespace(object_start + 1L)
+  if (cursor <= length_bytes && bytes[[cursor]] == 125L) {
+    return(tokens)
+  }
+  repeat {
+    key_end <- scan_string(cursor)
+    if (is.na(key_end)) {
+      return(NULL)
+    }
+    key <- decode_string(cursor, key_end)
+    if (
+      !is.character(key) ||
+        length(key) != 1L ||
+        is.na(key)
+    ) {
+      return(NULL)
+    }
+    cursor <- skip_whitespace(key_end + 1L)
+    if (cursor > length_bytes || bytes[[cursor]] != 58L) {
+      return(NULL)
+    }
+    cursor <- skip_whitespace(cursor + 1L)
+    if (cursor <= length_bytes && bytes[[cursor]] == 34L) {
+      value_end <- scan_string(cursor)
+      if (is.na(value_end)) {
+        return(NULL)
+      }
+      tokens[[key]] <- token_text(cursor, value_end)
+      cursor <- value_end + 1L
+    } else if (
+      cursor + 3L <= length_bytes &&
+        identical(bytes[cursor:(cursor + 3L)], c(110L, 117L, 108L, 108L))
+    ) {
+      tokens[key] <- list(NULL)
+      cursor <- cursor + 4L
+    } else {
+      return(NULL)
+    }
+    cursor <- skip_whitespace(cursor)
+    if (cursor > length_bytes) {
+      return(NULL)
+    }
+    if (bytes[[cursor]] == 125L) {
+      break
+    }
+    if (bytes[[cursor]] != 44L) {
+      return(NULL)
+    }
+    cursor <- skip_whitespace(cursor + 1L)
+  }
+  tokens
+}
+
+#' Attach lossless partition string tokens to one parsed Delta action
+#' @keywords internal
+#' @noRd
+fabric_delta_preserve_partition_tokens <- function(action, line) {
+  if (is.null(action$add$partitionValues)) {
+    return(action)
+  }
+  tokens <- fabric_delta_json_partition_tokens(line)
+  if (!is.null(tokens)) {
+    attr(action$add$partitionValues, "fabric_delta_partition_tokens") <- tokens
+  }
+  action
+}
+
+#' Decode one JSON string token into Unicode scalar values
+#' @keywords internal
+#' @noRd
+fabric_delta_json_string_codepoints <- function(token) {
+  if (
+    !is.character(token) ||
+      length(token) != 1L ||
+      is.na(token) ||
+      nchar(token, type = "bytes") < 2L
+  ) {
+    rlang::abort("Delta log contains an invalid binary partition value")
+  }
+  bytes <- as.integer(charToRaw(enc2utf8(token)))
+  if (bytes[[1L]] != 34L || bytes[[length(bytes)]] != 34L) {
+    rlang::abort("Delta log contains an invalid binary partition value")
+  }
+  values <- numeric()
+  cursor <- 2L
+  last <- length(bytes) - 1L
+  flush_utf8 <- function(raw_values) {
+    if (!length(raw_values)) {
+      return(numeric())
+    }
+    utf8ToInt(rawToChar(as.raw(raw_values)))
+  }
+  while (cursor <= last) {
+    if (bytes[[cursor]] != 92L) {
+      start <- cursor
+      while (cursor <= last && bytes[[cursor]] != 92L) {
+        cursor <- cursor + 1L
+      }
+      values <- c(values, flush_utf8(bytes[start:(cursor - 1L)]))
+      next
+    }
+    cursor <- cursor + 1L
+    if (cursor > last) {
+      rlang::abort("Delta log contains an invalid binary partition value")
+    }
+    escaped <- bytes[[cursor]]
+    simple <- c(
+      `34` = 34L,
+      `47` = 47L,
+      `92` = 92L,
+      `98` = 8L,
+      `102` = 12L,
+      `110` = 10L,
+      `114` = 13L,
+      `116` = 9L
+    )
+    if (as.character(escaped) %in% names(simple)) {
+      values <- c(values, unname(simple[[as.character(escaped)]]))
+      cursor <- cursor + 1L
+      next
+    }
+    if (escaped != 117L || cursor + 4L > last) {
+      rlang::abort("Delta log contains an invalid binary partition value")
+    }
+    hex <- rawToChar(as.raw(bytes[(cursor + 1L):(cursor + 4L)]))
+    if (!grepl("^[0-9A-Fa-f]{4}$", hex)) {
+      rlang::abort("Delta log contains an invalid binary partition value")
+    }
+    values <- c(values, strtoi(hex, base = 16L))
+    cursor <- cursor + 5L
+  }
+  values
+}
+
+#' Decode UTF-8 bytes without passing embedded NUL through an R string
+#' @keywords internal
+#' @noRd
+fabric_delta_utf8_codepoints <- function(bytes) {
+  bytes <- as.integer(bytes)
+  values <- numeric()
+  cursor <- 1L
+  while (cursor <= length(bytes)) {
+    first <- bytes[[cursor]]
+    width <- if (first < 128L) {
+      1L
+    } else if (first >= 194L && first <= 223L) {
+      2L
+    } else if (first >= 224L && first <= 239L) {
+      3L
+    } else if (first >= 240L && first <= 244L) {
+      4L
+    } else {
+      rlang::abort("Delta log contains invalid UTF-8 in a partition value")
+    }
+    if (cursor + width - 1L > length(bytes)) {
+      rlang::abort("Delta log contains invalid UTF-8 in a partition value")
+    }
+    continuation <- if (width == 1L) {
+      integer()
+    } else {
+      bytes[(cursor + 1L):(cursor + width - 1L)]
+    }
+    if (length(continuation) && any(continuation < 128L | continuation > 191L)) {
+      rlang::abort("Delta log contains invalid UTF-8 in a partition value")
+    }
+    value <- switch(
+      as.character(width),
+      `1` = first,
+      `2` = (first - 192L) * 64 + continuation[[1L]] - 128L,
+      `3` = (first - 224L) * 4096 +
+        (continuation[[1L]] - 128L) * 64 +
+        continuation[[2L]] - 128L,
+      `4` = (first - 240L) * 262144 +
+        (continuation[[1L]] - 128L) * 4096 +
+        (continuation[[2L]] - 128L) * 64 +
+        continuation[[3L]] - 128L
+    )
+    if (
+      (width == 2L && value < 128L) ||
+        (width == 3L && value < 2048L) ||
+        (width == 4L && value < 65536L) ||
+        value > 1114111L ||
+        value %in% 55296:57343
+    ) {
+      rlang::abort("Delta log contains invalid UTF-8 in a partition value")
+    }
+    values <- c(values, value)
+    cursor <- cursor + width
+  }
+  values
+}
+
+#' Decode an even-length hexadecimal string to raw bytes
+#' @keywords internal
+#' @noRd
+fabric_delta_hex_raw <- function(value) {
+  if (!is.character(value) || length(value) != 1L || is.na(value)) {
+    rlang::abort("Delta checkpoint contains invalid partition value bytes")
+  }
+  if (!nzchar(value)) {
+    return(raw())
+  }
+  if (
+    nchar(value, type = "bytes") %% 2L != 0L ||
+      !grepl("^[0-9A-Fa-f]+$", value)
+  ) {
+    rlang::abort("Delta checkpoint contains invalid partition value bytes")
+  }
+  starts <- seq.int(1L, nchar(value, type = "bytes"), by = 2L)
+  as.raw(strtoi(substring(value, starts, starts + 1L), base = 16L))
+}
+
+#' Decode one protocol-serialized binary partition value
+#' @keywords internal
+#' @noRd
+fabric_delta_binary_partition <- function(value, token = NULL) {
+  if (is.null(value) || !length(value) || is.na(value[[1L]])) {
+    return(NULL)
+  }
+  codepoints <- if (inherits(token, "fabric_delta_partition_utf8")) {
+    fabric_delta_utf8_codepoints(token$bytes)
+  } else if (!is.null(token)) {
+    fabric_delta_json_string_codepoints(token)
+  } else {
+    utf8ToInt(enc2utf8(as.character(value[[1L]])))
+  }
+  if (!length(codepoints)) {
+    return(NULL)
+  }
+  if (any(codepoints < 0L | codepoints > 255L)) {
+    rlang::abort(
+      "Delta log binary partition values must encode bytes from 0 through 255"
+    )
+  }
+  as.raw(codepoints)
 }
 
 #' Construct a temporary per-file partition mapping for DuckDB
@@ -2385,17 +2695,21 @@ fabric_delta_partition_mapping <- function(snapshot, paths, schema) {
   files <- snapshot$files %||% list()
   for (index in seq_along(partitions)) {
     partition <- partitions[[index]]
+    field_names <- vapply(schema$fields, `[[`, character(1), "name")
+    field <- schema$fields[[match(partition, field_names)]]
+    is_binary <- is.character(field$type) &&
+      length(field$type) == 1L &&
+      identical(tolower(field$type), "binary")
     mapping_mode <- schema$columnMappingMode %||% "none"
     physical_partition <- if (identical(mapping_mode, "none")) {
       partition
     } else {
-      field_names <- vapply(schema$fields, `[[`, character(1), "name")
       fabric_delta_field_physical_name(
-        schema$fields[[match(partition, field_names)]],
+        field,
         mapping_mode
       )
     }
-    values <- lapply(snapshot$active, function(path) {
+    records <- lapply(snapshot$active, function(path) {
       record <- files[[path]] %||% list(partitionValues = list())
       map <- record$partitionValues %||% list()
       if (!physical_partition %in% names(map)) {
@@ -2403,20 +2717,43 @@ fabric_delta_partition_mapping <- function(snapshot, paths, schema) {
           "Delta file {.path {path}} has no value for partition column {.field {partition}}"
         ))
       }
-      map[[physical_partition]]
+      tokens <- attr(map, "fabric_delta_partition_tokens", exact = TRUE)
+      list(
+        path = path,
+        value = map[[physical_partition]],
+        token = tokens[[physical_partition]] %||% NULL
+      )
     })
-    mapping[[paste0("fabric_delta_partition_", index)]] <- vapply(
-      values,
-      function(value) {
-        if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) {
-          NA_character_
-        } else {
-          text <- as.character(value[[1L]])
-          if (nzchar(text)) text else NA_character_
-        }
-      },
-      character(1)
-    )
+    column <- paste0("fabric_delta_partition_", index)
+    if (is_binary) {
+      mapping[[column]] <- I(lapply(records, function(record) {
+        fabric_delta_binary_partition(record$value, record$token)
+      }))
+    } else {
+      mapping[[column]] <- vapply(
+        records,
+        function(record) {
+          value <- record$value
+          token <- record$token
+          if (
+            inherits(token, "fabric_delta_partition_utf8") &&
+              any(as.integer(token$bytes) == 0L)
+          ) {
+            rlang::abort(cli::format_error(c(
+              "Delta file {.path {record$path}} has an embedded NUL in non-binary partition column {.field {partition}}",
+              "i" = "R cannot represent embedded NUL in a character partition value."
+            )))
+          }
+          if (is.null(value) || length(value) == 0L || is.na(value[[1L]])) {
+            NA_character_
+          } else {
+            text <- as.character(value[[1L]])
+            if (nzchar(text)) text else NA_character_
+          }
+        },
+        character(1)
+      )
+    }
   }
   mapping
 }
@@ -3681,7 +4018,7 @@ fabric_delta_checkpoint_sets <- function(paths) {
 fabric_delta_read_checkpoint_json <- function(path) {
   lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
   actions <- lapply(lines[nzchar(lines)], function(line) {
-    tryCatch(
+    action <- tryCatch(
       jsonlite::fromJSON(line, simplifyVector = FALSE),
       error = function(error) {
         rlang::abort(
@@ -3692,6 +4029,7 @@ fabric_delta_read_checkpoint_json <- function(path) {
         )
       }
     )
+    fabric_delta_preserve_partition_tokens(action, line)
   })
   result <- list(actions = actions)
   attr(result, "fabric_delta_v2") <- any(vapply(
@@ -3741,18 +4079,67 @@ fabric_delta_read_checkpoint <- function(paths) {
   if (!length(columns)) {
     rlang::abort("Delta checkpoint contains no snapshot actions")
   }
+  partition_hex_column <- "fabric_delta_partition_values_hex_internal"
+  select_expressions <- as.character(DBI::dbQuoteIdentifier(con, columns))
+  if ("add" %in% columns) {
+    add_index <- match("add", columns)
+    select_expressions[[add_index]] <- paste0(
+      "struct_update(add, partitionValues := NULL) AS ",
+      as.character(DBI::dbQuoteIdentifier(con, "add"))
+    )
+    select_expressions <- c(
+      select_expressions,
+      paste0(
+        "map(map_keys(add.partitionValues), ",
+        "list_transform(map_values(add.partitionValues), ",
+        "fabric_delta_partition_value -> ",
+        "hex(encode(CAST(fabric_delta_partition_value AS VARCHAR))))) AS ",
+        as.character(DBI::dbQuoteIdentifier(con, partition_hex_column))
+      )
+    )
+  }
   result <- DBI::dbGetQuery(
     con,
     paste0(
       "SELECT ",
-      paste(
-        as.character(DBI::dbQuoteIdentifier(con, columns)),
-        collapse = ", "
-      ),
+      paste(select_expressions, collapse = ", "),
       " FROM ",
       source
     )
   )
+  if ("add" %in% columns) {
+    encoded <- result[[partition_hex_column]]
+    partition_values <- lapply(seq_len(nrow(result)), function(index) {
+      value <- fabric_delta_checkpoint_value(encoded, index, nrow(result))
+      if (is.null(value) || !NROW(value)) {
+        return(list())
+      }
+      value <- fabric_delta_partition_values(value)
+      tokens <- lapply(value, function(hex) {
+        if (is.null(hex) || !length(hex) || is.na(hex[[1L]])) {
+          return(NULL)
+        }
+        structure(
+          list(bytes = fabric_delta_hex_raw(as.character(hex[[1L]]))),
+          class = "fabric_delta_partition_utf8"
+        )
+      })
+      decoded <- lapply(tokens, function(token) {
+        if (is.null(token)) {
+          return(NULL)
+        }
+        if (!length(token$bytes) || any(as.integer(token$bytes) == 0L)) {
+          ""
+        } else {
+          rawToChar(token$bytes)
+        }
+      })
+      attr(decoded, "fabric_delta_partition_tokens") <- tokens
+      decoded
+    })
+    result$add$partitionValues <- I(partition_values)
+    result[[partition_hex_column]] <- NULL
+  }
   attr(result, "fabric_delta_v2") <- "checkpointMetadata" %in% available
   attr(result, "fabric_delta_has_file_actions") <- any(vapply(
     c("add", "remove"),
@@ -4097,7 +4484,7 @@ fabric_delta_apply_json_log <- function(state, path) {
   actions <- lapply(
     lines[nzchar(lines)],
     function(line) {
-      tryCatch(
+      action <- tryCatch(
         jsonlite::fromJSON(line, simplifyVector = FALSE),
         error = function(e) {
           rlang::abort(
@@ -4108,6 +4495,7 @@ fabric_delta_apply_json_log <- function(state, path) {
           )
         }
       )
+      fabric_delta_preserve_partition_tokens(action, line)
     }
   )
   fabric_delta_validate_commit_actions(actions, path)
