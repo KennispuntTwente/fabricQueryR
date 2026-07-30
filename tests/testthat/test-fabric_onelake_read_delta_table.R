@@ -4050,6 +4050,15 @@ test_that("Delta row tracking allows a physical file_row_number column", {
       " (FORMAT PARQUET, ROW_GROUP_SIZE 2048)"
     )
   )
+  parquet_groups <- DBI::dbGetQuery(
+    con,
+    paste0(
+      "SELECT COUNT(DISTINCT row_group_id) AS groups FROM parquet_metadata(",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      ")"
+    )
+  )
+  expect_gt(parquet_groups$groups[[1L]], 1L)
   schema <- jsonlite::toJSON(
     list(
       type = "struct",

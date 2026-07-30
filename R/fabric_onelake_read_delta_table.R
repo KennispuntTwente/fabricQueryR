@@ -1384,6 +1384,18 @@ fabric_delta_read_staged <- function(
   )
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
   DBI::dbExecute(con, "SET preserve_insertion_order = true")
+  preserves_parquet_order <- DBI::dbGetQuery(
+    con,
+    paste0(
+      "SELECT current_setting('preserve_insertion_order') ",
+      "AS preserve_insertion_order"
+    )
+  )$preserve_insertion_order[[1L]]
+  if (!isTRUE(preserves_parquet_order)) {
+    rlang::abort(
+      "DuckDB must preserve Parquet row order to apply Delta deletion vectors"
+    )
+  }
   if (fabric_delta_schema_has_timestamp(schema)) {
     fabric_delta_load_icu(con)
   }
@@ -1555,6 +1567,9 @@ fabric_delta_read_staged <- function(
           row_source
         ))
         numbered_source <- if (collision) {
+          # DuckDB documents that its Parquet reader preserves physical input
+          # order when preserve_insertion_order is true, and specifically
+          # recommends row_number() OVER () to make that order explicit.
           paste0(
             "(SELECT *, row_number() OVER () - 1 AS ",
             quoted_row_source,
