@@ -3983,3 +3983,168 @@ test_that("Delta reader applies name mapping and deletion vectors", {
   )
   expect_equal(result[["display name"]], paste0("row-", result$id))
 })
+
+test_that("Delta row tracking allows a physical file_row_number column", {
+  table_dir <- fs::path_temp(paste0(
+    "delta-file-row-number-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT range::INTEGER AS id, ",
+      "1000::BIGINT + range AS file_row_number FROM range(5000)) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET, ROW_GROUP_SIZE 2048)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "integer",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "file_row_number",
+          type = "long",
+          nullable = FALSE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  deletion_vector <- list(
+    storageType = "i",
+    pathOrInlineDv = paste0(
+      "^Bg9^0rr910000000000iXQKl0rr91000f55c8Xg0",
+      "@@D72lkbi5=-{L"
+    ),
+    sizeInBytes = 44L,
+    cardinality = 6L
+  )
+  actions <- list(
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("deletionVectors"),
+        writerFeatures = list("deletionVectors")
+      )
+    ),
+    list(
+      metaData = list(
+        id = "file-row-number",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    ),
+    list(
+      add = list(
+        path = "part.parquet",
+        partitionValues = list(),
+        deletionVector = deletion_vector
+      )
+    )
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+  expected_ids <- setdiff(0:4999, c(3, 4, 7, 11, 18, 29))
+
+  expect_identical(result$id, expected_ids)
+  expect_s3_class(result$file_row_number, "integer64")
+  expect_equal(as.numeric(result$file_row_number), 1000 + expected_ids)
+})
+
+test_that("Variant restoration allows a physical file_row_number column", {
+  skip_if_not_installed("arrow")
+  table_dir <- fs::path_temp(paste0(
+    "delta-variant-file-row-number-",
+    sample.int(1e9, 1)
+  ))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  parquet <- fs::path(table_dir, "part.parquet")
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT 10::BIGINT AS file_row_number, ",
+      "{'value': 1}::VARIANT AS payload UNION ALL ",
+      "SELECT 20::BIGINT, NULL::VARIANT) TO ",
+      as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", parquet))),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "file_row_number",
+          type = "long",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "payload",
+          type = "variant",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(
+      protocol = list(
+        minReaderVersion = 3L,
+        minWriterVersion = 7L,
+        readerFeatures = list("variantType"),
+        writerFeatures = list("variantType")
+      )
+    ),
+    list(
+      metaData = list(
+        id = "variant-file-row-number",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list(),
+        configuration = list()
+      )
+    ),
+    list(add = list(path = "part.parquet", partitionValues = list()))
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(as.numeric(result$file_row_number), c(10, 20))
+  expect_s3_class(result$payload[[1L]], "fabric_delta_variant")
+  expect_s3_class(result$payload[[2L]], "fabric_delta_variant")
+  expect_identical(result$payload[[2L]]$type, "VARIANT_NULL")
+})

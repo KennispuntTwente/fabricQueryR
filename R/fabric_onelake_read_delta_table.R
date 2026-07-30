@@ -1266,6 +1266,7 @@ fabric_delta_read_staged <- function(
     bigint = "integer64"
   )
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(con, "SET preserve_insertion_order = true")
   if (fabric_delta_schema_has_timestamp(schema)) {
     fabric_delta_load_icu(con)
   }
@@ -1413,15 +1414,35 @@ fabric_delta_read_staged <- function(
             con,
             paste0("DESCRIBE SELECT * FROM ", parquet_source)
           )
-          if ("file_row_number" %in% file_schema$column_name) {
-            rlang::abort(paste0(
-              "A Delta table that requires physical file row positions ",
-              "cannot contain a physical Parquet column named ",
-              "file_row_number"
-            ))
+        }
+        row_source <- "file_row_number"
+        collision <- needs_file_rows &&
+          row_source %in% file_schema$column_name
+        if (collision) {
+          row_source <- "fabric_delta_physical_row_internal"
+          while (row_source %in% c(
+            file_schema$column_name,
+            physical,
+            projection$names,
+            source_column,
+            row_column
+          )) {
+            row_source <- paste0(row_source, "_")
           }
         }
-        numbered_source <- if (needs_file_rows) {
+        quoted_row_source <- as.character(DBI::dbQuoteIdentifier(
+          con,
+          row_source
+        ))
+        numbered_source <- if (collision) {
+          paste0(
+            "(SELECT *, row_number() OVER () - 1 AS ",
+            quoted_row_source,
+            " FROM ",
+            parquet_source,
+            ")"
+          )
+        } else if (needs_file_rows) {
           paste0(
             "read_parquet(",
             literals[[index]],
@@ -1431,7 +1452,7 @@ fabric_delta_read_staged <- function(
           parquet_source
         }
         file_columns <- if (is.null(id_mappings) && needs_file_rows) {
-          "* EXCLUDE (file_row_number)"
+          paste0("* EXCLUDE (", quoted_row_source, ")")
         } else if (is.null(id_mappings)) {
           "*"
         } else {
@@ -1449,7 +1470,7 @@ fabric_delta_read_staged <- function(
           " AS ",
           quoted_source,
           ", ",
-          if (needs_file_rows) "file_row_number" else "0::BIGINT",
+          if (needs_file_rows) quoted_row_source else "0::BIGINT",
           " AS ",
           quoted_row,
           " FROM ",
