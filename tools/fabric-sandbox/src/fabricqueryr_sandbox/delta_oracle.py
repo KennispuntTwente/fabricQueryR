@@ -277,6 +277,116 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         mode="append",
     )
 
+    # Partition values are serialized as strings in the log, one encoding per
+    # type, and an empty string means NULL for every type. Exercise each
+    # non-string partition type, a NULL partition, and an empty-string
+    # partition, in both the JSON-commit and Parquet-checkpoint paths.
+    typed_partitions = directory / "typed_partitions"
+    typed_partitions_schema = pa.schema(
+        [
+            pa.field("id", pa.int32()),
+            pa.field("flag", pa.bool_()),
+            pa.field("event_date", pa.date32()),
+            pa.field("amount", pa.decimal128(8, 2)),
+            pa.field("counted", pa.int64()),
+        ]
+    )
+    typed_partition_columns = ["flag", "event_date", "amount", "counted"]
+    write_deltalake(
+        typed_partitions,
+        pa.Table.from_pylist(
+            [
+                {
+                    "id": 1,
+                    "flag": True,
+                    "event_date": date(2026, 1, 1),
+                    "amount": Decimal("12.30"),
+                    "counted": 9_007_199_254_740_993,
+                },
+                {
+                    "id": 2,
+                    "flag": False,
+                    "event_date": date(1969, 12, 31),
+                    "amount": Decimal("0.00"),
+                    "counted": -9_223_372_036_854_775_807,
+                },
+                {
+                    "id": 3,
+                    "flag": None,
+                    "event_date": None,
+                    "amount": None,
+                    "counted": None,
+                },
+            ],
+            schema=typed_partitions_schema,
+        ),
+        mode="overwrite",
+        partition_by=typed_partition_columns,
+    )
+
+    # An empty string means NULL for every partition type, so it must not be
+    # distinguishable from an absent value. Kept in its own single-column table
+    # so the encoded directory names stay short.
+    string_partitions = directory / "string_partitions"
+    string_partitions_schema = pa.schema(
+        [pa.field("id", pa.int32()), pa.field("label", pa.string())]
+    )
+    write_deltalake(
+        string_partitions,
+        pa.Table.from_pylist(
+            [
+                {"id": 1, "label": "café / 数据=100%"},
+                {"id": 2, "label": ""},
+                {"id": 3, "label": None},
+                {"id": 4, "label": "plain"},
+            ],
+            schema=string_partitions_schema,
+        ),
+        mode="overwrite",
+        partition_by=["label"],
+    )
+
+    # Negative decimal partition values are deliberately absent: delta-rs writes
+    # them into the directory name as e.g. `amount=0.-50` and then fails to read
+    # its own table back ("Failed to parse value '0.-50'"). The R reader takes
+    # partition values from the log rather than the path, so it handles them;
+    # they are covered by direct R assertions instead of by parity.
+    checkpointed_partitions = directory / "checkpointed_partitions"
+    write_deltalake(
+        checkpointed_partitions,
+        pa.Table.from_pylist(
+            [
+                {
+                    "id": 1,
+                    "flag": True,
+                    "event_date": date(2026, 1, 1),
+                    "amount": Decimal("99999.99"),
+                    "counted": 10,
+                }
+            ],
+            schema=typed_partitions_schema,
+        ),
+        mode="overwrite",
+        partition_by=typed_partition_columns,
+    )
+    write_deltalake(
+        checkpointed_partitions,
+        pa.Table.from_pylist(
+            [
+                {
+                    "id": 2,
+                    "flag": None,
+                    "event_date": None,
+                    "amount": None,
+                    "counted": None,
+                }
+            ],
+            schema=typed_partitions_schema,
+        ),
+        mode="append",
+    )
+    DeltaTable(str(checkpointed_partitions)).create_checkpoint()
+
     empty = directory / "empty"
     write_deltalake(
         empty,
@@ -657,6 +767,33 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
             "expected_rows": 1,
             "expected_version": 3,
             "expected_columns": ["id", "label"],
+        },
+        {
+            "name": "typed_partitions",
+            "table": "typed_partitions",
+            "expected_rows": 3,
+            "expected_version": 0,
+            "expected_columns": [
+                field.name for field in typed_partitions_schema
+            ],
+        },
+        {
+            "name": "string_partitions",
+            "table": "string_partitions",
+            "expected_rows": 4,
+            "expected_version": 0,
+            "expected_columns": [
+                field.name for field in string_partitions_schema
+            ],
+        },
+        {
+            "name": "checkpointed_partitions",
+            "table": "checkpointed_partitions",
+            "expected_rows": 2,
+            "expected_version": 1,
+            "expected_columns": [
+                field.name for field in typed_partitions_schema
+            ],
         },
         {
             "name": "empty",
