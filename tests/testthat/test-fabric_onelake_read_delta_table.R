@@ -2418,6 +2418,111 @@ test_that("Delta timestamp partitions use the writer timezone", {
   restore_timezone()
 })
 
+test_that("Delta partition values render at the schema's declared scale", {
+  # The log serializes a partition value as a plain string, and a writer need
+  # not render it at the column's scale. The same value read from a data file
+  # would come back at full scale, so a partition column must match.
+  table_dir <- fs::path_temp(paste0("delta-scale-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  written <- c("5", "12.3", "-0.5", "0.00")
+  for (index in seq_along(written)) {
+    DBI::dbExecute(
+      con,
+      paste0(
+        "COPY (SELECT ",
+        index,
+        "::INTEGER AS id) TO ",
+        as.character(DBI::dbQuoteString(
+          con,
+          gsub(
+            "\\\\",
+            "/",
+            fs::path(table_dir, paste0("part-", index, ".parquet"))
+          )
+        )),
+        " (FORMAT PARQUET)"
+      )
+    )
+  }
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "integer",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "amount",
+          type = "decimal(8,2)",
+          nullable = TRUE,
+          metadata = list()
+        ),
+        list(
+          name = "seen_at",
+          type = "timestamp_ntz",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- c(
+    list(
+      list(
+        protocol = list(
+          minReaderVersion = 3L,
+          minWriterVersion = 7L,
+          readerFeatures = list("timestampNtz"),
+          writerFeatures = list("timestampNtz")
+        )
+      ),
+      list(
+        metaData = list(
+          id = "scale-table",
+          format = list(provider = "parquet", options = list()),
+          schemaString = schema,
+          partitionColumns = list("amount", "seen_at"),
+          configuration = list()
+        )
+      )
+    ),
+    lapply(seq_along(written), function(index) {
+      list(
+        add = list(
+          path = paste0("part-", index, ".parquet"),
+          partitionValues = list(
+            amount = written[[index]],
+            seen_at = "2026-07-28T09:08:07"
+          )
+        )
+      )
+    })
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+  result <- result[order(result$id), ]
+
+  expect_identical(result$amount, c("5.00", "12.30", "-0.50", "0.00"))
+  expect_s3_class(result$seen_at, "fabric_delta_timestamp_ntz")
+  expect_identical(
+    unique(unclass(result$seen_at)),
+    "2026-07-28 09:08:07.000000"
+  )
+})
+
 test_that("Delta timestamp partitions recognise every ISO 8601 offset", {
   offsets <- c(
     "2026-01-01 12:00:00Z",
