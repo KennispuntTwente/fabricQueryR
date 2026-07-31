@@ -4655,6 +4655,57 @@ test_that("persisted deletion vectors support legacy and sidecar offsets", {
   )
 })
 
+test_that("absolute deletion-vector URIs are decoded exactly once", {
+  # A blob literally named `deletion%20vector.bin` is written into the log as
+  # `deletion%2520vector.bin`. Decoding that twice yields `deletion vector.bin`,
+  # which re-encodes to a different blob and downloads nothing.
+  encoded <- paste0(
+    "abfss://11111111-1111-1111-1111-111111111111",
+    "@onelake.dfs.fabric.microsoft.com/",
+    "22222222-2222-2222-2222-222222222222/",
+    "Tables/source/deletion%2520vector.bin"
+  )
+  descriptor <- list(
+    storageType = "p",
+    pathOrInlineDv = encoded,
+    sizeInBytes = 44L,
+    cardinality = 6L
+  )
+  expect_identical(fabric_delta_deletion_vector_path(descriptor), encoded)
+
+  target <- onelake_resolve_target(
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222",
+    "Tables/dbo/table"
+  )
+  staged <- fabric_delta_stage_files(
+    fabric_delta_deletion_vector_paths(list(
+      active = "part.parquet",
+      files = list("part.parquet" = list(deletionVector = descriptor))
+    )),
+    target,
+    "Tables/dbo/table",
+    "stage"
+  )
+  expect_equal(nrow(staged), 1L)
+  expect_identical(
+    staged$target[[1L]]$path,
+    "Tables/source/deletion%20vector.bin"
+  )
+  expect_true(endsWith(
+    onelake_path_url(staged$target[[1L]]),
+    "Tables/source/deletion%2520vector.bin"
+  ))
+  # Staging and the later local lookup must agree on the same staged file.
+  expect_identical(
+    as.character(staged$destination),
+    as.character(fabric_delta_local_file(
+      "stage",
+      fabric_delta_deletion_vector_path(descriptor)
+    ))
+  )
+})
+
 test_that("Delta reader applies name mapping and deletion vectors", {
   table_dir <- fs::path_temp(paste0("delta-modern-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")

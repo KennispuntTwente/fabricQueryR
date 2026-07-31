@@ -1296,11 +1296,17 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
 fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
   records <- lapply(paths, function(path) {
     path <- as.character(path)
-    decoded <- utils::URLdecode(path)
-    if (grepl("^(?:https|abfss?)://", decoded, ignore.case = TRUE)) {
-      file_target <- onelake_parse_uri(decoded)
+    # `onelake_parse_uri()` percent-decodes the path itself, so an absolute URI
+    # must be handed over untouched. Decoding it here as well would unescape
+    # twice and address a different blob than the log names.
+    if (grepl("^(?:https|abfss?)://", path, ignore.case = TRUE)) {
+      file_target <- onelake_parse_uri(path)
+      file_target$.encoded_path <- fabric_delta_encode_target_path(
+        file_target$path
+      )
       relative <- fabric_delta_external_relative(file_target)
     } else {
+      decoded <- utils::URLdecode(path)
       parts <- strsplit(gsub("\\\\", "/", decoded), "/", fixed = TRUE)[[1L]]
       if (
         grepl("^[/\\\\]", decoded) ||
@@ -1330,6 +1336,35 @@ fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
     destination = vapply(records, `[[`, character(1), "destination"),
     target = I(lapply(records, `[[`, "target")),
     stringsAsFactors = FALSE
+  )
+}
+
+#' Percent-encode an already-decoded OneLake path for a request URL
+#'
+#' `onelake_encode_path()` calls `utils::URLencode()` with its default
+#' `repeated = FALSE`, which returns the input untouched as soon as it contains
+#' any `%XX` sequence. A file whose name really does contain a percent sign
+#' would then be requested under the name that sequence decodes to. Encode each
+#' segment unconditionally instead.
+#' @keywords internal
+#' @noRd
+fabric_delta_encode_target_path <- function(path) {
+  segments <- strsplit(sub("^/+", "", as.character(path)), "/", fixed = TRUE)[[
+    1L
+  ]]
+  if (!length(segments)) {
+    return("")
+  }
+  paste(
+    vapply(
+      segments,
+      utils::URLencode,
+      character(1),
+      reserved = TRUE,
+      repeated = TRUE,
+      USE.NAMES = FALSE
+    ),
+    collapse = "/"
   )
 }
 
@@ -1429,15 +1464,18 @@ fabric_delta_external_relative <- function(target) {
 #' @keywords internal
 #' @noRd
 fabric_delta_local_file <- function(table_dir, path) {
-  decoded <- utils::URLdecode(as.character(path))
+  path <- as.character(path)
+  # Absolute URIs go to `onelake_parse_uri()` undecoded; see
+  # `fabric_delta_stage_files()`. Both must agree on the same staged file.
   absolute <- grepl(
     "^(?:https|abfss?)://",
-    decoded,
+    path,
     ignore.case = TRUE
   )
   relative <- if (absolute) {
-    fabric_delta_external_relative(onelake_parse_uri(decoded))
+    fabric_delta_external_relative(onelake_parse_uri(path))
   } else {
+    decoded <- utils::URLdecode(path)
     parts <- strsplit(gsub("\\\\", "/", decoded), "/", fixed = TRUE)[[1L]]
     if (
       grepl("^[/\\\\]", decoded) ||
@@ -3654,9 +3692,13 @@ fabric_delta_deletion_vector_path <- function(descriptor) {
   storage_type <- as.character(descriptor$storageType %||% "")
   encoded <- as.character(descriptor$pathOrInlineDv %||% "")
   if (identical(storage_type, "p")) {
-    decoded <- utils::URLdecode(encoded)
-    onelake_parse_uri(decoded)
-    return(decoded)
+    # `pathOrInlineDv` has "the same format as the `path` field in the
+    # add/remove actions", so it is a URI that the staging and lookup helpers
+    # already decode exactly once. Validate the decoded form here but hand back
+    # the original: decoding now as well would unescape twice and turn a literal
+    # percent in the file name into an escape.
+    onelake_parse_uri(utils::URLdecode(encoded))
+    return(encoded)
   }
   if (!identical(storage_type, "u")) {
     return(NULL)
