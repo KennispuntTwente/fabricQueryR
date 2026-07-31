@@ -4195,6 +4195,24 @@ fabric_delta_load_icu <- function(con) {
   invisible(con)
 }
 
+#' Test whether a Delta timestamp partition value carries an explicit offset
+#'
+#' The protocol allows a `timestamp` partition value either without a timezone,
+#' "interpreted using the time zone of the system which wrote to the table", or
+#' "adjusted to UTC and stored in ISO8601 format". ISO 8601 spells a UTC offset
+#' as `Z`, `+HH`, `+HHMM` or `+HH:MM`; the hour-only form is just as valid as
+#' the others.
+#'
+#' The whole value is anchored rather than only its tail, so a trailing `-01`
+#' that is really the day of a date-only value is not mistaken for an offset.
+#' @keywords internal
+#' @noRd
+fabric_delta_partition_offset_pattern <- paste0(
+  "^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}",
+  "(:[0-9]{2}(\\.[0-9]+)?)?",
+  "[[:space:]]*([Zz]|[+-][0-9]{2}(:?[0-9]{2})?)$"
+)
+
 #' Normalize legacy timestamp partition values to explicit UTC instants
 #' @keywords internal
 #' @noRd
@@ -4225,11 +4243,7 @@ fabric_delta_normalize_timestamp_partitions <- function(
     column <- paste0("fabric_delta_partition_", index)
     values <- mapping[[column]]
     naive <- !is.na(values) &
-      !grepl(
-        "(Z|[+-][0-9]{2}:?[0-9]{2})$",
-        values,
-        ignore.case = TRUE
-      )
+      !grepl(fabric_delta_partition_offset_pattern, values)
     if (!any(naive)) {
       next
     }

@@ -2418,6 +2418,122 @@ test_that("Delta timestamp partitions use the writer timezone", {
   restore_timezone()
 })
 
+test_that("Delta timestamp partitions recognise every ISO 8601 offset", {
+  offsets <- c(
+    "2026-01-01 12:00:00Z",
+    "2026-01-01 12:00:00z",
+    "2026-01-01T12:00:00Z",
+    "2026-01-01 12:00:00+01",
+    "2026-01-01 12:00:00-05",
+    "2026-01-01 12:00:00+0100",
+    "2026-01-01 12:00:00+01:00",
+    "2026-01-01 12:00:00.123456Z",
+    "2026-01-01 12:00:00.123456+05:30",
+    "2026-01-01 12:00+02:00"
+  )
+  expect_true(all(grepl(fabric_delta_partition_offset_pattern, offsets)))
+
+  naive <- c(
+    "2026-01-01 12:00:00",
+    "2026-01-01T12:00:00",
+    "2026-01-01 12:00:00.123456",
+    "2026-01-01 12:00",
+    # A date-only value ends in `-01`; anchoring the whole value keeps that from
+    # reading as a one-hour offset.
+    "2026-01-01",
+    "1969-12-31"
+  )
+  expect_false(any(grepl(fabric_delta_partition_offset_pattern, naive)))
+})
+
+test_that("Delta hour-only timestamp partition offsets are honoured", {
+  table_dir <- fs::path_temp(paste0("delta-hour-offset-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  for (index in 1:2) {
+    DBI::dbExecute(
+      con,
+      paste0(
+        "COPY (SELECT ",
+        index,
+        "::INTEGER AS id) TO ",
+        as.character(DBI::dbQuoteString(
+          con,
+          gsub(
+            "\\\\",
+            "/",
+            fs::path(table_dir, paste0("part-", index, ".parquet"))
+          )
+        )),
+        " (FORMAT PARQUET)"
+      )
+    )
+  }
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "id",
+          type = "integer",
+          nullable = FALSE,
+          metadata = list()
+        ),
+        list(
+          name = "recorded_at",
+          type = "timestamp",
+          nullable = FALSE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  actions <- list(
+    list(protocol = list(minReaderVersion = 1L, minWriterVersion = 2L)),
+    list(
+      metaData = list(
+        id = "hour-offset-table",
+        format = list(provider = "parquet", options = list()),
+        schemaString = schema,
+        partitionColumns = list("recorded_at"),
+        configuration = list()
+      )
+    ),
+    list(
+      add = list(
+        path = "part-1.parquet",
+        partitionValues = list(recorded_at = "2026-01-01T12:00:00+01")
+      )
+    ),
+    list(
+      add = list(
+        path = "part-2.parquet",
+        partitionValues = list(recorded_at = "2026-01-01T12:00:00-05")
+      )
+    )
+  )
+  writeLines(
+    vapply(actions, jsonlite::toJSON, character(1), auto_unbox = TRUE),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  # Hour-only offsets are explicit, so no writer timezone is needed.
+  result <- fabric_delta_read_staged(table_dir)
+  result <- result[order(result$id), ]
+  expect_equal(
+    as.numeric(result$recorded_at),
+    as.numeric(as.POSIXct(
+      c("2026-01-01 11:00:00", "2026-01-01 17:00:00"),
+      tz = "UTC"
+    ))
+  )
+})
+
 test_that("Delta reads pin the DuckDB session timezone to UTC", {
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
