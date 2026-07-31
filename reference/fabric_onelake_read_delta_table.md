@@ -15,6 +15,7 @@ fabric_onelake_read_delta_table(
   workspace_name,
   lakehouse_name,
   schema = NULL,
+  item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -42,6 +43,9 @@ fabric_onelake_read_delta_table(
 
   Fabric workspace display name or GUID, or a record from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
+  ABFSS-safe display names can be used directly; use paired
+  workspace/item GUIDs or discovery records when the display name
+  contains spaces or other special characters.
 
 - lakehouse_name:
 
@@ -52,6 +56,12 @@ fabric_onelake_read_delta_table(
 
   Lakehouse or Warehouse schema, or `NULL`. A discovered schema-enabled
   Lakehouse's default schema is used automatically.
+
+- item_type:
+
+  `"Lakehouse"` or `"Warehouse"`. This is inferred from a discovery
+  record or a `.Lakehouse`/`.Warehouse` suffix. Supply it for a
+  suffixless item display name, especially a Warehouse name.
 
 - tenant_id:
 
@@ -129,11 +139,26 @@ OneLake credentials use the `https://storage.azure.com/.default`
 audience and are passed to delta-rs as a bearer token with its Fabric
 endpoint option enabled.
 
-`result = "arrow_stream"` is lazy and single-use. Authentication
-failures that occur after part of a lazy stream has been consumed cannot
-be retried. The default tibble result is collected before return and is
-retried once for a refreshable credential when delta-rs reports an
-authentication failure.
+Fabric Warehouse publishes Delta logs asynchronously. Reads therefore
+return the latest snapshot published to OneLake, which can lag the
+current Warehouse transaction state or remain fixed while Delta-log
+publishing is paused.
+
+`result = "arrow_stream"` is lazy and single-use. Opening either result
+is retried once with a refreshable credential when delta-rs reports an
+authentication failure. Failures that occur after a lazy stream has been
+returned and consumed cannot be retried.
+
+The tested delta-rs runtime reads ordinary Delta snapshots, schema
+evolution, typed partitions, classic checkpoints, column mapping,
+deletion vectors, and shallow clones. Its current reader does not
+support Fabric tables requiring Type Widening or V2 Checkpoints; those
+fail with `fabric_delta_unsupported_feature_error`. Variant columns
+require `result = "arrow_stream"`. Feature availability is protocol- and
+runtime-specific; consult the [Fabric Delta interoperability
+matrix](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
+and use Fabric PySpark when the selected delta-rs runtime cannot read a
+table.
 
 Delta `long` values are returned as
 [`bit64::integer64()`](https://bit64.r-lib.org/reference/bit64-package.html).
@@ -141,7 +166,13 @@ Delta decimals are returned as exact character values, including when
 nested. Delta `timestamp_ntz` values use the character-backed
 `fabric_delta_timestamp_ntz` class. The Arrow stream preserves
 timezone-free timestamps as Arrow timestamps and represents decimals as
-strings, matching the R result's exact-decimal contract.
+strings, matching the R result's exact-decimal contract. Nullable struct
+columns retain their parent validity through the
+`fabric_delta_struct_column` class, so a null struct remains distinct
+from a present struct whose children are all null. Arrow Variant
+extension columns are preserved by `result = "arrow_stream"`; tibble
+collection rejects them explicitly because exposing their physical
+`metadata` and `value` buffers as ordinary R data would be misleading.
 
 ## Examples
 

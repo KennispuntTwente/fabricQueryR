@@ -57,6 +57,7 @@ and returned as a tibble or a lazy Arrow stream.</p>
 <span>  <span class="va">workspace_name</span>,</span>
 <span>  <span class="va">lakehouse_name</span>,</span>
 <span>  schema <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  item_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
@@ -85,7 +86,9 @@ value is accepted and its final segment is used; select a schema with
 
 <dt id="arg-workspace-name">workspace_name<a class="anchor" aria-label="anchor" href="#arg-workspace-name"></a></dt>
 <dd><p>Fabric workspace display name or GUID, or a record from
-<code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>.</p></dd>
+<code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. ABFSS-safe display names can be used directly; use
+paired workspace/item GUIDs or discovery records when the display name
+contains spaces or other special characters.</p></dd>
 
 
 <dt id="arg-lakehouse-name">lakehouse_name<a class="anchor" aria-label="anchor" href="#arg-lakehouse-name"></a></dt>
@@ -96,6 +99,12 @@ The argument name is retained for backward compatibility.</p></dd>
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
 <dd><p>Lakehouse or Warehouse schema, or <code>NULL</code>. A discovered
 schema-enabled Lakehouse's default schema is used automatically.</p></dd>
+
+
+<dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
+<dd><p><code>"Lakehouse"</code> or <code>"Warehouse"</code>. This is inferred from a
+discovery record or a <code>.Lakehouse</code>/<code>.Warehouse</code> suffix. Supply it for a
+suffixless item display name, especially a Warehouse name.</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
@@ -172,16 +181,34 @@ runtime dependencies in that environment with:</p>
 <p>OneLake credentials use the <code>https://storage.azure.com/.default</code> audience
 and are passed to delta-rs as a bearer token with its Fabric endpoint
 option enabled.</p>
-<p><code>result = "arrow_stream"</code> is lazy and single-use. Authentication failures
-that occur after part of a lazy stream has been consumed cannot be retried.
-The default tibble result is collected before return and is retried once for
-a refreshable credential when delta-rs reports an authentication failure.</p>
+<p>Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
+the latest snapshot published to OneLake, which can lag the current Warehouse
+transaction state or remain fixed while Delta-log publishing is paused.</p>
+<p><code>result = "arrow_stream"</code> is lazy and single-use. Opening either result is
+retried once with a refreshable credential when delta-rs reports an
+authentication failure. Failures that occur after a lazy stream has been
+returned and consumed cannot be retried.</p>
+<p>The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
+typed partitions, classic checkpoints, column mapping, deletion vectors, and
+shallow clones. Its current reader does not support Fabric tables requiring
+Type Widening or V2 Checkpoints; those fail with
+<code>fabric_delta_unsupported_feature_error</code>. Variant columns require
+<code>result = "arrow_stream"</code>. Feature availability is protocol- and
+runtime-specific; consult the
+<a href="https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability" class="external-link">Fabric Delta interoperability matrix</a>
+and use Fabric PySpark when the selected delta-rs runtime cannot read a table.</p>
 <p>Delta <code>long</code> values are returned as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64()</a></code>. Delta decimals are
 returned as exact character values, including when nested. Delta
 <code>timestamp_ntz</code> values use the character-backed
 <code>fabric_delta_timestamp_ntz</code> class. The Arrow stream preserves
 timezone-free timestamps as Arrow timestamps and represents decimals as
-strings, matching the R result's exact-decimal contract.</p>
+strings, matching the R result's exact-decimal contract. Nullable struct
+columns retain their parent validity through the
+<code>fabric_delta_struct_column</code> class, so a null struct remains distinct from a
+present struct whose children are all null. Arrow Variant extension columns
+are preserved by <code>result = "arrow_stream"</code>; tibble collection rejects them
+explicitly because exposing their physical <code>metadata</code> and <code>value</code> buffers as
+ordinary R data would be misleading.</p>
     </div>
 
     <div class="section level2">

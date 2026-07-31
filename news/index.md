@@ -97,31 +97,55 @@
     staging, and local Parquet downloads are no longer required.
   - Continues to use the package’s Fabric discovery and refreshable
     authentication layer for Lakehouses and Warehouse Delta exports,
-    including custom Fabric DFS endpoints.
+    including custom Fabric DFS endpoints. Warehouse documentation and
+    tests now account for asynchronous Delta-log publication and verify
+    exact post-mutation rows.
   - Supports `version` for time travel, `columns` and `limit` for
     narrowing the result, `result = "arrow_stream"` for an Arrow C
     stream (the default remains a tibble). Arrow results are now
-    genuinely lazy and single-use.
+    genuinely lazy and single-use. Authentication failures while opening
+    either result are retried once with refreshable credentials; a
+    stream that has already been returned is never replayed.
   - Accepts discovery records for `workspace_name` and `lakehouse_name`;
     a schema-enabled Lakehouse record supplies its default schema.
+    `item_type` disambiguates suffixless Lakehouse and Warehouse display
+    names. Workspace names that cannot appear in an ABFSS authority now
+    fail with paired GUID/discovery-record guidance instead of being
+    incorrectly percent-encoded.
   - Preserves `long` as
     [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
     decimals as exact character data, and `timestamp_ntz` as a
-    wall-clock class, recursively through nested Arrow values. The Arrow
-    bridge normalizes DataFusion view types for compatibility with the R
-    `arrow` package.
+    wall-clock class, recursively through nested Arrow values. Nullable
+    structs also retain their parent validity, including inside lists
+    and maps, so null structs remain distinct from present structs whose
+    children are all null. The Arrow bridge normalizes DataFusion view
+    types for compatibility with the R `arrow` package.
+  - Preserves canonical `arrow.parquet.variant` columns in Arrow-stream
+    results and rejects tibble collection with an actionable error
+    instead of silently exposing Variant’s physical metadata and value
+    buffers as ordinary columns.
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
     `timestamp_partition_timezone` is retained as a compatibility formal
     but is rejected when supplied because delta-rs has no equivalent
     override.
-  - Is checked with deterministic local delta-rs fixtures and direct
-    live Fabric gates for deletion vectors, column mapping, type
-    widening, V2 checkpoints, shallow clones, and Warehouse exports.
+  - Is checked with deterministic local delta-rs fixtures and
+    value-level live Fabric comparisons against independent Spark reader
+    oracles for deletion vectors, column mapping, and shallow clones.
+    Type widening and V2 checkpoints are rejected with an actionable
+    unsupported-feature error by the current delta-rs runtime instead of
+    being advertised as readable.
+
+- Fabric sandbox seeding now publishes a content-derived fixture
+  revision to OneLake. Discovery refuses stale or partially seeded
+  persistent workspaces before R integration tests can report misleading
+  table-level results.
 
 - Added
   [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
   to inspect the optional Python runtime and its declared requirements.
-  Inspection is non-initializing by default.
+  Inspection is non-initializing by default. The runtime is constrained
+  to the tested `deltalake>=1.6.2,<2` range and its required
+  `DeltaTable`/`QueryBuilder` API is checked before querying.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset
