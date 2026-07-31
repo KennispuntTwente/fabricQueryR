@@ -1275,6 +1275,93 @@ test_that("Delta reader preserves the logical schema for empty tables", {
   )
 })
 
+test_that("Empty Delta tables keep the struct validity contract", {
+  # A row-less snapshot has no DuckDB validity mirror to read, but `is.na()`
+  # must still report parent nullness rather than falling through to the data
+  # frame method, so a caller can treat empty and populated results alike.
+  table_dir <- fs::path_temp(paste0("delta-empty-struct-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "id", type = "long", nullable = FALSE, metadata = list()),
+        list(
+          name = "profile",
+          type = list(
+            type = "struct",
+            fields = list(
+              list(
+                name = "label",
+                type = "string",
+                nullable = TRUE,
+                metadata = list()
+              ),
+              list(
+                name = "nested",
+                type = list(
+                  type = "struct",
+                  fields = list(list(
+                    name = "score",
+                    type = "integer",
+                    nullable = TRUE,
+                    metadata = list()
+                  ))
+                ),
+                nullable = TRUE,
+                metadata = list()
+              )
+            )
+          ),
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            format = list(provider = "parquet", options = list()),
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      )
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(nrow(result), 0L)
+  expect_s3_class(result$profile, "fabric_delta_struct_column")
+  expect_identical(is.na(result$profile), logical(0))
+  expect_s3_class(result$profile$nested, "fabric_delta_struct_column")
+  expect_identical(is.na(result$profile$nested), logical(0))
+
+  projected <- fabric_delta_read_staged(table_dir, columns = "profile")
+  expect_s3_class(projected$profile, "fabric_delta_struct_column")
+  expect_identical(is.na(projected$profile), logical(0))
+
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  stream <- fabric_delta_format_result(result, "arrow_stream")
+  table <- arrow::as_record_batch_reader(stream)$read_table()
+  expect_equal(table$num_rows, 0L)
+  expect_identical(names(table), c("id", "profile"))
+})
+
 test_that("Delta logical schemas cover primitive and nested types", {
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)

@@ -1587,6 +1587,13 @@ fabric_delta_read_staged <- function(
         empty[[field$name]],
         field$type
       )
+      # An empty result must still honour the documented struct contract, so
+      # `is.na()` keeps reporting parent nullness rather than falling back to
+      # the data frame method.
+      empty[[field$name]] <- fabric_delta_mark_empty_structs(
+        empty[[field$name]],
+        field$type
+      )
     }
     selected_schema <- schema
     selected_schema$fields <- schema$fields[selected_indexes]
@@ -3128,6 +3135,37 @@ fabric_delta_apply_struct_mask <- function(value, type, mask) {
     }
     return(value)
   }
+  value
+}
+
+#' Give struct columns of a row-less result their validity contract
+#'
+#' There is no DuckDB validity mirror to read when a snapshot has no active
+#' files, but the class and its zero-length validity attribute must still be
+#' present so `is.na()` behaves the same as on a populated result.
+#' @keywords internal
+#' @noRd
+fabric_delta_mark_empty_structs <- function(value, type) {
+  if (is.character(type) && length(type) == 1L) {
+    return(value)
+  }
+  if (!is.list(type)) {
+    return(value)
+  }
+  if (!identical(tolower(as.character(type$type %||% "")), "struct")) {
+    return(value)
+  }
+  if (!is.data.frame(value)) {
+    return(value)
+  }
+  for (field in type$fields %||% list()) {
+    value[[field$name]] <- fabric_delta_mark_empty_structs(
+      value[[field$name]],
+      field$type
+    )
+  }
+  class(value) <- unique(c("fabric_delta_struct_column", class(value)))
+  attr(value, "fabric_delta_struct_validity") <- logical(nrow(value))
   value
 }
 
