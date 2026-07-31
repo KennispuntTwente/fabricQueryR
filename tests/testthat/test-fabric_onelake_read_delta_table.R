@@ -4601,6 +4601,42 @@ test_that("persisted deletion vectors support legacy and sidecar offsets", {
     expected
   )
 
+  # A descriptor that omits `offset` is documented as meaning 0, but byte 0 of a
+  # version 1 file is the format version. `sizeInBytes` separates the layouts,
+  # so the header is skipped rather than decoded as part of the size.
+  expect_equal(
+    fabric_delta_read_deletion_vector(descriptor, table_dir),
+    expected
+  )
+  expect_equal(
+    fabric_delta_read_deletion_vector(zero_descriptor, table_dir),
+    expected
+  )
+
+  # A version header is only tolerated when it declares a format this reader
+  # understands, whether the offset is explicit or inferred.
+  writeBin(c(as.raw(2L), block, block), path)
+  expect_error(
+    fabric_delta_read_deletion_vector(first_descriptor, table_dir),
+    "unsupported version",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_read_deletion_vector(descriptor, table_dir),
+    "unsupported version",
+    fixed = TRUE
+  )
+
+  writeBin(c(as.raw(1L), block), path)
+  mismatched <- descriptor
+  mismatched$offset <- 1L
+  mismatched$sizeInBytes <- 40L
+  expect_error(
+    fabric_delta_read_deletion_vector(mismatched, table_dir),
+    "size does not match its descriptor",
+    fixed = TRUE
+  )
+
   absolute <- paste0(
     "abfss://11111111-1111-1111-1111-111111111111",
     "@onelake.dfs.fabric.microsoft.com/",

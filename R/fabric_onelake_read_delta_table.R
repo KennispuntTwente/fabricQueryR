@@ -3802,26 +3802,40 @@ fabric_delta_read_deletion_vector <- function(descriptor, table_dir) {
     }
     bytes <- readBin(path, "raw", n = fs::file_size(path))
     offset <- as.numeric(descriptor$offset %||% 0)
-    start <- offset + 1L
     if (
       !is.finite(offset) ||
         offset < 0 ||
         offset != floor(offset) ||
-        start + 3L > length(bytes)
+        offset + 4L > length(bytes)
     ) {
       rlang::abort("Delta deletion-vector sidecar offset is invalid")
     }
-    if (
-      offset > 0 &&
-        (!length(bytes) || as.integer(bytes[[1L]]) != 1L)
-    ) {
-      rlang::abort("Delta deletion-vector sidecar has an unsupported version")
+    # The protocol says an absent `offset` is interpreted as 0, but byte 0 of a
+    # version 1 file holds the format version rather than a size, so such a
+    # descriptor would decode the version byte as part of the size. The
+    # descriptor's `sizeInBytes` tells the two layouts apart exactly, so try the
+    # documented position first and then the byte after a version header.
+    candidates <- if (offset > 0) offset + 1L else c(1L, 2L)
+    start <- NULL
+    for (candidate in candidates) {
+      if (candidate + 3L > length(bytes)) {
+        next
+      }
+      stored_size <- fabric_delta_raw_uint32(bytes, candidate, endian = "big")
+      if (identical(as.numeric(stored_size), as.numeric(size))) {
+        start <- candidate
+        break
+      }
     }
-    stored_size <- fabric_delta_raw_uint32(bytes, start, endian = "big")
-    if (!identical(as.numeric(stored_size), as.numeric(size))) {
+    if (is.null(start)) {
       rlang::abort(
         "Delta deletion-vector sidecar size does not match its descriptor"
       )
+    }
+    # Anything that does not begin at byte 0 sits behind a version header, which
+    # must then declare a format this reader understands.
+    if (start > 1L && as.integer(bytes[[1L]]) != 1L) {
+      rlang::abort("Delta deletion-vector sidecar has an unsupported version")
     }
     data_start <- start + 4L
     data_end <- data_start + size - 1L
