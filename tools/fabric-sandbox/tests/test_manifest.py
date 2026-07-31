@@ -6,6 +6,7 @@ def test_manifest_round_trip(tmp_path):
     manifest = SandboxManifest(
         workspace_id="workspace-id",
         workspace_name="fabricqueryr-test",
+        fixture_revision="fixture-revision",
         items={"TestLakehouse": {"id": "lakehouse-id", "type": "Lakehouse"}},
     )
 

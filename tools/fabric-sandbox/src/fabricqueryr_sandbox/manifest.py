@@ -12,6 +12,7 @@ from typing import Any
 class SandboxManifest:
     workspace_id: str
     workspace_name: str
+    fixture_revision: str
     items: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def write(self, path: Path) -> None:

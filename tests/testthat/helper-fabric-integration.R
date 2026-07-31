@@ -61,7 +61,18 @@ fabric_test_manifest <- function() {
     !file.exists(path),
     paste("Fabric integration manifest not found:", path)
   )
-  jsonlite::fromJSON(path, simplifyVector = FALSE)
+  manifest <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+  fabric_test_skip_or_fail(
+    is.null(manifest$fixture_revision) ||
+      !is.character(manifest$fixture_revision) ||
+      length(manifest$fixture_revision) != 1L ||
+      !nzchar(manifest$fixture_revision),
+    paste(
+      "Fabric integration manifest has no verified fixture revision;",
+      "rebuild or reseed the sandbox"
+    )
+  )
+  manifest
 }
 
 fabric_test_token_variables <- c(

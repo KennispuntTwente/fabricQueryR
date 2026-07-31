@@ -89,6 +89,10 @@ cancellation, while sessions also provide explicit cleanup;
   are rejected with an actionable unsupported-feature error by the current
   delta-rs runtime instead of being advertised as readable.
 
+* Fabric sandbox seeding now publishes a content-derived fixture revision to
+OneLake. Discovery refuses stale or partially seeded persistent workspaces
+before R integration tests can report misleading table-level results.
+
 * Added `fabric_delta_config()` to inspect the optional Python runtime and its
 declared requirements. Inspection is non-initializing by default.
 

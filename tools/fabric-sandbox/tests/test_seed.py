@@ -328,6 +328,16 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         ),
     )
     monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.fixture_revision",
+        lambda settings: "fixture-revision",
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.write_fixture_revision",
+        lambda workspace_id, lakehouse_id, revision: calls.append(
+            ("fixture_revision", workspace_id, lakehouse_id, revision)
+        ),
+    )
+    monkeypatch.setattr(
         "fabricqueryr_sandbox.seed._wait_for_kql_properties",
         lambda api, workspace_id, item_id, *, item_type: {
             "properties": {"queryServiceUri": "https://kusto.test"}
@@ -386,6 +396,23 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
 
     assert ("spark_runtime", "workspace-id", "2.0") in calls
     assert ("upload", settings, "workspace-id", "TestLakehouse-id") in calls
+    revision_calls = [
+        call for call in calls if call[0] == "fixture_revision"
+    ]
+    assert revision_calls == [
+        (
+            "fixture_revision",
+            "workspace-id",
+            "TestLakehouse-id",
+            "incomplete",
+        ),
+        (
+            "fixture_revision",
+            "workspace-id",
+            "TestLakehouse-id",
+            "fixture-revision",
+        ),
+    ]
     assert (
         "run_notebook",
         "workspace-id",

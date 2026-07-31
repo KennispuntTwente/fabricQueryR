@@ -15,6 +15,11 @@ from .discover import (
     _wait_for_sql_properties,
 )
 from .fabric_api import FabricApi
+from .fixture_revision import (
+    INCOMPLETE_FIXTURE_REVISION,
+    fixture_revision,
+    write_fixture_revision,
+)
 from .graphql_api import (
     GRAPHQL_API_NAME,
     GRAPHQL_ROOT_FIELD,
@@ -171,6 +176,11 @@ def seed(settings: SandboxSettings) -> None:
             item_type="SQLDatabase",
         )
         upload_fixtures(settings, workspace_id, lakehouse["id"])
+        write_fixture_revision(
+            workspace_id,
+            lakehouse["id"],
+            INCOMPLETE_FIXTURE_REVISION,
+        )
         job = api.run_notebook(
             workspace_id,
             notebook["id"],
@@ -257,3 +267,6 @@ def seed(settings: SandboxSettings) -> None:
         f"{arrow_semantic_model.get('name')} "
         f"({arrow_semantic_model.get('id')})"
     )
+    revision = fixture_revision(settings)
+    write_fixture_revision(workspace_id, lakehouse["id"], revision)
+    print(f"Fabric fixture revision published: {revision}")

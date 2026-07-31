@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from .credentials import get_credential
 from .fabric_api import FabricApi
+from .fixture_revision import verify_fixture_revision
 from .graphql_api import (
     GRAPHQL_API_NAME,
     GRAPHQL_CREATE_FIELD,
@@ -167,9 +168,15 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             workspace_id,
             ARROW_SEMANTIC_MODEL_NAME,
         )
+    revision = verify_fixture_revision(
+        settings,
+        workspace_id,
+        lakehouse_item["id"],
+    )
     manifest = SandboxManifest(
         workspace_id=workspace_id,
         workspace_name=settings.workspace_name,
+        fixture_revision=revision,
         items={
             "TestLakehouse": {
                 "id": lakehouse_item["id"],

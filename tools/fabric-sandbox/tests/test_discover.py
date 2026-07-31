@@ -128,9 +128,14 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "fabricqueryr_sandbox.discover.get_credential",
         lambda: "credential",
     )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.verify_fixture_revision",
+        lambda settings, workspace_id, lakehouse_id: "fixture-revision",
+    )
 
     manifest = discover(settings)
 
+    assert manifest.fixture_revision == "fixture-revision"
     assert set(manifest.items) == {
         "TestLakehouse",
         "SeedFixtures",
