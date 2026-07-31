@@ -224,7 +224,7 @@ test_that("the public reader passes Fabric auth and query options to delta-rs", 
   expect_match(captured$table_uri, "/Tables/dbo/table$", perl = TRUE)
 })
 
-test_that("collected reads refresh once after an authentication failure", {
+test_that("Delta reads refresh once after a pre-return authentication failure", {
   calls <- 0L
   refresh <- logical()
   provider <- function(audience, force_refresh = FALSE) {
@@ -232,25 +232,37 @@ test_that("collected reads refresh once after an authentication failure", {
     if (force_refresh) "fresh-token" else "expired-token"
   }
   local_mocked_bindings(
-    fabric_delta_read_uri = function(bearer_token, ...) {
+    fabric_delta_read_uri = function(bearer_token, result, ...) {
       calls <<- calls + 1L
       if (identical(bearer_token, "expired-token")) {
         rlang::abort("HTTP 401 Unauthorized")
+      }
+      if (identical(result, "arrow_stream")) {
+        return(nanoarrow::as_nanoarrow_array_stream(data.frame(id = 1L)))
       }
       tibble::tibble(id = 1L)
     }
   )
 
-  value <- fabric_onelake_read_delta_table(
-    "table",
-    "workspace",
-    "lakehouse",
-    token = provider,
-    verbose = FALSE
-  )
-  expect_equal(value$id, 1L)
-  expect_equal(calls, 2L)
-  expect_identical(refresh, c(FALSE, TRUE))
+  for (result in c("tibble", "arrow_stream")) {
+    calls <- 0L
+    refresh <- logical()
+    value <- fabric_onelake_read_delta_table(
+      "table",
+      "workspace",
+      "lakehouse",
+      token = provider,
+      verbose = FALSE,
+      result = result
+    )
+    if (identical(result, "tibble")) {
+      expect_equal(value$id, 1L)
+    } else {
+      expect_s3_class(value, "nanoarrow_array_stream")
+    }
+    expect_equal(calls, 2L, label = result)
+    expect_identical(refresh, c(FALSE, TRUE), label = result)
+  }
 })
 
 test_that("Arrow schemas normalize DataFusion view and exact decimal types", {

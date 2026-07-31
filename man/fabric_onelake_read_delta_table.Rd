@@ -106,10 +106,10 @@ Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
 the latest snapshot published to OneLake, which can lag the current Warehouse
 transaction state or remain fixed while Delta-log publishing is paused.
 
-\code{result = "arrow_stream"} is lazy and single-use. Authentication failures
-that occur after part of a lazy stream has been consumed cannot be retried.
-The default tibble result is collected before return and is retried once for
-a refreshable credential when delta-rs reports an authentication failure.
+\code{result = "arrow_stream"} is lazy and single-use. Opening either result is
+retried once with a refreshable credential when delta-rs reports an
+authentication failure. Failures that occur after a lazy stream has been
+returned and consumed cannot be retried.
 
 Delta \code{long} values are returned as \code{\link[bit64:integer64]{bit64::integer64()}}. Delta decimals are
 returned as exact character values, including when nested. Delta

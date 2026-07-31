@@ -28,10 +28,10 @@
 #' the latest snapshot published to OneLake, which can lag the current Warehouse
 #' transaction state or remain fixed while Delta-log publishing is paused.
 #'
-#' `result = "arrow_stream"` is lazy and single-use. Authentication failures
-#' that occur after part of a lazy stream has been consumed cannot be retried.
-#' The default tibble result is collected before return and is retried once for
-#' a refreshable credential when delta-rs reports an authentication failure.
+#' `result = "arrow_stream"` is lazy and single-use. Opening either result is
+#' retried once with a refreshable credential when delta-rs reports an
+#' authentication failure. Failures that occur after a lazy stream has been
+#' returned and consumed cannot be retried.
 #'
 #' Delta `long` values are returned as [bit64::integer64()]. Delta decimals are
 #' returned as exact character values, including when nested. Delta
@@ -190,7 +190,6 @@ fabric_onelake_read_delta_table <- function(
   attempt <- tryCatch(read_once(), error = identity)
   if (
     inherits(attempt, "error") &&
-      identical(result, "tibble") &&
       isTRUE(credential$refreshable) &&
       fabric_delta_is_authentication_error(attempt)
   ) {

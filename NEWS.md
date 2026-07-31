@@ -66,7 +66,9 @@ cancellation, while sessions also provide explicit cleanup;
   for asynchronous Delta-log publication and verify exact post-mutation rows.
   - Supports `version` for time travel, `columns` and `limit` for narrowing the
   result, `result = "arrow_stream"` for an Arrow C stream (the default remains
-  a tibble). Arrow results are now genuinely lazy and single-use.
+  a tibble). Arrow results are now genuinely lazy and single-use. Authentication
+  failures while opening either result are retried once with refreshable
+  credentials; a stream that has already been returned is never replayed.
   - Accepts discovery records for `workspace_name` and `lakehouse_name`; a
   schema-enabled Lakehouse record supplies its default schema.
   `item_type` disambiguates suffixless Lakehouse and Warehouse display names.
