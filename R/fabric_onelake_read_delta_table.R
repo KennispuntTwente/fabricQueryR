@@ -786,6 +786,7 @@ fabric_delta_timestamp_ntz <- function(value) {
 #' @param ... Additional arguments passed to [base::format.POSIXct()].
 #' @return Character wall-clock timestamps.
 #' @export
+#' @noRd
 format.fabric_delta_timestamp_ntz <- function(x, format = NULL, ...) {
   value <- unclass(x)
   if (is.null(format)) {
@@ -805,6 +806,7 @@ format.fabric_delta_timestamp_ntz <- function(x, format = NULL, ...) {
 #' @param ... Unused.
 #' @return A `POSIXct` vector localized in `tz`.
 #' @export
+#' @noRd
 as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
   as.POSIXct(
     unclass(x),

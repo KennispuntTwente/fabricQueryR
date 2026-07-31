@@ -49,8 +49,6 @@ reference:
     contents:
       - fabric_onelake_read_delta_table
       - fabric_delta_config
-      - format.fabric_delta_timestamp_ntz
-      - as.POSIXct.fabric_delta_timestamp_ntz
 
   - title: KQL
     desc: Query Eventhouse and KQL Database data
