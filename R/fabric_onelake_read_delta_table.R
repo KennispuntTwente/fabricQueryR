@@ -18,7 +18,7 @@
 #' runtime dependencies in that environment with:
 #'
 #' ```text
-#' python -m pip install "deltalake>=1.6.2" "nanoarrow>=0.8.0"
+#' python -m pip install "deltalake>=1.6.2,<2" "nanoarrow>=0.8.0"
 #' ```
 #' OneLake credentials use the `https://storage.azure.com/.default` audience
 #' and are passed to delta-rs as a bearer token with its Fabric endpoint
@@ -32,6 +32,16 @@
 #' retried once with a refreshable credential when delta-rs reports an
 #' authentication failure. Failures that occur after a lazy stream has been
 #' returned and consumed cannot be retried.
+#'
+#' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
+#' typed partitions, classic checkpoints, column mapping, deletion vectors, and
+#' shallow clones. Its current reader does not support Fabric tables requiring
+#' Type Widening or V2 Checkpoints; those fail with
+#' `fabric_delta_unsupported_feature_error`. Variant columns require
+#' `result = "arrow_stream"`. Feature availability is protocol- and
+#' runtime-specific; consult the
+#' [Fabric Delta interoperability matrix](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
+#' and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
 #'
 #' Delta `long` values are returned as [bit64::integer64()]. Delta decimals are
 #' returned as exact character values, including when nested. Delta
@@ -50,7 +60,9 @@
 #'   value is accepted and its final segment is used; select a schema with
 #'   `schema`.
 #' @param workspace_name Fabric workspace display name or GUID, or a record from
-#'   [fabric_workspaces()].
+#'   [fabric_workspaces()]. ABFSS-safe display names can be used directly; use
+#'   paired workspace/item GUIDs or discovery records when the display name
+#'   contains spaces or other special characters.
 #' @param lakehouse_name Lakehouse or Warehouse name, GUID, or discovery record.
 #'   The argument name is retained for backward compatibility.
 #' @param schema Lakehouse or Warehouse schema, or `NULL`. A discovered
@@ -567,6 +579,7 @@ fabric_delta_python_reader <- function(
   columns = NULL,
   limit = NULL
 ) {
+  fabric_delta_validate_runtime()
   storage_options <- NULL
   if (!is.null(bearer_token)) {
     storage_options <- reticulate::dict(
@@ -724,6 +737,69 @@ fabric_delta_collect_reader <- function(reader) {
     source_schema,
     lapply(arrays, fabric_delta_array_descriptor),
     top_level = TRUE
+  )
+}
+
+#' Validate the installed Python Delta query surface
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_runtime <- function(version = NULL, exports = NULL) {
+  required_exports <- c("DeltaTable", "QueryBuilder")
+  if (is.null(version)) {
+    version <- reticulate::py_to_r(.delta_python$deltalake$`__version__`)
+  }
+  if (is.null(exports)) {
+    exports <- required_exports[vapply(
+      required_exports,
+      function(name) reticulate::py_has_attr(.delta_python$deltalake, name),
+      logical(1)
+    )]
+  }
+  parsed <- tryCatch(
+    numeric_version(version),
+    error = identity
+  )
+  valid_version <- !inherits(parsed, "error") &&
+    parsed >= numeric_version("1.6.2") &&
+    parsed < numeric_version("2.0.0")
+  missing_exports <- setdiff(required_exports, exports)
+  if (valid_version && !length(missing_exports)) {
+    return(invisible(list(version = version, exports = exports)))
+  }
+
+  reasons <- character()
+  if (!valid_version) {
+    reasons <- c(
+      reasons,
+      paste0(
+        "Installed deltalake version ",
+        version,
+        " is outside the supported range >=1.6.2,<2."
+      )
+    )
+  }
+  if (length(missing_exports)) {
+    reasons <- c(
+      reasons,
+      paste(
+        "The deltalake module is missing:",
+        paste(missing_exports, collapse = ", ")
+      )
+    )
+  }
+  rlang::abort(
+    c(
+      "The selected Python environment has an incompatible Delta runtime.",
+      "x" = paste(reasons, collapse = " "),
+      "i" = paste0(
+        'Install "deltalake>=1.6.2,<2" in the Python selected by ',
+        "reticulate, or unset RETICULATE_PYTHON to use a managed environment."
+      )
+    ),
+    class = c(
+      "fabric_delta_environment_error",
+      "fabric_delta_error"
+    )
   )
 }
 
@@ -1196,7 +1272,7 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
     bullets <- c(
       bullets,
       "i" = paste0(
-        "Install deltalake>=1.6.2 and nanoarrow>=0.8.0 in the Python ",
+        "Install deltalake>=1.6.2,<2 and nanoarrow>=0.8.0 in the Python ",
         "selected by reticulate, or unset RETICULATE_PYTHON to use a ",
         "managed environment."
       )

@@ -3,7 +3,7 @@
 .onLoad <- function(libname, pkgname) {
   reticulate::py_require(
     packages = c(
-      "deltalake>=1.6.2",
+      "deltalake>=1.6.2,<2",
       "nanoarrow>=0.8.0"
     ),
     python_version = ">=3.10"

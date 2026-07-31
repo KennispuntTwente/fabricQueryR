@@ -31,7 +31,9 @@ value is accepted and its final segment is used; select a schema with
 \code{schema}.}
 
 \item{workspace_name}{Fabric workspace display name or GUID, or a record from
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. ABFSS-safe display names can be used directly; use
+paired workspace/item GUIDs or discovery records when the display name
+contains spaces or other special characters.}
 
 \item{lakehouse_name}{Lakehouse or Warehouse name, GUID, or discovery record.
 The argument name is retained for backward compatibility.}
@@ -95,7 +97,7 @@ and packages are not downloaded until this function is called.
 If \code{RETICULATE_PYTHON} selects a user-managed environment, install the
 runtime dependencies in that environment with:
 
-\if{html}{\out{<div class="sourceCode text">}}\preformatted{python -m pip install "deltalake>=1.6.2" "nanoarrow>=0.8.0"
+\if{html}{\out{<div class="sourceCode text">}}\preformatted{python -m pip install "deltalake>=1.6.2,<2" "nanoarrow>=0.8.0"
 }\if{html}{\out{</div>}}
 
 OneLake credentials use the \verb{https://storage.azure.com/.default} audience
@@ -110,6 +112,16 @@ transaction state or remain fixed while Delta-log publishing is paused.
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
 returned and consumed cannot be retried.
+
+The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
+typed partitions, classic checkpoints, column mapping, deletion vectors, and
+shallow clones. Its current reader does not support Fabric tables requiring
+Type Widening or V2 Checkpoints; those fail with
+\code{fabric_delta_unsupported_feature_error}. Variant columns require
+\code{result = "arrow_stream"}. Feature availability is protocol- and
+runtime-specific; consult the
+\href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Fabric Delta interoperability matrix}
+and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
 
 Delta \code{long} values are returned as \code{\link[bit64:integer64]{bit64::integer64()}}. Delta decimals are
 returned as exact character values, including when nested. Delta
