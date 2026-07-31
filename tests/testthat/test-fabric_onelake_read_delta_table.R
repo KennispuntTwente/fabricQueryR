@@ -299,6 +299,23 @@ test_that("Python failures are classified and bearer tokens are redacted", {
     fabric_delta_abort_python(simpleError("DeltaProtocolError: unsupported")),
     class = "fabric_delta_unsupported_error"
   )
+
+  unsupported <- tryCatch(
+    fabric_delta_abort_python(simpleError(
+      paste0(
+        "DeltaProtocolError: Unsupported table features required: ",
+        "[TypeWidening, V2Checkpoint]"
+      )
+    )),
+    error = identity
+  )
+  expect_s3_class(unsupported, "fabric_delta_unsupported_feature_error")
+  expect_s3_class(unsupported, "fabric_delta_unsupported_error")
+  expect_identical(
+    unsupported$delta_features,
+    c("TypeWidening", "V2Checkpoint")
+  )
+  expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
 test_that("Delta runtime requirements are declared without forcing initialization", {

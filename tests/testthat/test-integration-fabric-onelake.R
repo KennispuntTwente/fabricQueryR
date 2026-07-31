@@ -249,6 +249,39 @@ test_that("core Fabric Delta features are handled by the table provider", {
   }
 })
 
+test_that("unsupported Fabric Delta features fail with actionable errors", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  tables <- lakehouse$tables
+  unsupported <- c(
+    type_widened = "TypeWidening",
+    type_widened_exact = "TypeWidening",
+    v2_checkpoint = "V2Checkpoint"
+  )
+
+  for (feature in names(unsupported)) {
+    condition <- tryCatch(
+      fabric_test_read_delta(
+        manifest,
+        lakehouse,
+        tables[[feature]]
+      ),
+      error = identity
+    )
+    expect_s3_class(
+      condition,
+      "fabric_delta_unsupported_feature_error",
+      label = feature
+    )
+    expect_match(
+      conditionMessage(condition),
+      unsupported[[feature]],
+      label = feature
+    )
+  }
+})
+
 test_that("the delta-rs reader reads the Fabric Warehouse export profile", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()

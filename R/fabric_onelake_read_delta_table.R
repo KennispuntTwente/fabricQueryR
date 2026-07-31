@@ -879,6 +879,24 @@ fabric_delta_is_authentication_error <- function(error) {
   )
 }
 
+#' Extract required Delta reader features from a delta-rs protocol error
+#' @keywords internal
+#' @noRd
+fabric_delta_unsupported_features <- function(message) {
+  match <- regexec(
+    "unsupported table features required:[[:space:]]*\\[([^]]+)\\]",
+    message,
+    ignore.case = TRUE,
+    perl = TRUE
+  )
+  captured <- regmatches(message, match)[[1L]]
+  if (length(captured) < 2L) {
+    return(character())
+  }
+  features <- trimws(strsplit(captured[[2L]], ",", fixed = TRUE)[[1L]])
+  unique(features[nzchar(features)])
+}
+
 #' Redact and translate a Python runtime error
 #' @keywords internal
 #' @noRd
@@ -904,12 +922,16 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
     paste(c(class(error), message), collapse = " "),
     ignore.case = TRUE
   )
+  unsupported_features <- fabric_delta_unsupported_features(message)
   classes <- "fabric_delta_python_error"
   if (environment_error) {
     classes <- c("fabric_delta_environment_error", classes)
   }
   if (unsupported_error) {
     classes <- c("fabric_delta_unsupported_error", classes)
+  }
+  if (length(unsupported_features)) {
+    classes <- c("fabric_delta_unsupported_feature_error", classes)
   }
   bullets <- c(
     "Unable to read the Delta table through Python delta-rs.",
@@ -925,5 +947,26 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
       )
     )
   }
-  rlang::abort(bullets, class = classes)
+  if (length(unsupported_features)) {
+    bullets <- c(
+      bullets,
+      "i" = paste0(
+        "The selected deltalake runtime cannot read the required Delta ",
+        "feature",
+        if (length(unsupported_features) == 1L) "" else "s",
+        ": ",
+        paste(unsupported_features, collapse = ", "),
+        "."
+      ),
+      "i" = paste0(
+        "Use a Fabric PySpark notebook for this table, or select a ",
+        "deltalake runtime that supports every required reader feature."
+      )
+    )
+  }
+  rlang::abort(
+    bullets,
+    class = unique(classes),
+    delta_features = unsupported_features
+  )
 }

@@ -75,9 +75,11 @@ cancellation, while sessions also provide explicit cleanup;
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
   `timestamp_partition_timezone` is retained as a compatibility formal but is
   rejected when supplied because delta-rs has no equivalent override.
-  - Is checked with deterministic local delta-rs fixtures and direct live
-  Fabric gates for deletion vectors, column mapping, type widening, V2
-  checkpoints, shallow clones, and Warehouse exports.
+  - Is checked with deterministic local delta-rs fixtures and value-level live
+  Fabric comparisons against independent Spark reader oracles for deletion
+  vectors, column mapping, and shallow clones. Type widening and V2 checkpoints
+  are rejected with an actionable unsupported-feature error by the current
+  delta-rs runtime instead of being advertised as readable.
 
 * Added `fabric_delta_config()` to inspect the optional Python runtime and its
 declared requirements. Inspection is non-initializing by default.
