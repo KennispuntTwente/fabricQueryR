@@ -1,12 +1,10 @@
 # Read a Delta table from Microsoft Fabric OneLake
 
-Downloads a Lakehouse or Warehouse-exported Delta table from OneLake. By
-default it returns a tibble. It can instead return an Arrow-compatible
-stream for use with the `arrow` R package and other Arrow tools.
-
-Delta tables consist of Parquet data files plus a transaction log that
-says which files make up the current table. This function reads that log
-so deleted or superseded files are not accidentally included.
+Downloads a Lakehouse or Warehouse-exported Delta table from OneLake and
+returns it as a tibble. Delta tables consist of Parquet data files plus
+a transaction log that says which files make up the current table. This
+function reads that log so deleted or superseded files are not
+accidentally included.
 
 ## Usage
 
@@ -22,13 +20,11 @@ fabric_onelake_read_delta_table(
   token = NULL,
   auth_args = list(),
   version = NULL,
-  timestamp_partition_timezone = NULL,
   dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
-  limit = NULL,
-  result = c("tibble", "arrow_stream")
+  limit = NULL
 )
 ```
 
@@ -93,16 +89,6 @@ fabric_onelake_read_delta_table(
   version and its active files are still available in OneLake. Versions
   through `2^53` are represented exactly; larger versions are rejected.
 
-- timestamp_partition_timezone:
-
-  Timezone used to interpret legacy Delta `timestamp` partition values
-  that do not contain a UTC offset. Supply the timezone of the system
-  that wrote the table, for example `"UTC"` or `"Europe/Amsterdam"`. The
-  Delta log does not record this timezone, so the default `NULL` rejects
-  offset-less timestamp partition values rather than silently returning
-  a shifted instant. ISO8601 partition values containing `Z` or an
-  explicit offset do not require this argument.
-
 - dest_dir:
 
   Local staging directory for the Delta log and active data files, or
@@ -132,32 +118,15 @@ fabric_onelake_read_delta_table(
   returns every row. This limits DuckDB collection but not OneLake file
   downloads.
 
-- result:
-
-  Return format. `"tibble"` returns a tibble. `"arrow_stream"` returns a
-  `nanoarrow_array_stream` compatible with
-  [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
-  and other Arrow C stream consumers. The table is still staged and read
-  into local memory before the stream is created.
-
 ## Value
 
-With `result = "tibble"`, a tibble containing the selected Delta
-snapshot. With `result = "arrow_stream"`, a single-use
-`nanoarrow_array_stream`. Empty tables preserve their column schema in
-either format. Delta `long` columns use
+A tibble containing the rows and logical schema of the selected Delta
+snapshot. An empty table returns a zero-row tibble. Delta `long` columns
+use
 [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
-decimal columns use exact character values; `timestamp_ntz` columns use
-`fabric_delta_timestamp_ntz`. Struct columns use
-`fabric_delta_struct_column`, for which
-[`is.na()`](https://rdrr.io/r/base/NA.html) reports parent nullness.
-Delta Variant columns are list columns whose non-missing elements have
-class `fabric_delta_variant`; each element retains the exact Parquet
-Variant metadata and value bytes, its DuckDB logical type, and a display
-value. In Arrow results, Variant columns are structs with `type`,
-`display`, `metadata`, and `value` fields. SQL NULL has four missing
-fields; Variant Null has type `VARIANT_NULL` and non-null metadata/value
-bytes.
+decimal columns use exact character values; other conversions follow
+DuckDB. Schema evolution is applied and partition values are included as
+columns.
 
 ## Details
 
@@ -175,20 +144,7 @@ bytes.
   time zones; supported type widening; and native Variant values,
   including Variant shredding. Absolute AddFile and deletion-vector URIs
   must point to Microsoft Fabric OneLake. This includes Fabric shallow
-  clones and the reader 3/writer 7 Warehouse export profile. Support is
-  feature-specific, not a blanket claim for every table writable by
-  Delta Lake 4.2. In particular, experimental Runtime 2.0 features not
-  listed here are rejected when they add an unknown reader feature. The
-  live compatibility matrix exercises these features both individually
-  and in combination, including ID mapping with partitions and deletion
-  vectors, Variant with ID mapping and deletion vectors, map-key type
-  widening, and V2 checkpoints containing deletion-vector sidecars.
-
-- Warehouse commits are published to Delta logs by a Fabric background
-  process. For Warehouse items, this function reads the latest
-  *published* OneLake snapshot, which can briefly lag a just-committed
-  SQL transaction. Warehouse Delta exports are read-only; writes belong
-  to the Warehouse engine.
+  clones and the reader 3/writer 7 Warehouse export profile.
 
 - Metadata must declare the Parquet provider with no provider-specific
   options. Recursive schema shape, case-insensitive sibling-name
@@ -203,27 +159,15 @@ bytes.
   removed physical columns are omitted, and partition values come from
   Delta add-file actions rather than being inferred from directory
   names. Legacy `void` fields are retained as logical all-missing
-  columns. Timestamp partition values without an explicit offset require
-  `timestamp_partition_timezone` because the Delta log does not record
-  the writer timezone.
+  columns. Timestamp partition values without an explicit offset are
+  interpreted as UTC, matching the Fabric Runtime integration profile.
 
 - Delta `long` values are returned as
   [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html).
   Delta decimals are returned as character vectors, including decimals
-  nested in complex types, so all 38 digits remain exact. Delta
-  `timestamp_ntz` values use the character-backed
-  `fabric_delta_timestamp_ntz` class and retain the exact wall-clock
-  value; use `as.POSIXct(x, tz = "...")` to localise them. Struct
-  columns use `fabric_delta_struct_column`; `is.na(x)` reports parent
-  nullness and distinguishes a null struct from a present struct whose
-  children are all null. The same distinction is retained recursively
-  inside arrays and both map keys and values, including in Arrow stream
-  results. Top-level Variant columns are returned as exact
-  `fabric_delta_variant` cells containing their type, display value, and
-  Parquet metadata/value bytes. SQL NULL is returned as a missing list
-  element and remains distinct from a Variant Null cell. Nested Variant
-  fields fail closed because their independent Parquet validity cannot
-  yet be retained.
+  nested in complex types, so all 38 digits remain exact. Variant
+  columns use DuckDB's native decoding and are returned as nested R
+  list/data-frame values.
 
 - Schema-enabled lakehouses (the default for new lakehouses) organise
   tables into named schemas. If the Fabric Lakehouse explorer shows the
@@ -259,17 +203,11 @@ schemas](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sch
 [Delta Lake tables in
 OneLake](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
 
-[Delta Lake logs in Fabric
-Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs)
-
 [Schema evolution for Delta
 tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-schema-evolution)
 
 [Variant data type for Delta
 tables](https://learn.microsoft.com/en-us/fabric/data-engineering/delta-lake-variant)
-
-[Fabric Runtime
-2.0](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0)
 
 ## Examples
 
@@ -294,14 +232,5 @@ df2 <- fabric_onelake_read_delta_table(
   columns        = c("PatientId", "Status"),
   limit          = 1000
 )
-
-# Return an Arrow-compatible stream instead of a tibble.
-stream <- fabric_onelake_read_delta_table(
-  table_path = "PatientInfo",
-  workspace_name = "PatientsWorkspace",
-  lakehouse_name = "Lakehouse.Lakehouse",
-  result = "arrow_stream"
-)
-reader <- arrow::as_record_batch_reader(stream)
 } # }
 ```

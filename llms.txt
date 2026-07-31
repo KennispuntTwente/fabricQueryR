@@ -177,22 +177,48 @@ df_onelake <- fabric_onelake_read_delta_table(
   workspace_name = workspace,
   lakehouse_name = lakehouse
 )
-
-# Optional: return an Arrow C stream instead of a tibble
-stream <- fabric_onelake_read_delta_table(
-  table_path = "Customers",
-  workspace_name = workspace,
-  lakehouse_name = lakehouse,
-  result = "arrow_stream"
-)
-reader <- arrow::as_record_batch_reader(stream)
 ```
 
 The account needs access through the workspace or **Lakehouse \> Manage
 OneLake data access**. This function downloads the active table files
 locally, so a filtered SQL query can be more efficient for very large
-tables. The Arrow result changes the returned object, but does not avoid
-the local download or in-memory read.
+tables.
+
+The reader follows Delta reader protocols 1–3 and supports the profiles
+emitted by Fabric Spark Runtime 2.0 and Fabric Warehouse exports:
+classic and V2 checkpoints, name/ID column mapping, deletion vectors,
+type widening, timestamp-NTZ, shallow-clone paths, and native Variant
+values, including Variant shredding. Delta `long` values are returned as
+[`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html);
+decimals are returned as character so values through precision 38 remain
+exact. Legacy `void` fields are returned as logical all-`NA` columns.
+Timestamp partition values without an offset are interpreted as UTC,
+matching the Fabric test runtime. Metadata must declare Parquet with no
+provider-specific options. Unknown reader features, malformed recursive
+schemas/commits, catalog-managed commits, and absolute paths outside
+OneLake fail before any rows are returned. A caller-supplied `dest_dir`
+must be new or empty.
+
+Compatibility reviewed against the Delta protocol and Fabric
+documentation in July 2026:
+
+| Delta capability | Reader behavior | Verification |
+|----|----|----|
+| Reader protocols 1–3 | Supported | Protocol-focused unit tests and live Fabric tables |
+| V1 classic/multipart and V2 classic/UUID checkpoints with sidecars | Supported, including same-version fallback | Real Parquet/JSON unit fixtures and live Fabric V2 checkpoints |
+| Name- and ID-based column mapping | Supported recursively through structs, arrays, and maps | Projection unit tests and live rename/drop fixtures |
+| Inline, relative-file, and absolute-OneLake deletion vectors | Supported; file identity includes the DV unique ID | Golden Roaring vectors and live sparse/dense/checkpoint DV tables |
+| Absolute OneLake AddFile paths and Fabric shallow clones | Supported when scoped to OneLake | Unit path checks and a live shallow clone |
+| Typed partitions, `void`, type widening, and timestamp without time zone | Supported; exact decimals remain character | Unit matrices and live Fabric edge-value tables |
+| Variant, including mixed shredded and unshredded files | Supported through DuckDB’s native Variant decoding | Mixed physical unit files and live pre/post-shredding writes |
+| Non-Parquet formats/options, malformed commits/schemas, catalog-managed commits, and unknown reader features | Rejected before reading data | Negative unit tests |
+| Absolute paths outside OneLake | Rejected before reading data | Negative unit tests |
+
+The Fabric integration workflow provisions Runtime 2.0 tables on pushes
+to `main`/`master`, in-repository pull requests that touch the reader, a
+weekly schedule, and manual runs. Pull requests from forks do not
+receive the protected Fabric environment; their protocol/unit suite
+still runs in the regular R workflow.
 
 ### 5. Work with OneLake files
 
@@ -352,8 +378,6 @@ Resolve and read supported Delta Lake snapshots from OneLake
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Delta table from Microsoft Fabric OneLake
-- [`format(`*`<fabric_delta_variant>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/format.fabric_delta_variant.md)
-  : Format an exact Delta Variant value
 
 ## KQL
 

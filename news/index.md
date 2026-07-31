@@ -81,32 +81,21 @@
   remains the one-shot interface.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  now:
-
-  - Resolves snapshots from JSON commits, V1 checkpoints, and V2
-    Parquet/JSON checkpoints. If the newest checkpoint is corrupt,
-    incomplete, or missing a V2 sidecar, older checkpoints are staged
-    instead of failing outright.
-  - Reads Fabric reader 3 tables: name- and ID-based column mapping,
-    deletion vectors, `timestampNtz`, type widening, shallow clones,
-    top-level Variant values, and Warehouse Delta exports. Support is an
-    explicit feature set rather than a blanket claim for Delta Lake 4.2;
-    unknown reader features and other unsupported input fail closed.
-  - Supports `version` for time travel, `columns` and `limit` for
-    narrowing the result, `result = "arrow_stream"` for an Arrow C
-    stream (the default remains a tibble), and
-    `timestamp_partition_timezone` for legacy offset-less timestamp
-    partitions.
-  - Accepts discovery records for `workspace_name` and `lakehouse_name`;
-    a schema-enabled Lakehouse record supplies its default schema.
-  - Preserves values exactly across the R boundary: `long` as
-    [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
-    decimals as character, `timestamp_ntz` as a wall-clock class, struct
-    parent nullness recursively, and legacy `void` fields as all-missing
-    columns.
-  - Is checked against the Python delta-rs binding on local fixtures and
-    live Fabric tables, alongside a Fabric Runtime 2.0 integration
-    matrix covering these features individually and in combination.
+  now reads snapshots from JSON commits, V1 Parquet checkpoints, and V2
+  Parquet/JSON checkpoints; supports historical reads through `version`;
+  preserves logical schemas and typed partition values; and supports
+  current Fabric reader 3 tables with name- or ID-based column mapping,
+  deletion vectors, `timestampNtz`, type widening, shallow-clone paths,
+  and native Variant values. BIGINT and DECIMAL values now remain exact
+  across the R boundary, while legacy `void` fields are reconstructed as
+  logical missing values. Checkpoint candidates and deletion vectors are
+  reconciled by their protocol identities. Recursive schemas, metadata
+  formats, and mutually reconciling commit actions are validated before
+  reading. The Fabric Runtime 2.0 integration matrix now covers nested
+  column mapping, dense/checkpoint deletion vectors, nested type
+  widening, typed and null partitions, and mixed shredded/unshredded
+  Variant files. Unsafe retained staging and unsupported Delta features
+  fail closed instead of risking incorrect results.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset
