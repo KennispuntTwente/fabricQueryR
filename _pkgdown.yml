@@ -48,7 +48,9 @@ reference:
     desc: Resolve and read supported Delta Lake snapshots from OneLake
     contents:
       - fabric_onelake_read_delta_table
-      - format.fabric_delta_variant
+      - fabric_delta_config
+      - format.fabric_delta_timestamp_ntz
+      - as.POSIXct.fabric_delta_timestamp_ntz
 
   - title: KQL
     desc: Query Eventhouse and KQL Database data
