@@ -191,14 +191,6 @@ reader <- arrow::as_record_batch_reader(stream)
 The account needs access through the workspace or **Lakehouse \> Manage
 OneLake data access**.
 
-Delta snapshots are interpreted by the Python `deltalake` package
-(delta-rs) and streamed from OneLake through the Arrow C interface.
-Python is not initialized when fabricQueryR loads;
-[reticulate](https://rstudio.github.io/reticulate/) creates a managed
-environment and installs `deltalake` plus Python `nanoarrow` when this
-function is first used, together with reticulate’s normal Python runtime
-requirements.
-
 ### 5. Work with OneLake files
 
 List, inspect, download, upload, or delete files in OneLake. Paths in a
