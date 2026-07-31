@@ -2390,6 +2390,52 @@ test_that("Delta timestamp partitions use the writer timezone", {
       tz = "UTC"
     ))
   )
+
+  # The writer timezone comes from the argument, never from the machine doing
+  # the reading: the same snapshot must produce the same instants anywhere.
+  old_timezone <- Sys.getenv("TZ", unset = NA_character_)
+  restore_timezone <- function() {
+    if (is.na(old_timezone)) {
+      Sys.unsetenv("TZ")
+    } else {
+      Sys.setenv(TZ = old_timezone)
+    }
+  }
+  on.exit(restore_timezone(), add = TRUE)
+  for (zone in c("UTC", "Pacific/Auckland", "America/Los_Angeles")) {
+    Sys.setenv(TZ = zone)
+    elsewhere <- fabric_delta_read_staged(
+      table_dir,
+      timestamp_partition_timezone = "Europe/Amsterdam"
+    )
+    elsewhere <- elsewhere[order(elsewhere$id), ]
+    expect_equal(
+      as.numeric(elsewhere$recorded_at),
+      as.numeric(result$recorded_at),
+      info = zone
+    )
+  }
+  restore_timezone()
+})
+
+test_that("Delta reads pin the DuckDB session timezone to UTC", {
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  fabric_delta_load_icu(con)
+  expect_identical(
+    DBI::dbGetQuery(con, "SELECT current_setting('TimeZone') AS zone")$zone,
+    "UTC"
+  )
+  # With the session pinned, an offset-less instant is unambiguous.
+  expect_equal(
+    as.numeric(
+      DBI::dbGetQuery(
+        con,
+        "SELECT CAST('2026-01-01 12:00:00' AS TIMESTAMPTZ) AS moment"
+      )$moment
+    ),
+    as.numeric(as.POSIXct("2026-01-01 12:00:00", tz = "UTC"))
+  )
 })
 
 test_that("Delta metadata schemas reject malformed and ambiguous fields", {

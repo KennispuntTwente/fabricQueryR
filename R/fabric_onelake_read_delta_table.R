@@ -4188,6 +4188,10 @@ fabric_delta_load_icu <- function(con) {
       }
     )
   }
+  # Loading ICU switches DuckDB's session TimeZone from UTC to the reading
+  # machine's local zone. Nothing in a Delta snapshot depends on that zone, so
+  # pin it: a table must not read differently in Amsterdam than in Auckland.
+  DBI::dbExecute(con, "SET TimeZone = 'UTC'")
   invisible(con)
 }
 
@@ -4462,6 +4466,11 @@ fabric_delta_read_projection <- function(
         expression <- "NULL"
       } else if (is_partition) {
         partition_index <- match(name, schema$partitionColumns)
+        # `timestamp` partition text needs no special casing here:
+        # `fabric_delta_normalize_timestamp_partitions()` has already rewritten
+        # every offset-less value to an explicit UTC instant, or refused to
+        # guess. The connection also pins TimeZone to UTC, so the cast below is
+        # deterministic regardless of the machine reading the table.
         expression <- paste0(
           "delta_partitions.",
           as.character(DBI::dbQuoteIdentifier(
@@ -4469,23 +4478,6 @@ fabric_delta_read_projection <- function(
             paste0("fabric_delta_partition_", partition_index)
           ))
         )
-        if (
-          is.character(field$type) &&
-            length(field$type) == 1L &&
-            identical(tolower(field$type), "timestamp")
-        ) {
-          expression <- paste0(
-            "CASE WHEN ",
-            expression,
-            " IS NULL THEN NULL WHEN regexp_matches(",
-            expression,
-            ", '([Zz]|[+-][0-9]{2}:?[0-9]{2})$') THEN CAST(",
-            expression,
-            " AS TIMESTAMPTZ) ELSE CAST(",
-            expression,
-            " AS TIMESTAMPTZ) END"
-          )
-        }
       } else {
         physical_name <- fabric_delta_field_physical_name(
           field,
