@@ -46,6 +46,38 @@ fabric_test_read_delta <- function(
   )
 }
 
+fabric_test_order_delta_rows <- function(value, feature) {
+  expect_true(
+    "id" %in% names(value),
+    label = paste(feature, "has a stable id column")
+  )
+  value[order(value$id, na.last = TRUE), , drop = FALSE]
+}
+
+fabric_test_expect_delta_matches_oracle <- function(
+  manifest,
+  lakehouse,
+  source,
+  oracle,
+  feature
+) {
+  actual <- fabric_test_read_delta(manifest, lakehouse, source)
+  expected <- fabric_test_read_delta(manifest, lakehouse, oracle)
+
+  expect_s3_class(actual, "tbl_df", label = feature)
+  expect_s3_class(expected, "tbl_df", label = paste(feature, "Spark oracle"))
+  expect_named(actual, names(expected), label = feature)
+  expect_equal(nrow(actual), nrow(expected), label = feature)
+  expect_gt(nrow(actual), 0L, label = feature)
+
+  actual <- fabric_test_order_delta_rows(actual, feature)
+  expected <- fabric_test_order_delta_rows(expected, paste(feature, "oracle"))
+  rownames(actual) <- NULL
+  rownames(expected) <- NULL
+  expect_equal(actual, expected, label = feature)
+  invisible(actual)
+}
+
 test_that("the delta-rs reader handles schema-enabled Fabric tables", {
   fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()
@@ -165,27 +197,55 @@ test_that("core Fabric Delta features are handled by the table provider", {
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
-  required <- c(
-    column_mapped = tables$column_mapped,
-    column_mapped_id = tables$column_mapped_id,
-    column_mapped_id_partitioned_dv = tables$column_mapped_id_partitioned_dv,
-    deletion_vectors = tables$deletion_vectors,
-    deletion_vectors_checkpoint = tables$deletion_vectors_checkpoint,
-    deletion_vectors_stress = tables$deletion_vectors_stress,
-    type_widened = tables$type_widened,
-    type_widened_exact = tables$type_widened_exact,
-    v2_checkpoint = tables$v2_checkpoint,
-    shallow_clone = tables$shallow_clone
+  required <- list(
+    column_mapped = c(
+      tables$column_mapped,
+      tables$spark_oracle_column_mapped
+    ),
+    column_mapped_id = c(
+      tables$column_mapped_id,
+      tables$spark_oracle_column_mapped_id
+    ),
+    column_mapped_id_partitioned_dv = c(
+      tables$column_mapped_id_partitioned_dv,
+      tables$spark_oracle_column_mapped_id_partitioned_dv
+    ),
+    deletion_vectors = c(
+      tables$deletion_vectors,
+      tables$spark_oracle_deletion_vectors
+    ),
+    file_row_number_collision = c(
+      tables$file_row_number_collision,
+      tables$spark_oracle_file_row_number_collision
+    ),
+    deletion_vectors_stress = c(
+      tables$deletion_vectors_stress,
+      tables$spark_oracle_deletion_vectors_stress
+    ),
+    deletion_vectors_checkpoint = c(
+      tables$deletion_vectors_checkpoint,
+      tables$spark_oracle_deletion_vectors_checkpoint
+    ),
+    deletion_vectors_dense = c(
+      tables$deletion_vectors_dense,
+      tables$spark_oracle_deletion_vectors_dense
+    ),
+    shallow_clone = c(
+      tables$shallow_clone,
+      tables$spark_oracle_shallow_clone
+    )
   )
 
   for (feature in names(required)) {
-    value <- fabric_test_read_delta(
+    pair <- required[[feature]]
+    expect_length(pair, 2L, label = feature)
+    fabric_test_expect_delta_matches_oracle(
       manifest,
       lakehouse,
-      required[[feature]]
+      pair[[1L]],
+      pair[[2L]],
+      feature
     )
-    expect_s3_class(value, "tbl_df")
-    expect_gt(ncol(value), 0L, info = feature)
   }
 })
 
