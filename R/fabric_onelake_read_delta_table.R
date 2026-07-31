@@ -2237,6 +2237,17 @@ fabric_delta_supported_type_change <- function(from, to) {
   if (!nzchar(from) || !nzchar(to)) {
     return(FALSE)
   }
+  # Delta accepts a recorded change that does not change the type at all, and
+  # tolerates char/varchar/string changes even though writers are not supposed
+  # to record them: those never alter how a data file is read, so refusing them
+  # would block a readable table for no benefit.
+  if (identical(from, to)) {
+    return(TRUE)
+  }
+  string_family <- "^(string|char\\([0-9]+\\)|varchar\\([0-9]+\\))$"
+  if (grepl(string_family, from) && grepl(string_family, to)) {
+    return(TRUE)
+  }
   decimal <- "^decimal\\(([0-9]+),([0-9]+)\\)$"
   from_decimal <- regexec(decimal, from)
   to_decimal <- regexec(decimal, to)

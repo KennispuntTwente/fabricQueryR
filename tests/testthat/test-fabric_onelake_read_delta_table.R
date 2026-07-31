@@ -3525,6 +3525,40 @@ test_that("Delta type widening validates stable and preview transitions", {
   )
   expect_true(fabric_delta_supported_type_change("byte", "double"))
 
+  # Delta accepts a recorded change that leaves the type alone, and tolerates
+  # char/varchar/string changes rather than blocking a readable table.
+  expect_true(fabric_delta_supported_type_change("long", "long"))
+  expect_true(fabric_delta_supported_type_change("string", "string"))
+  expect_true(fabric_delta_supported_type_change(
+    "timestamp_ntz",
+    "timestamp_ntz"
+  ))
+  expect_true(fabric_delta_supported_type_change(
+    "decimal(8,2)",
+    "decimal(8,2)"
+  ))
+  expect_true(fabric_delta_supported_type_change("char(5)", "string"))
+  expect_true(fabric_delta_supported_type_change("varchar(10)", "char(5)"))
+  expect_false(fabric_delta_supported_type_change("string", "integer"))
+  expect_false(fabric_delta_supported_type_change("integer", "varchar(4)"))
+  expect_invisible(
+    fabric_delta_validate_type_widening(
+      list(
+        fields = list(list(
+          name = "label",
+          type = "string",
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "varchar(10)",
+              toType = "string"
+            ))
+          )
+        ))
+      ),
+      "typeWidening"
+    )
+  )
+
   # Every transition the stable feature supports must also be accepted under
   # the preview feature name.
   preview_transitions <- list(
