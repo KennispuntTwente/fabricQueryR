@@ -3277,6 +3277,63 @@ test_that("Delta UUID checkpoints replay V2 Parquet sidecars", {
   )
 })
 
+test_that("V2 sidecars may carry unpopulated non-file action columns", {
+  # The protocol restricts which *actions* a sidecar carries, not its Parquet
+  # schema. A writer that emits the full checkpoint schema with the non-file
+  # columns left null is conformant and must still be read.
+  sidecar_dir <- fs::path_temp(paste0("delta-sidecar-", sample.int(1e9, 1)))
+  fs::dir_create(fs::path(sidecar_dir, "_sidecars"), recurse = TRUE)
+  on.exit(fs::dir_delete(sidecar_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  write_sidecar <- function(name, select) {
+    path <- fs::path(sidecar_dir, "_sidecars", name)
+    DBI::dbExecute(
+      con,
+      paste0(
+        "COPY (",
+        select,
+        ") TO ",
+        as.character(DBI::dbQuoteString(con, gsub("\\\\", "/", path))),
+        " (FORMAT PARQUET)"
+      )
+    )
+    path
+  }
+
+  add_action <- paste0(
+    "struct_pack(path := 'part.parquet', ",
+    "partitionValues := map([], [])) AS add"
+  )
+  null_columns <- paste0(
+    "CAST(NULL AS STRUCT(minReaderVersion INTEGER)) AS protocol, ",
+    "CAST(NULL AS STRUCT(id VARCHAR)) AS metaData, ",
+    "CAST(NULL AS STRUCT(version BIGINT)) AS checkpointMetadata"
+  )
+  tolerated <- write_sidecar(
+    "tolerated.parquet",
+    paste0("SELECT ", add_action, ", ", null_columns)
+  )
+  checkpoint <- fabric_delta_read_checkpoint(tolerated)
+  expect_identical(checkpoint$add$path, "part.parquet")
+
+  populated <- write_sidecar(
+    "populated.parquet",
+    paste0(
+      "SELECT ",
+      add_action,
+      ", CAST(NULL AS STRUCT(minReaderVersion INTEGER)) AS protocol, ",
+      "CAST(NULL AS STRUCT(id VARCHAR)) AS metaData, ",
+      "struct_pack(version := 10::BIGINT) AS checkpointMetadata"
+    )
+  )
+  expect_error(
+    fabric_delta_read_checkpoint(populated),
+    "sidecar contains non-file actions",
+    fixed = TRUE
+  )
+})
+
 test_that("Delta reader falls back across same-version UUID checkpoints", {
   table_dir <- fs::path_temp(paste0("delta-v2-fallback-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")

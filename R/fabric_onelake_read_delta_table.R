@@ -4998,11 +4998,30 @@ fabric_delta_read_checkpoint <- function(paths) {
     available
   )
   is_sidecar <- all(basename(dirname(paths)) == "_sidecars")
-  if (
-    is_sidecar &&
-      any(c("protocol", "metaData", "checkpointMetadata") %in% available)
-  ) {
-    rlang::abort("Delta V2 checkpoint sidecar contains non-file actions")
+  if (is_sidecar) {
+    # The protocol constrains the *actions* a sidecar may carry, not its Parquet
+    # schema. A writer that emits the full checkpoint schema and leaves the
+    # non-file columns null is conformant, so look for a populated row rather
+    # than for the column existing at all.
+    non_file <- intersect(
+      c("protocol", "metaData", "checkpointMetadata"),
+      available
+    )
+    if (length(non_file)) {
+      quoted <- as.character(DBI::dbQuoteIdentifier(con, non_file))
+      populated <- DBI::dbGetQuery(
+        con,
+        paste0(
+          "SELECT ",
+          paste0("count(", quoted, ") AS ", quoted, collapse = ", "),
+          " FROM ",
+          source
+        )
+      )
+      if (any(as.numeric(populated) > 0)) {
+        rlang::abort("Delta V2 checkpoint sidecar contains non-file actions")
+      }
+    }
   }
   if (!length(columns)) {
     rlang::abort("Delta checkpoint contains no snapshot actions")
