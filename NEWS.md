@@ -71,7 +71,9 @@ cancellation, while sessions also provide explicit cleanup;
   - Preserves values exactly across the R boundary: `long` as
   `bit64::integer64`, decimals as character, `timestamp_ntz` as a wall-clock
   class, struct parent nullness recursively, and legacy `void` fields as
-  all-missing columns.
+  all-missing columns. `timestamp` (with time zone) is the documented
+  exception: it uses `POSIXct`, which holds the closest double to the stored
+  microsecond but cannot always render those microseconds back as text.
   - Is checked against the Python delta-rs binding on local fixtures and live
   Fabric tables, alongside a Fabric Runtime 2.0 integration matrix covering
   these features individually and in combination.

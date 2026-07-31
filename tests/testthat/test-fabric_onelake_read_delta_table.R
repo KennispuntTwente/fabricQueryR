@@ -1867,6 +1867,104 @@ test_that("Delta reader preserves exact BIGINT and DECIMAL values", {
   )
 })
 
+test_that("Delta timestamps carry exact instants in an inexact POSIXct text", {
+  # `timestamp` is returned as POSIXct, a binary double counting seconds since
+  # the Unix epoch. The documented guarantee is on the *value*: it is the
+  # closest double to the stored microsecond. Rendering those microseconds back
+  # as text is a known POSIXct weakness, so the documentation warns about it and
+  # this test pins both halves of that contract.
+  table_dir <- fs::path_temp(paste0("delta-instant-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  instants <- c(
+    "1900-01-01 00:00:00.000001",
+    "1950-06-01 00:00:00.000001",
+    "1970-01-01 00:00:00.000001",
+    "2037-01-01 00:00:00.000001",
+    "2038-01-19 03:14:07.999999",
+    "9999-12-31 23:59:59.999999"
+  )
+  values <- paste(
+    sprintf("SELECT TIMESTAMPTZ '%s+00' AS observed_at", instants),
+    collapse = " UNION ALL "
+  )
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (",
+      values,
+      ") TO ",
+      as.character(DBI::dbQuoteString(
+        con,
+        gsub("\\\\", "/", fs::path(table_dir, "part.parquet"))
+      )),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(
+          name = "observed_at",
+          type = "timestamp",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            format = list(provider = "parquet", options = list()),
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      ),
+      '{"add":{"path":"part.parquet","partitionValues":{}}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+  expect_s3_class(result$observed_at, "POSIXct")
+
+  # The guarantee: every instant is the closest double to the stored
+  # microsecond, so the numeric value is accurate to well under one microsecond
+  # across the whole representable range.
+  expected <- as.POSIXct(
+    instants,
+    tz = "UTC",
+    format = "%Y-%m-%d %H:%M:%OS"
+  )
+  expect_identical(as.numeric(result$observed_at), as.numeric(expected))
+  expect_true(all(
+    abs(as.numeric(result$observed_at) - as.numeric(expected)) < 1e-6
+  ))
+
+  # The documented limitation: POSIXct text rendering splits off the fraction by
+  # subtraction, which drops low digits away from 1970. Both of these hold today
+  # and are the reason the reader documents `timestamp` as text-inexact.
+  rendered <- format(result$observed_at, "%Y-%m-%d %H:%M:%OS6", tz = "UTC")
+  expect_identical(rendered[[3L]], "1970-01-01 00:00:00.000001")
+  expect_identical(rendered[[5L]], "2038-01-19 03:14:07.999999")
+  expect_false(identical(rendered[[2L]], instants[[2L]]))
+  expect_false(identical(rendered[[4L]], instants[[4L]]))
+})
+
 test_that("Delta reader exposes native and shredded Variant values", {
   table_dir <- fs::path_temp(paste0("delta-variant-", sample.int(1e9, 1)))
   log_dir <- fs::path(table_dir, "_delta_log")

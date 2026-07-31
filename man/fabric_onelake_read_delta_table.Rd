@@ -101,7 +101,9 @@ snapshot. With \code{result = "arrow_stream"}, a single-use
 \code{nanoarrow_array_stream}. Empty tables preserve their column schema in
 either format. Delta \code{long} columns use \code{bit64::integer64}; decimal columns
 use exact character values; \code{timestamp_ntz} columns use
-\code{fabric_delta_timestamp_ntz}. Struct columns use
+\code{fabric_delta_timestamp_ntz}. Delta \code{timestamp} columns use \code{POSIXct},
+which holds the closest double to the stored microsecond but cannot always
+render those microseconds back as text. Struct columns use
 \code{fabric_delta_struct_column}, for which \code{is.na()} reports parent nullness.
 Delta Variant columns are list columns whose
 non-missing elements have class \code{fabric_delta_variant}; each element
@@ -165,6 +167,19 @@ returned as character vectors, including decimals nested in complex types,
 so all 38 digits remain exact. Delta \code{timestamp_ntz} values use the
 character-backed \code{fabric_delta_timestamp_ntz} class and retain the exact
 wall-clock value; use \code{as.POSIXct(x, tz = "...")} to localise them.
+\item Delta \code{timestamp} (with time zone) is the one type whose \emph{text} is not
+exact. It is returned as \code{POSIXct}, R's standard instant type, which counts
+seconds since the Unix epoch in a binary double. The returned value is the
+double closest to the stored microsecond, so comparisons and arithmetic are
+accurate to well under one microsecond. Recovering the microsecond
+digits as text is not reliable, though: \code{format()}, \code{as.character()}, and
+\code{strftime()} split a \code{POSIXct} into whole seconds plus a fraction, and that
+subtraction loses low digits for instants more than a few years from 1970.
+For example \verb{1950-06-01 00:00:00.000001} and \verb{2037-01-01 00:00:00.000001}
+both format as \code{.000000}. This is \code{POSIXct} behaviour rather than something
+specific to Delta. When exact microsecond text matters, use a
+\code{timestamp_ntz} column, or read the column through the Fabric SQL analytics
+endpoint.
 Struct columns use \code{fabric_delta_struct_column}; \code{is.na(x)} reports parent
 nullness and distinguishes a null struct from a present struct whose
 children are all null. The same distinction is retained recursively inside
