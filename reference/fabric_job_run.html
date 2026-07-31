@@ -190,7 +190,13 @@ attached to Warehouse compute. It must match what the notebook code needs.</p></
 <dt id="arg-session-tag">session_tag<a class="anchor" aria-label="anchor" href="#arg-session-tag"></a></dt>
 <dd><p>Optional Spark high-concurrency session tag containing
 only letters, numbers, and underscores. Supplying it enables Fabric's
-high-concurrency mode so related notebook runs may reuse Spark compute.</p></dd>
+high-concurrency mode so related notebook runs may reuse Spark compute.
+High-concurrency runs also change how failures are reported: Fabric keeps
+the shared session alive when a statement fails, so the run is reported as
+<code>Completed</code> with no exit value instead of <code>Failed</code>. Omit <code>session_tag</code>
+when the caller must detect a failed notebook from the job status, and
+have the notebook signal its own outcome through
+<code>mssparkutils.notebook.exit()</code> otherwise.</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>

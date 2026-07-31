@@ -71,7 +71,9 @@
   result, failure, timeout, and cancellation information. Ambiguous
   notebook `Completed` responses without an exit value or failure
   details are reconciled against the core scheduler so failed cells
-  retain typed failure conditions.
+  retain typed failure conditions. `session_tag` documents that Fabric
+  reports a failed high-concurrency notebook run as `Completed`, because
+  the shared Spark session survives the failure.
 
 - Livy support now includes reusable regular and high-concurrency Spark
   sessions through
