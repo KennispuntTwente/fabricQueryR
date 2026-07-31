@@ -177,10 +177,25 @@ reader <- arrow::as_record_batch_reader(stream)
 ```
 
 The account needs access through the workspace or **Lakehouse > Manage OneLake
-data access**. This function downloads the active table files locally, so a
-filtered SQL query can be more efficient for very large tables.
-The Arrow result changes the returned object, but does not avoid the local
-download or in-memory read.
+data access**. Delta snapshots are interpreted by the Python `deltalake`
+package (delta-rs) and streamed from OneLake through the Arrow C interface.
+Python is not initialized when fabricQueryR loads; reticulate creates a managed
+environment and installs `deltalake` plus Python `nanoarrow` when this function
+is first used, together with reticulate's normal Python runtime requirements.
+Python `pyarrow` is not required.
+
+If you select your own Python with `RETICULATE_PYTHON`, install the runtime
+dependencies there first:
+
+``` sh
+python -m pip install "deltalake>=1.6.2" "nanoarrow>=0.8.0"
+```
+
+Use `fabric_delta_config()` to inspect the declared requirements without
+starting Python, or `fabric_delta_config(initialize = TRUE)` to inspect the
+selected initialized runtime. The default tibble result is collected in R;
+`result = "arrow_stream"` returns a lazy, single-use stream suitable for larger
+tables and downstream Arrow processing.
 
 ### 5. Work with OneLake files
 

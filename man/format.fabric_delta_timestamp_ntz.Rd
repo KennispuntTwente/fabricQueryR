@@ -11,8 +11,7 @@
 
 \item{format}{Optional output format.}
 
-\item{...}{Additional arguments passed to \code{\link[base:format.POSIXct]{base::format.POSIXct()}} when
-\code{format} is supplied.}
+\item{...}{Additional arguments passed to \code{\link[base:format.POSIXct]{base::format.POSIXct()}}.}
 }
 \value{
 Character wall-clock timestamps.
@@ -20,4 +19,3 @@ Character wall-clock timestamps.
 \description{
 Format a Delta timestamp without time zone as wall-clock text
 }
-\keyword{internal}

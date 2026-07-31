@@ -51,32 +51,36 @@ cancellation, while sessions also provide explicit cleanup;
 `fabric_livy_query()` remains the one-shot interface.
 
 * `fabric_onelake_read_delta_table()` now:
-  - Resolves snapshots from JSON commits, V1 checkpoints, and V2 Parquet/JSON
-  checkpoints. If the newest checkpoint is corrupt, incomplete, or missing a
-  V2 sidecar, older checkpoints are staged instead of failing outright.
-  - Reads Fabric reader 3 tables: name- and ID-based column mapping, deletion
-  vectors, `timestampNtz`, type widening, shallow clones, top-level Variant
-  values, and Warehouse Delta exports. Support is an explicit feature set
-  rather than a blanket claim for Delta Lake 4.2; unknown reader features and
-  other unsupported input fail closed.
-  - Converts values from data files written *before* a recorded type change to
-  the current logical type, so widening to `decimal` or `timestamp_ntz` is
-  exact even when no file has been written since the change.
+  - Uses the Python `deltalake` package and its delta-rs/DataFusion table
+  provider instead of maintaining a separate Delta protocol engine in R.
+  `reticulate::py_require()` installs the optional Python runtime on first
+  Delta use; package installation, package loading, and non-Delta functions do
+  not initialize Python or download the binary wheel. Reticulate-managed
+  environments may also include reticulate's normal runtime dependencies.
+  - Streams query results through Python and R `nanoarrow` using the Arrow C
+  interface. Python `pyarrow`, DuckDB, local transaction-log staging, and local
+  Parquet downloads are no longer required.
+  - Continues to use the package's Fabric discovery and refreshable
+  authentication layer for Lakehouses and Warehouse Delta exports, including
+  custom Fabric DFS endpoints.
   - Supports `version` for time travel, `columns` and `limit` for narrowing the
   result, `result = "arrow_stream"` for an Arrow C stream (the default remains
-  a tibble), and `timestamp_partition_timezone` for legacy offset-less
-  timestamp partitions.
+  a tibble). Arrow results are now genuinely lazy and single-use.
   - Accepts discovery records for `workspace_name` and `lakehouse_name`; a
   schema-enabled Lakehouse record supplies its default schema.
-  - Preserves values exactly across the R boundary: `long` as
-  `bit64::integer64`, decimals as character, `timestamp_ntz` as a wall-clock
-  class, struct parent nullness recursively, and legacy `void` fields as
-  all-missing columns. `timestamp` (with time zone) is the documented
-  exception: it uses `POSIXct`, which holds the closest double to the stored
-  microsecond but cannot always render those microseconds back as text.
-  - Is checked against the Python delta-rs binding on local fixtures and live
-  Fabric tables, alongside a Fabric Runtime 2.0 integration matrix covering
-  these features individually and in combination.
+  - Preserves `long` as `bit64::integer64`, decimals as exact character data,
+  and `timestamp_ntz` as a wall-clock class, recursively through nested Arrow
+  values. The Arrow bridge normalizes DataFusion view types for compatibility
+  with the R `arrow` package.
+  - Deprecates and ignores `dest_dir`, because no local staging occurs.
+  `timestamp_partition_timezone` is retained as a compatibility formal but is
+  rejected when supplied because delta-rs has no equivalent override.
+  - Is checked with deterministic local delta-rs fixtures and direct live
+  Fabric gates for deletion vectors, column mapping, type widening, V2
+  checkpoints, shallow clones, and Warehouse exports.
+
+* Added `fabric_delta_config()` to inspect the optional Python runtime and its
+declared requirements. Inspection is non-initializing by default.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
 workspace/dataset IDs, supports optional RLS impersonation, handles paginated

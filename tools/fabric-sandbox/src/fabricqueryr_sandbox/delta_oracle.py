@@ -1,7 +1,9 @@
-"""delta-rs test oracle for the R Delta reader.
+"""Deterministic Delta fixture tooling for fabricQueryR tests.
 
-This module is intentionally test-only. It is not part of the R package and
-never participates in the package's runtime implementation.
+This module is intentionally test-only. Production reads use the Python
+``deltalake`` package through reticulate, so this module is not treated as an
+independent correctness oracle. Its generated fixtures have static expected
+schemas and values that exercise the production Arrow bridge.
 """
 
 from __future__ import annotations

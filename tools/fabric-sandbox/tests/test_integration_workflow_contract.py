@@ -22,7 +22,7 @@ def test_live_suite_is_split_into_feature_files():
 
     assert groups == INTEGRATION_GROUPS
     assert not (test_directory / "test-integration-fabric.R").exists()
-    assert sum(path.read_text().count("test_that(") for path in files) == 33
+    assert sum(path.read_text().count("test_that(") for path in files) == 27
     assert all(
         path.read_text().startswith("# Fabric integration coverage:")
         for path in files
@@ -78,7 +78,8 @@ def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
         "if: matrix.adbc || "
         "matrix.filter == 'integration-fabric-onelake'"
     ) in workflow
-    assert "Install locked delta-rs oracle environment" in workflow
+    assert "Install locked delta-rs runtime environment" in workflow
+    assert "Select the locked delta-rs Python environment" in workflow
     assert "uv --directory tools/fabric-sandbox sync --locked" in workflow
 
 
