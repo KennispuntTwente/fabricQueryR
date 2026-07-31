@@ -6,7 +6,11 @@ import time
 from os import environ
 
 from azure.core.credentials import AccessToken, TokenCredential
-from azure.identity import AzureCliCredential, WorkloadIdentityCredential
+from azure.identity import (
+    AzureCliCredential,
+    ClientSecretCredential,
+    WorkloadIdentityCredential,
+)
 
 
 ENVIRONMENT_TOKEN_VARIABLES = {
@@ -45,4 +49,20 @@ def get_credential() -> TokenCredential:
         return EnvironmentTokenCredential()
     if environ.get("AZURE_FEDERATED_TOKEN_FILE"):
         return WorkloadIdentityCredential()
+    client_values = {
+        "tenant_id": environ.get("FABRICQUERYR_TENANT_ID", ""),
+        "client_id": environ.get("FABRICQUERYR_CLIENT_ID", ""),
+        "client_secret": environ.get("FABRICQUERYR_CLIENT_SECRET", ""),
+    }
+    if client_values["client_secret"]:
+        missing = [name for name, value in client_values.items() if not value]
+        if missing:
+            variables = ", ".join(
+                f"FABRICQUERYR_{name.upper()}" for name in missing
+            )
+            raise RuntimeError(
+                "Incomplete local Fabric client credentials; missing "
+                f"{variables}"
+            )
+        return ClientSecretCredential(**client_values)
     return AzureCliCredential()

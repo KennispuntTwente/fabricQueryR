@@ -181,7 +181,10 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "display_name": "TestWarehouse",
         "connection_string": "warehouse.sql.test",
         "database_name": "TestWarehouse",
-        "tables": {"types": "fabricqueryr_sql_types"},
+        "tables": {
+            "types": "fabricqueryr_sql_types",
+            "mutations": "fabricqueryr_sql_mutations",
+        },
     }
     assert manifest.items["TestSQLDatabase"] == {
         "id": "TestSQLDatabase-id",
@@ -226,15 +229,24 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     }
     lakehouse = manifest.items["TestLakehouse"]
     assert lakehouse["tables"] == {
+        "runtime": "fabricqueryr_runtime",
         "basic": "fabricqueryr_basic",
         "empty": "fabricqueryr_empty",
         "void": "fabricqueryr_void",
         "partitioned": "fabricqueryr_partitioned",
         "typed_partitions": "fabricqueryr_typed_partitions",
+        "binary_partitions": "fabricqueryr_binary_partitions",
         "schema_evolved": "fabricqueryr_schema_evolved",
         "column_mapped": "fabricqueryr_column_mapped",
         "column_mapped_id": "fabricqueryr_column_mapped_id",
+        "column_mapped_id_partitioned_dv": (
+            "fabricqueryr_column_mapped_id_partitioned_dv"
+        ),
+        "struct_validity": "fabricqueryr_struct_validity",
         "deletion_vectors": "fabricqueryr_deletion_vectors",
+        "file_row_number_collision": (
+            "fabricqueryr_file_row_number_collision"
+        ),
         "deletion_vectors_stress": "fabricqueryr_deletion_vectors_stress",
         "deletion_vectors_checkpoint": (
             "fabricqueryr_deletion_vectors_checkpoint"
@@ -242,12 +254,74 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "deletion_vectors_dense": "fabricqueryr_deletion_vectors_dense",
         "exact_types": "fabricqueryr_exact_types",
         "complex_types": "fabricqueryr_complex_types",
+        "oracle_basic": "fabricqueryr_oracle_basic",
+        "oracle_empty": "fabricqueryr_oracle_empty",
+        "oracle_typed_partitions": "fabricqueryr_oracle_typed_partitions",
+        "oracle_partitioned": "fabricqueryr_oracle_partitioned",
+        "oracle_schema_evolved": "fabricqueryr_oracle_schema_evolved",
+        "oracle_exact_types": "fabricqueryr_oracle_exact_types",
+        "oracle_complex_types": "fabricqueryr_oracle_complex_types",
+        "spark_oracle_column_mapped": (
+            "fabricqueryr_spark_oracle_column_mapped"
+        ),
+        "spark_oracle_column_mapped_id": (
+            "fabricqueryr_spark_oracle_column_mapped_id"
+        ),
+        "spark_oracle_column_mapped_id_partitioned_dv": (
+            "fabricqueryr_spark_oracle_column_mapped_id_partitioned_dv"
+        ),
+        "spark_oracle_struct_validity": (
+            "fabricqueryr_spark_oracle_struct_validity"
+        ),
+        "spark_oracle_deletion_vectors": (
+            "fabricqueryr_spark_oracle_deletion_vectors"
+        ),
+        "spark_oracle_file_row_number_collision": (
+            "fabricqueryr_spark_oracle_file_row_number_collision"
+        ),
+        "spark_oracle_deletion_vectors_stress": (
+            "fabricqueryr_spark_oracle_deletion_vectors_stress"
+        ),
+        "spark_oracle_deletion_vectors_checkpoint": (
+            "fabricqueryr_spark_oracle_deletion_vectors_checkpoint"
+        ),
+        "spark_oracle_deletion_vectors_dense": (
+            "fabricqueryr_spark_oracle_deletion_vectors_dense"
+        ),
+        "spark_oracle_type_widened": (
+            "fabricqueryr_spark_oracle_type_widened"
+        ),
+        "spark_oracle_type_widened_exact": (
+            "fabricqueryr_spark_oracle_type_widened_exact"
+        ),
+        "spark_oracle_type_widened_pending": (
+            "fabricqueryr_spark_oracle_type_widened_pending"
+        ),
+        "spark_oracle_type_widened_nested": (
+            "fabricqueryr_spark_oracle_type_widened_nested"
+        ),
+        "spark_oracle_type_widened_map_key": (
+            "fabricqueryr_spark_oracle_type_widened_map_key"
+        ),
+        "spark_oracle_v2_checkpoint": (
+            "fabricqueryr_spark_oracle_v2_checkpoint"
+        ),
+        "spark_oracle_shallow_clone": (
+            "fabricqueryr_spark_oracle_shallow_clone"
+        ),
+        "spark_oracle_variant": "fabricqueryr_spark_oracle_variant",
+        "spark_oracle_variant_id_dv": (
+            "fabricqueryr_spark_oracle_variant_id_dv"
+        ),
         "shallow_clone": "fabricqueryr_shallow_clone",
         "type_widened": "fabricqueryr_type_widened",
         "type_widened_exact": "fabricqueryr_type_widened_exact",
+        "type_widened_pending": "fabricqueryr_type_widened_pending",
         "type_widened_nested": "fabricqueryr_type_widened_nested",
+        "type_widened_map_key": "fabricqueryr_type_widened_map_key",
         "v2_checkpoint": "fabricqueryr_v2_checkpoint",
         "variant": "fabricqueryr_variant",
+        "variant_id_dv": "fabricqueryr_variant_id_dv",
         "livy_batch_result": "fabricqueryr_livy_batch_result",
         "spark_job_result": "fabricqueryr_spark_job_result",
     }

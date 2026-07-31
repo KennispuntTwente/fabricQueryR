@@ -13,6 +13,12 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert "fabric_local_jwt_claims" in runner
     assert "fabric_local_exchange_token" in runner
     assert 'grant_type = "refresh_token"' in runner
+    assert 'Sys.getenv("FABRICQUERYR_CLIENT_SECRET")' in runner
+    assert 'auth_args$auth_type <- "client_credentials"' in runner
+    assert "fabric_local_uses_client_credentials" in runner
+    assert "fabric_local_validate_identity" in runner
+    assert "claims$appid" in runner
+    assert "claims$azp" in runner
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" in runner
     assert 'filter = "integration-fabric"' in runner
     assert "filter = filter" in runner

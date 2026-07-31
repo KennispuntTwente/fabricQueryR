@@ -12,6 +12,7 @@ import pyodbc
 SQL_AUDIENCE = "https://database.windows.net/.default"
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 SQL_FIXTURE_TABLE = "fabricqueryr_sql_types"
+SQL_MUTATION_TABLE = "fabricqueryr_sql_mutations"
 
 
 def _sql_target(connection_string: str, database: str) -> tuple[str, str]:
@@ -69,6 +70,7 @@ def seed_sql_fixture(
     connect: Callable[..., pyodbc.Connection] | None = None,
     attempts: int = 30,
     retry_delay: float = 10,
+    mutate: bool = False,
 ) -> None:
     """Create a small typed table in a Warehouse or SQL Database."""
     if attempts < 1:
@@ -87,10 +89,9 @@ def seed_sql_fixture(
     attributes = {
         SQL_COPT_SS_ACCESS_TOKEN: _odbc_access_token(token),
     }
-    statements = (
-        f"DROP TABLE IF EXISTS dbo.{SQL_FIXTURE_TABLE}",
-        (
-            f"CREATE TABLE dbo.{SQL_FIXTURE_TABLE} ("
+    def create_statement(table: str) -> str:
+        return (
+            f"CREATE TABLE dbo.{table} ("
             "id int NOT NULL, "
             "name varchar(100) NOT NULL, "
             "category varchar(20) NOT NULL, "
@@ -100,9 +101,11 @@ def seed_sql_fixture(
             "loaded_at datetime2(0) NOT NULL, "
             "nullable_value varchar(20) NULL"
             ")"
-        ),
-        (
-            f"INSERT INTO dbo.{SQL_FIXTURE_TABLE} "
+        )
+
+    def insert_statement(table: str) -> str:
+        return (
+            f"INSERT INTO dbo.{table} "
             "SELECT 1, 'alpha', 'A', CAST(10.50 AS decimal(10, 2)), 1, "
             "CAST('2026-01-01' AS date), "
             "CAST('2026-01-01T00:00:00' AS datetime2(0)), NULL "
@@ -113,8 +116,33 @@ def seed_sql_fixture(
             "UNION ALL "
             "SELECT 3, 'gamma', 'A', NULL, NULL, NULL, "
             "CAST('2026-01-01T00:00:00' AS datetime2(0)), NULL"
-        ),
-    )
+        )
+
+    statements = [
+        f"DROP TABLE IF EXISTS dbo.{SQL_FIXTURE_TABLE}",
+        create_statement(SQL_FIXTURE_TABLE),
+        insert_statement(SQL_FIXTURE_TABLE),
+    ]
+    if mutate:
+        statements.extend(
+            [
+                f"DROP TABLE IF EXISTS dbo.{SQL_MUTATION_TABLE}",
+                create_statement(SQL_MUTATION_TABLE),
+                insert_statement(SQL_MUTATION_TABLE),
+                (
+                    f"UPDATE dbo.{SQL_MUTATION_TABLE} "
+                    "SET name = 'beta-updated' WHERE id = 2"
+                ),
+                f"DELETE FROM dbo.{SQL_MUTATION_TABLE} WHERE id = 1",
+                (
+                    f"INSERT INTO dbo.{SQL_MUTATION_TABLE} VALUES ("
+                    "4, 'alpha-replacement', 'A', "
+                    "CAST(10.50 AS decimal(10, 2)), 1, "
+                    "CAST('2026-01-01' AS date), "
+                    "CAST('2026-01-01T00:00:00' AS datetime2(0)), NULL)"
+                ),
+            ]
+        )
 
     last_error: pyodbc.Error | None = None
     for attempt in range(1, attempts + 1):
@@ -136,6 +164,19 @@ def seed_sql_fixture(
                 raise RuntimeError(
                     f"SQL fixture verification failed for {database}"
                 )
+            if mutate:
+                mutation_row = cursor.execute(
+                    f"SELECT COUNT(*), SUM(amount) "
+                    f"FROM dbo.{SQL_MUTATION_TABLE}"
+                ).fetchone()
+                if (
+                    mutation_row is None
+                    or mutation_row[0] != 3
+                    or float(mutation_row[1]) != 30.5
+                ):
+                    raise RuntimeError(
+                        f"SQL mutation fixture verification failed for {database}"
+                    )
             return
         except pyodbc.Error as error:
             last_error = error

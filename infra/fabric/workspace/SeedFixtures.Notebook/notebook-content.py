@@ -17,9 +17,13 @@
 
 # CELL ********************
 
+import json
+import re
 import traceback
+import uuid
 
 from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, MapType, StructField, StructType
 
 workspace_id = "00000000-0000-0000-0000-000000000002"
 lakehouse_id = "00000000-0000-0000-0000-000000000001"
@@ -31,6 +35,41 @@ fixture_path = (
 
 stage = "read uploaded CSV fixture"
 try:
+    stage = "verify and record Fabric Spark runtime"
+    delta_class = spark._jvm.java.lang.Class.forName(
+        "org.apache.spark.sql.delta.DeltaLog"
+    )
+    delta_version = delta_class.getPackage().getImplementationVersion()
+    delta_source = str(
+        delta_class.getProtectionDomain().getCodeSource().getLocation()
+    )
+    if not delta_version:
+        delta_match = re.search(
+            r"delta-(?:spark|core)_[^-/]+[-_](\d+\.\d+(?:\.\d+)?)",
+            delta_source,
+        )
+        delta_version = delta_match.group(1) if delta_match else None
+    if not spark.version.startswith("4.1."):
+        raise RuntimeError(
+            f"Expected Fabric Runtime 2.0 Spark 4.1, got {spark.version}"
+        )
+    if not delta_version or not delta_version.startswith("4.2."):
+        raise RuntimeError(
+            "Expected Fabric Runtime 2.0 Delta Lake 4.2, got "
+            f"{delta_version!r} from {delta_source!r}"
+        )
+    (
+        spark.createDataFrame(
+            [("2.0", spark.version, delta_version)],
+            ["fabric_runtime", "spark_version", "delta_version"],
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("dbo.fabricqueryr_runtime")
+    )
+
+    stage = "read uploaded CSV fixture"
     fixture = (
         spark.read.option("header", True)
         .option("inferSchema", True)
@@ -177,6 +216,161 @@ try:
         .saveAsTable("dbo.fabricqueryr_typed_partitions")
     )
 
+    stage = "write protocol-valid binary partition edge-case Delta table"
+    binary_table_path = (
+        f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+        f"{lakehouse_id}/Tables/dbo/fabricqueryr_binary_partitions"
+    )
+    binary_root = spark._jvm.org.apache.hadoop.fs.Path(binary_table_path)
+    binary_fs = binary_root.getFileSystem(
+        spark._jsc.hadoopConfiguration()
+    )
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_binary_partitions")
+    binary_fs.delete(binary_root, True)
+
+    # Spark's directory partition writer cannot safely materialize every byte
+    # in a partition path. Delta does not require partition values in paths:
+    # AddFile.partitionValues is authoritative, so use safe data-file paths.
+    binary_partition_values = [
+        (1, "\u0000"),
+        (2, "\u0080"),
+        (3, "\u00ff"),
+        (4, None),
+    ]
+    binary_adds = []
+    for row_id, binary_value in binary_partition_values:
+        relative_dir = f"data/row-{row_id}"
+        absolute_dir = f"{binary_table_path}/{relative_dir}"
+        (
+            spark.createDataFrame([(row_id,)], "id INT")
+            .coalesce(1)
+            .write.mode("error")
+            .parquet(absolute_dir)
+        )
+        parquet_files = [
+            status
+            for status in binary_fs.listStatus(
+                spark._jvm.org.apache.hadoop.fs.Path(absolute_dir)
+            )
+            if (
+                status.isFile()
+                and str(status.getPath().getName()).startswith("part-")
+                and str(status.getPath().getName()).endswith(".parquet")
+            )
+        ]
+        if len(parquet_files) != 1:
+            raise RuntimeError(
+                f"Expected one binary fixture Parquet file, got "
+                f"{len(parquet_files)} for row {row_id}"
+            )
+        parquet_file = parquet_files[0]
+        relative_file = (
+            f"{relative_dir}/{str(parquet_file.getPath().getName())}"
+        )
+        binary_adds.append(
+            {
+                "add": {
+                    "path": relative_file,
+                    "partitionValues": {"binary_part": binary_value},
+                    "size": parquet_file.getLen(),
+                    "modificationTime": parquet_file.getModificationTime(),
+                    "dataChange": True,
+                    "stats": json.dumps(
+                        {
+                            "numRecords": 1,
+                            "minValues": {"id": row_id},
+                            "maxValues": {"id": row_id},
+                            "nullCount": {"id": 0},
+                        },
+                        separators=(",", ":"),
+                    ),
+                }
+            }
+        )
+
+    binary_schema = {
+        "type": "struct",
+        "fields": [
+            {
+                "name": "id",
+                "type": "integer",
+                "nullable": True,
+                "metadata": {},
+            },
+            {
+                "name": "binary_part",
+                "type": "binary",
+                "nullable": True,
+                "metadata": {},
+            },
+        ],
+    }
+    binary_actions = [
+        {"protocol": {"minReaderVersion": 1, "minWriterVersion": 2}},
+        {
+            "metaData": {
+                "id": str(uuid.uuid4()),
+                "format": {"provider": "parquet", "options": {}},
+                "schemaString": json.dumps(
+                    binary_schema,
+                    separators=(",", ":"),
+                ),
+                "partitionColumns": ["binary_part"],
+                "configuration": {},
+                "createdTime": (
+                    spark._jvm.java.lang.System.currentTimeMillis()
+                ),
+            }
+        },
+        *binary_adds,
+    ]
+    binary_log_staging = f"{binary_table_path}/_fabricqueryr_log_staging"
+    (
+        spark.createDataFrame(
+            [
+                (
+                    json.dumps(
+                        action,
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
+                )
+                for action in binary_actions
+            ],
+            "value STRING",
+        )
+        .coalesce(1)
+        .write.mode("error")
+        .text(binary_log_staging)
+    )
+    staged_logs = [
+        status
+        for status in binary_fs.listStatus(
+            spark._jvm.org.apache.hadoop.fs.Path(binary_log_staging)
+        )
+        if (
+            status.isFile()
+            and str(status.getPath().getName()).startswith("part-")
+        )
+    ]
+    if len(staged_logs) != 1:
+        raise RuntimeError(
+            f"Expected one staged Delta log, got {len(staged_logs)}"
+        )
+    binary_log_dir = spark._jvm.org.apache.hadoop.fs.Path(
+        f"{binary_table_path}/_delta_log"
+    )
+    binary_fs.mkdirs(binary_log_dir)
+    binary_log = spark._jvm.org.apache.hadoop.fs.Path(
+        f"{binary_table_path}/_delta_log/00000000000000000000.json"
+    )
+    if not binary_fs.rename(staged_logs[0].getPath(), binary_log):
+        raise RuntimeError("Could not publish binary fixture Delta log")
+    binary_fs.delete(
+        spark._jvm.org.apache.hadoop.fs.Path(binary_log_staging),
+        True,
+    )
+
     stage = "generate Delta checkpoint"
     for _ in range(10):
         fixture.limit(1).write.format("delta").mode("append").saveAsTable(
@@ -276,6 +470,154 @@ try:
         """
     )
 
+    stage = "write delta-rs compatible parity tables"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_basic")
+    (
+        fixture.withColumn(
+            "loaded_at", F.lit("2026-01-01T00:00:00Z").cast("timestamp")
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_basic")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_empty")
+    (
+        fixture.limit(0)
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_empty")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_typed_partitions")
+    oracle_typed_partitions = typed_partitions.withColumn(
+        "decimal_part",
+        F.when(
+            F.col("id") == 2,
+            F.lit("0.50").cast("decimal(8,2)"),
+        ).otherwise(F.col("decimal_part")),
+    )
+    (
+        oracle_typed_partitions.write.format("delta")
+        .mode("overwrite")
+        .partitionBy(
+            "event_date",
+            "active",
+            "integer_part",
+            "decimal_part",
+            "timestamp_part",
+            "timestamp_ntz_part",
+            "binary_part",
+        )
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_partitioned")
+    (
+        fixture.write.format("delta")
+        .mode("overwrite")
+        .partitionBy("category")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_partitioned")
+    )
+    for _ in range(10):
+        fixture.limit(1).write.format("delta").mode("append").saveAsTable(
+            "dbo.fabricqueryr_oracle_partitioned"
+        )
+    (
+        replacement.write.format("delta")
+        .mode("overwrite")
+        .option("replaceWhere", "category = 'B'")
+        .saveAsTable("dbo.fabricqueryr_oracle_partitioned")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_schema_evolved")
+    (
+        fixture.filter(F.col("id") < 3)
+        .select("id", "name")
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .option("delta.enableDeletionVectors", "false")
+        .saveAsTable("dbo.fabricqueryr_oracle_schema_evolved")
+    )
+    (
+        fixture.filter(F.col("id") == 3)
+        .select("id", "name")
+        .withColumn("evolved_value", F.lit("introduced"))
+        .write.format("delta")
+        .mode("append")
+        .option("mergeSchema", True)
+        .saveAsTable("dbo.fabricqueryr_oracle_schema_evolved")
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_exact_types")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_oracle_exact_types
+        USING DELTA
+        TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')
+        AS SELECT
+          1 AS row_id,
+          CAST('9007199254740993' AS BIGINT) AS above_double_limit,
+          CAST('9223372036854775807' AS BIGINT) AS maximum_long,
+          CAST(
+            '12345678901234567890123456789012345678'
+            AS DECIMAL(38, 0)
+          ) AS whole_decimal,
+          CAST(
+            '123456789012345678901234567890123456.78'
+            AS DECIMAL(38, 2)
+          ) AS scaled_decimal,
+          CAST('2026-07-28 12:34:56.123456' AS TIMESTAMP_NTZ)
+            AS observed_at,
+          X'00FF10' AS payload,
+          'café-数据-🙂' AS unicode_text,
+          CAST('NaN' AS DOUBLE) AS not_a_number,
+          CAST('Infinity' AS DOUBLE) AS positive_infinity
+        """
+    )
+
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_oracle_complex_types")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_oracle_complex_types
+        USING DELTA
+        TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')
+        AS SELECT
+          1 AS id,
+          named_struct(
+            'label', 'nested',
+            'amount',
+            CAST('1234567890123456789012345678901234.56'
+              AS DECIMAL(38, 2))
+          ) AS profile,
+          array(1, 2, 3) AS scores,
+          map(
+            'large',
+            CAST('9007199254740993' AS BIGINT),
+            'small',
+            CAST('2' AS BIGINT)
+          ) AS counts,
+          array(
+            named_struct('label', 'first', 'score', 10),
+            named_struct('label', 'second', 'score', 20)
+          ) AS items,
+          map(
+            'primary',
+            named_struct('label', 'mapped', 'enabled', true)
+          ) AS attributes,
+          'display café-数据' AS display_name
+        """
+    )
+
     stage = "write column-mapping Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_column_mapped")
     (
@@ -315,6 +657,76 @@ try:
     spark.sql(
         """
         ALTER TABLE dbo.fabricqueryr_column_mapped
+        ADD COLUMNS (profile.metadata_only STRING)
+        """
+    )
+
+    stage = "write struct parent-validity Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_struct_validity")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_struct_validity
+        USING DELTA
+        AS SELECT
+          1 AS id,
+          CAST(NULL AS STRUCT<number: INT, text: STRING>) AS profile,
+          array(
+            CAST(NULL AS STRUCT<number: INT, text: STRING>),
+            named_struct(
+              'number', CAST(NULL AS INT),
+              'text', CAST(NULL AS STRING)
+            )
+          ) AS items,
+          map(
+            'null', CAST(NULL AS STRUCT<number: INT, text: STRING>),
+            'present', named_struct(
+              'number', CAST(NULL AS INT),
+              'text', CAST(NULL AS STRING)
+            )
+          ) AS attributes,
+          map(
+            named_struct(
+              'marker', 1,
+              'nested', CAST(NULL AS STRUCT<number: INT, text: STRING>)
+            ), 'null',
+            named_struct(
+              'marker', 2,
+              'nested', named_struct(
+                'number', CAST(NULL AS INT),
+                'text', CAST(NULL AS STRING)
+              )
+            ), 'present'
+          ) AS keyed
+        UNION ALL
+        SELECT
+          2,
+          named_struct(
+            'number', CAST(NULL AS INT),
+            'text', CAST(NULL AS STRING)
+          ),
+          CAST(NULL AS ARRAY<STRUCT<number: INT, text: STRING>>),
+          CAST(NULL AS MAP<STRING, STRUCT<number: INT, text: STRING>>),
+          CAST(
+            NULL AS MAP<
+              STRUCT<
+                marker: INT,
+                nested: STRUCT<number: INT, text: STRING>
+              >,
+              STRING
+            >
+          )
+        UNION ALL
+        SELECT
+          3,
+          named_struct('number', 3, 'text', 'present'),
+          array(),
+          map(),
+          map()
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped
         RENAME COLUMN name TO display_name
         """
     )
@@ -327,7 +739,7 @@ try:
     spark.sql(
         """
         ALTER TABLE dbo.fabricqueryr_column_mapped
-        RENAME COLUMN profile.label TO profile.display_label
+        RENAME COLUMN profile.label TO display_label
         """
     )
     spark.sql(
@@ -399,7 +811,7 @@ try:
     spark.sql(
         """
         ALTER TABLE dbo.fabricqueryr_column_mapped_id
-        RENAME COLUMN profile.label TO profile.display_label
+        RENAME COLUMN profile.label TO display_label
         """
     )
     (
@@ -423,6 +835,56 @@ try:
         .saveAsTable("dbo.fabricqueryr_column_mapped_id")
     )
 
+    stage = "write partitioned ID-mapped deletion-vector Delta table"
+    spark.sql(
+        "DROP TABLE IF EXISTS dbo.fabricqueryr_column_mapped_id_partitioned_dv"
+    )
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_column_mapped_id_partitioned_dv (
+          id INT,
+          display_name STRING,
+          profile STRUCT<label: STRING>,
+          category STRING
+        )
+        USING DELTA
+        PARTITIONED BY (category)
+        TBLPROPERTIES (
+          'delta.columnMapping.mode' = 'id',
+          'delta.enableDeletionVectors' = 'true'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        SELECT
+          CAST(id AS INT),
+          concat('row-', id),
+          named_struct('label', concat('profile-', id)),
+          CASE WHEN id % 2 = 0 THEN 'even' ELSE 'odd' END
+        FROM range(0, 1000)
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        RENAME COLUMN display_name TO name
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        RENAME COLUMN profile.label TO display_label
+        """
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_column_mapped_id_partitioned_dv
+        WHERE id % 10 = 0
+        """
+    )
+
     stage = "write deletion-vector Delta table"
     (
         fixture.write.format("delta")
@@ -432,6 +894,28 @@ try:
     )
     spark.sql(
         "DELETE FROM dbo.fabricqueryr_deletion_vectors WHERE id = 1"
+    )
+
+    stage = "write deletion-vector file-row-number collision table"
+    spark.sql(
+        "DROP TABLE IF EXISTS dbo.fabricqueryr_file_row_number_collision"
+    )
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_file_row_number_collision
+        USING DELTA
+        TBLPROPERTIES ('delta.enableDeletionVectors' = 'true')
+        AS SELECT
+          CAST(id AS INT) AS id,
+          CAST(id + 1000 AS BIGINT) AS file_row_number
+        FROM range(0, 5000)
+        """
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_file_row_number_collision
+        WHERE id IN (3, 2047, 2048, 4095, 4096, 4999)
+        """
     )
 
     stage = "write deletion-vector stress Delta table"
@@ -618,6 +1102,48 @@ try:
         """
     )
 
+    stage = "write pending type-widening Delta table"
+    # Every data file predates the type change: the table is widened but no row
+    # is written afterwards. Readers that lean on the widened physical type of a
+    # newer file cannot fall back to it here and must convert the narrow values
+    # themselves.
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_pending")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_type_widened_pending (
+          id INT,
+          amount DECIMAL(10, 2),
+          occurred DATE,
+          counted TINYINT,
+          ratio FLOAT,
+          label STRING
+        )
+        USING DELTA
+        TBLPROPERTIES (
+          'delta.enableTypeWidening' = 'true',
+          'delta.feature.timestampNtz' = 'supported'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened_pending
+        VALUES
+          (1, 12.34, DATE '2026-01-01', 7, CAST(0.5 AS FLOAT), 'narrow'),
+          (2, -0.50, DATE '1969-12-31', -128, CAST(-1.5 AS FLOAT), 'edges')
+        """
+    )
+    for pending_change in (
+        "ALTER COLUMN id TYPE BIGINT",
+        "ALTER COLUMN amount TYPE DECIMAL(14, 4)",
+        "ALTER COLUMN occurred TYPE TIMESTAMP_NTZ",
+        "ALTER COLUMN counted TYPE INT",
+        "ALTER COLUMN ratio TYPE DOUBLE",
+    ):
+        spark.sql(
+            f"ALTER TABLE dbo.fabricqueryr_type_widened_pending {pending_change}"
+        )
+
     stage = "write nested type-widening Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_nested")
     spark.sql(
@@ -698,6 +1224,38 @@ try:
           CAST('9007199254.25' AS DECIMAL(12, 2)),
           CAST(9.5 AS DOUBLE)
         """
+    )
+
+    stage = "write map-key type-widening Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_map_key")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_type_widened_map_key (
+          id INT,
+          keyed MAP<FLOAT, STRING>
+        )
+        USING DELTA
+        TBLPROPERTIES ('delta.enableTypeWidening' = 'true')
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened_map_key
+        SELECT 1, map(CAST(1.25 AS FLOAT), 'before')
+        """
+    )
+    widened_map_key = spark.sql(
+        """
+        SELECT
+          2 AS id,
+          map(CAST(16777217.5 AS DOUBLE), 'after') AS keyed
+        """
+    )
+    (
+        widened_map_key.write.format("delta")
+        .mode("append")
+        .option("mergeSchema", "true")
+        .saveAsTable("dbo.fabricqueryr_type_widened_map_key")
     )
 
     stage = "write V2 checkpoint Delta table"
@@ -787,7 +1345,172 @@ try:
           PARSE_JSON(
             '{"unicode":"café-数据-🙂","decimal":1234567890.125}'
           )
+        UNION ALL
+        SELECT 9,
+          PARSE_JSON('123456789012345678901234567890123456.78')
         """
+    )
+
+    stage = "write ID-mapped Variant deletion-vector Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_variant_id_dv")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_variant_id_dv (
+          event_id BIGINT,
+          data VARIANT
+        )
+        USING DELTA
+        TBLPROPERTIES (
+          'delta.columnMapping.mode' = 'id',
+          'delta.enableDeletionVectors' = 'true',
+          'delta.enableVariantShredding' = 'true'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_variant_id_dv
+        SELECT 1, PARSE_JSON('{"kind":"object","value":1}')
+        UNION ALL SELECT 2, PARSE_JSON('{"deleted":true}')
+        UNION ALL SELECT 3, PARSE_JSON('null')
+        UNION ALL SELECT 4, PARSE_JSON('"mapped string"')
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_variant_id_dv
+        RENAME COLUMN event_id TO id
+        """
+    )
+    spark.sql(
+        """
+        ALTER TABLE dbo.fabricqueryr_variant_id_dv
+        RENAME COLUMN data TO payload
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_variant_id_dv
+        SELECT
+          5,
+          PARSE_JSON('123456789012345678901234567890123456.78')
+        """
+    )
+    spark.sql("DELETE FROM dbo.fabricqueryr_variant_id_dv WHERE id = 2")
+
+    stage = "materialize independent Spark Delta reader oracles"
+
+    def without_delta_metadata(data_type):
+        if isinstance(data_type, StructType):
+            return StructType(
+                [
+                    StructField(
+                        field.name,
+                        without_delta_metadata(field.dataType),
+                        field.nullable,
+                        {},
+                    )
+                    for field in data_type.fields
+                ]
+            )
+        if isinstance(data_type, ArrayType):
+            return ArrayType(
+                without_delta_metadata(data_type.elementType),
+                data_type.containsNull,
+            )
+        if isinstance(data_type, MapType):
+            return MapType(
+                without_delta_metadata(data_type.keyType),
+                without_delta_metadata(data_type.valueType),
+                data_type.valueContainsNull,
+            )
+        return data_type
+
+    def write_reader_oracle(source, target, query=None):
+        source_frame = spark.sql(query) if query else spark.table(source)
+        clean_frame = spark.createDataFrame(
+            source_frame.rdd,
+            without_delta_metadata(source_frame.schema),
+        )
+        spark.sql(f"DROP TABLE IF EXISTS dbo.{target}")
+        (
+            clean_frame.write.format("delta")
+            .mode("overwrite")
+            .option("overwriteSchema", True)
+            .option("delta.enableDeletionVectors", "false")
+            .option("delta.checkpointPolicy", "classic")
+            .saveAsTable(f"dbo.{target}")
+        )
+
+    reader_oracles = {
+        "fabricqueryr_column_mapped": "fabricqueryr_spark_oracle_column_mapped",
+        "fabricqueryr_column_mapped_id": (
+            "fabricqueryr_spark_oracle_column_mapped_id"
+        ),
+        "fabricqueryr_column_mapped_id_partitioned_dv": (
+            "fabricqueryr_spark_oracle_column_mapped_id_partitioned_dv"
+        ),
+        "fabricqueryr_struct_validity": (
+            "fabricqueryr_spark_oracle_struct_validity"
+        ),
+        "fabricqueryr_deletion_vectors": (
+            "fabricqueryr_spark_oracle_deletion_vectors"
+        ),
+        "fabricqueryr_file_row_number_collision": (
+            "fabricqueryr_spark_oracle_file_row_number_collision"
+        ),
+        "fabricqueryr_deletion_vectors_stress": (
+            "fabricqueryr_spark_oracle_deletion_vectors_stress"
+        ),
+        "fabricqueryr_deletion_vectors_checkpoint": (
+            "fabricqueryr_spark_oracle_deletion_vectors_checkpoint"
+        ),
+        "fabricqueryr_deletion_vectors_dense": (
+            "fabricqueryr_spark_oracle_deletion_vectors_dense"
+        ),
+        "fabricqueryr_type_widened": (
+            "fabricqueryr_spark_oracle_type_widened"
+        ),
+        "fabricqueryr_type_widened_exact": (
+            "fabricqueryr_spark_oracle_type_widened_exact"
+        ),
+        "fabricqueryr_type_widened_pending": (
+            "fabricqueryr_spark_oracle_type_widened_pending"
+        ),
+        "fabricqueryr_type_widened_nested": (
+            "fabricqueryr_spark_oracle_type_widened_nested"
+        ),
+        "fabricqueryr_type_widened_map_key": (
+            "fabricqueryr_spark_oracle_type_widened_map_key"
+        ),
+        "fabricqueryr_v2_checkpoint": (
+            "fabricqueryr_spark_oracle_v2_checkpoint"
+        ),
+        "fabricqueryr_shallow_clone": (
+            "fabricqueryr_spark_oracle_shallow_clone"
+        ),
+    }
+    for source, target in reader_oracles.items():
+        write_reader_oracle(f"dbo.{source}", target)
+    write_reader_oracle(
+        "dbo.fabricqueryr_variant",
+        "fabricqueryr_spark_oracle_variant",
+        """
+        SELECT
+          event_id,
+          CAST(data AS STRING) AS data_display
+        FROM dbo.fabricqueryr_variant
+        """,
+    )
+    write_reader_oracle(
+        "dbo.fabricqueryr_variant_id_dv",
+        "fabricqueryr_spark_oracle_variant_id_dv",
+        """
+        SELECT
+          id,
+          CAST(payload AS STRING) AS payload_display
+        FROM dbo.fabricqueryr_variant_id_dv
+        """,
     )
 except Exception:
     mssparkutils.notebook.exit(

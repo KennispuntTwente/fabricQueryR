@@ -30,10 +30,48 @@ def test_seed_notebook_ids_are_parameterized():
         assert pattern in parameters
         assert len(re.findall(pattern, notebook)) == 1
     assert "abfss://" in notebook
+    assert 'spark.version.startswith("4.1.")' in notebook
+    assert 'delta_version.startswith("4.2.")' in notebook
+    assert '.saveAsTable("dbo.fabricqueryr_runtime")' in notebook
     assert '.option("replaceWhere", "category = \'B\'")' in notebook
     assert '"beta-updated"' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_empty")' in notebook
     assert '.saveAsTable("dbo.fabricqueryr_typed_partitions")' in notebook
+    assert (
+        'stage = "write protocol-valid binary partition edge-case Delta table"'
+        in notebook
+    )
+    assert '.saveAsTable("dbo.fabricqueryr_binary_partitions")' not in notebook
+    assert '"partitionValues": {"binary_part": binary_value}' in notebook
+    assert '(1, "\\u0000")' in notebook
+    assert '(2, "\\u0080")' in notebook
+    assert '(3, "\\u00ff")' in notebook
+    assert "AddFile.partitionValues is authoritative" in notebook
+    assert "00000000000000000000.json" in notebook
+    assert "ADD COLUMNS (profile.metadata_only STRING)" in notebook
+    assert "dbo.fabricqueryr_struct_validity" in notebook
+    assert "dbo.fabricqueryr_file_row_number_collision" in notebook
+    assert (
+        '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")'
+        in notebook
+    )
+    assert "oracle_typed_partitions = typed_partitions.withColumn(" in notebook
+    assert 'F.lit("0.50").cast("decimal(8,2)")' in notebook
+    oracle_partition_start = notebook.index(
+        "oracle_typed_partitions.write.format",
+    )
+    oracle_partition_end = notebook.index(
+        '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")',
+        oracle_partition_start,
+    )
+    assert (
+        "\n        typed_partitions.write.format"
+        not in notebook[oracle_partition_start:oracle_partition_end]
+    )
+    assert (
+        "TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')"
+        in notebook
+    )
     partition_start = notebook.index(
         ".partitionBy(",
         notebook.index('stage = "write typed and null partition Delta table"'),
@@ -50,6 +88,18 @@ def test_seed_notebook_ids_are_parameterized():
         "binary_part",
     ):
         assert f'"{column}"' in partition_block
+
+
+def test_seed_notebook_uses_valid_nested_delta_column_rename_syntax():
+    repository_root = Path(__file__).parents[3]
+    notebook = (
+        repository_root
+        / "infra/fabric/workspace/SeedFixtures.Notebook/notebook-content.py"
+    ).read_text()
+
+    valid_rename = "RENAME COLUMN profile.label TO display_label"
+    assert notebook.count(valid_rename) == 3
+    assert "RENAME COLUMN profile.label TO profile.display_label" not in notebook
 
 
 def test_job_notebook_exposes_deterministic_job_modes():

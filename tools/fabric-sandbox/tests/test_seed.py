@@ -1,4 +1,11 @@
-from fabricqueryr_sandbox.seed import seed, upload_fixtures
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+
+from fabricqueryr_sandbox.seed import (
+    seed,
+    upload_fixtures,
+    wait_for_delta_log_publication,
+)
 from fabricqueryr_sandbox.settings import SandboxSettings
 
 
@@ -100,6 +107,64 @@ def test_upload_fixtures_preserves_nested_and_unicode_paths(monkeypatch, tmp_pat
     ]
     assert unicode_file[0].replace(b"\r\n", b"\n") == b"unicode\n"
     assert unicode_file[1] is True
+
+
+def test_wait_for_delta_log_publication_requires_a_new_log():
+    threshold = datetime(2026, 7, 30, tzinfo=timezone.utc)
+    listings = iter(
+        [
+            [
+                SimpleNamespace(
+                    name=(
+                        "warehouse/Tables/dbo/table/_delta_log/"
+                        "00000000000000000000.json"
+                    ),
+                    is_directory=False,
+                    last_modified=threshold - timedelta(seconds=1),
+                )
+            ],
+            [
+                SimpleNamespace(
+                    name=(
+                        "warehouse/Tables/dbo/table/_delta_log/"
+                        "00000000000000000001.json"
+                    ),
+                    is_directory=False,
+                    last_modified=threshold,
+                )
+            ],
+        ]
+    )
+    calls = []
+
+    class FileSystem:
+        def get_paths(self, *, path, recursive):
+            calls.append((path, recursive))
+            return next(listings)
+
+    class Service:
+        def get_file_system_client(self, workspace_id):
+            assert workspace_id == "workspace"
+            return FileSystem()
+
+    sleeps = []
+    published = wait_for_delta_log_publication(
+        "workspace",
+        "warehouse",
+        "table",
+        not_before=threshold,
+        attempts=2,
+        retry_delay=3,
+        service_client=Service(),
+        sleep=sleeps.append,
+    )
+
+    assert published.endswith("00000000000000000001.json")
+    assert calls == [
+        ("warehouse/Tables/dbo/table/_delta_log", False),
+        ("warehouse/Tables/dbo/table/_delta_log", False),
+    ]
+    assert sleeps == [3]
 
 
 def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
@@ -270,9 +335,22 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.seed_sql_fixture",
-        lambda connection_string, database, token: calls.append(
-            ("seed_sql", connection_string, database, token)
+        lambda connection_string, database, token, *, mutate=False: calls.append(
+            ("seed_sql", connection_string, database, token, mutate)
         ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.wait_for_delta_log_publication",
+        lambda workspace_id, item_id, table, *, not_before: calls.append(
+            (
+                "wait_for_delta_log",
+                workspace_id,
+                item_id,
+                table,
+                not_before,
+            )
+        )
+        or "00000000000000000000.json",
     )
     credential = type(
         "Credential",
@@ -337,7 +415,26 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "warehouse.sql.test",
         "TestWarehouse",
         "token-for-https://database.windows.net/.default",
+        True,
     ) in calls
+    delta_log_call = next(
+        call for call in calls if call[0] == "wait_for_delta_log"
+    )
+    assert delta_log_call[1:4] == (
+        "workspace-id",
+        "TestWarehouse-id",
+        "fabricqueryr_sql_mutations",
+    )
+    assert delta_log_call[4].tzinfo is not None
+    assert calls.index(delta_log_call) > calls.index(
+        (
+            "seed_sql",
+            "warehouse.sql.test",
+            "TestWarehouse",
+            "token-for-https://database.windows.net/.default",
+            True,
+        )
+    )
     assert calls.index(graphql_call) > max(
         index for index, call in enumerate(calls) if call[0] == "seed_sql"
     )
@@ -349,6 +446,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         ),
         "TestSQLDatabase-internal",
         "token-for-https://database.windows.net/.default",
+        False,
     ) in calls
     assert ("seed_power_bi", credential, "workspace-id") in calls
     assert ("prepare_arrow_power_bi", credential, "workspace-id") in calls

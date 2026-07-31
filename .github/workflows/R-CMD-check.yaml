@@ -42,10 +42,30 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::rcmdcheck, any::devtools
           needs: check
 
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+
+      - name: Set up uv for delta-rs runtime tests
+        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+
+      - name: Install locked delta-rs runtime environment
+        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        run: uv --directory tools/fabric-sandbox sync --locked
+
+      - name: Test the production delta-rs Arrow bridge
+        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        env:
+          FABRIC_DELTA_RS_ORACLE_TESTS: "true"
+        run: >-
+          Rscript -e
+          'devtools::test(filter = "delta-rs-oracle",
+          stop_on_failure = TRUE)'

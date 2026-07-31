@@ -17,6 +17,10 @@ fabric-sandbox = "fabricqueryr_sandbox.cli:main"
 
 [dependency-groups]
 dev = [
+    "deltalake==1.6.2",
+    "nanoarrow==0.8.0",
+    "numpy>=1.26",
+    "pyarrow==25.0.0",
     "pytest>=8,<9",
 ]
 

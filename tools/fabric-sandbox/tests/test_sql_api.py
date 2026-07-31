@@ -97,3 +97,36 @@ def test_seed_sql_fixture_creates_verifies_and_closes_typed_table():
         "SELECT COUNT(*), SUM(amount)"
     )
     assert connection.closed is True
+
+
+def test_seed_sql_fixture_can_publish_warehouse_mutations():
+    connection = FakeConnection()
+
+    seed_sql_fixture(
+        "warehouse.sql.test",
+        "TestWarehouse",
+        "secret-token",
+        connect=lambda *args, **kwargs: connection,
+        attempts=1,
+        mutate=True,
+    )
+
+    statements = connection.cursor_value.statements
+    assert statements[3] == (
+        "DROP TABLE IF EXISTS dbo.fabricqueryr_sql_mutations"
+    )
+    assert statements[4].startswith(
+        "CREATE TABLE dbo.fabricqueryr_sql_mutations"
+    )
+    assert statements[5].startswith(
+        "INSERT INTO dbo.fabricqueryr_sql_mutations"
+    )
+    assert statements[6].startswith(
+        "UPDATE dbo.fabricqueryr_sql_mutations"
+    )
+    assert statements[7] == (
+        "DELETE FROM dbo.fabricqueryr_sql_mutations WHERE id = 1"
+    )
+    assert "alpha-replacement" in statements[8]
+    assert statements[9].startswith("SELECT COUNT(*), SUM(amount)")
+    assert statements[10].startswith("SELECT COUNT(*), SUM(amount)")

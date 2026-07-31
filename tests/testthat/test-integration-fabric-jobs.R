@@ -69,8 +69,10 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   )
   failure_info <- if (inherits(failed, "fabric_job_instance")) {
     paste0(
-      "Fabric returned ", failed$status,
-      "; exit value: ", failed$exit_value %||% "<none>",
+      "Fabric returned ",
+      failed$status,
+      "; exit value: ",
+      failed$exit_value %||% "<none>",
       "; failure reason: ",
       .fabric_job_failure_text(failed$failure_reason)
     )

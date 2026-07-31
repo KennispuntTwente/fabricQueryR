@@ -3,6 +3,12 @@
 # From the repository root:
 # source("tools/fabric-sandbox/local-integration.R")
 # run_fabric_integration_tests()
+#
+# The runner first reuses matching cached AzureAuth tokens. When none are
+# available and FABRICQUERYR_TENANT_ID, FABRICQUERYR_CLIENT_ID, and
+# FABRICQUERYR_CLIENT_SECRET are set, it uses that application through
+# AzureAuth's client-credentials flow. Its final fallback is AzureAuth's normal
+# interactive sign-in.
 
 .fabric_local_script <- tryCatch(
   normalizePath(
@@ -98,6 +104,73 @@ fabric_local_auth_context <- function(
   }
 
   list(tenant_id = tenant_id, client_id = client_id)
+}
+
+fabric_local_resolve_auth_args <- function(
+  auth_args,
+  client_id,
+  client_secret = Sys.getenv("FABRICQUERYR_CLIENT_SECRET")
+) {
+  if (!is.list(auth_args)) {
+    stop("auth_args must be a list", call. = FALSE)
+  }
+  if (
+    length(auth_args) &&
+      (is.null(names(auth_args)) ||
+        anyNA(names(auth_args)) ||
+        !all(nzchar(names(auth_args))))
+  ) {
+    stop("auth_args must be fully named", call. = FALSE)
+  }
+  if (
+    !is.character(client_secret) ||
+      length(client_secret) != 1L ||
+      is.na(client_secret)
+  ) {
+    stop(
+      "FABRICQUERYR_CLIENT_SECRET must be one character value",
+      call. = FALSE
+    )
+  }
+
+  explicit_flow <- any(
+    c(
+      "auth_type",
+      "password",
+      "certificate",
+      "username",
+      "on_behalf_of"
+    ) %in%
+      names(auth_args)
+  )
+  if (!nzchar(client_secret) || explicit_flow) {
+    return(auth_args)
+  }
+  if (!nzchar(client_id)) {
+    stop(
+      paste(
+        "FABRICQUERYR_CLIENT_ID is required when",
+        "FABRICQUERYR_CLIENT_SECRET is set"
+      ),
+      call. = FALSE
+    )
+  }
+
+  auth_args$password <- client_secret
+  auth_args$auth_type <- "client_credentials"
+  message(
+    "Using FABRICQUERYR_CLIENT_ID and FABRICQUERYR_CLIENT_SECRET ",
+    "for local Fabric authentication."
+  )
+  auth_args
+}
+
+fabric_local_uses_client_credentials <- function(auth_args) {
+  identical(auth_args$auth_type, "client_credentials") ||
+    (is.null(auth_args$auth_type) &&
+      (!is.null(auth_args$password) || !is.null(auth_args$certificate)) &&
+      is.null(auth_args$username) &&
+      is.null(auth_args$on_behalf_of))
 }
 
 fabric_local_cached_token <- function(audience, tenant_id, client_id) {
@@ -251,7 +324,11 @@ fabric_local_acquire_tokens <- function(
     }
     args <- c(
       list(
-        resource = c(audience, "offline_access"),
+        resource = if (fabric_local_uses_client_credentials(auth_args)) {
+          audience
+        } else {
+          c(audience, "offline_access")
+        },
         tenant = tenant_id,
         app = client_id,
         version = 2
@@ -285,6 +362,60 @@ fabric_local_jwt_claims <- function(token) {
       stop("Could not decode Fabric access-token claims", call. = FALSE)
     }
   )
+}
+
+fabric_local_validate_identity <- function(
+  claims,
+  tenant_id,
+  client_id,
+  expected_user_id,
+  auth_args
+) {
+  if (fabric_local_uses_client_credentials(auth_args)) {
+    actual_client_id <- claims$appid
+    if (is.null(actual_client_id) || !nzchar(actual_client_id)) {
+      actual_client_id <- claims$azp
+    }
+    actual_client_id <- if (is.null(actual_client_id)) {
+      "<missing>"
+    } else {
+      actual_client_id
+    }
+    if (!identical(tolower(actual_client_id), tolower(client_id))) {
+      stop(
+        paste(
+          "AzureAuth signed in as application",
+          shQuote(actual_client_id),
+          "instead of",
+          shQuote(client_id)
+        ),
+        call. = FALSE
+      )
+    }
+    message(
+      "Authenticated to Fabric as application ",
+      client_id,
+      " in tenant ",
+      tenant_id,
+      "."
+    )
+    return(invisible(TRUE))
+  }
+
+  actual_user_id <- if (is.null(claims$oid)) "<missing>" else claims$oid
+  if (!identical(tolower(actual_user_id), tolower(expected_user_id))) {
+    stop(
+      paste(
+        "AzureAuth signed in as object ID",
+        shQuote(actual_user_id),
+        "instead of",
+        shQuote(expected_user_id),
+        "Rerun with auth_args = list(use_cache = FALSE) to sign in again."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }
 
 fabric_local_token_provider <- function(tokens) {
@@ -341,13 +472,12 @@ fabric_local_require_dependencies <- function(install_adbc_driver) {
     "devtools",
     "AzureAuth",
     "DBI",
-    "duckdb",
-    "fs",
     "odbc",
     "adbi",
     "adbcdrivermanager",
     "nanoarrow",
-    "arrow"
+    "arrow",
+    "reticulate"
   )
   missing <- packages[
     !vapply(packages, requireNamespace, logical(1), quietly = TRUE)
@@ -421,6 +551,7 @@ run_fabric_integration_tests <- function(
   expected_user_id = "9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5",
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID"),
+  client_secret = Sys.getenv("FABRICQUERYR_CLIENT_SECRET"),
   auth_args = list(),
   install_adbc_driver = TRUE,
   filter = "integration-fabric",
@@ -461,6 +592,11 @@ run_fabric_integration_tests <- function(
 
   devtools::load_all(repository_root, quiet = TRUE)
   context <- fabric_local_auth_context(tenant_id, client_id)
+  auth_args <- fabric_local_resolve_auth_args(
+    auth_args,
+    client_id = context$client_id,
+    client_secret = client_secret
+  )
   tokens <- fabric_local_acquire_tokens(
     context$tenant_id,
     context$client_id,
@@ -471,19 +607,13 @@ run_fabric_integration_tests <- function(
     "https://api.fabric.microsoft.com/.default"
   )
   claims <- fabric_local_jwt_claims(fabric_token)
-  actual_user_id <- if (is.null(claims$oid)) "<missing>" else claims$oid
-  if (!identical(tolower(actual_user_id), tolower(expected_user_id))) {
-    stop(
-      paste(
-        "AzureAuth signed in as object ID",
-        shQuote(actual_user_id),
-        "instead of",
-        shQuote(expected_user_id),
-        "Rerun with auth_args = list(use_cache = FALSE) to sign in again."
-      ),
-      call. = FALSE
-    )
-  }
+  fabric_local_validate_identity(
+    claims,
+    tenant_id = context$tenant_id,
+    client_id = context$client_id,
+    expected_user_id = expected_user_id,
+    auth_args = auth_args
+  )
 
   token_variables <- c(
     "https://api.fabric.microsoft.com/.default" = "FABRIC_TEST_API_TOKEN",
@@ -540,7 +670,7 @@ run_fabric_integration_tests <- function(
     fabricQueryR.integration_auth_config = list(
       tenant_id = context$tenant_id,
       client_id = context$client_id,
-      auth_args = list(use_cache = TRUE)
+      auth_args = auth_args
     )
   )
 

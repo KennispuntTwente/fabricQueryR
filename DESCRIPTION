@@ -27,11 +27,9 @@ Suggests:
     adbi,
     arrow,
     DBI (>= 1.2.0),
-    duckdb (>= 1.5.4),
-    fs,
     knitr,
-    nanoarrow,
     odbc,
+    purrr,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
@@ -44,12 +42,11 @@ Imports:
     httr2,
     R6,
     dplyr,
-    digest,
     tibble,
-    purrr,
-    stringr,
     jsonlite,
     cli,
+    nanoarrow,
+    reticulate (>= 1.41),
     rlang,
     utils
 URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.github.io/fabricQueryR/
