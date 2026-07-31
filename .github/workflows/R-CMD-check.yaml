@@ -61,6 +61,10 @@ jobs:
         if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
         run: uv --directory tools/fabric-sandbox sync --locked
 
+      - name: Select the locked delta-rs Python environment
+        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        run: echo "RETICULATE_PYTHON=$GITHUB_WORKSPACE/tools/fabric-sandbox/.venv/bin/python" >> "$GITHUB_ENV"
+
       - name: Test the production delta-rs Arrow bridge
         if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
         env:

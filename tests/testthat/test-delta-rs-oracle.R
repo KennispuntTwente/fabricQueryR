@@ -4,12 +4,19 @@ fabric_test_delta_runtime_python <- function(root) {
   } else {
     file.path(".venv", "bin", "python")
   }
-  normalizePath(file.path(root, relative), winslash = "/", mustWork = TRUE)
+  python <- file.path(root, relative)
+  # On Unix, the venv executable is commonly a symlink to the base Python.
+  # Resolving that final component makes reticulate bypass the venv packages.
+  file.path(
+    normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
+    basename(python)
+  )
 }
 
 test_that("the production reader consumes deterministic delta-rs fixtures", {
   oracle <- fabric_test_require_delta_oracle()
   python <- fabric_test_delta_runtime_python(oracle$root)
+  expect_true(startsWith(python, paste0(oracle$root, "/.venv/")))
   if (reticulate::py_available(initialize = FALSE)) {
     selected <- normalizePath(
       reticulate::py_config()$python,
