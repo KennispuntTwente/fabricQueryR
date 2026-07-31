@@ -4015,6 +4015,121 @@ test_that("Delta deletion vectors decode inline and persisted storage", {
   )
 })
 
+test_that("Delta inline deletion vectors tolerate Z85 alignment padding", {
+  # Delta's Base85Codec pads unaligned input to a 4-byte boundary before
+  # encoding and truncates to `sizeInBytes` on decode. An array container uses
+  # two bytes per row index, so any odd cardinality is unaligned.
+  little_endian <- function(value, width) {
+    as.raw(floor(value / 256^(seq_len(width) - 1L)) %% 256)
+  }
+  roaring_array <- function(values) {
+    c(
+      little_endian(1681511377, 4L),
+      little_endian(1, 4L),
+      little_endian(0, 4L),
+      little_endian(0, 4L),
+      little_endian(12346, 4L),
+      little_endian(1, 4L),
+      little_endian(0, 2L),
+      little_endian(length(values) - 1L, 2L),
+      little_endian(0, 4L),
+      unlist(lapply(values, little_endian, width = 2L))
+    )
+  }
+  z85_encode <- function(bytes) {
+    alphabet <- strsplit(
+      paste0(
+        "0123456789abcdefghijklmnopqrstuvwxyz",
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#"
+      ),
+      "",
+      fixed = TRUE
+    )[[1L]]
+    remainder <- length(bytes) %% 4L
+    if (remainder) {
+      bytes <- c(bytes, as.raw(rep(0L, 4L - remainder)))
+    }
+    starts <- seq.int(1L, length(bytes), by = 4L)
+    paste(
+      vapply(
+        starts,
+        function(start) {
+          number <- sum(
+            as.numeric(as.integer(bytes[start + 0:3])) * 256^(3:0)
+          )
+          digits <- numeric(5L)
+          for (index in 5:1) {
+            digits[[index]] <- number %% 85
+            number <- floor(number / 85)
+          }
+          paste(alphabet[digits + 1L], collapse = "")
+        },
+        character(1)
+      ),
+      collapse = ""
+    )
+  }
+
+  for (values in list(c(0), c(3, 4, 7), c(3, 4, 7, 11, 18))) {
+    bitmap <- roaring_array(values)
+    expect_true(length(bitmap) %% 4L != 0L)
+    descriptor <- list(
+      storageType = "i",
+      pathOrInlineDv = z85_encode(bitmap),
+      sizeInBytes = length(bitmap),
+      cardinality = length(values)
+    )
+    expect_equal(
+      fabric_delta_read_deletion_vector(descriptor, tempdir()),
+      as.numeric(values),
+      info = paste("cardinality", length(values))
+    )
+  }
+
+  aligned <- roaring_array(c(3, 4, 7, 11, 18, 29))
+  expect_equal(length(aligned) %% 4L, 0L)
+  expect_equal(
+    fabric_delta_read_deletion_vector(
+      list(
+        storageType = "i",
+        pathOrInlineDv = z85_encode(aligned),
+        sizeInBytes = length(aligned),
+        cardinality = 6L
+      ),
+      tempdir()
+    ),
+    c(3, 4, 7, 11, 18, 29)
+  )
+
+  # More than three bytes of slack is a genuine descriptor mismatch.
+  expect_error(
+    fabric_delta_read_deletion_vector(
+      list(
+        storageType = "i",
+        pathOrInlineDv = z85_encode(aligned),
+        sizeInBytes = length(aligned) - 4L,
+        cardinality = 6L
+      ),
+      tempdir()
+    ),
+    "size does not match its descriptor",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_read_deletion_vector(
+      list(
+        storageType = "i",
+        pathOrInlineDv = z85_encode(aligned),
+        sizeInBytes = length(aligned) + 4L,
+        cardinality = 6L
+      ),
+      tempdir()
+    ),
+    "size does not match its descriptor",
+    fixed = TRUE
+  )
+})
+
 test_that("Delta deletion vectors decode portable Roaring golden vectors", {
   # Generated with pyroaring (CRoaring portable serialization), then wrapped
   # in Delta's RoaringBitmapArray framing and gzip-compressed for readability.

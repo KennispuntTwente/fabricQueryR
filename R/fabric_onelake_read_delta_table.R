@@ -3749,11 +3749,20 @@ fabric_delta_read_deletion_vector <- function(descriptor, table_dir) {
     bitmap_data <- fabric_delta_z85_decode(
       as.character(descriptor$pathOrInlineDv %||% "")
     )
-    if (length(bitmap_data) != size) {
+    # Z85 encodes four bytes at a time, so Delta pads unaligned bitmap data to
+    # the next 4-byte boundary before encoding and drops the padding again on
+    # decode. `sizeInBytes` is the raw size *before* encoding, so the decoded
+    # bytes are that size or up to three padding bytes longer. An array
+    # container stores two bytes per row index, which makes odd cardinalities
+    # unaligned; requiring an exact match rejected roughly half of all small
+    # inline deletion vectors.
+    padding <- length(bitmap_data) - size
+    if (padding < 0 || padding >= 4) {
       rlang::abort(
         "Inline Delta deletion vector size does not match its descriptor"
       )
     }
+    bitmap_data <- bitmap_data[seq_len(size)]
   } else {
     stored_path <- fabric_delta_deletion_vector_path(descriptor)
     path <- fabric_delta_local_file(table_dir, stored_path)
