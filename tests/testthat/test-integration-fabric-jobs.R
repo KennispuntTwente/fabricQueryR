@@ -49,11 +49,14 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   expect_equal(status$id, completed$id)
   expect_equal(status$status, "Completed")
 
+  # The failure run deliberately avoids high-concurrency mode. Fabric keeps a
+  # shared session alive when one of its statements fails, so a high-concurrency
+  # run reports Completed with no exit value; only a run that owns its Spark
+  # session is cancelled and surfaced to the job scheduler as Failed.
   failed_job <- fabric_job_run(
     item,
     parameters = list(mode = "failure"),
     default_lakehouse = lakehouse$id,
-    session_tag = paste0(session_tag, "_failure"),
     token = token
   )
   failed <- tryCatch(
@@ -81,14 +84,12 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   if (inherits(failed, "fabric_job_failed")) {
     expect_equal(failed$job_status$status, "Failed")
     expect_true(nzchar(failed$job_status$root_activity_id))
+    expect_null(failed$job_status$exit_value)
+    # Fabric reports the Spark session cancellation, not the notebook's own
+    # exception text; that text stays in the run snapshot.
     expect_true(nzchar(
       .fabric_job_failure_text(failed$job_status$failure_reason)
     ))
-    expect_match(
-      .fabric_job_failure_text(failed$job_status$failure_reason),
-      "FABRICQUERYR_INTENTIONAL_JOB_FAILURE",
-      fixed = TRUE
-    )
   }
 
   slow_job <- fabric_job_run(

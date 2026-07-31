@@ -63,6 +63,12 @@
 #' @param session_tag Optional Spark high-concurrency session tag containing
 #'   only letters, numbers, and underscores. Supplying it enables Fabric's
 #'   high-concurrency mode so related notebook runs may reuse Spark compute.
+#'   High-concurrency runs also change how failures are reported: Fabric keeps
+#'   the shared session alive when a statement fails, so the run is reported as
+#'   `Completed` with no exit value instead of `Failed`. Omit `session_tag`
+#'   when the caller must detect a failed notebook from the job status, and
+#'   have the notebook signal its own outcome through
+#'   `mssparkutils.notebook.exit()` otherwise.
 #' @param tenant_id Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Entra application ID. Defaults to

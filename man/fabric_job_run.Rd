@@ -123,7 +123,13 @@ attached to Warehouse compute. It must match what the notebook code needs.}
 
 \item{session_tag}{Optional Spark high-concurrency session tag containing
 only letters, numbers, and underscores. Supplying it enables Fabric's
-high-concurrency mode so related notebook runs may reuse Spark compute.}
+high-concurrency mode so related notebook runs may reuse Spark compute.
+High-concurrency runs also change how failures are reported: Fabric keeps
+the shared session alive when a statement fails, so the run is reported as
+\code{Completed} with no exit value instead of \code{Failed}. Omit \code{session_tag}
+when the caller must detect a failed notebook from the job status, and
+have the notebook signal its own outcome through
+\code{mssparkutils.notebook.exit()} otherwise.}
 
 \item{tenant_id}{Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
