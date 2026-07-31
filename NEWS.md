@@ -62,7 +62,8 @@ cancellation, while sessions also provide explicit cleanup;
   Parquet downloads are no longer required.
   - Continues to use the package's Fabric discovery and refreshable
   authentication layer for Lakehouses and Warehouse Delta exports, including
-  custom Fabric DFS endpoints.
+  custom Fabric DFS endpoints. Warehouse documentation and tests now account
+  for asynchronous Delta-log publication and verify exact post-mutation rows.
   - Supports `version` for time travel, `columns` and `limit` for narrowing the
   result, `result = "arrow_stream"` for an Arrow C stream (the default remains
   a tibble). Arrow results are now genuinely lazy and single-use.

@@ -321,8 +321,34 @@ test_that("the delta-rs reader reads the Fabric Warehouse export profile", {
     schema = "dbo"
   )
   expect_s3_class(types, "tbl_df")
-  expect_gt(nrow(types), 0L)
-  expect_gt(ncol(types), 0L)
+  types <- types[order(types$id), ]
+  expect_named(
+    types,
+    c(
+      "id",
+      "name",
+      "category",
+      "amount",
+      "active",
+      "event_date",
+      "loaded_at",
+      "nullable_value"
+    )
+  )
+  expect_equal(types$id, 1:3)
+  expect_identical(types$name, c("alpha", "beta", "gamma"))
+  expect_identical(types$category, c("A", "B", "A"))
+  expect_identical(types$amount, c("10.50", "20.00", NA_character_))
+  expect_identical(types$active, c(TRUE, FALSE, NA))
+  expect_identical(
+    types$event_date,
+    as.Date(c("2026-01-01", "2026-01-02", NA_character_))
+  )
+  expect_s3_class(types$loaded_at, "POSIXct")
+  expect_identical(
+    types$nullable_value,
+    c(NA_character_, "present", NA_character_)
+  )
 
   mutations <- fabric_test_read_delta(
     manifest,
@@ -331,7 +357,28 @@ test_that("the delta-rs reader reads the Fabric Warehouse export profile", {
     schema = "dbo"
   )
   expect_s3_class(mutations, "tbl_df")
-  expect_gt(ncol(mutations), 0L)
+  mutations <- mutations[order(mutations$id), ]
+  expect_named(mutations, names(types))
+  expect_equal(mutations$id, c(2L, 3L, 4L))
+  expect_identical(
+    mutations$name,
+    c("beta-updated", "gamma", "alpha-replacement")
+  )
+  expect_identical(mutations$amount, c("20.00", NA_character_, "10.50"))
+
+  named_types <- fabric_onelake_read_delta_table(
+    table_path = warehouse$tables$types,
+    workspace_name = manifest$workspace_name,
+    lakehouse_name = warehouse$display_name,
+    schema = "dbo",
+    item_type = "Warehouse",
+    token = fabric_test_token_provider(),
+    verbose = FALSE
+  )
+  named_types <- named_types[order(named_types$id), ]
+  rownames(types) <- NULL
+  rownames(named_types) <- NULL
+  expect_equal(named_types, types)
 })
 
 test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {

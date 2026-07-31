@@ -167,6 +167,59 @@ def test_wait_for_delta_log_publication_requires_a_new_log():
     assert sleeps == [3]
 
 
+def test_wait_for_delta_log_publication_requires_readable_expected_rows():
+    threshold = datetime(2026, 7, 30, tzinfo=timezone.utc)
+    published_path = SimpleNamespace(
+        name=(
+            "warehouse/Tables/dbo/table/_delta_log/"
+            "00000000000000000001.json"
+        ),
+        is_directory=False,
+        last_modified=threshold,
+    )
+
+    class FileSystem:
+        def get_paths(self, *, path, recursive):
+            return [published_path]
+
+    class Service:
+        def get_file_system_client(self, workspace_id):
+            return FileSystem()
+
+    counts = iter([2, 3])
+    uris = []
+
+    def table_count(uri):
+        uris.append(uri)
+        return next(counts)
+
+    sleeps = []
+    published = wait_for_delta_log_publication(
+        "workspace",
+        "warehouse",
+        "table",
+        not_before=threshold,
+        attempts=2,
+        expected_rows=3,
+        service_client=Service(),
+        table_count=table_count,
+        sleep=sleeps.append,
+    )
+
+    assert published.endswith("00000000000000000001.json")
+    assert uris == [
+        (
+            "abfss://workspace@onelake.dfs.fabric.microsoft.com/"
+            "warehouse/Tables/dbo/table"
+        ),
+        (
+            "abfss://workspace@onelake.dfs.fabric.microsoft.com/"
+            "warehouse/Tables/dbo/table"
+        ),
+    ]
+    assert sleeps == [10]
+
+
 def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     settings = SandboxSettings(
         workspace_id="workspace-id",
@@ -351,13 +404,14 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.wait_for_delta_log_publication",
-        lambda workspace_id, item_id, table, *, not_before: calls.append(
+        lambda workspace_id, item_id, table, *, not_before, expected_rows: calls.append(
             (
                 "wait_for_delta_log",
                 workspace_id,
                 item_id,
                 table,
                 not_before,
+                expected_rows,
             )
         )
         or "00000000000000000000.json",
@@ -444,16 +498,20 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "token-for-https://database.windows.net/.default",
         True,
     ) in calls
-    delta_log_call = next(
+    delta_log_calls = [
         call for call in calls if call[0] == "wait_for_delta_log"
-    )
-    assert delta_log_call[1:4] == (
-        "workspace-id",
-        "TestWarehouse-id",
+    ]
+    assert [call[3] for call in delta_log_calls] == [
+        "fabricqueryr_sql_types",
         "fabricqueryr_sql_mutations",
+    ]
+    assert all(
+        call[1:3] == ("workspace-id", "TestWarehouse-id")
+        for call in delta_log_calls
     )
-    assert delta_log_call[4].tzinfo is not None
-    assert calls.index(delta_log_call) > calls.index(
+    assert all(call[4].tzinfo is not None for call in delta_log_calls)
+    assert all(call[5] == 3 for call in delta_log_calls)
+    assert calls.index(delta_log_calls[0]) > calls.index(
         (
             "seed_sql",
             "warehouse.sql.test",

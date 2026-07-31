@@ -47,7 +47,9 @@ def wait_for_delta_log_publication(
     not_before: datetime,
     attempts: int = 60,
     retry_delay: float = 10,
+    expected_rows: int | None = None,
     service_client: DataLakeServiceClient | None = None,
+    table_count: Callable[[str], int] | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> str:
     """Wait for Fabric's background Warehouse Delta-log publication."""
@@ -61,7 +63,28 @@ def wait_for_delta_log_publication(
     )
     filesystem = service.get_file_system_client(workspace_id)
     log_path = f"{item_id}/Tables/dbo/{table}/_delta_log"
-    last_error: AzureError | None = None
+    table_uri = (
+        f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+        f"{item_id}/Tables/dbo/{table}"
+    )
+    if expected_rows is not None and table_count is None:
+        from deltalake import DeltaTable
+
+        storage_token = get_credential().get_token(
+            "https://storage.azure.com/.default"
+        ).token
+
+        def table_count(uri: str) -> int:
+            delta_table = DeltaTable(
+                uri,
+                storage_options={
+                    "bearer_token": storage_token,
+                    "use_fabric_endpoint": "true",
+                },
+            )
+            return delta_table.count()
+
+    last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
             paths = filesystem.get_paths(path=log_path, recursive=False)
@@ -75,14 +98,25 @@ def wait_for_delta_log_publication(
                     and modified.astimezone(timezone.utc)
                     >= not_before.astimezone(timezone.utc)
                 ):
-                    return name
-            last_error = None
+                    if expected_rows is None:
+                        return name
+                    try:
+                        actual_rows = table_count(table_uri)
+                    except Exception as error:
+                        last_error = error
+                        continue
+                    if actual_rows == expected_rows:
+                        return name
+                    last_error = RuntimeError(
+                        f"Warehouse Delta table has {actual_rows} rows; "
+                        f"expected {expected_rows}: {table_uri}"
+                    )
         except AzureError as error:
             last_error = error
         if attempt < attempts:
             sleep(retry_delay)
     raise RuntimeError(
-        "Warehouse Delta log was not published after "
+        "Warehouse Delta log was not published and readable after "
         f"{attempts} attempts: {log_path}"
     ) from last_error
 
@@ -213,13 +247,18 @@ def seed(settings: SandboxSettings) -> None:
         )
         print(f"SQL fixture seeded: {display_name}.dbo.fabricqueryr_sql_types")
         if display_name == warehouse_item["displayName"]:
-            published = wait_for_delta_log_publication(
-                workspace_id,
-                warehouse_item["id"],
-                SQL_MUTATION_TABLE,
-                not_before=publication_start,
-            )
-            print(f"Warehouse Delta log published: {published}")
+            for table in (SQL_FIXTURE_TABLE, SQL_MUTATION_TABLE):
+                published = wait_for_delta_log_publication(
+                    workspace_id,
+                    warehouse_item["id"],
+                    table,
+                    not_before=publication_start,
+                    expected_rows=3,
+                )
+                print(
+                    "Warehouse Delta log published and readable: "
+                    f"{published}"
+                )
 
     with FabricApi(get_credential()) as api:
         api.update_graphql_definition(

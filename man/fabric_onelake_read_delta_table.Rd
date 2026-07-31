@@ -102,6 +102,10 @@ OneLake credentials use the \verb{https://storage.azure.com/.default} audience
 and are passed to delta-rs as a bearer token with its Fabric endpoint
 option enabled.
 
+Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
+the latest snapshot published to OneLake, which can lag the current Warehouse
+transaction state or remain fixed while Delta-log publishing is paused.
+
 \code{result = "arrow_stream"} is lazy and single-use. Authentication failures
 that occur after part of a lazy stream has been consumed cannot be retried.
 The default tibble result is collected before return and is retried once for
