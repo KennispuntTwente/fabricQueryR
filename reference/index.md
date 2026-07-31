@@ -55,6 +55,12 @@ Resolve and read supported Delta Lake snapshots from OneLake
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Delta table from Microsoft Fabric OneLake
+- [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
+  : Inspect the optional Python Delta runtime
+- [`format(`*`<fabric_delta_timestamp_ntz>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/format.fabric_delta_timestamp_ntz.md)
+  : Format a Delta timestamp without time zone as wall-clock text
+- [`as.POSIXct(`*`<fabric_delta_timestamp_ntz>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/as.POSIXct.fabric_delta_timestamp_ntz.md)
+  : Localize a Delta timestamp without time zone
 
 ## KQL
 

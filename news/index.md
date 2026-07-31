@@ -81,21 +81,47 @@
   remains the one-shot interface.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  now reads snapshots from JSON commits, V1 Parquet checkpoints, and V2
-  Parquet/JSON checkpoints; supports historical reads through `version`;
-  preserves logical schemas and typed partition values; and supports
-  current Fabric reader 3 tables with name- or ID-based column mapping,
-  deletion vectors, `timestampNtz`, type widening, shallow-clone paths,
-  and native Variant values. BIGINT and DECIMAL values now remain exact
-  across the R boundary, while legacy `void` fields are reconstructed as
-  logical missing values. Checkpoint candidates and deletion vectors are
-  reconciled by their protocol identities. Recursive schemas, metadata
-  formats, and mutually reconciling commit actions are validated before
-  reading. The Fabric Runtime 2.0 integration matrix now covers nested
-  column mapping, dense/checkpoint deletion vectors, nested type
-  widening, typed and null partitions, and mixed shredded/unshredded
-  Variant files. Unsafe retained staging and unsupported Delta features
-  fail closed instead of risking incorrect results.
+  now:
+
+  - Uses the Python `deltalake` package and its delta-rs/DataFusion
+    table provider instead of maintaining a separate Delta protocol
+    engine in R.
+    [`reticulate::py_require()`](https://rstudio.github.io/reticulate/reference/py_require.html)
+    installs the optional Python runtime on first Delta use; package
+    installation, package loading, and non-Delta functions do not
+    initialize Python or download the binary wheel. Reticulate-managed
+    environments may also include reticulate’s normal runtime
+    dependencies.
+  - Streams query results through Python and R `nanoarrow` using the
+    Arrow C interface. Python `pyarrow`, DuckDB, local transaction-log
+    staging, and local Parquet downloads are no longer required.
+  - Continues to use the package’s Fabric discovery and refreshable
+    authentication layer for Lakehouses and Warehouse Delta exports,
+    including custom Fabric DFS endpoints.
+  - Supports `version` for time travel, `columns` and `limit` for
+    narrowing the result, `result = "arrow_stream"` for an Arrow C
+    stream (the default remains a tibble). Arrow results are now
+    genuinely lazy and single-use.
+  - Accepts discovery records for `workspace_name` and `lakehouse_name`;
+    a schema-enabled Lakehouse record supplies its default schema.
+  - Preserves `long` as
+    [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
+    decimals as exact character data, and `timestamp_ntz` as a
+    wall-clock class, recursively through nested Arrow values. The Arrow
+    bridge normalizes DataFusion view types for compatibility with the R
+    `arrow` package.
+  - Deprecates and ignores `dest_dir`, because no local staging occurs.
+    `timestamp_partition_timezone` is retained as a compatibility formal
+    but is rejected when supplied because delta-rs has no equivalent
+    override.
+  - Is checked with deterministic local delta-rs fixtures and direct
+    live Fabric gates for deletion vectors, column mapping, type
+    widening, V2 checkpoints, shallow clones, and Warehouse exports.
+
+- Added
+  [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
+  to inspect the optional Python runtime and its declared requirements.
+  Inspection is non-initializing by default.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset
