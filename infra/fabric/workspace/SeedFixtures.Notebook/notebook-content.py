@@ -1102,6 +1102,48 @@ try:
         """
     )
 
+    stage = "write pending type-widening Delta table"
+    # Every data file predates the type change: the table is widened but no row
+    # is written afterwards. Readers that lean on the widened physical type of a
+    # newer file cannot fall back to it here and must convert the narrow values
+    # themselves.
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_pending")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_type_widened_pending (
+          id INT,
+          amount DECIMAL(10, 2),
+          occurred DATE,
+          counted TINYINT,
+          ratio FLOAT,
+          label STRING
+        )
+        USING DELTA
+        TBLPROPERTIES (
+          'delta.enableTypeWidening' = 'true',
+          'delta.feature.timestampNtz' = 'supported'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_type_widened_pending
+        VALUES
+          (1, 12.34, DATE '2026-01-01', 7, CAST(0.5 AS FLOAT), 'narrow'),
+          (2, -0.50, DATE '1969-12-31', -128, CAST(-1.5 AS FLOAT), 'edges')
+        """
+    )
+    for pending_change in (
+        "ALTER COLUMN id TYPE BIGINT",
+        "ALTER COLUMN amount TYPE DECIMAL(14, 4)",
+        "ALTER COLUMN occurred TYPE TIMESTAMP_NTZ",
+        "ALTER COLUMN counted TYPE INT",
+        "ALTER COLUMN ratio TYPE DOUBLE",
+    ):
+        spark.sql(
+            f"ALTER TABLE dbo.fabricqueryr_type_widened_pending {pending_change}"
+        )
+
     stage = "write nested type-widening Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_nested")
     spark.sql(
@@ -1431,6 +1473,9 @@ try:
         ),
         "fabricqueryr_type_widened_exact": (
             "fabricqueryr_spark_oracle_type_widened_exact"
+        ),
+        "fabricqueryr_type_widened_pending": (
+            "fabricqueryr_spark_oracle_type_widened_pending"
         ),
         "fabricqueryr_type_widened_nested": (
             "fabricqueryr_spark_oracle_type_widened_nested"

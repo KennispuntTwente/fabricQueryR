@@ -266,6 +266,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "spark_oracle_type_widened_exact": (
                         "fabricqueryr_spark_oracle_type_widened_exact"
                     ),
+                    "spark_oracle_type_widened_pending": (
+                        "fabricqueryr_spark_oracle_type_widened_pending"
+                    ),
                     "spark_oracle_type_widened_nested": (
                         "fabricqueryr_spark_oracle_type_widened_nested"
                     ),
@@ -287,6 +290,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "shallow_clone": "fabricqueryr_shallow_clone",
                     "type_widened": "fabricqueryr_type_widened",
                     "type_widened_exact": "fabricqueryr_type_widened_exact",
+                    "type_widened_pending": (
+                        "fabricqueryr_type_widened_pending"
+                    ),
                     "type_widened_nested": (
                         "fabricqueryr_type_widened_nested"
                     ),

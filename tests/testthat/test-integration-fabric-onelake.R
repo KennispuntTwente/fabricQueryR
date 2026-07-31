@@ -920,6 +920,15 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       rows_only = TRUE
     ),
     list(
+      name = "spark_pending_type_widening",
+      key = "type_widened_pending",
+      oracle_key = "spark_oracle_type_widened_pending",
+      item = lakehouse,
+      table = lakehouse$tables$type_widened_pending,
+      expected_rows = 2,
+      rows_only = TRUE
+    ),
+    list(
       name = "spark_nested_type_widening",
       key = "type_widened_nested",
       oracle_key = "spark_oracle_type_widened_nested",
@@ -1269,6 +1278,60 @@ test_that("Delta reader handles DV stress and exact widening", {
       "2026-07-28 12:34:56.123456",
       "2026-01-01 00:00:00.000000"
     )
+  )
+
+  # Every data file in this table predates the recorded type changes, so the
+  # reader cannot borrow a widened physical type from a newer file.
+  pending <- read_table(lakehouse$tables$type_widened_pending)
+  pending <- pending[order(pending$id), ]
+  expect_s3_class(pending$id, "integer64")
+  expect_identical(as.character(pending$id), c("1", "2"))
+  expect_identical(pending$amount, c("12.3400", "-0.5000"))
+  expect_s3_class(pending$occurred, "fabric_delta_timestamp_ntz")
+  expect_identical(
+    unclass(pending$occurred),
+    c("2026-01-01 00:00:00.000000", "1969-12-31 00:00:00.000000")
+  )
+  expect_identical(
+    as.POSIXct(pending$occurred, tz = "UTC"),
+    as.POSIXct(c("2026-01-01", "1969-12-31"), tz = "UTC")
+  )
+  expect_identical(pending$counted, c(7L, -128L))
+  expect_identical(pending$ratio, c(0.5, -1.5))
+
+  # Time travel to the version at which the last type change landed but before
+  # any widened row was written reproduces the same narrow-file-only shape.
+  exact_stage <- tempfile("fabricqueryr-widen-exact-")
+  on.exit(
+    if (fs::dir_exists(exact_stage)) fs::dir_delete(exact_stage),
+    add = TRUE
+  )
+  fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$type_widened_exact,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    dest_dir = exact_stage,
+    verbose = FALSE
+  )
+  exact_version <- fabric_delta_resolve_snapshot(exact_stage)$version
+  before_insert <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$type_widened_exact,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = token,
+    version = exact_version - 1,
+    verbose = FALSE
+  )
+  expect_equal(nrow(before_insert), 1L)
+  expect_s3_class(before_insert$id, "integer64")
+  expect_identical(as.character(before_insert$id), "1")
+  expect_identical(before_insert$amount, "12.3400")
+  expect_identical(
+    unclass(before_insert$occurred),
+    "2026-01-01 00:00:00.000000"
   )
 
   nested <- read_table(lakehouse$tables$type_widened_nested)

@@ -59,6 +59,9 @@ cancellation, while sessions also provide explicit cleanup;
   values, and Warehouse Delta exports. Support is an explicit feature set
   rather than a blanket claim for Delta Lake 4.2; unknown reader features and
   other unsupported input fail closed.
+  - Converts values from data files written *before* a recorded type change to
+  the current logical type, so widening to `decimal` or `timestamp_ntz` is
+  exact even when no file has been written since the change.
   - Supports `version` for time travel, `columns` and `limit` for narrowing the
   result, `result = "arrow_stream"` for an Arrow C stream (the default remains
   a tibble), and `timestamp_partition_timezone` for legacy offset-less

@@ -294,6 +294,9 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "spark_oracle_type_widened_exact": (
             "fabricqueryr_spark_oracle_type_widened_exact"
         ),
+        "spark_oracle_type_widened_pending": (
+            "fabricqueryr_spark_oracle_type_widened_pending"
+        ),
         "spark_oracle_type_widened_nested": (
             "fabricqueryr_spark_oracle_type_widened_nested"
         ),
@@ -313,6 +316,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "shallow_clone": "fabricqueryr_shallow_clone",
         "type_widened": "fabricqueryr_type_widened",
         "type_widened_exact": "fabricqueryr_type_widened_exact",
+        "type_widened_pending": "fabricqueryr_type_widened_pending",
         "type_widened_nested": "fabricqueryr_type_widened_nested",
         "type_widened_map_key": "fabricqueryr_type_widened_map_key",
         "v2_checkpoint": "fabricqueryr_v2_checkpoint",

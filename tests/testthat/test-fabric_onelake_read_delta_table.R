@@ -3389,6 +3389,235 @@ test_that("Delta type widening validates stable and preview transitions", {
   )
 })
 
+test_that("Delta type widening converts files written before the change", {
+  # Every data file here predates the recorded type change, so DuckDB's
+  # `UNION ALL BY NAME` cannot promote the column to the widened type. The
+  # reader must convert to the current logical Delta type on its own.
+  table_dir <- fs::path_temp(paste0("delta-widen-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT ",
+      "CAST(5 AS INTEGER) AS amount, ",
+      "DATE '2024-03-05' AS occurred, ",
+      "CAST(7 AS TINYINT) AS counted, ",
+      "CAST(0.5 AS FLOAT) AS ratio, ",
+      "{'inner': CAST(3 AS INTEGER)} AS nested, ",
+      "[CAST(4 AS INTEGER)] AS listed, ",
+      "MAP {'k': CAST(6 AS INTEGER)} AS keyed) TO ",
+      as.character(DBI::dbQuoteString(
+        con,
+        gsub("\\\\", "/", fs::path(table_dir, "part.parquet"))
+      )),
+      " (FORMAT PARQUET)"
+    )
+  )
+  widened <- function(name, type, from) {
+    list(
+      name = name,
+      type = type,
+      nullable = TRUE,
+      metadata = list(
+        "delta.typeChanges" = list(list(fromType = from, toType = type))
+      )
+    )
+  }
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        widened("amount", "decimal(12,2)", "integer"),
+        widened("occurred", "timestamp_ntz", "date"),
+        widened("counted", "integer", "byte"),
+        widened("ratio", "double", "float"),
+        list(
+          name = "nested",
+          type = list(
+            type = "struct",
+            fields = list(widened("inner", "decimal(13,3)", "integer"))
+          ),
+          nullable = TRUE,
+          metadata = list()
+        ),
+        list(
+          name = "listed",
+          type = list(type = "array", elementType = "decimal(11,1)"),
+          nullable = TRUE,
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "integer",
+              toType = "decimal(11,1)",
+              fieldPath = "element"
+            ))
+          )
+        ),
+        list(
+          name = "keyed",
+          type = list(
+            type = "map",
+            keyType = "string",
+            valueType = "decimal(14,4)"
+          ),
+          nullable = TRUE,
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "integer",
+              toType = "decimal(14,4)",
+              fieldPath = "value"
+            ))
+          )
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      paste0(
+        '{"protocol":{"minReaderVersion":3,"minWriterVersion":7,',
+        '"readerFeatures":["typeWidening","timestampNtz"],',
+        '"writerFeatures":["typeWidening","timestampNtz"]}}'
+      ),
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            format = list(provider = "parquet", options = list()),
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      ),
+      '{"add":{"path":"part.parquet","partitionValues":{}}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_identical(result$amount, "5.00")
+  expect_s3_class(result$occurred, "fabric_delta_timestamp_ntz")
+  expect_identical(unclass(result$occurred), "2024-03-05 00:00:00.000000")
+  expect_identical(
+    as.POSIXct(result$occurred, tz = "UTC"),
+    as.POSIXct("2024-03-05 00:00:00", tz = "UTC")
+  )
+  expect_identical(result$counted, 7L)
+  expect_identical(result$ratio, 0.5)
+  expect_identical(result$nested$inner, "3.000")
+  expect_identical(result$listed[[1L]], "4.0")
+  expect_identical(result$keyed[[1L]]$value, "6.0000")
+})
+
+test_that("Delta type widening keeps mixed narrow and widened files exact", {
+  table_dir <- fs::path_temp(paste0("delta-widen-mixed-", sample.int(1e9, 1)))
+  log_dir <- fs::path(table_dir, "_delta_log")
+  fs::dir_create(log_dir, recurse = TRUE)
+  on.exit(fs::dir_delete(table_dir), add = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  copy <- function(name, select) {
+    DBI::dbExecute(
+      con,
+      paste0(
+        "COPY (SELECT ",
+        select,
+        ") TO ",
+        as.character(DBI::dbQuoteString(
+          con,
+          gsub("\\\\", "/", fs::path(table_dir, name))
+        )),
+        " (FORMAT PARQUET)"
+      )
+    )
+  }
+  copy(
+    "narrow.parquet",
+    "CAST(1 AS INTEGER) AS id, CAST(5 AS INTEGER) AS amount, DATE '2024-03-05' AS occurred"
+  )
+  copy(
+    "wide.parquet",
+    paste0(
+      "CAST(2 AS INTEGER) AS id, ",
+      "CAST('1234567890.12' AS DECIMAL(12,2)) AS amount, ",
+      "TIMESTAMP '2026-07-28 12:34:56.123456' AS occurred"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "id", type = "integer", nullable = TRUE, metadata = list()),
+        list(
+          name = "amount",
+          type = "decimal(12,2)",
+          nullable = TRUE,
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "integer",
+              toType = "decimal(12,2)"
+            ))
+          )
+        ),
+        list(
+          name = "occurred",
+          type = "timestamp_ntz",
+          nullable = TRUE,
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "date",
+              toType = "timestamp_ntz"
+            ))
+          )
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      paste0(
+        '{"protocol":{"minReaderVersion":3,"minWriterVersion":7,',
+        '"readerFeatures":["typeWidening","timestampNtz"],',
+        '"writerFeatures":["typeWidening","timestampNtz"]}}'
+      ),
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            format = list(provider = "parquet", options = list()),
+            schemaString = schema,
+            partitionColumns = list(),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      ),
+      '{"add":{"path":"narrow.parquet","partitionValues":{}}}',
+      '{"add":{"path":"wide.parquet","partitionValues":{}}}'
+    ),
+    fs::path(log_dir, "00000000000000000000.json"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+  result <- result[order(result$id), ]
+
+  expect_identical(result$amount, c("5.00", "1234567890.12"))
+  expect_identical(
+    unclass(result$occurred),
+    c("2024-03-05 00:00:00.000000", "2026-07-28 12:34:56.123456")
+  )
+})
+
 test_that("Delta reader accepts supported features and rejects unsafe ones", {
   state <- list(
     protocol = list(

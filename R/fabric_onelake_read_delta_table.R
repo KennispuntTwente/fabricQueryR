@@ -4364,9 +4364,10 @@ fabric_delta_read_projection <- function(
       is_void <- is.character(field$type) &&
         length(field$type) == 1L &&
         identical(tolower(field$type), "void")
+      is_partition <- name %in% schema$partitionColumns
       if (is_void) {
         expression <- "NULL"
-      } else if (name %in% schema$partitionColumns) {
+      } else if (is_partition) {
         partition_index <- match(name, schema$partitionColumns)
         expression <- paste0(
           "delta_partitions.",
@@ -4427,6 +4428,16 @@ fabric_delta_read_projection <- function(
           ")) AS ",
           alias
         ))
+      }
+      # Data files written before a supported type change still hold the older,
+      # narrower physical type. Convert to the current logical Delta type before
+      # rendering, so exact `decimal` and `timestamp_ntz` text is produced from
+      # the widened type rather than from whatever the Parquet file happens to
+      # store. Without this, `integer` -> `decimal(12,2)` renders "5" instead of
+      # "5.00", and `date` -> `timestamp_ntz` renders an unusable date string.
+      logical_type <- fabric_delta_duckdb_type(con, field$type)
+      if (!is_partition && !identical(logical_type, type)) {
+        expression <- paste0("CAST(", expression, " AS ", logical_type, ")")
       }
       paste0("CAST(", expression, " AS ", type, ") AS ", alias)
     },
