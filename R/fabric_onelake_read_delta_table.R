@@ -2078,7 +2078,6 @@ fabric_delta_validate_type_widening <- function(schema, reader_features) {
   if (!length(feature)) {
     return(invisible(schema))
   }
-  preview <- identical(feature[[1L]], "typeWidening-preview")
   resolve_path <- function(type, path) {
     current <- type
     if (nzchar(path)) {
@@ -2167,11 +2166,7 @@ fabric_delta_validate_type_widening <- function(schema, reader_features) {
               is.na(from) ||
               length(to) != 1L ||
               is.na(to) ||
-              !fabric_delta_supported_type_change(
-                from,
-                to,
-                preview = preview
-              )
+              !fabric_delta_supported_type_change(from, to)
           ) {
             fabric_delta_abort_unsupported(
               paste0(
@@ -2231,9 +2226,14 @@ fabric_delta_validate_type_widening <- function(schema, reader_features) {
 }
 
 #' Check one documented Delta widening transition
+#'
+#' `typeWidening` and `typeWidening-preview` name the same set of supported
+#' transitions: Delta's `TypeWidening.isTypeChangeSupported()` does not branch on
+#' which of the two feature names a table carries. The preview name only changes
+#' the error message a writer produces for an unsupported change.
 #' @keywords internal
 #' @noRd
-fabric_delta_supported_type_change <- function(from, to, preview = FALSE) {
+fabric_delta_supported_type_change <- function(from, to) {
   if (!nzchar(from) || !nzchar(to)) {
     return(FALSE)
   }
@@ -2262,34 +2262,26 @@ fabric_delta_supported_type_change <- function(from, to, preview = FALSE) {
         precision_change >= scale_change
     )
   }
-  if (preview) {
-    allowed <- list(
-      byte = c("short", "integer"),
-      short = "integer",
-      float = "double"
+  if (
+    grepl(decimal, to) &&
+      from %in% c("byte", "short", "integer", "long")
+  ) {
+    to_precision <- as.numeric(to_parts[[2L]])
+    to_scale <- as.numeric(to_parts[[3L]])
+    required_integer_digits <- if (identical(from, "long")) 20 else 10
+    return(
+      to_precision <= 38 &&
+        to_scale <= to_precision &&
+        to_precision >= required_integer_digits + to_scale
     )
-  } else {
-    allowed <- list(
-      byte = c("short", "integer", "long", "double"),
-      short = c("integer", "long", "double"),
-      integer = c("long", "double"),
-      float = "double",
-      date = "timestamp_ntz"
-    )
-    if (
-      grepl(decimal, to) &&
-        from %in% c("byte", "short", "integer", "long")
-    ) {
-      to_precision <- as.numeric(to_parts[[2L]])
-      to_scale <- as.numeric(to_parts[[3L]])
-      required_integer_digits <- if (identical(from, "long")) 20 else 10
-      return(
-        to_precision <= 38 &&
-          to_scale <= to_precision &&
-          to_precision >= required_integer_digits + to_scale
-      )
-    }
   }
+  allowed <- list(
+    byte = c("short", "integer", "long", "double"),
+    short = c("integer", "long", "double"),
+    integer = c("long", "double"),
+    float = "double",
+    date = "timestamp_ntz"
+  )
   to %in% (allowed[[from]] %||% character())
 }
 

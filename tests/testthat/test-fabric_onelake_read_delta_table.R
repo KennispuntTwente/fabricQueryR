@@ -3483,14 +3483,11 @@ test_that("Delta type widening validates stable and preview transitions", {
   expect_invisible(
     fabric_delta_validate_type_widening(schema, "typeWidening")
   )
-  expect_error(
-    fabric_delta_validate_type_widening(
-      schema,
-      "typeWidening-preview"
-    ),
-    "integer -> long",
-    fixed = TRUE,
-    class = "fabric_delta_unsupported_error"
+  # Delta's `TypeWidening.isTypeChangeSupported()` does not branch on which of
+  # the two feature names a table carries, so a preview-named table supports
+  # exactly the same transitions.
+  expect_invisible(
+    fabric_delta_validate_type_widening(schema, "typeWidening-preview")
   )
   expect_true(
     fabric_delta_supported_type_change(
@@ -3527,8 +3524,63 @@ test_that("Delta type widening validates stable and preview transitions", {
     fabric_delta_supported_type_change("long", "decimal(39,0)")
   )
   expect_true(fabric_delta_supported_type_change("byte", "double"))
-  expect_false(
-    fabric_delta_supported_type_change("byte", "double", preview = TRUE)
+
+  # Every transition the stable feature supports must also be accepted under
+  # the preview feature name.
+  preview_transitions <- list(
+    c("byte", "short"),
+    c("byte", "integer"),
+    c("byte", "long"),
+    c("byte", "double"),
+    c("short", "integer"),
+    c("short", "long"),
+    c("short", "double"),
+    c("integer", "long"),
+    c("integer", "double"),
+    c("float", "double"),
+    c("date", "timestamp_ntz"),
+    c("integer", "decimal(12,2)"),
+    c("long", "decimal(23,3)"),
+    c("decimal(8,2)", "decimal(12,4)")
+  )
+  for (transition in preview_transitions) {
+    field <- list(
+      name = "value",
+      type = transition[[2L]],
+      metadata = list(
+        "delta.typeChanges" = list(list(
+          fromType = transition[[1L]],
+          toType = transition[[2L]]
+        ))
+      )
+    )
+    expect_true(
+      is.list(fabric_delta_validate_type_widening(
+        list(fields = list(field)),
+        "typeWidening-preview"
+      )),
+      info = paste(transition, collapse = " -> ")
+    )
+  }
+  expect_error(
+    fabric_delta_validate_type_widening(
+      list(
+        fields = list(list(
+          name = "value",
+          type = "integer",
+          metadata = list(
+            "delta.typeChanges" = list(list(
+              fromType = "double",
+              toType = "integer"
+            ))
+          )
+        ))
+      ),
+      "typeWidening-preview"
+    ),
+    "double -> integer",
+    fixed = TRUE,
+    class = "fabric_delta_unsupported_error"
   )
 
   nested <- list(
