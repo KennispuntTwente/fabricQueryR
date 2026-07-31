@@ -210,6 +210,10 @@ test_that("core Fabric Delta features are handled by the table provider", {
       tables$column_mapped_id_partitioned_dv,
       tables$spark_oracle_column_mapped_id_partitioned_dv
     ),
+    struct_validity = c(
+      tables$struct_validity,
+      tables$spark_oracle_struct_validity
+    ),
     deletion_vectors = c(
       tables$deletion_vectors,
       tables$spark_oracle_deletion_vectors

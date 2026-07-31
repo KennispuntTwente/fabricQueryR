@@ -107,7 +107,10 @@ returned as exact character values, including when nested. Delta
 \code{timestamp_ntz} values use the character-backed
 \code{fabric_delta_timestamp_ntz} class. The Arrow stream preserves
 timezone-free timestamps as Arrow timestamps and represents decimals as
-strings, matching the R result's exact-decimal contract.
+strings, matching the R result's exact-decimal contract. Nullable struct
+columns retain their parent validity through the
+\code{fabric_delta_struct_column} class, so a null struct remains distinct from a
+present struct whose children are all null.
 }
 \examples{
 \dontrun{

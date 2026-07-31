@@ -34,7 +34,10 @@
 #' `timestamp_ntz` values use the character-backed
 #' `fabric_delta_timestamp_ntz` class. The Arrow stream preserves
 #' timezone-free timestamps as Arrow timestamps and represents decimals as
-#' strings, matching the R result's exact-decimal contract.
+#' strings, matching the R result's exact-decimal contract. Nullable struct
+#' columns retain their parent validity through the
+#' `fabric_delta_struct_column` class, so a null struct remains distinct from a
+#' present struct whose children are all null.
 #'
 #' @param table_path Table name. For backward compatibility, a slash-separated
 #'   value is accepted and its final segment is used; select a schema with
@@ -656,9 +659,20 @@ fabric_delta_collect_reader <- function(reader) {
   )
   target_schema <- nanoarrow::infer_nanoarrow_schema(stream)
   ptype <- fabric_delta_collect_ptype(source_schema, target_schema)
-  value <- nanoarrow::convert_array_stream(stream, to = ptype)
+  arrays <- nanoarrow::collect_array_stream(stream)
+  collected_stream <- nanoarrow::basic_array_stream(
+    arrays,
+    schema = target_schema
+  )
+  value <- nanoarrow::convert_array_stream(collected_stream, to = ptype)
   value <- fabric_delta_restore_collected_types(value, source_schema)
-  tibble::as_tibble(value)
+  value <- tibble::as_tibble(value)
+  fabric_delta_restore_struct_validity(
+    value,
+    source_schema,
+    lapply(arrays, fabric_delta_array_descriptor),
+    top_level = TRUE
+  )
 }
 
 #' Build a recursive nanoarrow collection prototype
@@ -733,6 +747,139 @@ fabric_delta_restore_collected_types <- function(value, schema) {
       )
     }))
   }
+  value
+}
+
+#' Describe a logical slice of a collected Arrow array
+#' @keywords internal
+#' @noRd
+fabric_delta_array_descriptor <- function(array, start = 0L, length = NULL) {
+  if (is.null(length)) {
+    length <- array$length
+  }
+  list(array = array, start = as.double(start), length = as.double(length))
+}
+
+#' Read validity bits for collected Arrow array slices
+#' @keywords internal
+#' @noRd
+fabric_delta_array_validity <- function(descriptors) {
+  unlist(lapply(descriptors, function(descriptor) {
+    length <- descriptor$length
+    if (!length) {
+      return(logical())
+    }
+    buffer <- nanoarrow::convert_buffer(
+      descriptor$array$buffers[[1L]]
+    )
+    if (!length(buffer)) {
+      return(rep(TRUE, length))
+    }
+    positions <- descriptor$array$offset +
+      descriptor$start +
+      seq_len(length)
+    as.logical(buffer[positions])
+  }), use.names = FALSE)
+}
+
+#' Project struct slices to one child array
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_child_descriptors <- function(descriptors, index) {
+  lapply(descriptors, function(descriptor) {
+    child <- descriptor$array$children[[index]]
+    physical_start <- descriptor$array$offset + descriptor$start
+    fabric_delta_array_descriptor(
+      child,
+      start = physical_start - child$offset,
+      length = descriptor$length
+    )
+  })
+}
+
+#' Extract list offsets for one Arrow array slice
+#' @keywords internal
+#' @noRd
+fabric_delta_list_offsets <- function(descriptor) {
+  offsets <- nanoarrow::convert_buffer(
+    descriptor$array$buffers[[2L]]
+  )
+  positions <- descriptor$array$offset +
+    descriptor$start +
+    seq_len(descriptor$length + 1L)
+  as.double(offsets[positions])
+}
+
+#' Restore nullable struct semantics erased by data.frame conversion
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_struct_validity <- function(
+  value,
+  schema,
+  descriptors,
+  top_level = FALSE
+) {
+  if (identical(schema$format, "+s")) {
+    for (index in seq_along(schema$children)) {
+      value[[index]] <- fabric_delta_restore_struct_validity(
+        value[[index]],
+        schema$children[[index]],
+        fabric_delta_struct_child_descriptors(descriptors, index)
+      )
+    }
+    if (!isTRUE(top_level)) {
+      class(value) <- unique(c("fabric_delta_struct_column", class(value)))
+      attr(value, "fabric_delta_struct_validity") <-
+        fabric_delta_array_validity(descriptors)
+    }
+    return(value)
+  }
+
+  is_variable_list <- schema$format %in% c("+l", "+L", "+m", "+vl", "+vL")
+  is_fixed_list <- startsWith(schema$format, "+w:")
+  if (!is_variable_list && !is_fixed_list) {
+    return(value)
+  }
+
+  value_attributes <- attributes(value)
+  attributes(value) <- NULL
+  child_schema <- schema$children[[1L]]
+  value_index <- 0L
+  fixed_width <- if (is_fixed_list) {
+    as.double(sub("^\\+w:", "", schema$format))
+  } else {
+    NULL
+  }
+  for (descriptor in descriptors) {
+    parent_validity <- fabric_delta_array_validity(list(descriptor))
+    child <- descriptor$array$children[[1L]]
+    offsets <- if (is_variable_list) {
+      fabric_delta_list_offsets(descriptor)
+    } else {
+      physical_start <- descriptor$array$offset + descriptor$start
+      fixed_width * (physical_start + seq.int(0, descriptor$length))
+    }
+    for (index in seq_len(descriptor$length)) {
+      value_index <- value_index + 1L
+      if (!parent_validity[[index]] || is.null(value[[value_index]])) {
+        next
+      }
+      child_start <- offsets[[index]]
+      child_length <- offsets[[index + 1L]] - child_start
+      child_descriptor <- fabric_delta_array_descriptor(
+        child,
+        start = child_start - child$offset,
+        length = child_length
+      )
+      restored <- fabric_delta_restore_struct_validity(
+        value[[value_index]],
+        child_schema,
+        list(child_descriptor)
+      )
+      value[value_index] <- list(restored)
+    }
+  }
+  attributes(value) <- value_attributes
   value
 }
 
@@ -821,8 +968,7 @@ as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
   structure(NextMethod("["), class = class(x))
 }
 
-# Compatibility methods for objects created by fabricQueryR <= 0.2.1.9000.
-# They are not produced by the delta-rs reader.
+# Methods for nullable struct columns produced by the delta-rs reader.
 
 #' @export
 #' @noRd
@@ -850,6 +996,9 @@ is.na.fabric_delta_struct_column <- function(x) {
   }
   result
 }
+
+# Compatibility methods for Variant objects created by
+# fabricQueryR <= 0.2.1.9000. These are not produced by the delta-rs reader.
 
 #' @export
 #' @noRd

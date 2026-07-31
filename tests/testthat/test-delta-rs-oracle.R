@@ -109,6 +109,33 @@ test_that("the production bridge preserves exact and nested values", {
   )
   expect_s3_class(nested$counts[[1L]]$value, "integer64")
   expect_s3_class(nested$items[[1L]]$code, "integer64")
+  expect_s3_class(nested$profile, "fabric_delta_struct_column")
+  expect_identical(is.na(nested$profile), c(FALSE, TRUE, FALSE))
+  expect_identical(
+    is.na(nested$profile[c(3L, 2L), , drop = FALSE]),
+    c(FALSE, TRUE)
+  )
+  expect_s3_class(nested$items[[1L]], "fabric_delta_struct_column")
+  expect_identical(
+    is.na(nested$items[[1L]]),
+    c(FALSE, FALSE, TRUE, FALSE)
+  )
+  expect_s3_class(
+    nested$attributes[[1L]]$value,
+    "fabric_delta_struct_column"
+  )
+  expect_identical(
+    is.na(nested$attributes[[1L]]$value),
+    c(FALSE, TRUE, FALSE)
+  )
+  expect_s3_class(
+    nested$keyed[[1L]]$key$nested,
+    "fabric_delta_struct_column"
+  )
+  expect_identical(
+    is.na(nested$keyed[[1L]]$key$nested),
+    c(TRUE, FALSE)
+  )
 
   empty <- fabric_delta_read_uri(
     file.path(directory, "empty"),

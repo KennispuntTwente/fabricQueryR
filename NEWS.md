@@ -70,8 +70,10 @@ cancellation, while sessions also provide explicit cleanup;
   schema-enabled Lakehouse record supplies its default schema.
   - Preserves `long` as `bit64::integer64`, decimals as exact character data,
   and `timestamp_ntz` as a wall-clock class, recursively through nested Arrow
-  values. The Arrow bridge normalizes DataFusion view types for compatibility
-  with the R `arrow` package.
+  values. Nullable structs also retain their parent validity, including inside
+  lists and maps, so null structs remain distinct from present structs whose
+  children are all null. The Arrow bridge normalizes DataFusion view types for
+  compatibility with the R `arrow` package.
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
   `timestamp_partition_timezone` is retained as a compatibility formal but is
   rejected when supplied because delta-rs has no equivalent override.
