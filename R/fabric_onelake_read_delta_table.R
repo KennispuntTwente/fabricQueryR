@@ -37,7 +37,10 @@
 #' strings, matching the R result's exact-decimal contract. Nullable struct
 #' columns retain their parent validity through the
 #' `fabric_delta_struct_column` class, so a null struct remains distinct from a
-#' present struct whose children are all null.
+#' present struct whose children are all null. Arrow Variant extension columns
+#' are preserved by `result = "arrow_stream"`; tibble collection rejects them
+#' explicitly because exposing their physical `metadata` and `value` buffers as
+#' ordinary R data would be misleading.
 #'
 #' @param table_path Table name. For backward compatibility, a slash-separated
 #'   value is accepted and its final segment is used; select a schema with
@@ -657,6 +660,7 @@ fabric_delta_collect_reader <- function(reader) {
     "fabric_delta_source_schema",
     exact = TRUE
   )
+  fabric_delta_validate_collect_schema(source_schema)
   target_schema <- nanoarrow::infer_nanoarrow_schema(stream)
   ptype <- fabric_delta_collect_ptype(source_schema, target_schema)
   arrays <- nanoarrow::collect_array_stream(stream)
@@ -672,6 +676,57 @@ fabric_delta_collect_reader <- function(reader) {
     source_schema,
     lapply(arrays, fabric_delta_array_descriptor),
     top_level = TRUE
+  )
+}
+
+#' Find Arrow Parquet Variant extensions in a schema
+#' @keywords internal
+#' @noRd
+fabric_delta_variant_paths <- function(schema, path = character()) {
+  extension_name <- schema$metadata[["ARROW:extension:name"]] %||% ""
+  current <- if (length(path)) paste(path, collapse = ".") else "<root>"
+  found <- if (identical(extension_name, "arrow.parquet.variant")) {
+    current
+  } else {
+    character()
+  }
+  for (index in seq_along(schema$children)) {
+    child <- schema$children[[index]]
+    child_name <- child$name %||% names(schema$children)[[index]] %||% index
+    found <- c(
+      found,
+      fabric_delta_variant_paths(child, c(path, as.character(child_name)))
+    )
+  }
+  unique(found)
+}
+
+#' Reject lossy Variant-to-tibble collection
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_collect_schema <- function(schema) {
+  paths <- fabric_delta_variant_paths(schema)
+  if (!length(paths)) {
+    return(invisible(schema))
+  }
+  rlang::abort(
+    c(
+      "Arrow Variant columns cannot be collected to a tibble losslessly.",
+      "x" = paste("Variant column(s):", paste(paths, collapse = ", ")),
+      "i" = paste0(
+        "Use result = \"arrow_stream\" to preserve the canonical ",
+        "arrow.parquet.variant extension, or decode the values in a ",
+        "Variant-aware engine such as Fabric PySpark."
+      )
+    ),
+    class = c(
+      "fabric_delta_variant_collection_error",
+      "fabric_delta_unsupported_feature_error",
+      "fabric_delta_unsupported_error",
+      "fabric_delta_error"
+    ),
+    delta_features = "Variant",
+    variant_paths = paths
   )
 }
 
@@ -1050,6 +1105,9 @@ fabric_delta_unsupported_features <- function(message) {
 #' @keywords internal
 #' @noRd
 fabric_delta_abort_python <- function(error, bearer_token = NULL) {
+  if (inherits(error, "fabric_delta_error")) {
+    stop(error)
+  }
   message <- conditionMessage(error)
   if (!is.null(bearer_token) && nzchar(bearer_token)) {
     message <- gsub(bearer_token, "<redacted>", message, fixed = TRUE)

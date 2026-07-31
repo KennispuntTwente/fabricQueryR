@@ -286,6 +286,29 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   }
 })
 
+test_that("Fabric Variant columns are never exposed as physical tibble fields", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+
+  for (table in c(
+    lakehouse$tables$variant,
+    lakehouse$tables$variant_id_dv
+  )) {
+    expect_error(
+      fabric_test_read_delta(manifest, lakehouse, table),
+      class = "fabric_delta_variant_collection_error"
+    )
+    stream <- fabric_test_read_delta(
+      manifest,
+      lakehouse,
+      table,
+      result = "arrow_stream"
+    )
+    expect_s3_class(stream, "nanoarrow_array_stream")
+  }
+})
+
 test_that("the delta-rs reader reads the Fabric Warehouse export profile", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()

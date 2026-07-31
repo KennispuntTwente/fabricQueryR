@@ -245,6 +245,31 @@ test_that("Arrow schemas normalize DataFusion view and exact decimal types", {
   expect_type(ptype$local_at, "character")
 })
 
+test_that("Variant extensions are preserved as streams and rejected for tibbles", {
+  variant <- nanoarrow::na_extension(
+    nanoarrow::na_struct(list(
+      metadata = nanoarrow::na_binary(nullable = FALSE),
+      value = nanoarrow::na_binary()
+    )),
+    "arrow.parquet.variant"
+  )
+  schema <- nanoarrow::na_struct(list(
+    id = nanoarrow::na_int32(nullable = FALSE),
+    payload = variant
+  ))
+
+  expect_identical(fabric_delta_variant_paths(schema), "payload")
+  error <- tryCatch(
+    fabric_delta_validate_collect_schema(schema),
+    error = identity
+  )
+  expect_s3_class(error, "fabric_delta_variant_collection_error")
+  expect_s3_class(error, "fabric_delta_unsupported_feature_error")
+  expect_identical(error$delta_features, "Variant")
+  expect_identical(error$variant_paths, "payload")
+  expect_match(conditionMessage(error), 'result = "arrow_stream"', fixed = TRUE)
+})
+
 test_that("Delta timestamp_ntz values retain exact wall-clock text", {
   value <- fabric_delta_timestamp_ntz(c(
     "2026-07-28T09:08:07.654321",

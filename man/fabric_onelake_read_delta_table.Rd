@@ -110,7 +110,10 @@ timezone-free timestamps as Arrow timestamps and represents decimals as
 strings, matching the R result's exact-decimal contract. Nullable struct
 columns retain their parent validity through the
 \code{fabric_delta_struct_column} class, so a null struct remains distinct from a
-present struct whose children are all null.
+present struct whose children are all null. Arrow Variant extension columns
+are preserved by \code{result = "arrow_stream"}; tibble collection rejects them
+explicitly because exposing their physical \code{metadata} and \code{value} buffers as
+ordinary R data would be misleading.
 }
 \examples{
 \dontrun{

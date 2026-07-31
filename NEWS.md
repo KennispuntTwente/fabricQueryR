@@ -74,6 +74,9 @@ cancellation, while sessions also provide explicit cleanup;
   lists and maps, so null structs remain distinct from present structs whose
   children are all null. The Arrow bridge normalizes DataFusion view types for
   compatibility with the R `arrow` package.
+  - Preserves canonical `arrow.parquet.variant` columns in Arrow-stream results
+  and rejects tibble collection with an actionable error instead of silently
+  exposing Variant's physical metadata and value buffers as ordinary columns.
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
   `timestamp_partition_timezone` is retained as a compatibility formal but is
   rejected when supplied because delta-rs has no equivalent override.
