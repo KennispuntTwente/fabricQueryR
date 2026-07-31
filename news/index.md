@@ -68,12 +68,7 @@
   and
   [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md).
   Notebook, pipeline, and Spark job definition runs expose status,
-  result, failure, timeout, and cancellation information. Ambiguous
-  notebook `Completed` responses without an exit value or failure
-  details are reconciled against the core scheduler so failed cells
-  retain typed failure conditions. `session_tag` documents that Fabric
-  reports a failed high-concurrency notebook run as `Completed`, because
-  the shared Spark session survives the failure.
+  result, failure, timeout, and cancellation information.
 
 - Livy support now includes reusable regular and high-concurrency Spark
   sessions through
