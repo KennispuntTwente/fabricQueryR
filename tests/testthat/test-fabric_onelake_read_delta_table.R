@@ -517,6 +517,113 @@ test_that("Delta staging preserves paths beneath the table root", {
   expect_equal(sum(basename(staged$destination) == "part.parquet"), 2L)
 })
 
+test_that("Delta staging accepts paths longer than PATH_MAX", {
+  # Writers spell a NULL partition value `__HIVE_DEFAULT_PARTITION__` in the
+  # directory name, so a handful of partition columns pushes a staged path past
+  # 260 characters. `fs::path()` refuses to build those even where the file
+  # system stores them happily.
+  partitions <- paste(rep("__HIVE_DEFAULT_PARTITION__", 6L), collapse = "/")
+  relative <- paste0(
+    partitions,
+    "/part-00000-963863a1-5943-43a4-83a5-f831d44e159e-c000.snappy.parquet"
+  )
+  staged <- fabric_delta_stage_paths(
+    paste0("Lakehouse/Tables/dbo/table/", relative),
+    "Lakehouse/Tables/dbo/table",
+    "stage"
+  )
+  expect_equal(staged$relative, relative)
+  expect_equal(
+    gsub("\\\\", "/", as.character(staged$destination)),
+    paste0("stage/", relative)
+  )
+  expect_gt(nchar(fabric_delta_local_file(strrep("d", 200L), relative)), 260L)
+})
+
+test_that("Delta reads tolerate staged paths longer than PATH_MAX", {
+  table_dir <- fs::path_temp(paste0("delta-long-", sample.int(1e9, 1)))
+  relative <- paste0(
+    paste(rep("__HIVE_DEFAULT_PARTITION__", 6L), collapse = "/"),
+    "/part-00000-963863a1-5943-43a4-83a5-f831d44e159e-c000.snappy.parquet"
+  )
+  parquet <- file.path(table_dir, relative, fsep = "/")
+  created <- tryCatch(
+    {
+      dir.create(dirname(parquet), recursive = TRUE)
+      file.exists(dirname(parquet))
+    },
+    error = function(error) FALSE,
+    warning = function(warning) FALSE
+  )
+  skip_if(
+    !isTRUE(created) || nchar(parquet) <= 260L,
+    "this file system cannot store a path longer than PATH_MAX"
+  )
+  on.exit(unlink(table_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  log_dir <- file.path(table_dir, "_delta_log", fsep = "/")
+  dir.create(log_dir, recursive = TRUE)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  DBI::dbExecute(
+    con,
+    paste0(
+      "COPY (SELECT CAST(7 AS INTEGER) AS id) TO ",
+      as.character(DBI::dbQuoteString(con, parquet)),
+      " (FORMAT PARQUET)"
+    )
+  )
+  schema <- jsonlite::toJSON(
+    list(
+      type = "struct",
+      fields = list(
+        list(name = "id", type = "integer", nullable = TRUE, metadata = list()),
+        list(
+          name = "part",
+          type = "string",
+          nullable = TRUE,
+          metadata = list()
+        )
+      )
+    ),
+    auto_unbox = TRUE
+  )
+  writeLines(
+    c(
+      '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}',
+      jsonlite::toJSON(
+        list(
+          metaData = list(
+            id = "table",
+            format = list(provider = "parquet", options = list()),
+            schemaString = schema,
+            partitionColumns = list("part"),
+            configuration = list()
+          )
+        ),
+        auto_unbox = TRUE
+      ),
+      jsonlite::toJSON(
+        list(
+          add = list(
+            path = relative,
+            partitionValues = stats::setNames(list(NULL), "part")
+          )
+        ),
+        auto_unbox = TRUE,
+        null = "null"
+      )
+    ),
+    file.path(log_dir, "00000000000000000000.json", fsep = "/"),
+    useBytes = TRUE
+  )
+
+  result <- fabric_delta_read_staged(table_dir)
+
+  expect_equal(nrow(result), 1L)
+  expect_identical(result$id, 7L)
+  expect_identical(result$part, NA_character_)
+})
+
 test_that("Delta staging rejects paths outside the requested table", {
   expect_error(
     fabric_delta_stage_paths(

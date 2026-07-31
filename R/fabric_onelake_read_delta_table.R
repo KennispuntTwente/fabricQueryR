@@ -1240,6 +1240,21 @@ fabric_normalize_lakehouse_item <- function(lakehouse_name) {
   }
 }
 
+#' Join local staging path segments without an artificial length limit
+#'
+#' `fs::path()` refuses to construct a path longer than `PATH_MAX` (260), even
+#' on Windows installations that have long paths enabled and where every other
+#' file operation the reader performs on such a path succeeds. A Delta table
+#' with a few partition columns exceeds 260 characters easily once staged under
+#' a temporary directory - four columns with NULL values alone contribute over a
+#' hundred characters, because writers spell those `__HIVE_DEFAULT_PARTITION__`.
+#' Join the segments directly so the file system decides what it can store.
+#' @keywords internal
+#' @noRd
+fabric_delta_path <- function(...) {
+  file.path(..., fsep = "/")
+}
+
 #' Map OneLake table files to safe local staging paths
 #' @param sources Character vector returned by `list_storage_files()`.
 #' @param table_dir OneLake table root.
@@ -1270,7 +1285,7 @@ fabric_delta_stage_paths <- function(sources, table_dir, dest_dir) {
   data.frame(
     source = sources,
     relative = relative,
-    destination = fs::path(dest_dir, relative),
+    destination = fabric_delta_path(dest_dir, relative),
     stringsAsFactors = FALSE
   )
 }
@@ -1305,19 +1320,14 @@ fabric_delta_stage_files <- function(paths, target, table_dir, dest_dir) {
     list(
       source = file_target$path,
       relative = relative,
-      destination = fs::path(dest_dir, relative),
+      destination = fabric_delta_path(dest_dir, relative),
       target = file_target
     )
   })
   data.frame(
     source = vapply(records, `[[`, character(1), "source"),
     relative = vapply(records, `[[`, character(1), "relative"),
-    destination = fs::path(vapply(
-      records,
-      `[[`,
-      character(1),
-      "destination"
-    )),
+    destination = vapply(records, `[[`, character(1), "destination"),
     target = I(lapply(records, `[[`, "target")),
     stringsAsFactors = FALSE
   )
@@ -1405,7 +1415,7 @@ fabric_delta_external_relative <- function(target) {
   )
   extension <- fs::path_ext(target$path)
   suffix <- if (nzchar(extension)) paste0(".", extension) else ""
-  fs::path(
+  fabric_delta_path(
     "_delta_log",
     ".fabricqueryr-external",
     paste0(
@@ -1437,7 +1447,7 @@ fabric_delta_local_file <- function(table_dir, path) {
     }
     decoded
   }
-  fs::path(table_dir, relative)
+  fabric_delta_path(table_dir, relative)
 }
 
 #' Read a locally staged Delta snapshot
@@ -4541,7 +4551,7 @@ fabric_delta_apply_checkpoint_candidate <- function(
     )
   }
   if (length(sidecar_names)) {
-    sidecar_paths <- fs::path(
+    sidecar_paths <- fabric_delta_path(
       table_dir,
       "_delta_log",
       "_sidecars",
@@ -4573,7 +4583,7 @@ fabric_delta_apply_checkpoint_candidate <- function(
 #' @keywords internal
 #' @noRd
 fabric_delta_resolve_snapshot <- function(table_dir, version = NULL) {
-  log_dir <- fs::path(table_dir, "_delta_log")
+  log_dir <- fabric_delta_path(table_dir, "_delta_log")
   if (!fs::dir_exists(log_dir)) {
     rlang::abort(cli::format_inline(
       "No {.path _delta_log} directory found in the staged table"
