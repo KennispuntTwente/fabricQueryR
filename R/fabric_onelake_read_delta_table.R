@@ -943,22 +943,25 @@ fabric_delta_array_descriptor <- function(array, start = 0L, length = NULL) {
 #' @keywords internal
 #' @noRd
 fabric_delta_array_validity <- function(descriptors) {
-  unlist(lapply(descriptors, function(descriptor) {
-    length <- descriptor$length
-    if (!length) {
-      return(logical())
-    }
-    buffer <- nanoarrow::convert_buffer(
-      descriptor$array$buffers[[1L]]
-    )
-    if (!length(buffer)) {
-      return(rep(TRUE, length))
-    }
-    positions <- descriptor$array$offset +
-      descriptor$start +
-      seq_len(length)
-    as.logical(buffer[positions])
-  }), use.names = FALSE)
+  unlist(
+    lapply(descriptors, function(descriptor) {
+      length <- descriptor$length
+      if (!length) {
+        return(logical())
+      }
+      buffer <- nanoarrow::convert_buffer(
+        descriptor$array$buffers[[1L]]
+      )
+      if (!length(buffer)) {
+        return(rep(TRUE, length))
+      }
+      positions <- descriptor$array$offset +
+        descriptor$start +
+        seq_len(length)
+      as.logical(buffer[positions])
+    }),
+    use.names = FALSE
+  )
 }
 
 #' Project struct slices to one child array
