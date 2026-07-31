@@ -780,6 +780,48 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       partition_columns = "category"
     ),
     list(
+      # A partial limit picks an implementation-defined subset of rows, so it is
+      # compared against the unlimited snapshot as a sub-multiset.
+      name = "partitioned_limit_partial",
+      key = "oracle_partitioned",
+      item = lakehouse,
+      table = lakehouse$tables$oracle_partitioned,
+      limit = 4,
+      comparison = "subset",
+      expected_rows = 4,
+      min_active_files = 2,
+      partition_columns = "category"
+    ),
+    list(
+      name = "partitioned_limit_zero",
+      key = "oracle_partitioned",
+      item = lakehouse,
+      table = lakehouse$tables$oracle_partitioned,
+      limit = 0,
+      expected_rows = 0,
+      min_active_files = 2,
+      partition_columns = "category"
+    ),
+    list(
+      name = "partitioned_limit_all",
+      key = "oracle_partitioned",
+      item = lakehouse,
+      table = lakehouse$tables$oracle_partitioned,
+      limit = 13,
+      expected_rows = 13,
+      min_active_files = 2,
+      partition_columns = "category"
+    ),
+    list(
+      name = "complex_types_projection_limit",
+      key = "oracle_complex_types",
+      item = lakehouse,
+      table = lakehouse$tables$oracle_complex_types,
+      columns = c("profile", "id"),
+      limit = 1,
+      expected_rows = 1
+    ),
+    list(
       name = "partitioned_version_10",
       key = "oracle_partitioned",
       item = lakehouse,
@@ -1094,6 +1136,8 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
   for (case in cases) {
     version <- case$version %||% NULL
     columns <- case$columns %||% NULL
+    limit <- case$limit %||% NULL
+    subset_only <- identical(case$comparison %||% "equal", "subset")
     schema <- case$schema %||% case$item$schema %||% "dbo"
     actual <- fabric_onelake_read_delta_table(
       table_path = case$table,
@@ -1103,6 +1147,7 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
       token = token,
       version = version,
       columns = columns,
+      limit = limit,
       timestamp_partition_timezone = case$timestamp_partition_timezone %||%
         NULL,
       verbose = FALSE
@@ -1119,12 +1164,20 @@ test_that("R Delta results agree with delta-rs on Fabric tables", {
         schema = schema
       ),
       version = if (is.null(case$oracle_key)) version else NULL,
-      columns = if (is.null(case$oracle_key)) columns else NULL
+      columns = if (is.null(case$oracle_key)) columns else NULL,
+      limit = if (is.null(case$oracle_key) && !subset_only) limit else NULL
     )
     if (!is.null(case$oracle_transform)) {
       oracle <- case$oracle_transform(oracle)
     }
-    if (isTRUE(case$rows_only)) {
+    if (subset_only) {
+      fabric_test_expect_delta_oracle_subset(
+        actual,
+        oracle,
+        expected_rows = case$expected_rows,
+        info = case$name
+      )
+    } else if (isTRUE(case$rows_only)) {
       fabric_test_expect_delta_oracle_rows_equal(
         actual,
         oracle,

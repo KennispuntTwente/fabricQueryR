@@ -532,6 +532,53 @@ fabric_test_expect_delta_oracle_rows_equal <- function(
   invisible(actual)
 }
 
+#' Test whether every row of `actual` is a distinct row of `oracle`
+#'
+#' Compares as a multiset, so a row that `oracle` produces once cannot satisfy
+#' two rows of `actual`.
+#' @keywords internal
+#' @noRd
+fabric_test_delta_rows_subset <- function(actual, oracle) {
+  available <- fabric_test_delta_canonical_rows(oracle)
+  for (row in fabric_test_delta_canonical_rows(actual)) {
+    index <- match(row, available)
+    if (is.na(index)) {
+      return(FALSE)
+    }
+    available <- available[-index]
+  }
+  TRUE
+}
+
+#' Assert that a limited read is a sub-multiset of the unlimited snapshot
+#'
+#' `limit` selects an implementation-defined subset of rows, so the R reader and
+#' delta-rs need not agree on *which* rows come back. They must still agree on
+#' the schema, the reader must return exactly `expected_rows` rows, and every
+#' returned row must be a row the unlimited `oracle` snapshot also produces -
+#' counting duplicates. `oracle` is therefore read without `limit`.
+#' @keywords internal
+#' @noRd
+fabric_test_expect_delta_oracle_subset <- function(
+  actual,
+  oracle,
+  expected_rows,
+  info = NULL
+) {
+  expect_true(is.data.frame(actual), info = info)
+  expect_true(is.data.frame(oracle), info = info)
+  expect_named(actual, names(oracle), info = info)
+  expect_identical(
+    fabric_test_delta_column_signatures(actual),
+    fabric_test_delta_column_signatures(oracle),
+    info = info
+  )
+  expect_equal(nrow(actual), expected_rows, info = info)
+  expect_true(nrow(actual) <= nrow(oracle), info = info)
+  expect_true(fabric_test_delta_rows_subset(actual, oracle), info = info)
+  invisible(actual)
+}
+
 fabric_test_delta_variant_display <- function(cell) {
   if (is.null(cell) || identical(cell$type, "VARIANT_NULL")) {
     return(NA_character_)

@@ -51,6 +51,27 @@ test_that("delta-rs parity assertions retain empty schemas and value kinds", {
     list(list(type = "struct_null"))
   )
 
+  # A limited read must be a sub-multiset of the unlimited snapshot, counting
+  # duplicates, and must not depend on the two readers choosing the same rows.
+  full <- data.frame(id = c(1L, 1L, 2L, 3L), stringsAsFactors = FALSE)
+  expect_true(fabric_test_delta_rows_subset(
+    full[c(3L, 1L), , drop = FALSE],
+    full
+  ))
+  expect_true(fabric_test_delta_rows_subset(
+    full[c(1L, 2L), , drop = FALSE],
+    full
+  ))
+  expect_true(fabric_test_delta_rows_subset(full[0L, , drop = FALSE], full))
+  expect_false(fabric_test_delta_rows_subset(data.frame(id = c(2L, 2L)), full))
+  expect_false(fabric_test_delta_rows_subset(data.frame(id = 9L), full))
+  expect_invisible(fabric_test_expect_delta_oracle_subset(
+    full[c(3L, 1L), , drop = FALSE],
+    full,
+    expected_rows = 2L,
+    info = "reordered subset"
+  ))
+
   oracle <- data.frame(id = 1L)
   attr(oracle, "fabric_delta_oracle_metadata") <- list(
     version = 0,
@@ -210,7 +231,14 @@ test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {
       "primitive_latest",
       "primitive_version_0",
       "primitive_projection",
+      "primitive_limit_zero",
+      "primitive_limit_all",
+      "primitive_limit_partial",
+      "primitive_projection_limit",
+      "nested_limit_partial",
+      "mutated_limit_partial",
       "empty",
+      "empty_limit",
       "schema_evolved",
       "schema_evolved_version_0",
       "nested",
@@ -219,6 +247,7 @@ test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {
       "mutated_version_0"
     )
   )
+  empty_tables <- c("empty", "empty_limit")
   for (case in manifest$cases) {
     table <- file.path(directory, case$table)
     version <- case$version %||% NULL
@@ -227,6 +256,7 @@ test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {
       columns <- NULL
     }
     limit <- case$limit %||% NULL
+    subset_only <- identical(case$comparison %||% "equal", "subset")
     actual <- fabric_delta_read_staged(
       table,
       version = version,
@@ -237,9 +267,20 @@ test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {
       table,
       version = version,
       columns = columns,
-      limit = limit
+      # A partial limit is compared against the unlimited snapshot, because the
+      # two readers may legitimately return different rows.
+      limit = if (subset_only) NULL else limit
     )
-    fabric_test_expect_delta_oracle_equal(actual, oracle, case$name)
+    if (subset_only) {
+      fabric_test_expect_delta_oracle_subset(
+        actual,
+        oracle,
+        expected_rows = as.integer(case$expected_rows),
+        info = case$name
+      )
+    } else {
+      fabric_test_expect_delta_oracle_equal(actual, oracle, case$name)
+    }
     expect_equal(nrow(actual), as.integer(case$expected_rows), info = case$name)
     expect_named(
       actual,
@@ -249,7 +290,7 @@ test_that("R Delta snapshots agree with deterministic delta-rs fixtures", {
     fabric_test_expect_delta_oracle_profile(
       oracle,
       version = as.numeric(case$expected_version),
-      min_active_files = if (identical(case$name, "empty")) 0 else 1,
+      min_active_files = if (case$name %in% empty_tables) 0 else 1,
       info = case$name
     )
   }
