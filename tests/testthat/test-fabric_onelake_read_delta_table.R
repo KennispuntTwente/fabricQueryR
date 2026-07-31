@@ -36,11 +36,18 @@ test_that("Delta targets preserve Fabric discovery and ABFSS addressing", {
     path = "Tables/dbo/café data",
     item_type = "Lakehouse"
   )
-  expect_identical(
+  expect_error(
+    fabric_delta_target_uri(named),
+    "paired workspace and item GUIDs",
+    class = "fabric_delta_invalid_target"
+  )
+
+  named$workspace <- "ResearchWorkspace"
+  expect_match(
     fabric_delta_target_uri(named),
     paste0(
-      "abfss://Research%20Workspace@onelake.dfs.fabric.microsoft.com/",
-      "Clinical%20Lakehouse.Lakehouse/Tables/dbo/caf%C3%A9%20data"
+      "^abfss://ResearchWorkspace@onelake[.]dfs[.]fabric[.]microsoft[.]com/",
+      "Clinical%20Lakehouse[.]Lakehouse/Tables/dbo/caf%C3%A9%20data$"
     )
   )
 })
@@ -80,6 +87,29 @@ test_that("Delta discovery records enforce type and workspace ownership", {
   )
   expect_equal(resolved$item_type, "Warehouse")
   expect_equal(resolved$target$item, warehouse$id)
+
+  named_warehouse <- fabric_delta_resolve_public_target(
+    "table",
+    "Workspace",
+    "Sales",
+    schema = "dbo",
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+    item_type = "Warehouse"
+  )
+  expect_identical(named_warehouse$item_type, "Warehouse")
+  expect_identical(named_warehouse$target$item, "Sales.Warehouse")
+
+  expect_error(
+    fabric_delta_resolve_public_target(
+      "table",
+      workspace,
+      warehouse,
+      schema = "dbo",
+      dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+      item_type = "Lakehouse"
+    ),
+    "conflicts with the item discovery record"
+  )
 
   notebook <- warehouse
   notebook$type <- "Notebook"

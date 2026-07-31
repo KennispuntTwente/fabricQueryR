@@ -68,6 +68,9 @@ cancellation, while sessions also provide explicit cleanup;
   a tibble). Arrow results are now genuinely lazy and single-use.
   - Accepts discovery records for `workspace_name` and `lakehouse_name`; a
   schema-enabled Lakehouse record supplies its default schema.
+  `item_type` disambiguates suffixless Lakehouse and Warehouse display names.
+  Workspace names that cannot appear in an ABFSS authority now fail with paired
+  GUID/discovery-record guidance instead of being incorrectly percent-encoded.
   - Preserves `long` as `bit64::integer64`, decimals as exact character data,
   and `timestamp_ntz` as a wall-clock class, recursively through nested Arrow
   values. Nullable structs also retain their parent validity, including inside

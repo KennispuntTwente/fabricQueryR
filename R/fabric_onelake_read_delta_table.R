@@ -51,6 +51,9 @@
 #'   The argument name is retained for backward compatibility.
 #' @param schema Lakehouse or Warehouse schema, or `NULL`. A discovered
 #'   schema-enabled Lakehouse's default schema is used automatically.
+#' @param item_type `"Lakehouse"` or `"Warehouse"`. This is inferred from a
+#'   discovery record or a `.Lakehouse`/`.Warehouse` suffix. Supply it for a
+#'   suffixless item display name, especially a Warehouse name.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -103,6 +106,7 @@ fabric_onelake_read_delta_table <- function(
   workspace_name,
   lakehouse_name,
   schema = NULL,
+  item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -125,7 +129,8 @@ fabric_onelake_read_delta_table <- function(
     workspace_name = workspace_name,
     lakehouse_name = lakehouse_name,
     schema = schema,
-    dfs_base = dfs_base
+    dfs_base = dfs_base,
+    item_type = item_type
   )
   version <- fabric_delta_validate_whole_number(
     version,
@@ -284,7 +289,8 @@ fabric_delta_resolve_public_target <- function(
   workspace_name,
   lakehouse_name,
   schema,
-  dfs_base
+  dfs_base,
+  item_type = NULL
 ) {
   workspace_target <- workspace_name
   workspace_record <- fabric_as_record(workspace_name)
@@ -297,16 +303,32 @@ fabric_delta_resolve_public_target <- function(
   }
 
   lakehouse_target <- lakehouse_name
-  item_type <- if (
+  requested_item_type <- NULL
+  if (!is.null(item_type)) {
+    fabric_delta_validate_non_empty(item_type, "item_type")
+    requested_item_type <- switch(
+      tolower(item_type),
+      lakehouse = "Lakehouse",
+      warehouse = "Warehouse",
+      rlang::abort('item_type must be "Lakehouse" or "Warehouse"')
+    )
+  }
+  suffix_type <- if (
     is.character(lakehouse_name) &&
       length(lakehouse_name) == 1L &&
-      !is.na(lakehouse_name) &&
-      grepl("\\.warehouse$", lakehouse_name, ignore.case = TRUE)
+      !is.na(lakehouse_name)
   ) {
-    "Warehouse"
+    if (grepl("\\.warehouse$", lakehouse_name, ignore.case = TRUE)) {
+      "Warehouse"
+    } else if (grepl("\\.lakehouse$", lakehouse_name, ignore.case = TRUE)) {
+      "Lakehouse"
+    } else {
+      NULL
+    }
   } else {
-    "Lakehouse"
+    NULL
   }
+  item_type <- requested_item_type %||% suffix_type %||% "Lakehouse"
   lakehouse_record <- fabric_as_record(lakehouse_name)
   if (!is.null(lakehouse_record)) {
     record_type <- tolower(
@@ -317,11 +339,18 @@ fabric_delta_resolve_public_target <- function(
         "lakehouse_name discovery record must be a Lakehouse or Warehouse item"
       )
     }
-    item_type <- if (identical(record_type, "warehouse")) {
+    record_item_type <- if (identical(record_type, "warehouse")) {
       "Warehouse"
     } else {
       "Lakehouse"
     }
+    if (
+      !is.null(requested_item_type) &&
+        !identical(requested_item_type, record_item_type)
+    ) {
+      rlang::abort("item_type conflicts with the item discovery record")
+    }
+    item_type <- record_item_type
     lakehouse_name <- fabric_record_value(lakehouse_record, "id")
     schema <- schema %||%
       fabric_record_value(
@@ -470,6 +499,22 @@ fabric_delta_target_uri <- function(target) {
   host <- httr2::url_parse(target$dfs_base)$hostname
   if (is.null(host) || !nzchar(host)) {
     rlang::abort("The resolved OneLake target has no DFS host")
+  }
+  if (
+    !fabric_is_guid(target$workspace) &&
+      grepl("[^A-Za-z0-9_-]", target$workspace)
+  ) {
+    rlang::abort(
+      c(
+        "The workspace display name is not valid in an ABFSS authority.",
+        "x" = paste("Workspace:", target$workspace),
+        "i" = paste0(
+          "Supply discovery records or paired workspace and item GUIDs when ",
+          "the workspace name contains spaces or other special characters."
+        )
+      ),
+      class = "fabric_delta_invalid_target"
+    )
   }
   prefix <- paste0(
     "abfss://",

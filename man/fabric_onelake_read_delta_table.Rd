@@ -9,6 +9,7 @@ fabric_onelake_read_delta_table(
   workspace_name,
   lakehouse_name,
   schema = NULL,
+  item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -37,6 +38,10 @@ The argument name is retained for backward compatibility.}
 
 \item{schema}{Lakehouse or Warehouse schema, or \code{NULL}. A discovered
 schema-enabled Lakehouse's default schema is used automatically.}
+
+\item{item_type}{\code{"Lakehouse"} or \code{"Warehouse"}. This is inferred from a
+discovery record or a \code{.Lakehouse}/\code{.Warehouse} suffix. Supply it for a
+suffixless item display name, especially a Warehouse name.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
