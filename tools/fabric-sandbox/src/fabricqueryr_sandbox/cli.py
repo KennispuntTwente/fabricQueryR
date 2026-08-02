@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from .cleanup import cleanup_ci_workspaces, remove_persistent_workspace
 from .deploy import deploy
-from .discover import discover
+from .discover import discover, discover_onelake
 from .seed import seed
 from .settings import SandboxSettings
 
@@ -30,7 +30,15 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("doctor", help="validate local sandbox configuration")
     subparsers.add_parser("deploy", help="publish Fabric workspace items")
     subparsers.add_parser("seed", help="upload fixtures and run the seed notebook")
-    subparsers.add_parser("discover", help="write the R integration-test manifest")
+    discover_parser = subparsers.add_parser(
+        "discover", help="write the R integration-test manifest"
+    )
+    discover_parser.add_argument(
+        "--scope",
+        choices=("all", "onelake"),
+        default="all",
+        help="discover all services or only OneLake Delta test items",
+    )
     cleanup_parser = subparsers.add_parser(
         "cleanup",
         help="find CI workspaces left by interrupted integration runs",
@@ -93,7 +101,11 @@ def main() -> int:
         seed(settings)
         return 0
     if args.command == "discover":
-        manifest = discover(settings)
+        manifest = (
+            discover_onelake(settings)
+            if args.scope == "onelake"
+            else discover(settings)
+        )
         print(
             f"wrote manifest for {len(manifest.items)} items: "
             f"{settings.manifest_path}"

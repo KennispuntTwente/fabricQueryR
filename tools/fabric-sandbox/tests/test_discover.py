@@ -1,8 +1,10 @@
 from fabricqueryr_sandbox.discover import (
+    ONELAKE_LAKEHOUSE_TABLES,
     _wait_for_kql_properties,
     _wait_for_lakehouse_sql_endpoint,
     _wait_for_sql_properties,
     discover,
+    discover_onelake,
 )
 from fabricqueryr_sandbox.settings import SandboxSettings
 
@@ -102,6 +104,54 @@ class FakePowerBiApi:
 
     def find_dataset(self, workspace_id, name):
         return {"id": "semantic-model-id", "name": name, "workspaceId": workspace_id}
+
+
+def test_onelake_discovery_avoids_unrelated_service_dependencies(
+    monkeypatch, tmp_path
+):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="TestLakehouse-id",
+        workspace_name="fabricqueryr-test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    fabric_api = FakeFabricApi()
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.FabricApi",
+        lambda _credential: fabric_api,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.PowerBiApi",
+        lambda _credential: (_ for _ in ()).throw(
+            AssertionError("Power BI must not be used for OneLake discovery")
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.get_credential",
+        lambda: "credential",
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.verify_fixture_revision",
+        lambda settings, workspace_id, lakehouse_id: "fixture-revision",
+    )
+
+    manifest = discover_onelake(settings)
+
+    assert set(manifest.items) == {"TestLakehouse", "TestWarehouse"}
+    assert manifest.fixture_revision == "fixture-revision"
+    assert manifest.items["TestLakehouse"]["tables"] == ONELAKE_LAKEHOUSE_TABLES
+    assert manifest.items["TestLakehouse"]["tables"]["basic"] == (
+        "fabricqueryr_basic"
+    )
+    assert manifest.items["TestWarehouse"]["tables"] == {
+        "types": "fabricqueryr_sql_types",
+        "mutations": "fabricqueryr_sql_mutations",
+    }
+    assert fabric_api.refreshed == []
 
 
 def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):

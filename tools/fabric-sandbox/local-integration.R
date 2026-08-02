@@ -249,7 +249,14 @@ fabric_local_exchange_token <- function(token, audience) {
 fabric_local_acquire_tokens <- function(
   tenant_id,
   client_id,
-  auth_args = list()
+  auth_args = list(),
+  audiences = c(
+    Fabric = "https://api.fabric.microsoft.com/.default",
+    `Power BI` = "https://analysis.windows.net/powerbi/api/.default",
+    SQL = "https://database.windows.net/.default",
+    OneLake = "https://storage.azure.com/.default",
+    Kusto = "https://api.kusto.windows.net/.default"
+  )
 ) {
   if (!is.list(auth_args)) {
     stop("auth_args must be a list", call. = FALSE)
@@ -276,13 +283,9 @@ fabric_local_acquire_tokens <- function(
     )
   }
 
-  audiences <- c(
-    Fabric = "https://api.fabric.microsoft.com/.default",
-    `Power BI` = "https://analysis.windows.net/powerbi/api/.default",
-    SQL = "https://database.windows.net/.default",
-    OneLake = "https://storage.azure.com/.default",
-    Kusto = "https://api.kusto.windows.net/.default"
-  )
+  if (!is.character(audiences) || !length(audiences) || is.null(names(audiences))) {
+    stop("audiences must be a non-empty named character vector", call. = FALSE)
+  }
   tokens <- list()
   refresh_source <- fabric_local_cached_token(
     "https://api.fabric.microsoft.com/.default",
@@ -346,6 +349,20 @@ fabric_local_acquire_tokens <- function(
     refresh_source <- token
   }
   tokens
+}
+
+fabric_local_test_audiences <- function(filter) {
+  all <- c(
+    Fabric = "https://api.fabric.microsoft.com/.default",
+    `Power BI` = "https://analysis.windows.net/powerbi/api/.default",
+    SQL = "https://database.windows.net/.default",
+    OneLake = "https://storage.azure.com/.default",
+    Kusto = "https://api.kusto.windows.net/.default"
+  )
+  if (grepl("onelake", filter, ignore.case = TRUE)) {
+    return(all[c("Fabric", "OneLake")])
+  }
+  all
 }
 
 fabric_local_jwt_claims <- function(token) {
@@ -600,7 +617,8 @@ run_fabric_integration_tests <- function(
   tokens <- fabric_local_acquire_tokens(
     context$tenant_id,
     context$client_id,
-    auth_args
+    auth_args,
+    audiences = fabric_local_test_audiences(filter)
   )
   provider <- fabric_local_token_provider(tokens)
   fabric_token <- provider(
@@ -622,6 +640,7 @@ run_fabric_integration_tests <- function(
     "https://storage.azure.com/.default" = "FABRIC_TEST_STORAGE_TOKEN",
     "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
   )
+  token_variables <- token_variables[names(token_variables) %in% names(tokens)]
   managed_variables <- c(
     unname(token_variables),
     "FABRIC_SANDBOX_USE_ENV_TOKENS",
@@ -734,7 +753,12 @@ run_fabric_integration_tests <- function(
       "tools/fabric-sandbox",
       "run",
       "fabric-sandbox",
-      "discover"
+      "discover",
+      if (grepl("onelake", filter, ignore.case = TRUE)) {
+        c("--scope", "onelake")
+      } else {
+        character()
+      }
     ),
     "Fabric endpoint discovery"
   )

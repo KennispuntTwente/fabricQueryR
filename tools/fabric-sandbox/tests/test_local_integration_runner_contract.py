@@ -20,6 +20,9 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert "claims$appid" in runner
     assert "claims$azp" in runner
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" in runner
+    assert "fabric_local_test_audiences" in runner
+    assert 'return(all[c("Fabric", "OneLake")])' in runner
+    assert 'c("--scope", "onelake")' in runner
     assert 'filter = "integration-fabric"' in runner
     assert "filter = filter" in runner
     assert "stop_on_failure = TRUE" in runner
