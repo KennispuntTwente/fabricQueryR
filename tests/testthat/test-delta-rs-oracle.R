@@ -99,6 +99,21 @@ test_that("the production bridge preserves exact and nested values", {
     "2026-07-28 09:08:07.654321" %in% unclass(primitive$local_at)
   )
 
+  boundaries <- fabric_delta_read_uri(
+    file.path(directory, "scalar_boundaries"),
+    result = "tibble"
+  )
+  expect_type(boundaries$regular, "double")
+  expect_identical(
+    boundaries$regular,
+    c(-2147483648, 2147483647, NA_real_)
+  )
+  expect_s3_class(boundaries$large, "fabric_delta_integer64")
+  expect_identical(
+    as.character(boundaries$large),
+    c("-9223372036854775808", "9223372036854775807", NA)
+  )
+
   nested <- fabric_delta_read_uri(
     file.path(directory, "nested"),
     result = "tibble"
@@ -109,6 +124,15 @@ test_that("the production bridge preserves exact and nested values", {
   )
   expect_s3_class(nested$counts[[1L]]$value, "integer64")
   expect_s3_class(nested$items[[1L]]$code, "integer64")
+  expect_identical(
+    nested$scores[[1L]],
+    c(-2147483648, 2147483647)
+  )
+  expect_s3_class(nested$longs[[1L]], "fabric_delta_integer64")
+  expect_identical(
+    as.character(nested$longs[[1L]]),
+    c("-9223372036854775808", "9223372036854775807")
+  )
   expect_s3_class(nested$profile, "fabric_delta_struct_column")
   expect_identical(is.na(nested$profile), c(FALSE, TRUE, FALSE))
   expect_identical(

@@ -430,6 +430,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                 ),
             ),
             pa.field("scores", pa.list_(pa.int32())),
+            pa.field("longs", pa.list_(pa.int64())),
             pa.field("counts", pa.map_(pa.string(), pa.int64())),
             pa.field(
                 "items",
@@ -487,7 +488,8 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                         "label": "nested",
                         "amount": Decimal("123456789012345678.90"),
                     },
-                    "scores": [1, 2, 3],
+                    "scores": [-2_147_483_648, 2_147_483_647],
+                    "longs": [-9_223_372_036_854_775_808, 9_223_372_036_854_775_807],
                     "counts": [("large", 9_007_199_254_740_993), ("small", 2)],
                     "items": [
                         {
@@ -539,6 +541,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     "id": 2,
                     "profile": None,
                     "scores": [],
+                    "longs": [],
                     "counts": [],
                     "items": [],
                     "attributes": [],
@@ -551,6 +554,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                         "amount": None,
                     },
                     "scores": None,
+                    "longs": None,
                     "counts": None,
                     "items": None,
                     "attributes": None,
@@ -591,7 +595,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                     "tiny": -128,
                     "small": -32768,
                     "regular": -2147483648,
-                    "large": -9_223_372_036_854_775_807,
+                    "large": -9_223_372_036_854_775_808,
                     "single": float("nan"),
                     "double": float("inf"),
                     "whole_decimal": Decimal(
@@ -755,6 +759,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                 "id",
                 "profile",
                 "scores",
+                "longs",
                 "counts",
                 "items",
                 "attributes",
@@ -836,6 +841,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                 "id",
                 "profile",
                 "scores",
+                "longs",
                 "counts",
                 "items",
                 "attributes",

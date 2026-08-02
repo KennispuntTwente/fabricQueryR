@@ -76,7 +76,10 @@ cancellation, while sessions also provide explicit cleanup;
   GUID/discovery-record guidance instead of being incorrectly percent-encoded.
   - Preserves `long` as `bit64::integer64`, decimals as exact character data,
   and `timestamp_ntz` as a wall-clock class, recursively through nested Arrow
-  values. Nullable structs also retain their parent validity, including inside
+  values. Columns containing the valid Delta integer or long minimum no longer
+  confuse those values with R/bit64's reserved NA sentinels: integer columns
+  widen to exact doubles and long columns use an exact character-backed class.
+  Nullable structs also retain their parent validity, including inside
   lists and maps, so null structs remain distinct from present structs whose
   children are all null. The Arrow bridge normalizes DataFusion view types for
   compatibility with the R `arrow` package.

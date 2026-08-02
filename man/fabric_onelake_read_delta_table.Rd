@@ -125,8 +125,13 @@ Feature availability is protocol- and runtime-specific; consult the
 \href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Fabric Delta interoperability matrix}
 and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
 
-Delta \code{long} values are returned as \code{\link[bit64:integer64]{bit64::integer64()}}. Delta decimals are
-returned as exact character values, including when nested. Delta
+Delta \code{integer} values normally use R integers and Delta \code{long} values
+normally use \code{\link[bit64:integer64]{bit64::integer64()}}. Because those R representations reserve
+the respective minimum value as \code{NA}, a column containing Delta's valid
+\code{-2147483648} integer is widened to an exact R double and a column containing
+Delta's valid \code{-9223372036854775808} long uses the exact character-backed
+\code{fabric_delta_integer64} class. This applies recursively to nested values.
+Delta decimals are returned as exact character values, including when nested. Delta
 \code{timestamp_ntz} values use the character-backed
 \code{fabric_delta_timestamp_ntz} class. The Arrow stream preserves
 timezone-free timestamps as Arrow timestamps and represents decimals as

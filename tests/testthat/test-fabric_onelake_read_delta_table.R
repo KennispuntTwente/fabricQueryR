@@ -265,9 +265,10 @@ test_that("Delta reads refresh once after a pre-return authentication failure", 
   }
 })
 
-test_that("Arrow schemas normalize DataFusion view and exact decimal types", {
+test_that("Arrow schemas normalize exact scalar types for safe collection", {
   skip_if_not_installed("arrow")
   schema <- arrow::schema(
+    regular = arrow::int32(),
     id = arrow::int64(),
     amount = arrow::decimal128(20, 4),
     local_at = arrow::timestamp("us")
@@ -278,13 +279,49 @@ test_that("Arrow schemas normalize DataFusion view and exact decimal types", {
   expect_identical(normalized$children$local_at$format, "tsu:")
 
   collected <- fabric_delta_normalize_schema(schema, collect = TRUE)
+  expect_identical(collected$children$regular$format, "l")
+  expect_identical(collected$children$id$format, "u")
   expect_identical(collected$children$amount$format, "u")
   expect_identical(collected$children$local_at$format, "u")
 
   ptype <- fabric_delta_collect_ptype(schema, collected)
-  expect_s3_class(ptype$id, "integer64")
+  expect_s3_class(ptype$regular, "integer64")
+  expect_type(ptype$id, "character")
   expect_type(ptype$amount, "character")
   expect_type(ptype$local_at, "character")
+})
+
+test_that("Delta integer NA sentinels are restored without data loss", {
+  ordinary_integer <- fabric_delta_restore_integer32(
+    bit64::as.integer64(c("-2147483647", NA, "2147483647"))
+  )
+  expect_type(ordinary_integer, "integer")
+  expect_identical(ordinary_integer, c(-2147483647L, NA_integer_, 2147483647L))
+
+  boundary_integer <- fabric_delta_restore_integer32(
+    bit64::as.integer64(c("-2147483648", NA, "2147483647"))
+  )
+  expect_type(boundary_integer, "double")
+  expect_identical(boundary_integer, c(-2147483648, NA_real_, 2147483647))
+
+  ordinary_long <- fabric_delta_restore_integer64(
+    c("-9223372036854775807", NA, "9223372036854775807")
+  )
+  expect_s3_class(ordinary_long, "integer64")
+  expect_identical(
+    as.character(ordinary_long),
+    c("-9223372036854775807", NA, "9223372036854775807")
+  )
+
+  boundary_long <- fabric_delta_restore_integer64(
+    c("-9223372036854775808", NA, "9223372036854775807")
+  )
+  expect_s3_class(boundary_long, "fabric_delta_integer64")
+  expect_identical(
+    as.character(boundary_long),
+    c("-9223372036854775808", NA, "9223372036854775807")
+  )
+  expect_s3_class(boundary_long[c(3L, 1L)], "fabric_delta_integer64")
 })
 
 test_that("Variant extensions are preserved as streams and rejected for tibbles", {

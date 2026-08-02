@@ -45,8 +45,13 @@
 #' [Fabric Delta interoperability matrix](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
 #' and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
 #'
-#' Delta `long` values are returned as [bit64::integer64()]. Delta decimals are
-#' returned as exact character values, including when nested. Delta
+#' Delta `integer` values normally use R integers and Delta `long` values
+#' normally use [bit64::integer64()]. Because those R representations reserve
+#' the respective minimum value as `NA`, a column containing Delta's valid
+#' `-2147483648` integer is widened to an exact R double and a column containing
+#' Delta's valid `-9223372036854775808` long uses the exact character-backed
+#' `fabric_delta_integer64` class. This applies recursively to nested values.
+#' Delta decimals are returned as exact character values, including when nested. Delta
 #' `timestamp_ntz` values use the character-backed
 #' `fabric_delta_timestamp_ntz` class. The Arrow stream preserves
 #' timezone-free timestamps as Arrow timestamps and represents decimals as
@@ -764,6 +769,13 @@ fabric_delta_normalize_schema <- function(schema, collect = FALSE) {
   if (startsWith(format, "d:")) {
     format <- "u"
   }
+  if (isTRUE(collect)) {
+    if (identical(format, "i")) {
+      format <- "l"
+    } else if (format %in% c("l", "L")) {
+      format <- "u"
+    }
+  }
   if (isTRUE(collect) && fabric_delta_is_timestamp_ntz_format(format)) {
     format <- "u"
   }
@@ -933,8 +945,11 @@ fabric_delta_collect_ptype <- function(source_schema, target_schema) {
 #' @keywords internal
 #' @noRd
 fabric_delta_patch_ptype <- function(ptype, source_schema, target_schema) {
-  if (source_schema$format %in% c("l", "L")) {
+  if (identical(source_schema$format, "i")) {
     return(bit64::integer64())
+  }
+  if (source_schema$format %in% c("l", "L")) {
+    return(character())
   }
 
   format <- target_schema$format
@@ -963,6 +978,12 @@ fabric_delta_patch_ptype <- function(ptype, source_schema, target_schema) {
 #' @keywords internal
 #' @noRd
 fabric_delta_restore_collected_types <- function(value, schema) {
+  if (identical(schema$format, "i")) {
+    return(fabric_delta_restore_integer32(value))
+  }
+  if (schema$format %in% c("l", "L")) {
+    return(fabric_delta_restore_integer64(value))
+  }
   if (fabric_delta_is_timestamp_ntz_format(schema$format)) {
     return(fabric_delta_timestamp_ntz(value))
   }
@@ -980,7 +1001,7 @@ fabric_delta_restore_collected_types <- function(value, schema) {
       c("+l", "+L", "+m", "+vl", "+vL") ||
       startsWith(schema$format, "+w:")
   ) {
-    if (!fabric_delta_schema_has_timestamp_ntz(schema$children[[1L]])) {
+    if (!fabric_delta_schema_needs_restore(schema$children[[1L]])) {
       return(value)
     }
     return(lapply(value, function(element) {
@@ -994,6 +1015,31 @@ fabric_delta_restore_collected_types <- function(value, schema) {
     }))
   }
   value
+}
+
+#' Restore Delta integer values without confusing their minimum with R's NA
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_integer32 <- function(value) {
+  text <- as.character(value)
+  if (any(text == "-2147483648", na.rm = TRUE)) {
+    return(as.double(value))
+  }
+  as.integer(value)
+}
+
+#' Restore Delta long values without confusing their minimum with bit64's NA
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_integer64 <- function(value) {
+  text <- as.character(value)
+  if (any(text == "-9223372036854775808", na.rm = TRUE)) {
+    return(structure(
+      text,
+      class = c("fabric_delta_integer64", "character")
+    ))
+  }
+  bit64::as.integer64(text)
 }
 
 #' Describe a logical slice of a collected Arrow array
@@ -1155,6 +1201,25 @@ fabric_delta_schema_has_timestamp_ntz <- function(schema) {
       fabric_delta_schema_has_timestamp_ntz(schema$dictionary))
 }
 
+#' Detect collected Delta types that require an R-side restoration recursively
+#' @keywords internal
+#' @noRd
+fabric_delta_schema_needs_restore <- function(schema) {
+  if (
+    schema$format %in% c("i", "l", "L") ||
+      fabric_delta_is_timestamp_ntz_format(schema$format)
+  ) {
+    return(TRUE)
+  }
+  any(vapply(
+    schema$children,
+    fabric_delta_schema_needs_restore,
+    logical(1)
+  )) ||
+    (!is.null(schema$dictionary) &&
+      fabric_delta_schema_needs_restore(schema$dictionary))
+}
+
 #' Construct exact wall-clock Delta timestamp values
 #' @keywords internal
 #' @noRd
@@ -1214,6 +1279,12 @@ as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
 #' @export
 #' @noRd
 `[.fabric_delta_timestamp_ntz` <- function(x, ...) {
+  structure(NextMethod("["), class = class(x))
+}
+
+#' @export
+#' @noRd
+`[.fabric_delta_integer64` <- function(x, ...) {
   structure(NextMethod("["), class = class(x))
 }
 
