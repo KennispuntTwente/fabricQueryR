@@ -57,12 +57,13 @@
 #'
 #' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 #' typed partitions, classic checkpoints, column mapping, deletion vectors, and
-#' shallow clones. For a deletion-vector-capable snapshot, every active file
-#' must have Delta statistics proving it has no more than 65,536 physical rows;
-#' larger or unmeasured files are rejected because the selected runtime can
-#' apply their masks at incorrect record-batch offsets. This metadata-only
-#' preflight does not materialize deletion-vector masks. Its current reader also
-#' does not support Fabric tables requiring Type
+#' shallow clones. Files that actually carry deletion vectors must contain no
+#' more than 65,536 physical rows; larger or unreadable vectors are rejected
+#' because the selected runtime can apply their masks at incorrect record-batch
+#' offsets. Large files without deletion vectors are not rejected. The pinned
+#' `deltalake` API materializes deletion-vector masks while enumerating affected
+#' files, so this preflight has memory cost proportional to those masks. Its
+#' current reader also does not support Fabric tables requiring Type
 #' Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 #' `fabric_delta_unsupported_feature_error`. Arrow Variant extension columns in
 #' otherwise readable tables require `result = "arrow_stream"`.
