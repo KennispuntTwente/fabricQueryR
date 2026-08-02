@@ -188,8 +188,19 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-The account needs access through the workspace or **Lakehouse \> Manage
-OneLake data access**.
+The account needs data-plane access to the target OneLake path.
+Workspace Admin, Member, and Contributor roles include broad OneLake
+access. Otherwise, grant item **Read** plus **ReadAll**, or—when OneLake
+security is enabled—item **Read** plus a OneLake role granting **Read**
+on the target table. Item **Read** alone exposes metadata but does not
+allow this direct Delta read.
+
+`limit` returns an unordered, implementation-defined subset; it is not
+stable pagination. The default `dfs_base` is OneLake’s global endpoint.
+For strict data-residency requirements, pass the regional endpoint for
+the workspace’s capacity (for example,
+`https://westeurope-onelake.dfs.fabric.microsoft.com`), because global
+endpoint resolution can cross a regional boundary.
 
 ### 5. Work with OneLake files
 

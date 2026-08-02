@@ -148,8 +148,9 @@ locally. A non-<code>NULL</code> value is ignored with a warning.</p></dd>
 
 
 <dt id="arg-dfs-base">dfs_base<a class="anchor" aria-label="anchor" href="#arg-dfs-base"></a></dt>
-<dd><p>OneLake DFS endpoint. Keep the default unless using a
-regional or workspace-private endpoint.</p></dd>
+<dd><p>OneLake DFS endpoint. Use the workspace capacity's regional
+endpoint when endpoint-resolution data residency matters, or its required
+workspace-private FQDN for a workspace private link.</p></dd>
 
 
 <dt id="arg-columns">columns<a class="anchor" aria-label="anchor" href="#arg-columns"></a></dt>
@@ -158,7 +159,9 @@ requested order. <code>NULL</code> returns all columns.</p></dd>
 
 
 <dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
-<dd><p>Optional non-negative whole number limiting returned rows.</p></dd>
+<dd><p>Optional non-negative whole number limiting returned rows. No
+ordering is applied, so a partial result is an implementation-defined
+subset and is not suitable for stable pagination.</p></dd>
 
 
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
@@ -181,6 +184,15 @@ runtime dependencies in that environment with:</p>
 <p>OneLake credentials use the <code>https://storage.azure.com/.default</code> audience
 and are passed to delta-rs as a bearer token with its Fabric endpoint
 option enabled.</p>
+<p>OneLake data access is separate from item visibility. A generic Fabric item
+<code>Read</code> grant exposes metadata but is not sufficient for a direct Delta read.
+Workspace Admin, Member, and Contributor roles have broad OneLake access.
+Otherwise grant item <code>Read</code> plus <code>ReadAll</code>, or, when OneLake security is
+enabled, item <code>Read</code> plus a OneLake role whose <code>Read</code> scope contains the
+target table. Tables protected by OneLake row- or column-level security can
+be blocked because this external delta-rs reader does not enforce those
+policies. See the
+<a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric permission model</a>.</p>
 <p>Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
 the latest snapshot published to OneLake, which can lag the current Warehouse
 transaction state or remain fixed while Delta-log publishing is paused.</p>
@@ -188,19 +200,37 @@ transaction state or remain fixed while Delta-log publishing is paused.</p>
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
 returned and consumed cannot be retried.</p>
+<p><code>limit</code> is pushed down without an ordering expression. When it is smaller
+than the snapshot, the returned rows are an implementation-defined subset
+and can change with file layout, snapshot version, or scan scheduling. It is
+not a stable pagination mechanism.</p>
+<p><code>dfs_base</code> defaults to OneLake's global endpoint. Microsoft notes that data
+can leave the workspace's region during global-endpoint resolution. For
+data-residency requirements, pass the workspace capacity's regional endpoint,
+such as <code>https://westeurope-onelake.dfs.fabric.microsoft.com</code>; use the
+workspace FQDN required by a workspace private link where applicable. See
+<a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">Connecting to Microsoft OneLake</a>.</p>
 <p>The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 typed partitions, classic checkpoints, column mapping, deletion vectors, and
-shallow clones. Per-file deletion-vector masks longer than 65,536 rows are
-rejected because the selected runtime can apply them at incorrect record-batch
-offsets. Its current reader also does not support Fabric tables requiring Type
+shallow clones. For a deletion-vector-capable snapshot, every active file
+must have Delta statistics proving it has no more than 65,536 physical rows;
+larger or unmeasured files are rejected because the selected runtime can
+apply their masks at incorrect record-batch offsets. This metadata-only
+preflight does not materialize deletion-vector masks. Its current reader also
+does not support Fabric tables requiring Type
 Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 <code>fabric_delta_unsupported_feature_error</code>. Arrow Variant extension columns in
 otherwise readable tables require <code>result = "arrow_stream"</code>.
 Feature availability is protocol- and runtime-specific; consult the
 <a href="https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability" class="external-link">Fabric Delta interoperability matrix</a>
 and use Fabric PySpark when the selected delta-rs runtime cannot read a table.</p>
-<p>Delta <code>long</code> values are returned as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64()</a></code>. Delta decimals are
-returned as exact character values, including when nested. Delta
+<p>Delta <code>integer</code> values normally use R integers and Delta <code>long</code> values
+normally use <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64()</a></code>. Because those R representations reserve
+the respective minimum value as <code>NA</code>, a column containing Delta's valid
+<code>-2147483648</code> integer is widened to an exact R double and a column containing
+Delta's valid <code>-9223372036854775808</code> long uses the exact character-backed
+<code>fabric_delta_integer64</code> class. This applies recursively to nested values.
+Delta decimals are returned as exact character values, including when nested. Delta
 <code>timestamp_ntz</code> values use the character-backed
 <code>fabric_delta_timestamp_ntz</code> class. The Arrow stream preserves
 timezone-free timestamps as Arrow timestamps and represents decimals as

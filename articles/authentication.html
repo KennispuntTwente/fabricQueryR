@@ -182,11 +182,15 @@ least-privileged role that supports your task; or</li>
 additional data permission it needs.</li>
 </ol>
 <p>The <strong>Viewer</strong> workspace role is enough to list the
-workspace and its items. Reading underlying data can require an
-additional permission. For example, a semantic model normally needs Read
-and Build permission, while a Lakehouse may use a workspace role or a
-OneLake security role for its tables and files. Detailed workload
-guidance appears later in this vignette.</p>
+workspace and its items, but does not itself grant direct OneLake data
+access. A generic item <strong>Read</strong> grant also exposes metadata
+without granting the underlying OneLake data. For example, a semantic
+model normally needs Read and Build permission. A direct Lakehouse read
+needs an Admin, Member, or Contributor workspace role; item
+<strong>Read</strong> plus <strong>ReadAll</strong>; or, when OneLake
+security is enabled, item <strong>Read</strong> plus membership in a
+OneLake role that grants <strong>Read</strong> on the target data.
+Detailed workload guidance appears later in this vignette.</p>
 </div>
 <div class="section level2">
 <h2 id="first-login-troubleshooting">First-login troubleshooting<a class="anchor" aria-label="anchor" href="#first-login-troubleshooting"></a>
@@ -540,10 +544,20 @@ access to the workspace/item and permission for the requested read,
 write, or execute operation. Service principals and managed identities
 are supported only where the individual API says so.</li>
 <li>
-<strong>OneLake and Delta.</strong> Grant a workspace role, item
-permission, or a OneLake data-access role. Admin, Member, and
-Contributor roles can write broadly; granular OneLake Read or ReadWrite
-roles are safer for narrower access. See <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
+<strong>OneLake and Delta.</strong> Admin, Member, and Contributor
+workspace roles can read and write all OneLake data in an item. For
+narrower direct access when OneLake security is not enabled, grant item
+<strong>Read</strong> (item visibility) and <strong>ReadAll</strong>
+(OneLake data). Item <strong>Read</strong> alone is insufficient. When
+OneLake security is enabled, grant item <strong>Read</strong> plus
+membership in a OneLake role whose <strong>Read</strong> scope includes
+the target table or folder; <strong>ReadAll</strong> grants access only
+through the <code>DefaultReader</code> role while that role exists and
+still includes the principal. Direct delta-rs reads cannot enforce
+OneLake row- or column-level security, so Fabric can block protected
+tables unless the caller is allowed to see all their data. See the <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric
+permission model</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/get-started-onelake-security" class="external-link">OneLake
+security overview</a>, and <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
 security best practices</a>.</li>
 <li>
 <strong>SQL.</strong> A workspace role or item Read permission

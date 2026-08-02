@@ -192,7 +192,8 @@
 <span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></code></pre></div>
-<p>The account needs access through the workspace or <strong>Lakehouse &gt; Manage OneLake data access</strong>.</p>
+<p>The account needs data-plane access to the target OneLake path. Workspace Admin, Member, and Contributor roles include broad OneLake access. Otherwise, grant item <strong>Read</strong> plus <strong>ReadAll</strong>, or—when OneLake security is enabled—item <strong>Read</strong> plus a OneLake role granting <strong>Read</strong> on the target table. Item <strong>Read</strong> alone exposes metadata but does not allow this direct Delta read.</p>
+<p><code>limit</code> returns an unordered, implementation-defined subset; it is not stable pagination. The default <code>dfs_base</code> is OneLake’s global endpoint. For strict data-residency requirements, pass the regional endpoint for the workspace’s capacity (for example, <code>https://westeurope-onelake.dfs.fabric.microsoft.com</code>), because global endpoint resolution can cross a regional boundary.</p>
 </div>
 <div class="section level3">
 <h3 id="id_5-work-with-onelake-files">5. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_5-work-with-onelake-files"></a>

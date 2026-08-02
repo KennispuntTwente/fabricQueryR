@@ -115,11 +115,15 @@
   - Preserves `long` as
     [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
     decimals as exact character data, and `timestamp_ntz` as a
-    wall-clock class, recursively through nested Arrow values. Nullable
-    structs also retain their parent validity, including inside lists
-    and maps, so null structs remain distinct from present structs whose
-    children are all null. The Arrow bridge normalizes DataFusion view
-    types for compatibility with the R `arrow` package.
+    wall-clock class, recursively through nested Arrow values. Columns
+    containing the valid Delta integer or long minimum no longer confuse
+    those values with R/bit64’s reserved NA sentinels: integer columns
+    widen to exact doubles and long columns use an exact
+    character-backed class. Nullable structs also retain their parent
+    validity, including inside lists and maps, so null structs remain
+    distinct from present structs whose children are all null. The Arrow
+    bridge normalizes DataFusion view types for compatibility with the R
+    `arrow` package.
   - Preserves canonical `arrow.parquet.variant` columns in Arrow-stream
     results and rejects tibble collection with an actionable error
     instead of silently exposing Variant’s physical metadata and value
@@ -128,13 +132,20 @@
     `timestamp_partition_timezone` is retained as a compatibility formal
     but is rejected when supplied because delta-rs has no equivalent
     override.
-  - Is checked with deterministic local delta-rs fixtures and
-    value-level live Fabric comparisons against independent Spark reader
-    oracles for deletion vectors, column mapping, and shallow clones.
-    Per-file deletion-vector masks longer than 65,536 rows, type
-    widening, V2 checkpoints, and Fabric Variant preview tables are
-    rejected with an actionable unsupported-feature error by the current
-    delta-rs runtime instead of being advertised as readable.
+  - Is checked with deterministic local delta-rs fixtures, independent
+    static value expectations, and live Fabric comparisons against
+    feature-neutral Spark-materialized reference tables for deletion
+    vectors, column mapping, and shallow clones. The live matrix now
+    also covers classic checkpoints, schema evolution and time travel,
+    void columns, binary/typed partitions, exact minimum integers, every
+    type-widening fixture, and readable neutral references for
+    unsupported features. Deletion-vector safety checks now inspect
+    active-file `numRecords` metadata instead of eagerly materializing
+    every keep mask; DV snapshots with unmeasured or
+    greater-than-65,536-row active files, type widening, V2 checkpoints,
+    and Fabric Variant preview tables are rejected with an actionable
+    unsupported-feature error by the current delta-rs runtime instead of
+    being advertised as readable.
 
 - Fabric sandbox seeding now publishes a content-derived fixture
   revision to OneLake. Discovery refuses stale or partially seeded
@@ -144,9 +155,22 @@
 - Added
   [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
   to inspect the optional Python runtime and its declared requirements.
-  Inspection is non-initializing by default. The runtime is constrained
-  to the tested `deltalake>=1.6.2,<2` range and its required
-  `DeltaTable`/`QueryBuilder` API is checked before querying.
+  Inspection is non-initializing by default. The runtime is pinned to
+  the tested `deltalake==1.6.2` and Python `nanoarrow==0.8.0` versions,
+  and its required `DeltaTable`/`QueryBuilder` API is checked before
+  querying. This avoids silently accepting future binary/runtime
+  combinations whose Arrow bridge and Delta feature behavior have not
+  been verified.
+
+- OneLake authentication guidance now distinguishes item `Read`
+  (metadata) from `ReadAll` or a scoped OneLake `Read` role (data-plane
+  access), and notes the limitation for row- or column-secured tables
+  read by an external engine.
+
+- Delta reader documentation now states that `limit` is unordered and
+  cannot be used as stable pagination, and explains when to supply a
+  regional OneLake DFS endpoint to avoid cross-region global-endpoint
+  resolution.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace/dataset
