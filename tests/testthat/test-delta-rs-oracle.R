@@ -292,6 +292,27 @@ test_that("the production Arrow stream is lazy and R Arrow compatible", {
     "timestamp\\[us\\]"
   )
 
+  cases <- list(
+    list(table = "primitive", version = 0, rows = 2L),
+    list(table = "empty", rows = 0L),
+    list(table = "schema_evolved", version = 0, rows = 2L),
+    list(table = "schema_evolved", rows = 3L),
+    list(table = "nested", rows = 3L),
+    list(table = "scalar_boundaries", rows = 3L),
+    list(table = "deletion_vector_capable", rows = 65537L)
+  )
+  for (case in cases) {
+    stream <- fabric_delta_read_uri(
+      file.path(directory, case$table),
+      version = case$version %||% NULL,
+      result = "arrow_stream"
+    )
+    expect_s3_class(stream, "nanoarrow_array_stream")
+    streamed <- arrow::as_record_batch_reader(stream)$read_table()
+    expect_equal(streamed$num_rows, case$rows, label = case$table)
+    expect_gt(streamed$num_columns, 0L, label = case$table)
+  }
+
   sys <- reticulate::import("sys", convert = FALSE)
   loaded_modules <- reticulate::py_to_r(
     .delta_python$builtins$list(sys$modules$keys())

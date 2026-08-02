@@ -363,6 +363,57 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
   expect_identical(complex[["display name"]], "display café-数据")
 })
 
+test_that("Arrow streams cover representative Fabric Delta snapshots", {
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  cases <- list(
+    list(item = lakehouse, table = lakehouse$tables$empty),
+    list(item = lakehouse, table = lakehouse$tables$typed_partitions),
+    list(
+      item = lakehouse,
+      table = lakehouse$tables$column_mapped_id_partitioned_dv
+    ),
+    list(item = lakehouse, table = lakehouse$tables$complex_types),
+    list(
+      item = lakehouse,
+      table = lakehouse$tables$schema_evolved,
+      version = 0
+    ),
+    list(item = warehouse, table = warehouse$tables$types)
+  )
+
+  for (case in cases) {
+    expected <- fabric_test_read_delta(
+      manifest,
+      case$item,
+      case$table,
+      version = case$version %||% NULL
+    )
+    stream <- fabric_test_read_delta(
+      manifest,
+      case$item,
+      case$table,
+      version = case$version %||% NULL,
+      result = "arrow_stream"
+    )
+    expect_s3_class(stream, "nanoarrow_array_stream")
+    actual <- arrow::as_record_batch_reader(stream)$read_table()
+    expect_equal(actual$num_rows, nrow(expected), label = case$table)
+    expect_identical(actual$ColumnNames(), names(expected), label = case$table)
+    if ("id" %in% names(expected) && nrow(expected)) {
+      actual_id <- as.data.frame(actual$Select("id"))$id
+      expect_setequal(
+        as.character(actual_id),
+        as.character(expected$id),
+        label = case$table
+      )
+    }
+  }
+})
+
 test_that("core Fabric Delta features are handled by the table provider", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
