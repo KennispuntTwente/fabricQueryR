@@ -92,8 +92,10 @@ cancellation, while sessions also provide explicit cleanup;
   - Is checked with deterministic local delta-rs fixtures, independent static
   value expectations, and live Fabric comparisons against feature-neutral
   Spark-materialized reference tables for deletion vectors, column mapping,
-  and shallow clones. Per-file deletion-vector masks
-  longer than 65,536 rows, type widening, V2 checkpoints, and Fabric Variant
+  and shallow clones. Deletion-vector safety checks now inspect active-file
+  `numRecords` metadata instead of eagerly materializing every keep mask; DV
+  snapshots with unmeasured or greater-than-65,536-row active files, type
+  widening, V2 checkpoints, and Fabric Variant
   preview tables are rejected with an actionable unsupported-feature error by
   the current delta-rs runtime instead of being advertised as readable.
 

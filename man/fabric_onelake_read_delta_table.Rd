@@ -115,9 +115,12 @@ returned and consumed cannot be retried.
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 typed partitions, classic checkpoints, column mapping, deletion vectors, and
-shallow clones. Per-file deletion-vector masks longer than 65,536 rows are
-rejected because the selected runtime can apply them at incorrect record-batch
-offsets. Its current reader also does not support Fabric tables requiring Type
+shallow clones. For a deletion-vector-capable snapshot, every active file
+must have Delta statistics proving it has no more than 65,536 physical rows;
+larger or unmeasured files are rejected because the selected runtime can
+apply their masks at incorrect record-batch offsets. This metadata-only
+preflight does not materialize deletion-vector masks. Its current reader also
+does not support Fabric tables requiring Type
 Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 \code{fabric_delta_unsupported_feature_error}. Arrow Variant extension columns in
 otherwise readable tables require \code{result = "arrow_stream"}.

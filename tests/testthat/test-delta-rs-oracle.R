@@ -91,6 +91,14 @@ test_that("the production bridge preserves exact and nested values", {
     file.path(directory, "primitive"),
     result = "tibble"
   )
+  primitive_table <- .delta_python$deltalake$DeltaTable(
+    file.path(directory, "primitive")
+  )
+  expect_false(
+    "deletionvectors" %in%
+      tolower(fabric_delta_reader_features(primitive_table))
+  )
+  expect_equal(sum(fabric_delta_active_file_rows(primitive_table)), 5)
   expect_s3_class(primitive$id, "integer64")
   expect_true("9007199254740993" %in% as.character(primitive$id))
   expect_true("12.3000" %in% primitive$amount)

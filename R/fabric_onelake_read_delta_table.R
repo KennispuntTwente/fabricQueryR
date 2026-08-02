@@ -35,9 +35,12 @@
 #'
 #' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 #' typed partitions, classic checkpoints, column mapping, deletion vectors, and
-#' shallow clones. Per-file deletion-vector masks longer than 65,536 rows are
-#' rejected because the selected runtime can apply them at incorrect record-batch
-#' offsets. Its current reader also does not support Fabric tables requiring Type
+#' shallow clones. For a deletion-vector-capable snapshot, every active file
+#' must have Delta statistics proving it has no more than 65,536 physical rows;
+#' larger or unmeasured files are rejected because the selected runtime can
+#' apply their masks at incorrect record-batch offsets. This metadata-only
+#' preflight does not materialize deletion-vector masks. Its current reader also
+#' does not support Fabric tables requiring Type
 #' Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 #' `fabric_delta_unsupported_feature_error`. Arrow Variant extension columns in
 #' otherwise readable tables require `result = "arrow_stream"`.
@@ -617,49 +620,95 @@ fabric_delta_python_reader <- function(
 
 .fabric_delta_max_deletion_vector_rows <- 65536
 
-#' Return each active deletion-vector keep-mask length
+#' Return the snapshot's enabled Delta reader features
 #' @keywords internal
 #' @noRd
-fabric_delta_deletion_vector_lengths <- function(table) {
-  masks <- table$deletion_vectors()$read_all()$column(
-    "selection_vector"
-  )$to_pylist()
-  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(masks)))
+fabric_delta_reader_features <- function(table) {
+  features <- reticulate::py_to_r(table$protocol()$reader_features)
+  if (is.null(features)) character() else as.character(features)
+}
+
+#' Return physical row counts from active Delta add-action statistics
+#' @keywords internal
+#' @noRd
+fabric_delta_active_file_rows <- function(table) {
+  rows <- table$get_add_actions()$column("num_records")$to_pylist()
+  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(rows)))
   if (!count) {
-    return(integer())
+    return(numeric())
   }
   vapply(
     seq_len(count) - 1L,
     function(index) {
-      mask <- masks$`__getitem__`(.delta_python$builtins$int(index))
-      as.double(reticulate::py_to_r(.delta_python$builtins$len(mask)))
+      value <- reticulate::py_to_r(
+        rows$`__getitem__`(.delta_python$builtins$int(index))
+      )
+      if (is.null(value)) NA_real_ else as.double(value)
     },
     numeric(1)
   )
 }
 
-#' Reject deletion vectors the selected table provider can misapply
+#' Reject deletion-vector-capable files the selected provider may misapply
 #' @keywords internal
 #' @noRd
 fabric_delta_validate_deletion_vectors <- function(
   table = NULL,
-  lengths = NULL,
+  features = NULL,
+  active_file_rows = NULL,
   max_rows = .fabric_delta_max_deletion_vector_rows
 ) {
-  if (is.null(lengths)) {
-    lengths <- fabric_delta_deletion_vector_lengths(table)
+  if (is.null(features)) {
+    features <- fabric_delta_reader_features(table)
   }
-  unsafe <- lengths[lengths > max_rows]
+  if (!any(tolower(features) == "deletionvectors")) {
+    return(invisible(numeric()))
+  }
+  if (is.null(active_file_rows)) {
+    active_file_rows <- fabric_delta_active_file_rows(table)
+  }
+  unknown <- is.na(active_file_rows)
+  if (any(unknown)) {
+    rlang::abort(
+      c(
+        paste0(
+          "The selected delta-rs runtime cannot safely scan this ",
+          "deletion-vector-capable snapshot."
+        ),
+        "x" = paste0(
+          sum(unknown),
+          " active file(s) have no numRecords statistic, so their physical ",
+          "row counts cannot be checked without materializing deletion vectors."
+        ),
+        "i" = paste0(
+          "Use a Fabric PySpark notebook for this table, or rewrite/compact ",
+          "the table so every active file has row-count statistics."
+        )
+      ),
+      class = c(
+        "fabric_delta_unsupported_feature_error",
+        "fabric_delta_unsupported_error",
+        "fabric_delta_error"
+      ),
+      delta_features = "UnmeasuredDeletionVectorFile",
+      deletion_vector_unknown_files = sum(unknown),
+      deletion_vector_row_limit = max_rows
+    )
+  }
+  unsafe <- active_file_rows[active_file_rows > max_rows]
   if (!length(unsafe)) {
-    return(invisible(lengths))
+    return(invisible(active_file_rows))
   }
   rlang::abort(
     c(
-      "The selected delta-rs runtime cannot safely scan this deletion vector.",
+      paste0(
+        "The selected delta-rs runtime cannot safely scan this ",
+        "deletion-vector-capable snapshot."
+      ),
       "x" = paste0(
-        "Per-file deletion-vector masks contain up to ",
+        "Active files contain up to ",
         format(max(unsafe), big.mark = ",", scientific = FALSE),
-        " rows; the safe limit is ",
+        " physical rows; the safe per-file limit is ",
         format(max_rows, big.mark = ",", scientific = FALSE),
         " rows."
       ),

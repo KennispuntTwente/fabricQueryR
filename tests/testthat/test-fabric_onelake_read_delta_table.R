@@ -422,12 +422,24 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
-test_that("oversized deletion vectors fail closed before table scans", {
+test_that("deletion-vector safety uses active-file metadata, not masks", {
   expect_no_error(
-    fabric_delta_validate_deletion_vectors(lengths = c(100L, 65536L))
+    fabric_delta_validate_deletion_vectors(
+      features = "deletionVectors",
+      active_file_rows = c(100L, 65536L)
+    )
+  )
+  expect_no_error(
+    fabric_delta_validate_deletion_vectors(
+      features = character(),
+      active_file_rows = 100000L
+    )
   )
   error <- tryCatch(
-    fabric_delta_validate_deletion_vectors(lengths = c(10L, 100000L)),
+    fabric_delta_validate_deletion_vectors(
+      features = "DeletionVectors",
+      active_file_rows = c(10L, 100000L)
+    ),
     error = identity
   )
 
@@ -435,8 +447,23 @@ test_that("oversized deletion vectors fail closed before table scans", {
   expect_identical(error$delta_features, "LargeDeletionVector")
   expect_identical(error$deletion_vector_rows, 100000L)
   expect_identical(error$deletion_vector_row_limit, 65536)
-  expect_match(conditionMessage(error), "100,000 rows", fixed = TRUE)
+  expect_match(conditionMessage(error), "100,000 physical rows", fixed = TRUE)
   expect_match(conditionMessage(error), "65,536 rows", fixed = TRUE)
+
+  unknown <- tryCatch(
+    fabric_delta_validate_deletion_vectors(
+      features = "deletionVectors",
+      active_file_rows = c(10L, NA_real_)
+    ),
+    error = identity
+  )
+  expect_s3_class(unknown, "fabric_delta_unsupported_feature_error")
+  expect_identical(
+    unknown$delta_features,
+    "UnmeasuredDeletionVectorFile"
+  )
+  expect_identical(unknown$deletion_vector_unknown_files, 1L)
+  expect_match(conditionMessage(unknown), "no numRecords statistic")
 })
 
 test_that("Delta runtime requirements are declared without forcing initialization", {
