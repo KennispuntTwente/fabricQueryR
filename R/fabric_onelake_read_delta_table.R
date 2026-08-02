@@ -18,7 +18,7 @@
 #' runtime dependencies in that environment with:
 #'
 #' ```text
-#' python -m pip install "deltalake>=1.6.2,<2" "nanoarrow>=0.8.0"
+#' python -m pip install "deltalake==1.6.2" "nanoarrow==0.8.0"
 #' ```
 #' OneLake credentials use the `https://storage.azure.com/.default` audience
 #' and are passed to delta-rs as a bearer token with its Fabric endpoint
@@ -871,10 +871,19 @@ fabric_delta_collect_reader <- function(reader) {
 #' Validate the installed Python Delta query surface
 #' @keywords internal
 #' @noRd
-fabric_delta_validate_runtime <- function(version = NULL, exports = NULL) {
+fabric_delta_validate_runtime <- function(
+  version = NULL,
+  exports = NULL,
+  nanoarrow_version = NULL
+) {
   required_exports <- c("DeltaTable", "QueryBuilder")
   if (is.null(version)) {
     version <- reticulate::py_to_r(.delta_python$deltalake$`__version__`)
+  }
+  if (is.null(nanoarrow_version)) {
+    nanoarrow_version <- reticulate::py_to_r(
+      .delta_python$nanoarrow$`__version__`
+    )
   }
   if (is.null(exports)) {
     exports <- required_exports[vapply(
@@ -883,16 +892,18 @@ fabric_delta_validate_runtime <- function(version = NULL, exports = NULL) {
       logical(1)
     )]
   }
-  parsed <- tryCatch(
-    numeric_version(version),
-    error = identity
+  valid_version <- identical(as.character(version), "1.6.2")
+  valid_nanoarrow_version <- identical(
+    as.character(nanoarrow_version),
+    "0.8.0"
   )
-  valid_version <- !inherits(parsed, "error") &&
-    parsed >= numeric_version("1.6.2") &&
-    parsed < numeric_version("2.0.0")
   missing_exports <- setdiff(required_exports, exports)
-  if (valid_version && !length(missing_exports)) {
-    return(invisible(list(version = version, exports = exports)))
+  if (valid_version && valid_nanoarrow_version && !length(missing_exports)) {
+    return(invisible(list(
+      deltalake_version = version,
+      nanoarrow_version = nanoarrow_version,
+      exports = exports
+    )))
   }
 
   reasons <- character()
@@ -902,7 +913,17 @@ fabric_delta_validate_runtime <- function(version = NULL, exports = NULL) {
       paste0(
         "Installed deltalake version ",
         version,
-        " is outside the supported range >=1.6.2,<2."
+        "; this package is tested with exactly version 1.6.2."
+      )
+    )
+  }
+  if (!valid_nanoarrow_version) {
+    reasons <- c(
+      reasons,
+      paste0(
+        "Installed Python nanoarrow version ",
+        nanoarrow_version,
+        "; this package is tested with exactly version 0.8.0."
       )
     )
   }
@@ -920,7 +941,8 @@ fabric_delta_validate_runtime <- function(version = NULL, exports = NULL) {
       "The selected Python environment has an incompatible Delta runtime.",
       "x" = paste(reasons, collapse = " "),
       "i" = paste0(
-        'Install "deltalake>=1.6.2,<2" in the Python selected by ',
+        'Install "deltalake==1.6.2" and "nanoarrow==0.8.0" in the ',
+        "Python selected by ",
         "reticulate, or unset RETICULATE_PYTHON to use a managed environment."
       )
     ),
@@ -1462,7 +1484,7 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
     bullets <- c(
       bullets,
       "i" = paste0(
-        "Install deltalake>=1.6.2,<2 and nanoarrow>=0.8.0 in the Python ",
+        "Install deltalake==1.6.2 and nanoarrow==0.8.0 in the Python ",
         "selected by reticulate, or unset RETICULATE_PYTHON to use a ",
         "managed environment."
       )

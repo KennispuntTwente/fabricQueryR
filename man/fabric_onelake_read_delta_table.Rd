@@ -97,7 +97,7 @@ and packages are not downloaded until this function is called.
 If \code{RETICULATE_PYTHON} selects a user-managed environment, install the
 runtime dependencies in that environment with:
 
-\if{html}{\out{<div class="sourceCode text">}}\preformatted{python -m pip install "deltalake>=1.6.2,<2" "nanoarrow>=0.8.0"
+\if{html}{\out{<div class="sourceCode text">}}\preformatted{python -m pip install "deltalake==1.6.2" "nanoarrow==0.8.0"
 }\if{html}{\out{</div>}}
 
 OneLake credentials use the \verb{https://storage.azure.com/.default} audience

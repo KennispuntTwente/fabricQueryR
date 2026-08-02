@@ -468,8 +468,8 @@ test_that("deletion-vector safety uses active-file metadata, not masks", {
 
 test_that("Delta runtime requirements are declared without forcing initialization", {
   requirements <- reticulate::py_require()
-  expect_true("deltalake>=1.6.2,<2" %in% requirements$packages)
-  expect_true("nanoarrow>=0.8.0" %in% requirements$packages)
+  expect_true("deltalake==1.6.2" %in% requirements$packages)
+  expect_true("nanoarrow==0.8.0" %in% requirements$packages)
   expect_identical(requirements$python_version, ">=3.10")
 
   config <- fabric_delta_config(initialize = FALSE)
@@ -490,20 +490,26 @@ test_that("Delta runtime requirements are declared without forcing initializatio
 
 test_that("Delta runtime compatibility is validated before querying", {
   required <- c("DeltaTable", "QueryBuilder")
-  expect_invisible(fabric_delta_validate_runtime("1.6.2", required))
-  expect_invisible(fabric_delta_validate_runtime("1.99.0", required))
+  expect_invisible(
+    fabric_delta_validate_runtime("1.6.2", required, "0.8.0")
+  )
   expect_error(
-    fabric_delta_validate_runtime("1.6.1", required),
-    ">=1.6.2,<2",
+    fabric_delta_validate_runtime("1.6.1", required, "0.8.0"),
+    "exactly version 1.6.2",
     class = "fabric_delta_environment_error"
   )
   expect_error(
-    fabric_delta_validate_runtime("2.0.0", required),
-    ">=1.6.2,<2",
+    fabric_delta_validate_runtime("1.6.3", required, "0.8.0"),
+    "exactly version 1.6.2",
     class = "fabric_delta_environment_error"
   )
   expect_error(
-    fabric_delta_validate_runtime("1.6.2", "DeltaTable"),
+    fabric_delta_validate_runtime("1.6.2", required, "0.8.1"),
+    "exactly version 0.8.0",
+    class = "fabric_delta_environment_error"
+  )
+  expect_error(
+    fabric_delta_validate_runtime("1.6.2", "DeltaTable", "0.8.0"),
     "QueryBuilder",
     class = "fabric_delta_environment_error"
   )

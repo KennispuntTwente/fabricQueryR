@@ -105,8 +105,10 @@ before R integration tests can report misleading table-level results.
 
 * Added `fabric_delta_config()` to inspect the optional Python runtime and its
 declared requirements. Inspection is non-initializing by default. The runtime
-is constrained to the tested `deltalake>=1.6.2,<2` range and its required
-`DeltaTable`/`QueryBuilder` API is checked before querying.
+is pinned to the tested `deltalake==1.6.2` and Python `nanoarrow==0.8.0`
+versions, and its required `DeltaTable`/`QueryBuilder` API is checked before
+querying. This avoids silently accepting future binary/runtime combinations
+whose Arrow bridge and Delta feature behavior have not been verified.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
 workspace/dataset IDs, supports optional RLS impersonation, handles paginated
