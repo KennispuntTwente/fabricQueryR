@@ -173,6 +173,12 @@ test_that("DataFusion queries quote identifiers and exact whole numbers", {
     fabric_delta_query(NULL, NULL),
     "SELECT * FROM \"fabric_delta_table\""
   )
+  limited <- fabric_delta_query(NULL, 2)
+  expect_identical(
+    limited,
+    "SELECT * FROM \"fabric_delta_table\" LIMIT 2"
+  )
+  expect_false(grepl("ORDER BY", limited, fixed = TRUE))
   expect_identical(
     fabric_delta_whole_number_text(2147483648),
     "2147483648"

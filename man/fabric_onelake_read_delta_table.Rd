@@ -69,13 +69,16 @@ locally. A non-\code{NULL} value is ignored with a warning.}
 
 \item{verbose}{Logical. Show authentication and read progress.}
 
-\item{dfs_base}{OneLake DFS endpoint. Keep the default unless using a
-regional or workspace-private endpoint.}
+\item{dfs_base}{OneLake DFS endpoint. Use the workspace capacity's regional
+endpoint when endpoint-resolution data residency matters, or its required
+workspace-private FQDN for a workspace private link.}
 
 \item{columns}{Optional character vector of logical Delta columns, in the
 requested order. \code{NULL} returns all columns.}
 
-\item{limit}{Optional non-negative whole number limiting returned rows.}
+\item{limit}{Optional non-negative whole number limiting returned rows. No
+ordering is applied, so a partial result is an implementation-defined
+subset and is not suitable for stable pagination.}
 
 \item{result}{\code{"tibble"} or \code{"arrow_stream"}.}
 }
@@ -122,6 +125,18 @@ transaction state or remain fixed while Delta-log publishing is paused.
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
 returned and consumed cannot be retried.
+
+\code{limit} is pushed down without an ordering expression. When it is smaller
+than the snapshot, the returned rows are an implementation-defined subset
+and can change with file layout, snapshot version, or scan scheduling. It is
+not a stable pagination mechanism.
+
+\code{dfs_base} defaults to OneLake's global endpoint. Microsoft notes that data
+can leave the workspace's region during global-endpoint resolution. For
+data-residency requirements, pass the workspace capacity's regional endpoint,
+such as \verb{https://westeurope-onelake.dfs.fabric.microsoft.com}; use the
+workspace FQDN required by a workspace private link where applicable. See
+\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connecting to Microsoft OneLake}.
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 typed partitions, classic checkpoints, column mapping, deletion vectors, and
