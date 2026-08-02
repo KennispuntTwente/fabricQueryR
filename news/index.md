@@ -131,9 +131,9 @@
   - Is checked with deterministic local delta-rs fixtures and
     value-level live Fabric comparisons against independent Spark reader
     oracles for deletion vectors, column mapping, and shallow clones.
-    Type widening and V2 checkpoints are rejected with an actionable
-    unsupported-feature error by the current delta-rs runtime instead of
-    being advertised as readable.
+    Type widening, V2 checkpoints, and Fabric Variant preview tables are
+    rejected with an actionable unsupported-feature error by the current
+    delta-rs runtime instead of being advertised as readable.
 
 - Fabric sandbox seeding now publishes a content-derived fixture
   revision to OneLake. Discovery refuses stale or partially seeded
