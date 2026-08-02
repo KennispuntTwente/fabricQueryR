@@ -12,16 +12,32 @@ from azure.identity import (
     WorkloadIdentityCredential,
 )
 
-
+STORAGE_SCOPE = "https://storage.azure.com/.default"
 ENVIRONMENT_TOKEN_VARIABLES = {
     "https://api.fabric.microsoft.com/.default": "FABRIC_TEST_API_TOKEN",
     "https://analysis.windows.net/powerbi/api/.default": (
         "FABRIC_TEST_PBI_TOKEN"
     ),
     "https://database.windows.net/.default": "FABRIC_TEST_SQL_TOKEN",
-    "https://storage.azure.com/.default": "FABRIC_TEST_STORAGE_TOKEN",
+    STORAGE_SCOPE: "FABRIC_TEST_STORAGE_TOKEN",
     "https://api.kusto.windows.net/.default": "FABRIC_TEST_KUSTO_TOKEN",
 }
+
+
+class CachedTokenCredential:
+    """Cache access tokens so long operations do not reacquire them late."""
+
+    def __init__(self, credential: TokenCredential) -> None:
+        self.credential = credential
+        self.tokens: dict[tuple[str, ...], AccessToken] = {}
+
+    def get_token(self, *scopes: str, **kwargs: object) -> AccessToken:
+        cached = self.tokens.get(scopes)
+        if cached is not None and cached.expires_on > time.time() + 300:
+            return cached
+        token = self.credential.get_token(*scopes, **kwargs)
+        self.tokens[scopes] = token
+        return token
 
 
 class EnvironmentTokenCredential:

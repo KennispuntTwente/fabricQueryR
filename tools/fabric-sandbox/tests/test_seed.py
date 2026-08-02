@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+from azure.core.credentials import AccessToken
+
 from fabricqueryr_sandbox.seed import (
     _logical_delta_table_row_count,
     seed,
@@ -401,8 +403,8 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.upload_fixtures",
-        lambda settings, workspace_id, lakehouse_id: calls.append(
-            ("upload", settings, workspace_id, lakehouse_id)
+        lambda settings, workspace_id, lakehouse_id, *, credential: calls.append(
+            ("upload", settings, workspace_id, lakehouse_id, credential)
         ),
     )
     monkeypatch.setattr(
@@ -411,8 +413,14 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.write_fixture_revision",
-        lambda workspace_id, lakehouse_id, revision: calls.append(
-            ("fixture_revision", workspace_id, lakehouse_id, revision)
+        lambda workspace_id, lakehouse_id, revision, *, credential: calls.append(
+            (
+                "fixture_revision",
+                workspace_id,
+                lakehouse_id,
+                revision,
+                credential,
+            )
         ),
     )
     monkeypatch.setattr(
@@ -429,7 +437,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.wait_for_delta_log_publication",
-        lambda workspace_id, item_id, table, *, not_before, expected_rows: calls.append(
+        lambda workspace_id, item_id, table, *, not_before, expected_rows, credential: calls.append(
             (
                 "wait_for_delta_log",
                 workspace_id,
@@ -437,21 +445,20 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
                 table,
                 not_before,
                 expected_rows,
+                credential,
             )
         )
         or "00000000000000000000.json",
     )
-    credential = type(
-        "Credential",
-        (),
-        {
-            "get_token": lambda self, audience: type(
-                "AccessToken",
-                (),
-                {"token": f"token-for-{audience}"},
-            )()
-        },
-    )()
+    class Credential:
+        def get_token(self, audience):
+            calls.append(("base_get_token", audience))
+            return AccessToken(
+                f"token-for-{audience}",
+                4102444800,
+            )
+
+    credential = Credential()
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.get_credential",
         lambda: credential,
@@ -474,7 +481,28 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     seed(settings)
 
     assert ("spark_runtime", "workspace-id", "2.0") in calls
-    assert ("upload", settings, "workspace-id", "TestLakehouse-id") in calls
+    cached_credential = next(
+        call[1] for call in calls if call[0] == "fabric_client"
+    )
+    assert cached_credential.credential is credential
+    token_calls = [call for call in calls if call[0] == "base_get_token"]
+    assert [call[1] for call in token_calls] == [
+        "https://api.fabric.microsoft.com/.default",
+        "https://storage.azure.com/.default",
+        "https://database.windows.net/.default",
+        "https://api.kusto.windows.net/.default",
+        "https://analysis.windows.net/powerbi/api/.default",
+    ]
+    assert calls.index(token_calls[-1]) < next(
+        index for index, call in enumerate(calls) if call[0] == "fabric_client"
+    )
+    assert (
+        "upload",
+        settings,
+        "workspace-id",
+        "TestLakehouse-id",
+        cached_credential,
+    ) in calls
     revision_calls = [
         call for call in calls if call[0] == "fixture_revision"
     ]
@@ -484,12 +512,14 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "workspace-id",
             "TestLakehouse-id",
             "incomplete",
+            cached_credential,
         ),
         (
             "fixture_revision",
             "workspace-id",
             "TestLakehouse-id",
             "fixture-revision",
+            cached_credential,
         ),
     ]
     assert (
@@ -536,6 +566,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     assert all(call[4].tzinfo is not None for call in delta_log_calls)
     assert all(call[5] == 3 for call in delta_log_calls)
+    assert all(call[6] is cached_credential for call in delta_log_calls)
     assert calls.index(delta_log_calls[0]) > calls.index(
         (
             "seed_sql",
@@ -558,5 +589,9 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "token-for-https://database.windows.net/.default",
         False,
     ) in calls
-    assert ("seed_power_bi", credential, "workspace-id") in calls
-    assert ("prepare_arrow_power_bi", credential, "workspace-id") in calls
+    assert ("seed_power_bi", cached_credential, "workspace-id") in calls
+    assert (
+        "prepare_arrow_power_bi",
+        cached_credential,
+        "workspace-id",
+    ) in calls

@@ -6,15 +6,16 @@ import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 
+from azure.core.credentials import TokenCredential
 from azure.core.exceptions import AzureError, ResourceExistsError
 from azure.storage.filedatalake import DataLakeServiceClient
 
-from .credentials import get_credential
+from .credentials import CachedTokenCredential, get_credential, STORAGE_SCOPE
 from .discover import (
     _wait_for_kql_properties,
     _wait_for_sql_properties,
 )
-from .fabric_api import FabricApi
+from .fabric_api import FABRIC_SCOPE, FabricApi
 from .fixture_revision import (
     INCOMPLETE_FIXTURE_REVISION,
     fixture_revision,
@@ -25,8 +26,9 @@ from .graphql_api import (
     GRAPHQL_ROOT_FIELD,
     graphql_definition,
 )
-from .kusto_api import KustoApi, SEED_TABLE
+from .kusto_api import KUSTO_SCOPE, KustoApi, SEED_TABLE
 from .power_bi_api import (
+    POWER_BI_SCOPE,
     prepare_arrow_test_semantic_model,
     seed_test_semantic_model,
 )
@@ -63,6 +65,7 @@ def wait_for_delta_log_publication(
     expected_rows: int | None = None,
     service_client: DataLakeServiceClient | None = None,
     table_count: Callable[[str], int] | None = None,
+    credential: TokenCredential | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> str:
     """Wait for Fabric's background Warehouse Delta-log publication."""
@@ -70,10 +73,14 @@ def wait_for_delta_log_publication(
         raise ValueError("attempts must be positive")
     if not_before.tzinfo is None:
         raise ValueError("not_before must be timezone-aware")
-    service = service_client or DataLakeServiceClient(
-        account_url="https://onelake.dfs.fabric.microsoft.com",
-        credential=get_credential(),
-    )
+    if service_client is None:
+        credential = credential or get_credential()
+        service = DataLakeServiceClient(
+            account_url="https://onelake.dfs.fabric.microsoft.com",
+            credential=credential,
+        )
+    else:
+        service = service_client
     filesystem = service.get_file_system_client(workspace_id)
     log_path = f"{item_id}/Tables/dbo/{table}/_delta_log"
     table_uri = (
@@ -83,9 +90,8 @@ def wait_for_delta_log_publication(
     if expected_rows is not None and table_count is None:
         from deltalake import DeltaTable
 
-        storage_token = get_credential().get_token(
-            "https://storage.azure.com/.default"
-        ).token
+        credential = credential or get_credential()
+        storage_token = credential.get_token(STORAGE_SCOPE).token
 
         def table_count(uri: str) -> int:
             delta_table = DeltaTable(
@@ -135,11 +141,15 @@ def wait_for_delta_log_publication(
 
 
 def upload_fixtures(
-    settings: SandboxSettings, workspace_id: str, lakehouse_id: str
+    settings: SandboxSettings,
+    workspace_id: str,
+    lakehouse_id: str,
+    *,
+    credential: TokenCredential | None = None,
 ) -> None:
     service = DataLakeServiceClient(
         account_url="https://onelake.dfs.fabric.microsoft.com",
-        credential=get_credential(),
+        credential=credential or get_credential(),
     )
     filesystem = service.get_file_system_client(workspace_id)
     fixture_files = sorted(
@@ -169,7 +179,17 @@ def upload_fixtures(
 
 def seed(settings: SandboxSettings) -> None:
     workspace_id = settings.require_workspace()
-    with FabricApi(get_credential()) as api:
+    credential = CachedTokenCredential(get_credential())
+    for scope in (
+        FABRIC_SCOPE,
+        STORAGE_SCOPE,
+        SQL_AUDIENCE,
+        KUSTO_SCOPE,
+        POWER_BI_SCOPE,
+    ):
+        credential.get_token(scope)
+
+    with FabricApi(credential) as api:
         spark_settings = api.configure_workspace_spark_runtime(
             workspace_id,
             settings.spark_runtime_version,
@@ -222,11 +242,17 @@ def seed(settings: SandboxSettings) -> None:
             sql_database_item["id"],
             item_type="SQLDatabase",
         )
-        upload_fixtures(settings, workspace_id, lakehouse["id"])
+        upload_fixtures(
+            settings,
+            workspace_id,
+            lakehouse["id"],
+            credential=credential,
+        )
         write_fixture_revision(
             workspace_id,
             lakehouse["id"],
             INCOMPLETE_FIXTURE_REVISION,
+            credential=credential,
         )
         job = api.run_notebook(
             workspace_id,
@@ -237,7 +263,7 @@ def seed(settings: SandboxSettings) -> None:
             f"seed notebook completed: {job.get('id')} "
             f"exitValue={job.get('exitValue')!r}"
         )
-    sql_token = get_credential().get_token(SQL_AUDIENCE).token
+    sql_token = credential.get_token(SQL_AUDIENCE).token
     sql_targets = (
         (
             warehouse_item["displayName"],
@@ -267,13 +293,14 @@ def seed(settings: SandboxSettings) -> None:
                     table,
                     not_before=publication_start,
                     expected_rows=3,
+                    credential=credential,
                 )
                 print(
                     "Warehouse Delta log published and readable: "
                     f"{published}"
                 )
 
-    with FabricApi(get_credential()) as api:
+    with FabricApi(credential) as api:
         api.update_graphql_definition(
             workspace_id,
             graphql_api["id"],
@@ -292,7 +319,7 @@ def seed(settings: SandboxSettings) -> None:
     query_service_uri = kql_database.get("properties", {}).get("queryServiceUri")
     if not query_service_uri:
         raise RuntimeError("KQL database query service URI is not ready")
-    with KustoApi(get_credential()) as kusto:
+    with KustoApi(credential) as kusto:
         kusto.seed_fixture(
             query_service_uri,
             kql_database_item["displayName"],
@@ -303,7 +330,7 @@ def seed(settings: SandboxSettings) -> None:
     )
 
     semantic_model = seed_test_semantic_model(
-        get_credential(),
+        credential,
         workspace_id,
     )
     print(
@@ -311,7 +338,7 @@ def seed(settings: SandboxSettings) -> None:
         f"{semantic_model.get('name')} ({semantic_model.get('id')})"
     )
     arrow_semantic_model = prepare_arrow_test_semantic_model(
-        get_credential(),
+        credential,
         workspace_id,
     )
     print(
@@ -320,5 +347,10 @@ def seed(settings: SandboxSettings) -> None:
         f"({arrow_semantic_model.get('id')})"
     )
     revision = fixture_revision(settings)
-    write_fixture_revision(workspace_id, lakehouse["id"], revision)
+    write_fixture_revision(
+        workspace_id,
+        lakehouse["id"],
+        revision,
+        credential=credential,
+    )
     print(f"Fabric fixture revision published: {revision}")

@@ -5,6 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 from pathlib import Path
 
+from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.filedatalake import DataLakeServiceClient
 
@@ -62,10 +63,11 @@ def _revision_file(
     lakehouse_id: str,
     *,
     service_client: DataLakeServiceClient | None = None,
+    credential: TokenCredential | None = None,
 ):
     service = service_client or DataLakeServiceClient(
         account_url="https://onelake.dfs.fabric.microsoft.com",
-        credential=get_credential(),
+        credential=credential or get_credential(),
     )
     filesystem = service.get_file_system_client(workspace_id)
     return filesystem.get_file_client(
@@ -79,6 +81,7 @@ def write_fixture_revision(
     revision: str,
     *,
     service_client: DataLakeServiceClient | None = None,
+    credential: TokenCredential | None = None,
 ) -> None:
     """Publish a revision marker after a complete successful seed."""
     if not revision.strip():
@@ -87,6 +90,7 @@ def write_fixture_revision(
         workspace_id,
         lakehouse_id,
         service_client=service_client,
+        credential=credential,
     ).upload_data((revision + "\n").encode("utf-8"), overwrite=True)
 
 

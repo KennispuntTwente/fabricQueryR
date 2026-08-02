@@ -68,6 +68,30 @@ def test_live_workflow_gates_delta_reader_changes_at_the_test_revision():
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
 
 
+def test_provisioning_workflows_acquire_tokens_before_long_running_steps():
+    repository_root = Path(__file__).parents[3]
+    workflows = [
+        repository_root / ".github/workflows/integration-fabric.yaml",
+        repository_root / ".github/workflows/fabric-sandbox.yaml",
+    ]
+    resources = [
+        "https://storage.azure.com/",
+        "https://database.windows.net/",
+        "https://api.fabric.microsoft.com/",
+        "https://analysis.windows.net/powerbi/api",
+        "https://api.kusto.windows.net",
+    ]
+
+    for path in workflows:
+        workflow = path.read_text()
+        login = workflow.index("Sign in to Azure with OIDC")
+        acquire = workflow.index("Acquire sandbox access tokens")
+        seed = workflow.index("Seed test data")
+        assert login < acquire < seed
+        assert "FABRIC_SANDBOX_USE_ENV_TOKENS=true" in workflow
+        assert all(resource in workflow for resource in resources)
+
+
 def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
     repository_root = Path(__file__).parents[3]
     workflow = (

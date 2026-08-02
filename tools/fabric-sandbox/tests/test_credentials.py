@@ -1,10 +1,29 @@
 import pytest
+from azure.core.credentials import AccessToken
 from azure.identity import AzureCliCredential, ClientSecretCredential
 
 from fabricqueryr_sandbox.credentials import (
+    CachedTokenCredential,
     EnvironmentTokenCredential,
     get_credential,
 )
+
+
+def test_cached_credential_reuses_prefetched_access_tokens():
+    calls = []
+
+    class Credential:
+        def get_token(self, *scopes, **kwargs):
+            calls.append((scopes, kwargs))
+            return AccessToken("token", 4102444800)
+
+    credential = CachedTokenCredential(Credential())
+
+    prefetched = credential.get_token("scope")
+    reused = credential.get_token("scope")
+
+    assert reused is prefetched
+    assert calls == [(("scope",), {})]
 
 
 def test_environment_credential_selects_tokens_by_scope(monkeypatch):
