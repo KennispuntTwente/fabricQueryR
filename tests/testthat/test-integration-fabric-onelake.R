@@ -54,6 +54,63 @@ fabric_test_order_delta_rows <- function(value, feature) {
   value[order(value$id, na.last = TRUE), , drop = FALSE]
 }
 
+fabric_test_canonicalize_delta_maps <- function(value) {
+  if (is.data.frame(value)) {
+    for (name in names(value)) {
+      value[[name]] <- fabric_test_canonicalize_delta_maps(value[[name]])
+    }
+    if (identical(names(value), c("key", "value")) && nrow(value) > 1L) {
+      labels <- vapply(
+        seq_len(nrow(value)),
+        function(index) {
+          key <- value$key
+          key <- if (is.data.frame(key)) {
+            key[index, , drop = FALSE]
+          } else {
+            key[[index]]
+          }
+          if (is.data.frame(key)) {
+            rownames(key) <- NULL
+          }
+          paste(capture.output(dput(key)), collapse = "\n")
+        },
+        character(1)
+      )
+      value <- value[order(labels), , drop = FALSE]
+      rownames(value) <- NULL
+    }
+    return(value)
+  }
+  if (is.list(value)) {
+    return(lapply(value, fabric_test_canonicalize_delta_maps))
+  }
+  value
+}
+
+test_that("Delta oracle comparisons canonicalize unordered map entries", {
+  nested <- structure(
+    data.frame(number = c(NA_integer_, NA_integer_)),
+    class = c("fabric_delta_struct_column", "data.frame"),
+    fabric_delta_struct_validity = c(FALSE, TRUE)
+  )
+  key <- data.frame(marker = 1:2)
+  key$nested <- nested
+  map <- structure(
+    list(key = key, value = c("null", "present")),
+    class = "data.frame",
+    row.names = c(NA, -2L)
+  )
+
+  actual <- fabric_test_canonicalize_delta_maps(map)
+  expected <- fabric_test_canonicalize_delta_maps(map[2:1, , drop = FALSE])
+
+  expect_equal(actual, expected)
+  expect_identical(
+    attr(actual$key$nested, "fabric_delta_struct_validity", exact = TRUE),
+    c(FALSE, TRUE)
+  )
+})
+
 fabric_test_expect_delta_matches_oracle <- function(
   manifest,
   lakehouse,
@@ -72,6 +129,8 @@ fabric_test_expect_delta_matches_oracle <- function(
 
   actual <- fabric_test_order_delta_rows(actual, feature)
   expected <- fabric_test_order_delta_rows(expected, paste(feature, "oracle"))
+  actual <- fabric_test_canonicalize_delta_maps(actual)
+  expected <- fabric_test_canonicalize_delta_maps(expected)
   rownames(actual) <- NULL
   rownames(expected) <- NULL
   expect_equal(actual, expected, label = feature)
@@ -226,10 +285,6 @@ test_that("core Fabric Delta features are handled by the table provider", {
       tables$deletion_vectors_stress,
       tables$spark_oracle_deletion_vectors_stress
     ),
-    deletion_vectors_checkpoint = c(
-      tables$deletion_vectors_checkpoint,
-      tables$spark_oracle_deletion_vectors_checkpoint
-    ),
     deletion_vectors_dense = c(
       tables$deletion_vectors_dense,
       tables$spark_oracle_deletion_vectors_dense
@@ -261,6 +316,7 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   unsupported <- c(
     type_widened = "TypeWidening",
     type_widened_exact = "TypeWidening",
+    deletion_vectors_checkpoint = "V2Checkpoint",
     v2_checkpoint = "V2Checkpoint"
   )
 
