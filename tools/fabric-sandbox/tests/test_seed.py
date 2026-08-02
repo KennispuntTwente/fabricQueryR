@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from fabricqueryr_sandbox.seed import (
+    _logical_delta_table_row_count,
     seed,
     upload_fixtures,
     wait_for_delta_log_publication,
@@ -51,6 +52,30 @@ class FakeDataLakeServiceClient:
         type(self).filesystem = filesystem
         type(self).file_system_client = FakeFileSystem(type(self).uploaded)
         return type(self).file_system_client
+
+
+def test_logical_delta_table_row_count_excludes_deletion_vectors():
+    class Column:
+        def to_pylist(self):
+            return [[True, False, True], [False, True]]
+
+    class DeletionVectors:
+        def column(self, name):
+            assert name == "selection_vector"
+            return Column()
+
+    class Reader:
+        def read_all(self):
+            return DeletionVectors()
+
+    class DeltaTable:
+        def count(self):
+            return 5
+
+        def deletion_vectors(self):
+            return Reader()
+
+    assert _logical_delta_table_row_count(DeltaTable()) == 3
 
 
 def test_upload_fixtures_preserves_nested_and_unicode_paths(monkeypatch, tmp_path):

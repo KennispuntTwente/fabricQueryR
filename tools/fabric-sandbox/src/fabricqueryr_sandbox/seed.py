@@ -39,6 +39,19 @@ from .sql_api import (
 )
 
 
+def _logical_delta_table_row_count(delta_table: object) -> int:
+    """Count active rows, excluding rows masked by deletion vectors."""
+    physical_rows = delta_table.count()
+    deletion_vectors = delta_table.deletion_vectors().read_all()
+    deleted_rows = sum(
+        selection_vector.count(False)
+        for selection_vector in deletion_vectors.column(
+            "selection_vector"
+        ).to_pylist()
+    )
+    return physical_rows - deleted_rows
+
+
 def wait_for_delta_log_publication(
     workspace_id: str,
     item_id: str,
@@ -82,7 +95,7 @@ def wait_for_delta_log_publication(
                     "use_fabric_endpoint": "true",
                 },
             )
-            return delta_table.count()
+            return _logical_delta_table_row_count(delta_table)
 
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
