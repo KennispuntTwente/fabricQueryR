@@ -116,10 +116,10 @@ returned and consumed cannot be retried.
 The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 typed partitions, classic checkpoints, column mapping, deletion vectors, and
 shallow clones. Its current reader does not support Fabric tables requiring
-Type Widening or V2 Checkpoints; those fail with
-\code{fabric_delta_unsupported_feature_error}. Variant columns require
-\code{result = "arrow_stream"}. Feature availability is protocol- and
-runtime-specific; consult the
+Type Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those
+fail with \code{fabric_delta_unsupported_feature_error}. Arrow Variant extension
+columns in otherwise readable tables require \code{result = "arrow_stream"}.
+Feature availability is protocol- and runtime-specific; consult the
 \href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Fabric Delta interoperability matrix}
 and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
 
@@ -131,10 +131,10 @@ timezone-free timestamps as Arrow timestamps and represents decimals as
 strings, matching the R result's exact-decimal contract. Nullable struct
 columns retain their parent validity through the
 \code{fabric_delta_struct_column} class, so a null struct remains distinct from a
-present struct whose children are all null. Arrow Variant extension columns
-are preserved by \code{result = "arrow_stream"}; tibble collection rejects them
-explicitly because exposing their physical \code{metadata} and \code{value} buffers as
-ordinary R data would be misleading.
+present struct whose children are all null. For tables the runtime can open,
+Arrow Variant extension columns are preserved by \code{result = "arrow_stream"};
+tibble collection rejects them explicitly because exposing their physical
+\code{metadata} and \code{value} buffers as ordinary R data would be misleading.
 }
 \examples{
 \dontrun{

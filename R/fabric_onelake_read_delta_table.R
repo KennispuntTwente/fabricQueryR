@@ -36,10 +36,10 @@
 #' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 #' typed partitions, classic checkpoints, column mapping, deletion vectors, and
 #' shallow clones. Its current reader does not support Fabric tables requiring
-#' Type Widening or V2 Checkpoints; those fail with
-#' `fabric_delta_unsupported_feature_error`. Variant columns require
-#' `result = "arrow_stream"`. Feature availability is protocol- and
-#' runtime-specific; consult the
+#' Type Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those
+#' fail with `fabric_delta_unsupported_feature_error`. Arrow Variant extension
+#' columns in otherwise readable tables require `result = "arrow_stream"`.
+#' Feature availability is protocol- and runtime-specific; consult the
 #' [Fabric Delta interoperability matrix](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
 #' and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
 #'
@@ -51,10 +51,10 @@
 #' strings, matching the R result's exact-decimal contract. Nullable struct
 #' columns retain their parent validity through the
 #' `fabric_delta_struct_column` class, so a null struct remains distinct from a
-#' present struct whose children are all null. Arrow Variant extension columns
-#' are preserved by `result = "arrow_stream"`; tibble collection rejects them
-#' explicitly because exposing their physical `metadata` and `value` buffers as
-#' ordinary R data would be misleading.
+#' present struct whose children are all null. For tables the runtime can open,
+#' Arrow Variant extension columns are preserved by `result = "arrow_stream"`;
+#' tibble collection rejects them explicitly because exposing their physical
+#' `metadata` and `value` buffers as ordinary R data would be misleading.
 #'
 #' @param table_path Table name. For backward compatibility, a slash-separated
 #'   value is accepted and its final segment is used; select a schema with

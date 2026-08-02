@@ -64,8 +64,8 @@ fabric_test_expect_delta_matches_oracle <- function(
   actual <- fabric_test_read_delta(manifest, lakehouse, source)
   expected <- fabric_test_read_delta(manifest, lakehouse, oracle)
 
-  expect_s3_class(actual, "tbl_df", label = feature)
-  expect_s3_class(expected, "tbl_df", label = paste(feature, "Spark oracle"))
+  expect_s3_class(actual, "tbl_df")
+  expect_s3_class(expected, "tbl_df")
   expect_named(actual, names(expected), label = feature)
   expect_equal(nrow(actual), nrow(expected), label = feature)
   expect_gt(nrow(actual), 0L, label = feature)
@@ -242,7 +242,7 @@ test_that("core Fabric Delta features are handled by the table provider", {
 
   for (feature in names(required)) {
     pair <- required[[feature]]
-    expect_length(pair, 2L, label = feature)
+    expect_length(pair, 2L)
     fabric_test_expect_delta_matches_oracle(
       manifest,
       lakehouse,
@@ -275,8 +275,7 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
     )
     expect_s3_class(
       condition,
-      "fabric_delta_unsupported_feature_error",
-      label = feature
+      "fabric_delta_unsupported_feature_error"
     )
     expect_match(
       conditionMessage(condition),
@@ -286,26 +285,36 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   }
 })
 
-test_that("Fabric Variant columns are never exposed as physical tibble fields", {
+test_that("Fabric Variant preview tables fail before exposing physical fields", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
 
-  for (table in c(
+  tables <- c(
     lakehouse$tables$variant,
     lakehouse$tables$variant_id_dv
-  )) {
-    expect_error(
-      fabric_test_read_delta(manifest, lakehouse, table),
-      class = "fabric_delta_variant_collection_error"
-    )
-    stream <- fabric_test_read_delta(
-      manifest,
-      lakehouse,
-      table,
-      result = "arrow_stream"
-    )
-    expect_s3_class(stream, "nanoarrow_array_stream")
+  )
+
+  for (table in tables) {
+    for (result in c("tibble", "arrow_stream")) {
+      condition <- tryCatch(
+        fabric_test_read_delta(
+          manifest,
+          lakehouse,
+          table,
+          result = result
+        ),
+        error = identity
+      )
+      expect_s3_class(
+        condition,
+        "fabric_delta_unsupported_feature_error"
+      )
+      expect_match(
+        conditionMessage(condition),
+        "VariantShreddingPreview"
+      )
+    }
   }
 })
 
