@@ -414,6 +414,23 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_false(grepl(token, conditionMessage(error), fixed = TRUE))
   expect_match(conditionMessage(error), "<redacted>", fixed = TRUE)
 
+  authentication <- tryCatch(
+    fabric_delta_abort_python(simpleError("HTTP 401: token expired")),
+    error = identity
+  )
+  expect_s3_class(authentication, "fabric_delta_authentication_error")
+  expect_s3_class(authentication, "fabric_delta_access_error")
+  expect_match(conditionMessage(authentication), "storage.azure.com")
+
+  authorization <- tryCatch(
+    fabric_delta_abort_python(simpleError("HTTP 403: Forbidden")),
+    error = identity
+  )
+  expect_s3_class(authorization, "fabric_delta_authorization_error")
+  expect_s3_class(authorization, "fabric_delta_access_error")
+  expect_match(conditionMessage(authorization), "Item Read")
+  expect_false(fabric_delta_is_authentication_error(authorization))
+
   expect_error(
     fabric_delta_abort_python(
       simpleError("ModuleNotFoundError: No module named 'deltalake'")

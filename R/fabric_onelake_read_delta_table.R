@@ -1481,7 +1481,7 @@ print.fabric_delta_variant <- function(x, ...) {
 fabric_delta_is_authentication_error <- function(error) {
   grepl(
     paste0(
-      "(?:401|403|unauthori[sz]ed|forbidden|authentication|",
+      "(?:401|unauthori[sz]ed|authentication|",
       "token[^[:alnum:]]+(?:expired|invalid))"
     ),
     conditionMessage(error),
@@ -1537,6 +1537,14 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
     ignore.case = TRUE
   )
   unsupported_features <- fabric_delta_unsupported_features(message)
+  authorization_error <- grepl(
+    "(?:403|forbidden|authorization|permission denied|access denied)",
+    message,
+    ignore.case = TRUE,
+    perl = TRUE
+  )
+  authentication_error <- !authorization_error &&
+    fabric_delta_is_authentication_error(simpleError(message))
   classes <- "fabric_delta_python_error"
   if (environment_error) {
     classes <- c("fabric_delta_environment_error", classes)
@@ -1546,6 +1554,20 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
   }
   if (length(unsupported_features)) {
     classes <- c("fabric_delta_unsupported_feature_error", classes)
+  }
+  if (authentication_error) {
+    classes <- c(
+      "fabric_delta_authentication_error",
+      "fabric_delta_access_error",
+      classes
+    )
+  }
+  if (authorization_error) {
+    classes <- c(
+      "fabric_delta_authorization_error",
+      "fabric_delta_access_error",
+      classes
+    )
   }
   bullets <- c(
     "Unable to read the Delta table through Python delta-rs.",
@@ -1558,6 +1580,25 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
         "Install deltalake==1.6.2 and nanoarrow==0.8.0 in the Python ",
         "selected by reticulate, or unset RETICULATE_PYTHON to use a ",
         "managed environment."
+      )
+    )
+  }
+  if (authentication_error) {
+    bullets <- c(
+      bullets,
+      "i" = paste0(
+        "Acquire a current token for https://storage.azure.com/.default; ",
+        "a Fabric API or Power BI token cannot authenticate to OneLake."
+      )
+    )
+  }
+  if (authorization_error) {
+    bullets <- c(
+      bullets,
+      "i" = paste0(
+        "Grant this identity access to the Fabric item and OneLake data. ",
+        "Item Read alone may not authorize external-engine table reads when ",
+        "OneLake security, RLS, or CLS restricts the data."
       )
     )
   }

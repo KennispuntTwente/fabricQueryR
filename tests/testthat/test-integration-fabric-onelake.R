@@ -363,6 +363,34 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
   expect_identical(complex[["display name"]], "display café-数据")
 })
 
+test_that("OneLake access failures receive an actionable error class", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  uri <- fabric_delta_target_uri(list(
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+    workspace = manifest$workspace_id,
+    item = lakehouse$id,
+    path = paste("Tables/dbo", lakehouse$tables$basic, sep = "/")
+  ))
+  raw_error <- tryCatch(
+    fabric_delta_read_uri(uri, bearer_token = "invalid-integration-token"),
+    error = identity
+  )
+  expect_s3_class(raw_error, "error")
+  classified <- tryCatch(
+    fabric_delta_abort_python(
+      raw_error,
+      bearer_token = "invalid-integration-token"
+    ),
+    error = identity
+  )
+  expect_s3_class(classified, "fabric_delta_access_error")
+  expect_false(
+    grepl("invalid-integration-token", conditionMessage(classified), fixed = TRUE)
+  )
+})
+
 test_that("Arrow streams cover representative Fabric Delta snapshots", {
   fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()
