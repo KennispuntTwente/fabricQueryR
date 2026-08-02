@@ -35,10 +35,12 @@
 #'
 #' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 #' typed partitions, classic checkpoints, column mapping, deletion vectors, and
-#' shallow clones. Its current reader does not support Fabric tables requiring
-#' Type Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those
-#' fail with `fabric_delta_unsupported_feature_error`. Arrow Variant extension
-#' columns in otherwise readable tables require `result = "arrow_stream"`.
+#' shallow clones. Per-file deletion-vector masks longer than 65,536 rows are
+#' rejected because the selected runtime can apply them at incorrect record-batch
+#' offsets. Its current reader also does not support Fabric tables requiring Type
+#' Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
+#' `fabric_delta_unsupported_feature_error`. Arrow Variant extension columns in
+#' otherwise readable tables require `result = "arrow_stream"`.
 #' Feature availability is protocol- and runtime-specific; consult the
 #' [Fabric Delta interoperability matrix](https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability)
 #' and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
@@ -599,12 +601,77 @@ fabric_delta_python_reader <- function(
   }
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
+  fabric_delta_validate_deletion_vectors(table)
   builder <- .delta_python$deltalake$QueryBuilder()
   builder$register(.fabric_delta_query_table, table)
   reader <- builder$execute(fabric_delta_query(columns, limit))
   attr(reader, "fabric_delta_table") <- table
   attr(reader, "fabric_delta_query_builder") <- builder
   reader
+}
+
+.fabric_delta_max_deletion_vector_rows <- 65536
+
+#' Return each active deletion-vector keep-mask length
+#' @keywords internal
+#' @noRd
+fabric_delta_deletion_vector_lengths <- function(table) {
+  masks <- table$deletion_vectors()$read_all()$column(
+    "selection_vector"
+  )$to_pylist()
+  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(masks)))
+  if (!count) {
+    return(integer())
+  }
+  vapply(
+    seq_len(count) - 1L,
+    function(index) {
+      mask <- masks$`__getitem__`(.delta_python$builtins$int(index))
+      as.double(reticulate::py_to_r(.delta_python$builtins$len(mask)))
+    },
+    numeric(1)
+  )
+}
+
+#' Reject deletion vectors the selected table provider can misapply
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_deletion_vectors <- function(
+  table = NULL,
+  lengths = NULL,
+  max_rows = .fabric_delta_max_deletion_vector_rows
+) {
+  if (is.null(lengths)) {
+    lengths <- fabric_delta_deletion_vector_lengths(table)
+  }
+  unsafe <- lengths[lengths > max_rows]
+  if (!length(unsafe)) {
+    return(invisible(lengths))
+  }
+  rlang::abort(
+    c(
+      "The selected delta-rs runtime cannot safely scan this deletion vector.",
+      "x" = paste0(
+        "Per-file deletion-vector masks contain up to ",
+        format(max(unsafe), big.mark = ",", scientific = FALSE),
+        " rows; the safe limit is ",
+        format(max_rows, big.mark = ",", scientific = FALSE),
+        " rows."
+      ),
+      "i" = paste0(
+        "Use a Fabric PySpark notebook for this table, or compact the table ",
+        "into files no larger than the safe deletion-vector limit."
+      )
+    ),
+    class = c(
+      "fabric_delta_unsupported_feature_error",
+      "fabric_delta_unsupported_error",
+      "fabric_delta_error"
+    ),
+    delta_features = "LargeDeletionVector",
+    deletion_vector_rows = max(unsafe),
+    deletion_vector_row_limit = max_rows
+  )
 }
 
 #' Render one exact R whole number for Python or SQL

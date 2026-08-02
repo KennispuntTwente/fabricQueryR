@@ -385,6 +385,23 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
+test_that("oversized deletion vectors fail closed before table scans", {
+  expect_no_error(
+    fabric_delta_validate_deletion_vectors(lengths = c(100L, 65536L))
+  )
+  error <- tryCatch(
+    fabric_delta_validate_deletion_vectors(lengths = c(10L, 100000L)),
+    error = identity
+  )
+
+  expect_s3_class(error, "fabric_delta_unsupported_feature_error")
+  expect_identical(error$delta_features, "LargeDeletionVector")
+  expect_identical(error$deletion_vector_rows, 100000L)
+  expect_identical(error$deletion_vector_row_limit, 65536)
+  expect_match(conditionMessage(error), "100,000 rows", fixed = TRUE)
+  expect_match(conditionMessage(error), "65,536 rows", fixed = TRUE)
+})
+
 test_that("Delta runtime requirements are declared without forcing initialization", {
   requirements <- reticulate::py_require()
   expect_true("deltalake>=1.6.2,<2" %in% requirements$packages)

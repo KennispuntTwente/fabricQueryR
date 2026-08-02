@@ -56,9 +56,6 @@ fabric_test_order_delta_rows <- function(value, feature) {
 
 fabric_test_canonicalize_delta_maps <- function(value) {
   if (is.data.frame(value)) {
-    for (name in names(value)) {
-      value[[name]] <- fabric_test_canonicalize_delta_maps(value[[name]])
-    }
     if (identical(names(value), c("key", "value")) && nrow(value) > 1L) {
       labels <- vapply(
         seq_len(nrow(value)),
@@ -77,14 +74,27 @@ fabric_test_canonicalize_delta_maps <- function(value) {
         character(1)
       )
       value <- value[order(labels), , drop = FALSE]
-      rownames(value) <- NULL
     }
+    for (name in names(value)) {
+      value[[name]] <- fabric_test_canonicalize_delta_maps(value[[name]])
+    }
+    rownames(value) <- NULL
     return(value)
   }
   if (is.list(value)) {
     return(lapply(value, fabric_test_canonicalize_delta_maps))
   }
   value
+}
+
+fabric_test_delta_differences <- function(actual, expected, feature) {
+  waldo::compare(
+    actual,
+    expected,
+    x_arg = feature,
+    y_arg = paste(feature, "Spark oracle"),
+    max_diffs = 10L
+  )
 }
 
 test_that("Delta oracle comparisons canonicalize unordered map entries", {
@@ -111,6 +121,21 @@ test_that("Delta oracle comparisons canonicalize unordered map entries", {
   )
 })
 
+test_that("Delta oracle differences are bounded for large tables", {
+  actual <- data.frame(id = seq_len(100000L))
+  expected <- actual
+  expected$id[10001:90000] <- rev(expected$id[10001:90000])
+
+  differences <- fabric_test_delta_differences(
+    actual,
+    expected,
+    "large_fixture"
+  )
+
+  expect_lte(length(differences), 10L)
+  expect_lt(nchar(paste(differences, collapse = "\n")), 5000L)
+})
+
 fabric_test_expect_delta_matches_oracle <- function(
   manifest,
   lakehouse,
@@ -133,7 +158,18 @@ fabric_test_expect_delta_matches_oracle <- function(
   expected <- fabric_test_canonicalize_delta_maps(expected)
   rownames(actual) <- NULL
   rownames(expected) <- NULL
-  expect_equal(actual, expected, label = feature)
+  differences <- fabric_test_delta_differences(actual, expected, feature)
+  if (length(differences)) {
+    fail(
+      paste(
+        c(
+          paste("Delta result differs from its Spark oracle:", feature),
+          differences
+        ),
+        collapse = "\n"
+      )
+    )
+  }
   invisible(actual)
 }
 
@@ -285,10 +321,6 @@ test_that("core Fabric Delta features are handled by the table provider", {
       tables$deletion_vectors_stress,
       tables$spark_oracle_deletion_vectors_stress
     ),
-    deletion_vectors_dense = c(
-      tables$deletion_vectors_dense,
-      tables$spark_oracle_deletion_vectors_dense
-    ),
     shallow_clone = c(
       tables$shallow_clone,
       tables$spark_oracle_shallow_clone
@@ -317,6 +349,7 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
     type_widened = "TypeWidening",
     type_widened_exact = "TypeWidening",
     deletion_vectors_checkpoint = "V2Checkpoint",
+    deletion_vectors_dense = "65,536 rows",
     v2_checkpoint = "V2Checkpoint"
   )
 
