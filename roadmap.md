@@ -279,10 +279,12 @@ Document one-command local deploy, test, and destroy workflows.
 ## Priority 1: Make Delta table reads protocol-correct
 
 **Status (July 2026): implemented for the supported reader contract.**
-The reader stages the transaction log, supports V1 and V2 checkpoints,
-preserves relative and absolute OneLake paths, downloads only active
-snapshot files, supports version selection, preserves exact numeric
-values, and rejects unsupported reader features before returning data.
+The reader streams transaction-log and Parquet data from OneLake through
+delta-rs, supports classic checkpoints and version selection, preserves
+exact numeric values, and rejects unsupported reader features before
+returning data. The locked runtime explicitly rejects V2 checkpoints,
+Type Widening, and Fabric’s VariantShreddingPreview rather than
+returning a plausible but incorrect result.
 
 ### Problem
 
@@ -292,12 +294,12 @@ features, and duplicate partition filenames.
 
 ### Direction
 
-- Continue evaluating maintained Delta backends that support OneLake
-  directly; retain the narrowly scoped DuckDB-backed reader until one
-  meets the package’s authentication and portability requirements.
-- Preserve complete relative paths during any local staging.
-- Read `_last_checkpoint` and checkpoints if a direct backend is
-  unavoidable.
+- Track delta-rs and Fabric interoperability changes against the locked
+  runtime before expanding the supported feature set.
+- Keep the remote delta-rs path free of local staging and basename
+  rewriting.
+- Test checkpoint and protocol behavior through public Delta APIs rather
+  than replaying transaction-log actions in R.
 - Inspect protocol versions and table features before reading; reject
   unsupported deletion vectors, column mapping, or other features
   explicitly rather than returning plausible but wrong rows.

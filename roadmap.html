@@ -208,16 +208,16 @@ tests/testthat/
 </div>
 <div class="section level2">
 <h2 id="priority-1-make-delta-table-reads-protocol-correct">Priority 1: Make Delta table reads protocol-correct<a class="anchor" aria-label="anchor" href="#priority-1-make-delta-table-reads-protocol-correct"></a></h2>
-<p><strong>Status (July 2026): implemented for the supported reader contract.</strong> The reader stages the transaction log, supports V1 and V2 checkpoints, preserves relative and absolute OneLake paths, downloads only active snapshot files, supports version selection, preserves exact numeric values, and rejects unsupported reader features before returning data.</p>
+<p><strong>Status (July 2026): implemented for the supported reader contract.</strong> The reader streams transaction-log and Parquet data from OneLake through delta-rs, supports classic checkpoints and version selection, preserves exact numeric values, and rejects unsupported reader features before returning data. The locked runtime explicitly rejects V2 checkpoints, Type Widening, and Fabric’s VariantShreddingPreview rather than returning a plausible but incorrect result.</p>
 <div class="section level3">
 <h3 id="problem">Problem<a class="anchor" aria-label="anchor" href="#problem"></a></h3>
 <p>The original implementation replayed only JSON transaction-log files and staged data by basename, which was unsafe for checkpoints, newer Delta features, and duplicate partition filenames.</p>
 </div>
 <div class="section level3">
 <h3 id="direction">Direction<a class="anchor" aria-label="anchor" href="#direction"></a></h3>
-<ul><li>Continue evaluating maintained Delta backends that support OneLake directly; retain the narrowly scoped DuckDB-backed reader until one meets the package’s authentication and portability requirements.</li>
-<li>Preserve complete relative paths during any local staging.</li>
-<li>Read <code>_last_checkpoint</code> and checkpoints if a direct backend is unavoidable.</li>
+<ul><li>Track delta-rs and Fabric interoperability changes against the locked runtime before expanding the supported feature set.</li>
+<li>Keep the remote delta-rs path free of local staging and basename rewriting.</li>
+<li>Test checkpoint and protocol behavior through public Delta APIs rather than replaying transaction-log actions in R.</li>
 <li>Inspect protocol versions and table features before reading; reject unsupported deletion vectors, column mapping, or other features explicitly rather than returning plausible but wrong rows.</li>
 <li>Add <code>version</code>/timestamp time-travel options where the selected backend supports them.</li>
 <li>Offer lazy Arrow/DuckDB-style results and projection/filter options so reading a table does not always collect it fully into memory.</li>

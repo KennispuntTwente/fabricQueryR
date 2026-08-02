@@ -188,6 +188,21 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
+Direct Delta reads require a token for
+`https://storage.azure.com/.default` and OneLake data permission; item
+**Read** alone only exposes metadata. Grant **ReadAll**, or a OneLake
+role that can read the table when OneLake security is enabled. Tables
+protected by OneLake RLS/CLS may be unavailable to this external
+delta-rs reader. The pinned runtime supports classic checkpoints, schema
+evolution, column mapping, deletion vectors within its documented safety
+limit, and version reads; Type Widening, V2 checkpoints, and Fabric’s
+Variant shredding preview fail explicitly. Warehouse Delta logs are
+published asynchronously, so a OneLake read can lag the current
+Warehouse state. See
+[`?fabric_onelake_read_delta_table`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
+for the full compatibility contract and the [Fabric permission
+model](https://learn.microsoft.com/en-us/fabric/security/permission-model).
+
 ### 5. Work with OneLake files
 
 List, inspect, download, upload, or delete files in OneLake. Paths in a
