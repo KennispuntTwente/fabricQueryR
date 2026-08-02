@@ -484,18 +484,20 @@ fabric_local_run <- function(command, args, label) {
   invisible(status)
 }
 
-fabric_local_require_dependencies <- function(install_adbc_driver) {
+fabric_local_require_dependencies <- function(
+  install_adbc_driver,
+  require_sql = TRUE
+) {
   packages <- c(
     "devtools",
     "AzureAuth",
-    "DBI",
-    "odbc",
-    "adbi",
-    "adbcdrivermanager",
     "nanoarrow",
     "arrow",
     "reticulate"
   )
+  if (isTRUE(require_sql)) {
+    packages <- c(packages, "DBI", "odbc", "adbi", "adbcdrivermanager")
+  }
   missing <- packages[
     !vapply(packages, requireNamespace, logical(1), quietly = TRUE)
   ]
@@ -507,6 +509,10 @@ fabric_local_require_dependencies <- function(install_adbc_driver) {
       ),
       call. = FALSE
     )
+  }
+
+  if (!isTRUE(require_sql)) {
+    return(invisible(TRUE))
   }
 
   drivers <- odbc::odbcListDrivers()
@@ -600,7 +606,10 @@ run_fabric_integration_tests <- function(
 
   old_directory <- setwd(repository_root)
   on.exit(setwd(old_directory), add = TRUE)
-  fabric_local_require_dependencies(install_adbc_driver)
+  fabric_local_require_dependencies(
+    install_adbc_driver,
+    require_sql = !grepl("onelake", filter, ignore.case = TRUE)
+  )
 
   uv <- Sys.which("uv")
   if (!nzchar(uv)) {

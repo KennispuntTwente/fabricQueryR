@@ -23,6 +23,8 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert "fabric_local_test_audiences" in runner
     assert 'return(all[c("Fabric", "OneLake")])' in runner
     assert 'c("--scope", "onelake")' in runner
+    assert 'require_sql = !grepl("onelake", filter' in runner
+    assert "if (!isTRUE(require_sql))" in runner
     assert 'filter = "integration-fabric"' in runner
     assert "filter = filter" in runner
     assert "stop_on_failure = TRUE" in runner
