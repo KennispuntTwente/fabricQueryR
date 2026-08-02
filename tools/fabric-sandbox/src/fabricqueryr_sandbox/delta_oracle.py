@@ -17,7 +17,7 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
-from deltalake import DeltaTable, write_deltalake
+from deltalake import DeltaTable, TableFeatures, write_deltalake
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.ipc as ipc
@@ -686,7 +686,25 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         mode="append",
     )
 
+    deletion_vector_capable = directory / "deletion_vector_capable"
+    write_deltalake(
+        deletion_vector_capable,
+        pa.table({"id": pa.array(range(65_537), pa.int32())}),
+        mode="overwrite",
+    )
+    DeltaTable(str(deletion_vector_capable)).alter.add_feature(
+        TableFeatures.DeletionVectors,
+        allow_protocol_versions_increase=True,
+    )
+
     cases = [
+        {
+            "name": "deletion_vector_feature_without_vectors",
+            "table": "deletion_vector_capable",
+            "expected_rows": 65_537,
+            "expected_version": 1,
+            "expected_columns": ["id"],
+        },
         {
             "name": "primitive_latest",
             "table": "primitive",

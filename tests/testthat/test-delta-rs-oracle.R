@@ -69,6 +69,19 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
       info = case$name
     )
   }
+
+  capable_table <- .delta_python$deltalake$DeltaTable(
+    file.path(directory, "deletion_vector_capable")
+  )
+  expect_true(
+    "deletionvectors" %in%
+      tolower(fabric_delta_reader_features(capable_table))
+  )
+  expect_gt(
+    max(fabric_delta_active_file_rows(capable_table)),
+    .fabric_delta_max_deletion_vector_rows
+  )
+  expect_length(fabric_delta_deletion_vector_rows(capable_table), 0L)
 })
 
 test_that("the production bridge preserves exact and nested values", {

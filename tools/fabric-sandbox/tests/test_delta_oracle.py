@@ -6,6 +6,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.ipc as ipc
 import pytest
+from deltalake import DeltaTable
 
 from fabricqueryr_sandbox.delta_oracle import (
     _write_local_fixtures,
@@ -70,6 +71,9 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
     scalars = read_delta_table(str(tmp_path / "scalar_boundaries"))
     mutated, mutated_metadata = read_delta_snapshot(str(tmp_path / "mutated"))
     mutated_zero = read_delta_table(str(tmp_path / "mutated"), version=0)
+    deletion_vector_capable = DeltaTable(
+        str(tmp_path / "deletion_vector_capable")
+    )
 
     assert set(cases) == {
         "primitive_latest",
@@ -92,6 +96,7 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
         "scalar_boundaries",
         "mutated_latest",
         "mutated_version_0",
+        "deletion_vector_feature_without_vectors",
     }
     assert all(
         {
@@ -157,6 +162,12 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
     assert mutated_metadata["version"] == 3
     assert mutated_metadata["active_file_count"] >= 1
     assert mutated_metadata["row_count"] == 3
+    capable_protocol = deletion_vector_capable.protocol()
+    assert "deletionVectors" in capable_protocol.reader_features
+    assert deletion_vector_capable.get_add_actions().column(
+        "num_records"
+    ).to_pylist() == [65_537]
+    assert deletion_vector_capable.deletion_vectors().read_all().num_rows == 0
 
     ipc_path = tmp_path / "oracle.arrow"
     write_ipc(projected, ipc_path)
