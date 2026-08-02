@@ -131,7 +131,8 @@
   - Is checked with deterministic local delta-rs fixtures and
     value-level live Fabric comparisons against independent Spark reader
     oracles for deletion vectors, column mapping, and shallow clones.
-    Type widening, V2 checkpoints, and Fabric Variant preview tables are
+    Per-file deletion-vector masks longer than 65,536 rows, type
+    widening, V2 checkpoints, and Fabric Variant preview tables are
     rejected with an actionable unsupported-feature error by the current
     delta-rs runtime instead of being advertised as readable.
 

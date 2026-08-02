@@ -151,9 +151,11 @@ returned and consumed cannot be retried.
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema
 evolution, typed partitions, classic checkpoints, column mapping,
-deletion vectors, and shallow clones. Its current reader does not
-support Fabric tables requiring Type Widening, V2 Checkpoints, or
-Fabric's VariantShreddingPreview; those fail with
+deletion vectors, and shallow clones. Per-file deletion-vector masks
+longer than 65,536 rows are rejected because the selected runtime can
+apply them at incorrect record-batch offsets. Its current reader also
+does not support Fabric tables requiring Type Widening, V2 Checkpoints,
+or Fabric's VariantShreddingPreview; those fail with
 `fabric_delta_unsupported_feature_error`. Arrow Variant extension
 columns in otherwise readable tables require `result = "arrow_stream"`.
 Feature availability is protocol- and runtime-specific; consult the
