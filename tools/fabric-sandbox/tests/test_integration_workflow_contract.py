@@ -22,7 +22,7 @@ def test_live_suite_is_split_into_feature_files():
 
     assert groups == INTEGRATION_GROUPS
     assert not (test_directory / "test-integration-fabric.R").exists()
-    assert sum(path.read_text().count("test_that(") for path in files) == 35
+    assert sum(path.read_text().count("test_that(") for path in files) == 37
     assert all(
         path.read_text().startswith("# Fabric integration coverage:")
         for path in files
@@ -105,6 +105,21 @@ def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
     assert "Install locked delta-rs runtime environment" in workflow
     assert "Select the locked delta-rs Python environment" in workflow
     assert "uv --directory tools/fabric-sandbox sync --locked" in workflow
+
+
+def test_locked_delta_bridge_runs_on_every_release_platform():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/R-CMD-check.yaml"
+    ).read_text()
+
+    assert "matrix.config.os == 'ubuntu-latest'" not in workflow
+    assert workflow.count("if: matrix.config.r == 'release'") >= 3
+    assert "matrix.config.os != 'windows-latest'" in workflow
+    assert ".venv/bin/python" in workflow
+    assert "matrix.config.os == 'windows-latest'" in workflow
+    assert ".venv/Scripts/python.exe" in workflow
+    assert "FABRIC_DELTA_RS_ORACLE_TESTS" in workflow
 
 
 def test_live_sql_matrix_installs_required_client_drivers():

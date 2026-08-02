@@ -51,22 +51,28 @@ jobs:
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
 
       - name: Set up uv for delta-rs runtime tests
-        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        if: matrix.config.r == 'release'
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: tools/fabric-sandbox/uv.lock
 
       - name: Install locked delta-rs runtime environment
-        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        if: matrix.config.r == 'release'
         run: uv --directory tools/fabric-sandbox sync --locked
 
-      - name: Select the locked delta-rs Python environment
-        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+      - name: Select the locked delta-rs Python environment on Unix
+        if: matrix.config.r == 'release' && matrix.config.os != 'windows-latest'
+        shell: bash
         run: echo "RETICULATE_PYTHON=$GITHUB_WORKSPACE/tools/fabric-sandbox/.venv/bin/python" >> "$GITHUB_ENV"
 
+      - name: Select the locked delta-rs Python environment on Windows
+        if: matrix.config.r == 'release' && matrix.config.os == 'windows-latest'
+        shell: pwsh
+        run: echo "RETICULATE_PYTHON=$env:GITHUB_WORKSPACE/tools/fabric-sandbox/.venv/Scripts/python.exe" >> $env:GITHUB_ENV
+
       - name: Test the production delta-rs Arrow bridge
-        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        if: matrix.config.r == 'release'
         env:
           FABRIC_DELTA_RS_ORACLE_TESTS: "true"
         run: >-
