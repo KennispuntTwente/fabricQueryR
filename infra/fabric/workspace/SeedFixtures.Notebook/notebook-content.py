@@ -417,6 +417,8 @@ try:
         USING DELTA
         AS SELECT
           1 AS row_id,
+          CAST('-2147483648' AS INT) AS minimum_integer,
+          CAST('-9223372036854775808' AS BIGINT) AS minimum_long,
           CAST('9007199254740993' AS BIGINT) AS above_double_limit,
           CAST('9223372036854775807' AS BIGINT) AS maximum_long,
           CAST(
@@ -566,6 +568,8 @@ try:
         TBLPROPERTIES ('delta.enableDeletionVectors' = 'false')
         AS SELECT
           1 AS row_id,
+          CAST('-2147483648' AS INT) AS minimum_integer,
+          CAST('-9223372036854775808' AS BIGINT) AS minimum_long,
           CAST('9007199254740993' AS BIGINT) AS above_double_limit,
           CAST('9223372036854775807' AS BIGINT) AS maximum_long,
           CAST(

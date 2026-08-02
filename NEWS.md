@@ -92,7 +92,11 @@ cancellation, while sessions also provide explicit cleanup;
   - Is checked with deterministic local delta-rs fixtures, independent static
   value expectations, and live Fabric comparisons against feature-neutral
   Spark-materialized reference tables for deletion vectors, column mapping,
-  and shallow clones. Deletion-vector safety checks now inspect active-file
+  and shallow clones. The live matrix now also covers classic checkpoints,
+  schema evolution and time travel, void columns, binary/typed partitions,
+  exact minimum integers, every type-widening fixture, and readable neutral
+  references for unsupported features. Deletion-vector safety checks now
+  inspect active-file
   `numRecords` metadata instead of eagerly materializing every keep mask; DV
   snapshots with unmeasured or greater-than-65,536-row active files, type
   widening, V2 checkpoints, and Fabric Variant

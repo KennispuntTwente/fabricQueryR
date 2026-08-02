@@ -47,11 +47,12 @@ fabric_test_read_delta <- function(
 }
 
 fabric_test_order_delta_rows <- function(value, feature) {
+  key <- intersect(c("id", "row_id"), names(value))
   expect_true(
-    "id" %in% names(value),
-    label = paste(feature, "has a stable id column")
+    length(key) == 1L,
+    label = paste(feature, "has one stable id or row_id column")
   )
-  value[order(value$id, na.last = TRUE), , drop = FALSE]
+  value[order(value[[key]], na.last = TRUE), , drop = FALSE]
 }
 
 fabric_test_canonicalize_delta_maps <- function(value) {
@@ -281,6 +282,8 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
     exact,
     c(
       "row_id",
+      "minimum_integer",
+      "minimum_long",
       "above_double_limit",
       "maximum_long",
       "whole_decimal",
@@ -293,6 +296,10 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
     )
   )
   expect_identical(exact$row_id, 1L)
+  expect_type(exact$minimum_integer, "double")
+  expect_identical(exact$minimum_integer, -2147483648)
+  expect_s3_class(exact$minimum_long, "fabric_delta_integer64")
+  expect_identical(as.character(exact$minimum_long), "-9223372036854775808")
   expect_s3_class(exact$above_double_limit, "integer64")
   expect_s3_class(exact$maximum_long, "integer64")
   expect_identical(as.character(exact$above_double_limit), "9007199254740993")
@@ -360,6 +367,22 @@ test_that("core Fabric Delta features are handled by the table provider", {
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
   required <- list(
+    basic = c(
+      tables$basic,
+      tables$oracle_basic
+    ),
+    partitioned_classic_checkpoint = c(
+      tables$partitioned,
+      tables$oracle_partitioned
+    ),
+    schema_evolved = c(
+      tables$schema_evolved,
+      tables$oracle_schema_evolved
+    ),
+    exact_types = c(
+      tables$exact_types,
+      tables$oracle_exact_types
+    ),
     column_mapped = c(
       tables$column_mapped,
       tables$spark_oracle_column_mapped
@@ -407,6 +430,98 @@ test_that("core Fabric Delta features are handled by the table provider", {
   }
 })
 
+test_that("Delta reference ordering accepts both fixture key conventions", {
+  by_id <- fabric_test_order_delta_rows(
+    tibble::tibble(id = c(2L, 1L)),
+    "id fixture"
+  )
+  by_row_id <- fabric_test_order_delta_rows(
+    tibble::tibble(row_id = c(2L, 1L)),
+    "row_id fixture"
+  )
+
+  expect_identical(by_id$id, 1:2)
+  expect_identical(by_row_id$row_id, 1:2)
+})
+
+test_that("remaining supported Fabric Delta fixtures cover edge cases", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  tables <- lakehouse$tables
+
+  runtime <- fabric_test_read_delta(manifest, lakehouse, tables$runtime)
+  expect_equal(nrow(runtime), 1L)
+  expect_named(
+    runtime,
+    c("fabric_runtime", "spark_version", "delta_version")
+  )
+  expect_identical(runtime$fabric_runtime, "2.0")
+
+  void <- fabric_test_read_delta(manifest, lakehouse, tables$void)
+  void <- void[order(void$id), ]
+  expect_named(void, c("id", "always_null", "details"))
+  expect_identical(as.character(void$id), as.character(0:2))
+  expect_true(all(is.na(void$always_null)))
+  expect_identical(void$details$value, 0:2)
+  expect_true(all(is.na(void$details$pending)))
+  expect_false(any(is.na(void$details)))
+
+  binary <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$binary_partitions
+  )
+  binary <- binary[order(binary$id), ]
+  expect_identical(binary$id, 1:4)
+  expect_identical(binary$binary_part[[1L]], as.raw(0L))
+  expect_identical(binary$binary_part[[2L]], as.raw(c(194L, 128L)))
+  expect_identical(binary$binary_part[[3L]], as.raw(c(195L, 191L)))
+  expect_null(binary$binary_part[[4L]])
+
+  evolved <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$schema_evolved
+  )
+  evolved <- evolved[order(evolved$id), ]
+  expect_named(evolved, c("id", "name", "evolved_value"))
+  expect_identical(evolved$id, 1:3)
+  expect_identical(evolved$name, c("alpha", "beta", "gamma"))
+  expect_identical(evolved$evolved_value, c(NA, NA, "introduced"))
+
+  original <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$schema_evolved,
+    version = 0
+  )
+  original <- original[order(original$id), ]
+  expect_named(original, c("id", "name"))
+  expect_identical(original$id, 1:2)
+  expect_identical(original$name, c("alpha", "beta"))
+
+  typed_reference <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$oracle_typed_partitions
+  )
+  typed_reference <- typed_reference[order(typed_reference$id), ]
+  expect_identical(typed_reference$id, 1:3)
+  expect_identical(
+    typed_reference$decimal_part,
+    c("12.30", "0.50", NA_character_)
+  )
+
+  empty_reference <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$oracle_empty
+  )
+  expect_equal(nrow(empty_reference), 0L)
+  expect_named(empty_reference, c("id", "name", "category", "amount"))
+})
+
 test_that("unsupported Fabric Delta features fail with actionable errors", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
@@ -415,6 +530,9 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   unsupported <- c(
     type_widened = "TypeWidening",
     type_widened_exact = "TypeWidening",
+    type_widened_pending = "TypeWidening",
+    type_widened_nested = "TypeWidening",
+    type_widened_map_key = "TypeWidening",
     deletion_vectors_checkpoint = "V2Checkpoint",
     deletion_vectors_dense = "65,536 rows",
     v2_checkpoint = "V2Checkpoint"
@@ -439,6 +557,72 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
       label = feature
     )
   }
+})
+
+test_that("neutral references for unsupported Fabric features stay readable", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  tables <- lakehouse$tables
+  references <- c(
+    "oracle_complex_types",
+    "spark_oracle_deletion_vectors_checkpoint",
+    "spark_oracle_deletion_vectors_dense",
+    "spark_oracle_type_widened",
+    "spark_oracle_type_widened_exact",
+    "spark_oracle_type_widened_pending",
+    "spark_oracle_type_widened_nested",
+    "spark_oracle_type_widened_map_key",
+    "spark_oracle_v2_checkpoint",
+    "spark_oracle_variant",
+    "spark_oracle_variant_id_dv"
+  )
+
+  for (reference in references) {
+    value <- fabric_test_read_delta(
+      manifest,
+      lakehouse,
+      tables[[reference]],
+      limit = 1
+    )
+    expect_s3_class(value, "tbl_df")
+    expect_equal(nrow(value), 1L, label = reference)
+    expect_gt(ncol(value), 0L, label = reference)
+  }
+})
+
+test_that("every discovered Delta fixture has an integration-test disposition", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  expected <- c(
+    "runtime", "basic", "empty", "void", "partitioned",
+    "typed_partitions", "binary_partitions", "schema_evolved",
+    "column_mapped", "column_mapped_id",
+    "column_mapped_id_partitioned_dv", "struct_validity",
+    "deletion_vectors", "file_row_number_collision",
+    "deletion_vectors_stress", "deletion_vectors_checkpoint",
+    "deletion_vectors_dense", "exact_types", "complex_types",
+    "oracle_basic", "oracle_empty", "oracle_typed_partitions",
+    "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
+    "oracle_complex_types", "spark_oracle_column_mapped",
+    "spark_oracle_column_mapped_id",
+    "spark_oracle_column_mapped_id_partitioned_dv",
+    "spark_oracle_struct_validity", "spark_oracle_deletion_vectors",
+    "spark_oracle_file_row_number_collision",
+    "spark_oracle_deletion_vectors_stress",
+    "spark_oracle_deletion_vectors_checkpoint",
+    "spark_oracle_deletion_vectors_dense", "spark_oracle_type_widened",
+    "spark_oracle_type_widened_exact",
+    "spark_oracle_type_widened_pending",
+    "spark_oracle_type_widened_nested",
+    "spark_oracle_type_widened_map_key", "spark_oracle_v2_checkpoint",
+    "spark_oracle_shallow_clone", "spark_oracle_variant",
+    "spark_oracle_variant_id_dv", "shallow_clone", "type_widened",
+    "type_widened_exact", "type_widened_pending", "type_widened_nested",
+    "type_widened_map_key", "v2_checkpoint", "variant", "variant_id_dv",
+    "livy_batch_result", "spark_job_result"
+  )
+  expect_setequal(names(lakehouse$tables), expected)
 })
 
 test_that("Fabric Variant preview tables fail before exposing physical fields", {
