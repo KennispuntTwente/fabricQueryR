@@ -114,6 +114,10 @@ versions, and its required `DeltaTable`/`QueryBuilder` API is checked before
 querying. This avoids silently accepting future binary/runtime combinations
 whose Arrow bridge and Delta feature behavior have not been verified.
 
+* OneLake authentication guidance now distinguishes item `Read` (metadata)
+from `ReadAll` or a scoped OneLake `Read` role (data-plane access), and notes
+the limitation for row- or column-secured tables read by an external engine.
+
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct
 workspace/dataset IDs, supports optional RLS impersonation, handles paginated
 name lookup safely, and rejects partial or embedded query errors instead of

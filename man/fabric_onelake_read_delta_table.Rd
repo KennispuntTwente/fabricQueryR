@@ -104,6 +104,16 @@ OneLake credentials use the \verb{https://storage.azure.com/.default} audience
 and are passed to delta-rs as a bearer token with its Fabric endpoint
 option enabled.
 
+OneLake data access is separate from item visibility. A generic Fabric item
+\code{Read} grant exposes metadata but is not sufficient for a direct Delta read.
+Workspace Admin, Member, and Contributor roles have broad OneLake access.
+Otherwise grant item \code{Read} plus \code{ReadAll}, or, when OneLake security is
+enabled, item \code{Read} plus a OneLake role whose \code{Read} scope contains the
+target table. Tables protected by OneLake row- or column-level security can
+be blocked because this external delta-rs reader does not enforce those
+policies. See the
+\href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}.
+
 Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
 the latest snapshot published to OneLake, which can lag the current Warehouse
 transaction state or remain fixed while Delta-log publishing is paused.

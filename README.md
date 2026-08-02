@@ -176,8 +176,11 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-The account needs access through the workspace or **Lakehouse > Manage OneLake
-data access**. 
+The account needs data-plane access to the target OneLake path. Workspace
+Admin, Member, and Contributor roles include broad OneLake access. Otherwise,
+grant item **Read** plus **ReadAll**, or—when OneLake security is enabled—item
+**Read** plus a OneLake role granting **Read** on the target table. Item **Read**
+alone exposes metadata but does not allow this direct Delta read.
 
 ### 5. Work with OneLake files
 
