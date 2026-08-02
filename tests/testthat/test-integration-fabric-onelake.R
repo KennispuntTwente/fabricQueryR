@@ -35,14 +35,16 @@ fabric_test_read_delta <- function(
   schema = item$schema %||% "dbo",
   ...
 ) {
-  fabric_onelake_read_delta_table(
-    table_path = table,
-    workspace_name = manifest$workspace_id,
-    lakehouse_name = item$id,
-    schema = schema,
-    token = fabric_test_token_provider(),
-    verbose = FALSE,
-    ...
+  testthat::expect_no_warning(
+    fabric_onelake_read_delta_table(
+      table_path = table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = item$id,
+      schema = schema,
+      token = fabric_test_token_provider(),
+      verbose = FALSE,
+      ...
+    )
   )
 }
 

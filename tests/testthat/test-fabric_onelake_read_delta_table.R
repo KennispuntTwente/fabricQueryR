@@ -310,6 +310,21 @@ test_that("Delta integer NA sentinels are restored without data loss", {
   expect_type(boundary_integer, "double")
   expect_identical(boundary_integer, c(-2147483648, NA_real_, 2147483647))
 
+  widened_integer <- expect_no_warning(
+    fabric_delta_restore_integer32(
+      bit64::as.integer64(c("-2147483649", "2147483648"))
+    )
+  )
+  expect_type(widened_integer, "double")
+  expect_identical(widened_integer, c(-2147483649, 2147483648))
+
+  expect_error(
+    fabric_delta_restore_integer32(
+      c("9007199254740993")
+    ),
+    class = "fabric_delta_conversion_error"
+  )
+
   ordinary_long <- fabric_delta_restore_integer64(
     c("-9223372036854775807", NA, "9223372036854775807")
   )

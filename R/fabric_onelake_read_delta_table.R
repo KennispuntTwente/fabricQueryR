@@ -1118,10 +1118,34 @@ fabric_delta_restore_collected_types <- function(value, schema) {
 #' @noRd
 fabric_delta_restore_integer32 <- function(value) {
   text <- as.character(value)
-  if (any(text == "-2147483648", na.rm = TRUE)) {
-    return(as.double(value))
+  numeric_value <- suppressWarnings(as.double(text))
+  invalid <- !is.na(text) & (
+    is.na(numeric_value) |
+      !is.finite(numeric_value) |
+      numeric_value != trunc(numeric_value)
+  )
+  if (any(invalid)) {
+    rlang::abort(
+      "A Delta integer column contained a value that is not an exact integer.",
+      class = c("fabric_delta_conversion_error", "fabric_delta_error")
+    )
   }
-  as.integer(value)
+
+  needs_double <- numeric_value <= -2147483648 |
+    numeric_value > 2147483647
+  if (any(needs_double, na.rm = TRUE)) {
+    if (any(abs(numeric_value) >= 2^53, na.rm = TRUE)) {
+      rlang::abort(
+        paste0(
+          "A Delta integer column contained an out-of-range value that ",
+          "cannot be represented exactly in an R double."
+        ),
+        class = c("fabric_delta_conversion_error", "fabric_delta_error")
+      )
+    }
+    return(numeric_value)
+  }
+  as.integer(numeric_value)
 }
 
 #' Restore Delta long values without confusing their minimum with bit64's NA
