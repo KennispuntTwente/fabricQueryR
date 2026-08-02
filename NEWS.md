@@ -89,9 +89,10 @@ cancellation, while sessions also provide explicit cleanup;
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
   `timestamp_partition_timezone` is retained as a compatibility formal but is
   rejected when supplied because delta-rs has no equivalent override.
-  - Is checked with deterministic local delta-rs fixtures and value-level live
-  Fabric comparisons against independent Spark reader oracles for deletion
-  vectors, column mapping, and shallow clones. Per-file deletion-vector masks
+  - Is checked with deterministic local delta-rs fixtures, independent static
+  value expectations, and live Fabric comparisons against feature-neutral
+  Spark-materialized reference tables for deletion vectors, column mapping,
+  and shallow clones. Per-file deletion-vector masks
   longer than 65,536 rows, type widening, V2 checkpoints, and Fabric Variant
   preview tables are rejected with an actionable unsupported-feature error by
   the current delta-rs runtime instead of being advertised as readable.

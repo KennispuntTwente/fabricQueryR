@@ -92,7 +92,7 @@ fabric_test_delta_differences <- function(actual, expected, feature) {
     actual,
     expected,
     x_arg = feature,
-    y_arg = paste(feature, "Spark oracle"),
+    y_arg = paste(feature, "feature-neutral reference"),
     max_diffs = 10L
   )
 }
@@ -136,15 +136,18 @@ test_that("Delta oracle differences are bounded for large tables", {
   expect_lt(nchar(paste(differences, collapse = "\n")), 5000L)
 })
 
-fabric_test_expect_delta_matches_oracle <- function(
+# Both sides use the production bridge. This comparison isolates protocol
+# feature handling by comparing a feature-bearing table with a Spark-materialized
+# neutral table; independent static assertions below cover bridge conversion.
+fabric_test_expect_delta_matches_reference <- function(
   manifest,
   lakehouse,
   source,
-  oracle,
+  reference,
   feature
 ) {
   actual <- fabric_test_read_delta(manifest, lakehouse, source)
-  expected <- fabric_test_read_delta(manifest, lakehouse, oracle)
+  expected <- fabric_test_read_delta(manifest, lakehouse, reference)
 
   expect_s3_class(actual, "tbl_df")
   expect_s3_class(expected, "tbl_df")
@@ -153,7 +156,10 @@ fabric_test_expect_delta_matches_oracle <- function(
   expect_gt(nrow(actual), 0L, label = feature)
 
   actual <- fabric_test_order_delta_rows(actual, feature)
-  expected <- fabric_test_order_delta_rows(expected, paste(feature, "oracle"))
+  expected <- fabric_test_order_delta_rows(
+    expected,
+    paste(feature, "feature-neutral reference")
+  )
   actual <- fabric_test_canonicalize_delta_maps(actual)
   expected <- fabric_test_canonicalize_delta_maps(expected)
   rownames(actual) <- NULL
@@ -163,7 +169,10 @@ fabric_test_expect_delta_matches_oracle <- function(
     fail(
       paste(
         c(
-          paste("Delta result differs from its Spark oracle:", feature),
+          paste(
+            "Delta result differs from its feature-neutral reference:",
+            feature
+          ),
           differences
         ),
         collapse = "\n"
@@ -268,15 +277,43 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
     lakehouse,
     lakehouse$tables$exact_types
   )
-  integer64_columns <- names(exact)[vapply(
+  expect_named(
     exact,
-    inherits,
-    logical(1),
-    what = "integer64"
-  )]
-  expect_gt(length(integer64_columns), 0L)
-  character_columns <- names(exact)[vapply(exact, is.character, logical(1))]
-  expect_gt(length(character_columns), 0L)
+    c(
+      "row_id",
+      "above_double_limit",
+      "maximum_long",
+      "whole_decimal",
+      "scaled_decimal",
+      "observed_at",
+      "payload",
+      "unicode_text",
+      "not_a_number",
+      "positive_infinity"
+    )
+  )
+  expect_identical(exact$row_id, 1L)
+  expect_s3_class(exact$above_double_limit, "integer64")
+  expect_s3_class(exact$maximum_long, "integer64")
+  expect_identical(as.character(exact$above_double_limit), "9007199254740993")
+  expect_identical(as.character(exact$maximum_long), "9223372036854775807")
+  expect_identical(
+    exact$whole_decimal,
+    "12345678901234567890123456789012345678"
+  )
+  expect_identical(
+    exact$scaled_decimal,
+    "123456789012345678901234567890123456.78"
+  )
+  expect_s3_class(exact$observed_at, "fabric_delta_timestamp_ntz")
+  expect_identical(
+    unclass(exact$observed_at),
+    "2026-07-28 12:34:56.123456"
+  )
+  expect_identical(exact$payload[[1L]], as.raw(c(0L, 255L, 16L)))
+  expect_identical(exact$unicode_text, "café-数据-🙂")
+  expect_true(is.nan(exact$not_a_number))
+  expect_identical(exact$positive_infinity, Inf)
 
   complex <- fabric_test_read_delta(
     manifest,
@@ -284,7 +321,37 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
     lakehouse$tables$complex_types
   )
   expect_s3_class(complex, "tbl_df")
-  expect_true(any(vapply(complex, is.list, logical(1))))
+  expect_named(
+    complex,
+    c(
+      "id",
+      "profile",
+      "scores",
+      "counts",
+      "items",
+      "attributes",
+      "display name"
+    )
+  )
+  expect_identical(complex$id, 1L)
+  expect_identical(complex$profile$label, "nested")
+  expect_identical(
+    complex$profile$amount,
+    "1234567890123456789012345678901234.56"
+  )
+  expect_identical(complex$scores[[1L]], 1:3)
+  counts <- complex$counts[[1L]]
+  count_values <- stats::setNames(as.character(counts$value), counts$key)
+  expect_identical(
+    count_values[c("large", "small")],
+    c(large = "9007199254740993", small = "2")
+  )
+  expect_identical(complex$items[[1L]]$label, c("first", "second"))
+  expect_identical(complex$items[[1L]]$score, c(10L, 20L))
+  expect_identical(complex$attributes[[1L]]$key, "primary")
+  expect_identical(complex$attributes[[1L]]$value$label, "mapped")
+  expect_identical(complex$attributes[[1L]]$value$enabled, TRUE)
+  expect_identical(complex[["display name"]], "display café-数据")
 })
 
 test_that("core Fabric Delta features are handled by the table provider", {
@@ -330,7 +397,7 @@ test_that("core Fabric Delta features are handled by the table provider", {
   for (feature in names(required)) {
     pair <- required[[feature]]
     expect_length(pair, 2L)
-    fabric_test_expect_delta_matches_oracle(
+    fabric_test_expect_delta_matches_reference(
       manifest,
       lakehouse,
       pair[[1L]],

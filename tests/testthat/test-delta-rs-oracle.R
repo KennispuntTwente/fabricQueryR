@@ -113,6 +113,56 @@ test_that("the production bridge preserves exact and nested values", {
     as.character(boundaries$large),
     c("-9223372036854775808", "9223372036854775807", NA)
   )
+  expect_identical(boundaries$row_id, 1:3)
+  expect_identical(boundaries$tiny, c(-128L, 127L, NA_integer_))
+  expect_identical(boundaries$small, c(-32768L, 32767L, NA_integer_))
+  expect_true(is.nan(boundaries$single[[1L]]))
+  expect_identical(boundaries$single[[2L]], -Inf)
+  expect_true(is.na(boundaries$single[[3L]]))
+  expect_identical(boundaries$double[[1L]], Inf)
+  expect_identical(boundaries$double[[2L]], 0)
+  expect_true(is.nan(boundaries$double[[3L]]))
+  expect_identical(
+    boundaries$whole_decimal,
+    c(
+      "-99999999999999999999999999999999999999",
+      "99999999999999999999999999999999999999",
+      NA
+    )
+  )
+  expect_identical(
+    boundaries$scaled_decimal,
+    c(
+      "-99999999999999999999.999999999999999999",
+      "99999999999999999999.999999999999999999",
+      NA
+    )
+  )
+  expect_identical(boundaries$text, c("", "café-数据-🙂", NA))
+  expect_identical(boundaries$payload[[1L]], raw())
+  expect_identical(boundaries$payload[[2L]], as.raw(c(0L, 255L)))
+  expect_null(boundaries$payload[[3L]])
+  expect_identical(
+    boundaries$event_date,
+    as.Date(c("1900-01-01", "2038-01-19", NA))
+  )
+  expect_s3_class(boundaries$observed_at, "POSIXct")
+  expected_observed_at <- as.POSIXct(
+    c("1900-01-01 00:00:00", "2038-01-19 03:14:07", NA),
+    tz = "UTC"
+  )
+  expected_observed_at[1L] <- expected_observed_at[1L] + 0.000001
+  expected_observed_at[2L] <- expected_observed_at[2L] + 0.999999
+  expect_equal(boundaries$observed_at, expected_observed_at, tolerance = 1e-6)
+  expect_identical(
+    unclass(boundaries$local_at),
+    c(
+      "1900-01-01 00:00:00.000001",
+      "2038-01-19 03:14:07.999999",
+      NA
+    )
+  )
+  expect_identical(boundaries$active, c(FALSE, TRUE, NA))
 
   nested <- fabric_delta_read_uri(
     file.path(directory, "nested"),
