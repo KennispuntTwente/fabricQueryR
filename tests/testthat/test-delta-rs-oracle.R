@@ -307,6 +307,10 @@ test_that("the production Arrow stream is lazy and R Arrow compatible", {
     result = "arrow_stream"
   )
   expect_s3_class(stream, "nanoarrow_array_stream")
+  expect_identical(
+    attr(stream, "fabric_delta_snapshot_version", exact = TRUE),
+    1
+  )
   table <- arrow::as_record_batch_reader(stream)$read_table()
   expect_equal(table$num_rows, 2L)
   expect_named(

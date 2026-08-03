@@ -85,7 +85,8 @@ subset and is not suitable for stable pagination.}
 }
 \value{
 A tibble, or a lazy single-use \code{nanoarrow_array_stream} compatible
-with \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}}.
+with \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}}. Arrow streams carry the resolved
+Delta version in the \code{fabric_delta_snapshot_version} attribute.
 }
 \description{
 \code{fabric_onelake_read_delta_table()} resolves a Fabric Lakehouse or Warehouse
@@ -135,7 +136,11 @@ names fail with \code{fabric_delta_invalid_target}. See
 \code{result = "arrow_stream"} is lazy and single-use. Opening either result is
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
-returned and consumed cannot be retried.
+returned and consumed cannot be retried: the OneLake bearer token is fixed
+for that stream's object-store session. Consume lazy streams promptly. If a
+token expires during a long scan, discard the stream and call this function
+again with \code{version = attr(stream, "fabric_delta_snapshot_version")} to reopen
+the same snapshot with a fresh token.
 A tibble result necessarily materializes the complete selected result in R.
 During conversion the collector releases full Arrow batches before recursive
 validity restoration and retains only compact validity/offset metadata, but

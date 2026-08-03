@@ -70,7 +70,9 @@ cancellation, while sessions also provide explicit cleanup;
   result, `result = "arrow_stream"` for an Arrow C stream (the default remains
   a tibble). Arrow results are now genuinely lazy and single-use. Authentication
   failures while opening either result are retried once with refreshable
-  credentials; a stream that has already been returned is never replayed.
+  credentials; a stream that has already been returned is never replayed. Lazy
+  streams expose their resolved Delta version so a scan that outlives its fixed
+  OneLake token can be reopened explicitly at the same snapshot.
   - Accepts discovery records for `workspace_name` and `lakehouse_name`; a
   schema-enabled Lakehouse record supplies its default schema.
   `item_type` disambiguates suffixless Lakehouse and Warehouse display names.

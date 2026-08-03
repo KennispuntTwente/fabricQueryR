@@ -176,6 +176,10 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
+Arrow streams use the bearer token captured when the stream is opened. Consume
+them promptly; if a long scan outlives the token, reopen the exact snapshot with
+`version = attr(stream, "fabric_delta_snapshot_version")` and a fresh token.
+
 Direct Delta reads require a token for
 `https://storage.azure.com/.default` and OneLake data permission; item **Read**
 alone only exposes metadata. Grant **ReadAll**, or a OneLake role that can read
