@@ -435,8 +435,7 @@ test_that("Arrow streams cover representative Fabric Delta snapshots", {
       actual_id <- as.data.frame(actual["id"])$id
       expect_setequal(
         as.character(actual_id),
-        as.character(expected$id),
-        label = case$table
+        as.character(expected$id)
       )
     }
   }
