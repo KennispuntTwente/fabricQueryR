@@ -60,6 +60,8 @@ cancellation, while sessions also provide explicit cleanup;
   - Streams query results through Python and R `nanoarrow` using the Arrow C
   interface. Python `pyarrow`, DuckDB, local transaction-log staging, and local
   Parquet downloads are no longer required.
+  Tibble collection now releases full Arrow batches before recursive nested
+  validity restoration, retaining only compact validity and offset metadata.
   - Continues to use the package's Fabric discovery and refreshable
   authentication layer for Lakehouses and Warehouse Delta exports, including
   custom Fabric DFS endpoints. Warehouse documentation and tests now account

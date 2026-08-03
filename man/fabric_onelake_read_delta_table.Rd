@@ -136,6 +136,11 @@ names fail with \code{fabric_delta_invalid_target}. See
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
 returned and consumed cannot be retried.
+A tibble result necessarily materializes the complete selected result in R.
+During conversion the collector releases full Arrow batches before recursive
+validity restoration and retains only compact validity/offset metadata, but
+\code{result = "arrow_stream"} remains the appropriate choice for results that
+should be processed batch by batch.
 
 \code{limit} is pushed down without an ordering expression. When it is smaller
 than the snapshot, the returned rows are an implementation-defined subset

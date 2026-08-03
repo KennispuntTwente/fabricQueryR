@@ -574,6 +574,31 @@ test_that("deletion-vector safety is scoped to files carrying vectors", {
   expect_match(conditionMessage(unknown), "selection-vector length")
 })
 
+test_that("collection validity descriptors do not retain Arrow data arrays", {
+  array <- nanoarrow::as_nanoarrow_array(data.frame(
+    id = 1:2,
+    label = c("one", "two")
+  ))
+  schema <- nanoarrow::infer_nanoarrow_schema(array)
+  descriptor <- fabric_delta_array_descriptor(array, schema)
+  contains_array <- function(value) {
+    if (inherits(value, "nanoarrow_array")) {
+      return(TRUE)
+    }
+    if (!is.list(value)) {
+      return(FALSE)
+    }
+    any(vapply(value, contains_array, logical(1)))
+  }
+
+  expect_false(contains_array(descriptor))
+  expect_identical(descriptor$length, 2)
+  expect_identical(
+    fabric_delta_array_validity(list(descriptor)),
+    c(TRUE, TRUE)
+  )
+})
+
 test_that("Delta runtime requirements are declared without forcing initialization", {
   requirements <- reticulate::py_require()
   expect_true("deltalake==1.6.2" %in% requirements$packages)

@@ -52,6 +52,11 @@
 #' retried once with a refreshable credential when delta-rs reports an
 #' authentication failure. Failures that occur after a lazy stream has been
 #' returned and consumed cannot be retried.
+#' A tibble result necessarily materializes the complete selected result in R.
+#' During conversion the collector releases full Arrow batches before recursive
+#' validity restoration and retains only compact validity/offset metadata, but
+#' `result = "arrow_stream"` remains the appropriate choice for results that
+#' should be processed batch by batch.
 #'
 #' `limit` is pushed down without an ordering expression. When it is smaller
 #' than the snapshot, the returned rows are an implementation-defined subset
@@ -1007,17 +1012,23 @@ fabric_delta_collect_reader <- function(reader) {
   target_schema <- nanoarrow::infer_nanoarrow_schema(stream)
   ptype <- fabric_delta_collect_ptype(source_schema, target_schema)
   arrays <- nanoarrow::collect_array_stream(stream)
+  descriptors <- lapply(
+    arrays,
+    fabric_delta_array_descriptor,
+    schema = source_schema
+  )
   collected_stream <- nanoarrow::basic_array_stream(
     arrays,
     schema = target_schema
   )
   value <- nanoarrow::convert_array_stream(collected_stream, to = ptype)
+  rm(arrays, collected_stream)
   value <- fabric_delta_restore_collected_types(value, source_schema)
   value <- tibble::as_tibble(value)
   fabric_delta_restore_struct_validity(
     value,
     source_schema,
-    lapply(arrays, fabric_delta_array_descriptor),
+    descriptors,
     top_level = TRUE
   )
 }
@@ -1291,14 +1302,49 @@ fabric_delta_restore_integer64 <- function(value) {
   bit64::as.integer64(text)
 }
 
-#' Describe a logical slice of a collected Arrow array
+#' Copy the validity layout needed after releasing a collected Arrow array
 #' @keywords internal
 #' @noRd
-fabric_delta_array_descriptor <- function(array, start = 0L, length = NULL) {
+fabric_delta_array_descriptor <- function(
+  array,
+  schema,
+  start = 0L,
+  length = NULL
+) {
   if (is.null(length)) {
     length <- array$length
   }
-  list(array = array, start = as.double(start), length = as.double(length))
+  is_variable_list <- schema$format %in% c(
+    "+l", "+L", "+m", "+vl", "+vL"
+  )
+  children <- Map(
+    function(child, child_schema) {
+      fabric_delta_array_descriptor(child, child_schema)
+    },
+    array$children,
+    schema$children
+  )
+  list(
+    offset = as.double(array$offset),
+    start = as.double(start),
+    length = as.double(length),
+    validity = nanoarrow::convert_buffer(array$buffers[[1L]]),
+    offsets = if (is_variable_list) {
+      nanoarrow::convert_buffer(array$buffers[[2L]])
+    } else {
+      NULL
+    },
+    children = children
+  )
+}
+
+#' Slice a compact Arrow validity descriptor
+#' @keywords internal
+#' @noRd
+fabric_delta_descriptor_slice <- function(descriptor, start, length) {
+  descriptor$start <- as.double(start)
+  descriptor$length <- as.double(length)
+  descriptor
 }
 
 #' Read validity bits for collected Arrow array slices
@@ -1311,13 +1357,11 @@ fabric_delta_array_validity <- function(descriptors) {
       if (!length) {
         return(logical())
       }
-      buffer <- nanoarrow::convert_buffer(
-        descriptor$array$buffers[[1L]]
-      )
+      buffer <- descriptor$validity
       if (!length(buffer)) {
         return(rep(TRUE, length))
       }
-      positions <- descriptor$array$offset +
+      positions <- descriptor$offset +
         descriptor$start +
         seq_len(length)
       as.logical(buffer[positions])
@@ -1331,9 +1375,9 @@ fabric_delta_array_validity <- function(descriptors) {
 #' @noRd
 fabric_delta_struct_child_descriptors <- function(descriptors, index) {
   lapply(descriptors, function(descriptor) {
-    child <- descriptor$array$children[[index]]
-    physical_start <- descriptor$array$offset + descriptor$start
-    fabric_delta_array_descriptor(
+    child <- descriptor$children[[index]]
+    physical_start <- descriptor$offset + descriptor$start
+    fabric_delta_descriptor_slice(
       child,
       start = physical_start - child$offset,
       length = descriptor$length
@@ -1345,13 +1389,10 @@ fabric_delta_struct_child_descriptors <- function(descriptors, index) {
 #' @keywords internal
 #' @noRd
 fabric_delta_list_offsets <- function(descriptor) {
-  offsets <- nanoarrow::convert_buffer(
-    descriptor$array$buffers[[2L]]
-  )
-  positions <- descriptor$array$offset +
+  positions <- descriptor$offset +
     descriptor$start +
     seq_len(descriptor$length + 1L)
-  as.double(offsets[positions])
+  as.double(descriptor$offsets[positions])
 }
 
 #' Restore nullable struct semantics erased by data.frame conversion
@@ -1396,11 +1437,11 @@ fabric_delta_restore_struct_validity <- function(
   }
   for (descriptor in descriptors) {
     parent_validity <- fabric_delta_array_validity(list(descriptor))
-    child <- descriptor$array$children[[1L]]
+    child <- descriptor$children[[1L]]
     offsets <- if (is_variable_list) {
       fabric_delta_list_offsets(descriptor)
     } else {
-      physical_start <- descriptor$array$offset + descriptor$start
+      physical_start <- descriptor$offset + descriptor$start
       fixed_width * (physical_start + seq.int(0, descriptor$length))
     }
     for (index in seq_len(descriptor$length)) {
@@ -1410,7 +1451,7 @@ fabric_delta_restore_struct_validity <- function(
       }
       child_start <- offsets[[index]]
       child_length <- offsets[[index + 1L]] - child_start
-      child_descriptor <- fabric_delta_array_descriptor(
+      child_descriptor <- fabric_delta_descriptor_slice(
         child,
         start = child_start - child$offset,
         length = child_length
