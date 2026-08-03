@@ -15,5 +15,5 @@ def test_delta_documentation_matches_the_runtime_contract():
     assert "V2 checkpoints" in roadmap
     assert "ReadAll" in readme
     assert "storage.azure.com/.default" in readme
-    assert "Large files without deletion vectors are not rejected" in source
-    assert "materializes deletion-vector masks" in source
+    assert "metadata-only preflight" in source
+    assert "avoids `deltalake`'s mask-materializing" in source

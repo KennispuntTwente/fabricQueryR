@@ -57,13 +57,13 @@
 #'
 #' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 #' typed partitions, classic checkpoints, column mapping, deletion vectors, and
-#' shallow clones. Files that actually carry deletion vectors must contain no
-#' more than 65,536 physical rows; larger or unreadable vectors are rejected
-#' because the selected runtime can apply their masks at incorrect record-batch
-#' offsets. Large files without deletion vectors are not rejected. The pinned
-#' `deltalake` API materializes deletion-vector masks while enumerating affected
-#' files, so this preflight has memory cost proportional to those masks. Its
-#' current reader also does not support Fabric tables requiring Type
+#' shallow clones. For a deletion-vector-capable snapshot, every active file
+#' must have Delta statistics proving it has no more than 65,536 physical rows;
+#' larger or unmeasured files are rejected because the selected runtime can
+#' apply masks at incorrect record-batch offsets. This conservative,
+#' metadata-only preflight avoids `deltalake`'s mask-materializing
+#' `deletion_vectors()` API. Its current reader also does not support Fabric
+#' tables requiring Type
 #' Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 #' `fabric_delta_unsupported_feature_error`. Arrow Variant extension columns in
 #' otherwise readable tables require `result = "arrow_stream"`.
@@ -680,36 +680,13 @@ fabric_delta_active_file_rows <- function(table) {
   )
 }
 
-#' Return physical row counts only for files carrying deletion vectors
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_vector_rows <- function(table) {
-  vectors <- table$deletion_vectors()$read_all()$
-    column("selection_vector")$to_pylist()
-  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(vectors)))
-  if (!count) {
-    return(numeric())
-  }
-  vapply(
-    seq_len(count) - 1L,
-    function(index) {
-      value <- vectors$`__getitem__`(.delta_python$builtins$int(index))
-      if (reticulate::py_is_null_xptr(value)) {
-        return(NA_real_)
-      }
-      as.double(reticulate::py_to_r(.delta_python$builtins$len(value)))
-    },
-    numeric(1)
-  )
-}
-
-#' Reject deletion-vector-capable files the selected provider may misapply
+#' Reject deletion-vector-capable snapshots the selected provider may misapply
 #' @keywords internal
 #' @noRd
 fabric_delta_validate_deletion_vectors <- function(
   table = NULL,
   features = NULL,
-  deletion_vector_rows = NULL,
+  active_file_rows = NULL,
   max_rows = .fabric_delta_max_deletion_vector_rows
 ) {
   if (is.null(features)) {
@@ -718,10 +695,10 @@ fabric_delta_validate_deletion_vectors <- function(
   if (!any(tolower(features) == "deletionvectors")) {
     return(invisible(numeric()))
   }
-  if (is.null(deletion_vector_rows)) {
-    deletion_vector_rows <- fabric_delta_deletion_vector_rows(table)
+  if (is.null(active_file_rows)) {
+    active_file_rows <- fabric_delta_active_file_rows(table)
   }
-  unknown <- is.na(deletion_vector_rows)
+  unknown <- is.na(active_file_rows)
   if (any(unknown)) {
     rlang::abort(
       c(
@@ -731,11 +708,12 @@ fabric_delta_validate_deletion_vectors <- function(
         ),
         "x" = paste0(
           sum(unknown),
-          " deletion-vector file(s) have no readable selection-vector length."
+          " active file(s) have no numRecords statistic, so their physical ",
+          "row counts cannot be checked without materializing deletion vectors."
         ),
         "i" = paste0(
           "Use a Fabric PySpark notebook for this table, or rewrite/compact ",
-          "the table to remove the unreadable deletion vector(s)."
+          "the table so every active file has row-count statistics."
         )
       ),
       class = c(
@@ -748,9 +726,9 @@ fabric_delta_validate_deletion_vectors <- function(
       deletion_vector_row_limit = max_rows
     )
   }
-  unsafe <- deletion_vector_rows[deletion_vector_rows > max_rows]
+  unsafe <- active_file_rows[active_file_rows > max_rows]
   if (!length(unsafe)) {
-    return(invisible(deletion_vector_rows))
+    return(invisible(active_file_rows))
   }
   rlang::abort(
     c(
@@ -759,7 +737,7 @@ fabric_delta_validate_deletion_vectors <- function(
         "deletion-vector-capable snapshot."
       ),
       "x" = paste0(
-        "Files carrying deletion vectors contain up to ",
+        "Active files contain up to ",
         format(max(unsafe), big.mark = ",", scientific = FALSE),
         " physical rows; the safe per-file limit is ",
         format(max_rows, big.mark = ",", scientific = FALSE),

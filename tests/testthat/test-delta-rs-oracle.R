@@ -45,7 +45,11 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   )
 
   expect_identical(manifest$deltalake_version, "1.6.2")
-  for (case in manifest$cases) {
+  supported_cases <- Filter(
+    function(case) case$name != "deletion_vector_feature_without_vectors",
+    manifest$cases
+  )
+  for (case in supported_cases) {
     columns <- unlist(case$columns %||% list(), use.names = FALSE)
     if (!length(columns)) {
       columns <- NULL
@@ -81,7 +85,20 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     max(fabric_delta_active_file_rows(capable_table)),
     .fabric_delta_max_deletion_vector_rows
   )
-  expect_length(fabric_delta_deletion_vector_rows(capable_table), 0L)
+  expect_error(
+    fabric_delta_read_uri(
+      file.path(directory, "deletion_vector_capable"),
+      result = "tibble"
+    ),
+    class = "fabric_delta_unsupported_feature_error"
+  )
+  expect_error(
+    fabric_delta_read_uri(
+      file.path(directory, "deletion_vector_capable"),
+      result = "arrow_stream"
+    ),
+    class = "fabric_delta_unsupported_feature_error"
+  )
 })
 
 test_that("the production bridge preserves exact and nested values", {
@@ -298,8 +315,7 @@ test_that("the production Arrow stream is lazy and R Arrow compatible", {
     list(table = "schema_evolved", version = 0, rows = 2L),
     list(table = "schema_evolved", rows = 3L),
     list(table = "nested", rows = 3L),
-    list(table = "scalar_boundaries", rows = 3L),
-    list(table = "deletion_vector_capable", rows = 65537L)
+    list(table = "scalar_boundaries", rows = 3L)
   )
   for (case in cases) {
     stream <- fabric_delta_read_uri(

@@ -473,30 +473,23 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
-test_that("deletion-vector safety is scoped to files carrying vectors", {
+test_that("deletion-vector safety uses active-file metadata without masks", {
   expect_no_error(
     fabric_delta_validate_deletion_vectors(
       features = "deletionVectors",
-      deletion_vector_rows = c(100L, 65536L)
+      active_file_rows = c(100L, 65536L)
     )
   )
   expect_no_error(
     fabric_delta_validate_deletion_vectors(
       features = character(),
-      deletion_vector_rows = 100000L
-    )
-  )
-  expect_no_error(
-    fabric_delta_validate_deletion_vectors(
-      features = "deletionVectors",
-      # A snapshot may also contain arbitrarily large files without vectors.
-      deletion_vector_rows = 10L
+      active_file_rows = 100000L
     )
   )
   error <- tryCatch(
     fabric_delta_validate_deletion_vectors(
       features = "DeletionVectors",
-      deletion_vector_rows = c(10L, 100000L)
+      active_file_rows = c(10L, 100000L)
     ),
     error = identity
   )
@@ -511,7 +504,7 @@ test_that("deletion-vector safety is scoped to files carrying vectors", {
   unknown <- tryCatch(
     fabric_delta_validate_deletion_vectors(
       features = "deletionVectors",
-      deletion_vector_rows = c(10L, NA_real_)
+      active_file_rows = c(10L, NA_real_)
     ),
     error = identity
   )
@@ -521,7 +514,7 @@ test_that("deletion-vector safety is scoped to files carrying vectors", {
     "UnmeasuredDeletionVectorFile"
   )
   expect_identical(unknown$deletion_vector_unknown_files, 1L)
-  expect_match(conditionMessage(unknown), "selection-vector length")
+  expect_match(conditionMessage(unknown), "no numRecords statistic")
 })
 
 test_that("Delta runtime requirements are declared without forcing initialization", {
