@@ -125,6 +125,12 @@ and the
 Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
 the latest snapshot published to OneLake, which can lag the current Warehouse
 transaction state or remain fixed while Delta-log publishing is paused.
+Warehouse tables can be consumed by external Delta engines only when their
+names contain ASCII letters, digits, or underscores. Projected Warehouse
+column names cannot contain spaces, tabs, carriage returns, square brackets,
+commas, semicolons, braces, parentheses, or equals signs. Invalid requested
+names fail with \code{fabric_delta_invalid_target}. See
+\href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
 
 \code{result = "arrow_stream"} is lazy and single-use. Opening either result is
 retried once with a refreshable credential when delta-rs reports an

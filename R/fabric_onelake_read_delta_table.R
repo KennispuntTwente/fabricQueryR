@@ -41,6 +41,12 @@
 #' Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
 #' the latest snapshot published to OneLake, which can lag the current Warehouse
 #' transaction state or remain fixed while Delta-log publishing is paused.
+#' Warehouse tables can be consumed by external Delta engines only when their
+#' names contain ASCII letters, digits, or underscores. Projected Warehouse
+#' column names cannot contain spaces, tabs, carriage returns, square brackets,
+#' commas, semicolons, braces, parentheses, or equals signs. Invalid requested
+#' names fail with `fabric_delta_invalid_target`. See
+#' [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 #'
 #' `result = "arrow_stream"` is lazy and single-use. Opening either result is
 #' retried once with a refreshable credential when delta-rs reports an
@@ -199,7 +205,7 @@ fabric_onelake_read_delta_table <- function(
     "limit",
     allow_null = TRUE
   )
-  fabric_delta_validate_columns(columns)
+  fabric_delta_validate_columns(columns, item_type = resolved$item_type)
   fabric_delta_validate_compatibility_args(
     timestamp_partition_timezone,
     dest_dir
@@ -440,6 +446,22 @@ fabric_delta_resolve_public_target <- function(
   if (!nzchar(table_name)) {
     rlang::abort("table_path must end in a non-empty table name")
   }
+  if (
+    identical(item_type, "Warehouse") &&
+      !grepl("^[A-Za-z0-9_]+$", table_name)
+  ) {
+    rlang::abort(
+      c(
+        "The Warehouse table name is not externally readable.",
+        "x" = paste("Table:", table_name),
+        "i" = paste0(
+          "Warehouse Delta-log table names may contain only ASCII letters, ",
+          "digits, and underscores. Rename the table in Fabric Warehouse."
+        )
+      ),
+      class = "fabric_delta_invalid_target"
+    )
+  }
   table_dir <- if (is.null(schema)) {
     paste("Tables", table_name, sep = "/")
   } else {
@@ -507,7 +529,7 @@ fabric_delta_validate_whole_number <- function(
 #' Validate a logical Delta projection
 #' @keywords internal
 #' @noRd
-fabric_delta_validate_columns <- function(columns) {
+fabric_delta_validate_columns <- function(columns, item_type = NULL) {
   if (
     !is.null(columns) &&
       (!is.character(columns) ||
@@ -519,6 +541,30 @@ fabric_delta_validate_columns <- function(columns) {
     rlang::abort(
       "columns must be NULL or one or more unique, non-empty strings"
     )
+  }
+  if (
+    identical(item_type, "Warehouse") &&
+      !is.null(columns)
+  ) {
+    invalid <- grepl("[ \t\r,;{}()=]|\\[|\\]", columns, perl = TRUE)
+    if (any(invalid)) {
+      rlang::abort(
+        c(
+          "One or more Warehouse columns are not externally readable.",
+          "x" = paste(
+            "Invalid projected column(s):",
+            paste(columns[invalid], collapse = ", ")
+          ),
+          "i" = paste0(
+            "Warehouse Delta-log column names cannot contain spaces, tabs, ",
+            "carriage returns, square brackets, commas, semicolons, braces, ",
+            "parentheses, or equals signs. Rename the columns in Fabric ",
+            "Warehouse or omit them from the projection."
+          )
+        ),
+        class = "fabric_delta_invalid_target"
+      )
+    }
   }
   invisible(columns)
 }

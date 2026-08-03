@@ -101,6 +101,19 @@ test_that("Delta discovery records enforce type and workspace ownership", {
   expect_identical(named_warehouse$target$item, "Sales.Warehouse")
   expect_identical(named_warehouse$table_dir, "Tables/dbo/table")
 
+  expect_error(
+    fabric_delta_resolve_public_target(
+      "sales-orders",
+      "Workspace",
+      "Sales",
+      schema = NULL,
+      dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+      item_type = "Warehouse"
+    ),
+    "ASCII letters, digits, and underscores",
+    class = "fabric_delta_invalid_target"
+  )
+
   non_schema_lakehouse <- warehouse
   non_schema_lakehouse$type <- "Lakehouse"
   resolved_lakehouse <- fabric_delta_resolve_public_target(
@@ -356,6 +369,37 @@ test_that("Delta integer NA sentinels are restored without data loss", {
     c("-9223372036854775808", NA, "9223372036854775807")
   )
   expect_s3_class(boundary_long[c(3L, 1L)], "fabric_delta_integer64")
+})
+
+test_that("Warehouse projections enforce external Delta naming limits", {
+  expect_no_error(
+    fabric_delta_validate_columns(
+      c("name", "café", "hash#value"),
+      item_type = "Warehouse"
+    )
+  )
+  forbidden <- c(
+    "display name",
+    "tab\tname",
+    "return\rname",
+    "[left",
+    "right]",
+    "a,b",
+    "a;b",
+    "{value}",
+    "call()",
+    "a=b"
+  )
+  error <- tryCatch(
+    fabric_delta_validate_columns(
+      forbidden,
+      item_type = "Warehouse"
+    ),
+    error = identity
+  )
+  expect_s3_class(error, "fabric_delta_invalid_target")
+  expect_match(conditionMessage(error), "Invalid projected column")
+  expect_match(conditionMessage(error), "square brackets")
 })
 
 test_that("Variant extensions are preserved as streams and rejected for tibbles", {

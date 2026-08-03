@@ -189,6 +189,11 @@ classic checkpoints, schema evolution, column mapping, deletion vectors within
 its documented safety limit, and version reads; Type Widening, V2 checkpoints,
 and Fabric's Variant shredding preview fail explicitly. Warehouse Delta logs are
 published asynchronously, so a OneLake read can lag the current Warehouse state.
+For external Delta readers, Warehouse table names are limited to ASCII letters,
+digits, and underscores, while column names cannot contain spaces, tabs,
+carriage returns, square brackets, commas, semicolons, braces, parentheses, or
+equals signs. See
+[Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 See `?fabric_onelake_read_delta_table` for the full compatibility contract and
 the [Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model).
 
