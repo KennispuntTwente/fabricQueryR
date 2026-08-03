@@ -128,6 +128,79 @@ fabric_test_expect_arrow_scalar_values <- function(
   invisible(actual)
 }
 
+fabric_test_read_arrow_table <- function(
+  manifest,
+  item,
+  table,
+  ...
+) {
+  stream <- fabric_test_read_delta(
+    manifest,
+    item,
+    table,
+    result = "arrow_stream",
+    ...
+  )
+  expect_s3_class(stream, "nanoarrow_array_stream")
+  arrow::as_record_batch_reader(stream)$read_table()
+}
+
+fabric_test_order_arrow_rows <- function(value, feature) {
+  key <- intersect(c("id", "row_id"), value$ColumnNames())
+  if (!value$num_rows) {
+    return(value)
+  }
+  expect_true(
+    length(key) == 1L,
+    label = paste(feature, "Arrow table has one stable key")
+  )
+  key_values <- value$GetColumnByName(key[[1L]])$as_vector()
+  indices <- order(key_values, na.last = TRUE) - 1L
+  value$Take(arrow::Array$create(as.integer(indices)))
+}
+
+fabric_test_expect_arrow_matches_reference <- function(
+  manifest,
+  lakehouse,
+  source,
+  reference,
+  feature,
+  columns = NULL
+) {
+  actual <- fabric_test_read_arrow_table(
+    manifest,
+    lakehouse,
+    source,
+    columns = columns
+  )
+  expected <- fabric_test_read_arrow_table(
+    manifest,
+    lakehouse,
+    reference,
+    columns = columns
+  )
+  expect_identical(
+    actual$ColumnNames(),
+    expected$ColumnNames(),
+    label = paste(feature, "Arrow columns")
+  )
+  expect_identical(
+    actual$num_rows,
+    expected$num_rows,
+    label = paste(feature, "Arrow rows")
+  )
+  actual <- fabric_test_order_arrow_rows(actual, feature)
+  expected <- fabric_test_order_arrow_rows(
+    expected,
+    paste(feature, "feature-neutral reference")
+  )
+  expect_true(
+    actual$Equals(expected),
+    label = paste(feature, "deep Arrow equality")
+  )
+  invisible(actual)
+}
+
 fabric_test_delta_differences <- function(actual, expected, feature) {
   waldo::compare(
     actual,
@@ -175,6 +248,20 @@ test_that("Delta oracle differences are bounded for large tables", {
 
   expect_lte(length(differences), 10L)
   expect_lt(nchar(paste(differences, collapse = "\n")), 5000L)
+})
+
+test_that("deep Arrow comparison preserves row order and binary values", {
+  fabric_test_require_package("arrow")
+  expected <- arrow::Table$create(
+    id = c(1L, 2L),
+    payload = arrow::Array$create(list(as.raw(0:2), as.raw(c(255L, 0L))))
+  )
+  actual <- expected$Take(arrow::Array$create(c(1L, 0L)))
+
+  actual <- fabric_test_order_arrow_rows(actual, "local Arrow fixture")
+  expected <- fabric_test_order_arrow_rows(expected, "local Arrow reference")
+
+  expect_true(actual$Equals(expected))
 })
 
 # Both sides use the production bridge. This comparison isolates protocol
@@ -531,6 +618,57 @@ test_that("Arrow streams cover representative Fabric Delta snapshots", {
   }
 })
 
+test_that("Arrow streams deeply match Spark-neutral Fabric references", {
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  tables <- lakehouse$tables
+  cases <- list(
+    exact_types = list(
+      source = tables$exact_types,
+      reference = tables$oracle_exact_types
+    ),
+    column_mapped_id_partitioned_dv = list(
+      source = tables$column_mapped_id_partitioned_dv,
+      reference = tables$spark_oracle_column_mapped_id_partitioned_dv
+    ),
+    struct_validity = list(
+      source = tables$struct_validity,
+      reference = tables$spark_oracle_struct_validity
+    ),
+    deletion_vectors = list(
+      source = tables$deletion_vectors,
+      reference = tables$spark_oracle_deletion_vectors
+    ),
+    deletion_vectors_stress = list(
+      source = tables$deletion_vectors_stress,
+      reference = tables$spark_oracle_deletion_vectors_stress
+    ),
+    shallow_clone = list(
+      source = tables$shallow_clone,
+      reference = tables$spark_oracle_shallow_clone
+    ),
+    complex_types = list(
+      source = tables$complex_types,
+      reference = tables$oracle_complex_types,
+      columns = c("id", "profile", "scores", "counts", "items", "attributes")
+    )
+  )
+
+  for (feature in names(cases)) {
+    case <- cases[[feature]]
+    fabric_test_expect_arrow_matches_reference(
+      manifest,
+      lakehouse,
+      case$source,
+      case$reference,
+      feature,
+      columns = case$columns %||% NULL
+    )
+  }
+})
+
 test_that("core Fabric Delta features are handled by the table provider", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
@@ -729,7 +867,7 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   }
 })
 
-test_that("neutral references for unsupported Fabric features stay readable", {
+test_that("neutral references for unsupported Fabric features fully scan", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -752,47 +890,82 @@ test_that("neutral references for unsupported Fabric features stay readable", {
     value <- fabric_test_read_delta(
       manifest,
       lakehouse,
-      tables[[reference]],
-      limit = 1
+      tables[[reference]]
     )
     expect_s3_class(value, "tbl_df")
-    expect_equal(nrow(value), 1L, label = reference)
+    expect_gt(nrow(value), 0L, label = reference)
     expect_gt(ncol(value), 0L, label = reference)
+    key <- intersect(c("id", "row_id", "event_id"), names(value))
+    expect_length(key, 1L, label = paste(reference, "stable key"))
+    expect_false(
+      anyDuplicated(value[[key]]) > 0L,
+      label = paste(reference, "unique stable key")
+    )
   }
 })
 
 test_that("every discovered Delta fixture has an integration-test disposition", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  expected <- c(
-    "runtime", "basic", "empty", "void", "partitioned",
-    "typed_partitions", "binary_partitions", "schema_evolved",
-    "column_mapped", "column_mapped_id",
+  exact_values <- c(
+    "runtime", "basic", "empty", "void", "typed_partitions",
+    "binary_partitions", "schema_evolved", "exact_types", "complex_types",
+    "oracle_empty", "oracle_typed_partitions"
+  )
+  reference_comparison <- c(
+    "partitioned", "column_mapped", "column_mapped_id",
     "column_mapped_id_partitioned_dv", "struct_validity",
     "deletion_vectors", "file_row_number_collision",
-    "deletion_vectors_stress", "deletion_vectors_checkpoint",
-    "deletion_vectors_dense", "exact_types", "complex_types",
-    "oracle_basic", "oracle_empty", "oracle_typed_partitions",
+    "deletion_vectors_stress", "shallow_clone", "oracle_basic",
     "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
     "oracle_complex_types", "spark_oracle_column_mapped",
     "spark_oracle_column_mapped_id",
     "spark_oracle_column_mapped_id_partitioned_dv",
     "spark_oracle_struct_validity", "spark_oracle_deletion_vectors",
     "spark_oracle_file_row_number_collision",
-    "spark_oracle_deletion_vectors_stress",
+    "spark_oracle_deletion_vectors_stress", "spark_oracle_shallow_clone"
+  )
+  unsupported_error <- c(
+    "deletion_vectors_checkpoint", "deletion_vectors_dense",
+    "type_widened", "type_widened_exact", "type_widened_pending",
+    "type_widened_nested", "type_widened_map_key", "v2_checkpoint",
+    "variant", "variant_id_dv"
+  )
+  full_scan <- c(
     "spark_oracle_deletion_vectors_checkpoint",
     "spark_oracle_deletion_vectors_dense", "spark_oracle_type_widened",
     "spark_oracle_type_widened_exact",
     "spark_oracle_type_widened_pending",
     "spark_oracle_type_widened_nested",
     "spark_oracle_type_widened_map_key", "spark_oracle_v2_checkpoint",
-    "spark_oracle_shallow_clone", "spark_oracle_variant",
-    "spark_oracle_variant_id_dv", "shallow_clone", "type_widened",
-    "type_widened_exact", "type_widened_pending", "type_widened_nested",
-    "type_widened_map_key", "v2_checkpoint", "variant", "variant_id_dv",
-    "livy_batch_result", "spark_job_result"
+    "spark_oracle_variant", "spark_oracle_variant_id_dv"
   )
-  expect_setequal(names(lakehouse$tables), expected)
+  covered_by_job_workflows <- c("livy_batch_result", "spark_job_result")
+  disposition <- c(
+    stats::setNames(rep("exact_values", length(exact_values)), exact_values),
+    stats::setNames(
+      rep("reference_comparison", length(reference_comparison)),
+      reference_comparison
+    ),
+    stats::setNames(
+      rep("unsupported_error", length(unsupported_error)),
+      unsupported_error
+    ),
+    stats::setNames(rep("full_scan", length(full_scan)), full_scan),
+    stats::setNames(
+      rep("job_workflow", length(covered_by_job_workflows)),
+      covered_by_job_workflows
+    )
+  )
+  expect_false(anyDuplicated(names(disposition)) > 0L)
+  expect_setequal(names(lakehouse$tables), names(disposition))
+  expect_setequal(
+    unname(disposition),
+    c(
+      "exact_values", "reference_comparison", "unsupported_error",
+      "full_scan", "job_workflow"
+    )
+  )
 })
 
 test_that("Fabric Variant preview tables fail before exposing physical fields", {
