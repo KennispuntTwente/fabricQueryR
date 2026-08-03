@@ -45,11 +45,7 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   )
 
   expect_identical(manifest$deltalake_version, "1.6.2")
-  supported_cases <- Filter(
-    function(case) case$name != "deletion_vector_feature_without_vectors",
-    manifest$cases
-  )
-  for (case in supported_cases) {
+  for (case in manifest$cases) {
     columns <- unlist(case$columns %||% list(), use.names = FALSE)
     if (!length(columns)) {
       columns <- NULL
@@ -85,19 +81,20 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     max(fabric_delta_active_file_rows(capable_table)),
     .fabric_delta_max_deletion_vector_rows
   )
-  expect_error(
-    fabric_delta_read_uri(
+  expect_length(fabric_delta_deletion_vector_rows(capable_table), 0L)
+  expect_equal(
+    nrow(fabric_delta_read_uri(
       file.path(directory, "deletion_vector_capable"),
       result = "tibble"
-    ),
-    class = "fabric_delta_unsupported_feature_error"
+    )),
+    65537L
   )
-  expect_error(
-    fabric_delta_read_uri(
+  expect_equal(
+    arrow::as_record_batch_reader(fabric_delta_read_uri(
       file.path(directory, "deletion_vector_capable"),
       result = "arrow_stream"
-    ),
-    class = "fabric_delta_unsupported_feature_error"
+    ))$read_table()$num_rows,
+    65537L
   )
 })
 
