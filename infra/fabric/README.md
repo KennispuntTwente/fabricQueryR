@@ -42,6 +42,7 @@ terraform -chdir=infra/fabric/terraform apply
 export FABRIC_WORKSPACE_ID="$(terraform -chdir=infra/fabric/terraform output -raw workspace_id)"
 export FABRIC_WORKSPACE_NAME="$(terraform -chdir=infra/fabric/terraform output -raw workspace_name)"
 export FABRIC_LAKEHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw lakehouse_id)"
+export FABRIC_NON_SCHEMA_LAKEHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw non_schema_lakehouse_id)"
 export FABRIC_WAREHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_id)"
 export FABRIC_SQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw sql_database_id)"
 export FABRIC_EVENTHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw eventhouse_id)"

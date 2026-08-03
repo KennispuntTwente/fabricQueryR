@@ -23,6 +23,11 @@ output "lakehouse_id" {
   value       = fabric_lakehouse.test.id
 }
 
+output "non_schema_lakehouse_id" {
+  description = "ID of the schema-disabled Lakehouse used by Delta read tests."
+  value       = fabric_lakehouse.non_schema.id
+}
+
 output "warehouse_id" {
   description = "ID of the Warehouse exercised by SQL integration tests."
   value       = fabric_warehouse.test.id

@@ -90,6 +90,44 @@ fabric_test_canonicalize_delta_maps <- function(value) {
   value
 }
 
+fabric_test_arrow_scalar_text <- function(value) {
+  if (inherits(value, "POSIXt")) {
+    return(format(value, "%Y-%m-%d %H:%M:%OS6", tz = "UTC"))
+  }
+  as.character(value)
+}
+
+fabric_test_expect_arrow_scalar_values <- function(
+  actual,
+  expected,
+  feature
+) {
+  actual <- as.data.frame(actual)
+  key <- intersect(c("id", "row_id"), names(expected))
+  if (length(key) == 1L && nrow(expected)) {
+    actual <- actual[order(actual[[key]], na.last = TRUE), , drop = FALSE]
+    expected <- expected[
+      order(expected[[key]], na.last = TRUE),
+      ,
+      drop = FALSE
+    ]
+  }
+  scalar <- names(expected)[vapply(
+    expected,
+    function(column) is.atomic(column) && !is.raw(column),
+    logical(1)
+  )]
+  expect_gt(length(scalar), 0L, label = paste(feature, "scalar columns"))
+  for (name in scalar) {
+    expect_identical(
+      fabric_test_arrow_scalar_text(actual[[name]]),
+      fabric_test_arrow_scalar_text(expected[[name]]),
+      label = paste(feature, name)
+    )
+  }
+  invisible(actual)
+}
+
 fabric_test_delta_differences <- function(actual, expected, feature) {
   waldo::compare(
     actual,
@@ -233,6 +271,64 @@ test_that("the delta-rs reader handles schema-enabled Fabric tables", {
   expect_named(projected, c("name", "id"))
   expect_equal(nrow(projected), 2L)
   expect_true(all(projected$id %in% 1:3))
+})
+
+test_that("the delta-rs reader handles a schema-disabled Fabric Lakehouse", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(
+    manifest,
+    "TestLakehouseNoSchemas"
+  )
+  discovered <- fabric_item(
+    manifest$workspace_id,
+    lakehouse$id,
+    type = "Lakehouse",
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
+
+  result <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$basic,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = discovered,
+    token = fabric_test_token_provider(),
+    verbose = FALSE
+  )
+  result <- result[order(result$id), ]
+
+  expect_identical(result$id, 1:3)
+  expect_identical(result$name, c("alpha", "beta", "gamma"))
+  expect_identical(result$category, c("A", "B", "A"))
+  expect_identical(result$amount, c(10.5, 20, NA_real_))
+})
+
+test_that("a refreshable credential retries and reads live OneLake data", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  calls <- logical()
+  provider <- function(audience, force_refresh = FALSE) {
+    calls <<- c(calls, force_refresh)
+    expect_identical(audience, "https://storage.azure.com/.default")
+    if (!force_refresh) {
+      stop("HTTP 401: token expired")
+    }
+    fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  }
+
+  result <- fabric_onelake_read_delta_table(
+    table_path = lakehouse$tables$basic,
+    workspace_name = manifest$workspace_id,
+    lakehouse_name = lakehouse$id,
+    schema = lakehouse$schema,
+    token = provider,
+    verbose = FALSE
+  )
+  result <- result[order(result$id), ]
+
+  expect_identical(calls, c(FALSE, TRUE))
+  expect_identical(result$id, 1:3)
+  expect_identical(result$name, c("alpha", "beta", "gamma"))
 })
 
 test_that("the delta-rs reader preserves empty and exact Fabric values", {
@@ -431,13 +527,7 @@ test_that("Arrow streams cover representative Fabric Delta snapshots", {
     actual <- arrow::as_record_batch_reader(stream)$read_table()
     expect_equal(actual$num_rows, nrow(expected), label = case$table)
     expect_identical(actual$ColumnNames(), names(expected), label = case$table)
-    if ("id" %in% names(expected) && nrow(expected)) {
-      actual_id <- as.data.frame(actual["id"])$id
-      expect_setequal(
-        as.character(actual_id),
-        as.character(expected$id)
-      )
-    }
+    fabric_test_expect_arrow_scalar_values(actual, expected, case$table)
   }
 })
 
@@ -799,7 +889,6 @@ test_that("the delta-rs reader reads the Fabric Warehouse export profile", {
     table_path = warehouse$tables$types,
     workspace_name = manifest$workspace_name,
     lakehouse_name = warehouse$display_name,
-    schema = "dbo",
     item_type = "Warehouse",
     token = fabric_test_token_provider(),
     verbose = FALSE

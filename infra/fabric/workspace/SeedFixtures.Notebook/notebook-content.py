@@ -27,6 +27,7 @@ from pyspark.sql.types import ArrayType, MapType, StructField, StructType
 
 workspace_id = "00000000-0000-0000-0000-000000000002"
 lakehouse_id = "00000000-0000-0000-0000-000000000001"
+non_schema_lakehouse_id = "00000000-0000-0000-0000-000000000003"
 spark.conf.set("spark.sql.session.timeZone", "UTC")
 fixture_path = (
     f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
@@ -85,6 +86,20 @@ try:
         .mode("overwrite")
         .option("overwriteSchema", True)
         .saveAsTable("dbo.fabricqueryr_basic")
+    )
+
+    stage = "write schema-disabled Lakehouse Delta table"
+    (
+        fixture.withColumn(
+            "loaded_at", F.lit("2026-01-01T00:00:00Z").cast("timestamp")
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .save(
+            f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+            f"{non_schema_lakehouse_id}/Tables/fabricqueryr_basic"
+        )
     )
 
     stage = "write empty Delta table"

@@ -25,8 +25,8 @@ def test_seed_notebook_ids_are_parameterized():
         repository_root / "infra/fabric/workspace/parameter.yml"
     ).read_text()
 
-    for name in ("lakehouse_id", "workspace_id"):
-        pattern = rf'{name}\s*=\s*"([0-9a-fA-F-]{{36}})"'
+    for name in ("lakehouse_id", "non_schema_lakehouse_id", "workspace_id"):
+        pattern = rf'(?m)^{name}\s*=\s*"([0-9a-fA-F-]{{36}})"'
         assert pattern in parameters
         assert len(re.findall(pattern, notebook)) == 1
     assert "abfss://" in notebook

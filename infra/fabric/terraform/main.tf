@@ -26,6 +26,22 @@ resource "fabric_lakehouse" "test" {
   }
 }
 
+resource "fabric_lakehouse" "non_schema" {
+  display_name = "TestLakehouseNoSchemas"
+  description  = "Ephemeral schema-disabled lakehouse for fabricQueryR"
+  workspace_id = fabric_workspace.sandbox.id
+
+  configuration = {
+    enable_schemas = false
+  }
+
+  timeouts = {
+    create = "15m"
+    update = "15m"
+    delete = "15m"
+  }
+}
+
 resource "fabric_warehouse" "test" {
   display_name = "TestWarehouse"
   description  = "Ephemeral integration-test warehouse for fabricQueryR"

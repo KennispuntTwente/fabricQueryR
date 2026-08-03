@@ -1,4 +1,5 @@
 from fabricqueryr_sandbox.discover import (
+    NON_SCHEMA_LAKEHOUSE_TABLES,
     ONELAKE_LAKEHOUSE_TABLES,
     _wait_for_kql_properties,
     _wait_for_lakehouse_sql_endpoint,
@@ -141,7 +142,11 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
 
     manifest = discover_onelake(settings)
 
-    assert set(manifest.items) == {"TestLakehouse", "TestWarehouse"}
+    assert set(manifest.items) == {
+        "TestLakehouse",
+        "TestLakehouseNoSchemas",
+        "TestWarehouse",
+    }
     assert manifest.fixture_revision == "fixture-revision"
     assert manifest.items["TestLakehouse"]["tables"] == ONELAKE_LAKEHOUSE_TABLES
     assert manifest.items["TestLakehouse"]["tables"]["basic"] == (
@@ -151,6 +156,11 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         "types": "fabricqueryr_sql_types",
         "mutations": "fabricqueryr_sql_mutations",
     }
+    assert "schema" not in manifest.items["TestLakehouseNoSchemas"]
+    assert (
+        manifest.items["TestLakehouseNoSchemas"]["tables"]
+        == NON_SCHEMA_LAKEHOUSE_TABLES
+    )
     assert fabric_api.refreshed == []
 
 
@@ -188,6 +198,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     assert manifest.fixture_revision == "fixture-revision"
     assert set(manifest.items) == {
         "TestLakehouse",
+        "TestLakehouseNoSchemas",
         "SeedFixtures",
         "JobFixtures",
         "TestPipeline",

@@ -101,6 +101,7 @@ ONELAKE_LAKEHOUSE_TABLES = {
     "livy_batch_result": "fabricqueryr_livy_batch_result",
     "spark_job_result": "fabricqueryr_spark_job_result",
 }
+NON_SCHEMA_LAKEHOUSE_TABLES = {"basic": "fabricqueryr_basic"}
 
 
 def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
@@ -108,6 +109,9 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
     workspace_id = settings.require_workspace()
     with FabricApi(get_credential()) as api:
         lakehouse_item = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
+        non_schema_lakehouse_item = api.find_item(
+            workspace_id, "TestLakehouseNoSchemas", "Lakehouse"
+        )
         warehouse_item = api.find_item(workspace_id, "TestWarehouse", "Warehouse")
         lakehouse = api.get_lakehouse(workspace_id, lakehouse_item["id"])
 
@@ -140,6 +144,12 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
                     "types": SQL_FIXTURE_TABLE,
                     "mutations": SQL_MUTATION_TABLE,
                 },
+            },
+            "TestLakehouseNoSchemas": {
+                "id": non_schema_lakehouse_item["id"],
+                "type": "Lakehouse",
+                "display_name": non_schema_lakehouse_item["displayName"],
+                "tables": dict(NON_SCHEMA_LAKEHOUSE_TABLES),
             },
         },
     )
@@ -221,6 +231,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     workspace_id = settings.require_workspace()
     with FabricApi(get_credential()) as api:
         lakehouse_item = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
+        non_schema_lakehouse_item = api.find_item(
+            workspace_id, "TestLakehouseNoSchemas", "Lakehouse"
+        )
         notebook_item = api.find_item(workspace_id, "SeedFixtures", "Notebook")
         job_notebook_item = api.find_item(
             workspace_id, "JobFixtures", "Notebook"
@@ -440,6 +453,12 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "id": notebook_item["id"],
                 "type": "Notebook",
                 "display_name": notebook_item["displayName"],
+            },
+            "TestLakehouseNoSchemas": {
+                "id": non_schema_lakehouse_item["id"],
+                "type": "Lakehouse",
+                "display_name": non_schema_lakehouse_item["displayName"],
+                "tables": dict(NON_SCHEMA_LAKEHOUSE_TABLES),
             },
             "JobFixtures": {
                 "id": job_notebook_item["id"],

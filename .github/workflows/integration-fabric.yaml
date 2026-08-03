@@ -151,6 +151,7 @@ jobs:
         run: |
           echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
           echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_NON_SCHEMA_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw non_schema_lakehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
