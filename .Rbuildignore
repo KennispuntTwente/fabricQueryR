@@ -13,3 +13,5 @@ playground/*
 ^tools$
 ^roadmap\.md$
 ^\.fabric-test-manifest\.json$
+^fabricQueryR\.Rcheck$
+^\.pytest_cache$
