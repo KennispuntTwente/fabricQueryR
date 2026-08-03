@@ -39,7 +39,8 @@ contains spaces or other special characters.}
 The argument name is retained for backward compatibility.}
 
 \item{schema}{Lakehouse or Warehouse schema, or \code{NULL}. A discovered
-schema-enabled Lakehouse's default schema is used automatically.}
+schema-enabled Lakehouse's default schema is used automatically. Warehouse
+targets default to \code{"dbo"}.}
 
 \item{item_type}{\code{"Lakehouse"} or \code{"Warehouse"}. This is inferred from a
 discovery record or a \code{.Lakehouse}/\code{.Warehouse} suffix. Supply it for a

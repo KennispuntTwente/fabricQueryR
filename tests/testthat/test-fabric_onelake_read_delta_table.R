@@ -82,22 +82,35 @@ test_that("Delta discovery records enforce type and workspace ownership", {
     "table",
     workspace,
     warehouse,
-    schema = "dbo",
+    schema = NULL,
     dfs_base = "https://onelake.dfs.fabric.microsoft.com"
   )
   expect_equal(resolved$item_type, "Warehouse")
   expect_equal(resolved$target$item, warehouse$id)
+  expect_equal(resolved$table_dir, "Tables/dbo/table")
 
   named_warehouse <- fabric_delta_resolve_public_target(
     "table",
     "Workspace",
     "Sales",
-    schema = "dbo",
+    schema = NULL,
     dfs_base = "https://onelake.dfs.fabric.microsoft.com",
     item_type = "Warehouse"
   )
   expect_identical(named_warehouse$item_type, "Warehouse")
   expect_identical(named_warehouse$target$item, "Sales.Warehouse")
+  expect_identical(named_warehouse$table_dir, "Tables/dbo/table")
+
+  non_schema_lakehouse <- warehouse
+  non_schema_lakehouse$type <- "Lakehouse"
+  resolved_lakehouse <- fabric_delta_resolve_public_target(
+    "table",
+    workspace,
+    non_schema_lakehouse,
+    schema = NULL,
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  )
+  expect_identical(resolved_lakehouse$table_dir, "Tables/table")
 
   expect_error(
     fabric_delta_resolve_public_target(

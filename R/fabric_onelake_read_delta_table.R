@@ -99,7 +99,8 @@
 #' @param lakehouse_name Lakehouse or Warehouse name, GUID, or discovery record.
 #'   The argument name is retained for backward compatibility.
 #' @param schema Lakehouse or Warehouse schema, or `NULL`. A discovered
-#'   schema-enabled Lakehouse's default schema is used automatically.
+#'   schema-enabled Lakehouse's default schema is used automatically. Warehouse
+#'   targets default to `"dbo"`.
 #' @param item_type `"Lakehouse"` or `"Warehouse"`. This is inferred from a
 #'   discovery record or a `.Lakehouse`/`.Warehouse` suffix. Supply it for a
 #'   suffixless item display name, especially a Warehouse name.
@@ -409,6 +410,10 @@ fabric_delta_resolve_public_target <- function(
         "default_schema",
         "defaultSchema"
       )
+  }
+
+  if (is.null(schema) && identical(item_type, "Warehouse")) {
+    schema <- "dbo"
   }
 
   fabric_delta_validate_non_empty(table_path, "table_path")
