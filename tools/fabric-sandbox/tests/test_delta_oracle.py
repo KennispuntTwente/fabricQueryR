@@ -168,6 +168,10 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
         "num_records"
     ).to_pylist() == [65_537]
     assert deletion_vector_capable.deletion_vectors().read_all().num_rows == 0
+    warehouse_invalid = DeltaTable(
+        str(tmp_path / "warehouse_invalid_columns")
+    ).to_pyarrow_table()
+    assert warehouse_invalid.column_names == ["id", "display name"]
 
     ipc_path = tmp_path / "oracle.arrow"
     write_ipc(projected, ipc_path)

@@ -697,6 +697,12 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         allow_protocol_versions_increase=True,
     )
 
+    write_deltalake(
+        directory / "warehouse_invalid_columns",
+        pa.table({"id": [1], "display name": ["unsafe"]}),
+        mode="overwrite",
+    )
+
     cases = [
         {
             "name": "deletion_vector_feature_without_vectors",

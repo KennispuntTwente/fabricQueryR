@@ -249,6 +249,7 @@ test_that("the public reader passes Fabric auth and query options to delta-rs", 
   expect_identical(captured$columns, c("name", "id"))
   expect_equal(captured$limit, 10)
   expect_identical(captured$result, "tibble")
+  expect_identical(captured$item_type, "Lakehouse")
   expect_match(
     captured$table_uri,
     "^abfss://workspace@onelake[.]dfs[.]fabric[.]microsoft[.]com/"

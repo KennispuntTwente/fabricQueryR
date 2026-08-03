@@ -241,7 +241,8 @@ fabric_onelake_read_delta_table <- function(
       version = version,
       columns = columns,
       limit = limit,
-      result = result
+      result = result,
+      item_type = resolved$item_type
     )
     list(value = value, token = bearer_token)
   }
@@ -645,14 +646,16 @@ fabric_delta_read_uri <- function(
   version = NULL,
   columns = NULL,
   limit = NULL,
-  result = "tibble"
+  result = "tibble",
+  item_type = NULL
 ) {
   reader <- fabric_delta_python_reader(
     table_uri = table_uri,
     bearer_token = bearer_token,
     version = version,
     columns = columns,
-    limit = limit
+    limit = limit,
+    item_type = item_type
   )
   if (identical(result, "arrow_stream")) {
     return(fabric_delta_reader_stream(reader, collect = FALSE))
@@ -668,7 +671,8 @@ fabric_delta_python_reader <- function(
   bearer_token = NULL,
   version = NULL,
   columns = NULL,
-  limit = NULL
+  limit = NULL,
+  item_type = NULL
 ) {
   fabric_delta_validate_runtime()
   storage_options <- NULL
@@ -690,6 +694,7 @@ fabric_delta_python_reader <- function(
   }
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
+  fabric_delta_validate_snapshot_columns(table, columns, item_type)
   fabric_delta_validate_deletion_vectors(table)
   builder <- .delta_python$deltalake$QueryBuilder()
   builder$register(.fabric_delta_query_table, table)
@@ -697,6 +702,42 @@ fabric_delta_python_reader <- function(
   attr(reader, "fabric_delta_table") <- table
   attr(reader, "fabric_delta_query_builder") <- builder
   reader
+}
+
+#' Return top-level field names from a Delta snapshot schema
+#' @keywords internal
+#' @noRd
+fabric_delta_snapshot_columns <- function(table) {
+  fields <- table$schema()$fields
+  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(fields)))
+  if (!count) {
+    return(character())
+  }
+  vapply(
+    seq_len(count) - 1L,
+    function(index) {
+      field <- fields$`__getitem__`(.delta_python$builtins$int(index))
+      as.character(reticulate::py_to_r(field$name))
+    },
+    character(1)
+  )
+}
+
+#' Validate an implicit all-column Warehouse projection
+#' @keywords internal
+#' @noRd
+fabric_delta_validate_snapshot_columns <- function(
+  table,
+  columns,
+  item_type
+) {
+  if (!identical(item_type, "Warehouse") || !is.null(columns)) {
+    return(invisible(NULL))
+  }
+  fabric_delta_validate_columns(
+    fabric_delta_snapshot_columns(table),
+    item_type = item_type
+  )
 }
 
 .fabric_delta_max_deletion_vector_rows <- 65536

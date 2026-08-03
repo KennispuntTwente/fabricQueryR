@@ -96,6 +96,23 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     ))$read_table()$num_rows,
     65537L
   )
+
+  invalid_warehouse <- file.path(directory, "warehouse_invalid_columns")
+  expect_error(
+    fabric_delta_read_uri(
+      invalid_warehouse,
+      result = "tibble",
+      item_type = "Warehouse"
+    ),
+    class = "fabric_delta_invalid_target"
+  )
+  projected_warehouse <- fabric_delta_read_uri(
+    invalid_warehouse,
+    columns = "id",
+    result = "tibble",
+    item_type = "Warehouse"
+  )
+  expect_identical(as.character(projected_warehouse$id), "1")
 })
 
 test_that("the production bridge preserves exact and nested values", {
