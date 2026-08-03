@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -59,6 +60,12 @@ def make_settings(root: Path) -> SandboxSettings:
     )
     seed_notebook.parent.mkdir(parents=True)
     seed_notebook.write_text("seed-v1\n", encoding="utf-8")
+    (seed_notebook.parents[1] / "parameter.yml").write_text(
+        "parameters-v1\n", encoding="utf-8"
+    )
+    terraform = root / "infra" / "fabric" / "terraform" / "main.tf"
+    terraform.parent.mkdir(parents=True)
+    terraform.write_text("terraform-v1\n", encoding="utf-8")
     fixture = root / "infra" / "fabric" / "fixtures" / "basic.csv"
     fixture.parent.mkdir(parents=True)
     fixture.write_text("id,name\n1,alpha\n", encoding="utf-8")
@@ -70,7 +77,13 @@ def make_settings(root: Path) -> SandboxSettings:
         / "fabricqueryr_sandbox"
     )
     package.mkdir(parents=True)
-    for name in ("fixture_revision.py", "seed.py", "sql_api.py"):
+    for name in (
+        "deploy.py",
+        "discover.py",
+        "fixture_revision.py",
+        "seed.py",
+        "sql_api.py",
+    ):
         (package / name).write_text(f"{name}-v1\n", encoding="utf-8")
     return SandboxSettings(
         workspace_id="workspace-id",
@@ -94,6 +107,28 @@ def test_fixture_revision_changes_with_seed_inputs(tmp_path):
 
     assert len(first) == 64
     assert first != second
+
+
+def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
+    settings = make_settings(tmp_path)
+    first = fixture_revision(settings)
+
+    different_runtime = fixture_revision(
+        replace(settings, spark_runtime_version="1.3")
+    )
+    assert different_runtime != first
+
+    parameter_file = settings.workspace_definition_dir / "parameter.yml"
+    parameter_file.write_text("parameters-v2\n", encoding="utf-8")
+    different_parameters = fixture_revision(settings)
+    assert different_parameters != first
+
+    terraform_file = (
+        settings.repository_root / "infra" / "fabric" / "terraform" / "main.tf"
+    )
+    terraform_file.write_text("terraform-v2\n", encoding="utf-8")
+    different_terraform = fixture_revision(settings)
+    assert different_terraform != different_parameters
 
 
 def test_fixture_revision_round_trip_and_verification(tmp_path):

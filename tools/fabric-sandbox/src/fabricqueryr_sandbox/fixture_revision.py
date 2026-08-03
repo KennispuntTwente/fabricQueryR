@@ -29,14 +29,24 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
         settings.workspace_definition_dir
         / "SeedFixtures.Notebook"
         / "notebook-content.py",
+        settings.workspace_definition_dir / "parameter.yml",
+        package_dir / "deploy.py",
+        package_dir / "discover.py",
         package_dir / "fixture_revision.py",
         package_dir / "seed.py",
         package_dir / "sql_api.py",
     ]
+    terraform_files = sorted(
+        path
+        for path in (
+            settings.repository_root / "infra" / "fabric" / "terraform"
+        ).rglob("*")
+        if path.is_file() and path.suffix in {".tf", ".tftpl"}
+    )
     fixture_files = sorted(
         path for path in settings.fixture_dir.rglob("*") if path.is_file()
     )
-    inputs = fixed + fixture_files
+    inputs = fixed + terraform_files + fixture_files
     missing = [path for path in inputs if not path.is_file()]
     if missing:
         raise FileNotFoundError(
@@ -49,6 +59,9 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
 def fixture_revision(settings: SandboxSettings) -> str:
     """Hash every source that materially defines deployed Delta fixtures."""
     digest = sha256()
+    digest.update(b"spark_runtime_version\0")
+    digest.update(settings.spark_runtime_version.encode("utf-8"))
+    digest.update(b"\0")
     for path in _fixture_inputs(settings):
         relative = path.relative_to(settings.repository_root).as_posix()
         digest.update(relative.encode("utf-8"))
