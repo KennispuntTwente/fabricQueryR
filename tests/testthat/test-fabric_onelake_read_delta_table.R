@@ -442,6 +442,11 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_s3_class(authorization, "fabric_delta_authorization_error")
   expect_s3_class(authorization, "fabric_delta_access_error")
   expect_match(conditionMessage(authorization), "Item Read")
+  expect_match(
+    conditionMessage(authorization),
+    "Users can access data stored in OneLake with apps external to Fabric",
+    fixed = TRUE
+  )
   expect_false(fabric_delta_is_authentication_error(authorization))
 
   expect_error(

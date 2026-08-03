@@ -31,7 +31,11 @@
 #' enabled, item `Read` plus a OneLake role whose `Read` scope contains the
 #' target table. Tables protected by OneLake row- or column-level security can
 #' be blocked because this external delta-rs reader does not enforce those
-#' policies. See the
+#' policies. A Fabric administrator must also enable the OneLake tenant setting
+#' **Users can access data stored in OneLake with apps external to Fabric** for
+#' the calling identity. See
+#' [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
+#' and the
 #' [Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model).
 #'
 #' Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
@@ -1583,6 +1587,11 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
         "Grant this identity access to the Fabric item and OneLake data. ",
         "Item Read alone may not authorize external-engine table reads when ",
         "OneLake security, RLS, or CLS restricts the data."
+      ),
+      "i" = paste0(
+        "Ask a Fabric administrator to verify the OneLake tenant setting ",
+        "'Users can access data stored in OneLake with apps external to ",
+        "Fabric' is enabled for this identity."
       )
     )
   }

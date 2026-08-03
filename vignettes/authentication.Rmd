@@ -417,7 +417,11 @@ The main workload considerations are:
   access only through the `DefaultReader` role while that role exists and still
   includes the principal. Direct delta-rs reads cannot enforce OneLake row- or
   column-level security, so Fabric can block protected tables unless the caller
-  is allowed to see all their data. See the
+  is allowed to see all their data. A Fabric administrator must also enable
+  **Users can access data stored in OneLake with apps external to Fabric** for
+  the caller in the tenant's OneLake settings. See
+  [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake),
+  the
   [Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model),
   [OneLake security overview](https://learn.microsoft.com/en-us/fabric/onelake/security/get-started-onelake-security),
   and [OneLake security best practices](https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake).
@@ -443,7 +447,9 @@ The main workload considerations are:
   [Livy session guide](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session).
 
 When authentication succeeds but Fabric returns HTTP 403, inspect workspace,
-item, and workload permissions before changing the login flow. HTTP 401 more
+item, and workload permissions and the **Users can access data stored in
+OneLake with apps external to Fabric** tenant setting before changing the login
+flow. HTTP 401 more
 often indicates the wrong token resource, an expired/nonrefreshable raw token,
 or a tenant/app mismatch.
 

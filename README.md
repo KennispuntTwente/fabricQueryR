@@ -180,7 +180,11 @@ Direct Delta reads require a token for
 `https://storage.azure.com/.default` and OneLake data permission; item **Read**
 alone only exposes metadata. Grant **ReadAll**, or a OneLake role that can read
 the table when OneLake security is enabled. Tables protected by OneLake RLS/CLS
-may be unavailable to this external delta-rs reader. The pinned runtime supports
+may be unavailable to this external delta-rs reader. A Fabric administrator
+must also enable **Users can access data stored in OneLake with apps external
+to Fabric** for the caller in
+[OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
+The pinned runtime supports
 classic checkpoints, schema evolution, column mapping, deletion vectors within
 its documented safety limit, and version reads; Type Widening, V2 checkpoints,
 and Fabric's Variant shredding preview fail explicitly. Warehouse Delta logs are

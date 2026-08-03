@@ -8,6 +8,7 @@ def test_delta_documentation_matches_the_runtime_contract():
     source = (
         repository_root / "R/fabric_onelake_read_delta_table.R"
     ).read_text(encoding="utf-8")
+    normalized_readme = " ".join(readme.split())
 
     assert "reader stages the transaction log" not in roadmap
     assert "supports V1 and V2 checkpoints" not in roadmap
@@ -15,5 +16,10 @@ def test_delta_documentation_matches_the_runtime_contract():
     assert "V2 checkpoints" in roadmap
     assert "ReadAll" in readme
     assert "storage.azure.com/.default" in readme
+    assert (
+        "Users can access data stored in OneLake with apps external to Fabric"
+        in normalized_readme
+    )
+    assert "service-admin-portal-onelake" in readme
     assert "metadata-only preflight" in source
     assert "avoids `deltalake`'s mask-materializing" in source

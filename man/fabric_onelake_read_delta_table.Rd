@@ -115,7 +115,11 @@ Otherwise grant item \code{Read} plus \code{ReadAll}, or, when OneLake security 
 enabled, item \code{Read} plus a OneLake role whose \code{Read} scope contains the
 target table. Tables protected by OneLake row- or column-level security can
 be blocked because this external delta-rs reader does not enforce those
-policies. See the
+policies. A Fabric administrator must also enable the OneLake tenant setting
+\strong{Users can access data stored in OneLake with apps external to Fabric} for
+the calling identity. See
+\href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}
+and the
 \href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}.
 
 Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
