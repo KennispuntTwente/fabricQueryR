@@ -184,11 +184,19 @@ may be unavailable to this external delta-rs reader. A Fabric administrator
 must also enable **Users can access data stored in OneLake with apps external
 to Fabric** for the caller in
 [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
-The pinned runtime supports
-classic checkpoints, schema evolution, column mapping, deletion vectors within
-its documented safety limit, and version reads; Type Widening, V2 checkpoints,
-and Fabric's Variant shredding preview fail explicitly. Warehouse Delta logs are
-published asynchronously, so a OneLake read can lag the current Warehouse state.
+The package's exact pinned and tested runtime supports classic checkpoints,
+schema evolution, column mapping, deletion vectors within its documented safety
+limit, shallow-clone reads, and version reads; Type Widening, V2 checkpoints,
+and Fabric's Variant shredding preview fail explicitly. These are
+fabricQueryR-specific compatibility results, not a Microsoft support statement:
+Microsoft's current
+[engine matrix](https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide)
+reports broader delta-rs gaps for column mapping, deletion vectors, V2
+checkpoints, and shallow clones. Use Fabric PySpark when Microsoft-supported
+feature coverage is required, and require a green live integration run for the
+exact fabricQueryR revision before relying on package-specific feature support.
+Warehouse Delta logs are published asynchronously, so a OneLake read can lag
+the current Warehouse state.
 For external Delta readers, Warehouse table names are limited to ASCII letters,
 digits, and underscores, while column names cannot contain spaces, tabs,
 carriage returns, square brackets, commas, semicolons, braces, parentheses, or

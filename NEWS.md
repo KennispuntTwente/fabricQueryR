@@ -83,9 +83,11 @@ cancellation, while sessions also provide explicit cleanup;
   lists and maps, so null structs remain distinct from present structs whose
   children are all null. The Arrow bridge normalizes DataFusion view types for
   compatibility with the R `arrow` package.
-  - Preserves canonical `arrow.parquet.variant` columns in Arrow-stream results
-  and rejects tibble collection with an actionable error instead of silently
-  exposing Variant's physical metadata and value buffers as ordinary columns.
+  - Preserves canonical `arrow.parquet.variant` columns supplied by an otherwise
+  readable Arrow stream and rejects tibble collection with an actionable error
+  instead of silently exposing Variant's physical metadata and value buffers as
+  ordinary columns. Current Fabric VariantShreddingPreview tables remain
+  unsupported and fail before a stream is returned.
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
   `timestamp_partition_timezone` is retained as a compatibility formal but is
   rejected when supplied because delta-rs has no equivalent override.
@@ -95,10 +97,11 @@ cancellation, while sessions also provide explicit cleanup;
   and shallow clones. The live matrix now also covers classic checkpoints,
   schema evolution and time travel, void columns, binary/typed partitions,
   exact minimum integers, every type-widening fixture, and readable neutral
-  references for unsupported features. Deletion-vector safety checks now
-  inspect active-file
-  `numRecords` metadata instead of eagerly materializing every keep mask; DV
-  snapshots with unmeasured or greater-than-65,536-row active files, type
+  references for unsupported features. Live Arrow results are compared deeply
+  with Spark-neutral tables so nested values, binary payloads, validity, and
+  exact scalar boundaries are checked without lossy R conversion.
+  Deletion-vector safety checks enumerate only files that actually carry a
+  vector; DV files with unreadable or greater-than-65,536-row masks, type
   widening, V2 checkpoints, and Fabric Variant
   preview tables are rejected with an actionable unsupported-feature error by
   the current delta-rs runtime instead of being advertised as readable.
@@ -113,6 +116,9 @@ is pinned to the tested `deltalake==1.6.2` and Python `nanoarrow==0.8.0`
 versions, and its required `DeltaTable`/`QueryBuilder` API is checked before
 querying. This avoids silently accepting future binary/runtime combinations
 whose Arrow bridge and Delta feature behavior have not been verified.
+Compatibility claims for column mapping, deletion vectors, and shallow-clone
+reads are explicitly package-specific and do not override Microsoft's published
+delta-rs compatibility matrix.
 
 * OneLake authentication guidance now distinguishes item `Read` (metadata)
 from `ReadAll` or a scoped OneLake `Read` role (data-plane access), and notes

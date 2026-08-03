@@ -77,8 +77,11 @@ sidecars, sparse/dense/checkpoint deletion vectors, name- and ID-mapped nested
 struct/array/map values across renames and drops, top-level and nested type
 widening, `void`, exact scalar values, date/boolean/integer/decimal/timestamp/
 timestamp-NTZ/binary/null partitions, a shallow clone, and Variant files written
-before and after shredding is enabled. The R integration tests assert exact row
-sets and logical values rather than only checking that each read succeeds.
+before and after shredding is enabled. The R integration suite assigns every
+fixture an explicit disposition: representative tables have static exact-value
+assertions, supported protocol features are compared with Spark-materialized
+neutral references (including deep Arrow equality), unsupported tables assert
+specific errors, and their neutral references are fully scanned.
 
 Always remove the workspace after testing:
 
@@ -234,8 +237,9 @@ exact-numeric, nested, type-widened, V2-checkpoint, shallow-clone, and Variant
 tables. These exercise active-file replay, partition replacement, metadata-only
 rename/drop, exact BIGINT/DECIMAL boundaries, timestamp-NTZ, multiple files and
 DV mutations, V2 sidecars, absolute OneLake AddFile paths, and current reader
-features. The OneLake suite also reads the Warehouse Delta export and compares
-all fixtures with deterministic expected rows and types. The sandbox creates
+features. The OneLake suite also reads the Warehouse Delta export, checks exact
+Warehouse values, and enforces an explicit assertion disposition for every
+discovered Delta fixture. The sandbox creates
 matching deterministic typed SQL tables in the Warehouse and SQL Database,
 plus a deterministic typed Kusto table.
 

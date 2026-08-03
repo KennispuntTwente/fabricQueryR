@@ -159,11 +159,19 @@ offsets. Large files without deletion vectors are not rejected. The pinned
 files, so this preflight has memory cost proportional to those masks. Its
 current reader also does not support Fabric tables requiring Type
 Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
-\code{fabric_delta_unsupported_feature_error}. Arrow Variant extension columns in
-otherwise readable tables require \code{result = "arrow_stream"}.
-Feature availability is protocol- and runtime-specific; consult the
-\href{https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability}{Fabric Delta interoperability matrix}
-and use Fabric PySpark when the selected delta-rs runtime cannot read a table.
+\code{fabric_delta_unsupported_feature_error}. When an otherwise readable Arrow
+stream already contains canonical \code{arrow.parquet.variant} extension columns,
+they require \code{result = "arrow_stream"}; current Fabric Variant preview tables
+fail earlier and are not advertised as readable.
+
+These compatibility claims are specific to fabricQueryR's exact pinned
+runtime and test matrix, not a Microsoft support statement. Microsoft's
+current engine matrix reports general delta-rs gaps for column mapping,
+deletion-vector reads, V2 checkpoints, and shallow-clone reads. Consult
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide}{Choosing a Fabric notebook kernel}
+and use Fabric PySpark when Microsoft-supported feature coverage is required
+or the package's current live integration workflow has not passed for the
+exact package revision being deployed.
 
 Delta \code{integer} values normally use R integers and Delta \code{long} values
 normally use \code{\link[bit64:integer64]{bit64::integer64()}}. Because those R representations reserve
@@ -178,10 +186,12 @@ timezone-free timestamps as Arrow timestamps and represents decimals as
 strings, matching the R result's exact-decimal contract. Nullable struct
 columns retain their parent validity through the
 \code{fabric_delta_struct_column} class, so a null struct remains distinct from a
-present struct whose children are all null. For tables the runtime can open,
-Arrow Variant extension columns are preserved by \code{result = "arrow_stream"};
-tibble collection rejects them explicitly because exposing their physical
-\code{metadata} and \code{value} buffers as ordinary R data would be misleading.
+present struct whose children are all null. If the runtime returns a canonical
+Arrow Variant extension column, it is preserved by \code{result = "arrow_stream"};
+tibble collection rejects it explicitly because exposing its physical
+\code{metadata} and \code{value} buffers as ordinary R data would be misleading. This
+bridge contract is covered with synthetic extension schemas; Fabric's current
+VariantShreddingPreview tables are rejected before an Arrow stream is created.
 }
 \examples{
 \dontrun{
