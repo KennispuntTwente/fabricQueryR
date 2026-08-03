@@ -23,6 +23,11 @@ def test_require_workspace_explains_terraform_contract(tmp_path):
     with pytest.raises(ValueError, match="Terraform lakehouse_id output"):
         settings.require_lakehouse()
 
+    with pytest.raises(
+        ValueError, match="Terraform non_schema_lakehouse_id output"
+    ):
+        settings.require_non_schema_lakehouse()
+
 
 def test_paths_are_derived_from_repository_root(tmp_path):
     settings = SandboxSettings(
@@ -34,6 +39,7 @@ def test_paths_are_derived_from_repository_root(tmp_path):
         environment="TEST",
         repository_root=tmp_path,
         manifest_path=Path("manifest.json"),
+        non_schema_lakehouse_id="non-schema-lakehouse-id",
     )
 
     assert settings.workspace_definition_dir == tmp_path / "infra/fabric/workspace"
@@ -45,3 +51,4 @@ def test_paths_are_derived_from_repository_root(tmp_path):
         "SemanticModel",
     ]
     assert settings.spark_runtime_version == "2.0"
+    assert settings.require_non_schema_lakehouse() == "non-schema-lakehouse-id"

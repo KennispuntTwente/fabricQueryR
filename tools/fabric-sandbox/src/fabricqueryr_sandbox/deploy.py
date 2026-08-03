@@ -11,6 +11,9 @@ from .settings import SandboxSettings
 def deploy(settings: SandboxSettings) -> None:
     append_feature_flag("enable_environment_variable_replacement")
     environ["$ENV:FABRIC_TEST_LAKEHOUSE_ID"] = settings.require_lakehouse()
+    environ["$ENV:FABRIC_NON_SCHEMA_LAKEHOUSE_ID"] = (
+        settings.require_non_schema_lakehouse()
+    )
     workspace = FabricWorkspace(
         workspace_id=settings.require_workspace(),
         repository_directory=str(settings.workspace_definition_dir),

@@ -20,6 +20,7 @@ class SandboxSettings:
     repository_root: Path
     manifest_path: Path
     spark_runtime_version: str = "2.0"
+    non_schema_lakehouse_id: str | None = None
 
     @classmethod
     def from_environment(cls) -> "SandboxSettings":
@@ -42,6 +43,9 @@ class SandboxSettings:
             ),
             spark_runtime_version=environ.get(
                 "FABRIC_SPARK_RUNTIME_VERSION", "2.0"
+            ),
+            non_schema_lakehouse_id=environ.get(
+                "FABRIC_NON_SCHEMA_LAKEHOUSE_ID"
             ),
         )
 
@@ -75,6 +79,14 @@ class SandboxSettings:
                 "FABRIC_LAKEHOUSE_ID is required; use the Terraform lakehouse_id output"
             )
         return self.lakehouse_id
+
+    def require_non_schema_lakehouse(self) -> str:
+        if not self.non_schema_lakehouse_id:
+            raise ValueError(
+                "FABRIC_NON_SCHEMA_LAKEHOUSE_ID is required; use the Terraform "
+                "non_schema_lakehouse_id output"
+            )
+        return self.non_schema_lakehouse_id
 
     def validate_local_paths(self) -> list[str]:
         missing = []

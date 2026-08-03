@@ -178,6 +178,10 @@ def test_workspace_repository_is_discoverable_by_fabric_cicd(monkeypatch):
         "$ENV:FABRIC_TEST_LAKEHOUSE_ID",
         "00000000-0000-0000-0000-000000000001",
     )
+    monkeypatch.setenv(
+        "$ENV:FABRIC_NON_SCHEMA_LAKEHOUSE_ID",
+        "00000000-0000-0000-0000-000000000003",
+    )
 
     workspace = FabricWorkspace(
         workspace_id="00000000-0000-0000-0000-000000000002",
@@ -214,6 +218,7 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
         environment="TEST",
         repository_root=tmp_path,
         manifest_path=tmp_path / "manifest.json",
+        non_schema_lakehouse_id="non-schema-lakehouse-id",
     )
     (settings.workspace_definition_dir / "SeedFixtures.Notebook").mkdir(
         parents=True
@@ -240,6 +245,10 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
 
     assert flags == ["enable_environment_variable_replacement"]
     assert environ["$ENV:FABRIC_TEST_LAKEHOUSE_ID"] == "lakehouse-id"
+    assert (
+        environ["$ENV:FABRIC_NON_SCHEMA_LAKEHOUSE_ID"]
+        == "non-schema-lakehouse-id"
+    )
     assert workspaces[0]["item_type_in_scope"] == [
         "Notebook",
         "DataPipeline",
