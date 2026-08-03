@@ -432,7 +432,7 @@ test_that("Arrow streams cover representative Fabric Delta snapshots", {
     expect_equal(actual$num_rows, nrow(expected), label = case$table)
     expect_identical(actual$ColumnNames(), names(expected), label = case$table)
     if ("id" %in% names(expected) && nrow(expected)) {
-      actual_id <- as.data.frame(actual$Select("id"))$id
+      actual_id <- as.data.frame(actual["id"])$id
       expect_setequal(
         as.character(actual_id),
         as.character(expected$id),

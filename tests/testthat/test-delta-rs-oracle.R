@@ -311,6 +311,10 @@ test_that("the production Arrow stream is lazy and R Arrow compatible", {
     streamed <- arrow::as_record_batch_reader(stream)$read_table()
     expect_equal(streamed$num_rows, case$rows, label = case$table)
     expect_gt(streamed$num_columns, 0L, label = case$table)
+    if ("id" %in% streamed$ColumnNames() && case$rows) {
+      streamed_id <- as.data.frame(streamed["id"])$id
+      expect_length(streamed_id, case$rows)
+    }
   }
 
   sys <- reticulate::import("sys", convert = FALSE)
