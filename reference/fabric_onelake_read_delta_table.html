@@ -172,7 +172,8 @@ subset and is not suitable for stable pagination.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A tibble, or a lazy single-use <code>nanoarrow_array_stream</code> compatible
-with <code><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">arrow::as_record_batch_reader()</a></code>.</p>
+with <code><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">arrow::as_record_batch_reader()</a></code>. Arrow streams carry the resolved
+Delta version in the <code>fabric_delta_snapshot_version</code> attribute.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -210,7 +211,16 @@ names fail with <code>fabric_delta_invalid_target</code>. See
 <p><code>result = "arrow_stream"</code> is lazy and single-use. Opening either result is
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
-returned and consumed cannot be retried.</p>
+returned and consumed cannot be retried: the OneLake bearer token is fixed
+for that stream's object-store session. Consume lazy streams promptly. If a
+token expires during a long scan, discard the stream and call this function
+again with <code>version = attr(stream, "fabric_delta_snapshot_version")</code> to reopen
+the same snapshot with a fresh token.
+A tibble result necessarily materializes the complete selected result in R.
+During conversion the collector releases full Arrow batches before recursive
+validity restoration and retains only compact validity/offset metadata, but
+<code>result = "arrow_stream"</code> remains the appropriate choice for results that
+should be processed batch by batch.</p>
 <p><code>limit</code> is pushed down without an ordering expression. When it is smaller
 than the snapshot, the returned rows are an implementation-defined subset
 and can change with file layout, snapshot version, or scan scheduling. It is
@@ -223,19 +233,26 @@ workspace FQDN required by a workspace private link where applicable. See
 <a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">Connecting to Microsoft OneLake</a>.</p>
 <p>The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 typed partitions, classic checkpoints, column mapping, deletion vectors, and
-shallow clones. For a deletion-vector-capable snapshot, every active file
-must have Delta statistics proving it has no more than 65,536 physical rows;
-larger or unmeasured files are rejected because the selected runtime can
-apply masks at incorrect record-batch offsets. This conservative,
-metadata-only preflight avoids <code>deltalake</code>'s mask-materializing
-<code>deletion_vectors()</code> API. Its current reader also does not support Fabric
-tables requiring Type
+shallow clones. Files that actually carry deletion vectors must contain no
+more than 65,536 physical rows; larger or unreadable vectors are rejected
+because the selected runtime can apply their masks at incorrect record-batch
+offsets. Large files without deletion vectors are not rejected. The pinned
+<code>deltalake</code> API materializes deletion-vector masks while enumerating affected
+files, so this preflight has memory cost proportional to those masks. Its
+current reader also does not support Fabric tables requiring Type
 Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
-<code>fabric_delta_unsupported_feature_error</code>. Arrow Variant extension columns in
-otherwise readable tables require <code>result = "arrow_stream"</code>.
-Feature availability is protocol- and runtime-specific; consult the
-<a href="https://learn.microsoft.com/en-us/fabric/fundamentals/delta-lake-interoperability" class="external-link">Fabric Delta interoperability matrix</a>
-and use Fabric PySpark when the selected delta-rs runtime cannot read a table.</p>
+<code>fabric_delta_unsupported_feature_error</code>. When an otherwise readable Arrow
+stream already contains canonical <code>arrow.parquet.variant</code> extension columns,
+they require <code>result = "arrow_stream"</code>; current Fabric Variant preview tables
+fail earlier and are not advertised as readable.</p>
+<p>These compatibility claims are specific to fabricQueryR's exact pinned
+runtime and test matrix, not a Microsoft support statement. Microsoft's
+current engine matrix reports general delta-rs gaps for column mapping,
+deletion-vector reads, V2 checkpoints, and shallow-clone reads. Consult
+<a href="https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide" class="external-link">Choosing a Fabric notebook kernel</a>
+and use Fabric PySpark when Microsoft-supported feature coverage is required
+or the package's current live integration workflow has not passed for the
+exact package revision being deployed.</p>
 <p>Delta <code>integer</code> values normally use R integers and Delta <code>long</code> values
 normally use <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64()</a></code>. Because those R representations reserve
 the respective minimum value as <code>NA</code>, a column containing Delta's valid
@@ -249,10 +266,12 @@ timezone-free timestamps as Arrow timestamps and represents decimals as
 strings, matching the R result's exact-decimal contract. Nullable struct
 columns retain their parent validity through the
 <code>fabric_delta_struct_column</code> class, so a null struct remains distinct from a
-present struct whose children are all null. For tables the runtime can open,
-Arrow Variant extension columns are preserved by <code>result = "arrow_stream"</code>;
-tibble collection rejects them explicitly because exposing their physical
-<code>metadata</code> and <code>value</code> buffers as ordinary R data would be misleading.</p>
+present struct whose children are all null. If the runtime returns a canonical
+Arrow Variant extension column, it is preserved by <code>result = "arrow_stream"</code>;
+tibble collection rejects it explicitly because exposing its physical
+<code>metadata</code> and <code>value</code> buffers as ordinary R data would be misleading. This
+bridge contract is covered with synthetic extension schemas; Fabric's current
+VariantShreddingPreview tables are rejected before an Arrow stream is created.</p>
     </div>
 
     <div class="section level2">

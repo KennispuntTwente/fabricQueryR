@@ -94,7 +94,10 @@
     dependencies.
   - Streams query results through Python and R `nanoarrow` using the
     Arrow C interface. Python `pyarrow`, DuckDB, local transaction-log
-    staging, and local Parquet downloads are no longer required.
+    staging, and local Parquet downloads are no longer required. Tibble
+    collection now releases full Arrow batches before recursive nested
+    validity restoration, retaining only compact validity and offset
+    metadata.
   - Continues to use the package’s Fabric discovery and refreshable
     authentication layer for Lakehouses and Warehouse Delta exports,
     including custom Fabric DFS endpoints. Warehouse documentation and
@@ -105,7 +108,10 @@
     stream (the default remains a tibble). Arrow results are now
     genuinely lazy and single-use. Authentication failures while opening
     either result are retried once with refreshable credentials; a
-    stream that has already been returned is never replayed.
+    stream that has already been returned is never replayed. Lazy
+    streams expose their resolved Delta version so a scan that outlives
+    its fixed OneLake token can be reopened explicitly at the same
+    snapshot.
   - Accepts discovery records for `workspace_name` and `lakehouse_name`;
     a schema-enabled Lakehouse record supplies its default schema.
     `item_type` disambiguates suffixless Lakehouse and Warehouse display
@@ -124,10 +130,12 @@
     distinct from present structs whose children are all null. The Arrow
     bridge normalizes DataFusion view types for compatibility with the R
     `arrow` package.
-  - Preserves canonical `arrow.parquet.variant` columns in Arrow-stream
-    results and rejects tibble collection with an actionable error
-    instead of silently exposing Variant’s physical metadata and value
-    buffers as ordinary columns.
+  - Preserves canonical `arrow.parquet.variant` columns supplied by an
+    otherwise readable Arrow stream and rejects tibble collection with
+    an actionable error instead of silently exposing Variant’s physical
+    metadata and value buffers as ordinary columns. Current Fabric
+    VariantShreddingPreview tables remain unsupported and fail before a
+    stream is returned.
   - Deprecates and ignores `dest_dir`, because no local staging occurs.
     `timestamp_partition_timezone` is retained as a compatibility formal
     but is rejected when supplied because delta-rs has no equivalent
@@ -139,13 +147,15 @@
     also covers classic checkpoints, schema evolution and time travel,
     void columns, binary/typed partitions, exact minimum integers, every
     type-widening fixture, and readable neutral references for
-    unsupported features. Deletion-vector safety checks now inspect
-    active-file `numRecords` metadata instead of eagerly materializing
-    every keep mask; DV snapshots with unmeasured or
-    greater-than-65,536-row active files, type widening, V2 checkpoints,
-    and Fabric Variant preview tables are rejected with an actionable
-    unsupported-feature error by the current delta-rs runtime instead of
-    being advertised as readable.
+    unsupported features. Live Arrow results are compared deeply with
+    Spark-neutral tables so nested values, binary payloads, validity,
+    and exact scalar boundaries are checked without lossy R conversion.
+    Deletion-vector safety checks enumerate only files that actually
+    carry a vector; DV files with unreadable or greater-than-65,536-row
+    masks, type widening, V2 checkpoints, and Fabric Variant preview
+    tables are rejected with an actionable unsupported-feature error by
+    the current delta-rs runtime instead of being advertised as
+    readable.
 
 - Fabric sandbox seeding now publishes a content-derived fixture
   revision to OneLake. Discovery refuses stale or partially seeded
@@ -160,7 +170,9 @@
   and its required `DeltaTable`/`QueryBuilder` API is checked before
   querying. This avoids silently accepting future binary/runtime
   combinations whose Arrow bridge and Delta feature behavior have not
-  been verified.
+  been verified. Compatibility claims for column mapping, deletion
+  vectors, and shallow-clone reads are explicitly package-specific and
+  do not override Microsoft’s published delta-rs compatibility matrix.
 
 - OneLake authentication guidance now distinguishes item `Read`
   (metadata) from `ReadAll` or a scoped OneLake `Read` role (data-plane

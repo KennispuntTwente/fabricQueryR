@@ -278,13 +278,17 @@ Document one-command local deploy, test, and destroy workflows.
 
 ## Priority 1: Make Delta table reads protocol-correct
 
-**Status (July 2026): implemented for the supported reader contract.**
-The reader streams transaction-log and Parquet data from OneLake through
-delta-rs, supports classic checkpoints and version selection, preserves
-exact numeric values, and rejects unsupported reader features before
-returning data. The locked runtime explicitly rejects V2 checkpoints,
-Type Widening, and Fabric’s VariantShreddingPreview rather than
-returning a plausible but incorrect result.
+**Status (August 2026): implemented for the package-tested reader
+contract.** The reader streams transaction-log and Parquet data from
+OneLake through delta-rs, supports classic checkpoints and version
+selection, preserves exact numeric values, and rejects unsupported
+reader features before returning data. The locked runtime explicitly
+rejects V2 checkpoints, Type Widening, and Fabric’s
+VariantShreddingPreview rather than returning a plausible but incorrect
+result. Support for column mapping, bounded deletion vectors, and
+shallow-clone reads is specific to the exact pinned runtime and live
+package matrix; it is not a claim that Microsoft supports those features
+in delta-rs generally.
 
 ### Problem
 
