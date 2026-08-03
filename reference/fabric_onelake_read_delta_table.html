@@ -98,7 +98,8 @@ The argument name is retained for backward compatibility.</p></dd>
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
 <dd><p>Lakehouse or Warehouse schema, or <code>NULL</code>. A discovered
-schema-enabled Lakehouse's default schema is used automatically.</p></dd>
+schema-enabled Lakehouse's default schema is used automatically. Warehouse
+targets default to <code>"dbo"</code>.</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
@@ -191,11 +192,21 @@ Otherwise grant item <code>Read</code> plus <code>ReadAll</code>, or, when OneLa
 enabled, item <code>Read</code> plus a OneLake role whose <code>Read</code> scope contains the
 target table. Tables protected by OneLake row- or column-level security can
 be blocked because this external delta-rs reader does not enforce those
-policies. See the
+policies. A Fabric administrator must also enable the OneLake tenant setting
+<strong>Users can access data stored in OneLake with apps external to Fabric</strong> for
+the calling identity. See
+<a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake tenant settings</a>
+and the
 <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric permission model</a>.</p>
 <p>Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
 the latest snapshot published to OneLake, which can lag the current Warehouse
-transaction state or remain fixed while Delta-log publishing is paused.</p>
+transaction state or remain fixed while Delta-log publishing is paused.
+Warehouse tables can be consumed by external Delta engines only when their
+names contain ASCII letters, digits, or underscores. Projected Warehouse
+column names cannot contain spaces, tabs, carriage returns, square brackets,
+commas, semicolons, braces, parentheses, or equals signs. Invalid requested
+names fail with <code>fabric_delta_invalid_target</code>. See
+<a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs" class="external-link">Delta Lake logs in Warehouse</a>.</p>
 <p><code>result = "arrow_stream"</code> is lazy and single-use. Opening either result is
 retried once with a refreshable credential when delta-rs reports an
 authentication failure. Failures that occur after a lazy stream has been
@@ -212,13 +223,13 @@ workspace FQDN required by a workspace private link where applicable. See
 <a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">Connecting to Microsoft OneLake</a>.</p>
 <p>The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 typed partitions, classic checkpoints, column mapping, deletion vectors, and
-shallow clones. Files that actually carry deletion vectors must contain no
-more than 65,536 physical rows; larger or unreadable vectors are rejected
-because the selected runtime can apply their masks at incorrect record-batch
-offsets. Large files without deletion vectors are not rejected. The pinned
-<code>deltalake</code> API materializes deletion-vector masks while enumerating affected
-files, so this preflight has memory cost proportional to those masks. Its
-current reader also does not support Fabric tables requiring Type
+shallow clones. For a deletion-vector-capable snapshot, every active file
+must have Delta statistics proving it has no more than 65,536 physical rows;
+larger or unmeasured files are rejected because the selected runtime can
+apply masks at incorrect record-batch offsets. This conservative,
+metadata-only preflight avoids <code>deltalake</code>'s mask-materializing
+<code>deletion_vectors()</code> API. Its current reader also does not support Fabric
+tables requiring Type
 Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 <code>fabric_delta_unsupported_feature_error</code>. Arrow Variant extension columns in
 otherwise readable tables require <code>result = "arrow_stream"</code>.

@@ -555,7 +555,11 @@ the target table or folder; <strong>ReadAll</strong> grants access only
 through the <code>DefaultReader</code> role while that role exists and
 still includes the principal. Direct delta-rs reads cannot enforce
 OneLake row- or column-level security, so Fabric can block protected
-tables unless the caller is allowed to see all their data. See the <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric
+tables unless the caller is allowed to see all their data. A Fabric
+administrator must also enable <strong>Users can access data stored in
+OneLake with apps external to Fabric</strong> for the caller in the
+tenant’s OneLake settings. See <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake
+tenant settings</a>, the <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric
 permission model</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/get-started-onelake-security" class="external-link">OneLake
 security overview</a>, and <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
 security best practices</a>.</li>
@@ -591,9 +595,11 @@ sessions; see the <a href="https://learn.microsoft.com/en-us/fabric/data-enginee
 session guide</a>.</li>
 </ul>
 <p>When authentication succeeds but Fabric returns HTTP 403, inspect
-workspace, item, and workload permissions before changing the login
-flow. HTTP 401 more often indicates the wrong token resource, an
-expired/nonrefreshable raw token, or a tenant/app mismatch.</p>
+workspace, item, and workload permissions and the <strong>Users can
+access data stored in OneLake with apps external to Fabric</strong>
+tenant setting before changing the login flow. HTTP 401 more often
+indicates the wrong token resource, an expired/nonrefreshable raw token,
+or a tenant/app mismatch.</p>
 </div>
 <div class="section level2">
 <h2 id="sign-out-token-cache-and-secret-safety">Sign out, token cache, and secret safety<a class="anchor" aria-label="anchor" href="#sign-out-token-cache-and-secret-safety"></a>

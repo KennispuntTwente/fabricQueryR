@@ -55,7 +55,8 @@ fabric_onelake_read_delta_table(
 - schema:
 
   Lakehouse or Warehouse schema, or `NULL`. A discovered schema-enabled
-  Lakehouse's default schema is used automatically.
+  Lakehouse's default schema is used automatically. Warehouse targets
+  default to `"dbo"`.
 
 - item_type:
 
@@ -149,13 +150,24 @@ OneLake access. Otherwise grant item `Read` plus `ReadAll`, or, when
 OneLake security is enabled, item `Read` plus a OneLake role whose
 `Read` scope contains the target table. Tables protected by OneLake row-
 or column-level security can be blocked because this external delta-rs
-reader does not enforce those policies. See the [Fabric permission
+reader does not enforce those policies. A Fabric administrator must also
+enable the OneLake tenant setting **Users can access data stored in
+OneLake with apps external to Fabric** for the calling identity. See
+[OneLake tenant
+settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
+and the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model).
 
 Fabric Warehouse publishes Delta logs asynchronously. Reads therefore
 return the latest snapshot published to OneLake, which can lag the
 current Warehouse transaction state or remain fixed while Delta-log
-publishing is paused.
+publishing is paused. Warehouse tables can be consumed by external Delta
+engines only when their names contain ASCII letters, digits, or
+underscores. Projected Warehouse column names cannot contain spaces,
+tabs, carriage returns, square brackets, commas, semicolons, braces,
+parentheses, or equals signs. Invalid requested names fail with
+`fabric_delta_invalid_target`. See [Delta Lake logs in
+Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 
 `result = "arrow_stream"` is lazy and single-use. Opening either result
 is retried once with a refreshable credential when delta-rs reports an
@@ -177,15 +189,14 @@ OneLake](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api).
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema
 evolution, typed partitions, classic checkpoints, column mapping,
-deletion vectors, and shallow clones. Files that actually carry deletion
-vectors must contain no more than 65,536 physical rows; larger or
-unreadable vectors are rejected because the selected runtime can apply
-their masks at incorrect record-batch offsets. Large files without
-deletion vectors are not rejected. The pinned `deltalake` API
-materializes deletion-vector masks while enumerating affected files, so
-this preflight has memory cost proportional to those masks. Its current
-reader also does not support Fabric tables requiring Type Widening, V2
-Checkpoints, or Fabric's VariantShreddingPreview; those fail with
+deletion vectors, and shallow clones. For a deletion-vector-capable
+snapshot, every active file must have Delta statistics proving it has no
+more than 65,536 physical rows; larger or unmeasured files are rejected
+because the selected runtime can apply masks at incorrect record-batch
+offsets. This conservative, metadata-only preflight avoids `deltalake`'s
+mask-materializing `deletion_vectors()` API. Its current reader also
+does not support Fabric tables requiring Type Widening, V2 Checkpoints,
+or Fabric's VariantShreddingPreview; those fail with
 `fabric_delta_unsupported_feature_error`. Arrow Variant extension
 columns in otherwise readable tables require `result = "arrow_stream"`.
 Feature availability is protocol- and runtime-specific; consult the

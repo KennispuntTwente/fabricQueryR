@@ -193,12 +193,21 @@ Direct Delta reads require a token for
 **Read** alone only exposes metadata. Grant **ReadAll**, or a OneLake
 role that can read the table when OneLake security is enabled. Tables
 protected by OneLake RLS/CLS may be unavailable to this external
-delta-rs reader. The pinned runtime supports classic checkpoints, schema
-evolution, column mapping, deletion vectors within its documented safety
-limit, and version reads; Type Widening, V2 checkpoints, and Fabric’s
-Variant shredding preview fail explicitly. Warehouse Delta logs are
-published asynchronously, so a OneLake read can lag the current
-Warehouse state. See
+delta-rs reader. A Fabric administrator must also enable **Users can
+access data stored in OneLake with apps external to Fabric** for the
+caller in [OneLake tenant
+settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
+The pinned runtime supports classic checkpoints, schema evolution,
+column mapping, deletion vectors within its documented safety limit, and
+version reads; Type Widening, V2 checkpoints, and Fabric’s Variant
+shredding preview fail explicitly. Warehouse Delta logs are published
+asynchronously, so a OneLake read can lag the current Warehouse state.
+For external Delta readers, Warehouse table names are limited to ASCII
+letters, digits, and underscores, while column names cannot contain
+spaces, tabs, carriage returns, square brackets, commas, semicolons,
+braces, parentheses, or equals signs. See [Delta Lake logs in
+Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
+See
 [`?fabric_onelake_read_delta_table`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
 for the full compatibility contract and the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model).
