@@ -1435,8 +1435,11 @@ is.na.fabric_delta_struct_column <- function(x) {
 `[.fabric_delta_struct_column` <- function(x, i, j, drop = FALSE) {
   validity <- attr(x, "fabric_delta_struct_validity", exact = TRUE)
   row_index <- seq_len(nrow(x))
-  column_only <- nargs() == 2L
-  selected_rows <- if (column_only || missing(i)) row_index else row_index[i]
+  names(row_index) <- row.names(x)
+  one_index <- missing(j) && (
+    nargs() == 2L || (!missing(drop) && nargs() == 3L)
+  )
+  selected_rows <- if (one_index || missing(i)) row_index else row_index[i]
   result <- NextMethod("[")
   if (is.data.frame(result)) {
     class(result) <- unique(c("fabric_delta_struct_column", class(result)))

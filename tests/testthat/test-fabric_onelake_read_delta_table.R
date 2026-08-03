@@ -544,6 +544,38 @@ test_that("Delta runtime requirements are declared without forcing initializatio
   expect_error(fabric_delta_config(initialize = NA), "TRUE or FALSE")
 })
 
+test_that("nullable struct validity follows data-frame subsetting semantics", {
+  value <- data.frame(
+    amount = c("1.00", NA, "3.00"),
+    label = c("one", NA, "three"),
+    row.names = c("first", "second", "third")
+  )
+  class(value) <- c("fabric_delta_struct_column", class(value))
+  attr(value, "fabric_delta_struct_validity") <- c(TRUE, FALSE, TRUE)
+
+  expect_identical(is.na(value["amount"]), c(FALSE, TRUE, FALSE))
+  expect_identical(
+    suppressWarnings(is.na(value["amount", drop = FALSE])),
+    c(FALSE, TRUE, FALSE)
+  )
+  expect_identical(
+    is.na(value[, "amount", drop = FALSE]),
+    c(FALSE, TRUE, FALSE)
+  )
+  expect_identical(
+    is.na(value[c("third", "second", "second"), , drop = FALSE]),
+    c(FALSE, TRUE, TRUE)
+  )
+  expect_identical(
+    is.na(value[c(TRUE, FALSE, TRUE), , drop = FALSE]),
+    c(FALSE, FALSE)
+  )
+  expect_identical(
+    is.na(value[-1L, , drop = FALSE]),
+    c(TRUE, FALSE)
+  )
+})
+
 test_that("Delta runtime compatibility is validated before querying", {
   required <- c("DeltaTable", "QueryBuilder")
   expect_invisible(
