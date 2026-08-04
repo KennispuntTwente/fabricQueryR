@@ -176,30 +176,6 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-The default tibble result supports common scalar columns. For large tables or
-nested/extension data, request a lazy, single-use Arrow stream instead.
-
-Direct Delta reads require OneLake data access; item **Read** permission alone
-is not enough. The caller needs **ReadAll** or a suitable OneLake data-access
-role. A Fabric administrator must also enable **Users can access data stored in
-OneLake with apps external to Fabric** in
-[OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
-
-Callers restricted by row- or column-level security must use a supported Fabric
-engine instead. See the
-[Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
-for details.
-
-The reader intentionally follows the capabilities of its locked `delta-rs`
-runtime; it does not independently reconstruct rows for unsupported protocol
-features. Tables using Deletion Vectors, Type Widening, V2 Checkpoints, or
-Fabric Variant therefore fail with a structured unsupported-feature error
-instead of returning incomplete data. Current Fabric Warehouse Delta exports
-require Deletion Vectors, so this function cannot read them; query them through
-Fabric SQL, PySpark, or another engine with Deletion Vector support.
-See [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs)
-and `?fabric_onelake_read_delta_table` for details.
-
 ### 5. Work with OneLake files
 
 List, inspect, download, upload, or delete files in OneLake. 
