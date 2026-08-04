@@ -63,10 +63,12 @@
 #' `result = "arrow_stream"` remains the appropriate choice for results that
 #' should be processed batch by batch.
 #'
-#' `limit` is pushed down without an ordering expression. When it is smaller
-#' than the snapshot, the returned rows are an implementation-defined subset
-#' and can change with file layout, snapshot version, or scan scheduling. It is
-#' not a stable pagination mechanism.
+#' `limit` has no ordering expression. It is normally pushed into the scan; for
+#' a snapshot with deletion vectors it is applied after deletion filtering so
+#' deleted physical rows do not reduce the requested logical row count. When it
+#' is smaller than the snapshot, the returned rows are an
+#' implementation-defined subset and can change with file layout or snapshot
+#' version. It is not a stable pagination mechanism.
 #'
 #' `dfs_base` defaults to OneLake's global endpoint. Microsoft notes that data
 #' can leave the workspace's region during global-endpoint resolution. For
@@ -77,10 +79,11 @@
 #'
 #' The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
 #' typed partitions, classic checkpoints, column mapping, deletion vectors, and
-#' shallow clones. Files that actually carry deletion vectors must contain no
-#' more than 65,536 physical rows; larger or unreadable vectors are rejected
-#' because the selected runtime can apply their masks at incorrect record-batch
-#' offsets. Large files without deletion vectors are not rejected. The pinned
+#' shallow clones. The pinned runtime's deletion-vector masks depend on physical
+#' scan order, so snapshots with actual vectors use one DataFusion scan
+#' partition. Their positive `limit` is applied through a window barrier after
+#' deletion filtering; this can scan more physical rows than the returned
+#' result. Unreadable vector lengths are rejected before scanning. The pinned
 #' `deltalake` API materializes deletion-vector masks while enumerating affected
 #' files, so this preflight has native-memory cost proportional to those masks;
 #' fabricQueryR reads only their Arrow offsets and does not expand the Boolean
@@ -719,12 +722,28 @@ fabric_delta_python_reader <- function(
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
   fabric_delta_validate_snapshot_columns(table, columns, item_type)
-  if (!isTRUE(limit == 0)) {
+  deletion_vector_rows <- if (!isTRUE(limit == 0)) {
     fabric_delta_validate_deletion_vectors(table)
+  } else {
+    numeric()
   }
+  has_deletion_vectors <- length(deletion_vector_rows) > 0L
   builder <- .delta_python$deltalake$QueryBuilder()
+  fabric_delta_configure_deletion_vector_scan(
+    builder,
+    has_deletion_vectors
+  )
   builder$register(.fabric_delta_query_table, table)
-  reader <- builder$execute(fabric_delta_query(columns, limit))
+  reader <- builder$execute(fabric_delta_query(
+    columns,
+    limit,
+    has_deletion_vectors = has_deletion_vectors,
+    all_columns = if (has_deletion_vectors && !is.null(limit) && limit > 0) {
+      fabric_delta_snapshot_columns(table)
+    } else {
+      NULL
+    }
+  ))
   attr(reader, "fabric_delta_table") <- table
   attr(reader, "fabric_delta_query_builder") <- builder
   reader
@@ -765,8 +784,6 @@ fabric_delta_validate_snapshot_columns <- function(
     item_type = item_type
   )
 }
-
-.fabric_delta_max_deletion_vector_rows <- 65536
 
 #' Return the snapshot's enabled Delta reader features
 #' @keywords internal
@@ -846,14 +863,13 @@ fabric_delta_list_array_lengths <- function(array) {
   lengths
 }
 
-#' Reject deletion-vector-bearing files the selected provider may misapply
+#' Validate deletion-vector metadata before configuring a serialized scan
 #' @keywords internal
 #' @noRd
 fabric_delta_validate_deletion_vectors <- function(
   table = NULL,
   features = NULL,
-  deletion_vector_rows = NULL,
-  max_rows = .fabric_delta_max_deletion_vector_rows
+  deletion_vector_rows = NULL
 ) {
   if (is.null(features)) {
     features <- fabric_delta_reader_features(table)
@@ -887,41 +903,27 @@ fabric_delta_validate_deletion_vectors <- function(
         "fabric_delta_error"
       ),
       delta_features = "UnmeasuredDeletionVectorFile",
-      deletion_vector_unknown_files = sum(unknown),
-      deletion_vector_row_limit = max_rows
+      deletion_vector_unknown_files = sum(unknown)
     )
   }
-  unsafe <- deletion_vector_rows[deletion_vector_rows > max_rows]
-  if (!length(unsafe)) {
-    return(invisible(deletion_vector_rows))
+  invisible(deletion_vector_rows)
+}
+
+#' Serialize scans whose per-file deletion-vector masks are order-dependent
+#' @keywords internal
+#' @noRd
+fabric_delta_configure_deletion_vector_scan <- function(
+  builder,
+  has_deletion_vectors
+) {
+  if (!isTRUE(has_deletion_vectors)) {
+    return(invisible(builder))
   }
-  rlang::abort(
-    c(
-      paste0(
-        "The selected delta-rs runtime cannot safely scan this ",
-        "deletion-vector-capable snapshot."
-      ),
-      "x" = paste0(
-        "Files carrying deletion vectors contain up to ",
-        format(max(unsafe), big.mark = ",", scientific = FALSE),
-        " physical rows; the safe per-file limit is ",
-        format(max_rows, big.mark = ",", scientific = FALSE),
-        " rows."
-      ),
-      "i" = paste0(
-        "Use a Fabric PySpark notebook for this table, or run REORG TABLE ",
-        "... APPLY (PURGE) in Fabric Spark to rewrite affected files."
-      )
-    ),
-    class = c(
-      "fabric_delta_unsupported_feature_error",
-      "fabric_delta_unsupported_error",
-      "fabric_delta_error"
-    ),
-    delta_features = "LargeDeletionVector",
-    deletion_vector_rows = max(unsafe),
-    deletion_vector_row_limit = max_rows
+  configured <- builder$execute(
+    "SET datafusion.execution.target_partitions = 1"
   )
+  configured$read_all()
+  invisible(builder)
 }
 
 #' Render one exact R whole number for Python or SQL
@@ -934,19 +936,47 @@ fabric_delta_whole_number_text <- function(value) {
 #' Build a safe DataFusion projection query
 #' @keywords internal
 #' @noRd
-fabric_delta_query <- function(columns = NULL, limit = NULL) {
+fabric_delta_query <- function(
+  columns = NULL,
+  limit = NULL,
+  has_deletion_vectors = FALSE,
+  all_columns = NULL
+) {
+  if (isTRUE(has_deletion_vectors) && !is.null(limit) && limit > 0) {
+    projected_columns <- columns %||% all_columns
+    if (is.null(projected_columns) || !length(projected_columns)) {
+      rlang::abort(
+        "Delta columns are required for a deletion-vector LIMIT query",
+        class = c("fabric_delta_conversion_error", "fabric_delta_error")
+      )
+    }
+    projection <- fabric_delta_projection(projected_columns)
+    row_number <- fabric_delta_internal_name(
+      all_columns %||% projected_columns,
+      "__fabric_delta_limit_row_number__"
+    )
+    return(paste0(
+      "SELECT ",
+      projection,
+      " FROM (SELECT ",
+      projection,
+      ", ROW_NUMBER() OVER () AS ",
+      fabric_delta_quote_identifier(row_number),
+      " FROM ",
+      fabric_delta_quote_identifier(.fabric_delta_query_table),
+      ") AS ",
+      fabric_delta_quote_identifier("__fabric_delta_limited__"),
+      " WHERE ",
+      fabric_delta_quote_identifier(row_number),
+      " <= ",
+      fabric_delta_whole_number_text(limit)
+    ))
+  }
+
   projection <- if (is.null(columns)) {
     "*"
   } else {
-    paste(
-      vapply(
-        columns,
-        fabric_delta_quote_identifier,
-        character(1),
-        USE.NAMES = FALSE
-      ),
-      collapse = ", "
-    )
+    fabric_delta_projection(columns)
   }
   query <- paste0(
     "SELECT ",
@@ -958,6 +988,31 @@ fabric_delta_query <- function(columns = NULL, limit = NULL) {
     query <- paste(query, "LIMIT", fabric_delta_whole_number_text(limit))
   }
   query
+}
+
+#' Render a logical Delta projection
+#' @keywords internal
+#' @noRd
+fabric_delta_projection <- function(columns) {
+  paste(
+    vapply(
+      columns,
+      fabric_delta_quote_identifier,
+      character(1),
+      USE.NAMES = FALSE
+    ),
+    collapse = ", "
+  )
+}
+
+#' Choose a collision-free internal DataFusion column name
+#' @keywords internal
+#' @noRd
+fabric_delta_internal_name <- function(columns, candidate) {
+  while (candidate %in% columns) {
+    candidate <- paste0(candidate, "_")
+  }
+  candidate
 }
 
 #' Quote one DataFusion identifier

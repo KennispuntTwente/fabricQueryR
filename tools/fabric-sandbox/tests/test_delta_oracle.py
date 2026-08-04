@@ -74,6 +74,9 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
     deletion_vector_capable = DeltaTable(
         str(tmp_path / "deletion_vector_capable")
     )
+    large_deletion_vector = DeltaTable(
+        str(tmp_path / "large_deletion_vector")
+    )
 
     assert set(cases) == {
         "primitive_latest",
@@ -168,6 +171,17 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
         "num_records"
     ).to_pylist() == [65_537]
     assert deletion_vector_capable.deletion_vectors().read_all().num_rows == 0
+    large_vectors = large_deletion_vector.deletion_vectors().read_all()
+    large_mask = large_vectors.column("selection_vector")[0].as_py()
+    assert len(large_mask) == 100_000
+    assert sum(not selected for selected in large_mask) == 3
+    assert [large_mask[index] for index in (0, 1, 65_536, 65_537, 99_999)] == [
+        False,
+        True,
+        False,
+        True,
+        False,
+    ]
     warehouse_invalid = DeltaTable(
         str(tmp_path / "warehouse_invalid_columns")
     ).to_pyarrow_table()

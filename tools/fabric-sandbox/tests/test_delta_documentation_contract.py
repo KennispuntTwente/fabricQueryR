@@ -23,5 +23,6 @@ def test_delta_documentation_matches_the_runtime_contract():
     assert "service-admin-portal-onelake" in readme
     assert "Warehouse table names are limited to ASCII letters" in readme
     assert "query-delta-lake-logs" in readme
-    assert "Large files without deletion vectors are not rejected" in source
+    assert "use one DataFusion scan" in source
+    assert "window barrier after" in source
     assert "materializes deletion-vector masks" in source

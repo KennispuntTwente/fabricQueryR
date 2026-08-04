@@ -79,7 +79,7 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   )
   expect_gt(
     max(fabric_delta_active_file_rows(capable_table)),
-    .fabric_delta_max_deletion_vector_rows
+    65536
   )
   expect_length(fabric_delta_deletion_vector_rows(capable_table), 0L)
   expect_equal(
@@ -96,6 +96,36 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     ))$read_table()$num_rows,
     65537L
   )
+
+  large_vector_path <- file.path(directory, "large_deletion_vector")
+  large_vector_table <- .delta_python$deltalake$DeltaTable(
+    large_vector_path
+  )
+  expect_identical(
+    fabric_delta_deletion_vector_rows(large_vector_table),
+    100000
+  )
+  large_vector <- fabric_delta_read_uri(
+    large_vector_path,
+    result = "tibble"
+  )
+  expect_equal(nrow(large_vector), 99997L)
+  expect_false(any(c("0", "65536", "99999") %in% as.character(
+    large_vector$id
+  )))
+  expect_true(all(c("1", "65535", "65537", "99998") %in% as.character(
+    large_vector$id
+  )))
+  for (attempt in seq_len(3L)) {
+    limited_vector <- fabric_delta_read_uri(
+      large_vector_path,
+      columns = "id",
+      limit = 10,
+      result = "tibble"
+    )
+    expect_equal(nrow(limited_vector), 10L, info = paste("attempt", attempt))
+    expect_false("0" %in% as.character(limited_vector$id))
+  }
 
   invalid_warehouse <- file.path(directory, "warehouse_invalid_columns")
   expect_error(

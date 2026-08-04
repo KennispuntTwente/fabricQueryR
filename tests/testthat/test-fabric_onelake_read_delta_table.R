@@ -209,6 +209,21 @@ test_that("DataFusion queries quote identifiers and exact whole numbers", {
     fabric_delta_whole_number_text(2147483648),
     "2147483648"
   )
+  expect_identical(
+    fabric_delta_query(
+      columns = c("id", "__fabric_delta_limit_row_number__"),
+      limit = 2,
+      has_deletion_vectors = TRUE,
+      all_columns = c("id", "__fabric_delta_limit_row_number__")
+    ),
+    paste0(
+      "SELECT \"id\", \"__fabric_delta_limit_row_number__\" ",
+      "FROM (SELECT \"id\", \"__fabric_delta_limit_row_number__\", ",
+      "ROW_NUMBER() OVER () AS \"__fabric_delta_limit_row_number___\" ",
+      "FROM \"fabric_delta_table\") AS \"__fabric_delta_limited__\" ",
+      "WHERE \"__fabric_delta_limit_row_number___\" <= 2"
+    )
+  )
 })
 
 test_that("the public reader passes Fabric auth and query options to delta-rs", {
@@ -523,7 +538,7 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
-test_that("deletion-vector safety is scoped to files carrying vectors", {
+test_that("deletion-vector validation accepts serialized large-file scans", {
   expect_no_error(
     fabric_delta_validate_deletion_vectors(
       features = "deletionVectors",
@@ -542,21 +557,13 @@ test_that("deletion-vector safety is scoped to files carrying vectors", {
       deletion_vector_rows = numeric()
     )
   )
-  error <- tryCatch(
+  expect_identical(
     fabric_delta_validate_deletion_vectors(
       features = "DeletionVectors",
       deletion_vector_rows = c(10L, 100000L)
     ),
-    error = identity
+    c(10L, 100000L)
   )
-
-  expect_s3_class(error, "fabric_delta_unsupported_feature_error")
-  expect_identical(error$delta_features, "LargeDeletionVector")
-  expect_identical(error$deletion_vector_rows, 100000L)
-  expect_identical(error$deletion_vector_row_limit, 65536)
-  expect_match(conditionMessage(error), "100,000 physical rows", fixed = TRUE)
-  expect_match(conditionMessage(error), "65,536 rows", fixed = TRUE)
-  expect_match(conditionMessage(error), "REORG TABLE", fixed = TRUE)
 
   unknown <- tryCatch(
     fabric_delta_validate_deletion_vectors(
@@ -602,7 +609,10 @@ test_that("LIMIT 0 avoids deletion-vector mask materialization", {
   builder$register <- function(...) invisible(NULL)
   builder$execute <- function(sql) {
     queries <<- c(queries, sql)
-    list(sql = sql)
+    reader <- new.env(parent = emptyenv())
+    reader$sql <- sql
+    reader$read_all <- function() invisible(NULL)
+    reader
   }
   deltalake <- new.env(parent = emptyenv())
   deltalake$DeltaTable <- function(...) table
@@ -614,9 +624,10 @@ test_that("LIMIT 0 avoids deletion-vector mask materialization", {
     .delta_python = list(deltalake = deltalake, builtins = builtins),
     fabric_delta_validate_runtime = function(...) invisible(NULL),
     fabric_delta_validate_snapshot_columns = function(...) invisible(NULL),
+    fabric_delta_snapshot_columns = function(...) "id",
     fabric_delta_validate_deletion_vectors = function(...) {
       deletion_vector_calls <<- deletion_vector_calls + 1L
-      invisible(NULL)
+      100000
     }
   )
 
@@ -628,7 +639,13 @@ test_that("LIMIT 0 avoids deletion-vector mask materialization", {
     queries,
     c(
       "SELECT * FROM \"fabric_delta_table\" LIMIT 0",
-      "SELECT * FROM \"fabric_delta_table\" LIMIT 1"
+      "SET datafusion.execution.target_partitions = 1",
+      paste0(
+        "SELECT \"id\" FROM (SELECT \"id\", ROW_NUMBER() OVER () AS ",
+        "\"__fabric_delta_limit_row_number__\" FROM ",
+        "\"fabric_delta_table\") AS \"__fabric_delta_limited__\" WHERE ",
+        "\"__fabric_delta_limit_row_number__\" <= 1"
+      )
     )
   )
 })

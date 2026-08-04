@@ -14,8 +14,10 @@ from decimal import Decimal
 import json
 import os
 from pathlib import Path
+import struct
 import sys
 from typing import Any, Sequence
+import zlib
 
 from deltalake import DeltaTable, TableFeatures, write_deltalake
 import pyarrow as pa
@@ -192,6 +194,106 @@ def _primitive_schema() -> pa.Schema:
 
 def _primitive_table(rows: list[dict[str, Any]]) -> pa.Table:
     return pa.Table.from_pylist(rows, schema=_primitive_schema())
+
+
+def _serialize_roaring32(values: Sequence[int]) -> bytes:
+    """Serialize sparse uint32 values in portable Roaring array containers."""
+    containers: dict[int, list[int]] = {}
+    for value in sorted(set(values)):
+        if value < 0 or value > 0xFFFFFFFF:
+            raise ValueError("Roaring32 values must fit an unsigned 32-bit integer")
+        containers.setdefault(value >> 16, []).append(value & 0xFFFF)
+    if not containers:
+        return struct.pack("<II", 12346, 0)
+    if any(len(items) > 4096 for items in containers.values()):
+        raise ValueError("The test serializer only supports sparse array containers")
+
+    count = len(containers)
+    header = bytearray(struct.pack("<II", 12346, count))
+    for key, items in containers.items():
+        header.extend(struct.pack("<HH", key, len(items) - 1))
+    offset = 8 + 8 * count
+    payload = bytearray()
+    for items in containers.values():
+        header.extend(struct.pack("<I", offset + len(payload)))
+        payload.extend(struct.pack(f"<{len(items)}H", *items))
+    return bytes(header + payload)
+
+
+def _serialize_deletion_vector(rows: Sequence[int]) -> bytes:
+    """Serialize sparse row indexes as a Delta RoaringBitmapArray payload."""
+    groups: dict[int, list[int]] = {}
+    for row in sorted(set(rows)):
+        if row < 0 or row > 0xFFFFFFFFFFFFFFFF:
+            raise ValueError("Deletion-vector rows must fit an unsigned 64-bit integer")
+        groups.setdefault(row >> 32, []).append(row & 0xFFFFFFFF)
+    payload = bytearray(struct.pack("<I", 1681511377))
+    payload.extend(struct.pack("<Q", len(groups)))
+    for key, values in groups.items():
+        payload.extend(struct.pack("<I", key))
+        payload.extend(_serialize_roaring32(values))
+    return bytes(payload)
+
+
+def _write_large_deletion_vector_fixture(directory: Path) -> None:
+    """Write one large-file DV table that exposes parallel mask ordering bugs."""
+    row_count = 100_000
+    deleted_rows = (0, 65_536, row_count - 1)
+    write_deltalake(
+        directory,
+        pa.table({"id": pa.array(range(row_count), pa.int64())}),
+        mode="overwrite",
+        target_file_size=1 << 30,
+    )
+    DeltaTable(str(directory)).alter.add_feature(
+        TableFeatures.DeletionVectors,
+        allow_protocol_versions_increase=True,
+    )
+
+    first_log = directory / "_delta_log" / "00000000000000000000.json"
+    first_actions = [
+        json.loads(line)
+        for line in first_log.read_text(encoding="utf-8").splitlines()
+    ]
+    add = next(dict(action["add"]) for action in first_actions if "add" in action)
+    stats = json.loads(add["stats"])
+    stats["tightBounds"] = False
+    add["stats"] = json.dumps(stats, separators=(",", ":"))
+
+    payload = _serialize_deletion_vector(deleted_rows)
+    vector_path = directory / "large-deletion-vector.bin"
+    vector_path.write_bytes(
+        b"\x01"
+        + struct.pack(">I", len(payload))
+        + payload
+        + struct.pack(">I", zlib.crc32(payload))
+    )
+    add["deletionVector"] = {
+        "storageType": "p",
+        "pathOrInlineDv": vector_path.resolve().as_uri(),
+        "offset": 1,
+        "sizeInBytes": len(payload),
+        "cardinality": len(deleted_rows),
+    }
+    remove = {
+        "path": add["path"],
+        "deletionTimestamp": 2,
+        "dataChange": True,
+        "extendedFileMetadata": True,
+        "partitionValues": add["partitionValues"],
+        "size": add["size"],
+    }
+    second_log = directory / "_delta_log" / "00000000000000000002.json"
+    actions = [
+        {"commitInfo": {"timestamp": 2, "operation": "DELETE"}},
+        {"remove": remove},
+        {"add": add},
+    ]
+    second_log.write_text(
+        "\n".join(json.dumps(action, separators=(",", ":")) for action in actions)
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def _write_local_fixtures(directory: Path) -> dict[str, Any]:
@@ -696,6 +798,8 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         TableFeatures.DeletionVectors,
         allow_protocol_versions_increase=True,
     )
+
+    _write_large_deletion_vector_fixture(directory / "large_deletion_vector")
 
     write_deltalake(
         directory / "warehouse_invalid_columns",

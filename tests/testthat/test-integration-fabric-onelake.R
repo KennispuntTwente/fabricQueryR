@@ -713,6 +713,10 @@ test_that("Arrow streams deeply match Spark-neutral Fabric references", {
       source = tables$deletion_vectors_stress,
       reference = tables$spark_oracle_deletion_vectors_stress
     ),
+    deletion_vectors_dense = list(
+      source = tables$deletion_vectors_dense,
+      reference = tables$spark_oracle_deletion_vectors_dense
+    ),
     shallow_clone = list(
       source = tables$shallow_clone,
       reference = tables$spark_oracle_shallow_clone
@@ -786,6 +790,10 @@ test_that("core Fabric Delta features are handled by the table provider", {
     deletion_vectors_stress = c(
       tables$deletion_vectors_stress,
       tables$spark_oracle_deletion_vectors_stress
+    ),
+    deletion_vectors_dense = c(
+      tables$deletion_vectors_dense,
+      tables$spark_oracle_deletion_vectors_dense
     ),
     shallow_clone = c(
       tables$shallow_clone,
@@ -896,6 +904,18 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   )
   expect_equal(nrow(empty_reference), 0L)
   expect_named(empty_reference, c("id", "name", "category", "amount"))
+
+  dense_limit <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$deletion_vectors_dense,
+    limit = 10
+  )
+  expect_equal(nrow(dense_limit), 10L)
+  expect_false(any(
+    (dense_limit$id < 10000 & dense_limit$id %% 2 == 0) |
+      (dense_limit$id >= 70000 & dense_limit$id < 80000)
+  ))
 })
 
 test_that("unsupported Fabric Delta features fail with actionable errors", {
@@ -910,7 +930,6 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
     type_widened_nested = "TypeWidening",
     type_widened_map_key = "TypeWidening",
     deletion_vectors_checkpoint = "V2Checkpoint",
-    deletion_vectors_dense = "65,536 rows",
     v2_checkpoint = "V2Checkpoint"
   )
 
@@ -943,7 +962,6 @@ test_that("neutral references for unsupported Fabric features fully scan", {
   references <- c(
     "oracle_complex_types",
     "spark_oracle_deletion_vectors_checkpoint",
-    "spark_oracle_deletion_vectors_dense",
     "spark_oracle_type_widened",
     "spark_oracle_type_widened_exact",
     "spark_oracle_type_widened_pending",
@@ -987,24 +1005,26 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "partitioned", "column_mapped", "column_mapped_id",
     "column_mapped_id_partitioned_dv", "struct_validity",
     "deletion_vectors", "file_row_number_collision",
-    "deletion_vectors_stress", "shallow_clone", "oracle_basic",
+    "deletion_vectors_stress", "deletion_vectors_dense", "shallow_clone",
+    "oracle_basic",
     "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
     "oracle_complex_types", "spark_oracle_column_mapped",
     "spark_oracle_column_mapped_id",
     "spark_oracle_column_mapped_id_partitioned_dv",
     "spark_oracle_struct_validity", "spark_oracle_deletion_vectors",
     "spark_oracle_file_row_number_collision",
-    "spark_oracle_deletion_vectors_stress", "spark_oracle_shallow_clone"
+    "spark_oracle_deletion_vectors_stress",
+    "spark_oracle_deletion_vectors_dense", "spark_oracle_shallow_clone"
   )
   unsupported_error <- c(
-    "deletion_vectors_checkpoint", "deletion_vectors_dense",
+    "deletion_vectors_checkpoint",
     "type_widened", "type_widened_exact", "type_widened_pending",
     "type_widened_nested", "type_widened_map_key", "v2_checkpoint",
     "variant", "variant_id_dv"
   )
   full_scan <- c(
     "spark_oracle_deletion_vectors_checkpoint",
-    "spark_oracle_deletion_vectors_dense", "spark_oracle_type_widened",
+    "spark_oracle_type_widened",
     "spark_oracle_type_widened_exact",
     "spark_oracle_type_widened_pending",
     "spark_oracle_type_widened_nested",
