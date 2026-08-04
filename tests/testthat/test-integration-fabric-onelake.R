@@ -175,7 +175,10 @@ fabric_test_arrow_column_equals <- function(actual, expected) {
   if (isTRUE(actual$Equals(expected))) {
     return(TRUE)
   }
-  identical(actual$as_vector(), expected$as_vector())
+  identical(
+    fabric_test_canonicalize_delta_maps(actual$as_vector()),
+    fabric_test_canonicalize_delta_maps(expected$as_vector())
+  )
 }
 
 fabric_test_expect_arrow_matches_reference <- function(
@@ -311,6 +314,21 @@ test_that("deep Arrow comparison preserves row order and binary values", {
   expect_true(fabric_test_arrow_column_equals(
     nan_actual$GetColumnByName("value"),
     nan_expected$GetColumnByName("value")
+  ))
+
+  map_type <- arrow::map_of(arrow::utf8(), arrow::int32())
+  map_actual <- arrow::Table$create(keyed = arrow::Array$create(
+    list(data.frame(key = c("a", "b"), value = c(1L, 2L))),
+    type = map_type
+  ))
+  map_expected <- arrow::Table$create(keyed = arrow::Array$create(
+    list(data.frame(key = c("b", "a"), value = c(2L, 1L))),
+    type = map_type
+  ))
+  expect_false(map_actual$Equals(map_expected))
+  expect_true(fabric_test_arrow_column_equals(
+    map_actual$GetColumnByName("keyed"),
+    map_expected$GetColumnByName("keyed")
   ))
 })
 
