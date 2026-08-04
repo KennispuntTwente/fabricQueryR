@@ -105,7 +105,8 @@ targets default to <code>"dbo"</code>.</p></dd>
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
 <dd><p><code>"Lakehouse"</code> or <code>"Warehouse"</code>. This is inferred from a
 discovery record or a <code>.Lakehouse</code>/<code>.Warehouse</code> suffix. Supply it for a
-suffixless item display name, especially a Warehouse name.</p></dd>
+suffixless item display name, especially a Warehouse name. An explicit
+type that conflicts with a recognized suffix is rejected.</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
@@ -266,6 +267,9 @@ the respective minimum value as <code>NA</code>, a column containing Delta's val
 <code>-2147483648</code> integer is widened to an exact R double and a column containing
 Delta's valid <code>-9223372036854775808</code> long uses the exact character-backed
 <code>fabric_delta_integer64</code> class. This applies recursively to nested values.
+One representation is chosen for each logical nested field across every
+list or map element, so a boundary in one element cannot change only that
+element's R type.
 Delta decimals are returned as exact character values, including when nested. Delta
 <code>timestamp_ntz</code> values use the character-backed
 <code>fabric_delta_timestamp_ntz</code> class. The Arrow stream preserves

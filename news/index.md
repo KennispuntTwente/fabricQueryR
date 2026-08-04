@@ -115,9 +115,11 @@
   - Accepts discovery records for `workspace_name` and `lakehouse_name`;
     a schema-enabled Lakehouse record supplies its default schema.
     `item_type` disambiguates suffixless Lakehouse and Warehouse display
-    names. Workspace names that cannot appear in an ABFSS authority now
-    fail with paired GUID/discovery-record guidance instead of being
-    incorrectly percent-encoded.
+    names. Explicit item types that conflict with a `.Lakehouse` or
+    `.Warehouse` suffix now fail before constructing a doubled or
+    contradictory OneLake item name. Workspace names that cannot appear
+    in an ABFSS authority now fail with paired GUID/discovery-record
+    guidance instead of being incorrectly percent-encoded.
   - Preserves `long` as
     [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
     decimals as exact character data, and `timestamp_ntz` as a
@@ -127,8 +129,12 @@
     widen to exact doubles and long columns use an exact
     character-backed class. Nullable structs also retain their parent
     validity, including inside lists and maps, so null structs remain
-    distinct from present structs whose children are all null. The Arrow
-    bridge normalizes DataFusion view types for compatibility with the R
+    distinct from present structs whose children are all null. Nested
+    integer fields choose one stable R type across every list or map
+    element, and int32 child buffers are widened without reinterpreting
+    their physical bytes. Dictionary-encoded integer values use the same
+    minimum-value-safe representations as plain arrays. The Arrow bridge
+    normalizes DataFusion view types for compatibility with the R
     `arrow` package.
   - Preserves canonical `arrow.parquet.variant` columns supplied by an
     otherwise readable Arrow stream and rejects tibble collection with
@@ -150,6 +156,10 @@
     unsupported features. Live Arrow results are compared deeply with
     Spark-neutral tables so nested values, binary payloads, validity,
     and exact scalar boundaries are checked without lossy R conversion.
+    Spark also publishes an ordered stable-key oracle as JSON in OneLake
+    Files; integration tests compare production Delta reads with that
+    artifact through the independent file API, so a shared Delta bridge
+    defect cannot make both sides of the comparison agree.
     Deletion-vector safety checks enumerate only files that actually
     carry a vector. Affected snapshots use a serialized scan because the
     pinned provider can otherwise misapply large masks at record-batch
@@ -162,7 +172,9 @@
 - Fabric sandbox seeding now publishes a content-derived fixture
   revision to OneLake. Discovery refuses stale or partially seeded
   persistent workspaces before R integration tests can report misleading
-  table-level results.
+  table-level results. The local runner also requires explicit tenant
+  and client IDs before using an environment client secret; it never
+  combines a cached interactive identity with that secret.
 
 - Added
   [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)

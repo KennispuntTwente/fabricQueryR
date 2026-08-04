@@ -62,7 +62,8 @@ fabric_onelake_read_delta_table(
 
   `"Lakehouse"` or `"Warehouse"`. This is inferred from a discovery
   record or a `.Lakehouse`/`.Warehouse` suffix. Supply it for a
-  suffixless item display name, especially a Warehouse name.
+  suffixless item display name, especially a Warehouse name. An explicit
+  type that conflicts with a recognized suffix is rejected.
 
 - tenant_id:
 
@@ -241,20 +242,23 @@ Because those R representations reserve the respective minimum value as
 to an exact R double and a column containing Delta's valid
 `-9223372036854775808` long uses the exact character-backed
 `fabric_delta_integer64` class. This applies recursively to nested
-values. Delta decimals are returned as exact character values, including
-when nested. Delta `timestamp_ntz` values use the character-backed
-`fabric_delta_timestamp_ntz` class. The Arrow stream preserves
-timezone-free timestamps as Arrow timestamps and represents decimals as
-strings, matching the R result's exact-decimal contract. Nullable struct
-columns retain their parent validity through the
-`fabric_delta_struct_column` class, so a null struct remains distinct
-from a present struct whose children are all null. If the runtime
-returns a canonical Arrow Variant extension column, it is preserved by
-`result = "arrow_stream"`; tibble collection rejects it explicitly
-because exposing its physical `metadata` and `value` buffers as ordinary
-R data would be misleading. This bridge contract is covered with
-synthetic extension schemas; Fabric's current VariantShreddingPreview
-tables are rejected before an Arrow stream is created.
+values. One representation is chosen for each logical nested field
+across every list or map element, so a boundary in one element cannot
+change only that element's R type. Delta decimals are returned as exact
+character values, including when nested. Delta `timestamp_ntz` values
+use the character-backed `fabric_delta_timestamp_ntz` class. The Arrow
+stream preserves timezone-free timestamps as Arrow timestamps and
+represents decimals as strings, matching the R result's exact-decimal
+contract. Nullable struct columns retain their parent validity through
+the `fabric_delta_struct_column` class, so a null struct remains
+distinct from a present struct whose children are all null. If the
+runtime returns a canonical Arrow Variant extension column, it is
+preserved by `result = "arrow_stream"`; tibble collection rejects it
+explicitly because exposing its physical `metadata` and `value` buffers
+as ordinary R data would be misleading. This bridge contract is covered
+with synthetic extension schemas; Fabric's current
+VariantShreddingPreview tables are rejected before an Arrow stream is
+created.
 
 ## Examples
 
