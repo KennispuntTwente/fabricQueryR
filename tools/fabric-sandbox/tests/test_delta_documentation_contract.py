@@ -8,6 +8,10 @@ def test_delta_documentation_matches_the_runtime_contract():
     source = (
         repository_root / "R/fabric_onelake_read_delta_table.R"
     ).read_text(encoding="utf-8")
+    seed = (
+        repository_root
+        / "infra/fabric/workspace/SeedFixtures.Notebook/notebook-content.py"
+    ).read_text(encoding="utf-8")
     normalized_readme = " ".join(readme.split())
 
     assert "reader stages the transaction log" not in roadmap
@@ -26,3 +30,5 @@ def test_delta_documentation_matches_the_runtime_contract():
     assert "use one DataFusion scan" in source
     assert "window barrier after" in source
     assert "materializes deletion-vector masks" in source
+    assert "delta-reader-spark-oracle.json" in seed
+    assert "mssparkutils.fs.put" in seed

@@ -106,6 +106,10 @@ cancellation, while sessions also provide explicit cleanup;
   references for unsupported features. Live Arrow results are compared deeply
   with Spark-neutral tables so nested values, binary payloads, validity, and
   exact scalar boundaries are checked without lossy R conversion.
+  Spark also publishes an ordered stable-key oracle as JSON in OneLake Files;
+  integration tests compare production Delta reads with that artifact through
+  the independent file API, so a shared Delta bridge defect cannot make both
+  sides of the comparison agree.
   Deletion-vector safety checks enumerate only files that actually carry a
   vector. Affected snapshots use a serialized scan because the pinned provider
   can otherwise misapply large masks at record-batch offsets, and positive

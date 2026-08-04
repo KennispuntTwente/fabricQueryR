@@ -1511,6 +1511,53 @@ try:
     }
     for source, target in reader_oracles.items():
         write_reader_oracle(f"dbo.{source}", target)
+
+    stage = "publish independent Spark Delta key oracle"
+    supported_reader_sources = [
+        "fabricqueryr_column_mapped",
+        "fabricqueryr_column_mapped_id",
+        "fabricqueryr_column_mapped_id_partitioned_dv",
+        "fabricqueryr_struct_validity",
+        "fabricqueryr_deletion_vectors",
+        "fabricqueryr_file_row_number_collision",
+        "fabricqueryr_deletion_vectors_stress",
+        "fabricqueryr_deletion_vectors_dense",
+        "fabricqueryr_shallow_clone",
+    ]
+    spark_key_oracle = {"format_version": 1, "tables": {}}
+    for source in supported_reader_sources:
+        source_frame = spark.table(f"dbo.{source}")
+        key_columns = [
+            key
+            for key in ("id", "row_id", "event_id")
+            if key in source_frame.columns
+        ]
+        if len(key_columns) != 1:
+            raise RuntimeError(
+                f"Expected one stable key for {source}, got {key_columns}"
+            )
+        key = key_columns[0]
+        key_values = [
+            str(row[key])
+            for row in source_frame.select(key).orderBy(key).collect()
+        ]
+        if len(key_values) != len(set(key_values)):
+            raise RuntimeError(f"Expected unique keys for {source}")
+        spark_key_oracle["tables"][source] = {
+            "columns": source_frame.columns,
+            "key": key,
+            "key_values": key_values,
+            "row_count": len(key_values),
+        }
+    spark_key_oracle_path = (
+        f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+        f"{lakehouse_id}/Files/fixtures/delta-reader-spark-oracle.json"
+    )
+    mssparkutils.fs.put(
+        spark_key_oracle_path,
+        json.dumps(spark_key_oracle, separators=(",", ":"), sort_keys=True),
+        True,
+    )
     write_reader_oracle(
         "dbo.fabricqueryr_variant",
         "fabricqueryr_spark_oracle_variant",

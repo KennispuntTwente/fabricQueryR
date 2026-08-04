@@ -181,6 +181,16 @@ fabric_test_arrow_column_equals <- function(actual, expected) {
   )
 }
 
+fabric_test_spark_key_oracle <- function(manifest, lakehouse) {
+  payload <- fabric_onelake_download(
+    manifest$workspace_id,
+    lakehouse$id,
+    "Files/fixtures/delta-reader-spark-oracle.json",
+    token = fabric_test_token_provider()
+  )
+  jsonlite::fromJSON(rawToChar(payload), simplifyVector = FALSE)
+}
+
 fabric_test_expect_arrow_matches_reference <- function(
   manifest,
   lakehouse,
@@ -989,6 +999,49 @@ test_that("neutral references for unsupported Fabric features fully scan", {
     expect_false(
       anyDuplicated(value[[key]]) > 0L,
       label = paste(reference, "unique stable key")
+    )
+  }
+})
+
+test_that("supported Delta rows match the independent Spark key oracle", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  tables <- lakehouse$tables
+  oracle <- fabric_test_spark_key_oracle(manifest, lakehouse)
+  expect_identical(oracle$format_version, 1L)
+
+  sources <- c(
+    tables$column_mapped,
+    tables$column_mapped_id,
+    tables$column_mapped_id_partitioned_dv,
+    tables$struct_validity,
+    tables$deletion_vectors,
+    tables$file_row_number_collision,
+    tables$deletion_vectors_stress,
+    tables$deletion_vectors_dense,
+    tables$shallow_clone
+  )
+  expect_setequal(names(oracle$tables), sources)
+  for (source in sources) {
+    expected <- oracle$tables[[source]]
+    actual <- fabric_test_read_delta(
+      manifest,
+      lakehouse,
+      source
+    )
+    key <- expected$key
+    expect_named(
+      actual,
+      unlist(expected$columns, use.names = FALSE),
+      info = source
+    )
+    expect_equal(nrow(actual), expected$row_count, info = source)
+    expect_false(anyDuplicated(actual[[key]]) > 0L, info = source)
+    expect_identical(
+      sort(as.character(actual[[key]])),
+      sort(unlist(expected$key_values, use.names = FALSE)),
+      info = source
     )
   }
 })
