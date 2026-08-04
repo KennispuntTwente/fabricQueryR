@@ -102,16 +102,18 @@ fabric_test_expect_arrow_scalar_values <- function(
   expected,
   feature
 ) {
-  actual <- as.data.frame(actual)
   key <- intersect(c("id", "row_id"), names(expected))
   if (length(key) == 1L && nrow(expected)) {
-    actual <- actual[order(actual[[key]], na.last = TRUE), , drop = FALSE]
+    key_values <- actual$GetColumnByName(key[[1L]])$as_vector()
+    indices <- order(key_values, na.last = TRUE) - 1L
+    actual <- actual$Take(arrow::Array$create(as.integer(indices)))
     expected <- expected[
       order(expected[[key]], na.last = TRUE),
       ,
       drop = FALSE
     ]
   }
+  actual_frame <- as.data.frame(actual)
   scalar <- names(expected)[vapply(
     expected,
     function(column) is.atomic(column) && !is.raw(column),
@@ -119,13 +121,20 @@ fabric_test_expect_arrow_scalar_values <- function(
   )]
   expect_gt(length(scalar), 0L, label = paste(feature, "scalar columns"))
   for (name in scalar) {
+    actual_value <- if (
+      inherits(expected[[name]], "fabric_delta_timestamp_ntz")
+    ) {
+      actual$GetColumnByName(name)$cast(arrow::utf8())$as_vector()
+    } else {
+      actual_frame[[name]]
+    }
     expect_identical(
-      fabric_test_arrow_scalar_text(actual[[name]]),
+      fabric_test_arrow_scalar_text(actual_value),
       fabric_test_arrow_scalar_text(expected[[name]]),
       label = paste(feature, name)
     )
   }
-  invisible(actual)
+  invisible(actual_frame)
 }
 
 fabric_test_read_arrow_table <- function(
@@ -262,6 +271,24 @@ test_that("deep Arrow comparison preserves row order and binary values", {
   expected <- fabric_test_order_arrow_rows(expected, "local Arrow reference")
 
   expect_true(actual$Equals(expected))
+
+  timestamp_value <- "2026-07-28 09:08:07.654321"
+  timestamp_table <- arrow::Table$create(
+    id = 1L,
+    local_at = arrow::Array$create(timestamp_value)$cast(
+      arrow::timestamp("us")
+    )
+  )
+  timestamp_expected <- tibble::tibble(
+    id = 1L,
+    local_at = fabric_delta_timestamp_ntz(timestamp_value)
+  )
+
+  expect_no_error(fabric_test_expect_arrow_scalar_values(
+    timestamp_table,
+    timestamp_expected,
+    "local timestamp fixture"
+  ))
 })
 
 # Both sides use the production bridge. This comparison isolates protocol
