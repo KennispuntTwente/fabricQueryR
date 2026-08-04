@@ -51,7 +51,7 @@ def test_live_workflow_provisions_once_and_runs_feature_matrix():
     )
 
 
-def test_live_workflow_gates_delta_reader_changes_at_the_test_revision():
+def test_live_workflow_gates_package_changes_at_the_test_revision():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/integration-fabric.yaml"
@@ -59,10 +59,10 @@ def test_live_workflow_gates_delta_reader_changes_at_the_test_revision():
 
     assert "push:" in workflow
     assert "pull_request:" in workflow
-    assert "R/fabric_onelake_read_delta_table.R" in workflow
+    assert workflow.count("- R/**") == 2
     assert "tests/testthat/helper-delta-rs-oracle.R" in workflow
     assert "tests/testthat/test-delta-rs-oracle.R" in workflow
-    assert "tests/testthat/test-integration-fabric-onelake.R" in workflow
+    assert workflow.count("tests/testthat/test-integration-fabric-*.R") == 2
     assert "infra/fabric/**" in workflow
     assert "github.event.pull_request.head.repo.full_name" in workflow
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow

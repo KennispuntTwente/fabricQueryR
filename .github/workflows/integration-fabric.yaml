@@ -4,30 +4,22 @@ on:
   push:
     branches: [main, master]
     paths:
-      - R/fabric_onelake_files.R
-      - R/fabric_onelake_read_delta_table.R
-      - R/zzz.R
+      - R/**
       - tests/testthat/helper-fabric-integration.R
       - tests/testthat/helper-delta-rs-oracle.R
-      - tests/testthat/test-fabric_onelake_files.R
-      - tests/testthat/test-fabric_onelake_read_delta_table.R
       - tests/testthat/test-delta-rs-oracle.R
-      - tests/testthat/test-integration-fabric-onelake.R
+      - tests/testthat/test-integration-fabric-*.R
       - infra/fabric/**
       - tools/fabric-sandbox/**
       - DESCRIPTION
       - .github/workflows/integration-fabric.yaml
   pull_request:
     paths:
-      - R/fabric_onelake_files.R
-      - R/fabric_onelake_read_delta_table.R
-      - R/zzz.R
+      - R/**
       - tests/testthat/helper-fabric-integration.R
       - tests/testthat/helper-delta-rs-oracle.R
-      - tests/testthat/test-fabric_onelake_files.R
-      - tests/testthat/test-fabric_onelake_read_delta_table.R
       - tests/testthat/test-delta-rs-oracle.R
-      - tests/testthat/test-integration-fabric-onelake.R
+      - tests/testthat/test-integration-fabric-*.R
       - infra/fabric/**
       - tools/fabric-sandbox/**
       - DESCRIPTION
