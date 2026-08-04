@@ -597,6 +597,16 @@ test_that("collection validity descriptors do not retain Arrow data arrays", {
     fabric_delta_array_validity(list(descriptor)),
     c(TRUE, TRUE)
   )
+
+  null_list <- nanoarrow::as_nanoarrow_array(list(NULL, NULL))
+  null_schema <- nanoarrow::infer_nanoarrow_schema(null_list)
+  expect_no_error(
+    null_descriptor <- fabric_delta_array_descriptor(
+      null_list,
+      null_schema
+    )
+  )
+  expect_null(null_descriptor$children[[1L]]$validity)
 })
 
 test_that("Delta runtime requirements are declared without forcing initialization", {

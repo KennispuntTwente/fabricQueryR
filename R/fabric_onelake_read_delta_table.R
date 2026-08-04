@@ -1316,6 +1316,17 @@ fabric_delta_restore_integer64 <- function(value) {
 #' Copy the validity layout needed after releasing a collected Arrow array
 #' @keywords internal
 #' @noRd
+fabric_delta_copy_array_buffer <- function(array, index) {
+  buffer <- array$buffers[[index]]
+  if (is.null(buffer)) {
+    return(NULL)
+  }
+  nanoarrow::convert_buffer(buffer)
+}
+
+#' Copy the validity layout needed after releasing a collected Arrow array
+#' @keywords internal
+#' @noRd
 fabric_delta_array_descriptor <- function(
   array,
   schema,
@@ -1339,9 +1350,9 @@ fabric_delta_array_descriptor <- function(
     offset = as.double(array$offset),
     start = as.double(start),
     length = as.double(length),
-    validity = nanoarrow::convert_buffer(array$buffers[[1L]]),
+    validity = fabric_delta_copy_array_buffer(array, 1L),
     offsets = if (is_variable_list) {
-      nanoarrow::convert_buffer(array$buffers[[2L]])
+      fabric_delta_copy_array_buffer(array, 2L)
     } else {
       NULL
     },
