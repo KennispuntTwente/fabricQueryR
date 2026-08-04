@@ -190,9 +190,13 @@ engine instead. See the
 [Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 for details.
 
-Tables using Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric Variant
-preview features are not currently supported. Current Fabric Warehouse Delta
-exports require Deletion Vectors, so query them through Fabric SQL or PySpark.
+The reader intentionally follows the capabilities of its locked `delta-rs`
+runtime; it does not independently reconstruct rows for unsupported protocol
+features. Tables using Deletion Vectors, Type Widening, V2 Checkpoints, or
+Fabric Variant therefore fail with a structured unsupported-feature error
+instead of returning incomplete data. Current Fabric Warehouse Delta exports
+require Deletion Vectors, so this function cannot read them; query them through
+Fabric SQL, PySpark, or another engine with Deletion Vector support.
 See [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs)
 and `?fabric_onelake_read_delta_table` for details.
 

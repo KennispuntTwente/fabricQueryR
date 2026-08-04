@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_onelake_read_delta_table.R
 \name{fabric_onelake_read_delta_table}
 \alias{fabric_onelake_read_delta_table}
-\title{Read a Delta table from Microsoft Fabric OneLake}
+\title{Read a supported Delta table from Microsoft Fabric OneLake}
 \usage{
 fabric_onelake_read_delta_table(
   table_path,
@@ -66,9 +66,10 @@ A tibble by default. With \code{result = "arrow_stream"}, a lazy,
 single-use stream compatible with \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}}.
 }
 \description{
-Read a Delta table from a Fabric Lakehouse or Warehouse. By default, the
-result is returned as a tibble. Use \code{columns} and \code{limit} to read less data,
-or request an Arrow stream to process a large result in batches.
+Read a Delta table that is compatible with the package's locked \code{delta-rs}
+runtime. By default, the result is returned as a tibble. Use \code{columns} and
+\code{limit} to read less data, or request an Arrow stream to process a large
+result in batches.
 }
 \details{
 Supply names, IDs, or discovery records for the workspace and Lakehouse or
@@ -89,9 +90,13 @@ data, request the lazy, single-use \code{result = "arrow_stream"} instead.
 \code{limit} is unordered and is not suitable for pagination; use \code{version} to
 select a specific snapshot.
 
-Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant are not
-supported. Current Warehouse Delta exports require Deletion Vectors; use
-Fabric SQL or PySpark for those tables. See
+This package intentionally does not implement Delta features that its locked
+\code{delta-rs} reader cannot evaluate. Deletion Vectors, Type Widening, V2
+Checkpoints, and Fabric Variant are therefore unsupported; the reader raises
+\code{fabric_delta_unsupported_feature_error} instead of returning incomplete
+rows. In particular, current Warehouse Delta exports require Deletion
+Vectors and cannot be read by this function. Use Fabric SQL, PySpark, or
+another engine with Deletion Vector support for those tables. See
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
 }
 \examples{
