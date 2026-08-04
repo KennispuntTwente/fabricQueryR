@@ -1,9 +1,10 @@
-# Read a supported Delta table from Microsoft Fabric OneLake
+# Read a Delta table from OneLake
 
-Read a Delta table that is compatible with the package's locked
-`delta-rs` runtime. By default, the result is returned as a tibble. Use
-`columns` and `limit` to read less data, or request an Arrow stream to
-process a large result in batches.
+Read a Delta table from Microsoft Fabric OneLake using the Python
+[deltalake](https://pypi.org/project/deltalake/) package through the
+`reticulate` R package. Return a tibble by default or a lazy Arrow
+stream for batch processing. Column selection, row limits, and table
+version reads are supported.
 
 ## Usage
 
@@ -32,26 +33,26 @@ fabric_onelake_read_delta_table(
 
 - table_path:
 
-  One unqualified table name. Supply its schema separately with
-  `schema`; path separators are rejected rather than silently ignored.
+  Table name without a schema. Use `schema` separately when needed.
 
 - workspace_name:
 
-  Workspace name, ID, or a record from
+  Workspace name, ID, or a record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
 
 - lakehouse_name:
 
-  Lakehouse or Warehouse name, ID, or discovery record.
+  Lakehouse name, ID, or discovery record. Compatible Warehouse items
+  are also accepted.
 
 - schema:
 
-  Optional schema name. Warehouses default to `"dbo"`.
+  Schema containing the table, or `NULL`. Warehouses default to `"dbo"`.
 
 - item_type:
 
-  `"Lakehouse"` or `"Warehouse"`. Usually inferred; specify it when
-  using an item name without a `.Lakehouse` or `.Warehouse` suffix.
+  `"Lakehouse"`, `"Warehouse"`, or `NULL`. Usually inferred; specify it
+  only when using an item name without a type suffix.
 
 - tenant_id:
 
@@ -64,23 +65,21 @@ fabric_onelake_read_delta_table(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function.
+  Optional access token or token-provider function. Most users can leave
+  this as `NULL` and let fabricQueryR sign in.
 
 - auth_args:
 
-  Named list passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when fabricQueryR acquires a token.
+  Extra sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - version:
 
-  Optional Delta snapshot version to read.
+  Specific table version to read, or `NULL` for the latest.
 
 - verbose:
 
-  Logical. Show authentication and read progress.
+  Whether to show authentication and read progress.
 
 - dfs_base:
 
@@ -88,27 +87,37 @@ fabric_onelake_read_delta_table(
 
 - columns:
 
-  Optional character vector of columns to return. `NULL` returns all
-  columns.
+  Column names to return, or `NULL` for all columns.
 
 - limit:
 
-  Optional maximum number of rows to return.
+  Maximum number of rows to return, or `NULL` for all rows.
 
 - result:
 
-  Return a `"tibble"` or a lazy `"arrow_stream"`.
+  `"tibble"` (the default) or `"arrow_stream"` for batch processing.
 
 ## Value
 
-A tibble by default. With `result = "arrow_stream"`, a lazy, single-use
-stream compatible with
-[`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html).
+A tibble, or a lazy, single-use Arrow stream when
+`result = "arrow_stream"`.
 
 ## Details
 
-Supply names, IDs, or discovery records for the workspace and Lakehouse
-or Warehouse. `schema` and `item_type` are usually inferred.
+Most users only need to provide the table, workspace, and Lakehouse.
+These can be names, IDs, or records returned by fabricQueryR's discovery
+functions. If the Lakehouse uses schemas, provide the table's `schema`
+separately.
+
+By default, the function reads all rows and columns into memory. Use
+`columns` to select only the fields you need and `limit` for a quick
+preview. A limit does not guarantee which rows are returned. Use
+`version` to read an earlier version of the table.
+
+For a large table, or one containing nested data, set
+`result = "arrow_stream"` to process the result in batches. The returned
+stream is lazy and can be read only once. The first Delta read may take
+a little longer while the optional Python reader is set up.
 
 Direct reads require OneLake data access; item `Read` permission by
 itself is not enough. The caller needs `ReadAll` or a suitable OneLake
@@ -119,22 +128,11 @@ model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 and [OneLake tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
 
-The first Delta read may set up the optional Python runtime. A tibble
-loads common scalar columns into memory: `integer` becomes double, and
-`long`, decimal, and `timestamp_ntz` become character. For large,
-nested, or extension data, request the lazy, single-use
-`result = "arrow_stream"` instead. `limit` is unordered and is not
-suitable for pagination; use `version` to select a specific snapshot.
-
-This package intentionally does not implement Delta features that its
-locked `delta-rs` reader cannot evaluate. Deletion Vectors, Type
-Widening, V2 Checkpoints, and Fabric Variant are therefore unsupported;
-the reader raises `fabric_delta_unsupported_feature_error` instead of
-returning incomplete rows. In particular, current Warehouse Delta
-exports require Deletion Vectors and cannot be read by this function.
-Use Fabric SQL, PySpark, or another engine with Deletion Vector support
-for those tables. See [Delta Lake logs in
-Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
+Some tables use advanced Delta features that the deltalake Python
+package does not support. The function will detect these features and
+abort. Unsupported features include Deletion Vectors, Type Widening, V2
+Checkpoints, and Fabric Variant. Use the SQL or Spark (Livy) functions
+to read these tables.
 
 ## Examples
 
