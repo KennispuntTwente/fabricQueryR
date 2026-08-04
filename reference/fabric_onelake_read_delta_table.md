@@ -151,12 +151,20 @@ item `Read` grant exposes metadata but is not sufficient for a direct
 Delta read. Workspace Admin, Member, and Contributor roles have broad
 OneLake access. Otherwise grant item `Read` plus `ReadAll`, or, when
 OneLake security is enabled, item `Read` plus a OneLake role whose
-`Read` scope contains the target table. Tables protected by OneLake row-
-or column-level security can be blocked because this external delta-rs
-reader does not enforce those policies. A Fabric administrator must also
-enable the OneLake tenant setting **Users can access data stored in
-OneLake with apps external to Fabric** for the calling identity. See
-[OneLake tenant
+`Read` scope contains the target table. fabricQueryR is not a
+Fabric-supported or registered authorized third-party engine: it does
+not retrieve or enforce OneLake row-level or column-level security
+(RLS/CLS) policies. OneLake blocks direct file reads when the caller's
+effective access is restricted by either policy, so this function fails
+instead of returning filtered rows or columns. Use an unrestricted
+calling identity, a supported Fabric engine, or an authorized
+third-party engine that implements policy enforcement. See [OneLake
+RLS](https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security)
+and the [authorized-engine
+model](https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview).
+A Fabric administrator must also enable the OneLake tenant setting
+**Users can access data stored in OneLake with apps external to Fabric**
+for the calling identity. See [OneLake tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
 and the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model).

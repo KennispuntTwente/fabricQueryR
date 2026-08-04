@@ -440,17 +440,24 @@ The main workload considerations are:
   plus membership in a OneLake role whose **Read** scope includes the
   target table or folder; **ReadAll** grants access only through the
   `DefaultReader` role while that role exists and still includes the
-  principal. Direct delta-rs reads cannot enforce OneLake row- or
-  column-level security, so Fabric can block protected tables unless the
-  caller is allowed to see all their data. A Fabric administrator must
-  also enable **Users can access data stored in OneLake with apps
-  external to Fabric** for the caller in the tenant’s OneLake settings.
-  See [OneLake tenant
+  principal. fabricQueryR is not a Fabric-supported or registered
+  authorized third-party engine and doesn’t fetch or enforce OneLake
+  RLS/CLS. OneLake blocks direct file reads when the caller’s effective
+  access is row- or column-restricted, so the package fails instead of
+  returning filtered data. Use an unrestricted caller, a supported
+  Fabric engine, or an [authorized
+  engine](https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview)
+  that enforces the returned policies. A Fabric administrator must also
+  enable **Users can access data stored in OneLake with apps external to
+  Fabric** for the caller in the tenant’s OneLake settings. See [OneLake
+  tenant
   settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake),
   the [Fabric permission
   model](https://learn.microsoft.com/en-us/fabric/security/permission-model),
   [OneLake security
   overview](https://learn.microsoft.com/en-us/fabric/onelake/security/get-started-onelake-security),
+  [OneLake row-level
+  security](https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security),
   and [OneLake security best
   practices](https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake).
 - **SQL.** A workspace role or item Read permission permits connection,

@@ -553,15 +553,20 @@ OneLake security is enabled, grant item <strong>Read</strong> plus
 membership in a OneLake role whose <strong>Read</strong> scope includes
 the target table or folder; <strong>ReadAll</strong> grants access only
 through the <code>DefaultReader</code> role while that role exists and
-still includes the principal. Direct delta-rs reads cannot enforce
-OneLake row- or column-level security, so Fabric can block protected
-tables unless the caller is allowed to see all their data. A Fabric
-administrator must also enable <strong>Users can access data stored in
-OneLake with apps external to Fabric</strong> for the caller in the
-tenant’s OneLake settings. See <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake
+still includes the principal. fabricQueryR is not a Fabric-supported or
+registered authorized third-party engine and doesn’t fetch or enforce
+OneLake RLS/CLS. OneLake blocks direct file reads when the caller’s
+effective access is row- or column-restricted, so the package fails
+instead of returning filtered data. Use an unrestricted caller, a
+supported Fabric engine, or an <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview" class="external-link">authorized
+engine</a> that enforces the returned policies. A Fabric administrator
+must also enable <strong>Users can access data stored in OneLake with
+apps external to Fabric</strong> for the caller in the tenant’s OneLake
+settings. See <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake
 tenant settings</a>, the <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric
 permission model</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/get-started-onelake-security" class="external-link">OneLake
-security overview</a>, and <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
+security overview</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security" class="external-link">OneLake
+row-level security</a>, and <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
 security best practices</a>.</li>
 <li>
 <strong>SQL.</strong> A workspace role or item Read permission

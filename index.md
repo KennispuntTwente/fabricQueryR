@@ -197,11 +197,16 @@ token.
 Direct Delta reads require a token for
 `https://storage.azure.com/.default` and OneLake data permission; item
 **Read** alone only exposes metadata. Grant **ReadAll**, or a OneLake
-role that can read the table when OneLake security is enabled. Tables
-protected by OneLake RLS/CLS may be unavailable to this external
-delta-rs reader. A Fabric administrator must also enable **Users can
-access data stored in OneLake with apps external to Fabric** for the
-caller in [OneLake tenant
+role that can read the table when OneLake security is enabled.
+fabricQueryR isn’t an authorized OneLake security engine and never
+applies RLS/CLS itself. OneLake blocks its direct file reads when the
+caller’s effective access is RLS/CLS-restricted, so the function fails
+rather than returning filtered data. Use an unrestricted caller, a
+supported Fabric engine, or an [authorized
+engine](https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview).
+A Fabric administrator must also enable **Users can access data stored
+in OneLake with apps external to Fabric** for the caller in [OneLake
+tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
 The package’s exact pinned and tested runtime supports classic
 checkpoints, schema evolution, column mapping, deletion vectors within
