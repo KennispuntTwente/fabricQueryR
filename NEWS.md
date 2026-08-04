@@ -43,19 +43,13 @@
   tibbles or Arrow streams, with optional execution metrics.
 
 * `fabric_onelake_read_delta_table()` now reads through the optional Python
-  `deltalake` runtime instead of staging Delta logs and Parquet files locally.
-  The runtime is installed on first Delta use and can be inspected with
-  `fabric_delta_config()`; other package functions do not require Python.
-  Delta reads now support snapshot versions, column selection, row limits,
-  discovery records, and lazy Arrow streams. Tibble collection is deliberately
-  limited to common scalar columns; exact long integers, decimals, and
-  `timestamp_ntz` values are returned as text, while nested and extension data
-  stays on the Arrow-stream path. The retired `dest_dir` and
-  `timestamp_partition_timezone` arguments have been removed. Runtime package
-  selection is now left to reticulate's declared requirements instead of being
-  re-policed on every table read.
-  Tables requiring Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric
-  Variant preview features remain unsupported. This includes current Fabric
+  `deltalake` runtime instead of downloading table files first. Python is set up
+  on the first Delta read and is not required by other package functions. The
+  reader now accepts discovered items and supports snapshot versions, column
+  selection, row limits, and lazy Arrow streams. Tibbles support scalar columns;
+  use an Arrow stream for nested or extension data. The old `dest_dir` argument
+  has been removed. Tables requiring Deletion Vectors, Type Widening, V2
+  Checkpoints, or Fabric Variant remain unsupported, including current
   Warehouse Delta exports; use Fabric SQL or PySpark for those tables.
 
 # fabricQueryR 0.2.1

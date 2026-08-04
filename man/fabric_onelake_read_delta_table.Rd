@@ -71,42 +71,28 @@ result is returned as a tibble. Use \code{columns} and \code{limit} to read less
 or request an Arrow stream to process a large result in batches.
 }
 \details{
-Supply the table, workspace, and Lakehouse or Warehouse. Discovery records
-returned by fabricQueryR can be used instead of names. The \code{schema} and
-\code{item_type} are usually inferred when discovery records or item suffixes are
-used.
+Supply names, IDs, or discovery records for the workspace and Lakehouse or
+Warehouse. \code{schema} and \code{item_type} are usually inferred.
 
 Direct reads require OneLake data access; item \code{Read} permission by itself is
 not enough. The caller needs \code{ReadAll} or a suitable OneLake data-access role,
-and the tenant setting for external OneLake apps must be enabled. This
-function cannot apply OneLake row- or column-level security, so OneLake
-blocks reads for callers restricted by those policies. See the
+and the tenant setting for external OneLake apps must be enabled. Callers
+restricted by row- or column-level security must use a supported Fabric
+engine instead. See the
 \href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}
 and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}.
 
-The first call may take longer while the required Python packages are set up.
-If \code{RETICULATE_PYTHON} points to an environment you manage, install the
-versions reported by \code{\link[=fabric_delta_config]{fabric_delta_config()}} in that environment.
+The first Delta read may set up the optional Python runtime. A tibble loads
+common scalar columns into memory: \code{integer} becomes double, and \code{long},
+decimal, and \code{timestamp_ntz} become character. For large, nested, or extension
+data, request the lazy, single-use \code{result = "arrow_stream"} instead.
+\code{limit} is unordered and is not suitable for pagination; use \code{version} to
+select a specific snapshot.
 
-A tibble is loaded fully into memory. \code{result = "arrow_stream"} instead
-returns a lazy, single-use stream for batch processing. Consume it promptly,
-because it uses the access token captured when the stream was opened.
-
-\code{limit} does not define an order. It is useful for previews, but not for
-stable pagination. Use \code{version} to read a specific Delta snapshot.
-
-Warehouse Delta snapshots are published asynchronously and current exports
-require Deletion Vectors, which this function does not support. See
+Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant are not
+supported. Current Warehouse Delta exports require Deletion Vectors; use
+Fabric SQL or PySpark for those tables. See
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
-
-Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
-Fabric Variant preview features are not currently supported. Use Fabric SQL
-or PySpark when broader Delta feature support is needed.
-
-Tibble collection supports common scalar columns. Delta \code{integer} values are
-returned as doubles, while \code{long}, decimal, and \code{timestamp_ntz} values are
-returned as character vectors to avoid R sentinel and precision ambiguity.
-Nested and extension columns require \code{result = "arrow_stream"}.
 }
 \examples{
 \dontrun{
