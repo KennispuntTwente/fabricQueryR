@@ -171,13 +171,14 @@ parentheses, or equals signs. Invalid requested names fail with
 `fabric_delta_invalid_target`. See [Delta Lake logs in
 Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 
-`result = "arrow_stream"` is lazy and single-use. Opening either result
-is retried once with a refreshable credential when delta-rs reports an
-authentication failure. Failures that occur after a lazy stream has been
-returned and consumed cannot be retried: the OneLake bearer token is
-fixed for that stream's object-store session. Consume lazy streams
-promptly. If a token expires during a long scan, discard the stream and
-call this function again with
+`result = "arrow_stream"` is lazy and single-use after the Delta
+snapshot, schema, and deletion-vector compatibility preflight have been
+opened. Opening either result is retried once with a refreshable
+credential when delta-rs reports an authentication failure. Failures
+that occur after a lazy stream has been returned and consumed cannot be
+retried: the OneLake bearer token is fixed for that stream's
+object-store session. Consume lazy streams promptly. If a token expires
+during a long scan, discard the stream and call this function again with
 `version = attr(stream, "fabric_delta_snapshot_version")` to reopen the
 same snapshot with a fresh token. A tibble result necessarily
 materializes the complete selected result in R. During conversion the
@@ -207,9 +208,12 @@ unreadable vectors are rejected because the selected runtime can apply
 their masks at incorrect record-batch offsets. Large files without
 deletion vectors are not rejected. The pinned `deltalake` API
 materializes deletion-vector masks while enumerating affected files, so
-this preflight has memory cost proportional to those masks. Its current
-reader also does not support Fabric tables requiring Type Widening, V2
-Checkpoints, or Fabric's VariantShreddingPreview; those fail with
+this preflight has native-memory cost proportional to those masks;
+fabricQueryR reads only their Arrow offsets and does not expand the
+Boolean masks into Python or R objects. `limit = 0` does not scan rows
+and skips this mask preflight. Its current reader also does not support
+Fabric tables requiring Type Widening, V2 Checkpoints, or Fabric's
+VariantShreddingPreview; those fail with
 `fabric_delta_unsupported_feature_error`. When an otherwise readable
 Arrow stream already contains canonical `arrow.parquet.variant`
 extension columns, they require `result = "arrow_stream"`; current
