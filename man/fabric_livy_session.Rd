@@ -30,7 +30,8 @@ fabric_livy_session(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  verbose = TRUE
+  verbose = TRUE,
+  allow_custom_endpoint = FALSE
 )
 }
 \arguments{
@@ -94,6 +95,10 @@ token or starts its normal interactive login flow.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{verbose}{Logical. Show session lifecycle messages.}
+
+\item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
+Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
+as a test emulator; the Fabric bearer token is sent to this endpoint.}
 }
 \value{
 A newly created \link{FabricLivySession}. It may still be starting; call

@@ -167,7 +167,8 @@ test_that("submit returns an inspectable and cancellable statement", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   statement <- session$submit(
     "1 + 1",
@@ -212,7 +213,8 @@ test_that("statement errors preserve output and traceback", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   statement <- session$submit("spark.table('missing')", "pyspark")
   error <- expect_error(
@@ -269,7 +271,8 @@ test_that("session finalizer attempts cleanup of open sessions", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   session$.__enclos_env__$private$finalize()
   expect_true(session$closed)
@@ -320,7 +323,8 @@ test_that("high-concurrency sessions use HC and REPL endpoints", {
     artifact_name = "TestLakehouse",
     tags = list(run = "42"),
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   expect_equal(calls[[1L]]$payload$sessionTag, "packed-work")
   expect_equal(calls[[1L]]$payload$artifactName, "TestLakehouse")
@@ -354,7 +358,8 @@ test_that("session reset timeout uses its documented endpoint", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   expect_identical(session$reset_timeout(), session)
   expect_equal(reset_url, paste0(session$url, "/reset-timeout"))
@@ -431,7 +436,8 @@ test_that("batch jobs expose success logs and structured results", {
     environment_id = "environment-id",
     target_lakehouse_id = "lakehouse-id",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   expect_s3_class(batch, "FabricLivyBatch")
   expect_match(calls[[1L]]$url, "/batches$")
@@ -509,7 +515,8 @@ test_that("batch failures and cancellation preserve service details", {
     "https://example.test/livy/batches",
     file = "abfss://workspace/lakehouse/Files/failure.py",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   error <- expect_error(
     batch$wait(timeout = 1, poll_interval = 0),
@@ -543,7 +550,8 @@ test_that("batch timeout can request cancellation", {
     "https://example.test/livy/batches",
     file = "abfss://workspace/lakehouse/Files/slow.py",
     token = "token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
   expect_error(
     batch$wait(
@@ -559,15 +567,28 @@ test_that("batch timeout can request cancellation", {
 
 test_that("Livy input and endpoint validation is explicit", {
   expect_equal(
-    fabric_livy_endpoint("https://example.test/base/sessions/", "batches"),
+    fabric_livy_endpoint(
+      "https://example.test/base/sessions/",
+      "batches",
+      allow_custom_endpoint = TRUE
+    ),
     "https://example.test/base/batches"
   )
   expect_equal(
     fabric_livy_endpoint(
       "https://example.test/base/batches",
-      "highConcurrencySessions"
+      "highConcurrencySessions",
+      allow_custom_endpoint = TRUE
     ),
     "https://example.test/base/highConcurrencySessions"
+  )
+  expect_error(
+    fabric_livy_endpoint("http://api.fabric.microsoft.com/livy", "sessions"),
+    "valid HTTPS endpoint"
+  )
+  expect_error(
+    fabric_livy_endpoint("https://attacker.example/livy", "sessions"),
+    "not a Microsoft Fabric API host"
   )
   expect_error(
     fabric_livy_session(

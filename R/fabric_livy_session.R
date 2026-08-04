@@ -38,13 +38,16 @@ FabricLivySession <- R6::R6Class(
     #' @param payload Session creation request body.
     #' @param high_concurrency Whether to acquire an HC session.
     #' @param verbose Whether to emit lifecycle messages.
+    #' @param allow_custom_endpoint Whether a trusted non-Fabric HTTPS endpoint
+    #'   may receive the Fabric bearer token.
     #' @returns A new session object.
     initialize = function(
       livy_url,
       credential,
       payload,
       high_concurrency = FALSE,
-      verbose = TRUE
+      verbose = TRUE,
+      allow_custom_endpoint = FALSE
     ) {
       rlang::check_installed(
         c("httr2", "jsonlite"),
@@ -60,7 +63,11 @@ FabricLivySession <- R6::R6Class(
       } else {
         "sessions"
       }
-      private$collection_url <- fabric_livy_endpoint(livy_url, type)
+      private$collection_url <- fabric_livy_endpoint(
+        livy_url,
+        type,
+        allow_custom_endpoint = allow_custom_endpoint
+      )
       inform(verbose, "Creating Fabric Livy session")
       response <- fabric_livy_json(
         "POST",
@@ -541,6 +548,9 @@ FabricLivyStatement <- R6::R6Class(
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
 #' @param verbose Logical. Show session lifecycle messages.
+#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
+#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
 #'
 #' @return A newly created [FabricLivySession]. It may still be starting; call
 #'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished.
@@ -590,9 +600,11 @@ fabric_livy_session <- function(
   ),
   token = NULL,
   auth_args = list(),
-  verbose = TRUE
+  verbose = TRUE,
+  allow_custom_endpoint = FALSE
 ) {
   fabric_livy_check_flag(high_concurrency, "high_concurrency")
+  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
   if (!is.null(session_tag) && !isTRUE(high_concurrency)) {
     rlang::abort(
       "session_tag is only available for high-concurrency sessions"
@@ -640,10 +652,14 @@ fabric_livy_session <- function(
     auth_args
   )
   FabricLivySession$new(
-    livy_url = fabric_livy_resolve_url(livy_url),
+    livy_url = fabric_livy_resolve_url(
+      livy_url,
+      allow_custom_endpoint = allow_custom_endpoint
+    ),
     credential = credential,
     payload = payload,
     high_concurrency = high_concurrency,
-    verbose = verbose
+    verbose = verbose,
+    allow_custom_endpoint = allow_custom_endpoint
   )
 }

@@ -25,7 +25,10 @@
   "cancelled"
 )
 
-fabric_livy_resolve_url <- function(livy_url) {
+fabric_livy_resolve_url <- function(
+  livy_url,
+  allow_custom_endpoint = FALSE
+) {
   discovered <- fabric_as_record(livy_url)
   if (!is.null(discovered)) {
     if (
@@ -40,8 +43,33 @@ fabric_livy_resolve_url <- function(livy_url) {
     }
     livy_url <- fabric_record_value(discovered, "livy_url")
   }
-  fabric_livy_check_string(livy_url, "livy_url")
-  livy_url
+  fabric_livy_validate_endpoint(livy_url, allow_custom_endpoint)
+}
+
+fabric_livy_validate_endpoint <- function(
+  url,
+  allow_custom_endpoint = FALSE
+) {
+  fabric_livy_check_string(url, "livy_url")
+  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  value <- sub("/+$", "", trimws(url))
+  parsed <- try(httr2::url_parse(value), silent = TRUE)
+  if (
+    inherits(parsed, "try-error") ||
+      !identical(tolower(parsed$scheme %||% ""), "https") ||
+      !nzchar(parsed$hostname %||% "")
+  ) {
+    rlang::abort("livy_url must be a valid HTTPS endpoint")
+  }
+  host <- tolower(parsed$hostname)
+  fabric_host <- grepl("(^|\\.)api\\.fabric\\.microsoft\\.com$", host)
+  if (!fabric_host && !isTRUE(allow_custom_endpoint)) {
+    rlang::abort(paste0(
+      "livy_url is not a Microsoft Fabric API host; set ",
+      "allow_custom_endpoint = TRUE only for a trusted HTTPS service"
+    ))
+  }
+  value
 }
 
 fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
@@ -185,11 +213,11 @@ fabric_livy_ok <- function(
 # Normalize a copied session/batch URL to a collection endpoint
 fabric_livy_endpoint <- function(
   url,
-  type = c("sessions", "batches", "highConcurrencySessions")
+  type = c("sessions", "batches", "highConcurrencySessions"),
+  allow_custom_endpoint = FALSE
 ) {
-  fabric_livy_check_string(url, "url")
   type <- match.arg(type)
-  value <- sub("/+$", "", trimws(url))
+  value <- fabric_livy_validate_endpoint(url, allow_custom_endpoint)
   collection_pattern <- paste0(
     "(?i)/(sessions|batches|highConcurrencySessions)$"
   )
@@ -351,6 +379,9 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 #'   sooner but make more API calls.
 #' @param timeout Maximum seconds to wait for session readiness and, separately,
 #'   statement completion.
+#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
+#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
 #' @param ... Compatibility arguments. The former named `access_token`
 #'   argument is accepted here as a deprecated alias for `token`; all other
 #'   arguments are rejected.
@@ -396,6 +427,7 @@ fabric_livy_query <- function(
   verbose = TRUE,
   poll_interval = 2,
   timeout = 600,
+  allow_custom_endpoint = FALSE,
   ...
 ) {
   kind <- match.arg(kind)
@@ -416,7 +448,8 @@ fabric_livy_query <- function(
     auth_args = auth_args,
     environment_id = environment_id,
     conf = conf,
-    verbose = verbose
+    verbose = verbose,
+    allow_custom_endpoint = allow_custom_endpoint
   )
   on.exit(try(session$close(), silent = TRUE), add = TRUE)
   session$wait(

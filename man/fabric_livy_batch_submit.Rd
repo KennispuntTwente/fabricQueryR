@@ -31,7 +31,8 @@ fabric_livy_batch_submit(
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
-  poll_interval = 5
+  poll_interval = 5,
+  allow_custom_endpoint = FALSE
 )
 }
 \arguments{
@@ -101,6 +102,10 @@ object.}
 \item{timeout}{Maximum seconds to wait when \code{wait = TRUE}.}
 
 \item{poll_interval}{Seconds between status checks when waiting.}
+
+\item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
+Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
+as a test emulator; the Fabric bearer token is sent to this endpoint.}
 }
 \value{
 A \link{FabricLivyBatch} R6 object. Inspect its \verb{$state}, call

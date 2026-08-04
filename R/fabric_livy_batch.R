@@ -243,6 +243,9 @@ FabricLivyBatch <- R6::R6Class(
 #'   object.
 #' @param timeout Maximum seconds to wait when `wait = TRUE`.
 #' @param poll_interval Seconds between status checks when waiting.
+#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
+#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
 #'
 #' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
 #'   `$result()` for structured metadata and logs, and call `$wait()` later when
@@ -291,10 +294,12 @@ fabric_livy_batch_submit <- function(
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
-  poll_interval = 5
+  poll_interval = 5,
+  allow_custom_endpoint = FALSE
 ) {
   fabric_livy_check_string(file, "file")
   fabric_livy_check_flag(wait, "wait")
+  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
   tags <- fabric_livy_normalize_named_list(tags, "tags")
   conf <- fabric_livy_conf(conf, environment_id)
   if (!is.null(target_lakehouse_id)) {
@@ -326,8 +331,12 @@ fabric_livy_batch_submit <- function(
     auth_args
   )
   collection <- fabric_livy_endpoint(
-    fabric_livy_resolve_url(livy_url),
-    "batches"
+    fabric_livy_resolve_url(
+      livy_url,
+      allow_custom_endpoint = allow_custom_endpoint
+    ),
+    "batches",
+    allow_custom_endpoint = allow_custom_endpoint
   )
   inform(verbose, "Submitting Fabric Livy batch")
   response <- fabric_livy_json(

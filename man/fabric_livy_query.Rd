@@ -18,6 +18,7 @@ fabric_livy_query(
   verbose = TRUE,
   poll_interval = 2,
   timeout = 600,
+  allow_custom_endpoint = FALSE,
   ...
 )
 }
@@ -62,6 +63,10 @@ sooner but make more API calls.}
 
 \item{timeout}{Maximum seconds to wait for session readiness and, separately,
 statement completion.}
+
+\item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
+Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
+as a test emulator; the Fabric bearer token is sent to this endpoint.}
 
 \item{...}{Compatibility arguments. The former named \code{access_token}
 argument is accepted here as a deprecated alias for \code{token}; all other
