@@ -10,7 +10,7 @@ test_that("Delta targets preserve Fabric discovery and ABFSS addressing", {
   )
 
   resolved <- fabric_delta_resolve_public_target(
-    table_path = "nested/path/patients",
+    table_path = "patients",
     workspace_name = workspace,
     lakehouse_name = lakehouse,
     schema = NULL,
@@ -167,6 +167,29 @@ test_that("Delta discovery records enforce type and workspace ownership", {
     dfs_base = "https://onelake.dfs.fabric.microsoft.com"
   )
   expect_identical(resolved_lakehouse$table_dir, "Tables/table")
+
+  expect_error(
+    fabric_delta_resolve_public_target(
+      "wrong/table",
+      workspace,
+      non_schema_lakehouse,
+      schema = NULL,
+      dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+    ),
+    "must be one table name",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_delta_resolve_public_target(
+      "wrong\\table",
+      workspace,
+      non_schema_lakehouse,
+      schema = NULL,
+      dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+    ),
+    "must be one table name",
+    fixed = TRUE
+  )
 
   expect_error(
     fabric_delta_resolve_public_target(

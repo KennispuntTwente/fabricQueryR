@@ -36,7 +36,8 @@
 #' another engine with Deletion Vector support for those tables. See
 #' [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 #'
-#' @param table_path Name of the table to read.
+#' @param table_path One unqualified table name. Supply its schema separately
+#'   with `schema`; path separators are rejected rather than silently ignored.
 #' @param workspace_name Workspace name, ID, or a record from
 #'   [fabric_workspaces()].
 #' @param lakehouse_name Lakehouse or Warehouse name, ID, or discovery record.
@@ -346,6 +347,11 @@ fabric_delta_resolve_public_target <- function(
   }
 
   fabric_delta_validate_non_empty(table_path, "table_path")
+  if (grepl("[/\\\\]", table_path)) {
+    rlang::abort(
+      "table_path must be one table name; supply the schema with schema"
+    )
+  }
   fabric_delta_validate_non_empty(
     workspace_name,
     "workspace_name",
@@ -360,11 +366,7 @@ fabric_delta_resolve_public_target <- function(
     fabric_delta_validate_non_empty(schema, "schema")
   }
 
-  parts <- strsplit(table_path, "/", fixed = TRUE)[[1L]]
-  table_name <- parts[[length(parts)]]
-  if (!nzchar(table_name)) {
-    rlang::abort("table_path must end in a non-empty table name")
-  }
+  table_name <- table_path
   table_dir <- if (is.null(schema)) {
     paste("Tables", table_name, sep = "/")
   } else {

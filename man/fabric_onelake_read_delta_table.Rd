@@ -24,7 +24,8 @@ fabric_onelake_read_delta_table(
 )
 }
 \arguments{
-\item{table_path}{Name of the table to read.}
+\item{table_path}{One unqualified table name. Supply its schema separately
+with \code{schema}; path separators are rejected rather than silently ignored.}
 
 \item{workspace_name}{Workspace name, ID, or a record from
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
