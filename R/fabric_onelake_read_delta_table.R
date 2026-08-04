@@ -694,16 +694,20 @@ fabric_delta_normalize_schema <- function(schema, collect = FALSE) {
 #' @keywords internal
 #' @noRd
 fabric_delta_validate_collect_schema <- function(schema) {
-  unsupported <- vapply(schema$children, function(child) {
-    if (!is.null(child$dictionary)) {
-      child <- child$dictionary
-    }
-    startsWith(child$format, "+") ||
-      identical(
-        child$metadata[["ARROW:extension:name"]] %||% "",
-        "arrow.parquet.variant"
-      )
-  }, logical(1))
+  unsupported <- vapply(
+    schema$children,
+    function(child) {
+      if (!is.null(child$dictionary)) {
+        child <- child$dictionary
+      }
+      startsWith(child$format, "+") ||
+        identical(
+          child$metadata[["ARROW:extension:name"]] %||% "",
+          "arrow.parquet.variant"
+        )
+    },
+    logical(1)
+  )
   if (!any(unsupported)) {
     return(invisible(schema))
   }
@@ -712,7 +716,10 @@ fabric_delta_validate_collect_schema <- function(schema) {
   rlang::abort(
     c(
       "Nested and extension Delta columns cannot be collected to a tibble.",
-      "x" = paste("Unsupported column(s):", paste(column_names, collapse = ", ")),
+      "x" = paste(
+        "Unsupported column(s):",
+        paste(column_names, collapse = ", ")
+      ),
       "i" = paste0(
         "Select scalar columns or use result = \"arrow_stream\" to preserve ",
         "the Arrow representation."

@@ -226,7 +226,8 @@ fabric_test_spark_canonical_primitive <- function(value, data_type) {
     return(sub("\\.0+$", "", text))
   }
   if (
-    type_name %in% c("byte", "short", "integer", "long") ||
+    type_name %in%
+      c("byte", "short", "integer", "long") ||
       startsWith(type_name, "decimal(")
   ) {
     return(as.character(value))
@@ -299,14 +300,18 @@ fabric_test_spark_canonical_value <- function(value, data_type) {
       )
     })
     if (length(entries) > 1L) {
-      labels <- vapply(entries, function(entry) {
-        jsonlite::toJSON(
-          list(value = entry$key),
-          auto_unbox = TRUE,
-          null = "null",
-          digits = NA
-        )
-      }, character(1))
+      labels <- vapply(
+        entries,
+        function(entry) {
+          jsonlite::toJSON(
+            list(value = entry$key),
+            auto_unbox = TRUE,
+            null = "null",
+            digits = NA
+          )
+        },
+        character(1)
+      )
       entries <- entries[order(labels)]
     }
     return(entries)
@@ -428,14 +433,18 @@ test_that("deep Arrow comparison preserves row order and binary values", {
   ))
 
   map_type <- arrow::map_of(arrow::utf8(), arrow::int32())
-  map_actual <- arrow::Table$create(keyed = arrow::Array$create(
-    list(data.frame(key = c("a", "b"), value = c(1L, 2L))),
-    type = map_type
-  ))
-  map_expected <- arrow::Table$create(keyed = arrow::Array$create(
-    list(data.frame(key = c("b", "a"), value = c(2L, 1L))),
-    type = map_type
-  ))
+  map_actual <- arrow::Table$create(
+    keyed = arrow::Array$create(
+      list(data.frame(key = c("a", "b"), value = c(1L, 2L))),
+      type = map_type
+    )
+  )
+  map_expected <- arrow::Table$create(
+    keyed = arrow::Array$create(
+      list(data.frame(key = c("b", "a"), value = c(2L, 1L))),
+      type = map_type
+    )
+  )
   expect_false(map_actual$Equals(map_expected))
   expect_true(fabric_test_arrow_column_equals(
     map_actual$GetColumnByName("keyed"),
@@ -717,7 +726,11 @@ test_that("OneLake access failures receive an actionable error class", {
   )
   expect_s3_class(classified, "fabric_delta_access_error")
   expect_false(
-    grepl("invalid-integration-token", conditionMessage(classified), fixed = TRUE)
+    grepl(
+      "invalid-integration-token",
+      conditionMessage(classified),
+      fixed = TRUE
+    )
   )
 })
 
@@ -881,7 +894,7 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   expect_true(all(is.na(void$always_null)))
   expect_identical(void$details$value, 0:2)
   expect_true(all(is.na(void$details$pending)))
-  expect_false(any(is.na(void$details)))
+  expect_false(anyNA(void$details))
 
   binary <- fabric_test_read_delta(
     manifest,
@@ -936,7 +949,6 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   )
   expect_equal(nrow(empty_reference), 0L)
   expect_named(empty_reference, c("id", "name", "category", "amount"))
-
 })
 
 test_that("unsupported Fabric Delta features fail with actionable errors", {
@@ -1072,45 +1084,69 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   exact_values <- c(
-    "runtime", "basic", "empty", "void", "typed_partitions",
-    "binary_partitions", "schema_evolved", "exact_types",
-    "oracle_empty", "oracle_typed_partitions"
+    "runtime",
+    "basic",
+    "empty",
+    "void",
+    "typed_partitions",
+    "binary_partitions",
+    "schema_evolved",
+    "exact_types",
+    "oracle_empty",
+    "oracle_typed_partitions"
   )
   reference_comparison <- c(
-    "partitioned", "column_mapped", "column_mapped_id",
+    "partitioned",
+    "column_mapped",
+    "column_mapped_id",
     "shallow_clone",
     "oracle_basic",
-    "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
+    "oracle_partitioned",
+    "oracle_schema_evolved",
+    "oracle_exact_types",
     "spark_oracle_column_mapped",
     "spark_oracle_column_mapped_id",
     "spark_oracle_shallow_clone"
   )
   stream_only <- c(
-    "complex_types", "oracle_complex_types",
-    "struct_validity", "spark_oracle_struct_validity"
+    "complex_types",
+    "oracle_complex_types",
+    "struct_validity",
+    "spark_oracle_struct_validity"
   )
   unsupported_error <- c(
-    "column_mapped_id_partitioned_dv", "deletion_vectors",
-    "file_row_number_collision", "deletion_vectors_stress",
-    "deletion_vectors_dense", "row_tracking",
+    "column_mapped_id_partitioned_dv",
+    "deletion_vectors",
+    "file_row_number_collision",
+    "deletion_vectors_stress",
+    "deletion_vectors_dense",
+    "row_tracking",
     "deletion_vectors_checkpoint",
-    "type_widened", "type_widened_exact", "type_widened_pending",
-    "type_widened_nested", "type_widened_map_key", "v2_checkpoint",
-    "variant", "variant_id_dv"
+    "type_widened",
+    "type_widened_exact",
+    "type_widened_pending",
+    "type_widened_nested",
+    "type_widened_map_key",
+    "v2_checkpoint",
+    "variant",
+    "variant_id_dv"
   )
   full_scan <- c(
     "spark_oracle_column_mapped_id_partitioned_dv",
     "spark_oracle_deletion_vectors",
     "spark_oracle_file_row_number_collision",
     "spark_oracle_deletion_vectors_stress",
-    "spark_oracle_deletion_vectors_dense", "spark_oracle_row_tracking",
+    "spark_oracle_deletion_vectors_dense",
+    "spark_oracle_row_tracking",
     "spark_oracle_deletion_vectors_checkpoint",
     "spark_oracle_type_widened",
     "spark_oracle_type_widened_exact",
     "spark_oracle_type_widened_pending",
     "spark_oracle_type_widened_nested",
-    "spark_oracle_type_widened_map_key", "spark_oracle_v2_checkpoint",
-    "spark_oracle_variant", "spark_oracle_variant_id_dv"
+    "spark_oracle_type_widened_map_key",
+    "spark_oracle_v2_checkpoint",
+    "spark_oracle_variant",
+    "spark_oracle_variant_id_dv"
   )
   covered_by_job_workflows <- c("livy_batch_result", "spark_job_result")
   disposition <- c(
@@ -1135,8 +1171,12 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   expect_setequal(
     unname(disposition),
     c(
-      "exact_values", "reference_comparison", "unsupported_error",
-      "stream_only", "full_scan", "job_workflow"
+      "exact_values",
+      "reference_comparison",
+      "unsupported_error",
+      "stream_only",
+      "full_scan",
+      "job_workflow"
     )
   )
 })

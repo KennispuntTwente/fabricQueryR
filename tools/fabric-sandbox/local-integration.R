@@ -107,16 +107,17 @@ fabric_local_auth_context <- function(
 }
 
 fabric_local_explicit_auth_flow <- function(auth_args) {
-  is.list(auth_args) && any(
-    c(
-      "auth_type",
-      "password",
-      "certificate",
-      "username",
-      "on_behalf_of"
-    ) %in%
-      names(auth_args)
-  )
+  is.list(auth_args) &&
+    any(
+      c(
+        "auth_type",
+        "password",
+        "certificate",
+        "username",
+        "on_behalf_of"
+      ) %in%
+        names(auth_args)
+    )
 }
 
 fabric_local_validate_secret_identity <- function(
@@ -324,7 +325,9 @@ fabric_local_acquire_tokens <- function(
     )
   }
 
-  if (!is.character(audiences) || !length(audiences) || is.null(names(audiences))) {
+  if (
+    !is.character(audiences) || !length(audiences) || is.null(names(audiences))
+  ) {
     stop("audiences must be a non-empty named character vector", call. = FALSE)
   }
   tokens <- list()
