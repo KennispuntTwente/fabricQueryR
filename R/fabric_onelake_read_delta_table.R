@@ -48,9 +48,10 @@
 #' names fail with `fabric_delta_invalid_target`. See
 #' [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 #'
-#' `result = "arrow_stream"` is lazy and single-use. Opening either result is
-#' retried once with a refreshable credential when delta-rs reports an
-#' authentication failure. Failures that occur after a lazy stream has been
+#' `result = "arrow_stream"` is lazy and single-use after the Delta snapshot,
+#' schema, and deletion-vector compatibility preflight have been opened. Opening
+#' either result is retried once with a refreshable credential when delta-rs
+#' reports an authentication failure. Failures that occur after a lazy stream has been
 #' returned and consumed cannot be retried: the OneLake bearer token is fixed
 #' for that stream's object-store session. Consume lazy streams promptly. If a
 #' token expires during a long scan, discard the stream and call this function
@@ -81,7 +82,10 @@
 #' because the selected runtime can apply their masks at incorrect record-batch
 #' offsets. Large files without deletion vectors are not rejected. The pinned
 #' `deltalake` API materializes deletion-vector masks while enumerating affected
-#' files, so this preflight has memory cost proportional to those masks. Its
+#' files, so this preflight has native-memory cost proportional to those masks;
+#' fabricQueryR reads only their Arrow offsets and does not expand the Boolean
+#' masks into Python or R objects. `limit = 0` does not scan rows and skips this
+#' mask preflight. Its
 #' current reader also does not support Fabric tables requiring Type
 #' Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
 #' `fabric_delta_unsupported_feature_error`. When an otherwise readable Arrow
@@ -715,7 +719,9 @@ fabric_delta_python_reader <- function(
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
   fabric_delta_validate_snapshot_columns(table, columns, item_type)
-  fabric_delta_validate_deletion_vectors(table)
+  if (!isTRUE(limit == 0)) {
+    fabric_delta_validate_deletion_vectors(table)
+  }
   builder <- .delta_python$deltalake$QueryBuilder()
   builder$register(.fabric_delta_query_table, table)
   reader <- builder$execute(fabric_delta_query(columns, limit))
@@ -795,23 +801,49 @@ fabric_delta_active_file_rows <- function(table) {
 #' @keywords internal
 #' @noRd
 fabric_delta_deletion_vector_rows <- function(table) {
-  vectors <- table$deletion_vectors()$read_all()$
-    column("selection_vector")$to_pylist()
-  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(vectors)))
-  if (!count) {
+  reader <- table$deletion_vectors()
+  schema <- nanoarrow::as_nanoarrow_schema(reader$schema)
+  selection_index <- match("selection_vector", names(schema$children))
+  if (is.na(selection_index)) {
+    return(NA_real_)
+  }
+  selection_schema <- schema$children[[selection_index]]
+  if (!identical(selection_schema$format, "+l")) {
+    return(NA_real_)
+  }
+
+  stream <- nanoarrow::as_nanoarrow_array_stream(reader)
+  arrays <- nanoarrow::collect_array_stream(stream)
+  if (!length(arrays)) {
     return(numeric())
   }
-  vapply(
-    seq_len(count) - 1L,
-    function(index) {
-      value <- vectors$`__getitem__`(.delta_python$builtins$int(index))
-      if (reticulate::py_is_null_xptr(value)) {
-        return(NA_real_)
-      }
-      as.double(reticulate::py_to_r(.delta_python$builtins$len(value)))
-    },
-    numeric(1)
+  unlist(
+    lapply(arrays, function(array) {
+      fabric_delta_list_array_lengths(array$children[[selection_index]])
+    }),
+    use.names = FALSE
   )
+}
+
+#' Read list lengths from Arrow offsets without materializing child values
+#' @keywords internal
+#' @noRd
+fabric_delta_list_array_lengths <- function(array) {
+  descriptor <- list(
+    offset = as.double(array$offset),
+    start = 0,
+    length = as.double(array$length),
+    validity = fabric_delta_copy_array_buffer(array, 1L),
+    offsets = fabric_delta_copy_array_buffer(array, 2L),
+    children = list()
+  )
+  if (!descriptor$length) {
+    return(numeric())
+  }
+  validity <- fabric_delta_array_validity(list(descriptor))
+  lengths <- diff(fabric_delta_list_offsets(descriptor))
+  lengths[!validity] <- NA_real_
+  lengths
 }
 
 #' Reject deletion-vector-bearing files the selected provider may misapply

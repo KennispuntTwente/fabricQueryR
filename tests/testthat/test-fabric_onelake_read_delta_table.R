@@ -574,6 +574,65 @@ test_that("deletion-vector safety is scoped to files carrying vectors", {
   expect_match(conditionMessage(unknown), "selection-vector length")
 })
 
+test_that("deletion-vector list lengths use Arrow offsets", {
+  skip_if_not_installed("arrow")
+  values <- arrow::Array$create(
+    list(c(TRUE, FALSE), logical(), NULL, c(TRUE, TRUE, FALSE)),
+    type = arrow::list_of(arrow::boolean())
+  )
+  array <- nanoarrow::as_nanoarrow_array(values)
+
+  expect_identical(
+    fabric_delta_list_array_lengths(array),
+    c(2, 0, NA_real_, 3)
+  )
+  expect_identical(
+    fabric_delta_list_array_lengths(
+      nanoarrow::as_nanoarrow_array(values$Slice(1L, 2L))
+    ),
+    c(0, NA_real_)
+  )
+})
+
+test_that("LIMIT 0 avoids deletion-vector mask materialization", {
+  deletion_vector_calls <- 0L
+  queries <- character()
+  table <- new.env(parent = emptyenv())
+  builder <- new.env(parent = emptyenv())
+  builder$register <- function(...) invisible(NULL)
+  builder$execute <- function(sql) {
+    queries <<- c(queries, sql)
+    list(sql = sql)
+  }
+  deltalake <- new.env(parent = emptyenv())
+  deltalake$DeltaTable <- function(...) table
+  deltalake$QueryBuilder <- function() builder
+  builtins <- new.env(parent = emptyenv())
+  builtins$int <- function(value) value
+
+  local_mocked_bindings(
+    .delta_python = list(deltalake = deltalake, builtins = builtins),
+    fabric_delta_validate_runtime = function(...) invisible(NULL),
+    fabric_delta_validate_snapshot_columns = function(...) invisible(NULL),
+    fabric_delta_validate_deletion_vectors = function(...) {
+      deletion_vector_calls <<- deletion_vector_calls + 1L
+      invisible(NULL)
+    }
+  )
+
+  expect_no_error(fabric_delta_python_reader("table", limit = 0))
+  expect_identical(deletion_vector_calls, 0L)
+  expect_no_error(fabric_delta_python_reader("table", limit = 1))
+  expect_identical(deletion_vector_calls, 1L)
+  expect_identical(
+    queries,
+    c(
+      "SELECT * FROM \"fabric_delta_table\" LIMIT 0",
+      "SELECT * FROM \"fabric_delta_table\" LIMIT 1"
+    )
+  )
+})
+
 test_that("collection validity descriptors do not retain Arrow data arrays", {
   array <- nanoarrow::as_nanoarrow_array(data.frame(
     id = 1:2,
