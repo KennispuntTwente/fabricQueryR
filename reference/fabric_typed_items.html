@@ -72,8 +72,9 @@ fields used by the matching query functions. They are equivalent to
 
 <dl><dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
 <dd><p>Workspace GUID, exact display name, or a workspace record
-returned by <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. A record or GUID avoids an extra lookup;
-a name is often easier for interactive use.</p></dd>
+returned by <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. A record avoids an extra lookup and, if
+it contains <code>apiEndpoint</code>, routes workspace calls through that endpoint. A
+name is often easier for interactive use.</p></dd>
 
 
 <dt id="arg-detail">detail<a class="anchor" aria-label="anchor" href="#arg-detail"></a></dt>

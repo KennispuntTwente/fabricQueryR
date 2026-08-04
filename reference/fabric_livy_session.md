@@ -33,7 +33,8 @@ fabric_livy_session(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  verbose = TRUE
+  verbose = TRUE,
+  allow_custom_endpoint = FALSE
 )
 ```
 
@@ -140,6 +141,12 @@ fabric_livy_session(
 - verbose:
 
   Logical. Show session lifecycle messages.
+
+- allow_custom_endpoint:
+
+  Logical. Keep `FALSE` to require a Microsoft Fabric API host. Set
+  `TRUE` only for a trusted custom HTTPS service, such as a test
+  emulator; the Fabric bearer token is sent to this endpoint.
 
 ## Value
 

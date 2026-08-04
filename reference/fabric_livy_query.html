@@ -63,6 +63,7 @@ data; it has more startup overhead than querying an existing SQL endpoint.</p>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  poll_interval <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">600</span>,</span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -134,6 +135,12 @@ sooner but make more API calls.</p></dd>
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
 <dd><p>Maximum seconds to wait for session readiness and, separately,
 statement completion.</p></dd>
+
+
+<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
+<dd><p>Logical. Keep <code>FALSE</code> to require a Microsoft
+Fabric API host. Set <code>TRUE</code> only for a trusted custom HTTPS service, such
+as a test emulator; the Fabric bearer token is sent to this endpoint.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

@@ -1,8 +1,9 @@
-# Read a Delta table from Microsoft Fabric OneLake
+# Read a supported Delta table from Microsoft Fabric OneLake
 
-Read a Delta table from a Fabric Lakehouse or Warehouse. By default, the
-result is returned as a tibble. Use `columns` and `limit` to read less
-data, or request an Arrow stream to process a large result in batches.
+Read a Delta table that is compatible with the package's locked
+`delta-rs` runtime. By default, the result is returned as a tibble. Use
+`columns` and `limit` to read less data, or request an Arrow stream to
+process a large result in batches.
 
 ## Usage
 
@@ -31,7 +32,8 @@ fabric_onelake_read_delta_table(
 
 - table_path:
 
-  Name of the table to read.
+  One unqualified table name. Supply its schema separately with
+  `schema`; path separators are rejected rather than silently ignored.
 
 - workspace_name:
 
@@ -124,9 +126,14 @@ nested, or extension data, request the lazy, single-use
 `result = "arrow_stream"` instead. `limit` is unordered and is not
 suitable for pagination; use `version` to select a specific snapshot.
 
-Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant are
-not supported. Current Warehouse Delta exports require Deletion Vectors;
-use Fabric SQL or PySpark for those tables. See [Delta Lake logs in
+This package intentionally does not implement Delta features that its
+locked `delta-rs` reader cannot evaluate. Deletion Vectors, Type
+Widening, V2 Checkpoints, and Fabric Variant are therefore unsupported;
+the reader raises `fabric_delta_unsupported_feature_error` instead of
+returning incomplete rows. In particular, current Warehouse Delta
+exports require Deletion Vectors and cannot be read by this function.
+Use Fabric SQL, PySpark, or another engine with Deletion Vector support
+for those tables. See [Delta Lake logs in
 Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 
 ## Examples

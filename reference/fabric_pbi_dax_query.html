@@ -175,11 +175,12 @@ required <code>query</code> property is supplied from <code>dax</code>. Used onl
     <p>With <code>result = "tibble"</code>, a tibble containing the single result
 table. With <code>api = "arrow", result = "arrow_stream"</code>, a
 <code>nanoarrow_array_stream</code>. Power BI's column names are preserved. An empty
-result becomes a typed zero-row result; API errors, multiple rowsets, and
-partial/truncated JSON results raise an error rather than silently
-returning incomplete data. When <code>executionMetrics = TRUE</code>, the metrics
-rowset is attached to either result as an <code>execution_metrics</code> tibble
-attribute.</p>
+Arrow result becomes a typed zero-row result. Because the JSON API does not
+provide column metadata for an empty table, that path returns a zero-row,
+zero-column tibble. API errors, multiple rowsets, and partial/truncated
+JSON results raise an error rather than silently returning incomplete data.
+When <code>executionMetrics = TRUE</code>, the metrics rowset is attached to either
+result as an <code>execution_metrics</code> tibble attribute.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

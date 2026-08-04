@@ -28,8 +28,9 @@ fabric_items(
 
   Workspace GUID, exact display name, or a workspace record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A record or GUID avoids an extra lookup; a name is often easier for
-  interactive use.
+  A record avoids an extra lookup and, if it contains `apiEndpoint`,
+  routes workspace calls through that endpoint. A name is often easier
+  for interactive use.
 
 - type:
 
@@ -84,7 +85,9 @@ fabric_items(
 - api_base:
 
   Fabric REST API base URL. Leave unchanged unless using a different
-  Fabric cloud or a test service.
+  Fabric cloud or a test service. When `workspace` is a record
+  containing `apiEndpoint`, that workspace-specific endpoint is used
+  unless `api_base` is supplied explicitly.
 
 ## Value
 
@@ -93,9 +96,11 @@ list with common fields including `id`, `displayName`, `type`,
 `workspaceId`, and `folderId`. With `detail = TRUE`, applicable objects
 also contain ready-to-use `sql_connection_string`, `one_lake_*_path`,
 `dax_connection_string`, `livy_url`, `query_service_uri`, or
-`graphql_endpoint` values. Fields that do not apply to an item are
-absent; `detail_error` records failed enrichment requests. Nested
-service data is retained in place, including in `properties`.
+`graphql_endpoint` values. When supplied by Fabric,
+`workspaceApiEndpoint` preserves the workspace-specific API origin for
+later job calls. Fields that do not apply to an item are absent;
+`detail_error` records failed enrichment requests. Nested service data
+is retained in place, including in `properties`.
 
 ## Details
 

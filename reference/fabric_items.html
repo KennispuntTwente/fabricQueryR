@@ -64,8 +64,9 @@ such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.</p>
 
 <dl><dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
 <dd><p>Workspace GUID, exact display name, or a workspace record
-returned by <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. A record or GUID avoids an extra lookup;
-a name is often easier for interactive use.</p></dd>
+returned by <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. A record avoids an extra lookup and, if
+it contains <code>apiEndpoint</code>, routes workspace calls through that endpoint. A
+name is often easier for interactive use.</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
@@ -120,7 +121,9 @@ Discovery uses the
 
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Fabric REST API base URL. Leave unchanged unless using a
-different Fabric cloud or a test service.</p></dd>
+different Fabric cloud or a test service. When <code>workspace</code> is a record
+containing <code>apiEndpoint</code>, that workspace-specific endpoint is used unless
+<code>api_base</code> is supplied explicitly.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -130,8 +133,10 @@ named list with common fields including <code>id</code>, <code>displayName</code
 <code>workspaceId</code>, and <code>folderId</code>. With <code>detail = TRUE</code>, applicable objects
 also contain ready-to-use <code>sql_connection_string</code>,
 <code>one_lake_*_path</code>, <code>dax_connection_string</code>, <code>livy_url</code>,
-<code>query_service_uri</code>, or <code>graphql_endpoint</code> values. Fields that do not apply
-to an item are absent; <code>detail_error</code> records failed enrichment requests.
+<code>query_service_uri</code>, or <code>graphql_endpoint</code> values. When supplied by
+Fabric, <code>workspaceApiEndpoint</code> preserves the workspace-specific API origin
+for later job calls. Fields that do not apply to an item are absent;
+<code>detail_error</code> records failed enrichment requests.
 Nested service data is retained in place, including in <code>properties</code>.</p>
     </div>
     <div class="section level2">

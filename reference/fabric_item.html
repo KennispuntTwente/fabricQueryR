@@ -65,8 +65,9 @@ collection of every item in the workspace.</p>
 
 <dl><dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
 <dd><p>Workspace GUID, exact display name, or a workspace record
-returned by <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. A record or GUID avoids an extra lookup;
-a name is often easier for interactive use.</p></dd>
+returned by <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>. A record avoids an extra lookup and, if
+it contains <code>apiEndpoint</code>, routes workspace calls through that endpoint. A
+name is often easier for interactive use.</p></dd>
 
 
 <dt id="arg-item">item<a class="anchor" aria-label="anchor" href="#arg-item"></a></dt>
@@ -109,7 +110,9 @@ Discovery uses the
 
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Fabric REST API base URL. Leave unchanged unless using a
-different Fabric cloud or a test service.</p></dd>
+different Fabric cloud or a test service. When <code>workspace</code> is a record
+containing <code>apiEndpoint</code>, that workspace-specific endpoint is used unless
+<code>api_base</code> is supplied explicitly.</p></dd>
 
 </dl></div>
     <div class="section level2">

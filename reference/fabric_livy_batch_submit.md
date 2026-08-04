@@ -35,7 +35,8 @@ fabric_livy_batch_submit(
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
-  poll_interval = 5
+  poll_interval = 5,
+  allow_custom_endpoint = FALSE
 )
 ```
 
@@ -150,6 +151,12 @@ fabric_livy_batch_submit(
 - poll_interval:
 
   Seconds between status checks when waiting.
+
+- allow_custom_endpoint:
+
+  Logical. Keep `FALSE` to require a Microsoft Fabric API host. Set
+  `TRUE` only for a trusted custom HTTPS service, such as a test
+  emulator; the Fabric bearer token is sent to this endpoint.
 
 ## Value
 

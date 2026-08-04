@@ -184,7 +184,9 @@ fabric_job_cancel(
 
 - api_base:
 
-  Fabric REST API base URL. Most users should keep the default.
+  Fabric REST API base URL. Most users should keep the default. A
+  discovered workspace-specific endpoint is used unless this argument is
+  supplied explicitly.
 
 - job:
 

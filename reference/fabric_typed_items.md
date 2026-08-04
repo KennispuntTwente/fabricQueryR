@@ -33,8 +33,9 @@ fabric_graphql_apis(workspace, detail = TRUE, ...)
 
   Workspace GUID, exact display name, or a workspace record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A record or GUID avoids an extra lookup; a name is often easier for
-  interactive use.
+  A record avoids an extra lookup and, if it contains `apiEndpoint`,
+  routes workspace calls through that endpoint. A name is often easier
+  for interactive use.
 
 - detail:
 

@@ -72,7 +72,8 @@ compute for each call.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -179,6 +180,12 @@ token or starts its normal interactive login flow.</p></dd>
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. Show session lifecycle messages.</p></dd>
+
+
+<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
+<dd><p>Logical. Keep <code>FALSE</code> to require a Microsoft
+Fabric API host. Set <code>TRUE</code> only for a trusted custom HTTPS service, such
+as a test emulator; the Fabric bearer token is sent to this endpoint.</p></dd>
 
 </dl></div>
     <div class="section level2">

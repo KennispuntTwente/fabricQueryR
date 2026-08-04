@@ -85,7 +85,8 @@ Internal constructor used by
       credential,
       payload,
       high_concurrency = FALSE,
-      verbose = TRUE
+      verbose = TRUE,
+      allow_custom_endpoint = FALSE
     )
 
 #### Arguments
@@ -109,6 +110,11 @@ Internal constructor used by
 - `verbose`:
 
   Whether to emit lifecycle messages.
+
+- `allow_custom_endpoint`:
+
+  Whether a trusted non-Fabric HTTPS endpoint may receive the Fabric
+  bearer token.
 
 #### Returns
 

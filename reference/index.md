@@ -54,7 +54,7 @@ List, inspect, download, upload, and delete files in OneLake
 Resolve and read supported Delta Lake snapshots from OneLake
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  : Read a Delta table from Microsoft Fabric OneLake
+  : Read a supported Delta table from Microsoft Fabric OneLake
 - [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
   : Inspect the optional Python Delta runtime
 

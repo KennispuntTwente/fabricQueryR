@@ -73,7 +73,8 @@ good fit for repeatable scripts and unattended processing.</p>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  wait <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">1200</span>,</span>
-<span>  poll_interval <span class="op">=</span> <span class="fl">5</span></span>
+<span>  poll_interval <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -192,6 +193,12 @@ object.</p></dd>
 
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
 <dd><p>Seconds between status checks when waiting.</p></dd>
+
+
+<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
+<dd><p>Logical. Keep <code>FALSE</code> to require a Microsoft
+Fabric API host. Set <code>TRUE</code> only for a trusted custom HTTPS service, such
+as a test emulator; the Fabric bearer token is sent to this endpoint.</p></dd>
 
 </dl></div>
     <div class="section level2">
