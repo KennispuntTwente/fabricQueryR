@@ -25,7 +25,7 @@ License: MIT + file LICENSE
 Suggests: 
     adbcdrivermanager,
     adbi,
-    arrow,
+    arrow (>= 9.0.0),
     DBI (>= 1.2.0),
     knitr,
     odbc,
@@ -46,7 +46,7 @@ Imports:
     tibble,
     jsonlite,
     cli,
-    nanoarrow,
+    nanoarrow (>= 0.8.0),
     reticulate (>= 1.41),
     rlang,
     utils,
