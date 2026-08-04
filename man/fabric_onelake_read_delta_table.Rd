@@ -109,9 +109,10 @@ behind the current Warehouse state. Warehouse table and column names must
 also meet the restrictions for external Delta readers. See
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
 
-Tables that require Type Widening, V2 Checkpoints, or Fabric Variant preview
-features are not currently supported. Use Fabric PySpark when broader Delta
-feature support is needed.
+Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
+Fabric Variant preview features are not currently supported. This includes
+current Fabric Warehouse Delta exports. Use Fabric SQL or PySpark when
+broader Delta feature support is needed.
 
 To preserve exact values, Delta \code{long} columns normally use
 \code{\link[bit64:integer64]{bit64::integer64()}} and decimal columns are returned as character vectors.

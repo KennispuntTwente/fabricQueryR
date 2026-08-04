@@ -247,11 +247,12 @@ supports classic checkpoints and version selection, preserves exact numeric
 values, and rejects unsupported reader features before returning data. The
 locked runtime explicitly rejects V2 checkpoints, Type Widening, and Fabric's
 VariantShreddingPreview rather than returning a plausible but incorrect result.
-Support for column mapping, serialized deletion-vector scans, row-tracking
-logical rows, and shallow-clone reads is specific to the exact pinned runtime
-and live package matrix; it is not a claim that Microsoft supports those
-features in delta-rs generally. Spark-only hidden row-tracking metadata is not
-part of the reader contract.
+Deletion-vector snapshots are also rejected instead of being reimplemented in
+R-side query logic. Support for column mapping, row-tracking logical rows, and
+shallow-clone reads is specific to the exact pinned runtime and live package
+matrix; it is not a claim that Microsoft supports those features in delta-rs
+generally. Spark-only hidden row-tracking metadata is not part of the reader
+contract.
 
 ### Problem
 

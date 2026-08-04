@@ -932,29 +932,9 @@ test_that("Arrow streams deeply match Spark-neutral Fabric references", {
       source = tables$exact_types,
       reference = tables$oracle_exact_types
     ),
-    column_mapped_id_partitioned_dv = list(
-      source = tables$column_mapped_id_partitioned_dv,
-      reference = tables$spark_oracle_column_mapped_id_partitioned_dv
-    ),
     struct_validity = list(
       source = tables$struct_validity,
       reference = tables$spark_oracle_struct_validity
-    ),
-    deletion_vectors = list(
-      source = tables$deletion_vectors,
-      reference = tables$spark_oracle_deletion_vectors
-    ),
-    deletion_vectors_stress = list(
-      source = tables$deletion_vectors_stress,
-      reference = tables$spark_oracle_deletion_vectors_stress
-    ),
-    deletion_vectors_dense = list(
-      source = tables$deletion_vectors_dense,
-      reference = tables$spark_oracle_deletion_vectors_dense
-    ),
-    row_tracking = list(
-      source = tables$row_tracking,
-      reference = tables$spark_oracle_row_tracking
     ),
     shallow_clone = list(
       source = tables$shallow_clone,
@@ -1010,33 +990,9 @@ test_that("core Fabric Delta features are handled by the table provider", {
       tables$column_mapped_id,
       tables$spark_oracle_column_mapped_id
     ),
-    column_mapped_id_partitioned_dv = c(
-      tables$column_mapped_id_partitioned_dv,
-      tables$spark_oracle_column_mapped_id_partitioned_dv
-    ),
     struct_validity = c(
       tables$struct_validity,
       tables$spark_oracle_struct_validity
-    ),
-    deletion_vectors = c(
-      tables$deletion_vectors,
-      tables$spark_oracle_deletion_vectors
-    ),
-    file_row_number_collision = c(
-      tables$file_row_number_collision,
-      tables$spark_oracle_file_row_number_collision
-    ),
-    deletion_vectors_stress = c(
-      tables$deletion_vectors_stress,
-      tables$spark_oracle_deletion_vectors_stress
-    ),
-    deletion_vectors_dense = c(
-      tables$deletion_vectors_dense,
-      tables$spark_oracle_deletion_vectors_dense
-    ),
-    row_tracking = c(
-      tables$row_tracking,
-      tables$spark_oracle_row_tracking
     ),
     shallow_clone = c(
       tables$shallow_clone,
@@ -1148,28 +1104,6 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   expect_equal(nrow(empty_reference), 0L)
   expect_named(empty_reference, c("id", "name", "category", "amount"))
 
-  dense_limit <- fabric_test_read_delta(
-    manifest,
-    lakehouse,
-    tables$deletion_vectors_dense,
-    limit = 10
-  )
-  expect_equal(nrow(dense_limit), 10L)
-  expect_false(any(
-    (dense_limit$id < 10000 & dense_limit$id %% 2 == 0) |
-      (dense_limit$id >= 70000 & dense_limit$id < 80000)
-  ))
-
-  row_tracking <- fabric_test_read_delta(
-    manifest,
-    lakehouse,
-    tables$row_tracking
-  )
-  row_tracking <- row_tracking[order(row_tracking$id), ]
-  expect_named(row_tracking, c("id", "label"))
-  expect_identical(as.character(row_tracking$id), c("1", "2"))
-  expect_identical(row_tracking$label, c("inserted", "updated"))
-  expect_false("_metadata" %in% names(row_tracking))
 })
 
 test_that("unsupported Fabric Delta features fail with actionable errors", {
@@ -1178,6 +1112,12 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
   unsupported <- c(
+    column_mapped_id_partitioned_dv = "deletion-vector",
+    deletion_vectors = "deletion-vector",
+    file_row_number_collision = "deletion-vector",
+    deletion_vectors_stress = "deletion-vector",
+    deletion_vectors_dense = "deletion-vector",
+    row_tracking = "deletion-vector",
     type_widened = "TypeWidening",
     type_widened_exact = "TypeWidening",
     type_widened_pending = "TypeWidening",
@@ -1215,6 +1155,12 @@ test_that("neutral references for unsupported Fabric features fully scan", {
   tables <- lakehouse$tables
   references <- c(
     "oracle_complex_types",
+    "spark_oracle_column_mapped_id_partitioned_dv",
+    "spark_oracle_deletion_vectors",
+    "spark_oracle_file_row_number_collision",
+    "spark_oracle_deletion_vectors_stress",
+    "spark_oracle_deletion_vectors_dense",
+    "spark_oracle_row_tracking",
     "spark_oracle_deletion_vectors_checkpoint",
     "spark_oracle_type_widened",
     "spark_oracle_type_widened_exact",
@@ -1259,16 +1205,10 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
   sources <- c(
     tables$column_mapped,
     tables$column_mapped_id,
-    tables$column_mapped_id_partitioned_dv,
     tables$struct_validity,
-    tables$deletion_vectors,
-    tables$file_row_number_collision,
-    tables$deletion_vectors_stress,
-    tables$deletion_vectors_dense,
-    tables$row_tracking,
     tables$shallow_clone
   )
-  expect_setequal(names(oracle$tables), sources)
+  expect_true(all(sources %in% names(oracle$tables)))
   for (source in sources) {
     expected <- oracle$tables[[source]]
     actual <- fabric_test_read_delta(
@@ -1307,28 +1247,28 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   )
   reference_comparison <- c(
     "partitioned", "column_mapped", "column_mapped_id",
-    "column_mapped_id_partitioned_dv", "struct_validity",
-    "deletion_vectors", "file_row_number_collision",
-    "deletion_vectors_stress", "deletion_vectors_dense", "row_tracking",
-    "shallow_clone",
+    "struct_validity", "shallow_clone",
     "oracle_basic",
     "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
     "oracle_complex_types", "spark_oracle_column_mapped",
     "spark_oracle_column_mapped_id",
-    "spark_oracle_column_mapped_id_partitioned_dv",
-    "spark_oracle_struct_validity", "spark_oracle_deletion_vectors",
-    "spark_oracle_file_row_number_collision",
-    "spark_oracle_deletion_vectors_stress",
-    "spark_oracle_deletion_vectors_dense", "spark_oracle_row_tracking",
-    "spark_oracle_shallow_clone"
+    "spark_oracle_struct_validity", "spark_oracle_shallow_clone"
   )
   unsupported_error <- c(
+    "column_mapped_id_partitioned_dv", "deletion_vectors",
+    "file_row_number_collision", "deletion_vectors_stress",
+    "deletion_vectors_dense", "row_tracking",
     "deletion_vectors_checkpoint",
     "type_widened", "type_widened_exact", "type_widened_pending",
     "type_widened_nested", "type_widened_map_key", "v2_checkpoint",
     "variant", "variant_id_dv"
   )
   full_scan <- c(
+    "spark_oracle_column_mapped_id_partitioned_dv",
+    "spark_oracle_deletion_vectors",
+    "spark_oracle_file_row_number_collision",
+    "spark_oracle_deletion_vectors_stress",
+    "spark_oracle_deletion_vectors_dense", "spark_oracle_row_tracking",
     "spark_oracle_deletion_vectors_checkpoint",
     "spark_oracle_type_widened",
     "spark_oracle_type_widened_exact",
@@ -1398,75 +1338,28 @@ test_that("Fabric Variant preview tables fail before exposing physical fields", 
   }
 })
 
-test_that("the delta-rs reader reads the Fabric Warehouse export profile", {
+test_that("Fabric Warehouse exports direct users to supported engines", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
 
-  types <- fabric_test_read_delta(
-    manifest,
-    warehouse,
-    warehouse$tables$types,
-    schema = "dbo"
-  )
-  expect_s3_class(types, "tbl_df")
-  types <- types[order(types$id), ]
-  expect_named(
-    types,
-    c(
-      "id",
-      "name",
-      "category",
-      "amount",
-      "active",
-      "event_date",
-      "loaded_at",
-      "nullable_value"
+  for (table in unlist(warehouse$tables, use.names = FALSE)) {
+    condition <- tryCatch(
+      fabric_test_read_delta(
+        manifest,
+        warehouse,
+        table,
+        schema = "dbo"
+      ),
+      error = identity
     )
-  )
-  expect_equal(types$id, 1:3)
-  expect_identical(types$name, c("alpha", "beta", "gamma"))
-  expect_identical(types$category, c("A", "B", "A"))
-  expect_identical(types$amount, c("10.50", "20.00", NA_character_))
-  expect_identical(types$active, c(TRUE, FALSE, NA))
-  expect_identical(
-    types$event_date,
-    as.Date(c("2026-01-01", "2026-01-02", NA_character_))
-  )
-  expect_s3_class(types$loaded_at, "POSIXct")
-  expect_identical(
-    types$nullable_value,
-    c(NA_character_, "present", NA_character_)
-  )
-
-  mutations <- fabric_test_read_delta(
-    manifest,
-    warehouse,
-    warehouse$tables$mutations,
-    schema = "dbo"
-  )
-  expect_s3_class(mutations, "tbl_df")
-  mutations <- mutations[order(mutations$id), ]
-  expect_named(mutations, names(types))
-  expect_equal(mutations$id, c(2L, 3L, 4L))
-  expect_identical(
-    mutations$name,
-    c("beta-updated", "gamma", "alpha-replacement")
-  )
-  expect_identical(mutations$amount, c("20.00", NA_character_, "10.50"))
-
-  named_types <- fabric_onelake_read_delta_table(
-    table_path = warehouse$tables$types,
-    workspace_name = manifest$workspace_name,
-    lakehouse_name = warehouse$display_name,
-    item_type = "Warehouse",
-    token = fabric_test_token_provider(),
-    verbose = FALSE
-  )
-  named_types <- named_types[order(named_types$id), ]
-  rownames(types) <- NULL
-  rownames(named_types) <- NULL
-  expect_equal(named_types, types)
+    expect_s3_class(
+      condition,
+      "fabric_delta_unsupported_feature_error"
+    )
+    expect_identical(condition$delta_features, "DeletionVectors")
+    expect_match(conditionMessage(condition), "Fabric SQL or PySpark")
+  }
 })
 
 test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {

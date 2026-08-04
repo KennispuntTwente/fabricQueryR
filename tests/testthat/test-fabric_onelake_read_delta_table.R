@@ -233,42 +233,17 @@ test_that("Delta public projection, limit, version, and compatibility arguments 
   expect_equal(value$id, 1L)
 })
 
-test_that("DataFusion queries quote identifiers and exact whole numbers", {
+test_that("Delta queries project and limit without feature workarounds", {
   expect_identical(
-    fabric_delta_query(c("normal", "quote\"inside", "select"), 2^53),
+    fabric_delta_query(c("normal", "quote\"inside"), 2^53),
     paste0(
-      "SELECT \"normal\", \"quote\"\"inside\", \"select\" ",
+      "SELECT \"normal\", \"quote\"\"inside\" ",
       "FROM \"fabric_delta_table\" LIMIT 9007199254740992"
     )
   )
   expect_identical(
     fabric_delta_query(NULL, NULL),
     "SELECT * FROM \"fabric_delta_table\""
-  )
-  limited <- fabric_delta_query(NULL, 2)
-  expect_identical(
-    limited,
-    "SELECT * FROM \"fabric_delta_table\" LIMIT 2"
-  )
-  expect_false(grepl("ORDER BY", limited, fixed = TRUE))
-  expect_identical(
-    fabric_delta_whole_number_text(2147483648),
-    "2147483648"
-  )
-  expect_identical(
-    fabric_delta_query(
-      columns = c("id", "__fabric_delta_limit_row_number__"),
-      limit = 2,
-      has_deletion_vectors = TRUE,
-      all_columns = c("id", "__fabric_delta_limit_row_number__")
-    ),
-    paste0(
-      "SELECT \"id\", \"__fabric_delta_limit_row_number__\" ",
-      "FROM (SELECT \"id\", \"__fabric_delta_limit_row_number__\", ",
-      "ROW_NUMBER() OVER () AS \"__fabric_delta_limit_row_number___\" ",
-      "FROM \"fabric_delta_table\") AS \"__fabric_delta_limited__\" ",
-      "WHERE \"__fabric_delta_limit_row_number___\" <= 2"
-    )
   )
 })
 
@@ -736,118 +711,6 @@ test_that("Python failures are classified and bearer tokens are redacted", {
     c("TypeWidening", "V2Checkpoint")
   )
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
-})
-
-test_that("deletion-vector validation accepts serialized large-file scans", {
-  expect_no_error(
-    fabric_delta_validate_deletion_vectors(
-      features = "deletionVectors",
-      deletion_vector_rows = c(100L, 65536L)
-    )
-  )
-  expect_no_error(
-    fabric_delta_validate_deletion_vectors(
-      features = character(),
-      deletion_vector_rows = 100000L
-    )
-  )
-  expect_no_error(
-    fabric_delta_validate_deletion_vectors(
-      features = "deletionVectors",
-      deletion_vector_rows = numeric()
-    )
-  )
-  expect_identical(
-    fabric_delta_validate_deletion_vectors(
-      features = "DeletionVectors",
-      deletion_vector_rows = c(10L, 100000L)
-    ),
-    c(10L, 100000L)
-  )
-
-  unknown <- tryCatch(
-    fabric_delta_validate_deletion_vectors(
-      features = "deletionVectors",
-      deletion_vector_rows = c(10L, NA_real_)
-    ),
-    error = identity
-  )
-  expect_s3_class(unknown, "fabric_delta_unsupported_feature_error")
-  expect_identical(
-    unknown$delta_features,
-    "UnmeasuredDeletionVectorFile"
-  )
-  expect_identical(unknown$deletion_vector_unknown_files, 1L)
-  expect_match(conditionMessage(unknown), "selection-vector length")
-})
-
-test_that("deletion-vector list lengths use Arrow offsets", {
-  skip_if_not_installed("arrow")
-  values <- arrow::Array$create(
-    list(c(TRUE, FALSE), logical(), NULL, c(TRUE, TRUE, FALSE)),
-    type = arrow::list_of(arrow::boolean())
-  )
-  array <- nanoarrow::as_nanoarrow_array(values)
-
-  expect_identical(
-    fabric_delta_list_array_lengths(array),
-    c(2, 0, NA_real_, 3)
-  )
-  expect_identical(
-    fabric_delta_list_array_lengths(
-      nanoarrow::as_nanoarrow_array(values$Slice(1L, 2L))
-    ),
-    c(0, NA_real_)
-  )
-})
-
-test_that("LIMIT 0 avoids deletion-vector mask materialization", {
-  deletion_vector_calls <- 0L
-  queries <- character()
-  table <- new.env(parent = emptyenv())
-  builder <- new.env(parent = emptyenv())
-  builder$register <- function(...) invisible(NULL)
-  builder$execute <- function(sql) {
-    queries <<- c(queries, sql)
-    reader <- new.env(parent = emptyenv())
-    reader$sql <- sql
-    reader$read_all <- function() invisible(NULL)
-    reader
-  }
-  deltalake <- new.env(parent = emptyenv())
-  deltalake$DeltaTable <- function(...) table
-  deltalake$QueryBuilder <- function() builder
-  builtins <- new.env(parent = emptyenv())
-  builtins$int <- function(value) value
-
-  local_mocked_bindings(
-    .delta_python = list(deltalake = deltalake, builtins = builtins),
-    fabric_delta_validate_runtime = function(...) invisible(NULL),
-    fabric_delta_validate_snapshot_columns = function(...) invisible(NULL),
-    fabric_delta_snapshot_columns = function(...) "id",
-    fabric_delta_validate_deletion_vectors = function(...) {
-      deletion_vector_calls <<- deletion_vector_calls + 1L
-      100000
-    }
-  )
-
-  expect_no_error(fabric_delta_python_reader("table", limit = 0))
-  expect_identical(deletion_vector_calls, 0L)
-  expect_no_error(fabric_delta_python_reader("table", limit = 1))
-  expect_identical(deletion_vector_calls, 1L)
-  expect_identical(
-    queries,
-    c(
-      "SELECT * FROM \"fabric_delta_table\" LIMIT 0",
-      "SET datafusion.execution.target_partitions = 1",
-      paste0(
-        "SELECT \"id\" FROM (SELECT \"id\", ROW_NUMBER() OVER () AS ",
-        "\"__fabric_delta_limit_row_number__\" FROM ",
-        "\"fabric_delta_table\") AS \"__fabric_delta_limited__\" WHERE ",
-        "\"__fabric_delta_limit_row_number__\" <= 1"
-      )
-    )
-  )
 })
 
 test_that("collection validity descriptors do not retain Arrow data arrays", {

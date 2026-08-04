@@ -1,6 +1,5 @@
 .fabric_delta_max_exact_version <- 2^53
 .fabric_delta_result_types <- c("tibble", "arrow_stream")
-.fabric_delta_query_table <- "fabric_delta_table"
 
 #' Read a Delta table from Microsoft Fabric OneLake
 #'
@@ -38,9 +37,10 @@
 #' also meet the restrictions for external Delta readers. See
 #' [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 #'
-#' Tables that require Type Widening, V2 Checkpoints, or Fabric Variant preview
-#' features are not currently supported. Use Fabric PySpark when broader Delta
-#' feature support is needed.
+#' Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
+#' Fabric Variant preview features are not currently supported. This includes
+#' current Fabric Warehouse Delta exports. Use Fabric SQL or PySpark when
+#' broader Delta feature support is needed.
 #'
 #' To preserve exact values, Delta `long` columns normally use
 #' [bit64::integer64()] and decimal columns are returned as character vectors.
@@ -602,7 +602,7 @@ fabric_delta_read_uri <- function(
   fabric_delta_collect_reader(reader)
 }
 
-#' Open a delta-rs DataFusion query
+#' Open a delta-rs Arrow query
 #' @keywords internal
 #' @noRd
 fabric_delta_python_reader <- function(
@@ -634,28 +634,28 @@ fabric_delta_python_reader <- function(
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
   fabric_delta_validate_snapshot_columns(table, columns, item_type)
-  deletion_vector_rows <- if (!isTRUE(limit == 0)) {
-    fabric_delta_validate_deletion_vectors(table)
-  } else {
-    numeric()
+  features <- reticulate::py_to_r(table$protocol()$reader_features)
+  features <- if (is.null(features)) character() else as.character(features)
+  if (any(tolower(features) == "deletionvectors")) {
+    rlang::abort(
+      c(
+        "The selected Delta table requires deletion-vector support.",
+        "i" = paste0(
+          "The deltalake runtime does not support deletion-vector reads ",
+          "through its stable table API. Use Fabric SQL or PySpark instead."
+        )
+      ),
+      class = c(
+        "fabric_delta_unsupported_feature_error",
+        "fabric_delta_unsupported_error",
+        "fabric_delta_error"
+      ),
+      delta_features = "DeletionVectors"
+    )
   }
-  has_deletion_vectors <- length(deletion_vector_rows) > 0L
   builder <- .delta_python$deltalake$QueryBuilder()
-  fabric_delta_configure_deletion_vector_scan(
-    builder,
-    has_deletion_vectors
-  )
-  builder$register(.fabric_delta_query_table, table)
-  reader <- builder$execute(fabric_delta_query(
-    columns,
-    limit,
-    has_deletion_vectors = has_deletion_vectors,
-    all_columns = if (has_deletion_vectors && !is.null(limit) && limit > 0) {
-      fabric_delta_snapshot_columns(table)
-    } else {
-      NULL
-    }
-  ))
+  builder$register("fabric_delta_table", table)
+  reader <- builder$execute(fabric_delta_query(columns, limit))
   attr(reader, "fabric_delta_table") <- table
   attr(reader, "fabric_delta_query_builder") <- builder
   reader
@@ -697,148 +697,7 @@ fabric_delta_validate_snapshot_columns <- function(
   )
 }
 
-#' Return the snapshot's enabled Delta reader features
-#' @keywords internal
-#' @noRd
-fabric_delta_reader_features <- function(table) {
-  features <- reticulate::py_to_r(table$protocol()$reader_features)
-  if (is.null(features)) character() else as.character(features)
-}
-
-#' Return physical row counts from active Delta add-action statistics
-#' @keywords internal
-#' @noRd
-fabric_delta_active_file_rows <- function(table) {
-  rows <- table$get_add_actions()$column("num_records")$to_pylist()
-  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(rows)))
-  if (!count) {
-    return(numeric())
-  }
-  vapply(
-    seq_len(count) - 1L,
-    function(index) {
-      value <- reticulate::py_to_r(
-        rows$`__getitem__`(.delta_python$builtins$int(index))
-      )
-      if (is.null(value)) NA_real_ else as.double(value)
-    },
-    numeric(1)
-  )
-}
-
-#' Return physical row counts only for files carrying deletion vectors
-#' @keywords internal
-#' @noRd
-fabric_delta_deletion_vector_rows <- function(table) {
-  reader <- table$deletion_vectors()
-  schema <- nanoarrow::as_nanoarrow_schema(reader$schema)
-  selection_index <- match("selection_vector", names(schema$children))
-  if (is.na(selection_index)) {
-    return(NA_real_)
-  }
-  selection_schema <- schema$children[[selection_index]]
-  if (!identical(selection_schema$format, "+l")) {
-    return(NA_real_)
-  }
-
-  stream <- nanoarrow::as_nanoarrow_array_stream(reader)
-  arrays <- nanoarrow::collect_array_stream(stream)
-  if (!length(arrays)) {
-    return(numeric())
-  }
-  unlist(
-    lapply(arrays, function(array) {
-      fabric_delta_list_array_lengths(array$children[[selection_index]])
-    }),
-    use.names = FALSE
-  )
-}
-
-#' Read list lengths from Arrow offsets without materializing child values
-#' @keywords internal
-#' @noRd
-fabric_delta_list_array_lengths <- function(array) {
-  descriptor <- list(
-    offset = as.double(array$offset),
-    start = 0,
-    length = as.double(array$length),
-    validity = fabric_delta_copy_array_buffer(array, 1L),
-    offsets = fabric_delta_copy_array_buffer(array, 2L),
-    children = list()
-  )
-  if (!descriptor$length) {
-    return(numeric())
-  }
-  validity <- fabric_delta_array_validity(list(descriptor))
-  lengths <- diff(fabric_delta_list_offsets(descriptor))
-  lengths[!validity] <- NA_real_
-  lengths
-}
-
-#' Validate deletion-vector metadata before configuring a serialized scan
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_deletion_vectors <- function(
-  table = NULL,
-  features = NULL,
-  deletion_vector_rows = NULL
-) {
-  if (is.null(features)) {
-    features <- fabric_delta_reader_features(table)
-  }
-  if (!any(tolower(features) == "deletionvectors")) {
-    return(invisible(numeric()))
-  }
-  if (is.null(deletion_vector_rows)) {
-    deletion_vector_rows <- fabric_delta_deletion_vector_rows(table)
-  }
-  unknown <- is.na(deletion_vector_rows)
-  if (any(unknown)) {
-    rlang::abort(
-      c(
-        paste0(
-          "The selected delta-rs runtime cannot safely scan this ",
-          "deletion-vector-capable snapshot."
-        ),
-        "x" = paste0(
-          sum(unknown),
-          " deletion-vector file(s) have no readable selection-vector length."
-        ),
-        "i" = paste0(
-          "Use a Fabric PySpark notebook for this table, or run REORG TABLE ",
-          "... APPLY (PURGE) in Fabric Spark to rewrite affected files."
-        )
-      ),
-      class = c(
-        "fabric_delta_unsupported_feature_error",
-        "fabric_delta_unsupported_error",
-        "fabric_delta_error"
-      ),
-      delta_features = "UnmeasuredDeletionVectorFile",
-      deletion_vector_unknown_files = sum(unknown)
-    )
-  }
-  invisible(deletion_vector_rows)
-}
-
-#' Serialize scans whose per-file deletion-vector masks are order-dependent
-#' @keywords internal
-#' @noRd
-fabric_delta_configure_deletion_vector_scan <- function(
-  builder,
-  has_deletion_vectors
-) {
-  if (!isTRUE(has_deletion_vectors)) {
-    return(invisible(builder))
-  }
-  configured <- builder$execute(
-    "SET datafusion.execution.target_partitions = 1"
-  )
-  configured$read_all()
-  invisible(builder)
-}
-
-#' Render one exact R whole number for Python or SQL
+#' Render one exact R whole number for Python
 #' @keywords internal
 #' @noRd
 fabric_delta_whole_number_text <- function(value) {
@@ -848,83 +707,25 @@ fabric_delta_whole_number_text <- function(value) {
 #' Build a safe DataFusion projection query
 #' @keywords internal
 #' @noRd
-fabric_delta_query <- function(
-  columns = NULL,
-  limit = NULL,
-  has_deletion_vectors = FALSE,
-  all_columns = NULL
-) {
-  if (isTRUE(has_deletion_vectors) && !is.null(limit) && limit > 0) {
-    projected_columns <- columns %||% all_columns
-    if (is.null(projected_columns) || !length(projected_columns)) {
-      rlang::abort(
-        "Delta columns are required for a deletion-vector LIMIT query",
-        class = c("fabric_delta_conversion_error", "fabric_delta_error")
-      )
-    }
-    projection <- fabric_delta_projection(projected_columns)
-    row_number <- fabric_delta_internal_name(
-      all_columns %||% projected_columns,
-      "__fabric_delta_limit_row_number__"
-    )
-    return(paste0(
-      "SELECT ",
-      projection,
-      " FROM (SELECT ",
-      projection,
-      ", ROW_NUMBER() OVER () AS ",
-      fabric_delta_quote_identifier(row_number),
-      " FROM ",
-      fabric_delta_quote_identifier(.fabric_delta_query_table),
-      ") AS ",
-      fabric_delta_quote_identifier("__fabric_delta_limited__"),
-      " WHERE ",
-      fabric_delta_quote_identifier(row_number),
-      " <= ",
-      fabric_delta_whole_number_text(limit)
-    ))
-  }
-
+fabric_delta_query <- function(columns = NULL, limit = NULL) {
   projection <- if (is.null(columns)) {
     "*"
   } else {
-    fabric_delta_projection(columns)
+    paste(
+      vapply(
+        columns,
+        fabric_delta_quote_identifier,
+        character(1),
+        USE.NAMES = FALSE
+      ),
+      collapse = ", "
+    )
   }
-  query <- paste0(
-    "SELECT ",
-    projection,
-    " FROM ",
-    fabric_delta_quote_identifier(.fabric_delta_query_table)
-  )
+  query <- paste0('SELECT ', projection, ' FROM "fabric_delta_table"')
   if (!is.null(limit)) {
     query <- paste(query, "LIMIT", fabric_delta_whole_number_text(limit))
   }
   query
-}
-
-#' Render a logical Delta projection
-#' @keywords internal
-#' @noRd
-fabric_delta_projection <- function(columns) {
-  paste(
-    vapply(
-      columns,
-      fabric_delta_quote_identifier,
-      character(1),
-      USE.NAMES = FALSE
-    ),
-    collapse = ", "
-  )
-}
-
-#' Choose a collision-free internal DataFusion column name
-#' @keywords internal
-#' @noRd
-fabric_delta_internal_name <- function(columns, candidate) {
-  while (candidate %in% columns) {
-    candidate <- paste0(candidate, "_")
-  }
-  candidate
 }
 
 #' Quote one DataFusion identifier
@@ -934,7 +735,7 @@ fabric_delta_quote_identifier <- function(value) {
   paste0('"', gsub('"', '""', value, fixed = TRUE), '"')
 }
 
-#' Convert a Python Arro3 reader into an R nanoarrow stream
+#' Convert a Python Arrow reader into an R nanoarrow stream
 #' @keywords internal
 #' @noRd
 fabric_delta_reader_stream <- function(reader, collect = FALSE) {

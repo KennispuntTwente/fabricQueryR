@@ -191,14 +191,11 @@ supported Fabric engine for policy-filtered access. See the
 [Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 for details.
 
-Warehouse Delta logs are published asynchronously, so a OneLake read can lag
-the current Warehouse state. Warehouse table and column names must also meet
-the restrictions for external Delta readers. See
-[Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
-
-Tables using Type Widening, V2 Checkpoints, or Fabric Variant preview features
-are not currently supported. Use Fabric PySpark when broader Delta feature
-support is needed. See `?fabric_onelake_read_delta_table` for function options.
+Tables using Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric Variant
+preview features are not currently supported. Current Fabric Warehouse Delta
+exports require Deletion Vectors, so query them through Fabric SQL or PySpark.
+See [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs)
+and `?fabric_onelake_read_delta_table` for details.
 
 ### 5. Work with OneLake files
 

@@ -46,13 +46,14 @@
   `deltalake` runtime instead of staging Delta logs and Parquet files locally.
   The runtime is installed on first Delta use and can be inspected with
   `fabric_delta_config()`; other package functions do not require Python.
-  Delta reads now support Warehouse tables, snapshot versions, column
-  selection, row limits, discovery records, and lazy Arrow streams. Tibble
+  Delta reads now support snapshot versions, column selection, row limits,
+  discovery records, and lazy Arrow streams. Tibble
   results preserve exact long integers and decimals, including within nested
   data. `dest_dir` is deprecated because local staging is no longer used, and
   non-`NULL` `timestamp_partition_timezone` values are no longer supported.
-  Tables requiring Type Widening, V2 Checkpoints, or Fabric Variant preview
-  features remain unsupported.
+  Tables requiring Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric
+  Variant preview features remain unsupported. This includes current Fabric
+  Warehouse Delta exports; use Fabric SQL or PySpark for those tables.
 
 # fabricQueryR 0.2.1
 

@@ -46,6 +46,9 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
 
   expect_identical(manifest$deltalake_version, "1.6.2")
   for (case in manifest$cases) {
+    if (case$table %in% c("deletion_vector_capable", "large_deletion_vector")) {
+      next
+    }
     columns <- unlist(case$columns %||% list(), use.names = FALSE)
     if (!length(columns)) {
       columns <- NULL
@@ -70,40 +73,15 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     )
   }
 
-  capable_table <- .delta_python$deltalake$DeltaTable(
-    file.path(directory, "deletion_vector_capable")
-  )
-  expect_true(
-    "deletionvectors" %in%
-      tolower(fabric_delta_reader_features(capable_table))
-  )
-  expect_gt(
-    max(fabric_delta_active_file_rows(capable_table)),
-    65536
-  )
-  expect_length(fabric_delta_deletion_vector_rows(capable_table), 0L)
-  expect_equal(
-    nrow(fabric_delta_read_uri(
-      file.path(directory, "deletion_vector_capable"),
-      result = "tibble"
-    )),
-    65537L
-  )
-  expect_equal(
-    arrow::as_record_batch_reader(fabric_delta_read_uri(
-      file.path(directory, "deletion_vector_capable"),
-      result = "arrow_stream"
-    ))$read_table()$num_rows,
-    65537L
-  )
+  for (name in c("deletion_vector_capable", "large_deletion_vector")) {
+    error <- tryCatch(
+      fabric_delta_read_uri(file.path(directory, name)),
+      error = identity
+    )
+    expect_s3_class(error, "fabric_delta_unsupported_feature_error")
+    expect_identical(error$delta_features, "DeletionVectors")
+  }
 
-  row_tracking_table <- .delta_python$deltalake$DeltaTable(
-    file.path(directory, "row_tracking_capable")
-  )
-  expect_false(
-    "rowtracking" %in%
-      tolower(fabric_delta_reader_features(row_tracking_table))
-  )
   row_tracking <- fabric_delta_read_uri(
     file.path(directory, "row_tracking_capable"),
     result = "tibble"
@@ -112,36 +90,6 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   expect_named(row_tracking, c("id", "label"))
   expect_identical(as.character(row_tracking$id), c("1", "2"))
   expect_identical(row_tracking$label, c("one", "two"))
-
-  large_vector_path <- file.path(directory, "large_deletion_vector")
-  large_vector_table <- .delta_python$deltalake$DeltaTable(
-    large_vector_path
-  )
-  expect_identical(
-    fabric_delta_deletion_vector_rows(large_vector_table),
-    100000
-  )
-  large_vector <- fabric_delta_read_uri(
-    large_vector_path,
-    result = "tibble"
-  )
-  expect_equal(nrow(large_vector), 99997L)
-  expect_false(any(c("0", "65536", "99999") %in% as.character(
-    large_vector$id
-  )))
-  expect_true(all(c("1", "65535", "65537", "99998") %in% as.character(
-    large_vector$id
-  )))
-  for (attempt in seq_len(3L)) {
-    limited_vector <- fabric_delta_read_uri(
-      large_vector_path,
-      columns = "id",
-      limit = 10,
-      result = "tibble"
-    )
-    expect_equal(nrow(limited_vector), 10L, info = paste("attempt", attempt))
-    expect_false("0" %in% as.character(limited_vector$id))
-  }
 
   invalid_warehouse <- file.path(directory, "warehouse_invalid_columns")
   expect_error(
@@ -181,14 +129,6 @@ test_that("the production bridge preserves exact and nested values", {
     file.path(directory, "primitive"),
     result = "tibble"
   )
-  primitive_table <- .delta_python$deltalake$DeltaTable(
-    file.path(directory, "primitive")
-  )
-  expect_false(
-    "deletionvectors" %in%
-      tolower(fabric_delta_reader_features(primitive_table))
-  )
-  expect_equal(sum(fabric_delta_active_file_rows(primitive_table)), 5)
   expect_s3_class(primitive$id, "integer64")
   expect_true("9007199254740993" %in% as.character(primitive$id))
   expect_true("12.3000" %in% primitive$amount)
