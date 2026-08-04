@@ -81,7 +81,10 @@ before and after shredding is enabled. The R integration suite assigns every
 fixture an explicit disposition: representative tables have static exact-value
 assertions, supported protocol features are compared with Spark-materialized
 neutral references (including deep Arrow equality), unsupported tables assert
-specific errors, and their neutral references are fully scanned.
+specific errors, and their neutral references are fully scanned. Spark also
+publishes an independent, schema-aware canonical oracle for every logical row
+of the supported protocol-feature tables; the R suite compares complete scalar
+and nested values rather than only row counts and keys.
 
 Always remove the workspace after testing:
 

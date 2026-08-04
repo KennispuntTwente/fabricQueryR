@@ -49,10 +49,10 @@ fabric_test_read_delta <- function(
 }
 
 fabric_test_order_delta_rows <- function(value, feature) {
-  key <- intersect(c("id", "row_id"), names(value))
+  key <- intersect(c("id", "row_id", "event_id"), names(value))
   expect_true(
     length(key) == 1L,
-    label = paste(feature, "has one stable id or row_id column")
+    label = paste(feature, "has one stable id, row_id, or event_id column")
   )
   value[order(value[[key]], na.last = TRUE), , drop = FALSE]
 }
@@ -189,7 +189,7 @@ fabric_test_arrow_column_equals <- function(actual, expected) {
   )
 }
 
-fabric_test_spark_key_oracle <- function(manifest, lakehouse) {
+fabric_test_spark_logical_oracle <- function(manifest, lakehouse) {
   payload <- fabric_onelake_download(
     manifest$workspace_id,
     lakehouse$id,
@@ -198,6 +198,223 @@ fabric_test_spark_key_oracle <- function(manifest, lakehouse) {
   )
   jsonlite::fromJSON(rawToChar(payload), simplifyVector = FALSE)
 }
+
+fabric_test_spark_type_name <- function(data_type) {
+  if (is.character(data_type)) {
+    return(data_type)
+  }
+  data_type$type
+}
+
+fabric_test_spark_canonical_primitive <- function(value, data_type) {
+  type_name <- fabric_test_spark_type_name(data_type)
+  if (identical(type_name, "binary")) {
+    if (is.null(value)) {
+      return(NULL)
+    }
+    return(jsonlite::base64_enc(value))
+  }
+  if (
+    is.null(value) ||
+      !length(value) ||
+      (length(value) == 1L && isTRUE(is.na(value)))
+  ) {
+    return(NULL)
+  }
+  if (identical(type_name, "boolean")) {
+    return(as.logical(value))
+  }
+  if (type_name %in% c("float", "double")) {
+    return(as.numeric(value))
+  }
+  if (identical(type_name, "date")) {
+    return(as.character(value))
+  }
+  if (type_name %in% c("timestamp", "timestamp_ntz")) {
+    text <- if (inherits(value, "POSIXt")) {
+      format(value, "%Y-%m-%d %H:%M:%OS6", tz = "UTC")
+    } else {
+      sub("T", " ", as.character(value), fixed = TRUE)
+    }
+    text <- sub("(\\.[0-9]*[1-9])0+$", "\\1", text)
+    return(sub("\\.0+$", "", text))
+  }
+  if (
+    type_name %in% c("byte", "short", "integer", "long") ||
+      startsWith(type_name, "decimal(")
+  ) {
+    return(as.character(value))
+  }
+  as.character(value)
+}
+
+fabric_test_spark_canonical_cell <- function(column, data_type, index) {
+  type_name <- fabric_test_spark_type_name(data_type)
+  if (identical(type_name, "struct")) {
+    if (is.null(column) || isTRUE(is.na(column)[[index]])) {
+      return(NULL)
+    }
+    fields <- data_type$fields
+    values <- lapply(fields, function(field) {
+      fabric_test_spark_canonical_cell(
+        column[[field$name]],
+        field$type,
+        index
+      )
+    })
+    return(stats::setNames(
+      values,
+      vapply(fields, `[[`, character(1), "name")
+    ))
+  }
+  if (type_name %in% c("array", "map")) {
+    return(fabric_test_spark_canonical_value(column[[index]], data_type))
+  }
+  if (identical(type_name, "binary") && is.list(column)) {
+    return(fabric_test_spark_canonical_primitive(
+      column[[index]],
+      data_type
+    ))
+  }
+  fabric_test_spark_canonical_primitive(column[index], data_type)
+}
+
+fabric_test_spark_canonical_value <- function(value, data_type) {
+  type_name <- fabric_test_spark_type_name(data_type)
+  if (identical(type_name, "array")) {
+    if (is.null(value)) {
+      return(NULL)
+    }
+    size <- vctrs::vec_size(value)
+    return(lapply(seq_len(size), function(index) {
+      fabric_test_spark_canonical_cell(
+        value,
+        data_type$elementType,
+        index
+      )
+    }))
+  }
+  if (identical(type_name, "map")) {
+    if (is.null(value)) {
+      return(NULL)
+    }
+    entries <- lapply(seq_len(vctrs::vec_size(value)), function(index) {
+      list(
+        key = fabric_test_spark_canonical_cell(
+          value$key,
+          data_type$keyType,
+          index
+        ),
+        value = fabric_test_spark_canonical_cell(
+          value$value,
+          data_type$valueType,
+          index
+        )
+      )
+    })
+    if (length(entries) > 1L) {
+      labels <- vapply(entries, function(entry) {
+        jsonlite::toJSON(
+          list(value = entry$key),
+          auto_unbox = TRUE,
+          null = "null",
+          digits = NA
+        )
+      }, character(1))
+      entries <- entries[order(labels)]
+    }
+    return(entries)
+  }
+  if (identical(type_name, "struct")) {
+    return(fabric_test_spark_canonical_cell(value, data_type, 1L))
+  }
+  fabric_test_spark_canonical_primitive(value, data_type)
+}
+
+fabric_test_spark_canonical_rows <- function(value, schema) {
+  fields <- schema$fields
+  lapply(seq_len(nrow(value)), function(index) {
+    values <- lapply(fields, function(field) {
+      fabric_test_spark_canonical_cell(
+        value[[field$name]],
+        field$type,
+        index
+      )
+    })
+    stats::setNames(
+      values,
+      vapply(fields, `[[`, character(1), "name")
+    )
+  })
+}
+
+test_that("Spark logical-row canonicalization preserves complex values", {
+  profile <- fabric_delta_new_struct_column(
+    data.frame(
+      number = c(NA_integer_, NA_integer_),
+      text = c(NA_character_, NA_character_)
+    ),
+    c(TRUE, FALSE)
+  )
+  first_map <- data.frame(key = c("b", "a"))
+  first_map$value <- bit64::as.integer64(c("2", "1"))
+  first_map <- fabric_delta_new_struct_column(first_map, c(TRUE, TRUE))
+  empty_map <- data.frame(key = character())
+  empty_map$value <- bit64::integer64()
+  empty_map <- fabric_delta_new_struct_column(empty_map, logical())
+  value <- tibble::tibble(
+    id = bit64::as.integer64(c("9007199254740993", "2")),
+    profile = profile,
+    readings = list(c(2L, 1L), integer()),
+    lookup = list(first_map, empty_map)
+  )
+  schema <- list(fields = list(
+    list(name = "id", type = "long"),
+    list(
+      name = "profile",
+      type = list(
+        type = "struct",
+        fields = list(
+          list(name = "number", type = "integer"),
+          list(name = "text", type = "string")
+        )
+      )
+    ),
+    list(
+      name = "readings",
+      type = list(type = "array", elementType = "integer")
+    ),
+    list(
+      name = "lookup",
+      type = list(
+        type = "map",
+        keyType = "string",
+        valueType = "long"
+      )
+    )
+  ))
+
+  expect_equal(
+    fabric_test_spark_canonical_rows(value, schema),
+    list(
+      list(
+        id = "9007199254740993",
+        profile = list(number = NULL, text = NULL),
+        readings = list("2", "1"),
+        lookup = list(
+          list(key = "a", value = "1"),
+          list(key = "b", value = "2")
+        )
+      ),
+      list(
+        id = "2",
+        profile = NULL,
+        readings = list(),
+        lookup = list()
+      )
+    )
+  )
+})
 
 fabric_test_expect_arrow_matches_reference <- function(
   manifest,
@@ -1011,13 +1228,14 @@ test_that("neutral references for unsupported Fabric features fully scan", {
   }
 })
 
-test_that("supported Delta rows match the independent Spark key oracle", {
+test_that("supported Delta rows match the independent Spark logical oracle", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
-  oracle <- fabric_test_spark_key_oracle(manifest, lakehouse)
-  expect_identical(oracle$format_version, 1L)
+  oracle <- fabric_test_spark_logical_oracle(manifest, lakehouse)
+  expect_identical(oracle$format_version, 2L)
+  expect_identical(oracle$canonicalization, "spark-logical-v1")
 
   sources <- c(
     tables$column_mapped,
@@ -1046,10 +1264,15 @@ test_that("supported Delta rows match the independent Spark key oracle", {
     )
     expect_equal(nrow(actual), expected$row_count, info = source)
     expect_false(anyDuplicated(actual[[key]]) > 0L, info = source)
-    expect_identical(
-      sort(as.character(actual[[key]])),
-      sort(unlist(expected$key_values, use.names = FALSE)),
-      info = source
+    actual <- fabric_test_order_delta_rows(actual, source)
+    actual_rows <- fabric_test_spark_canonical_rows(
+      actual,
+      expected$schema
+    )
+    expect_equal(
+      actual_rows,
+      expected$rows,
+      info = paste(source, "complete Spark logical rows")
     )
   }
 })

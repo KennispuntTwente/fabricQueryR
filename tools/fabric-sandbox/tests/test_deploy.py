@@ -51,6 +51,12 @@ def test_seed_notebook_ids_are_parameterized():
     assert "ADD COLUMNS (profile.metadata_only STRING)" in notebook
     assert "dbo.fabricqueryr_struct_validity" in notebook
     assert "dbo.fabricqueryr_file_row_number_collision" in notebook
+    assert '"canonicalization": "spark-logical-v1"' in notebook
+    assert '"format_version": 2' in notebook
+    assert "def canonical_spark_value(column, data_type):" in notebook
+    assert '"rows": rows' in notebook
+    assert '"schema": without_delta_metadata(' in notebook
+    assert '"key_values"' not in notebook
     assert (
         '.saveAsTable("dbo.fabricqueryr_oracle_typed_partitions")'
         in notebook

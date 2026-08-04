@@ -1512,7 +1512,7 @@ try:
     for source, target in reader_oracles.items():
         write_reader_oracle(f"dbo.{source}", target)
 
-    stage = "publish independent Spark Delta key oracle"
+    stage = "publish independent Spark Delta logical-row oracle"
     supported_reader_sources = [
         "fabricqueryr_column_mapped",
         "fabricqueryr_column_mapped_id",
@@ -1524,7 +1524,75 @@ try:
         "fabricqueryr_deletion_vectors_dense",
         "fabricqueryr_shallow_clone",
     ]
-    spark_key_oracle = {"format_version": 1, "tables": {}}
+
+    oracle_json_options = {"ignoreNullFields": "false"}
+
+    def canonical_spark_value(column, data_type):
+        if isinstance(data_type, StructType):
+            value = F.struct(
+                *[
+                    canonical_spark_value(
+                        column.getField(field.name),
+                        field.dataType,
+                    ).alias(field.name)
+                    for field in data_type.fields
+                ]
+            )
+            return F.when(column.isNull(), F.lit(None)).otherwise(value)
+        if isinstance(data_type, ArrayType):
+            value = F.transform(
+                column,
+                lambda element: canonical_spark_value(
+                    element,
+                    data_type.elementType,
+                ),
+            )
+            return F.when(column.isNull(), F.lit(None)).otherwise(value)
+        if isinstance(data_type, MapType):
+
+            def canonical_entry(entry):
+                key = canonical_spark_value(
+                    entry["key"],
+                    data_type.keyType,
+                )
+                value = canonical_spark_value(
+                    entry["value"],
+                    data_type.valueType,
+                )
+                sort_key = F.to_json(
+                    F.struct(key.alias("value")),
+                    oracle_json_options,
+                )
+                return F.struct(
+                    sort_key.alias("sort_key"),
+                    key.alias("key"),
+                    value.alias("value"),
+                )
+
+            entries = F.array_sort(
+                F.transform(F.map_entries(column), canonical_entry)
+            )
+            value = F.transform(
+                entries,
+                lambda entry: F.struct(
+                    entry["key"].alias("key"),
+                    entry["value"].alias("value"),
+                ),
+            )
+            return F.when(column.isNull(), F.lit(None)).otherwise(value)
+
+        type_name = data_type.typeName()
+        if type_name == "binary":
+            return F.base64(column)
+        if type_name in {"boolean", "float", "double", "string"}:
+            return column
+        return column.cast("string")
+
+    spark_logical_oracle = {
+        "canonicalization": "spark-logical-v1",
+        "format_version": 2,
+        "tables": {},
+    }
     for source in supported_reader_sources:
         source_frame = spark.table(f"dbo.{source}")
         key_columns = [
@@ -1537,25 +1605,50 @@ try:
                 f"Expected one stable key for {source}, got {key_columns}"
             )
         key = key_columns[0]
-        key_values = [
-            str(row[key])
-            for row in source_frame.select(key).orderBy(key).collect()
-        ]
+        ordered_frame = source_frame.orderBy(F.col(key))
+        canonical_frame = ordered_frame.select(
+            *[
+                canonical_spark_value(
+                    ordered_frame[field.name],
+                    field.dataType,
+                ).alias(field.name)
+                for field in ordered_frame.schema.fields
+            ]
+        )
+        row_payloads = (
+            canonical_frame.select(
+                F.to_json(
+                    F.struct(
+                        *[
+                            canonical_frame[column]
+                            for column in canonical_frame.columns
+                        ]
+                    ),
+                    oracle_json_options,
+                ).alias("row_json")
+            )
+            .collect()
+        )
+        rows = [json.loads(row["row_json"]) for row in row_payloads]
+        key_values = [row[key] for row in rows]
         if len(key_values) != len(set(key_values)):
             raise RuntimeError(f"Expected unique keys for {source}")
-        spark_key_oracle["tables"][source] = {
+        spark_logical_oracle["tables"][source] = {
             "columns": source_frame.columns,
             "key": key,
-            "key_values": key_values,
-            "row_count": len(key_values),
+            "row_count": len(rows),
+            "rows": rows,
+            "schema": without_delta_metadata(
+                source_frame.schema
+            ).jsonValue(),
         }
-    spark_key_oracle_path = (
+    spark_logical_oracle_path = (
         f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
         f"{lakehouse_id}/Files/fixtures/delta-reader-spark-oracle.json"
     )
     mssparkutils.fs.put(
-        spark_key_oracle_path,
-        json.dumps(spark_key_oracle, separators=(",", ":"), sort_keys=True),
+        spark_logical_oracle_path,
+        json.dumps(spark_logical_oracle, separators=(",", ":")),
         True,
     )
     write_reader_oracle(
