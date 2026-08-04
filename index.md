@@ -188,13 +188,9 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-Arrow streams are lazy and single-use. Consume them promptly because
-they use the access token captured when the stream is opened.
-
-Tibble collection intentionally covers common scalar Delta columns.
-Exact `long`, decimal, and `timestamp_ntz` values are returned as
-character vectors; nested and extension columns require
-`result = "arrow_stream"`.
+The default tibble result supports common scalar columns. For large
+tables or nested/extension data, request a lazy, single-use Arrow stream
+instead.
 
 Direct Delta reads require OneLake data access; item **Read** permission
 alone is not enough. The caller needs **ReadAll** or a suitable OneLake
@@ -203,10 +199,8 @@ access data stored in OneLake with apps external to Fabric** in [OneLake
 tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
 
-OneLake blocks direct reads when the caller is restricted by row- or
-column-level security because this function cannot apply those policies.
-Use a supported Fabric engine for policy-filtered access. See the
-[Fabric permission
+Callers restricted by row- or column-level security must use a supported
+Fabric engine instead. See the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 for details.
 

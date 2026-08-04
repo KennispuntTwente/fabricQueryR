@@ -105,49 +105,29 @@ stream compatible with
 
 ## Details
 
-Supply the table, workspace, and Lakehouse or Warehouse. Discovery
-records returned by fabricQueryR can be used instead of names. The
-`schema` and `item_type` are usually inferred when discovery records or
-item suffixes are used.
+Supply names, IDs, or discovery records for the workspace and Lakehouse
+or Warehouse. `schema` and `item_type` are usually inferred.
 
 Direct reads require OneLake data access; item `Read` permission by
 itself is not enough. The caller needs `ReadAll` or a suitable OneLake
 data-access role, and the tenant setting for external OneLake apps must
-be enabled. This function cannot apply OneLake row- or column-level
-security, so OneLake blocks reads for callers restricted by those
-policies. See the [Fabric permission
+be enabled. Callers restricted by row- or column-level security must use
+a supported Fabric engine instead. See the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 and [OneLake tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
 
-The first call may take longer while the required Python packages are
-set up. If `RETICULATE_PYTHON` points to an environment you manage,
-install the versions reported by
-[`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
-in that environment.
+The first Delta read may set up the optional Python runtime. A tibble
+loads common scalar columns into memory: `integer` becomes double, and
+`long`, decimal, and `timestamp_ntz` become character. For large,
+nested, or extension data, request the lazy, single-use
+`result = "arrow_stream"` instead. `limit` is unordered and is not
+suitable for pagination; use `version` to select a specific snapshot.
 
-A tibble is loaded fully into memory. `result = "arrow_stream"` instead
-returns a lazy, single-use stream for batch processing. Consume it
-promptly, because it uses the access token captured when the stream was
-opened.
-
-`limit` does not define an order. It is useful for previews, but not for
-stable pagination. Use `version` to read a specific Delta snapshot.
-
-Warehouse Delta snapshots are published asynchronously and current
-exports require Deletion Vectors, which this function does not support.
-See [Delta Lake logs in
+Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant are
+not supported. Current Warehouse Delta exports require Deletion Vectors;
+use Fabric SQL or PySpark for those tables. See [Delta Lake logs in
 Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
-
-Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
-Fabric Variant preview features are not currently supported. Use Fabric
-SQL or PySpark when broader Delta feature support is needed.
-
-Tibble collection supports common scalar columns. Delta `integer` values
-are returned as doubles, while `long`, decimal, and `timestamp_ntz`
-values are returned as character vectors to avoid R sentinel and
-precision ambiguity. Nested and extension columns require
-`result = "arrow_stream"`.
 
 ## Examples
 
