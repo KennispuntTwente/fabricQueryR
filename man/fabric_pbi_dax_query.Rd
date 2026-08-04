@@ -94,11 +94,12 @@ required \code{query} property is supplied from \code{dax}. Used only by
 With \code{result = "tibble"}, a tibble containing the single result
 table. With \verb{api = "arrow", result = "arrow_stream"}, a
 \code{nanoarrow_array_stream}. Power BI's column names are preserved. An empty
-result becomes a typed zero-row result; API errors, multiple rowsets, and
-partial/truncated JSON results raise an error rather than silently
-returning incomplete data. When \code{executionMetrics = TRUE}, the metrics
-rowset is attached to either result as an \code{execution_metrics} tibble
-attribute.
+Arrow result becomes a typed zero-row result. Because the JSON API does not
+provide column metadata for an empty table, that path returns a zero-row,
+zero-column tibble. API errors, multiple rowsets, and partial/truncated
+JSON results raise an error rather than silently returning incomplete data.
+When \code{executionMetrics = TRUE}, the metrics rowset is attached to either
+result as an \code{execution_metrics} tibble attribute.
 }
 \description{
 Runs a Data Analysis Expressions (DAX) query against a published semantic
