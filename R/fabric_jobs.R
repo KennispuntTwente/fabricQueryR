@@ -81,6 +81,8 @@
 #'   Job submission and cancellation require `Item.Execute.All` or
 #'   the corresponding workload-specific execute permission.
 #' @param api_base Fabric REST API base URL. Most users should keep the default.
+#'   A discovered workspace-specific endpoint is used unless this argument is
+#'   supplied explicitly.
 #' @details Notebook status uses Fabric's workload-specific beta endpoint first
 #'   and falls back to the core scheduler when that endpoint is unavailable.
 #'   A beta response that says `Completed` but contains neither an exit value
@@ -143,6 +145,7 @@ fabric_job_run <- function(
   auth_args = list(),
   api_base = .fabric_api_base
 ) {
+  api_base_supplied <- !missing(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -155,8 +158,10 @@ fabric_job_run <- function(
     workspace,
     item_type,
     credential,
-    base
+    base,
+    use_workspace_endpoint = !api_base_supplied
   )
+  base <- target$api_base
   route <- .fabric_job_route(target$item_type, job_type)
   execution_data <- .fabric_job_execution_data(
     target = target,
@@ -244,6 +249,7 @@ fabric_job_status <- function(
   auth_args = list(),
   api_base = .fabric_api_base
 ) {
+  api_base_supplied <- !missing(api_base)
   context <- .fabric_job_context(
     job = job,
     workspace = workspace,
@@ -255,7 +261,8 @@ fabric_job_status <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
-    api_base = api_base
+    api_base = api_base,
+    use_workspace_endpoint = !api_base_supplied
   )
   .fabric_job_get_status(context, allow_not_found = FALSE)
 }
@@ -429,6 +436,7 @@ fabric_job_cancel <- function(
   auth_args = list(),
   api_base = .fabric_api_base
 ) {
+  api_base_supplied <- !missing(api_base)
   context <- .fabric_job_context(
     job = job,
     workspace = workspace,
@@ -440,7 +448,8 @@ fabric_job_cancel <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
-    api_base = api_base
+    api_base = api_base,
+    use_workspace_endpoint = !api_base_supplied
   )
   url <- paste0(
     context$api_base,
@@ -557,7 +566,8 @@ print.fabric_job_instance <- function(x, ...) {
   workspace,
   item_type,
   credential,
-  api_base
+  api_base,
+  use_workspace_endpoint = TRUE
 ) {
   item_record <- fabric_as_record(item)
   workspace_record <- fabric_as_record(workspace)
@@ -566,26 +576,28 @@ print.fabric_job_instance <- function(x, ...) {
     "workspaceId",
     "workspace_id"
   )
+  target_api_base <- if (isTRUE(use_workspace_endpoint)) {
+    fabric_workspace_api_base(item_record %||% list(), api_base)
+  } else {
+    api_base
+  }
   if (!is.null(workspace)) {
-    workspace_id <- fabric_record_value(
-      workspace_record %||% list(),
-      "id",
-      "workspaceId",
-      "workspace_id"
-    )
     if (
-      is.null(workspace_id) &&
+      is.null(workspace_record) &&
         is.character(workspace) &&
         length(workspace) == 1L &&
         fabric_is_guid(workspace)
     ) {
       workspace_id <- workspace
     } else {
-      workspace_id <- fabric_resolve_workspace(
+      resolved_workspace <- fabric_resolve_workspace(
         workspace,
         credential,
-        api_base
-      )$id
+        api_base,
+        use_workspace_endpoint = use_workspace_endpoint
+      )
+      workspace_id <- resolved_workspace$id
+      target_api_base <- resolved_workspace$api_base %||% target_api_base
     }
     fabric_validate_item_workspace(item_record %||% list(), workspace_id)
   } else {
@@ -632,7 +644,8 @@ print.fabric_job_instance <- function(x, ...) {
   list(
     workspace_id = workspace_id,
     item_id = item_id,
-    item_type = resolved_type
+    item_type = resolved_type,
+    api_base = target_api_base
   )
 }
 
@@ -1341,7 +1354,8 @@ print.fabric_job_instance <- function(x, ...) {
   client_id = NULL,
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  use_workspace_endpoint = TRUE
 ) {
   if (inherits(job, "fabric_job")) {
     if (!is.null(job_instance_id)) {
@@ -1390,8 +1404,10 @@ print.fabric_job_instance <- function(x, ...) {
     workspace,
     item_type,
     credential,
-    base
+    base,
+    use_workspace_endpoint = use_workspace_endpoint
   )
+  base <- target$api_base
   route <- .fabric_job_route(target$item_type, job_type)
   handle <- structure(
     list(

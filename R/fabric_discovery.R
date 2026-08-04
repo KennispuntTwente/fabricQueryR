@@ -26,7 +26,9 @@
 #'   `https://api.fabric.microsoft.com/.default` audience and requires
 #'   `Workspace.Read.All` or `Workspace.ReadWrite.All`.
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
-#'   different Fabric cloud or a test service.
+#'   different Fabric cloud or a test service. When `workspace` is a record
+#'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
+#'   `api_base` is supplied explicitly.
 #'
 #' @return A plain list with one `fabric_workspace` object per workspace. Each
 #'   object is a named list containing the fields returned by Fabric, such as
@@ -95,8 +97,9 @@ fabric_workspaces <- function(
 #' such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.
 #'
 #' @param workspace Workspace GUID, exact display name, or a workspace record
-#'   returned by [fabric_workspaces()]. A record or GUID avoids an extra lookup;
-#'   a name is often easier for interactive use.
+#'   returned by [fabric_workspaces()]. A record avoids an extra lookup and, if
+#'   it contains `apiEndpoint`, routes workspace calls through that endpoint. A
+#'   name is often easier for interactive use.
 #' @param type Optional Fabric API item type, for example `"Lakehouse"`,
 #'   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
 #'   Fabric, so use the API spelling. Leave `NULL` to list all item types.
@@ -117,8 +120,10 @@ fabric_workspaces <- function(
 #'   `workspaceId`, and `folderId`. With `detail = TRUE`, applicable objects
 #'   also contain ready-to-use `sql_connection_string`,
 #'   `one_lake_*_path`, `dax_connection_string`, `livy_url`,
-#'   `query_service_uri`, or `graphql_endpoint` values. Fields that do not apply
-#'   to an item are absent; `detail_error` records failed enrichment requests.
+#'   `query_service_uri`, or `graphql_endpoint` values. When supplied by
+#'   Fabric, `workspaceApiEndpoint` preserves the workspace-specific API origin
+#'   for later job calls. Fields that do not apply to an item are absent;
+#'   `detail_error` records failed enrichment requests.
 #'   Nested service data is retained in place, including in `properties`.
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
@@ -146,6 +151,7 @@ fabric_items <- function(
   auth_args = list(),
   api_base = .fabric_api_base
 ) {
+  api_base_supplied <- !missing(api_base)
   if (
     !is.null(type) &&
       (!is.character(type) ||
@@ -169,7 +175,13 @@ fabric_items <- function(
     auth_args = auth_args
   )
   base <- fabric_api_base(api_base)
-  ws <- fabric_resolve_workspace(workspace, credential, base)
+  ws <- fabric_resolve_workspace(
+    workspace,
+    credential,
+    base,
+    use_workspace_endpoint = !api_base_supplied
+  )
+  base <- ws$api_base %||% base
   req <- httr2::request(
     paste0(base, "/workspaces/", ws$id, "/items")
   )
@@ -186,6 +198,8 @@ fabric_items <- function(
   records <- lapply(records, function(record) {
     record$workspaceId <- record$workspaceId %||% ws$id
     record$workspaceDisplayName <- ws$displayName
+    record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
+      fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
     if (isTRUE(detail)) {
       tryCatch(
         fabric_enrich_item(record, credential, base),
@@ -250,6 +264,7 @@ fabric_item <- function(
   auth_args = list(),
   api_base = .fabric_api_base
 ) {
+  api_base_supplied <- !missing(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -257,7 +272,13 @@ fabric_item <- function(
     auth_args = auth_args
   )
   base <- fabric_api_base(api_base)
-  ws <- fabric_resolve_workspace(workspace, credential, base)
+  ws <- fabric_resolve_workspace(
+    workspace,
+    credential,
+    base,
+    use_workspace_endpoint = !api_base_supplied
+  )
+  base <- ws$api_base %||% base
 
   supplied <- fabric_as_record(item)
   if (!is.null(supplied)) {
@@ -294,6 +315,8 @@ fabric_item <- function(
   record$workspaceId <- record$workspaceId %||% ws$id
   record$workspaceDisplayName <- record$workspaceDisplayName %||%
     ws$displayName
+  record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
+    fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
   if (!is.null(type) && !identical(tolower(record$type), tolower(type))) {
     rlang::abort(
       sprintf(
@@ -463,7 +486,41 @@ fabric_record_value <- function(record, ...) {
   NULL
 }
 
-fabric_resolve_workspace <- function(workspace, credential, api_base) {
+fabric_workspace_api_base <- function(record, fallback) {
+  endpoint <- fabric_record_value(
+    record,
+    "apiEndpoint",
+    "api_endpoint",
+    "workspaceApiEndpoint"
+  )
+  if (is.null(endpoint)) {
+    return(fallback)
+  }
+  endpoint <- sub("/+$", "", trimws(endpoint))
+  parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
+  path <- if (inherits(parsed, "try-error")) "" else parsed$path %||% ""
+  path <- sub("/+$", "", path)
+  if (
+    inherits(parsed, "try-error") ||
+      !identical(tolower(parsed$scheme %||% ""), "https") ||
+      !nzchar(parsed$hostname %||% "") ||
+      !path %in% c("", "/v1") ||
+      length(parsed$query %||% list()) > 0L ||
+      nzchar(parsed$fragment %||% "")
+  ) {
+    rlang::abort(
+      "The workspace apiEndpoint must be an HTTPS origin with an optional /v1 path"
+    )
+  }
+  if (identical(tolower(path), "/v1")) endpoint else paste0(endpoint, "/v1")
+}
+
+fabric_resolve_workspace <- function(
+  workspace,
+  credential,
+  api_base,
+  use_workspace_endpoint = TRUE
+) {
   supplied <- fabric_as_record(workspace)
   if (!is.null(supplied)) {
     return(list(
@@ -471,7 +528,12 @@ fabric_resolve_workspace <- function(workspace, credential, api_base) {
       displayName = supplied$displayName %||%
         supplied$workspaceDisplayName %||%
         NA_character_,
-      raw = supplied
+      raw = supplied,
+      api_base = if (isTRUE(use_workspace_endpoint)) {
+        fabric_workspace_api_base(supplied, api_base)
+      } else {
+        api_base
+      }
     ))
   }
   if (
@@ -499,7 +561,16 @@ fabric_resolve_workspace <- function(workspace, credential, api_base) {
     )
     record <- fabric_unique_name(records, workspace, "workspace")
   }
-  list(id = record$id, displayName = record$displayName, raw = record)
+  list(
+    id = record$id,
+    displayName = record$displayName,
+    raw = record,
+    api_base = if (isTRUE(use_workspace_endpoint)) {
+      fabric_workspace_api_base(record, api_base)
+    } else {
+      api_base
+    }
+  )
 }
 
 fabric_unique_name <- function(records, name, kind) {

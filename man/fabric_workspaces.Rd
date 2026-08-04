@@ -42,7 +42,9 @@ Discovery uses the
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
-different Fabric cloud or a test service.}
+different Fabric cloud or a test service. When \code{workspace} is a record
+containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
+\code{api_base} is supplied explicitly.}
 }
 \value{
 A plain list with one \code{fabric_workspace} object per workspace. Each

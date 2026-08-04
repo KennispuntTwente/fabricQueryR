@@ -146,7 +146,9 @@ reuses a matching cached token or starts its normal interactive login flow.}
 Job submission and cancellation require \code{Item.Execute.All} or
 the corresponding workload-specific execute permission.}
 
-\item{api_base}{Fabric REST API base URL. Most users should keep the default.}
+\item{api_base}{Fabric REST API base URL. Most users should keep the default.
+A discovered workspace-specific endpoint is used unless this argument is
+supplied explicitly.}
 
 \item{job}{A \code{fabric_job} returned by \code{\link[=fabric_job_run]{fabric_job_run()}}, or a job instance
 GUID. When a GUID is supplied, also provide \code{workspace}, \code{item}, and

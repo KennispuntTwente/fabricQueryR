@@ -18,8 +18,9 @@ fabric_item(
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
-a name is often easier for interactive use.}
+returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record avoids an extra lookup and, if
+it contains \code{apiEndpoint}, routes workspace calls through that endpoint. A
+name is often easier for interactive use.}
 
 \item{item}{Item GUID, exact display name, or an item record returned
 by a discovery function. A display name must identify exactly one item of
@@ -48,7 +49,9 @@ Discovery uses the
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
-different Fabric cloud or a test service.}
+different Fabric cloud or a test service. When \code{workspace} is a record
+containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
+\code{api_base} is supplied explicitly.}
 }
 \value{
 A \code{fabric_item} list. It contains common fields such as \code{id},

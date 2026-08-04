@@ -44,6 +44,55 @@ test_that("job submission rejects a contradictory explicit workspace", {
   )
 })
 
+test_that("job submission uses workspace-specific API endpoints", {
+  call <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(method, url, ...) {
+      call <<- list(method = method, url = url)
+      list(
+        status_code = 202L,
+        location = paste0(
+          "/jobs/instances/",
+          "33333333-3333-3333-3333-333333333333"
+        ),
+        retry_after = NULL
+      )
+    }
+  )
+  workspace <- structure(
+    list(
+      id = "22222222-2222-2222-2222-222222222222",
+      displayName = "Private workspace",
+      apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com"
+    ),
+    class = c("fabric_workspace", "list")
+  )
+
+  job <- fabric_job_run(
+    job_test_item(),
+    workspace = workspace,
+    token = "test-token"
+  )
+
+  expect_match(
+    call$url,
+    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    fixed = TRUE
+  )
+  expect_equal(
+    job$api_base,
+    "https://workspace.z13.api.fabric.microsoft.com/v1"
+  )
+
+  fabric_job_run(
+    job_test_item(),
+    workspace = workspace,
+    token = "test-token",
+    api_base = "https://explicit.test/v1"
+  )
+  expect_match(call$url, "https://explicit.test/v1/workspaces/", fixed = TRUE)
+})
+
 test_that("notebook run builds typed release payload and job handle", {
   call <- NULL
   local_mocked_bindings(

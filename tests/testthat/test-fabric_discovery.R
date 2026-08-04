@@ -82,6 +82,105 @@ test_that("name discovery requires an exact or unique match", {
   )
 })
 
+test_that("workspace-specific API endpoints route item discovery", {
+  workspace <- structure(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      displayName = "Private workspace",
+      apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com/"
+    ),
+    class = c("fabric_workspace", "list")
+  )
+  urls <- character()
+  local_mocked_bindings(
+    .httr2_collection = function(url, ...) {
+      urls <<- c(urls, url)
+      list(list(
+        id = "22222222-2222-4222-8222-222222222222",
+        displayName = "Products API",
+        type = "GraphQLApi"
+      ))
+    }
+  )
+
+  result <- fabric_items(workspace, token = "token")
+
+  expect_match(
+    urls[[1L]],
+    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    fixed = TRUE
+  )
+  expect_match(
+    result[[1L]]$graphql_endpoint,
+    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    fixed = TRUE
+  )
+  expect_equal(
+    result[[1L]]$workspaceApiEndpoint,
+    "https://workspace.z13.api.fabric.microsoft.com/"
+  )
+
+  item_urls <- character()
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      item_urls <<- c(item_urls, req$url)
+      list(
+        id = "33333333-3333-4333-8333-333333333333",
+        displayName = "Pipeline",
+        type = "Notebook"
+      )
+    }
+  )
+  fabric_item(
+    workspace,
+    "33333333-3333-4333-8333-333333333333",
+    token = "token"
+  )
+  expect_true(all(grepl(
+    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    item_urls,
+    fixed = TRUE
+  )))
+
+  fabric_items(
+    workspace,
+    token = "token",
+    api_base = "https://explicit.test/v1"
+  )
+  expect_match(urls[[2L]], "https://explicit.test/v1/workspaces/", fixed = TRUE)
+})
+
+test_that("workspace-specific API endpoints are validated", {
+  expect_equal(
+    fabric_workspace_api_base(
+      list(apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com"),
+      .fabric_api_base
+    ),
+    "https://workspace.z13.api.fabric.microsoft.com/v1"
+  )
+  expect_equal(
+    fabric_workspace_api_base(
+      list(apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com/v1/"),
+      .fabric_api_base
+    ),
+    "https://workspace.z13.api.fabric.microsoft.com/v1"
+  )
+  expect_error(
+    fabric_workspace_api_base(
+      list(apiEndpoint = "http://workspace.example.test"),
+      .fabric_api_base
+    ),
+    "must be an HTTPS origin"
+  )
+  expect_error(
+    fabric_workspace_api_base(
+      list(apiEndpoint = "https://workspace.example.test/custom"),
+      .fabric_api_base
+    ),
+    "optional /v1 path"
+  )
+})
+
 test_that("fabric_items filters and enriches Lakehouse targets", {
   urls <- character()
   local_mocked_bindings(

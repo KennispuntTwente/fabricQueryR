@@ -20,8 +20,9 @@ fabric_items(
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
-a name is often easier for interactive use.}
+returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record avoids an extra lookup and, if
+it contains \code{apiEndpoint}, routes workspace calls through that endpoint. A
+name is often easier for interactive use.}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
 \code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
@@ -58,7 +59,9 @@ Discovery uses the
 \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
-different Fabric cloud or a test service.}
+different Fabric cloud or a test service. When \code{workspace} is a record
+containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
+\code{api_base} is supplied explicitly.}
 }
 \value{
 A list with one \code{fabric_item} object per item. Each object is a
@@ -66,8 +69,10 @@ named list with common fields including \code{id}, \code{displayName}, \code{typ
 \code{workspaceId}, and \code{folderId}. With \code{detail = TRUE}, applicable objects
 also contain ready-to-use \code{sql_connection_string},
 \verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
-\code{query_service_uri}, or \code{graphql_endpoint} values. Fields that do not apply
-to an item are absent; \code{detail_error} records failed enrichment requests.
+\code{query_service_uri}, or \code{graphql_endpoint} values. When supplied by
+Fabric, \code{workspaceApiEndpoint} preserves the workspace-specific API origin
+for later job calls. Fields that do not apply to an item are absent;
+\code{detail_error} records failed enrichment requests.
 Nested service data is retained in place, including in \code{properties}.
 }
 \description{

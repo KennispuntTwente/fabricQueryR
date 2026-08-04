@@ -30,8 +30,9 @@ fabric_graphql_apis(workspace, detail = TRUE, ...)
 }
 \arguments{
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record or GUID avoids an extra lookup;
-a name is often easier for interactive use.}
+returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record avoids an extra lookup and, if
+it contains \code{apiEndpoint}, routes workspace calls through that endpoint. A
+name is often easier for interactive use.}
 
 \item{detail}{Logical. \code{FALSE} makes the fewest API calls and is sufficient
 for names and IDs. \code{TRUE} also retrieves supported workload properties,
