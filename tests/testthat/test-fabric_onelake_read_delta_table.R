@@ -147,18 +147,15 @@ test_that("Delta discovery records enforce type and workspace ownership", {
     fixed = TRUE
   )
 
-  expect_error(
-    fabric_delta_resolve_public_target(
-      "sales-orders",
-      "Workspace",
-      "Sales",
-      schema = NULL,
-      dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-      item_type = "Warehouse"
-    ),
-    "ASCII letters, digits, and underscores",
-    class = "fabric_delta_invalid_target"
+  named_warehouse <- fabric_delta_resolve_public_target(
+    "sales-orders",
+    "Workspace",
+    "Sales",
+    schema = NULL,
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+    item_type = "Warehouse"
   )
+  expect_identical(named_warehouse$table_dir, "Tables/dbo/sales-orders")
 
   non_schema_lakehouse <- warehouse
   non_schema_lakehouse$type <- "Lakehouse"
@@ -197,7 +194,7 @@ test_that("Delta discovery records enforce type and workspace ownership", {
   )
 })
 
-test_that("Delta public projection, limit, version, and compatibility arguments validate", {
+test_that("Delta public projection, limit, and version arguments validate", {
   read_table <- function(...) {
     fabric_onelake_read_delta_table(
       table_path = "table",
@@ -218,19 +215,6 @@ test_that("Delta public projection, limit, version, and compatibility arguments 
   expect_error(read_table(version = 1.5), "version must be NULL")
   expect_error(read_table(version = 2^53 + 2), "2\\^53")
   expect_error(read_table(result = "data.frame"), class = "rlang_error")
-  expect_error(
-    read_table(timestamp_partition_timezone = "UTC"),
-    class = "fabric_delta_unsupported_error"
-  )
-
-  local_mocked_bindings(
-    fabric_delta_read_uri = function(...) tibble::tibble(id = 1L)
-  )
-  expect_warning(
-    value <- read_table(dest_dir = tempfile("retired-staging-")),
-    class = "fabric_delta_deprecated_argument"
-  )
-  expect_equal(value$id, 1L)
 })
 
 test_that("Delta queries project and limit without feature workarounds", {
@@ -285,7 +269,6 @@ test_that("the public reader passes Fabric auth and query options to delta-rs", 
   expect_identical(captured$columns, c("name", "id"))
   expect_equal(captured$limit, 10)
   expect_identical(captured$result, "tibble")
-  expect_identical(captured$item_type, "Lakehouse")
   expect_match(
     captured$table_uri,
     "^abfss://workspace@onelake[.]dfs[.]fabric[.]microsoft[.]com/"
@@ -352,38 +335,6 @@ test_that("Arrow schemas normalize scalar types for safe collection", {
   expect_identical(collected$children$id$format, "u")
   expect_identical(collected$children$amount$format, "u")
   expect_identical(collected$children$local_at$format, "u")
-})
-
-test_that("Warehouse projections enforce external Delta naming limits", {
-  expect_no_error(
-    fabric_delta_validate_columns(
-      c("name", "café", "hash#value"),
-      item_type = "Warehouse"
-    )
-  )
-  forbidden <- c(
-    "display name",
-    "tab\tname",
-    "return\rname",
-    "[left",
-    "right]",
-    "a,b",
-    "a;b",
-    "{value}",
-    "call()",
-    "a=b"
-  )
-  error <- tryCatch(
-    fabric_delta_validate_columns(
-      forbidden,
-      item_type = "Warehouse"
-    ),
-    error = identity
-  )
-  expect_s3_class(error, "fabric_delta_invalid_target")
-  expect_s3_class(error, "fabric_delta_error")
-  expect_match(conditionMessage(error), "Invalid projected column")
-  expect_match(conditionMessage(error), "square brackets")
 })
 
 test_that("the public reader preserves native invalid-target failures", {

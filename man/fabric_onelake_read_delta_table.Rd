@@ -16,8 +16,6 @@ fabric_onelake_read_delta_table(
   token = NULL,
   auth_args = list(),
   version = NULL,
-  timestamp_partition_timezone = NULL,
-  dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
@@ -51,13 +49,6 @@ token-provider function.}
 fabricQueryR acquires a token.}
 
 \item{version}{Optional Delta snapshot version to read.}
-
-\item{timestamp_partition_timezone}{Deprecated compatibility argument.
-delta-rs does not expose the previous R engine's timezone override;
-non-\code{NULL} values are rejected.}
-
-\item{dest_dir}{Deprecated compatibility argument. Data is no longer staged
-locally. A non-\code{NULL} value is ignored with a warning.}
 
 \item{verbose}{Logical. Show authentication and read progress.}
 
@@ -104,15 +95,13 @@ because it uses the access token captured when the stream was opened.
 \code{limit} does not define an order. It is useful for previews, but not for
 stable pagination. Use \code{version} to read a specific Delta snapshot.
 
-Warehouse Delta snapshots are published asynchronously, so a read can lag
-behind the current Warehouse state. Warehouse table and column names must
-also meet the restrictions for external Delta readers. See
+Warehouse Delta snapshots are published asynchronously and current exports
+require Deletion Vectors, which this function does not support. See
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
 
 Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
-Fabric Variant preview features are not currently supported. This includes
-current Fabric Warehouse Delta exports. Use Fabric SQL or PySpark when
-broader Delta feature support is needed.
+Fabric Variant preview features are not currently supported. Use Fabric SQL
+or PySpark when broader Delta feature support is needed.
 
 Tibble collection supports common scalar columns. Delta \code{integer} values are
 returned as doubles, while \code{long}, decimal, and \code{timestamp_ntz} values are

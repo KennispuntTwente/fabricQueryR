@@ -95,19 +95,15 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   expect_identical(row_tracking$label, c("one", "two"))
 
   invalid_warehouse <- file.path(directory, "warehouse_invalid_columns")
-  expect_error(
-    fabric_delta_read_uri(
-      invalid_warehouse,
-      result = "tibble",
-      item_type = "Warehouse"
-    ),
-    class = "fabric_delta_invalid_target"
+  warehouse <- fabric_delta_read_uri(
+    invalid_warehouse,
+    result = "tibble"
   )
+  expect_named(warehouse, c("id", "display name"))
   projected_warehouse <- fabric_delta_read_uri(
     invalid_warehouse,
     columns = "id",
-    result = "tibble",
-    item_type = "Warehouse"
+    result = "tibble"
   )
   expect_identical(as.character(projected_warehouse$id), "1")
 })

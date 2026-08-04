@@ -50,9 +50,8 @@
   discovery records, and lazy Arrow streams. Tibble collection is deliberately
   limited to common scalar columns; exact long integers, decimals, and
   `timestamp_ntz` values are returned as text, while nested and extension data
-  stays on the Arrow-stream path. `dest_dir` is deprecated because local
-  staging is no longer used, and
-  non-`NULL` `timestamp_partition_timezone` values are no longer supported.
+  stays on the Arrow-stream path. The retired `dest_dir` and
+  `timestamp_partition_timezone` arguments have been removed.
   Tables requiring Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric
   Variant preview features remain unsupported. This includes current Fabric
   Warehouse Delta exports; use Fabric SQL or PySpark for those tables.

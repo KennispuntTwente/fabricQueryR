@@ -32,15 +32,13 @@
 #' `limit` does not define an order. It is useful for previews, but not for
 #' stable pagination. Use `version` to read a specific Delta snapshot.
 #'
-#' Warehouse Delta snapshots are published asynchronously, so a read can lag
-#' behind the current Warehouse state. Warehouse table and column names must
-#' also meet the restrictions for external Delta readers. See
+#' Warehouse Delta snapshots are published asynchronously and current exports
+#' require Deletion Vectors, which this function does not support. See
 #' [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 #'
 #' Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
-#' Fabric Variant preview features are not currently supported. This includes
-#' current Fabric Warehouse Delta exports. Use Fabric SQL or PySpark when
-#' broader Delta feature support is needed.
+#' Fabric Variant preview features are not currently supported. Use Fabric SQL
+#' or PySpark when broader Delta feature support is needed.
 #'
 #' Tibble collection supports common scalar columns. Delta `integer` values are
 #' returned as doubles, while `long`, decimal, and `timestamp_ntz` values are
@@ -63,11 +61,6 @@
 #' @param auth_args Named list passed to [AzureAuth::get_azure_token()] when
 #'   fabricQueryR acquires a token.
 #' @param version Optional Delta snapshot version to read.
-#' @param timestamp_partition_timezone Deprecated compatibility argument.
-#'   delta-rs does not expose the previous R engine's timezone override;
-#'   non-`NULL` values are rejected.
-#' @param dest_dir Deprecated compatibility argument. Data is no longer staged
-#'   locally. A non-`NULL` value is ignored with a warning.
 #' @param verbose Logical. Show authentication and read progress.
 #' @param dfs_base OneLake DFS endpoint. Most users can keep the default.
 #' @param columns Optional character vector of columns to return. `NULL` returns
@@ -110,8 +103,6 @@ fabric_onelake_read_delta_table <- function(
   token = NULL,
   auth_args = list(),
   version = NULL,
-  timestamp_partition_timezone = NULL,
-  dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
@@ -137,11 +128,7 @@ fabric_onelake_read_delta_table <- function(
     "limit",
     allow_null = TRUE
   )
-  fabric_delta_validate_columns(columns, item_type = resolved$item_type)
-  fabric_delta_validate_compatibility_args(
-    timestamp_partition_timezone,
-    dest_dir
-  )
+  fabric_delta_validate_columns(columns)
 
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     rlang::abort("verbose must be TRUE or FALSE")
@@ -173,8 +160,7 @@ fabric_onelake_read_delta_table <- function(
       version = version,
       columns = columns,
       limit = limit,
-      result = result,
-      item_type = resolved$item_type
+      result = result
     )
     list(value = value, token = bearer_token)
   }
@@ -388,22 +374,6 @@ fabric_delta_resolve_public_target <- function(
   if (!nzchar(table_name)) {
     rlang::abort("table_path must end in a non-empty table name")
   }
-  if (
-    identical(item_type, "Warehouse") &&
-      !grepl("^[A-Za-z0-9_]+$", table_name)
-  ) {
-    rlang::abort(
-      c(
-        "The Warehouse table name is not externally readable.",
-        "x" = paste("Table:", table_name),
-        "i" = paste0(
-          "Warehouse Delta-log table names may contain only ASCII letters, ",
-          "digits, and underscores. Rename the table in Fabric Warehouse."
-        )
-      ),
-      class = c("fabric_delta_invalid_target", "fabric_delta_error")
-    )
-  }
   table_dir <- if (is.null(schema)) {
     paste("Tables", table_name, sep = "/")
   } else {
@@ -471,7 +441,7 @@ fabric_delta_validate_whole_number <- function(
 #' Validate a logical Delta projection
 #' @keywords internal
 #' @noRd
-fabric_delta_validate_columns <- function(columns, item_type = NULL) {
+fabric_delta_validate_columns <- function(columns) {
   if (
     !is.null(columns) &&
       (!is.character(columns) ||
@@ -484,60 +454,7 @@ fabric_delta_validate_columns <- function(columns, item_type = NULL) {
       "columns must be NULL or one or more unique, non-empty strings"
     )
   }
-  if (
-    identical(item_type, "Warehouse") &&
-      !is.null(columns)
-  ) {
-    invalid <- grepl("[ \t\r,;{}()=]|\\[|\\]", columns, perl = TRUE)
-    if (any(invalid)) {
-      rlang::abort(
-        c(
-          "One or more Warehouse columns are not externally readable.",
-          "x" = paste(
-            "Invalid projected column(s):",
-            paste(columns[invalid], collapse = ", ")
-          ),
-          "i" = paste0(
-            "Warehouse Delta-log column names cannot contain spaces, tabs, ",
-            "carriage returns, square brackets, commas, semicolons, braces, ",
-            "parentheses, or equals signs. Rename the columns in Fabric ",
-            "Warehouse or omit them from the projection."
-          )
-        ),
-        class = c("fabric_delta_invalid_target", "fabric_delta_error")
-      )
-    }
-  }
   invisible(columns)
-}
-
-#' Handle arguments that belonged to the retired R engine
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_compatibility_args <- function(
-  timestamp_partition_timezone,
-  dest_dir
-) {
-  if (!is.null(timestamp_partition_timezone)) {
-    rlang::abort(
-      paste0(
-        "timestamp_partition_timezone is not supported by the delta-rs ",
-        "reader. Convert legacy offset-less timestamp partitions at the ",
-        "source or omit this argument."
-      ),
-      class = "fabric_delta_unsupported_error"
-    )
-  }
-  if (!is.null(dest_dir)) {
-    rlang::warn(
-      paste0(
-        "dest_dir is deprecated and ignored because the delta-rs reader ",
-        "streams from OneLake without staging files."
-      ),
-      class = "fabric_delta_deprecated_argument"
-    )
-  }
-  invisible(NULL)
 }
 
 #' Convert a resolved OneLake target into a delta-rs ABFSS URI
@@ -587,16 +504,14 @@ fabric_delta_read_uri <- function(
   version = NULL,
   columns = NULL,
   limit = NULL,
-  result = "tibble",
-  item_type = NULL
+  result = "tibble"
 ) {
   reader <- fabric_delta_python_reader(
     table_uri = table_uri,
     bearer_token = bearer_token,
     version = version,
     columns = columns,
-    limit = limit,
-    item_type = item_type
+    limit = limit
   )
   if (identical(result, "arrow_stream")) {
     return(fabric_delta_reader_stream(reader, collect = FALSE))
@@ -612,8 +527,7 @@ fabric_delta_python_reader <- function(
   bearer_token = NULL,
   version = NULL,
   columns = NULL,
-  limit = NULL,
-  item_type = NULL
+  limit = NULL
 ) {
   fabric_delta_validate_runtime()
   storage_options <- NULL
@@ -635,7 +549,6 @@ fabric_delta_python_reader <- function(
   }
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
-  fabric_delta_validate_snapshot_columns(table, columns, item_type)
   features <- reticulate::py_to_r(table$protocol()$reader_features)
   features <- if (is.null(features)) character() else as.character(features)
   if (any(tolower(features) == "deletionvectors")) {
@@ -661,42 +574,6 @@ fabric_delta_python_reader <- function(
   attr(reader, "fabric_delta_table") <- table
   attr(reader, "fabric_delta_query_builder") <- builder
   reader
-}
-
-#' Return top-level field names from a Delta snapshot schema
-#' @keywords internal
-#' @noRd
-fabric_delta_snapshot_columns <- function(table) {
-  fields <- table$schema()$fields
-  count <- as.integer(reticulate::py_to_r(.delta_python$builtins$len(fields)))
-  if (!count) {
-    return(character())
-  }
-  vapply(
-    seq_len(count) - 1L,
-    function(index) {
-      field <- fields$`__getitem__`(.delta_python$builtins$int(index))
-      as.character(reticulate::py_to_r(field$name))
-    },
-    character(1)
-  )
-}
-
-#' Validate an implicit all-column Warehouse projection
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_snapshot_columns <- function(
-  table,
-  columns,
-  item_type
-) {
-  if (!identical(item_type, "Warehouse") || !is.null(columns)) {
-    return(invisible(NULL))
-  }
-  fabric_delta_validate_columns(
-    fabric_delta_snapshot_columns(table),
-    item_type = item_type
-  )
 }
 
 #' Render one exact R whole number for Python
