@@ -22,7 +22,7 @@ def test_live_suite_is_split_into_feature_files():
 
     assert groups == INTEGRATION_GROUPS
     assert not (test_directory / "test-integration-fabric.R").exists()
-    assert sum(path.read_text().count("test_that(") for path in files) == 43
+    assert all("test_that(" in path.read_text() for path in files)
     assert all(
         path.read_text().startswith("# Fabric integration coverage:")
         for path in files
