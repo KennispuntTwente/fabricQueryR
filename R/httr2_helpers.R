@@ -279,18 +279,41 @@
   candidate
 }
 
+.httr2_pagination_guard <- function(
+  url,
+  seen_urls,
+  page,
+  max_pages = 10000L
+) {
+  if (page > as.integer(max_pages)) {
+    rlang::abort(sprintf(
+      "Pagination exceeded the maximum of %d pages",
+      as.integer(max_pages)
+    ))
+  }
+  if (url %in% seen_urls) {
+    rlang::abort(
+      "The service returned a repeated pagination URL or continuation token"
+    )
+  }
+  c(seen_urls, url)
+}
+
 .httr2_collection <- function(
   url,
   credential,
   audience,
   value_key = "value",
   offset_pagination = FALSE,
-  page_size = 5000L
+  page_size = 5000L,
+  max_pages = 10000L
 ) {
   values <- list()
   next_url <- url
   continuation_token <- NULL
   skip <- 0L
+  page_number <- 0L
+  seen_urls <- character()
   repeat {
     req <- httr2::request(next_url)
     if (!is.null(continuation_token)) {
@@ -305,6 +328,13 @@
         `$skip` = skip
       )
     }
+    page_number <- page_number + 1L
+    seen_urls <- .httr2_pagination_guard(
+      req$url,
+      seen_urls,
+      page_number,
+      max_pages
+    )
     page <- .httr2_json(
       req,
       simplifyVector = FALSE,

@@ -682,6 +682,8 @@ onelake_list_target <- function(
   )
   continuation <- NULL
   records <- list()
+  page_number <- 0L
+  seen_urls <- character()
   repeat {
     req <- onelake_request(onelake_workspace_url(target))
     query <- list(
@@ -698,6 +700,12 @@ onelake_list_target <- function(
       query$continuation <- continuation
     }
     req <- do.call(httr2::req_url_query, query)
+    page_number <- page_number + 1L
+    seen_urls <- .httr2_pagination_guard(
+      req$url,
+      seen_urls,
+      page_number
+    )
     response <- .httr2_perform(
       req,
       credential = credential,
@@ -1183,6 +1191,8 @@ onelake_delete_target <- function(
     headers[["If-Match"]] <- onelake_if_match(if_match)
   }
   continuation <- NULL
+  page_number <- 0L
+  seen_urls <- character()
   repeat {
     req <- onelake_request(
       onelake_path_url(target),
@@ -1197,6 +1207,12 @@ onelake_delete_target <- function(
       query$continuation <- continuation
     }
     req <- do.call(httr2::req_url_query, query)
+    page_number <- page_number + 1L
+    seen_urls <- .httr2_pagination_guard(
+      req$url,
+      seen_urls,
+      page_number
+    )
     response <- .httr2_perform(
       req,
       credential = credential,

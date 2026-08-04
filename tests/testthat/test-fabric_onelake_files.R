@@ -182,6 +182,29 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
   expect_match(calls[[2L]]$url, "continuation=opaque%2B%2F%3D%20token")
 })
 
+test_that("OneLake listing rejects repeated continuation tokens", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    onelake_test_response(
+      body = list(paths = list()),
+      headers = list("x-ms-continuation" = "repeated-token")
+    )
+  })
+
+  expect_error(
+    fabric_onelake_list(
+      "Analytics",
+      "Curated.Lakehouse",
+      path = "Files",
+      token = "token"
+    ),
+    "repeated pagination URL",
+    fixed = TRUE
+  )
+  expect_equal(calls, 2L)
+})
+
 test_that("OneLake listing can begin from a lexicographic path", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {
@@ -618,6 +641,32 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
   expect_match(calls[[1L]]$url, "paginated=true")
   expect_match(calls[[2L]]$url, "continuation=delete-token")
   expect_equal(calls[[1L]]$headers[["If-Match"]], "\"etag\"")
+})
+
+test_that("OneLake deletion rejects repeated continuation tokens", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    onelake_test_response(
+      status = 200L,
+      headers = list("x-ms-continuation" = "repeated-token"),
+      url = req$url
+    )
+  })
+
+  expect_error(
+    fabric_onelake_delete(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/folder",
+      recursive = TRUE,
+      confirm = TRUE,
+      token = "token"
+    ),
+    "repeated pagination URL",
+    fixed = TRUE
+  )
+  expect_equal(calls, 2L)
 })
 
 test_that("OneLake validates ranges and protected paths before I/O", {
