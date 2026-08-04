@@ -106,6 +106,56 @@ fabric_local_auth_context <- function(
   list(tenant_id = tenant_id, client_id = client_id)
 }
 
+fabric_local_explicit_auth_flow <- function(auth_args) {
+  is.list(auth_args) && any(
+    c(
+      "auth_type",
+      "password",
+      "certificate",
+      "username",
+      "on_behalf_of"
+    ) %in%
+      names(auth_args)
+  )
+}
+
+fabric_local_validate_secret_identity <- function(
+  tenant_id,
+  client_id,
+  client_secret,
+  auth_args
+) {
+  uses_environment_secret <- is.character(client_secret) &&
+    length(client_secret) == 1L &&
+    !is.na(client_secret) &&
+    nzchar(client_secret) &&
+    !fabric_local_explicit_auth_flow(auth_args)
+  if (!uses_environment_secret) {
+    return(invisible(NULL))
+  }
+  explicit_identity <- all(vapply(
+    list(tenant_id, client_id),
+    function(value) {
+      is.character(value) &&
+        length(value) == 1L &&
+        !is.na(value) &&
+        nzchar(value)
+    },
+    logical(1)
+  ))
+  if (!explicit_identity) {
+    stop(
+      paste(
+        "Set both FABRICQUERYR_TENANT_ID and FABRICQUERYR_CLIENT_ID",
+        "explicitly when FABRICQUERYR_CLIENT_SECRET is set; cached",
+        "AzureAuth identities are never combined with environment secrets."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
 fabric_local_resolve_auth_args <- function(
   auth_args,
   client_id,
@@ -133,16 +183,7 @@ fabric_local_resolve_auth_args <- function(
     )
   }
 
-  explicit_flow <- any(
-    c(
-      "auth_type",
-      "password",
-      "certificate",
-      "username",
-      "on_behalf_of"
-    ) %in%
-      names(auth_args)
-  )
+  explicit_flow <- fabric_local_explicit_auth_flow(auth_args)
   if (!nzchar(client_secret) || explicit_flow) {
     return(auth_args)
   }
@@ -617,6 +658,12 @@ run_fabric_integration_tests <- function(
   }
 
   devtools::load_all(repository_root, quiet = TRUE)
+  fabric_local_validate_secret_identity(
+    tenant_id,
+    client_id,
+    client_secret,
+    auth_args
+  )
   context <- fabric_local_auth_context(tenant_id, client_id)
   auth_args <- fabric_local_resolve_auth_args(
     auth_args,

@@ -121,6 +121,9 @@ cancellation, while sessions also provide explicit cleanup;
 * Fabric sandbox seeding now publishes a content-derived fixture revision to
 OneLake. Discovery refuses stale or partially seeded persistent workspaces
 before R integration tests can report misleading table-level results.
+The local runner also requires explicit tenant and client IDs before using an
+environment client secret; it never combines a cached interactive identity
+with that secret.
 
 * Added `fabric_delta_config()` to inspect the optional Python runtime and its
 declared requirements. Inspection is non-initializing by default. The runtime
