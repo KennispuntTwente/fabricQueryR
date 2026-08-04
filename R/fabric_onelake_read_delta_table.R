@@ -1652,9 +1652,10 @@ fabric_delta_restore_struct_validity <- function(
       )
     }
     if (!isTRUE(top_level)) {
-      class(value) <- unique(c("fabric_delta_struct_column", class(value)))
-      attr(value, "fabric_delta_struct_validity") <-
+      value <- fabric_delta_new_struct_column(
+        value,
         fabric_delta_array_validity(descriptors)
+      )
     }
     return(value)
   }
@@ -1819,9 +1820,110 @@ as.POSIXct.fabric_delta_timestamp_ntz <- function(x, tz = "UTC", ...) {
 
 # Methods for nullable struct columns produced by the delta-rs reader.
 
+#' Construct a nullable Delta struct record
+#' @param value A data frame containing the public struct fields.
+#' @param validity A logical vector indicating non-null parent structs.
+#' @return A vctrs record whose private validity field is sliced with its rows.
+#' @keywords internal
+#' @noRd
+fabric_delta_new_struct_column <- function(value, validity) {
+  validity_name <- fabric_delta_struct_validity_field_name(names(value))
+  row_name_field <- fabric_delta_struct_private_field_name(
+    c(names(value), validity_name),
+    "..fabric_delta_struct_row_name"
+  )
+  fields <- unclass(value)
+  fields[[validity_name]] <- as.logical(validity)
+  fields[[row_name_field]] <- row.names(value)
+  vctrs::new_rcrd(
+    fields,
+    fabric_delta_struct_validity_field = validity_name,
+    fabric_delta_struct_row_name_field = row_name_field,
+    class = "fabric_delta_struct_column"
+  )
+}
+
+#' Choose a collision-free private field for struct validity
+#' @param field_names Public struct field names.
+#' @return A scalar character field name.
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_validity_field_name <- function(field_names) {
+  fabric_delta_struct_private_field_name(
+    field_names,
+    "..fabric_delta_struct_validity"
+  )
+}
+
+#' Choose a collision-free private struct field
+#' @param field_names Existing field names.
+#' @param candidate Preferred private field name.
+#' @return A scalar character field name.
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_private_field_name <- function(field_names, candidate) {
+  while (candidate %in% field_names) {
+    candidate <- paste0(candidate, ".")
+  }
+  candidate
+}
+
+#' Return the public fields of a nullable Delta struct record
+#' @param x A nullable Delta struct column.
+#' @return A character vector of field names.
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_field_names <- function(x) {
+  validity_name <- attr(
+    x,
+    "fabric_delta_struct_validity_field",
+    exact = TRUE
+  )
+  row_name_field <- attr(
+    x,
+    "fabric_delta_struct_row_name_field",
+    exact = TRUE
+  )
+  setdiff(vctrs::fields(x), c(validity_name, row_name_field))
+}
+
+#' Convert a nullable Delta struct record to its public data frame
+#' @param x A nullable Delta struct column.
+#' @return A data frame containing only public struct fields.
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_data_frame <- function(x) {
+  field_names <- fabric_delta_struct_field_names(x)
+  fields <- stats::setNames(
+    lapply(field_names, function(name) vctrs::field(x, name)),
+    field_names
+  )
+  value <- vctrs::new_data_frame(fields, n = vctrs::vec_size(x))
+  row_name_field <- attr(
+    x,
+    "fabric_delta_struct_row_name_field",
+    exact = TRUE
+  )
+  if (!is.null(row_name_field)) {
+    row.names(value) <- make.unique(as.character(vctrs::field(
+      x,
+      row_name_field
+    )))
+  }
+  value
+}
+
 #' @export
 #' @noRd
 is.na.fabric_delta_struct_column <- function(x) {
+  if (inherits(x, "vctrs_rcrd")) {
+    validity_name <- attr(
+      x,
+      "fabric_delta_struct_validity_field",
+      exact = TRUE
+    )
+    return(!vctrs::field(x, validity_name))
+  }
   validity <- attr(x, "fabric_delta_struct_validity", exact = TRUE)
   if (is.null(validity)) {
     return(rep(FALSE, NROW(x)))
@@ -1832,6 +1934,35 @@ is.na.fabric_delta_struct_column <- function(x) {
 #' @export
 #' @noRd
 `[.fabric_delta_struct_column` <- function(x, i, j, drop = FALSE) {
+  if (inherits(x, "vctrs_rcrd")) {
+    value <- fabric_delta_struct_data_frame(x)
+    validity <- !is.na(x)
+    one_index <- missing(j) && (
+      nargs() == 2L || (!missing(drop) && nargs() == 3L)
+    )
+    if (one_index) {
+      result <- value[i]
+      selected_validity <- validity
+    } else {
+      row_index <- seq_len(nrow(value))
+      names(row_index) <- row.names(value)
+      selected_rows <- if (missing(i)) row_index else row_index[i]
+      selected_validity <- validity[selected_rows]
+      result <- if (missing(i) && missing(j)) {
+        value[, , drop = drop]
+      } else if (missing(i)) {
+        value[, j, drop = drop]
+      } else if (missing(j)) {
+        value[i, , drop = drop]
+      } else {
+        value[i, j, drop = drop]
+      }
+    }
+    if (is.data.frame(result)) {
+      return(fabric_delta_new_struct_column(result, selected_validity))
+    }
+    return(result)
+  }
   validity <- attr(x, "fabric_delta_struct_validity", exact = TRUE)
   row_index <- seq_len(nrow(x))
   names(row_index) <- row.names(x)
@@ -1847,6 +1978,75 @@ is.na.fabric_delta_struct_column <- function(x) {
     }
   }
   result
+}
+
+#' Extract one public field from a nullable Delta struct
+#' @param x A nullable Delta struct column.
+#' @param name A public struct field name.
+#' @return The selected field, or `NULL` if it does not exist.
+#' @export
+#' @noRd
+`$.fabric_delta_struct_column` <- function(x, name) {
+  if (!name %in% fabric_delta_struct_field_names(x)) {
+    return(NULL)
+  }
+  vctrs::field(x, name)
+}
+
+#' Extract one public field or cell from a nullable Delta struct
+#' @param x A nullable Delta struct column.
+#' @param i A field subscript, or row subscript when `j` is supplied.
+#' @param j An optional field subscript.
+#' @param ... Unused.
+#' @param exact Whether character matching must be exact.
+#' @return The selected field or cell.
+#' @export
+#' @noRd
+`[[.fabric_delta_struct_column` <- function(
+  x,
+  i,
+  j,
+  ...,
+  exact = TRUE
+) {
+  value <- fabric_delta_struct_data_frame(x)
+  if (missing(j)) {
+    return(value[[i, exact = exact]])
+  }
+  value[[i, j, exact = exact]]
+}
+
+#' Convert a nullable Delta struct to a data frame
+#' @param x A nullable Delta struct column.
+#' @param row.names Optional row names.
+#' @param optional Unused.
+#' @param ... Unused.
+#' @return A data frame containing the public struct fields.
+#' @export
+#' @noRd
+as.data.frame.fabric_delta_struct_column <- function(
+  x,
+  row.names = NULL,
+  optional = FALSE,
+  ...
+) {
+  value <- fabric_delta_struct_data_frame(x)
+  if (!is.null(row.names)) {
+    row.names(value) <- row.names
+  }
+  value
+}
+
+#' Format nullable Delta struct rows
+#' @param x A nullable Delta struct column.
+#' @param ... Unused.
+#' @return A compact character representation.
+#' @export
+#' @noRd
+format.fabric_delta_struct_column <- function(x, ...) {
+  value <- rep("<struct>", vctrs::vec_size(x))
+  value[is.na(x)] <- NA_character_
+  value
 }
 
 # Compatibility methods for Variant objects created by

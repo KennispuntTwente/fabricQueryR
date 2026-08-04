@@ -861,9 +861,11 @@ test_that("nullable struct validity follows data-frame subsetting semantics", {
     label = c("one", NA, "three"),
     row.names = c("first", "second", "third")
   )
-  class(value) <- c("fabric_delta_struct_column", class(value))
-  attr(value, "fabric_delta_struct_validity") <- c(TRUE, FALSE, TRUE)
+  value <- fabric_delta_new_struct_column(value, c(TRUE, FALSE, TRUE))
 
+  expect_identical(value$amount, c("1.00", NA, "3.00"))
+  expect_identical(value[["label"]], c("one", NA, "three"))
+  expect_named(as.data.frame(value), c("amount", "label"))
   expect_identical(is.na(value["amount"]), c(FALSE, TRUE, FALSE))
   expect_identical(
     suppressWarnings(is.na(value["amount", drop = FALSE])),
@@ -885,6 +887,52 @@ test_that("nullable struct validity follows data-frame subsetting semantics", {
     is.na(value[-1L, , drop = FALSE]),
     c(TRUE, FALSE)
   )
+
+  wrapped <- tibble::tibble(id = c(3L, 2L, 1L), payload = value)
+
+  reordered <- wrapped[c(3L, 1L, 2L), , drop = FALSE]
+  expect_s3_class(reordered$payload, "fabric_delta_struct_column")
+  expect_identical(is.na(reordered$payload), c(FALSE, FALSE, TRUE))
+
+  sliced <- dplyr::slice(wrapped, 3L, 1L, 2L, 2L)
+  expect_s3_class(sliced$payload, "fabric_delta_struct_column")
+  expect_identical(is.na(sliced$payload), c(FALSE, FALSE, TRUE, TRUE))
+
+  filtered <- dplyr::filter(wrapped, id != 2L)
+  expect_s3_class(filtered$payload, "fabric_delta_struct_column")
+  expect_identical(is.na(filtered$payload), c(FALSE, FALSE))
+
+  arranged <- dplyr::arrange(wrapped, id)
+  expect_s3_class(arranged$payload, "fabric_delta_struct_column")
+  expect_identical(is.na(arranged$payload), c(FALSE, TRUE, FALSE))
+
+  empty <- dplyr::slice(wrapped, integer())
+  expect_s3_class(empty$payload, "fabric_delta_struct_column")
+  expect_identical(is.na(empty$payload), logical())
+
+  bound <- dplyr::bind_rows(
+    dplyr::slice(wrapped, 2L, 1L),
+    dplyr::slice(wrapped, 3L)
+  )
+  expect_s3_class(bound$payload, "fabric_delta_struct_column")
+  expect_identical(is.na(bound$payload), c(TRUE, FALSE, FALSE))
+
+  collision <- fabric_delta_new_struct_column(
+    data.frame(
+      "..fabric_delta_struct_validity" = 1:2,
+      "..fabric_delta_struct_row_name" = 3:4,
+      check.names = FALSE
+    ),
+    c(FALSE, TRUE)
+  )
+  expect_named(
+    as.data.frame(collision),
+    c(
+      "..fabric_delta_struct_validity",
+      "..fabric_delta_struct_row_name"
+    )
+  )
+  expect_identical(is.na(collision), c(TRUE, FALSE))
 })
 
 test_that("Delta runtime compatibility is validated before querying", {

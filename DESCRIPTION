@@ -49,7 +49,8 @@ Imports:
     nanoarrow,
     reticulate (>= 1.41),
     rlang,
-    utils
+    utils,
+    vctrs
 URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.github.io/fabricQueryR/
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues
 Depends: 

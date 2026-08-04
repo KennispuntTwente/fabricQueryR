@@ -58,6 +58,14 @@ fabric_test_order_delta_rows <- function(value, feature) {
 }
 
 fabric_test_canonicalize_delta_maps <- function(value) {
+  if (
+    inherits(value, "fabric_delta_struct_column") &&
+      !is.data.frame(value)
+  ) {
+    validity <- !is.na(value)
+    value <- fabric_test_canonicalize_delta_maps(as.data.frame(value))
+    return(fabric_delta_new_struct_column(value, validity))
+  }
   if (is.data.frame(value)) {
     if (identical(names(value), c("key", "value")) && nrow(value) > 1L) {
       labels <- vapply(
