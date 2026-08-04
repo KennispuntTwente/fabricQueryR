@@ -11,6 +11,9 @@ test_that("local client secrets require an explicit application identity", {
     "fabric-sandbox",
     "local-integration.R"
   )
+  if (!file.exists(runner)) {
+    skip("Local integration runner tests require a repository checkout")
+  }
   environment <- new.env(parent = globalenv())
   sys.source(runner, envir = environment)
 
