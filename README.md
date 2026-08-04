@@ -176,53 +176,29 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-Arrow streams use the bearer token captured when the stream is opened. Consume
-them promptly; if a long scan outlives the token, reopen the exact snapshot with
-`version = attr(stream, "fabric_delta_snapshot_version")` and a fresh token.
+Arrow streams are lazy and single-use. Consume them promptly because they use
+the access token captured when the stream is opened.
 
-Direct Delta reads require a token for
-`https://storage.azure.com/.default` and OneLake data permission; item **Read**
-alone only exposes metadata. Grant **ReadAll**, or a OneLake role that can read
-the table when OneLake security is enabled. fabricQueryR isn't an authorized
-OneLake security engine and never applies RLS/CLS itself. OneLake blocks its
-direct file reads when the caller's effective access is RLS/CLS-restricted, so
-the function fails rather than returning filtered data. Use an unrestricted
-caller, a supported Fabric engine, or an
-[authorized engine](https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview).
-A Fabric administrator
-must also enable **Users can access data stored in OneLake with apps external
-to Fabric** for the caller in
+Direct Delta reads require OneLake data access; item **Read** permission alone
+is not enough. The caller needs **ReadAll** or a suitable OneLake data-access
+role. A Fabric administrator must also enable **Users can access data stored in
+OneLake with apps external to Fabric** in
 [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
-The package's exact pinned and tested runtime supports classic checkpoints,
-schema evolution, column mapping, deletion vectors within its documented safety
-limit, logical data rows from row-tracking tables, shallow-clone reads, and
-version reads. Spark's hidden `_metadata.row_id` and
-`_metadata.row_commit_version` fields are not returned; use Fabric PySpark when
-those values are required. See
-[Delta row tracking](https://docs.delta.io/delta-row-tracking/). Type Widening,
-V2 checkpoints, and Fabric's Variant
-shredding preview fail explicitly. These are
-fabricQueryR-specific compatibility results, not a Microsoft support statement:
-Microsoft's current
-[engine matrix](https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide)
-reports broader delta-rs gaps for column mapping, deletion vectors, V2
-checkpoints, and shallow clones. Use Fabric PySpark when Microsoft-supported
-feature coverage is required, and require a green live integration run for the
-exact fabricQueryR revision before relying on package-specific feature support.
-The default live sandbox does not provision RLS/CLS role assignments or a
-workspace private link/private DNS path. It validates unrestricted global-
-endpoint reads and an invalid-token denial; tenant-specific security policies,
-regional routing, and private-link connectivity require a live validation from
-the deployment's own identity and network.
+
+OneLake blocks direct reads when the caller is restricted by row- or
+column-level security because this function cannot apply those policies. Use a
+supported Fabric engine for policy-filtered access. See the
+[Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
+for details.
+
 Warehouse Delta logs are published asynchronously, so a OneLake read can lag
-the current Warehouse state.
-For external Delta readers, Warehouse table names are limited to ASCII letters,
-digits, and underscores, while column names cannot contain spaces, tabs,
-carriage returns, square brackets, commas, semicolons, braces, parentheses, or
-equals signs. See
+the current Warehouse state. Warehouse table and column names must also meet
+the restrictions for external Delta readers. See
 [Delta Lake logs in Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
-See `?fabric_onelake_read_delta_table` for the full compatibility contract and
-the [Fabric permission model](https://learn.microsoft.com/en-us/fabric/security/permission-model).
+
+Tables using Type Widening, V2 Checkpoints, or Fabric Variant preview features
+are not currently supported. Use Fabric PySpark when broader Delta feature
+support is needed. See `?fabric_onelake_read_delta_table` for function options.
 
 ### 5. Work with OneLake files
 

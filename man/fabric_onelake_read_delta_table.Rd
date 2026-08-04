@@ -26,26 +26,17 @@ fabric_onelake_read_delta_table(
 )
 }
 \arguments{
-\item{table_path}{Table name. For backward compatibility, a slash-separated
-value is accepted and its final segment is used; select a schema with
-\code{schema}.}
+\item{table_path}{Name of the table to read.}
 
-\item{workspace_name}{Fabric workspace display name or GUID, or a record from
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}. ABFSS-safe display names can be used directly; use
-paired workspace/item GUIDs or discovery records when the display name
-contains spaces or other special characters.}
+\item{workspace_name}{Workspace name, ID, or a record from
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
 
-\item{lakehouse_name}{Lakehouse or Warehouse name, GUID, or discovery record.
-The argument name is retained for backward compatibility.}
+\item{lakehouse_name}{Lakehouse or Warehouse name, ID, or discovery record.}
 
-\item{schema}{Lakehouse or Warehouse schema, or \code{NULL}. A discovered
-schema-enabled Lakehouse's default schema is used automatically. Warehouse
-targets default to \code{"dbo"}.}
+\item{schema}{Optional schema name. Warehouses default to \code{"dbo"}.}
 
-\item{item_type}{\code{"Lakehouse"} or \code{"Warehouse"}. This is inferred from a
-discovery record or a \code{.Lakehouse}/\code{.Warehouse} suffix. Supply it for a
-suffixless item display name, especially a Warehouse name. An explicit
-type that conflicts with a recognized suffix is rejected.}
+\item{item_type}{\code{"Lakehouse"} or \code{"Warehouse"}. Usually inferred; specify it
+when using an item name without a \code{.Lakehouse} or \code{.Warehouse} suffix.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -59,8 +50,7 @@ token-provider function.}
 \item{auth_args}{Named list passed to \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when
 fabricQueryR acquires a token.}
 
-\item{version}{Optional non-negative Delta transaction version. Values
-through \code{2^53} are represented exactly.}
+\item{version}{Optional Delta snapshot version to read.}
 
 \item{timestamp_partition_timezone}{Deprecated compatibility argument.
 delta-rs does not expose the previous R engine's timezone override;
@@ -71,186 +61,74 @@ locally. A non-\code{NULL} value is ignored with a warning.}
 
 \item{verbose}{Logical. Show authentication and read progress.}
 
-\item{dfs_base}{OneLake DFS endpoint. Use the workspace capacity's regional
-endpoint when endpoint-resolution data residency matters, or its required
-workspace-private FQDN for a workspace private link.}
+\item{dfs_base}{OneLake DFS endpoint. Most users can keep the default.}
 
-\item{columns}{Optional character vector of logical Delta columns, in the
-requested order. \code{NULL} returns all columns.}
+\item{columns}{Optional character vector of columns to return. \code{NULL} returns
+all columns.}
 
-\item{limit}{Optional non-negative whole number limiting returned rows. No
-ordering is applied, so a partial result is an implementation-defined
-subset and is not suitable for stable pagination.}
+\item{limit}{Optional maximum number of rows to return.}
 
-\item{result}{\code{"tibble"} or \code{"arrow_stream"}.}
+\item{result}{Return a \code{"tibble"} or a lazy \code{"arrow_stream"}.}
 }
 \value{
-A tibble, or a lazy single-use \code{nanoarrow_array_stream} compatible
-with \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}}. Arrow streams carry the resolved
-Delta version in the \code{fabric_delta_snapshot_version} attribute.
+A tibble by default. With \code{result = "arrow_stream"}, a lazy,
+single-use stream compatible with \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}}.
 }
 \description{
-\code{fabric_onelake_read_delta_table()} resolves a Fabric Lakehouse or Warehouse
-table, authenticates to OneLake, and reads the selected Delta snapshot.
-The Delta transaction log and Parquet data are interpreted by delta-rs
-(through the Python '\href{https://pypi.org/project/deltalake/}{deltalake}' package)
-and returned as a tibble or a lazy Arrow stream.
+Read a Delta table from a Fabric Lakehouse or Warehouse. By default, the
+result is returned as a tibble. Use \code{columns} and \code{limit} to read less data,
+or request an Arrow stream to process a large result in batches.
 }
 \details{
-\code{deltalake} and \code{nanoarrow} are declared with
-\code{\link[reticulate:py_require]{reticulate::py_require()}} when fabricQueryR loads, but Python is not started
-and packages are not downloaded until this function is called.
-If \code{RETICULATE_PYTHON} selects a user-managed environment, install the
-runtime dependencies in that environment with:
+Supply the table, workspace, and Lakehouse or Warehouse. Discovery records
+returned by fabricQueryR can be used instead of names. The \code{schema} and
+\code{item_type} are usually inferred when discovery records or item suffixes are
+used.
 
-\if{html}{\out{<div class="sourceCode text">}}\preformatted{python -m pip install "deltalake==1.6.2" "nanoarrow==0.8.0"
-}\if{html}{\out{</div>}}
+Direct reads require OneLake data access; item \code{Read} permission by itself is
+not enough. The caller needs \code{ReadAll} or a suitable OneLake data-access role,
+and the tenant setting for external OneLake apps must be enabled. This
+function cannot apply OneLake row- or column-level security, so OneLake
+blocks reads for callers restricted by those policies. See the
+\href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}
+and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}.
 
-OneLake credentials use the \verb{https://storage.azure.com/.default} audience
-and are passed to delta-rs as a bearer token with its Fabric endpoint
-option enabled.
+The first call may take longer while the required Python packages are set up.
+If \code{RETICULATE_PYTHON} points to an environment you manage, install the
+versions reported by \code{\link[=fabric_delta_config]{fabric_delta_config()}} in that environment.
 
-OneLake data access is separate from item visibility. A generic Fabric item
-\code{Read} grant exposes metadata but is not sufficient for a direct Delta read.
-Workspace Admin, Member, and Contributor roles have broad OneLake access.
-Otherwise grant item \code{Read} plus \code{ReadAll}, or, when OneLake security is
-enabled, item \code{Read} plus a OneLake role whose \code{Read} scope contains the
-target table. fabricQueryR is not a Fabric-supported or registered authorized
-third-party engine: it does not retrieve or enforce OneLake row-level or
-column-level security (RLS/CLS) policies. OneLake blocks direct file reads
-when the caller's effective access is restricted by either policy, so this
-function fails instead of returning filtered rows or columns. Use an
-unrestricted calling identity, a supported Fabric engine, or an authorized
-third-party engine that implements policy enforcement. See
-\href{https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security}{OneLake RLS}
-and the
-\href{https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview}{authorized-engine model}.
-A Fabric administrator must also enable the OneLake tenant setting
-\strong{Users can access data stored in OneLake with apps external to Fabric} for
-the calling identity. See
-\href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}
-and the
-\href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}.
+A tibble is loaded fully into memory. \code{result = "arrow_stream"} instead
+returns a lazy, single-use stream for batch processing. Consume it promptly,
+because it uses the access token captured when the stream was opened.
 
-Fabric Warehouse publishes Delta logs asynchronously. Reads therefore return
-the latest snapshot published to OneLake, which can lag the current Warehouse
-transaction state or remain fixed while Delta-log publishing is paused.
-Warehouse tables can be consumed by external Delta engines only when their
-names contain ASCII letters, digits, or underscores. Projected Warehouse
-column names cannot contain spaces, tabs, carriage returns, square brackets,
-commas, semicolons, braces, parentheses, or equals signs. Invalid requested
-names fail with \code{fabric_delta_invalid_target}. See
+\code{limit} does not define an order. It is useful for previews, but not for
+stable pagination. Use \code{version} to read a specific Delta snapshot.
+
+Warehouse Delta snapshots are published asynchronously, so a read can lag
+behind the current Warehouse state. Warehouse table and column names must
+also meet the restrictions for external Delta readers. See
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
 
-\code{result = "arrow_stream"} is lazy and single-use after the Delta snapshot,
-schema, and deletion-vector compatibility preflight have been opened. Opening
-either result is retried once with a refreshable credential when delta-rs
-reports an authentication failure. Failures that occur after a lazy stream has been
-returned and consumed cannot be retried: the OneLake bearer token is fixed
-for that stream's object-store session. Consume lazy streams promptly. If a
-token expires during a long scan, discard the stream and call this function
-again with \code{version = attr(stream, "fabric_delta_snapshot_version")} to reopen
-the same snapshot with a fresh token.
-A tibble result necessarily materializes the complete selected result in R.
-During conversion the collector releases full Arrow batches before recursive
-validity restoration and retains only compact validity/offset metadata, but
-\code{result = "arrow_stream"} remains the appropriate choice for results that
-should be processed batch by batch.
+Tables that require Type Widening, V2 Checkpoints, or Fabric Variant preview
+features are not currently supported. Use Fabric PySpark when broader Delta
+feature support is needed.
 
-\code{limit} has no ordering expression. It is normally pushed into the scan; for
-a snapshot with deletion vectors it is applied after deletion filtering so
-deleted physical rows do not reduce the requested logical row count. When it
-is smaller than the snapshot, the returned rows are an
-implementation-defined subset and can change with file layout or snapshot
-version. It is not a stable pagination mechanism.
-
-\code{dfs_base} defaults to OneLake's global endpoint. Microsoft notes that data
-can leave the workspace's region during global-endpoint resolution. For
-data-residency requirements, pass the workspace capacity's regional endpoint,
-such as \verb{https://westeurope-onelake.dfs.fabric.microsoft.com}; use the
-workspace FQDN required by a workspace private link where applicable. See
-\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connecting to Microsoft OneLake}.
-
-The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
-typed partitions, classic checkpoints, column mapping, deletion vectors,
-logical rows from row-tracking tables, and shallow clones. Row IDs and row
-commit versions are hidden Spark \verb{_metadata} fields rather than logical Delta
-schema columns; this function does not expose them. Use Fabric PySpark when
-those row-tracking metadata values are required. See
-\href{https://docs.delta.io/delta-row-tracking/}{Delta row tracking}. The pinned runtime's
-deletion-vector masks depend on physical
-scan order, so snapshots with actual vectors use one DataFusion scan
-partition. Their positive \code{limit} is applied through a window barrier after
-deletion filtering; this can scan more physical rows than the returned
-result. Unreadable vector lengths are rejected before scanning. The pinned
-\code{deltalake} API materializes deletion-vector masks while enumerating affected
-files, so this preflight has native-memory cost proportional to those masks;
-fabricQueryR reads only their Arrow offsets and does not expand the Boolean
-masks into Python or R objects. \code{limit = 0} does not scan rows and skips this
-mask preflight. Its
-current reader also does not support Fabric tables requiring Type
-Widening, V2 Checkpoints, or Fabric's VariantShreddingPreview; those fail with
-\code{fabric_delta_unsupported_feature_error}. When an otherwise readable Arrow
-stream already contains canonical \code{arrow.parquet.variant} extension columns,
-they require \code{result = "arrow_stream"}; current Fabric Variant preview tables
-fail earlier and are not advertised as readable.
-
-These compatibility claims are specific to fabricQueryR's exact pinned
-runtime and test matrix, not a Microsoft support statement. Microsoft's
-current engine matrix reports general delta-rs gaps for column mapping,
-deletion-vector reads, V2 checkpoints, and shallow-clone reads. Consult
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide}{Choosing a Fabric notebook kernel}
-and use Fabric PySpark when Microsoft-supported feature coverage is required
-or the package's current live integration workflow has not passed for the
-exact package revision being deployed.
-
-The package's default live sandbox validates unrestricted reads through the
-global OneLake endpoint and fail-closed handling of an invalid token. It does
-not provision tenant-specific OneLake RLS/CLS role assignments, workspace
-private links, private DNS, or a runner inside a private network. Regional and
-workspace-private DFS host construction is unit tested, but deployments that
-rely on those security or networking configurations must run an additional
-live validation in their own tenant and network.
-
-Delta \code{integer} values normally use R integers and Delta \code{long} values
-normally use \code{\link[bit64:integer64]{bit64::integer64()}}. Because those R representations reserve
-the respective minimum value as \code{NA}, a column containing Delta's valid
-\code{-2147483648} integer is widened to an exact R double and a column containing
-Delta's valid \code{-9223372036854775808} long uses the exact character-backed
-\code{fabric_delta_integer64} class. This applies recursively to nested values.
-One representation is chosen for each logical nested field across every
-list or map element, so a boundary in one element cannot change only that
-element's R type.
-Delta decimals are returned as exact character values, including when nested. Delta
-\code{timestamp_ntz} values use the character-backed
-\code{fabric_delta_timestamp_ntz} class. The Arrow stream preserves
-timezone-free timestamps as Arrow timestamps and represents decimals as
-strings, matching the R result's exact-decimal contract. Nullable struct
-columns retain their parent validity through the
-\code{fabric_delta_struct_column} class, so a null struct remains distinct from a
-present struct whose children are all null. If the runtime returns a canonical
-Arrow Variant extension column, it is preserved by \code{result = "arrow_stream"};
-tibble collection rejects it explicitly because exposing its physical
-\code{metadata} and \code{value} buffers as ordinary R data would be misleading. This
-bridge contract is covered with synthetic extension schemas; Fabric's current
-VariantShreddingPreview tables are rejected before an Arrow stream is created.
+To preserve exact values, Delta \code{long} columns normally use
+\code{\link[bit64:integer64]{bit64::integer64()}} and decimal columns are returned as character vectors.
 }
 \examples{
 \dontrun{
-rows <- fabric_onelake_read_delta_table(
-  table_path = "PatientInfo",
+patients <- fabric_onelake_read_delta_table(
+  table_path = "Patients",
   workspace_name = "PatientsWorkspace",
-  lakehouse_name = "Clinical.Lakehouse",
-  schema = "dbo",
-  columns = c("PatientId", "Status"),
-  limit = 1000
+  lakehouse_name = "Clinical.Lakehouse"
 )
 
 stream <- fabric_onelake_read_delta_table(
-  table_path = "PatientInfo",
+  table_path = "Patients",
   workspace_name = "PatientsWorkspace",
   lakehouse_name = "Clinical.Lakehouse",
-  schema = "dbo",
+  columns = c("PatientId", "Status"),
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)
