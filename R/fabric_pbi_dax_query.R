@@ -315,8 +315,7 @@ pbi_parse_connstr <- function(conn) {
   if (!is.character(conn) || length(conn) != 1L || is.na(conn)) {
     rlang::abort("conn must be one string")
   }
-  toks <- strsplit(conn, ";", fixed = TRUE)[[1]]
-  toks <- trimws(toks)
+  toks <- trimws(fabric_split_connection_string(conn))
   toks <- toks[nzchar(toks)]
 
   # Data Source can be present as key=value or as a bare powerbi:// URL token
@@ -334,7 +333,7 @@ pbi_parse_connstr <- function(conn) {
       "Could not find a unique Data Source in connection string"
     )
   }
-  ds <- trimws(ds[[1]])
+  ds <- fabric_unquote_connection_value(ds[[1L]])
   if (
     !grepl(
       "^powerbi://api\\.powerbi\\.com/v1\\.0/[^/]+/[^/]+/?$",
@@ -357,7 +356,11 @@ pbi_parse_connstr <- function(conn) {
     toks[grepl("(?i)^(Initial Catalog|Catalog|Database|Dataset)=", toks)],
     perl = TRUE
   )
-  catv <- trimws(catv)
+  catv <- vapply(
+    catv,
+    fabric_unquote_connection_value,
+    character(1)
+  )
   if (length(catv) != 1L || !nzchar(catv[[1L]])) {
     rlang::abort(
       paste0(

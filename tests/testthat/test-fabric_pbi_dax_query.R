@@ -22,6 +22,21 @@ test_that("pbi_parse_connstr supports bare powerbi:// and Catalog alias", {
   expect_equal(p$dataset, "MyData")
 })
 
+test_that("pbi_parse_connstr preserves quoted dataset delimiters", {
+  quoted <- pbi_parse_connstr(paste0(
+    "Data Source=\"powerbi://api.powerbi.com/v1.0/myorg/Workspace\";",
+    "Initial Catalog=\"Dataset; \"\"North\"\"\";"
+  ))
+  expect_equal(quoted$workspace, "Workspace")
+  expect_equal(quoted$dataset, 'Dataset; "North"')
+
+  braced <- pbi_parse_connstr(paste0(
+    "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;",
+    "Catalog={Dataset;East};"
+  ))
+  expect_equal(braced$dataset, "Dataset;East")
+})
+
 test_that("pbi_parse_connstr rejects incomplete and non-Power-BI strings", {
   expect_error(
     fabricQueryR:::pbi_parse_connstr("Initial Catalog=OnlyDataset;"),

@@ -905,7 +905,7 @@ fabric_sql_transient_error <- function(error) {
 
 fabric_parse_sql_connection_string <- function(server) {
   value <- trimws(server)
-  tokens <- trimws(strsplit(value, ";", fixed = TRUE)[[1L]])
+  tokens <- trimws(fabric_split_connection_string(value))
   tokens <- tokens[nzchar(tokens)]
   pairs <- tokens[grepl("=", tokens, fixed = TRUE)]
   fields <- list()
@@ -914,7 +914,9 @@ fabric_parse_sql_connection_string <- function(server) {
       position <- regexpr("=", pair, fixed = TRUE)[[1L]]
       key <- tolower(trimws(substr(pair, 1L, position - 1L)))
       key <- gsub("[ _]", "", key)
-      fields[[key]] <- trimws(substr(pair, position + 1L, nchar(pair)))
+      fields[[key]] <- fabric_unquote_connection_value(
+        substr(pair, position + 1L, nchar(pair))
+      )
     }
   }
   host <- fields$server %||%
@@ -930,7 +932,7 @@ fabric_parse_sql_connection_string <- function(server) {
         class = "fabric_sql_target_error"
       )
     }
-    host <- bare[[1L]]
+    host <- fabric_unquote_connection_value(bare[[1L]])
   }
   host <- sub("(?i)^tcp:\\s*", "", trimws(host), perl = TRUE)
   port <- NULL

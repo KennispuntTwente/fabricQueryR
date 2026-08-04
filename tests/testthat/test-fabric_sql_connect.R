@@ -31,6 +31,29 @@ test_that("SQL connection info parses portal strings and bare endpoints", {
   expect_equal(bare$target_type, "sql_analytics_endpoint")
 })
 
+test_that("SQL connection strings preserve quoted semicolons", {
+  braced <- fabric_sql_connection_info(paste0(
+    "Server={tcp:abc.database.fabric.microsoft.com,1433};",
+    "Initial Catalog={Orders;Archive};"
+  ))
+  expect_equal(braced$server, "abc.database.fabric.microsoft.com")
+  expect_equal(braced$database, "Orders;Archive")
+
+  quoted <- fabric_sql_connection_info(paste0(
+    "Server=abc.database.fabric.microsoft.com;",
+    "Initial Catalog=\"Orders; \"\"North\"\"\";"
+  ))
+  expect_equal(quoted$database, 'Orders; "North"')
+  expect_error(
+    fabric_sql_connection_info(paste0(
+      "Server=abc.database.fabric.microsoft.com;",
+      "Initial Catalog={Orders;Archive;"
+    )),
+    "unterminated quoted or braced value",
+    fixed = TRUE
+  )
+})
+
 test_that("SQL connection info consumes discovered item rows", {
   item <- tibble::tibble(
     id = "item-id",
