@@ -946,7 +946,10 @@ test_that("neutral references for unsupported Fabric features fully scan", {
     expect_gt(nrow(value), 0L, label = reference)
     expect_gt(ncol(value), 0L, label = reference)
     key <- intersect(c("id", "row_id", "event_id"), names(value))
-    expect_length(key, 1L, label = paste(reference, "stable key"))
+    expect_true(
+      length(key) == 1L,
+      label = paste(reference, "has one stable key")
+    )
     expect_false(
       anyDuplicated(value[[key]]) > 0L,
       label = paste(reference, "unique stable key")
