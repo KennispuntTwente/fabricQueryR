@@ -50,7 +50,7 @@
   use an Arrow stream for nested or extension data. The old `dest_dir` argument
   has been removed. Tables requiring Deletion Vectors, Type Widening, V2
   Checkpoints, or Fabric Variant remain unsupported, including current
-  Warehouse Delta exports; use Fabric SQL or PySpark for those tables.
+  Warehouse Delta exports; use SQL or Spark (Livy) for those tables.
 
 # fabricQueryR 0.2.1
 
