@@ -146,8 +146,8 @@ tests/testthat/
 <td>Nested CSV/Parquet files with duplicate basenames</td>
 <td>Correct paths, listing/pagination, upload/download, and lazy access</td>
 </tr><tr><td>Delta</td>
-<td>Basic, partitioned, checkpointed, schema-evolved, column-mapped, and deletion-vector tables</td>
-<td>Correct active rows/schema or an explicit unsupported-feature error</td>
+<td>Basic, partitioned, checkpointed, schema-evolved, column-mapped, deletion-vector, and row-tracking tables</td>
+<td>Correct complete logical rows/schema or an explicit unsupported-feature error</td>
 </tr><tr><td>DAX</td>
 <td>Small semantic model with deterministic measures</td>
 <td>Table shape, qualified columns, nulls, API errors, and limit/truncation detection</td>
@@ -208,7 +208,7 @@ tests/testthat/
 </div>
 <div class="section level2">
 <h2 id="priority-1-make-delta-table-reads-protocol-correct">Priority 1: Make Delta table reads protocol-correct<a class="anchor" aria-label="anchor" href="#priority-1-make-delta-table-reads-protocol-correct"></a></h2>
-<p><strong>Status (August 2026): implemented for the package-tested reader contract.</strong> The reader streams transaction-log and Parquet data from OneLake through delta-rs, supports classic checkpoints and version selection, preserves exact numeric values, and rejects unsupported reader features before returning data. The locked runtime explicitly rejects V2 checkpoints, Type Widening, and Fabric’s VariantShreddingPreview rather than returning a plausible but incorrect result. Support for column mapping, serialized deletion-vector scans, and shallow-clone reads is specific to the exact pinned runtime and live package matrix; it is not a claim that Microsoft supports those features in delta-rs generally.</p>
+<p><strong>Status (August 2026): implemented for the package-tested reader contract.</strong> The reader streams transaction-log and Parquet data from OneLake through delta-rs, supports classic checkpoints and version selection, preserves exact numeric values, and rejects unsupported reader features before returning data. The locked runtime explicitly rejects V2 checkpoints, Type Widening, and Fabric’s VariantShreddingPreview rather than returning a plausible but incorrect result. Support for column mapping, serialized deletion-vector scans, row-tracking logical rows, and shallow-clone reads is specific to the exact pinned runtime and live package matrix; it is not a claim that Microsoft supports those features in delta-rs generally. Spark-only hidden row-tracking metadata is not part of the reader contract.</p>
 <div class="section level3">
 <h3 id="problem">Problem<a class="anchor" aria-label="anchor" href="#problem"></a></h3>
 <p>The original implementation replayed only JSON transaction-log files and staged data by basename, which was unsafe for checkpoints, newer Delta features, and duplicate partition filenames.</p>
@@ -225,7 +225,7 @@ tests/testthat/
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-1">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-1"></a></h3>
-<ul><li>The integration fixture matrix for basic, partitioned, V1/V2 checkpointed, schema-evolved, name/ID column-mapped, deletion-vector, type-widened, shallow-clone, nested/exact-numeric, Variant, and Warehouse-export tables passes, or unsupported features fail before data is returned.</li>
+<ul><li>The integration fixture matrix for basic, partitioned, V1/V2 checkpointed, schema-evolved, name/ID column-mapped, deletion-vector, type-widened, row-tracking, shallow-clone, nested/exact-numeric, Variant, and Warehouse-export tables passes, or unsupported features fail before data is returned.</li>
 <li>Duplicate Parquet basenames in different partitions are handled correctly.</li>
 <li>Existing simple-table behavior remains compatible.</li>
 </ul></div>

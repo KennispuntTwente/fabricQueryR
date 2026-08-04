@@ -210,21 +210,31 @@ tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
 The package’s exact pinned and tested runtime supports classic
 checkpoints, schema evolution, column mapping, deletion vectors within
-its documented safety limit, shallow-clone reads, and version reads;
-Type Widening, V2 checkpoints, and Fabric’s Variant shredding preview
-fail explicitly. These are fabricQueryR-specific compatibility results,
-not a Microsoft support statement: Microsoft’s current [engine
+its documented safety limit, logical data rows from row-tracking tables,
+shallow-clone reads, and version reads. Spark’s hidden
+`_metadata.row_id` and `_metadata.row_commit_version` fields are not
+returned; use Fabric PySpark when those values are required. See [Delta
+row tracking](https://docs.delta.io/delta-row-tracking/). Type Widening,
+V2 checkpoints, and Fabric’s Variant shredding preview fail explicitly.
+These are fabricQueryR-specific compatibility results, not a Microsoft
+support statement: Microsoft’s current [engine
 matrix](https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide)
 reports broader delta-rs gaps for column mapping, deletion vectors, V2
 checkpoints, and shallow clones. Use Fabric PySpark when
 Microsoft-supported feature coverage is required, and require a green
 live integration run for the exact fabricQueryR revision before relying
-on package-specific feature support. Warehouse Delta logs are published
-asynchronously, so a OneLake read can lag the current Warehouse state.
-For external Delta readers, Warehouse table names are limited to ASCII
-letters, digits, and underscores, while column names cannot contain
-spaces, tabs, carriage returns, square brackets, commas, semicolons,
-braces, parentheses, or equals signs. See [Delta Lake logs in
+on package-specific feature support. The default live sandbox does not
+provision RLS/CLS role assignments or a workspace private link/private
+DNS path. It validates unrestricted global- endpoint reads and an
+invalid-token denial; tenant-specific security policies, regional
+routing, and private-link connectivity require a live validation from
+the deployment’s own identity and network. Warehouse Delta logs are
+published asynchronously, so a OneLake read can lag the current
+Warehouse state. For external Delta readers, Warehouse table names are
+limited to ASCII letters, digits, and underscores, while column names
+cannot contain spaces, tabs, carriage returns, square brackets, commas,
+semicolons, braces, parentheses, or equals signs. See [Delta Lake logs
+in
 Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 See
 [`?fabric_onelake_read_delta_table`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)

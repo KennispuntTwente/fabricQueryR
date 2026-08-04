@@ -197,7 +197,7 @@ volume:
 |----|----|----|
 | SQL | Lakehouse SQL endpoint, Warehouse, SQL Database | Token login, endpoint normalization, query results, parameters, nulls, and clear failures |
 | OneLake files | Nested CSV/Parquet files with duplicate basenames | Correct paths, listing/pagination, upload/download, and lazy access |
-| Delta | Basic, partitioned, checkpointed, schema-evolved, column-mapped, and deletion-vector tables | Correct active rows/schema or an explicit unsupported-feature error |
+| Delta | Basic, partitioned, checkpointed, schema-evolved, column-mapped, deletion-vector, and row-tracking tables | Correct complete logical rows/schema or an explicit unsupported-feature error |
 | DAX | Small semantic model with deterministic measures | Table shape, qualified columns, nulls, API errors, and limit/truncation detection |
 | Livy | Lakehouse and seed notebook/session | Session lifecycle, statement success/failure, cleanup, and batch execution |
 | Discovery | More than one page where practical and deliberately ambiguous names | Complete pagination, stable ID lookup, and ambiguity errors |
@@ -286,9 +286,10 @@ reader features before returning data. The locked runtime explicitly
 rejects V2 checkpoints, Type Widening, and Fabric’s
 VariantShreddingPreview rather than returning a plausible but incorrect
 result. Support for column mapping, serialized deletion-vector scans,
-and shallow-clone reads is specific to the exact pinned runtime and live
-package matrix; it is not a claim that Microsoft supports those features
-in delta-rs generally.
+row-tracking logical rows, and shallow-clone reads is specific to the
+exact pinned runtime and live package matrix; it is not a claim that
+Microsoft supports those features in delta-rs generally. Spark-only
+hidden row-tracking metadata is not part of the reader contract.
 
 ### Problem
 
@@ -318,9 +319,9 @@ features, and duplicate partition filenames.
 
 - The integration fixture matrix for basic, partitioned, V1/V2
   checkpointed, schema-evolved, name/ID column-mapped, deletion-vector,
-  type-widened, shallow-clone, nested/exact-numeric, Variant, and
-  Warehouse-export tables passes, or unsupported features fail before
-  data is returned.
+  type-widened, row-tracking, shallow-clone, nested/exact-numeric,
+  Variant, and Warehouse-export tables passes, or unsupported features
+  fail before data is returned.
 - Duplicate Parquet basenames in different partitions are handled
   correctly.
 - Existing simple-table behavior remains compatible.

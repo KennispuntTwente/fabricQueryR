@@ -213,19 +213,24 @@ OneLake](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api).
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema
 evolution, typed partitions, classic checkpoints, column mapping,
-deletion vectors, and shallow clones. The pinned runtime's
-deletion-vector masks depend on physical scan order, so snapshots with
-actual vectors use one DataFusion scan partition. Their positive `limit`
-is applied through a window barrier after deletion filtering; this can
-scan more physical rows than the returned result. Unreadable vector
-lengths are rejected before scanning. The pinned `deltalake` API
-materializes deletion-vector masks while enumerating affected files, so
-this preflight has native-memory cost proportional to those masks;
-fabricQueryR reads only their Arrow offsets and does not expand the
-Boolean masks into Python or R objects. `limit = 0` does not scan rows
-and skips this mask preflight. Its current reader also does not support
-Fabric tables requiring Type Widening, V2 Checkpoints, or Fabric's
-VariantShreddingPreview; those fail with
+deletion vectors, logical rows from row-tracking tables, and shallow
+clones. Row IDs and row commit versions are hidden Spark `_metadata`
+fields rather than logical Delta schema columns; this function does not
+expose them. Use Fabric PySpark when those row-tracking metadata values
+are required. See [Delta row
+tracking](https://docs.delta.io/delta-row-tracking/). The pinned
+runtime's deletion-vector masks depend on physical scan order, so
+snapshots with actual vectors use one DataFusion scan partition. Their
+positive `limit` is applied through a window barrier after deletion
+filtering; this can scan more physical rows than the returned result.
+Unreadable vector lengths are rejected before scanning. The pinned
+`deltalake` API materializes deletion-vector masks while enumerating
+affected files, so this preflight has native-memory cost proportional to
+those masks; fabricQueryR reads only their Arrow offsets and does not
+expand the Boolean masks into Python or R objects. `limit = 0` does not
+scan rows and skips this mask preflight. Its current reader also does
+not support Fabric tables requiring Type Widening, V2 Checkpoints, or
+Fabric's VariantShreddingPreview; those fail with
 `fabric_delta_unsupported_feature_error`. When an otherwise readable
 Arrow stream already contains canonical `arrow.parquet.variant`
 extension columns, they require `result = "arrow_stream"`; current
@@ -241,6 +246,15 @@ kernel](https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-noteboo
 and use Fabric PySpark when Microsoft-supported feature coverage is
 required or the package's current live integration workflow has not
 passed for the exact package revision being deployed.
+
+The package's default live sandbox validates unrestricted reads through
+the global OneLake endpoint and fail-closed handling of an invalid
+token. It does not provision tenant-specific OneLake RLS/CLS role
+assignments, workspace private links, private DNS, or a runner inside a
+private network. Regional and workspace-private DFS host construction is
+unit tested, but deployments that rely on those security or networking
+configurations must run an additional live validation in their own
+tenant and network.
 
 Delta `integer` values normally use R integers and Delta `long` values
 normally use
