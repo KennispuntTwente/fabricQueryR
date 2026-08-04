@@ -519,8 +519,8 @@ test_that("discovered semantic models bypass name lookup for DAX", {
   )
   model <- structure(
     list(
-      id = "dataset-id",
-      workspaceId = "workspace-id",
+      id = "22222222-2222-4222-8222-222222222222",
+      workspaceId = "11111111-1111-4111-8111-111111111111",
       displayName = "Model",
       type = "SemanticModel"
     ),
@@ -531,8 +531,14 @@ test_that("discovered semantic models bypass name lookup for DAX", {
     dax = 'EVALUATE ROW("value", 1)',
     token = "token"
   )
-  expect_equal(captured$group_id, "workspace-id")
-  expect_equal(captured$dataset_id, "dataset-id")
+  expect_equal(
+    captured$group_id,
+    "11111111-1111-4111-8111-111111111111"
+  )
+  expect_equal(
+    captured$dataset_id,
+    "22222222-2222-4222-8222-222222222222"
+  )
   expect_equal(result$value, 1)
 })
 

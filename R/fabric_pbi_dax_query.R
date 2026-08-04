@@ -203,24 +203,8 @@ fabric_pbi_dax_query <- function(
   ) {
     rlang::abort("connstr must be one non-empty string")
   }
-  if (
-    !is.null(workspace_id) &&
-      (!is.character(workspace_id) ||
-        length(workspace_id) != 1L ||
-        is.na(workspace_id) ||
-        !nzchar(workspace_id))
-  ) {
-    rlang::abort("workspace_id must be one non-empty string")
-  }
-  if (
-    !is.null(dataset_id) &&
-      (!is.character(dataset_id) ||
-        length(dataset_id) != 1L ||
-        is.na(dataset_id) ||
-        !nzchar(dataset_id))
-  ) {
-    rlang::abort("dataset_id must be one non-empty string")
-  }
+  pbi_validate_optional_guid(workspace_id, "workspace_id")
+  pbi_validate_optional_guid(dataset_id, "dataset_id")
   if (is.null(dataset_id) && is.null(connstr)) {
     rlang::abort(
       "Supply either connstr or dataset_id"
@@ -277,6 +261,8 @@ fabric_pbi_dax_query <- function(
     )
     workspace_id <- ids$group_id
     dataset_id <- ids$dataset_id
+    pbi_validate_optional_guid(workspace_id, "workspace_id")
+    pbi_validate_optional_guid(dataset_id, "dataset_id")
   }
 
   if (identical(api, "json")) {
@@ -302,6 +288,21 @@ fabric_pbi_dax_query <- function(
     options = arrow_options,
     result = result
   )
+}
+
+pbi_validate_optional_guid <- function(value, name) {
+  if (is.null(value)) {
+    return(invisible(value))
+  }
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !fabric_is_guid(value)
+  ) {
+    rlang::abort(paste0(name, " must be a GUID"))
+  }
+  invisible(value)
 }
 
 #' Parse a Power BI connection string (XMLA) into components

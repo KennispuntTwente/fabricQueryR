@@ -1,5 +1,8 @@
 # pbi_parse_connstr() -----------------------------------------------------
 
+pbi_test_workspace_id <- "11111111-1111-4111-8111-111111111111"
+pbi_test_dataset_id <- "22222222-2222-4222-8222-222222222222"
+
 test_that("pbi_parse_connstr parses full conn str", {
   conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace%20Name;Initial Catalog=Dataset One;"
   p <- fabricQueryR:::pbi_parse_connstr(conn)
@@ -104,7 +107,7 @@ test_that("Arrow DAX options and result combinations validate strictly", {
   expect_error(
     fabric_pbi_dax_query(
       dax = "EVALUATE ROW()",
-      dataset_id = "dataset",
+      dataset_id = pbi_test_dataset_id,
       token = "token",
       arrow_options = list(culture = "en-US")
     ),
@@ -114,7 +117,7 @@ test_that("Arrow DAX options and result combinations validate strictly", {
   expect_error(
     fabric_pbi_dax_query(
       dax = "EVALUATE ROW()",
-      dataset_id = "dataset",
+      dataset_id = pbi_test_dataset_id,
       token = "token",
       result = "arrow_stream"
     ),
@@ -190,7 +193,10 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
         fabric_get_token(credential, .fabric_audience$power_bi),
         "supplied-token"
       )
-      list(group_id = "group-id", dataset_id = "dataset-id")
+      list(
+        group_id = pbi_test_workspace_id,
+        dataset_id = pbi_test_dataset_id
+      )
     },
     pbi_execute_dax = function(
       credential,
@@ -205,8 +211,8 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
         fabric_get_token(credential, .fabric_audience$power_bi),
         "supplied-token"
       )
-      expect_equal(dataset_id, "dataset-id")
-      expect_equal(group_id, "group-id")
+      expect_equal(dataset_id, pbi_test_dataset_id)
+      expect_equal(group_id, pbi_test_workspace_id)
       expect_null(impersonated_user)
       tibble::tibble(result = 3L)
     },
@@ -248,8 +254,8 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
         fabric_get_token(credential, .fabric_audience$power_bi),
         "token"
       )
-      expect_equal(dataset_id, "dataset-id")
-      expect_equal(group_id, "workspace-id")
+      expect_equal(dataset_id, pbi_test_dataset_id)
+      expect_equal(group_id, pbi_test_workspace_id)
       expect_equal(impersonated_user, "reader@example.com")
       tibble::tibble(value = 42L)
     }
@@ -257,8 +263,8 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
 
   result <- fabric_pbi_dax_query(
     dax = 'EVALUATE ROW("value", 42)',
-    workspace_id = "workspace-id",
-    dataset_id = "dataset-id",
+    workspace_id = pbi_test_workspace_id,
+    dataset_id = pbi_test_dataset_id,
     token = "token",
     impersonated_user = "reader@example.com"
   )
@@ -268,6 +274,25 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
   expect_error(
     fabric_pbi_dax_query(dax = "EVALUATE ROW()", token = "token"),
     "Supply either connstr or dataset_id",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      dax = "EVALUATE ROW()",
+      workspace_id = "not-a-guid",
+      dataset_id = pbi_test_dataset_id,
+      token = "token"
+    ),
+    "workspace_id must be a GUID",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      dax = "EVALUATE ROW()",
+      dataset_id = "not-a-guid",
+      token = "token"
+    ),
+    "dataset_id must be a GUID",
     fixed = TRUE
   )
 })
@@ -290,8 +315,8 @@ test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
         fabric_get_token(credential, .fabric_audience$power_bi),
         "token"
       )
-      expect_equal(dataset_id, "dataset-id")
-      expect_equal(group_id, "workspace-id")
+      expect_equal(dataset_id, pbi_test_dataset_id)
+      expect_equal(group_id, pbi_test_workspace_id)
       expect_equal(dax, "EVALUATE ROW(\"value\", 1)")
       expect_equal(options$effectiveUsername, "reader@example.com")
       expect_equal(options$queryTimeout, 30)
@@ -302,8 +327,8 @@ test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
 
   result <- fabric_pbi_dax_query(
     dax = "EVALUATE ROW(\"value\", 1)",
-    workspace_id = "workspace-id",
-    dataset_id = "dataset-id",
+    workspace_id = pbi_test_workspace_id,
+    dataset_id = pbi_test_dataset_id,
     token = "token",
     impersonated_user = "reader@example.com",
     api = "arrow",
