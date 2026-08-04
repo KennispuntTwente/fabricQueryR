@@ -447,6 +447,66 @@ test_that("nested scalar restoration uses one type per logical field", {
   )
 })
 
+test_that("dictionary values follow the Delta scalar restoration contract", {
+  skip_if_not_installed("arrow")
+  collect_dictionary <- function(dictionary) {
+    value <- arrow::DictionaryArray$create(
+      arrow::Array$create(c(0L, 1L, 0L), type = arrow::int8()),
+      dictionary
+    )
+    array <- nanoarrow::as_nanoarrow_array(value)
+    source_schema <- nanoarrow::as_nanoarrow_schema(value$type)
+    target_schema <- fabric_delta_normalize_schema(
+      source_schema,
+      collect = TRUE
+    )
+    ptype <- fabric_delta_collect_ptype(source_schema, target_schema)
+    stream <- nanoarrow::basic_array_stream(
+      list(array),
+      schema = target_schema
+    )
+    collected <- nanoarrow::convert_array_stream(stream, to = ptype)
+    fabric_delta_restore_collected_types(collected, source_schema)
+  }
+
+  ordinary_integer <- collect_dictionary(arrow::Array$create(
+    c(-2147483647, 2),
+    type = arrow::int32()
+  ))
+  expect_type(ordinary_integer, "integer")
+  expect_identical(ordinary_integer, c(-2147483647L, 2L, -2147483647L))
+
+  boundary_integer <- collect_dictionary(arrow::Array$create(
+    c(-2147483648, 2),
+    type = arrow::int32()
+  ))
+  expect_type(boundary_integer, "double")
+  expect_identical(boundary_integer, c(-2147483648, 2, -2147483648))
+
+  ordinary_long <- collect_dictionary(arrow::Array$create(
+    bit64::as.integer64(c("-9223372036854775807", "2")),
+    type = arrow::int64()
+  ))
+  expect_s3_class(ordinary_long, "integer64")
+  expect_identical(
+    as.character(ordinary_long),
+    c("-9223372036854775807", "2", "-9223372036854775807")
+  )
+
+  long_dictionary_schema <- nanoarrow::as_nanoarrow_schema(
+    arrow::dictionary(arrow::int8(), arrow::int64())
+  )
+  boundary_long <- fabric_delta_restore_collected_types(
+    c("-9223372036854775808", "2", "-9223372036854775808"),
+    long_dictionary_schema
+  )
+  expect_s3_class(boundary_long, "fabric_delta_integer64")
+  expect_identical(
+    as.character(boundary_long),
+    c("-9223372036854775808", "2", "-9223372036854775808")
+  )
+})
+
 test_that("Warehouse projections enforce external Delta naming limits", {
   expect_no_error(
     fabric_delta_validate_columns(

@@ -1282,6 +1282,13 @@ fabric_delta_collect_ptype <- function(source_schema, target_schema) {
 #' @keywords internal
 #' @noRd
 fabric_delta_patch_ptype <- function(ptype, source_schema, target_schema) {
+  if (!is.null(source_schema$dictionary)) {
+    return(fabric_delta_patch_ptype(
+      ptype,
+      source_schema$dictionary,
+      target_schema$dictionary
+    ))
+  }
   if (identical(source_schema$format, "i")) {
     return(double())
   }
@@ -1321,6 +1328,13 @@ fabric_delta_restore_collected_types <- function(
 ) {
   if (is.null(policy)) {
     policy <- fabric_delta_restore_policy(value, schema)
+  }
+  if (!is.null(schema$dictionary)) {
+    return(fabric_delta_restore_collected_types(
+      value,
+      schema$dictionary,
+      policy = policy$dictionary
+    ))
   }
   if (identical(schema$format, "i")) {
     return(fabric_delta_restore_integer32(
@@ -1373,6 +1387,12 @@ fabric_delta_restore_collected_types <- function(
 #' @keywords internal
 #' @noRd
 fabric_delta_restore_policy <- function(value, schema) {
+  if (!is.null(schema$dictionary)) {
+    return(list(dictionary = fabric_delta_restore_policy(
+      value,
+      schema$dictionary
+    )))
+  }
   if (identical(schema$format, "i")) {
     text <- fabric_delta_restore_text(value)
     numeric_value <- suppressWarnings(as.double(text))
