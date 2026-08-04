@@ -111,6 +111,9 @@
 #' `-2147483648` integer is widened to an exact R double and a column containing
 #' Delta's valid `-9223372036854775808` long uses the exact character-backed
 #' `fabric_delta_integer64` class. This applies recursively to nested values.
+#' One representation is chosen for each logical nested field across every
+#' list or map element, so a boundary in one element cannot change only that
+#' element's R type.
 #' Delta decimals are returned as exact character values, including when nested. Delta
 #' `timestamp_ntz` values use the character-backed
 #' `fabric_delta_timestamp_ntz` class. The Arrow stream preserves
@@ -1077,7 +1080,7 @@ fabric_delta_normalize_schema <- function(schema, collect = FALSE) {
   }
   if (isTRUE(collect)) {
     if (identical(format, "i")) {
-      format <- "l"
+      format <- "g"
     } else if (format %in% c("l", "L")) {
       format <- "u"
     }
@@ -1280,7 +1283,7 @@ fabric_delta_collect_ptype <- function(source_schema, target_schema) {
 #' @noRd
 fabric_delta_patch_ptype <- function(ptype, source_schema, target_schema) {
   if (identical(source_schema$format, "i")) {
-    return(bit64::integer64())
+    return(double())
   }
   if (source_schema$format %in% c("l", "L")) {
     return(character())
@@ -1311,12 +1314,25 @@ fabric_delta_patch_ptype <- function(ptype, source_schema, target_schema) {
 #' Restore R classes that cannot be requested through an Arrow schema
 #' @keywords internal
 #' @noRd
-fabric_delta_restore_collected_types <- function(value, schema) {
+fabric_delta_restore_collected_types <- function(
+  value,
+  schema,
+  policy = NULL
+) {
+  if (is.null(policy)) {
+    policy <- fabric_delta_restore_policy(value, schema)
+  }
   if (identical(schema$format, "i")) {
-    return(fabric_delta_restore_integer32(value))
+    return(fabric_delta_restore_integer32(
+      value,
+      force_double = isTRUE(policy$force_double)
+    ))
   }
   if (schema$format %in% c("l", "L")) {
-    return(fabric_delta_restore_integer64(value))
+    return(fabric_delta_restore_integer64(
+      value,
+      force_character = isTRUE(policy$force_character)
+    ))
   }
   if (fabric_delta_is_timestamp_ntz_format(schema$format)) {
     return(fabric_delta_timestamp_ntz(value))
@@ -1325,7 +1341,8 @@ fabric_delta_restore_collected_types <- function(value, schema) {
     for (index in seq_along(schema$children)) {
       value[[index]] <- fabric_delta_restore_collected_types(
         value[[index]],
-        schema$children[[index]]
+        schema$children[[index]],
+        policy = policy$children[[index]]
       )
     }
     return(value)
@@ -1344,17 +1361,89 @@ fabric_delta_restore_collected_types <- function(value, schema) {
       }
       fabric_delta_restore_collected_types(
         element,
-        schema$children[[1L]]
+        schema$children[[1L]],
+        policy = policy$children[[1L]]
       )
     }))
   }
   value
 }
 
+#' Choose one stable R representation for every logical nested field
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_policy <- function(value, schema) {
+  if (identical(schema$format, "i")) {
+    text <- fabric_delta_restore_text(value)
+    numeric_value <- suppressWarnings(as.double(text))
+    return(list(force_double = any(
+      numeric_value <= -2147483648 | numeric_value > 2147483647,
+      na.rm = TRUE
+    )))
+  }
+  if (schema$format %in% c("l", "L")) {
+    text <- fabric_delta_restore_text(value)
+    return(list(force_character = any(
+      text == "-9223372036854775808",
+      na.rm = TRUE
+    )))
+  }
+  if (identical(schema$format, "+s")) {
+    return(list(children = lapply(
+      seq_along(schema$children),
+      function(index) {
+        fabric_delta_restore_policy(
+          fabric_delta_struct_child_values(value, index),
+          schema$children[[index]]
+        )
+      }
+    )))
+  }
+  if (
+    schema$format %in%
+      c("+l", "+L", "+m", "+vl", "+vL") ||
+      startsWith(schema$format, "+w:")
+  ) {
+    return(list(children = list(fabric_delta_restore_policy(
+      value,
+      schema$children[[1L]]
+    ))))
+  }
+  list()
+}
+
+#' Collect scalar text without coercing bit64 payloads through doubles
+#' @keywords internal
+#' @noRd
+fabric_delta_restore_text <- function(value) {
+  if (is.data.frame(value)) {
+    return(unlist(lapply(value, fabric_delta_restore_text), use.names = FALSE))
+  }
+  if (is.list(value)) {
+    return(unlist(lapply(value, fabric_delta_restore_text), use.names = FALSE))
+  }
+  as.character(value)
+}
+
+#' Extract one struct field through any enclosing list or map layers
+#' @keywords internal
+#' @noRd
+fabric_delta_struct_child_values <- function(value, index) {
+  if (is.data.frame(value)) {
+    return(value[[index]])
+  }
+  if (is.list(value)) {
+    return(lapply(value, function(element) {
+      fabric_delta_struct_child_values(element, index)
+    }))
+  }
+  NULL
+}
+
 #' Restore Delta integer values without confusing their minimum with R's NA
 #' @keywords internal
 #' @noRd
-fabric_delta_restore_integer32 <- function(value) {
+fabric_delta_restore_integer32 <- function(value, force_double = FALSE) {
   text <- as.character(value)
   numeric_value <- suppressWarnings(as.double(text))
   invalid <- !is.na(text) & (
@@ -1371,7 +1460,7 @@ fabric_delta_restore_integer32 <- function(value) {
 
   needs_double <- numeric_value <= -2147483648 |
     numeric_value > 2147483647
-  if (any(needs_double, na.rm = TRUE)) {
+  if (isTRUE(force_double) || any(needs_double, na.rm = TRUE)) {
     if (any(abs(numeric_value) >= 2^53, na.rm = TRUE)) {
       rlang::abort(
         paste0(
@@ -1389,9 +1478,12 @@ fabric_delta_restore_integer32 <- function(value) {
 #' Restore Delta long values without confusing their minimum with bit64's NA
 #' @keywords internal
 #' @noRd
-fabric_delta_restore_integer64 <- function(value) {
+fabric_delta_restore_integer64 <- function(value, force_character = FALSE) {
   text <- as.character(value)
-  if (any(text == "-9223372036854775808", na.rm = TRUE)) {
+  if (
+    isTRUE(force_character) ||
+      any(text == "-9223372036854775808", na.rm = TRUE)
+  ) {
     return(structure(
       text,
       class = c("fabric_delta_integer64", "character")

@@ -85,8 +85,10 @@ cancellation, while sessions also provide explicit cleanup;
   widen to exact doubles and long columns use an exact character-backed class.
   Nullable structs also retain their parent validity, including inside
   lists and maps, so null structs remain distinct from present structs whose
-  children are all null. The Arrow bridge normalizes DataFusion view types for
-  compatibility with the R `arrow` package.
+  children are all null. Nested integer fields choose one stable R type across
+  every list or map element, and int32 child buffers are widened without
+  reinterpreting their physical bytes. The Arrow bridge normalizes DataFusion
+  view types for compatibility with the R `arrow` package.
   - Preserves canonical `arrow.parquet.variant` columns supplied by an otherwise
   readable Arrow stream and rejects tibble collection with an actionable error
   instead of silently exposing Variant's physical metadata and value buffers as

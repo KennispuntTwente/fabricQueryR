@@ -120,6 +120,8 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
     assert evolved.column_names == ["id", "name", "evolved_value"]
     assert evolved_zero.column_names == ["id", "name"]
     assert nested.num_rows == 3
+    assert nested.column("scores")[1].as_py() == [2, 3]
+    assert nested.column("longs")[1].as_py() == [2, 3]
     assert (
         nested.schema.field("profile").type.field("amount").type
         == pa.string()

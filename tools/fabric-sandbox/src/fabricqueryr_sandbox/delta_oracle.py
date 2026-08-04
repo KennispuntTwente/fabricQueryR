@@ -642,8 +642,8 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
                 {
                     "id": 2,
                     "profile": None,
-                    "scores": [],
-                    "longs": [],
+                    "scores": [2, 3],
+                    "longs": [2, 3],
                     "counts": [],
                     "items": [],
                     "attributes": [],

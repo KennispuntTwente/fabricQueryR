@@ -327,13 +327,13 @@ test_that("Arrow schemas normalize exact scalar types for safe collection", {
   expect_identical(normalized$children$local_at$format, "tsu:")
 
   collected <- fabric_delta_normalize_schema(schema, collect = TRUE)
-  expect_identical(collected$children$regular$format, "l")
+  expect_identical(collected$children$regular$format, "g")
   expect_identical(collected$children$id$format, "u")
   expect_identical(collected$children$amount$format, "u")
   expect_identical(collected$children$local_at$format, "u")
 
   ptype <- fabric_delta_collect_ptype(schema, collected)
-  expect_s3_class(ptype$regular, "integer64")
+  expect_type(ptype$regular, "double")
   expect_type(ptype$id, "character")
   expect_type(ptype$amount, "character")
   expect_type(ptype$local_at, "character")
@@ -385,6 +385,66 @@ test_that("Delta integer NA sentinels are restored without data loss", {
     c("-9223372036854775808", NA, "9223372036854775807")
   )
   expect_s3_class(boundary_long[c(3L, 1L)], "fabric_delta_integer64")
+})
+
+test_that("nested scalar restoration uses one type per logical field", {
+  skip_if_not_installed("arrow")
+  schema <- nanoarrow::as_nanoarrow_schema(arrow::schema(
+    scores = arrow::list_of(arrow::int32()),
+    longs = arrow::list_of(arrow::int64()),
+    records = arrow::list_of(arrow::struct(
+      score = arrow::int32(),
+      long = arrow::int64()
+    ))
+  ))
+
+  scores <- list(
+    bit64::as.integer64(c("-2147483648", "1")),
+    bit64::as.integer64(c("2", "3")),
+    NULL
+  )
+  restored_scores <- fabric_delta_restore_collected_types(
+    scores,
+    schema$children$scores
+  )
+  expect_type(restored_scores[[1L]], "double")
+  expect_type(restored_scores[[2L]], "double")
+  expect_identical(restored_scores[[2L]], c(2, 3))
+  expect_null(restored_scores[[3L]])
+
+  longs <- list(
+    c("-9223372036854775808", "1"),
+    c("2", "3"),
+    NULL
+  )
+  restored_longs <- fabric_delta_restore_collected_types(
+    longs,
+    schema$children$longs
+  )
+  expect_s3_class(restored_longs[[1L]], "fabric_delta_integer64")
+  expect_s3_class(restored_longs[[2L]], "fabric_delta_integer64")
+  expect_identical(as.character(restored_longs[[2L]]), c("2", "3"))
+  expect_null(restored_longs[[3L]])
+
+  records <- list(
+    data.frame(
+      score = bit64::as.integer64(c("-2147483648", "1")),
+      long = c("-9223372036854775808", "1")
+    ),
+    data.frame(
+      score = bit64::as.integer64(c("2", "3")),
+      long = c("2", "3")
+    )
+  )
+  restored_records <- fabric_delta_restore_collected_types(
+    records,
+    schema$children$records
+  )
+  expect_type(restored_records[[2L]]$score, "double")
+  expect_s3_class(
+    restored_records[[2L]]$long,
+    "fabric_delta_integer64"
+  )
 })
 
 test_that("Warehouse projections enforce external Delta naming limits", {

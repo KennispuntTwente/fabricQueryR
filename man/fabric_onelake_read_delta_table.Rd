@@ -196,6 +196,9 @@ the respective minimum value as \code{NA}, a column containing Delta's valid
 \code{-2147483648} integer is widened to an exact R double and a column containing
 Delta's valid \code{-9223372036854775808} long uses the exact character-backed
 \code{fabric_delta_integer64} class. This applies recursively to nested values.
+One representation is chosen for each logical nested field across every
+list or map element, so a boundary in one element cannot change only that
+element's R type.
 Delta decimals are returned as exact character values, including when nested. Delta
 \code{timestamp_ntz} values use the character-backed
 \code{fabric_delta_timestamp_ntz} class. The Arrow stream preserves

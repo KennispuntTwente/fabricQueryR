@@ -260,11 +260,15 @@ test_that("the production bridge preserves exact and nested values", {
     nested$scores[[1L]],
     c(-2147483648, 2147483647)
   )
+  expect_type(nested$scores[[2L]], "double")
+  expect_identical(nested$scores[[2L]], c(2, 3))
   expect_s3_class(nested$longs[[1L]], "fabric_delta_integer64")
+  expect_s3_class(nested$longs[[2L]], "fabric_delta_integer64")
   expect_identical(
     as.character(nested$longs[[1L]]),
     c("-9223372036854775808", "9223372036854775807")
   )
+  expect_identical(as.character(nested$longs[[2L]]), c("2", "3"))
   expect_s3_class(nested$profile, "fabric_delta_struct_column")
   expect_identical(is.na(nested$profile), c(FALSE, TRUE, FALSE))
   expect_identical(
