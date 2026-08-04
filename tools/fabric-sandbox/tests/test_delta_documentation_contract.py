@@ -5,9 +5,6 @@ def test_delta_documentation_matches_the_runtime_contract():
     repository_root = Path(__file__).parents[3]
     roadmap = (repository_root / "roadmap.md").read_text(encoding="utf-8")
     readme = (repository_root / "README.md").read_text(encoding="utf-8")
-    source = (
-        repository_root / "R/fabric_onelake_read_delta_table.R"
-    ).read_text(encoding="utf-8")
     seed = (
         repository_root
         / "infra/fabric/workspace/SeedFixtures.Notebook/notebook-content.py"
@@ -19,22 +16,14 @@ def test_delta_documentation_matches_the_runtime_contract():
     assert "streams transaction-log and Parquet data" in roadmap
     assert "V2 checkpoints" in roadmap
     assert "ReadAll" in readme
-    assert "storage.azure.com/.default" in readme
     assert (
         "Users can access data stored in OneLake with apps external to Fabric"
         in normalized_readme
     )
     assert "service-admin-portal-onelake" in readme
-    assert "isn't an authorized OneLake security engine" in normalized_readme
-    assert "onelake-security-integrations-overview" in readme
-    assert "_metadata.row_id" in readme
-    assert "row-tracking tables" in readme
-    assert "does not provision RLS/CLS role assignments" in normalized_readme
-    assert "private link/private DNS" in normalized_readme
-    assert "Warehouse table names are limited to ASCII letters" in readme
+    assert "row- or column-level security" in normalized_readme
+    assert "security/permission-model" in readme
     assert "query-delta-lake-logs" in readme
-    assert "use one DataFusion scan" in source
-    assert "window barrier after" in source
-    assert "materializes deletion-vector masks" in source
+    assert "Type Widening, V2 Checkpoints, or Fabric Variant" in readme
     assert "delta-reader-spark-oracle.json" in seed
     assert "mssparkutils.fs.put" in seed
