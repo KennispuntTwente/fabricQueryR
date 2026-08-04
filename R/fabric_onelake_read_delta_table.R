@@ -142,7 +142,8 @@
 #'   targets default to `"dbo"`.
 #' @param item_type `"Lakehouse"` or `"Warehouse"`. This is inferred from a
 #'   discovery record or a `.Lakehouse`/`.Warehouse` suffix. Supply it for a
-#'   suffixless item display name, especially a Warehouse name.
+#'   suffixless item display name, especially a Warehouse name. An explicit
+#'   type that conflicts with a recognized suffix is rejected.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -420,6 +421,15 @@ fabric_delta_resolve_public_target <- function(
     }
   } else {
     NULL
+  }
+  if (
+    !is.null(requested_item_type) &&
+      !is.null(suffix_type) &&
+      !identical(requested_item_type, suffix_type)
+  ) {
+    rlang::abort(
+      "item_type conflicts with the .Lakehouse/.Warehouse item suffix"
+    )
   }
   item_type <- requested_item_type %||% suffix_type %||% "Lakehouse"
   lakehouse_record <- fabric_as_record(lakehouse_name)

@@ -101,6 +101,29 @@ test_that("Delta discovery records enforce type and workspace ownership", {
   expect_identical(named_warehouse$target$item, "Sales.Warehouse")
   expect_identical(named_warehouse$table_dir, "Tables/dbo/table")
 
+  suffixed_warehouse <- fabric_delta_resolve_public_target(
+    "table",
+    "Workspace",
+    "Sales.Warehouse",
+    schema = NULL,
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+    item_type = "Warehouse"
+  )
+  expect_identical(suffixed_warehouse$target$item, "Sales.Warehouse")
+
+  expect_error(
+    fabric_delta_resolve_public_target(
+      "table",
+      "Workspace",
+      "Sales.Lakehouse",
+      schema = NULL,
+      dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+      item_type = "Warehouse"
+    ),
+    "conflicts with the .Lakehouse/.Warehouse item suffix",
+    fixed = TRUE
+  )
+
   expect_error(
     fabric_delta_resolve_public_target(
       "sales-orders",

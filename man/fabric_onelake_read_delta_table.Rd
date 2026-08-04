@@ -44,7 +44,8 @@ targets default to \code{"dbo"}.}
 
 \item{item_type}{\code{"Lakehouse"} or \code{"Warehouse"}. This is inferred from a
 discovery record or a \code{.Lakehouse}/\code{.Warehouse} suffix. Supply it for a
-suffixless item display name, especially a Warehouse name.}
+suffixless item display name, especially a Warehouse name. An explicit
+type that conflicts with a recognized suffix is rejected.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}

@@ -76,6 +76,8 @@ cancellation, while sessions also provide explicit cleanup;
   - Accepts discovery records for `workspace_name` and `lakehouse_name`; a
   schema-enabled Lakehouse record supplies its default schema.
   `item_type` disambiguates suffixless Lakehouse and Warehouse display names.
+  Explicit item types that conflict with a `.Lakehouse` or `.Warehouse` suffix
+  now fail before constructing a doubled or contradictory OneLake item name.
   Workspace names that cannot appear in an ABFSS authority now fail with paired
   GUID/discovery-record guidance instead of being incorrectly percent-encoded.
   - Preserves `long` as `bit64::integer64`, decimals as exact character data,
