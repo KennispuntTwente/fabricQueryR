@@ -1,6 +1,12 @@
 test_that("local client secrets require an explicit application identity", {
-  runner <- file.path(
+  root <- tryCatch(
     fabric_test_repository_root(),
+    error = function(error) {
+      skip("Local integration runner tests require a repository checkout")
+    }
+  )
+  runner <- file.path(
+    root,
     "tools",
     "fabric-sandbox",
     "local-integration.R"

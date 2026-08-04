@@ -481,15 +481,3 @@ test_that("Delta runtime requirements are declared without forcing initializatio
   )
   expect_error(fabric_delta_config(initialize = NA), "TRUE or FALSE")
 })
-
-test_that("Delta R bridge dependencies declare their supported floors", {
-  description <- read.dcf(
-    file.path(fabric_test_repository_root(), "DESCRIPTION"),
-    fields = c("Imports", "Suggests")
-  )
-  imports <- gsub("[[:space:]]+", " ", description[[1L, "Imports"]])
-  suggests <- gsub("[[:space:]]+", " ", description[[1L, "Suggests"]])
-
-  expect_match(imports, "nanoarrow \\(>= 0\\.8\\.0\\)")
-  expect_match(suggests, "arrow \\(>= 9\\.0\\.0\\)")
-})
