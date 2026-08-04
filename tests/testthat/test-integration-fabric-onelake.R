@@ -168,6 +168,16 @@ fabric_test_order_arrow_rows <- function(value, feature) {
   value$Take(arrow::Array$create(as.integer(indices)))
 }
 
+fabric_test_arrow_column_equals <- function(actual, expected) {
+  if (!identical(actual$type$ToString(), expected$type$ToString())) {
+    return(FALSE)
+  }
+  if (isTRUE(actual$Equals(expected))) {
+    return(TRUE)
+  }
+  identical(actual$as_vector(), expected$as_vector())
+}
+
 fabric_test_expect_arrow_matches_reference <- function(
   manifest,
   lakehouse,
@@ -203,10 +213,15 @@ fabric_test_expect_arrow_matches_reference <- function(
     expected,
     paste(feature, "feature-neutral reference")
   )
-  expect_true(
-    actual$Equals(expected),
-    label = paste(feature, "deep Arrow equality")
-  )
+  for (name in actual$ColumnNames()) {
+    expect_true(
+      fabric_test_arrow_column_equals(
+        actual$GetColumnByName(name),
+        expected$GetColumnByName(name)
+      ),
+      label = paste(feature, name, "logical Arrow equality")
+    )
+  }
   invisible(actual)
 }
 
@@ -288,6 +303,14 @@ test_that("deep Arrow comparison preserves row order and binary values", {
     timestamp_table,
     timestamp_expected,
     "local timestamp fixture"
+  ))
+
+  nan_actual <- arrow::Table$create(value = c(NaN, 1))
+  nan_expected <- arrow::Table$create(value = c(NaN, 1))
+  expect_false(nan_actual$Equals(nan_expected))
+  expect_true(fabric_test_arrow_column_equals(
+    nan_actual$GetColumnByName("value"),
+    nan_expected$GetColumnByName("value")
   ))
 })
 
