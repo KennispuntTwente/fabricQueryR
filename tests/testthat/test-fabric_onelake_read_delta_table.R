@@ -647,6 +647,11 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(authorization), "Item Read")
   expect_match(
     conditionMessage(authorization),
+    "never returns policy-filtered data",
+    fixed = TRUE
+  )
+  expect_match(
+    conditionMessage(authorization),
     "Users can access data stored in OneLake with apps external to Fabric",
     fixed = TRUE
   )

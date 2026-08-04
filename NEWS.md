@@ -140,7 +140,8 @@ delta-rs compatibility matrix.
 
 * OneLake authentication guidance now distinguishes item `Read` (metadata)
 from `ReadAll` or a scoped OneLake `Read` role (data-plane access), and notes
-the limitation for row- or column-secured tables read by an external engine.
+that fabricQueryR is not an authorized OneLake security engine: RLS/CLS-
+restricted direct file reads are blocked rather than policy-filtered.
 
 * Delta reader documentation now states that `limit` is unordered and cannot
 be used as stable pagination, and explains when to supply a regional OneLake

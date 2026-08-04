@@ -115,9 +115,17 @@ OneLake data access is separate from item visibility. A generic Fabric item
 Workspace Admin, Member, and Contributor roles have broad OneLake access.
 Otherwise grant item \code{Read} plus \code{ReadAll}, or, when OneLake security is
 enabled, item \code{Read} plus a OneLake role whose \code{Read} scope contains the
-target table. Tables protected by OneLake row- or column-level security can
-be blocked because this external delta-rs reader does not enforce those
-policies. A Fabric administrator must also enable the OneLake tenant setting
+target table. fabricQueryR is not a Fabric-supported or registered authorized
+third-party engine: it does not retrieve or enforce OneLake row-level or
+column-level security (RLS/CLS) policies. OneLake blocks direct file reads
+when the caller's effective access is restricted by either policy, so this
+function fails instead of returning filtered rows or columns. Use an
+unrestricted calling identity, a supported Fabric engine, or an authorized
+third-party engine that implements policy enforcement. See
+\href{https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security}{OneLake RLS}
+and the
+\href{https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview}{authorized-engine model}.
+A Fabric administrator must also enable the OneLake tenant setting
 \strong{Users can access data stored in OneLake with apps external to Fabric} for
 the calling identity. See
 \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}
