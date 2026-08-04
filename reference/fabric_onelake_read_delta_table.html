@@ -58,8 +58,6 @@ or request an Arrow stream to process a large result in batches.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  version <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  timestamp_partition_timezone <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  dest_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
 <span>  columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -118,17 +116,6 @@ fabricQueryR acquires a token.</p></dd>
 <dd><p>Optional Delta snapshot version to read.</p></dd>
 
 
-<dt id="arg-timestamp-partition-timezone">timestamp_partition_timezone<a class="anchor" aria-label="anchor" href="#arg-timestamp-partition-timezone"></a></dt>
-<dd><p>Deprecated compatibility argument.
-delta-rs does not expose the previous R engine's timezone override;
-non-<code>NULL</code> values are rejected.</p></dd>
-
-
-<dt id="arg-dest-dir">dest_dir<a class="anchor" aria-label="anchor" href="#arg-dest-dir"></a></dt>
-<dd><p>Deprecated compatibility argument. Data is no longer staged
-locally. A non-<code>NULL</code> value is ignored with a warning.</p></dd>
-
-
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. Show authentication and read progress.</p></dd>
 
@@ -176,15 +163,16 @@ returns a lazy, single-use stream for batch processing. Consume it promptly,
 because it uses the access token captured when the stream was opened.</p>
 <p><code>limit</code> does not define an order. It is useful for previews, but not for
 stable pagination. Use <code>version</code> to read a specific Delta snapshot.</p>
-<p>Warehouse Delta snapshots are published asynchronously, so a read can lag
-behind the current Warehouse state. Warehouse table and column names must
-also meet the restrictions for external Delta readers. See
+<p>Warehouse Delta snapshots are published asynchronously and current exports
+require Deletion Vectors, which this function does not support. See
 <a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs" class="external-link">Delta Lake logs in Warehouse</a>.</p>
-<p>Tables that require Type Widening, V2 Checkpoints, or Fabric Variant preview
-features are not currently supported. Use Fabric PySpark when broader Delta
-feature support is needed.</p>
-<p>To preserve exact values, Delta <code>long</code> columns normally use
-<code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64()</a></code> and decimal columns are returned as character vectors.</p>
+<p>Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
+Fabric Variant preview features are not currently supported. Use Fabric SQL
+or PySpark when broader Delta feature support is needed.</p>
+<p>Tibble collection supports common scalar columns. Delta <code>integer</code> values are
+returned as doubles, while <code>long</code>, decimal, and <code>timestamp_ntz</code> values are
+returned as character vectors to avoid R sentinel and precision ambiguity.
+Nested and extension columns require <code>result = "arrow_stream"</code>.</p>
     </div>
 
     <div class="section level2">

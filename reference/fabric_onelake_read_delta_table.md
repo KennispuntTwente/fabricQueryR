@@ -19,8 +19,6 @@ fabric_onelake_read_delta_table(
   token = NULL,
   auth_args = list(),
   version = NULL,
-  timestamp_partition_timezone = NULL,
-  dest_dir = NULL,
   verbose = TRUE,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   columns = NULL,
@@ -77,16 +75,6 @@ fabric_onelake_read_delta_table(
 - version:
 
   Optional Delta snapshot version to read.
-
-- timestamp_partition_timezone:
-
-  Deprecated compatibility argument. delta-rs does not expose the
-  previous R engine's timezone override; non-`NULL` values are rejected.
-
-- dest_dir:
-
-  Deprecated compatibility argument. Data is no longer staged locally. A
-  non-`NULL` value is ignored with a warning.
 
 - verbose:
 
@@ -146,19 +134,20 @@ opened.
 `limit` does not define an order. It is useful for previews, but not for
 stable pagination. Use `version` to read a specific Delta snapshot.
 
-Warehouse Delta snapshots are published asynchronously, so a read can
-lag behind the current Warehouse state. Warehouse table and column names
-must also meet the restrictions for external Delta readers. See [Delta
-Lake logs in
+Warehouse Delta snapshots are published asynchronously and current
+exports require Deletion Vectors, which this function does not support.
+See [Delta Lake logs in
 Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
 
-Tables that require Type Widening, V2 Checkpoints, or Fabric Variant
-preview features are not currently supported. Use Fabric PySpark when
-broader Delta feature support is needed.
+Tables that require Deletion Vectors, Type Widening, V2 Checkpoints, or
+Fabric Variant preview features are not currently supported. Use Fabric
+SQL or PySpark when broader Delta feature support is needed.
 
-To preserve exact values, Delta `long` columns normally use
-[`bit64::integer64()`](https://bit64.r-lib.org/reference/bit64-package.html)
-and decimal columns are returned as character vectors.
+Tibble collection supports common scalar columns. Delta `integer` values
+are returned as doubles, while `long`, decimal, and `timestamp_ntz`
+values are returned as character vectors to avoid R sentinel and
+precision ambiguity. Nested and extension columns require
+`result = "arrow_stream"`.
 
 ## Examples
 

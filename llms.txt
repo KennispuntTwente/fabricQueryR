@@ -191,6 +191,11 @@ reader <- arrow::as_record_batch_reader(stream)
 Arrow streams are lazy and single-use. Consume them promptly because
 they use the access token captured when the stream is opened.
 
+Tibble collection intentionally covers common scalar Delta columns.
+Exact `long`, decimal, and `timestamp_ntz` values are returned as
+character vectors; nested and extension columns require
+`result = "arrow_stream"`.
+
 Direct Delta reads require OneLake data access; item **Read** permission
 alone is not enough. The caller needs **ReadAll** or a suitable OneLake
 data-access role. A Fabric administrator must also enable **Users can
@@ -205,17 +210,14 @@ Use a supported Fabric engine for policy-filtered access. See the
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 for details.
 
-Warehouse Delta logs are published asynchronously, so a OneLake read can
-lag the current Warehouse state. Warehouse table and column names must
-also meet the restrictions for external Delta readers. See [Delta Lake
-logs in
-Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs).
-
-Tables using Type Widening, V2 Checkpoints, or Fabric Variant preview
-features are not currently supported. Use Fabric PySpark when broader
-Delta feature support is needed. See
+Tables using Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric
+Variant preview features are not currently supported. Current Fabric
+Warehouse Delta exports require Deletion Vectors, so query them through
+Fabric SQL or PySpark. See [Delta Lake logs in
+Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs)
+and
 [`?fabric_onelake_read_delta_table`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-for function options.
+for details.
 
 ### 5. Work with OneLake files
 
