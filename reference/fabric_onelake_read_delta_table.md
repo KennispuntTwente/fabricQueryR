@@ -187,10 +187,12 @@ restoration and retains only compact validity/offset metadata, but
 `result = "arrow_stream"` remains the appropriate choice for results
 that should be processed batch by batch.
 
-`limit` is pushed down without an ordering expression. When it is
-smaller than the snapshot, the returned rows are an
-implementation-defined subset and can change with file layout, snapshot
-version, or scan scheduling. It is not a stable pagination mechanism.
+`limit` has no ordering expression. It is normally pushed into the scan;
+for a snapshot with deletion vectors it is applied after deletion
+filtering so deleted physical rows do not reduce the requested logical
+row count. When it is smaller than the snapshot, the returned rows are
+an implementation-defined subset and can change with file layout or
+snapshot version. It is not a stable pagination mechanism.
 
 `dfs_base` defaults to OneLake's global endpoint. Microsoft notes that
 data can leave the workspace's region during global-endpoint resolution.
@@ -202,11 +204,12 @@ OneLake](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api).
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema
 evolution, typed partitions, classic checkpoints, column mapping,
-deletion vectors, and shallow clones. Files that actually carry deletion
-vectors must contain no more than 65,536 physical rows; larger or
-unreadable vectors are rejected because the selected runtime can apply
-their masks at incorrect record-batch offsets. Large files without
-deletion vectors are not rejected. The pinned `deltalake` API
+deletion vectors, and shallow clones. The pinned runtime's
+deletion-vector masks depend on physical scan order, so snapshots with
+actual vectors use one DataFusion scan partition. Their positive `limit`
+is applied through a window barrier after deletion filtering; this can
+scan more physical rows than the returned result. Unreadable vector
+lengths are rejected before scanning. The pinned `deltalake` API
 materializes deletion-vector masks while enumerating affected files, so
 this preflight has native-memory cost proportional to those masks;
 fabricQueryR reads only their Arrow offsets and does not expand the

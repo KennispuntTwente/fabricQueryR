@@ -151,11 +151,13 @@
     Spark-neutral tables so nested values, binary payloads, validity,
     and exact scalar boundaries are checked without lossy R conversion.
     Deletion-vector safety checks enumerate only files that actually
-    carry a vector; DV files with unreadable or greater-than-65,536-row
+    carry a vector. Affected snapshots use a serialized scan because the
+    pinned provider can otherwise misapply large masks at record-batch
+    offsets, and positive limits are applied after deletion filtering so
+    deleted physical rows do not reduce the logical result. Unreadable
     masks, type widening, V2 checkpoints, and Fabric Variant preview
-    tables are rejected with an actionable unsupported-feature error by
-    the current delta-rs runtime instead of being advertised as
-    readable.
+    tables are rejected with an actionable unsupported-feature error
+    instead of being advertised as readable.
 
 - Fabric sandbox seeding now publishes a content-derived fixture
   revision to OneLake. Discovery refuses stale or partially seeded

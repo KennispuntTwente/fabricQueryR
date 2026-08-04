@@ -285,8 +285,8 @@ selection, preserves exact numeric values, and rejects unsupported
 reader features before returning data. The locked runtime explicitly
 rejects V2 checkpoints, Type Widening, and Fabric’s
 VariantShreddingPreview rather than returning a plausible but incorrect
-result. Support for column mapping, bounded deletion vectors, and
-shallow-clone reads is specific to the exact pinned runtime and live
+result. Support for column mapping, serialized deletion-vector scans,
+and shallow-clone reads is specific to the exact pinned runtime and live
 package matrix; it is not a claim that Microsoft supports those features
 in delta-rs generally.
 
