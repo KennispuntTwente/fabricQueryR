@@ -84,7 +84,7 @@
     return(NULL)
   }
   seconds <- suppressWarnings(as.numeric(value))
-  if (!is.na(seconds)) {
+  if (!is.na(seconds) && is.finite(seconds)) {
     return(max(0, seconds))
   }
   when <- suppressWarnings(as.POSIXct(
@@ -202,7 +202,7 @@
     }
 
     delay <- if (!is.null(retry_after)) {
-      min(retry_after, 120)
+      retry_after
     } else {
       min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
     }
