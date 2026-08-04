@@ -508,7 +508,7 @@ fabric_delta_resolve_public_target <- function(
           "digits, and underscores. Rename the table in Fabric Warehouse."
         )
       ),
-      class = "fabric_delta_invalid_target"
+      class = c("fabric_delta_invalid_target", "fabric_delta_error")
     )
   }
   table_dir <- if (is.null(schema)) {
@@ -611,7 +611,7 @@ fabric_delta_validate_columns <- function(columns, item_type = NULL) {
             "Warehouse or omit them from the projection."
           )
         ),
-        class = "fabric_delta_invalid_target"
+        class = c("fabric_delta_invalid_target", "fabric_delta_error")
       )
     }
   }
@@ -668,7 +668,7 @@ fabric_delta_target_uri <- function(target) {
           "the workspace name contains spaces or other special characters."
         )
       ),
-      class = "fabric_delta_invalid_target"
+      class = c("fabric_delta_invalid_target", "fabric_delta_error")
     )
   }
   prefix <- paste0(

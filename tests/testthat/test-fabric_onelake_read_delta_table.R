@@ -41,6 +41,11 @@ test_that("Delta targets preserve Fabric discovery and ABFSS addressing", {
     "paired workspace and item GUIDs",
     class = "fabric_delta_invalid_target"
   )
+  target_error <- tryCatch(
+    fabric_delta_target_uri(named),
+    error = identity
+  )
+  expect_s3_class(target_error, "fabric_delta_error")
 
   named$workspace <- "ResearchWorkspace"
   expect_match(
@@ -557,8 +562,37 @@ test_that("Warehouse projections enforce external Delta naming limits", {
     error = identity
   )
   expect_s3_class(error, "fabric_delta_invalid_target")
+  expect_s3_class(error, "fabric_delta_error")
   expect_match(conditionMessage(error), "Invalid projected column")
   expect_match(conditionMessage(error), "square brackets")
+})
+
+test_that("the public reader preserves native invalid-target failures", {
+  local_mocked_bindings(
+    fabric_delta_read_uri = function(...) {
+      rlang::abort(
+        "Warehouse target became invalid during reader preflight",
+        class = c("fabric_delta_invalid_target", "fabric_delta_error")
+      )
+    }
+  )
+
+  error <- tryCatch(
+    fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = "workspace",
+      lakehouse_name = "warehouse",
+      item_type = "Warehouse",
+      token = "token",
+      verbose = FALSE
+    ),
+    error = identity
+  )
+
+  expect_s3_class(error, "fabric_delta_invalid_target")
+  expect_s3_class(error, "fabric_delta_error")
+  expect_false(inherits(error, "fabric_delta_python_error"))
+  expect_match(conditionMessage(error), "reader preflight")
 })
 
 test_that("Variant extensions are preserved as streams and rejected for tibbles", {
