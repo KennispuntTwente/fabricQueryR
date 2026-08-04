@@ -529,7 +529,6 @@ fabric_delta_python_reader <- function(
   columns = NULL,
   limit = NULL
 ) {
-  fabric_delta_validate_runtime()
   storage_options <- NULL
   if (!is.null(bearer_token)) {
     storage_options <- reticulate::dict(
@@ -749,91 +748,6 @@ fabric_delta_collect_reader <- function(reader) {
     to = nanoarrow::infer_nanoarrow_ptype(target_schema)
   )
   tibble::as_tibble(value)
-}
-
-#' Validate the installed Python Delta query surface
-#' @keywords internal
-#' @noRd
-fabric_delta_validate_runtime <- function(
-  version = NULL,
-  exports = NULL,
-  nanoarrow_version = NULL
-) {
-  required_exports <- c("DeltaTable", "QueryBuilder")
-  if (is.null(version)) {
-    version <- reticulate::py_to_r(.delta_python$deltalake$`__version__`)
-  }
-  if (is.null(nanoarrow_version)) {
-    nanoarrow_version <- reticulate::py_to_r(
-      .delta_python$nanoarrow$`__version__`
-    )
-  }
-  if (is.null(exports)) {
-    exports <- required_exports[vapply(
-      required_exports,
-      function(name) reticulate::py_has_attr(.delta_python$deltalake, name),
-      logical(1)
-    )]
-  }
-  valid_version <- identical(as.character(version), "1.6.2")
-  valid_nanoarrow_version <- identical(
-    as.character(nanoarrow_version),
-    "0.8.0"
-  )
-  missing_exports <- setdiff(required_exports, exports)
-  if (valid_version && valid_nanoarrow_version && !length(missing_exports)) {
-    return(invisible(list(
-      deltalake_version = version,
-      nanoarrow_version = nanoarrow_version,
-      exports = exports
-    )))
-  }
-
-  reasons <- character()
-  if (!valid_version) {
-    reasons <- c(
-      reasons,
-      paste0(
-        "Installed deltalake version ",
-        version,
-        "; this package is tested with exactly version 1.6.2."
-      )
-    )
-  }
-  if (!valid_nanoarrow_version) {
-    reasons <- c(
-      reasons,
-      paste0(
-        "Installed Python nanoarrow version ",
-        nanoarrow_version,
-        "; this package is tested with exactly version 0.8.0."
-      )
-    )
-  }
-  if (length(missing_exports)) {
-    reasons <- c(
-      reasons,
-      paste(
-        "The deltalake module is missing:",
-        paste(missing_exports, collapse = ", ")
-      )
-    )
-  }
-  rlang::abort(
-    c(
-      "The selected Python environment has an incompatible Delta runtime.",
-      "x" = paste(reasons, collapse = " "),
-      "i" = paste0(
-        'Install "deltalake==1.6.2" and "nanoarrow==0.8.0" in the ',
-        "Python selected by ",
-        "reticulate, or unset RETICULATE_PYTHON to use a managed environment."
-      )
-    ),
-    class = c(
-      "fabric_delta_environment_error",
-      "fabric_delta_error"
-    )
-  )
 }
 
 #' Detect an authentication-shaped delta-rs error

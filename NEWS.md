@@ -51,7 +51,9 @@
   limited to common scalar columns; exact long integers, decimals, and
   `timestamp_ntz` values are returned as text, while nested and extension data
   stays on the Arrow-stream path. The retired `dest_dir` and
-  `timestamp_partition_timezone` arguments have been removed.
+  `timestamp_partition_timezone` arguments have been removed. Runtime package
+  selection is now left to reticulate's declared requirements instead of being
+  re-policed on every table read.
   Tables requiring Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric
   Variant preview features remain unsupported. This includes current Fabric
   Warehouse Delta exports; use Fabric SQL or PySpark for those tables.

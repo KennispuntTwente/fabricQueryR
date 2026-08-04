@@ -493,30 +493,3 @@ test_that("Delta R bridge dependencies declare their supported floors", {
   expect_match(imports, "nanoarrow \\(>= 0\\.8\\.0\\)")
   expect_match(suggests, "arrow \\(>= 9\\.0\\.0\\)")
 })
-
-test_that("Delta runtime compatibility is validated before querying", {
-  required <- c("DeltaTable", "QueryBuilder")
-  expect_invisible(
-    fabric_delta_validate_runtime("1.6.2", required, "0.8.0")
-  )
-  expect_error(
-    fabric_delta_validate_runtime("1.6.1", required, "0.8.0"),
-    "exactly version 1.6.2",
-    class = "fabric_delta_environment_error"
-  )
-  expect_error(
-    fabric_delta_validate_runtime("1.6.3", required, "0.8.0"),
-    "exactly version 1.6.2",
-    class = "fabric_delta_environment_error"
-  )
-  expect_error(
-    fabric_delta_validate_runtime("1.6.2", required, "0.8.1"),
-    "exactly version 0.8.0",
-    class = "fabric_delta_environment_error"
-  )
-  expect_error(
-    fabric_delta_validate_runtime("1.6.2", "DeltaTable", "0.8.0"),
-    "QueryBuilder",
-    class = "fabric_delta_environment_error"
-  )
-})
