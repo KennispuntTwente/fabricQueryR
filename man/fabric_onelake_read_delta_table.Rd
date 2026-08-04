@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_onelake_read_delta_table.R
 \name{fabric_onelake_read_delta_table}
 \alias{fabric_onelake_read_delta_table}
-\title{Read a supported Delta table from Microsoft Fabric OneLake}
+\title{Read a Delta table from OneLake}
 \usage{
 fabric_onelake_read_delta_table(
   table_path,
@@ -24,18 +24,20 @@ fabric_onelake_read_delta_table(
 )
 }
 \arguments{
-\item{table_path}{One unqualified table name. Supply its schema separately
-with \code{schema}; path separators are rejected rather than silently ignored.}
+\item{table_path}{Table name without a schema. Use \code{schema} separately when
+needed.}
 
-\item{workspace_name}{Workspace name, ID, or a record from
+\item{workspace_name}{Workspace name, ID, or a record returned by
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
 
-\item{lakehouse_name}{Lakehouse or Warehouse name, ID, or discovery record.}
+\item{lakehouse_name}{Lakehouse name, ID, or discovery record. Compatible
+Warehouse items are also accepted.}
 
-\item{schema}{Optional schema name. Warehouses default to \code{"dbo"}.}
+\item{schema}{Schema containing the table, or \code{NULL}. Warehouses default to
+\code{"dbo"}.}
 
-\item{item_type}{\code{"Lakehouse"} or \code{"Warehouse"}. Usually inferred; specify it
-when using an item name without a \code{.Lakehouse} or \code{.Warehouse} suffix.}
+\item{item_type}{\code{"Lakehouse"}, \code{"Warehouse"}, or \code{NULL}. Usually inferred;
+specify it only when using an item name without a type suffix.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -43,38 +45,50 @@ when using an item name without a \code{.Lakehouse} or \code{.Warehouse} suffix.
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function.}
+\item{token}{Optional access token or token-provider function. Most users can
+leave this as \code{NULL} and let fabricQueryR sign in.}
 
-\item{auth_args}{Named list passed to \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when
-fabricQueryR acquires a token.}
+\item{auth_args}{Extra sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{version}{Optional Delta snapshot version to read.}
+\item{version}{Specific table version to read, or \code{NULL} for the latest.}
 
-\item{verbose}{Logical. Show authentication and read progress.}
+\item{verbose}{Whether to show authentication and read progress.}
 
 \item{dfs_base}{OneLake DFS endpoint. Most users can keep the default.}
 
-\item{columns}{Optional character vector of columns to return. \code{NULL} returns
-all columns.}
+\item{columns}{Column names to return, or \code{NULL} for all columns.}
 
-\item{limit}{Optional maximum number of rows to return.}
+\item{limit}{Maximum number of rows to return, or \code{NULL} for all rows.}
 
-\item{result}{Return a \code{"tibble"} or a lazy \code{"arrow_stream"}.}
+\item{result}{\code{"tibble"} (the default) or \code{"arrow_stream"} for batch
+processing.}
 }
 \value{
-A tibble by default. With \code{result = "arrow_stream"}, a lazy,
-single-use stream compatible with \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}}.
+A tibble, or a lazy, single-use Arrow stream when
+\code{result = "arrow_stream"}.
 }
 \description{
-Read a Delta table that is compatible with the package's locked \code{delta-rs}
-runtime. By default, the result is returned as a tibble. Use \code{columns} and
-\code{limit} to read less data, or request an Arrow stream to process a large
-result in batches.
+Read a Delta table from Microsoft Fabric OneLake using the Python
+\href{https://pypi.org/project/deltalake/}{deltalake} package through the
+\code{reticulate} R package. Return a tibble by default or a lazy Arrow stream for
+batch processing. Column selection, row limits, and table version reads are
+supported.
 }
 \details{
-Supply names, IDs, or discovery records for the workspace and Lakehouse or
-Warehouse. \code{schema} and \code{item_type} are usually inferred.
+Most users only need to provide the table, workspace, and Lakehouse. These
+can be names, IDs, or records returned by fabricQueryR's discovery functions.
+If the Lakehouse uses schemas, provide the table's \code{schema} separately.
+
+By default, the function reads all rows and columns into memory. Use \code{columns}
+to select only the fields you need and \code{limit} for a quick preview. A limit
+does not guarantee which rows are returned. Use \code{version} to read an earlier
+version of the table.
+
+For a large table, or one containing nested data, set
+\code{result = "arrow_stream"} to process the result in batches. The returned
+stream is lazy and can be read only once. The first Delta read may take a
+little longer while the optional Python reader is set up.
 
 Direct reads require OneLake data access; item \code{Read} permission by itself is
 not enough. The caller needs \code{ReadAll} or a suitable OneLake data-access role,
@@ -84,21 +98,10 @@ engine instead. See the
 \href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}
 and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}.
 
-The first Delta read may set up the optional Python runtime. A tibble loads
-common scalar columns into memory: \code{integer} becomes double, and \code{long},
-decimal, and \code{timestamp_ntz} become character. For large, nested, or extension
-data, request the lazy, single-use \code{result = "arrow_stream"} instead.
-\code{limit} is unordered and is not suitable for pagination; use \code{version} to
-select a specific snapshot.
-
-This package intentionally does not implement Delta features that its locked
-\code{delta-rs} reader cannot evaluate. Deletion Vectors, Type Widening, V2
-Checkpoints, and Fabric Variant are therefore unsupported; the reader raises
-\code{fabric_delta_unsupported_feature_error} instead of returning incomplete
-rows. In particular, current Warehouse Delta exports require Deletion
-Vectors and cannot be read by this function. Use Fabric SQL, PySpark, or
-another engine with Deletion Vector support for those tables. See
-\href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-delta-lake-logs}{Delta Lake logs in Warehouse}.
+Some tables use advanced Delta features that the deltalake Python package does
+not support. The function will detect these features and abort. Unsupported
+features include Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant.
+Use the SQL or Spark (Livy) functions to read these tables.
 }
 \examples{
 \dontrun{
