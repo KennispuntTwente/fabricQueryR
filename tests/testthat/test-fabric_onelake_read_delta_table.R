@@ -334,7 +334,7 @@ test_that("Delta reads refresh once after a pre-return authentication failure", 
   }
 })
 
-test_that("Arrow schemas normalize exact scalar types for safe collection", {
+test_that("Arrow schemas normalize scalar types for safe collection", {
   skip_if_not_installed("arrow")
   schema <- arrow::schema(
     regular = arrow::int32(),
@@ -352,180 +352,6 @@ test_that("Arrow schemas normalize exact scalar types for safe collection", {
   expect_identical(collected$children$id$format, "u")
   expect_identical(collected$children$amount$format, "u")
   expect_identical(collected$children$local_at$format, "u")
-
-  ptype <- fabric_delta_collect_ptype(schema, collected)
-  expect_type(ptype$regular, "double")
-  expect_type(ptype$id, "character")
-  expect_type(ptype$amount, "character")
-  expect_type(ptype$local_at, "character")
-})
-
-test_that("Delta integer NA sentinels are restored without data loss", {
-  ordinary_integer <- fabric_delta_restore_integer32(
-    bit64::as.integer64(c("-2147483647", NA, "2147483647"))
-  )
-  expect_type(ordinary_integer, "integer")
-  expect_identical(ordinary_integer, c(-2147483647L, NA_integer_, 2147483647L))
-
-  boundary_integer <- fabric_delta_restore_integer32(
-    bit64::as.integer64(c("-2147483648", NA, "2147483647"))
-  )
-  expect_type(boundary_integer, "double")
-  expect_identical(boundary_integer, c(-2147483648, NA_real_, 2147483647))
-
-  widened_integer <- expect_no_warning(
-    fabric_delta_restore_integer32(
-      bit64::as.integer64(c("-2147483649", "2147483648"))
-    )
-  )
-  expect_type(widened_integer, "double")
-  expect_identical(widened_integer, c(-2147483649, 2147483648))
-
-  expect_error(
-    fabric_delta_restore_integer32(
-      c("9007199254740993")
-    ),
-    class = "fabric_delta_conversion_error"
-  )
-
-  ordinary_long <- fabric_delta_restore_integer64(
-    c("-9223372036854775807", NA, "9223372036854775807")
-  )
-  expect_s3_class(ordinary_long, "integer64")
-  expect_identical(
-    as.character(ordinary_long),
-    c("-9223372036854775807", NA, "9223372036854775807")
-  )
-
-  boundary_long <- fabric_delta_restore_integer64(
-    c("-9223372036854775808", NA, "9223372036854775807")
-  )
-  expect_s3_class(boundary_long, "fabric_delta_integer64")
-  expect_identical(
-    as.character(boundary_long),
-    c("-9223372036854775808", NA, "9223372036854775807")
-  )
-  expect_s3_class(boundary_long[c(3L, 1L)], "fabric_delta_integer64")
-})
-
-test_that("nested scalar restoration uses one type per logical field", {
-  skip_if_not_installed("arrow")
-  schema <- nanoarrow::as_nanoarrow_schema(arrow::schema(
-    scores = arrow::list_of(arrow::int32()),
-    longs = arrow::list_of(arrow::int64()),
-    records = arrow::list_of(arrow::struct(
-      score = arrow::int32(),
-      long = arrow::int64()
-    ))
-  ))
-
-  scores <- list(
-    bit64::as.integer64(c("-2147483648", "1")),
-    bit64::as.integer64(c("2", "3")),
-    NULL
-  )
-  restored_scores <- fabric_delta_restore_collected_types(
-    scores,
-    schema$children$scores
-  )
-  expect_type(restored_scores[[1L]], "double")
-  expect_type(restored_scores[[2L]], "double")
-  expect_identical(restored_scores[[2L]], c(2, 3))
-  expect_null(restored_scores[[3L]])
-
-  longs <- list(
-    c("-9223372036854775808", "1"),
-    c("2", "3"),
-    NULL
-  )
-  restored_longs <- fabric_delta_restore_collected_types(
-    longs,
-    schema$children$longs
-  )
-  expect_s3_class(restored_longs[[1L]], "fabric_delta_integer64")
-  expect_s3_class(restored_longs[[2L]], "fabric_delta_integer64")
-  expect_identical(as.character(restored_longs[[2L]]), c("2", "3"))
-  expect_null(restored_longs[[3L]])
-
-  records <- list(
-    data.frame(
-      score = bit64::as.integer64(c("-2147483648", "1")),
-      long = c("-9223372036854775808", "1")
-    ),
-    data.frame(
-      score = bit64::as.integer64(c("2", "3")),
-      long = c("2", "3")
-    )
-  )
-  restored_records <- fabric_delta_restore_collected_types(
-    records,
-    schema$children$records
-  )
-  expect_type(restored_records[[2L]]$score, "double")
-  expect_s3_class(
-    restored_records[[2L]]$long,
-    "fabric_delta_integer64"
-  )
-})
-
-test_that("dictionary values follow the Delta scalar restoration contract", {
-  skip_if_not_installed("arrow")
-  collect_dictionary <- function(dictionary) {
-    value <- arrow::DictionaryArray$create(
-      arrow::Array$create(c(0L, 1L, 0L), type = arrow::int8()),
-      dictionary
-    )
-    array <- nanoarrow::as_nanoarrow_array(value)
-    source_schema <- nanoarrow::as_nanoarrow_schema(value$type)
-    target_schema <- fabric_delta_normalize_schema(
-      source_schema,
-      collect = TRUE
-    )
-    ptype <- fabric_delta_collect_ptype(source_schema, target_schema)
-    stream <- nanoarrow::basic_array_stream(
-      list(array),
-      schema = target_schema
-    )
-    collected <- nanoarrow::convert_array_stream(stream, to = ptype)
-    fabric_delta_restore_collected_types(collected, source_schema)
-  }
-
-  ordinary_integer <- collect_dictionary(arrow::Array$create(
-    c(-2147483647, 2),
-    type = arrow::int32()
-  ))
-  expect_type(ordinary_integer, "integer")
-  expect_identical(ordinary_integer, c(-2147483647L, 2L, -2147483647L))
-
-  boundary_integer <- collect_dictionary(arrow::Array$create(
-    c(-2147483648, 2),
-    type = arrow::int32()
-  ))
-  expect_type(boundary_integer, "double")
-  expect_identical(boundary_integer, c(-2147483648, 2, -2147483648))
-
-  ordinary_long <- collect_dictionary(arrow::Array$create(
-    bit64::as.integer64(c("-9223372036854775807", "2")),
-    type = arrow::int64()
-  ))
-  expect_s3_class(ordinary_long, "integer64")
-  expect_identical(
-    as.character(ordinary_long),
-    c("-9223372036854775807", "2", "-9223372036854775807")
-  )
-
-  long_dictionary_schema <- nanoarrow::as_nanoarrow_schema(
-    arrow::dictionary(arrow::int8(), arrow::int64())
-  )
-  boundary_long <- fabric_delta_restore_collected_types(
-    c("-9223372036854775808", "2", "-9223372036854775808"),
-    long_dictionary_schema
-  )
-  expect_s3_class(boundary_long, "fabric_delta_integer64")
-  expect_identical(
-    as.character(boundary_long),
-    c("-9223372036854775808", "2", "-9223372036854775808")
-  )
 })
 
 test_that("Warehouse projections enforce external Delta naming limits", {
@@ -588,54 +414,24 @@ test_that("the public reader preserves native invalid-target failures", {
   expect_match(conditionMessage(error), "reader preflight")
 })
 
-test_that("Variant extensions are preserved as streams and rejected for tibbles", {
-  variant <- nanoarrow::na_extension(
-    nanoarrow::na_struct(list(
-      metadata = nanoarrow::na_binary(nullable = FALSE),
-      value = nanoarrow::na_binary()
-    )),
-    "arrow.parquet.variant"
-  )
-  schema <- nanoarrow::na_struct(list(
+test_that("tibble collection rejects nested and extension columns", {
+  nested <- nanoarrow::na_struct(list(
     id = nanoarrow::na_int32(nullable = FALSE),
-    payload = variant
+    profile = nanoarrow::na_struct(list(name = nanoarrow::na_string()))
   ))
-
-  expect_identical(fabric_delta_variant_paths(schema), "payload")
   error <- tryCatch(
-    fabric_delta_validate_collect_schema(schema),
+    fabric_delta_validate_collect_schema(nested),
     error = identity
   )
-  expect_s3_class(error, "fabric_delta_variant_collection_error")
-  expect_s3_class(error, "fabric_delta_unsupported_feature_error")
-  expect_identical(error$delta_features, "Variant")
-  expect_identical(error$variant_paths, "payload")
+  expect_s3_class(error, "fabric_delta_nested_collection_error")
+  expect_identical(error$delta_columns, "profile")
   expect_match(conditionMessage(error), 'result = "arrow_stream"', fixed = TRUE)
-})
 
-test_that("Delta timestamp_ntz values retain exact wall-clock text", {
-  value <- fabric_delta_timestamp_ntz(c(
-    "2026-07-28T09:08:07.654321",
-    "1900-01-01T00:00:00.000001",
-    "2000-02-29T00:00:00",
-    NA_character_
+  scalar <- nanoarrow::na_struct(list(
+    id = nanoarrow::na_int64(),
+    amount = nanoarrow::na_decimal128(20, 4)
   ))
-  expect_s3_class(value, "fabric_delta_timestamp_ntz")
-  expect_identical(
-    unclass(value),
-    c(
-      "2026-07-28 09:08:07.654321",
-      "1900-01-01 00:00:00.000001",
-      "2000-02-29 00:00:00.000000",
-      NA_character_
-    )
-  )
-  expect_identical(format(value), unclass(value))
-  expect_s3_class(value[c(1L, 4L)], "fabric_delta_timestamp_ntz")
-  expect_equal(
-    as.POSIXct(value[[1L]], tz = "Europe/Amsterdam"),
-    as.POSIXct("2026-07-28 09:08:07.654321", tz = "Europe/Amsterdam")
-  )
+  expect_invisible(fabric_delta_validate_collect_schema(scalar))
 })
 
 test_that("Python failures are classified and bearer tokens are redacted", {
@@ -713,41 +509,6 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
-test_that("collection validity descriptors do not retain Arrow data arrays", {
-  array <- nanoarrow::as_nanoarrow_array(data.frame(
-    id = 1:2,
-    label = c("one", "two")
-  ))
-  schema <- nanoarrow::infer_nanoarrow_schema(array)
-  descriptor <- fabric_delta_array_descriptor(array, schema)
-  contains_array <- function(value) {
-    if (inherits(value, "nanoarrow_array")) {
-      return(TRUE)
-    }
-    if (!is.list(value)) {
-      return(FALSE)
-    }
-    any(vapply(value, contains_array, logical(1)))
-  }
-
-  expect_false(contains_array(descriptor))
-  expect_identical(descriptor$length, 2)
-  expect_identical(
-    fabric_delta_array_validity(list(descriptor)),
-    c(TRUE, TRUE)
-  )
-
-  null_list <- nanoarrow::as_nanoarrow_array(list(NULL, NULL))
-  null_schema <- nanoarrow::infer_nanoarrow_schema(null_list)
-  expect_no_error(
-    null_descriptor <- fabric_delta_array_descriptor(
-      null_list,
-      null_schema
-    )
-  )
-  expect_null(null_descriptor$children[[1L]]$validity)
-})
-
 test_that("Delta runtime requirements are declared without forcing initialization", {
   requirements <- reticulate::py_require()
   expect_true("deltalake==1.6.2" %in% requirements$packages)
@@ -780,86 +541,6 @@ test_that("Delta R bridge dependencies declare their supported floors", {
 
   expect_match(imports, "nanoarrow \\(>= 0\\.8\\.0\\)")
   expect_match(suggests, "arrow \\(>= 9\\.0\\.0\\)")
-})
-
-test_that("nullable struct validity follows data-frame subsetting semantics", {
-  value <- data.frame(
-    amount = c("1.00", NA, "3.00"),
-    label = c("one", NA, "three"),
-    row.names = c("first", "second", "third")
-  )
-  value <- fabric_delta_new_struct_column(value, c(TRUE, FALSE, TRUE))
-
-  expect_identical(value$amount, c("1.00", NA, "3.00"))
-  expect_identical(value[["label"]], c("one", NA, "three"))
-  expect_named(as.data.frame(value), c("amount", "label"))
-  expect_identical(is.na(value["amount"]), c(FALSE, TRUE, FALSE))
-  expect_identical(
-    suppressWarnings(is.na(value["amount", drop = FALSE])),
-    c(FALSE, TRUE, FALSE)
-  )
-  expect_identical(
-    is.na(value[, "amount", drop = FALSE]),
-    c(FALSE, TRUE, FALSE)
-  )
-  expect_identical(
-    is.na(value[c("third", "second", "second"), , drop = FALSE]),
-    c(FALSE, TRUE, TRUE)
-  )
-  expect_identical(
-    is.na(value[c(TRUE, FALSE, TRUE), , drop = FALSE]),
-    c(FALSE, FALSE)
-  )
-  expect_identical(
-    is.na(value[-1L, , drop = FALSE]),
-    c(TRUE, FALSE)
-  )
-
-  wrapped <- tibble::tibble(id = c(3L, 2L, 1L), payload = value)
-
-  reordered <- wrapped[c(3L, 1L, 2L), , drop = FALSE]
-  expect_s3_class(reordered$payload, "fabric_delta_struct_column")
-  expect_identical(is.na(reordered$payload), c(FALSE, FALSE, TRUE))
-
-  sliced <- dplyr::slice(wrapped, 3L, 1L, 2L, 2L)
-  expect_s3_class(sliced$payload, "fabric_delta_struct_column")
-  expect_identical(is.na(sliced$payload), c(FALSE, FALSE, TRUE, TRUE))
-
-  filtered <- dplyr::filter(wrapped, id != 2L)
-  expect_s3_class(filtered$payload, "fabric_delta_struct_column")
-  expect_identical(is.na(filtered$payload), c(FALSE, FALSE))
-
-  arranged <- dplyr::arrange(wrapped, id)
-  expect_s3_class(arranged$payload, "fabric_delta_struct_column")
-  expect_identical(is.na(arranged$payload), c(FALSE, TRUE, FALSE))
-
-  empty <- dplyr::slice(wrapped, integer())
-  expect_s3_class(empty$payload, "fabric_delta_struct_column")
-  expect_identical(is.na(empty$payload), logical())
-
-  bound <- dplyr::bind_rows(
-    dplyr::slice(wrapped, 2L, 1L),
-    dplyr::slice(wrapped, 3L)
-  )
-  expect_s3_class(bound$payload, "fabric_delta_struct_column")
-  expect_identical(is.na(bound$payload), c(TRUE, FALSE, FALSE))
-
-  collision <- fabric_delta_new_struct_column(
-    data.frame(
-      "..fabric_delta_struct_validity" = 1:2,
-      "..fabric_delta_struct_row_name" = 3:4,
-      check.names = FALSE
-    ),
-    c(FALSE, TRUE)
-  )
-  expect_named(
-    as.data.frame(collision),
-    c(
-      "..fabric_delta_struct_validity",
-      "..fabric_delta_struct_row_name"
-    )
-  )
-  expect_identical(is.na(collision), c(TRUE, FALSE))
 })
 
 test_that("Delta runtime compatibility is validated before querying", {

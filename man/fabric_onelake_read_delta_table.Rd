@@ -114,8 +114,10 @@ Fabric Variant preview features are not currently supported. This includes
 current Fabric Warehouse Delta exports. Use Fabric SQL or PySpark when
 broader Delta feature support is needed.
 
-To preserve exact values, Delta \code{long} columns normally use
-\code{\link[bit64:integer64]{bit64::integer64()}} and decimal columns are returned as character vectors.
+Tibble collection supports common scalar columns. Delta \code{integer} values are
+returned as doubles, while \code{long}, decimal, and \code{timestamp_ntz} values are
+returned as character vectors to avoid R sentinel and precision ambiguity.
+Nested and extension columns require \code{result = "arrow_stream"}.
 }
 \examples{
 \dontrun{

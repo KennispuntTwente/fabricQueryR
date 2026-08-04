@@ -243,8 +243,9 @@ description.
 
 **Status (August 2026): implemented for the package-tested reader contract.** The
 reader streams transaction-log and Parquet data from OneLake through delta-rs,
-supports classic checkpoints and version selection, preserves exact numeric
-values, and rejects unsupported reader features before returning data. The
+supports classic checkpoints and version selection, preserves native Arrow
+values, and rejects unsupported reader features before returning data. Tibble
+collection is intentionally limited to common scalar columns. The
 locked runtime explicitly rejects V2 checkpoints, Type Widening, and Fabric's
 VariantShreddingPreview rather than returning a plausible but incorrect result.
 Deletion-vector snapshots are also rejected instead of being reimplemented in

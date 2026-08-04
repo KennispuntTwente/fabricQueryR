@@ -32,6 +32,7 @@ Suggests:
     purrr,
     rmarkdown,
     testthat (>= 3.0.0),
+    vctrs,
     waldo
 VignetteBuilder: knitr
 Config/testthat/edition: 3
@@ -49,8 +50,7 @@ Imports:
     nanoarrow (>= 0.8.0),
     reticulate (>= 1.41),
     rlang,
-    utils,
-    vctrs
+    utils
 URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.github.io/fabricQueryR/
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues
 Depends: 

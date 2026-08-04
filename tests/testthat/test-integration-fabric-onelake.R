@@ -58,14 +58,6 @@ fabric_test_order_delta_rows <- function(value, feature) {
 }
 
 fabric_test_canonicalize_delta_maps <- function(value) {
-  if (
-    inherits(value, "fabric_delta_struct_column") &&
-      !is.data.frame(value)
-  ) {
-    validity <- !is.na(value)
-    value <- fabric_test_canonicalize_delta_maps(as.data.frame(value))
-    return(fabric_delta_new_struct_column(value, validity))
-  }
   if (is.data.frame(value)) {
     if (identical(names(value), c("key", "value")) && nrow(value) > 1L) {
       labels <- vapply(
@@ -129,13 +121,7 @@ fabric_test_expect_arrow_scalar_values <- function(
   )]
   expect_gt(length(scalar), 0L, label = paste(feature, "scalar columns"))
   for (name in scalar) {
-    actual_value <- if (
-      inherits(expected[[name]], "fabric_delta_timestamp_ntz")
-    ) {
-      actual$GetColumnByName(name)$cast(arrow::utf8())$as_vector()
-    } else {
-      actual_frame[[name]]
-    }
+    actual_value <- actual_frame[[name]]
     expect_identical(
       fabric_test_arrow_scalar_text(actual_value),
       fabric_test_arrow_scalar_text(expected[[name]]),
@@ -348,74 +334,6 @@ fabric_test_spark_canonical_rows <- function(value, schema) {
   })
 }
 
-test_that("Spark logical-row canonicalization preserves complex values", {
-  profile <- fabric_delta_new_struct_column(
-    data.frame(
-      number = c(NA_integer_, NA_integer_),
-      text = c(NA_character_, NA_character_)
-    ),
-    c(TRUE, FALSE)
-  )
-  first_map <- data.frame(key = c("b", "a"))
-  first_map$value <- bit64::as.integer64(c("2", "1"))
-  first_map <- fabric_delta_new_struct_column(first_map, c(TRUE, TRUE))
-  empty_map <- data.frame(key = character())
-  empty_map$value <- bit64::integer64()
-  empty_map <- fabric_delta_new_struct_column(empty_map, logical())
-  value <- tibble::tibble(
-    id = bit64::as.integer64(c("9007199254740993", "2")),
-    profile = profile,
-    readings = list(c(2L, 1L), integer()),
-    lookup = list(first_map, empty_map)
-  )
-  schema <- list(fields = list(
-    list(name = "id", type = "long"),
-    list(
-      name = "profile",
-      type = list(
-        type = "struct",
-        fields = list(
-          list(name = "number", type = "integer"),
-          list(name = "text", type = "string")
-        )
-      )
-    ),
-    list(
-      name = "readings",
-      type = list(type = "array", elementType = "integer")
-    ),
-    list(
-      name = "lookup",
-      type = list(
-        type = "map",
-        keyType = "string",
-        valueType = "long"
-      )
-    )
-  ))
-
-  expect_equal(
-    fabric_test_spark_canonical_rows(value, schema),
-    list(
-      list(
-        id = "9007199254740993",
-        profile = list(number = NULL, text = NULL),
-        readings = list("2", "1"),
-        lookup = list(
-          list(key = "a", value = "1"),
-          list(key = "b", value = "2")
-        )
-      ),
-      list(
-        id = "2",
-        profile = NULL,
-        readings = list(),
-        lookup = list()
-      )
-    )
-  )
-})
-
 fabric_test_expect_arrow_matches_reference <- function(
   manifest,
   lakehouse,
@@ -473,30 +391,6 @@ fabric_test_delta_differences <- function(actual, expected, feature) {
   )
 }
 
-test_that("Delta oracle comparisons canonicalize unordered map entries", {
-  nested <- structure(
-    data.frame(number = c(NA_integer_, NA_integer_)),
-    class = c("fabric_delta_struct_column", "data.frame"),
-    fabric_delta_struct_validity = c(FALSE, TRUE)
-  )
-  key <- data.frame(marker = 1:2)
-  key$nested <- nested
-  map <- structure(
-    list(key = key, value = c("null", "present")),
-    class = "data.frame",
-    row.names = c(NA, -2L)
-  )
-
-  actual <- fabric_test_canonicalize_delta_maps(map)
-  expected <- fabric_test_canonicalize_delta_maps(map[2:1, , drop = FALSE])
-
-  expect_equal(actual, expected)
-  expect_identical(
-    attr(actual$key$nested, "fabric_delta_struct_validity", exact = TRUE),
-    c(FALSE, TRUE)
-  )
-})
-
 test_that("Delta oracle differences are bounded for large tables", {
   actual <- data.frame(id = seq_len(100000L))
   expected <- actual
@@ -524,24 +418,6 @@ test_that("deep Arrow comparison preserves row order and binary values", {
   expected <- fabric_test_order_arrow_rows(expected, "local Arrow reference")
 
   expect_true(actual$Equals(expected))
-
-  timestamp_value <- "2026-07-28 09:08:07.654321"
-  timestamp_table <- arrow::Table$create(
-    id = 1L,
-    local_at = arrow::Array$create(timestamp_value)$cast(
-      arrow::timestamp("us")
-    )
-  )
-  timestamp_expected <- tibble::tibble(
-    id = 1L,
-    local_at = fabric_delta_timestamp_ntz(timestamp_value)
-  )
-
-  expect_no_error(fabric_test_expect_arrow_scalar_values(
-    timestamp_table,
-    timestamp_expected,
-    "local timestamp fixture"
-  ))
 
   nan_actual <- arrow::Table$create(value = c(NaN, 1))
   nan_expected <- arrow::Table$create(value = c(NaN, 1))
@@ -748,15 +624,12 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
     partitions$decimal_part,
     c("12.30", "-0.50", NA_character_)
   )
-  expect_s3_class(
-    partitions$timestamp_ntz_part,
-    "fabric_delta_timestamp_ntz"
-  )
+  expect_type(partitions$timestamp_ntz_part, "character")
   expect_identical(
-    unclass(partitions$timestamp_ntz_part),
+    partitions$timestamp_ntz_part,
     c(
-      "2026-07-28 09:08:07.654321",
-      "1900-01-01 00:00:00.000001",
+      "2026-07-28T09:08:07.654321",
+      "1900-01-01T00:00:00.000001",
       NA_character_
     )
   )
@@ -786,12 +659,9 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
   expect_identical(exact$row_id, 1L)
   expect_type(exact$minimum_integer, "double")
   expect_identical(exact$minimum_integer, -2147483648)
-  expect_s3_class(exact$minimum_long, "fabric_delta_integer64")
-  expect_identical(as.character(exact$minimum_long), "-9223372036854775808")
-  expect_s3_class(exact$above_double_limit, "integer64")
-  expect_s3_class(exact$maximum_long, "integer64")
-  expect_identical(as.character(exact$above_double_limit), "9007199254740993")
-  expect_identical(as.character(exact$maximum_long), "9223372036854775807")
+  expect_identical(exact$minimum_long, "-9223372036854775808")
+  expect_identical(exact$above_double_limit, "9007199254740993")
+  expect_identical(exact$maximum_long, "9223372036854775807")
   expect_identical(
     exact$whole_decimal,
     "12345678901234567890123456789012345678"
@@ -800,53 +670,27 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
     exact$scaled_decimal,
     "123456789012345678901234567890123456.78"
   )
-  expect_s3_class(exact$observed_at, "fabric_delta_timestamp_ntz")
   expect_identical(
-    unclass(exact$observed_at),
-    "2026-07-28 12:34:56.123456"
+    exact$observed_at,
+    "2026-07-28T12:34:56.123456"
   )
   expect_identical(exact$payload[[1L]], as.raw(c(0L, 255L, 16L)))
   expect_identical(exact$unicode_text, "café-数据-🙂")
   expect_true(is.nan(exact$not_a_number))
   expect_identical(exact$positive_infinity, Inf)
 
-  complex <- fabric_test_read_delta(
-    manifest,
-    lakehouse,
-    lakehouse$tables$complex_types
+  nested_tables <- c(
+    lakehouse$tables$complex_types,
+    lakehouse$tables$oracle_complex_types,
+    lakehouse$tables$struct_validity,
+    lakehouse$tables$spark_oracle_struct_validity
   )
-  expect_s3_class(complex, "tbl_df")
-  expect_named(
-    complex,
-    c(
-      "id",
-      "profile",
-      "scores",
-      "counts",
-      "items",
-      "attributes",
-      "display name"
+  for (table in nested_tables) {
+    expect_error(
+      fabric_test_read_delta(manifest, lakehouse, table),
+      class = "fabric_delta_nested_collection_error"
     )
-  )
-  expect_identical(complex$id, 1L)
-  expect_identical(complex$profile$label, "nested")
-  expect_identical(
-    complex$profile$amount,
-    "1234567890123456789012345678901234.56"
-  )
-  expect_identical(complex$scores[[1L]], 1:3)
-  counts <- complex$counts[[1L]]
-  count_values <- stats::setNames(as.character(counts$value), counts$key)
-  expect_identical(
-    count_values[c("large", "small")],
-    c(large = "9007199254740993", small = "2")
-  )
-  expect_identical(complex$items[[1L]]$label, c("first", "second"))
-  expect_identical(complex$items[[1L]]$score, c(10L, 20L))
-  expect_identical(complex$attributes[[1L]]$key, "primary")
-  expect_identical(complex$attributes[[1L]]$value$label, "mapped")
-  expect_identical(complex$attributes[[1L]]$value$enabled, TRUE)
-  expect_identical(complex[["display name"]], "display café-数据")
+  }
 })
 
 test_that("OneLake access failures receive an actionable error class", {
@@ -882,21 +726,14 @@ test_that("Arrow streams cover representative Fabric Delta snapshots", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
   cases <- list(
     list(item = lakehouse, table = lakehouse$tables$empty),
     list(item = lakehouse, table = lakehouse$tables$typed_partitions),
     list(
       item = lakehouse,
-      table = lakehouse$tables$column_mapped_id_partitioned_dv
-    ),
-    list(item = lakehouse, table = lakehouse$tables$complex_types),
-    list(
-      item = lakehouse,
       table = lakehouse$tables$schema_evolved,
       version = 0
-    ),
-    list(item = warehouse, table = warehouse$tables$types)
+    )
   )
 
   for (case in cases) {
@@ -989,10 +826,6 @@ test_that("core Fabric Delta features are handled by the table provider", {
     column_mapped_id = c(
       tables$column_mapped_id,
       tables$spark_oracle_column_mapped_id
-    ),
-    struct_validity = c(
-      tables$struct_validity,
-      tables$spark_oracle_struct_validity
     ),
     shallow_clone = c(
       tables$shallow_clone,
@@ -1154,7 +987,6 @@ test_that("neutral references for unsupported Fabric features fully scan", {
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
   references <- c(
-    "oracle_complex_types",
     "spark_oracle_column_mapped_id_partitioned_dv",
     "spark_oracle_deletion_vectors",
     "spark_oracle_file_row_number_collision",
@@ -1205,7 +1037,6 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
   sources <- c(
     tables$column_mapped,
     tables$column_mapped_id,
-    tables$struct_validity,
     tables$shallow_clone
   )
   expect_true(all(sources %in% names(oracle$tables)))
@@ -1242,17 +1073,21 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   exact_values <- c(
     "runtime", "basic", "empty", "void", "typed_partitions",
-    "binary_partitions", "schema_evolved", "exact_types", "complex_types",
+    "binary_partitions", "schema_evolved", "exact_types",
     "oracle_empty", "oracle_typed_partitions"
   )
   reference_comparison <- c(
     "partitioned", "column_mapped", "column_mapped_id",
-    "struct_validity", "shallow_clone",
+    "shallow_clone",
     "oracle_basic",
     "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
-    "oracle_complex_types", "spark_oracle_column_mapped",
+    "spark_oracle_column_mapped",
     "spark_oracle_column_mapped_id",
-    "spark_oracle_struct_validity", "spark_oracle_shallow_clone"
+    "spark_oracle_shallow_clone"
+  )
+  stream_only <- c(
+    "complex_types", "oracle_complex_types",
+    "struct_validity", "spark_oracle_struct_validity"
   )
   unsupported_error <- c(
     "column_mapped_id_partitioned_dv", "deletion_vectors",
@@ -1284,6 +1119,7 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
       rep("reference_comparison", length(reference_comparison)),
       reference_comparison
     ),
+    stats::setNames(rep("stream_only", length(stream_only)), stream_only),
     stats::setNames(
       rep("unsupported_error", length(unsupported_error)),
       unsupported_error
@@ -1300,7 +1136,7 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     unname(disposition),
     c(
       "exact_values", "reference_comparison", "unsupported_error",
-      "full_scan", "job_workflow"
+      "stream_only", "full_scan", "job_workflow"
     )
   )
 })

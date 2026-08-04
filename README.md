@@ -179,6 +179,10 @@ reader <- arrow::as_record_batch_reader(stream)
 Arrow streams are lazy and single-use. Consume them promptly because they use
 the access token captured when the stream is opened.
 
+Tibble collection intentionally covers common scalar Delta columns. Exact
+`long`, decimal, and `timestamp_ntz` values are returned as character vectors;
+nested and extension columns require `result = "arrow_stream"`.
+
 Direct Delta reads require OneLake data access; item **Read** permission alone
 is not enough. The caller needs **ReadAll** or a suitable OneLake data-access
 role. A Fabric administrator must also enable **Users can access data stored in

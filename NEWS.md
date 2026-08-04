@@ -47,9 +47,11 @@
   The runtime is installed on first Delta use and can be inspected with
   `fabric_delta_config()`; other package functions do not require Python.
   Delta reads now support snapshot versions, column selection, row limits,
-  discovery records, and lazy Arrow streams. Tibble
-  results preserve exact long integers and decimals, including within nested
-  data. `dest_dir` is deprecated because local staging is no longer used, and
+  discovery records, and lazy Arrow streams. Tibble collection is deliberately
+  limited to common scalar columns; exact long integers, decimals, and
+  `timestamp_ntz` values are returned as text, while nested and extension data
+  stays on the Arrow-stream path. `dest_dir` is deprecated because local
+  staging is no longer used, and
   non-`NULL` `timestamp_partition_timezone` values are no longer supported.
   Tables requiring Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric
   Variant preview features remain unsupported. This includes current Fabric

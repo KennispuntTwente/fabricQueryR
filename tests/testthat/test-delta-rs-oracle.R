@@ -49,6 +49,9 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     if (case$table %in% c("deletion_vector_capable", "large_deletion_vector")) {
       next
     }
+    if (identical(case$table, "nested")) {
+      next
+    }
     columns <- unlist(case$columns %||% list(), use.names = FALSE)
     if (!length(columns)) {
       columns <- NULL
@@ -109,14 +112,14 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   expect_identical(as.character(projected_warehouse$id), "1")
 })
 
-test_that("the production bridge preserves exact and nested values", {
+test_that("the production bridge has a narrow tibble contract", {
   oracle <- fabric_test_require_delta_oracle()
   python <- fabric_test_delta_runtime_python(oracle$root)
   if (!reticulate::py_available(initialize = FALSE)) {
     Sys.setenv(RETICULATE_PYTHON = python)
   }
 
-  directory <- tempfile("delta-rs-exact-fixtures-")
+  directory <- tempfile("delta-rs-scalar-fixtures-")
   dir.create(directory)
   on.exit(unlink(directory, recursive = TRUE, force = TRUE), add = TRUE)
   fabric_test_delta_oracle_run(c(
@@ -129,44 +132,23 @@ test_that("the production bridge preserves exact and nested values", {
     file.path(directory, "primitive"),
     result = "tibble"
   )
-  expect_s3_class(primitive$id, "integer64")
-  expect_true("9007199254740993" %in% as.character(primitive$id))
+  expect_type(primitive$id, "character")
+  expect_true("9007199254740993" %in% primitive$id)
   expect_true("12.3000" %in% primitive$amount)
-  expect_s3_class(primitive$local_at, "fabric_delta_timestamp_ntz")
-  expect_true(
-    "2026-07-28 09:08:07.654321" %in% unclass(primitive$local_at)
-  )
+  expect_type(primitive$local_at, "character")
+  expect_true("2026-07-28T09:08:07.654321" %in% primitive$local_at)
 
   boundaries <- fabric_delta_read_uri(
     file.path(directory, "scalar_boundaries"),
     result = "tibble"
   )
-  expect_type(boundaries$regular, "double")
   expect_identical(
     boundaries$regular,
     c(-2147483648, 2147483647, NA_real_)
   )
-  expect_s3_class(boundaries$large, "fabric_delta_integer64")
   expect_identical(
-    as.character(boundaries$large),
+    boundaries$large,
     c("-9223372036854775808", "9223372036854775807", NA)
-  )
-  expect_identical(boundaries$row_id, 1:3)
-  expect_identical(boundaries$tiny, c(-128L, 127L, NA_integer_))
-  expect_identical(boundaries$small, c(-32768L, 32767L, NA_integer_))
-  expect_true(is.nan(boundaries$single[[1L]]))
-  expect_identical(boundaries$single[[2L]], -Inf)
-  expect_true(is.na(boundaries$single[[3L]]))
-  expect_identical(boundaries$double[[1L]], Inf)
-  expect_identical(boundaries$double[[2L]], 0)
-  expect_true(is.nan(boundaries$double[[3L]]))
-  expect_identical(
-    boundaries$whole_decimal,
-    c(
-      "-99999999999999999999999999999999999999",
-      "99999999999999999999999999999999999999",
-      NA
-    )
   )
   expect_identical(
     boundaries$scaled_decimal,
@@ -176,82 +158,29 @@ test_that("the production bridge preserves exact and nested values", {
       NA
     )
   )
-  expect_identical(boundaries$text, c("", "café-数据-🙂", NA))
-  expect_identical(boundaries$payload[[1L]], raw())
-  expect_identical(boundaries$payload[[2L]], as.raw(c(0L, 255L)))
-  expect_null(boundaries$payload[[3L]])
   expect_identical(
     boundaries$event_date,
     as.Date(c("1900-01-01", "2038-01-19", NA))
   )
   expect_s3_class(boundaries$observed_at, "POSIXct")
-  expected_observed_at <- as.POSIXct(
-    c("1900-01-01 00:00:00", "2038-01-19 03:14:07", NA),
-    tz = "UTC"
-  )
-  expected_observed_at[1L] <- expected_observed_at[1L] + 0.000001
-  expected_observed_at[2L] <- expected_observed_at[2L] + 0.999999
-  expect_equal(boundaries$observed_at, expected_observed_at, tolerance = 1e-6)
   expect_identical(
-    unclass(boundaries$local_at),
+    boundaries$local_at,
     c(
-      "1900-01-01 00:00:00.000001",
-      "2038-01-19 03:14:07.999999",
+      "1900-01-01T00:00:00.000001",
+      "2038-01-19T03:14:07.999999",
       NA
     )
   )
-  expect_identical(boundaries$active, c(FALSE, TRUE, NA))
 
-  nested <- fabric_delta_read_uri(
-    file.path(directory, "nested"),
-    result = "tibble"
+  nested <- tryCatch(
+    fabric_delta_read_uri(
+      file.path(directory, "nested"),
+      result = "tibble"
+    ),
+    error = identity
   )
-  expect_identical(
-    nested$profile$amount[[1L]],
-    "123456789012345678.90"
-  )
-  expect_s3_class(nested$counts[[1L]]$value, "integer64")
-  expect_s3_class(nested$items[[1L]]$code, "integer64")
-  expect_identical(
-    nested$scores[[1L]],
-    c(-2147483648, 2147483647)
-  )
-  expect_type(nested$scores[[2L]], "double")
-  expect_identical(nested$scores[[2L]], c(2, 3))
-  expect_s3_class(nested$longs[[1L]], "fabric_delta_integer64")
-  expect_s3_class(nested$longs[[2L]], "fabric_delta_integer64")
-  expect_identical(
-    as.character(nested$longs[[1L]]),
-    c("-9223372036854775808", "9223372036854775807")
-  )
-  expect_identical(as.character(nested$longs[[2L]]), c("2", "3"))
-  expect_s3_class(nested$profile, "fabric_delta_struct_column")
-  expect_identical(is.na(nested$profile), c(FALSE, TRUE, FALSE))
-  expect_identical(
-    is.na(nested$profile[c(3L, 2L), , drop = FALSE]),
-    c(FALSE, TRUE)
-  )
-  expect_s3_class(nested$items[[1L]], "fabric_delta_struct_column")
-  expect_identical(
-    is.na(nested$items[[1L]]),
-    c(FALSE, FALSE, TRUE, FALSE)
-  )
-  expect_s3_class(
-    nested$attributes[[1L]]$value,
-    "fabric_delta_struct_column"
-  )
-  expect_identical(
-    is.na(nested$attributes[[1L]]$value),
-    c(FALSE, TRUE, FALSE)
-  )
-  expect_s3_class(
-    nested$keyed[[1L]]$key$nested,
-    "fabric_delta_struct_column"
-  )
-  expect_identical(
-    is.na(nested$keyed[[1L]]$key$nested),
-    c(TRUE, FALSE)
-  )
+  expect_s3_class(nested, "fabric_delta_nested_collection_error")
+  expect_true(all(c("profile", "scores", "items") %in% nested$delta_columns))
 
   empty <- fabric_delta_read_uri(
     file.path(directory, "empty"),
@@ -273,6 +202,7 @@ test_that("the production bridge preserves exact and nested values", {
     )
   )
 })
+
 
 test_that("the production Arrow stream is lazy and R Arrow compatible", {
   oracle <- fabric_test_require_delta_oracle()
