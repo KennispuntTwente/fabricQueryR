@@ -97,6 +97,22 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     65537L
   )
 
+  row_tracking_table <- .delta_python$deltalake$DeltaTable(
+    file.path(directory, "row_tracking_capable")
+  )
+  expect_false(
+    "rowtracking" %in%
+      tolower(fabric_delta_reader_features(row_tracking_table))
+  )
+  row_tracking <- fabric_delta_read_uri(
+    file.path(directory, "row_tracking_capable"),
+    result = "tibble"
+  )
+  row_tracking <- row_tracking[order(row_tracking$id), ]
+  expect_named(row_tracking, c("id", "label"))
+  expect_identical(as.character(row_tracking$id), c("1", "2"))
+  expect_identical(row_tracking$label, c("one", "two"))
+
   large_vector_path <- file.path(directory, "large_deletion_vector")
   large_vector_table <- .delta_python$deltalake$DeltaTable(
     large_vector_path

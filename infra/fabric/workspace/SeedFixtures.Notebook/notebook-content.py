@@ -1037,6 +1037,61 @@ try:
         """
     )
 
+    stage = "write row-tracking Delta table"
+    spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_row_tracking")
+    spark.sql(
+        """
+        CREATE TABLE dbo.fabricqueryr_row_tracking (
+          id BIGINT,
+          label STRING
+        )
+        USING DELTA
+        TBLPROPERTIES (
+          'delta.enableRowTracking' = 'true',
+          'delta.enableDeletionVectors' = 'false'
+        )
+        """
+    )
+    spark.sql(
+        """
+        INSERT INTO dbo.fabricqueryr_row_tracking
+        VALUES (1, 'inserted'), (2, 'before-update'), (3, 'deleted')
+        """
+    )
+    spark.sql(
+        """
+        UPDATE dbo.fabricqueryr_row_tracking
+        SET label = 'updated'
+        WHERE id = 2
+        """
+    )
+    spark.sql(
+        """
+        DELETE FROM dbo.fabricqueryr_row_tracking
+        WHERE id = 3
+        """
+    )
+    row_tracking_metadata = (
+        spark.table("dbo.fabricqueryr_row_tracking")
+        .select(
+            "id",
+            "_metadata.row_id",
+            "_metadata.row_commit_version",
+        )
+        .collect()
+    )
+    row_ids = [row["row_id"] for row in row_tracking_metadata]
+    if (
+        len(row_tracking_metadata) != 2
+        or any(row_id is None for row_id in row_ids)
+        or len(row_ids) != len(set(row_ids))
+        or any(
+            row["row_commit_version"] is None
+            for row in row_tracking_metadata
+        )
+    ):
+        raise RuntimeError("Spark row-tracking metadata was not populated")
+
     stage = "write type-widening Delta table"
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened")
     spark.sql(
@@ -1487,6 +1542,9 @@ try:
         "fabricqueryr_deletion_vectors_dense": (
             "fabricqueryr_spark_oracle_deletion_vectors_dense"
         ),
+        "fabricqueryr_row_tracking": (
+            "fabricqueryr_spark_oracle_row_tracking"
+        ),
         "fabricqueryr_type_widened": (
             "fabricqueryr_spark_oracle_type_widened"
         ),
@@ -1522,6 +1580,7 @@ try:
         "fabricqueryr_file_row_number_collision",
         "fabricqueryr_deletion_vectors_stress",
         "fabricqueryr_deletion_vectors_dense",
+        "fabricqueryr_row_tracking",
         "fabricqueryr_shallow_clone",
     ]
 

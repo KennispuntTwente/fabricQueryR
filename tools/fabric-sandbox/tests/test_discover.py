@@ -318,6 +318,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
             "fabricqueryr_deletion_vectors_checkpoint"
         ),
         "deletion_vectors_dense": "fabricqueryr_deletion_vectors_dense",
+        "row_tracking": "fabricqueryr_row_tracking",
         "exact_types": "fabricqueryr_exact_types",
         "complex_types": "fabricqueryr_complex_types",
         "oracle_basic": "fabricqueryr_oracle_basic",
@@ -353,6 +354,9 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         ),
         "spark_oracle_deletion_vectors_dense": (
             "fabricqueryr_spark_oracle_deletion_vectors_dense"
+        ),
+        "spark_oracle_row_tracking": (
+            "fabricqueryr_spark_oracle_row_tracking"
         ),
         "spark_oracle_type_widened": (
             "fabricqueryr_spark_oracle_type_widened"

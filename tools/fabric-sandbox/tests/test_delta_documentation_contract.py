@@ -27,6 +27,10 @@ def test_delta_documentation_matches_the_runtime_contract():
     assert "service-admin-portal-onelake" in readme
     assert "isn't an authorized OneLake security engine" in normalized_readme
     assert "onelake-security-integrations-overview" in readme
+    assert "_metadata.row_id" in readme
+    assert "row-tracking tables" in readme
+    assert "does not provision RLS/CLS role assignments" in normalized_readme
+    assert "private link/private DNS" in normalized_readme
     assert "Warehouse table names are limited to ASCII letters" in readme
     assert "query-delta-lake-logs" in readme
     assert "use one DataFusion scan" in source

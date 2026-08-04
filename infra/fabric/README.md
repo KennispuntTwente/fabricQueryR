@@ -77,7 +77,10 @@ sidecars, sparse/dense/checkpoint deletion vectors, name- and ID-mapped nested
 struct/array/map values across renames and drops, top-level and nested type
 widening, `void`, exact scalar values, date/boolean/integer/decimal/timestamp/
 timestamp-NTZ/binary/null partitions, a shallow clone, and Variant files written
-before and after shredding is enabled. The R integration suite assigns every
+before and after shredding is enabled. A row-tracking table is updated and
+deleted after creation; Spark verifies its hidden row IDs/commit versions, while
+the R reader is checked against the remaining complete logical rows. The R
+integration suite assigns every
 fixture an explicit disposition: representative tables have static exact-value
 assertions, supported protocol features are compared with Spark-materialized
 neutral references (including deep Arrow equality), unsupported tables assert
@@ -85,6 +88,13 @@ specific errors, and their neutral references are fully scanned. Spark also
 publishes an independent, schema-aware canonical oracle for every logical row
 of the supported protocol-feature tables; the R suite compares complete scalar
 and nested values rather than only row counts and keys.
+
+The default sandbox deliberately does not create tenant-specific OneLake
+RLS/CLS role assignments or a workspace private link and private DNS path. Its
+live access boundary covers an unrestricted storage token and an invalid-token
+denial through the global endpoint. Regional/private host construction is unit
+tested, but security-policy enforcement and private-network connectivity must
+be validated by deployments that configure those tenant and network resources.
 
 Always remove the workspace after testing:
 

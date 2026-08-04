@@ -172,8 +172,13 @@ workspace FQDN required by a workspace private link where applicable. See
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connecting to Microsoft OneLake}.
 
 The tested delta-rs runtime reads ordinary Delta snapshots, schema evolution,
-typed partitions, classic checkpoints, column mapping, deletion vectors, and
-shallow clones. The pinned runtime's deletion-vector masks depend on physical
+typed partitions, classic checkpoints, column mapping, deletion vectors,
+logical rows from row-tracking tables, and shallow clones. Row IDs and row
+commit versions are hidden Spark \verb{_metadata} fields rather than logical Delta
+schema columns; this function does not expose them. Use Fabric PySpark when
+those row-tracking metadata values are required. See
+\href{https://docs.delta.io/delta-row-tracking/}{Delta row tracking}. The pinned runtime's
+deletion-vector masks depend on physical
 scan order, so snapshots with actual vectors use one DataFusion scan
 partition. Their positive \code{limit} is applied through a window barrier after
 deletion filtering; this can scan more physical rows than the returned
@@ -198,6 +203,14 @@ deletion-vector reads, V2 checkpoints, and shallow-clone reads. Consult
 and use Fabric PySpark when Microsoft-supported feature coverage is required
 or the package's current live integration workflow has not passed for the
 exact package revision being deployed.
+
+The package's default live sandbox validates unrestricted reads through the
+global OneLake endpoint and fail-closed handling of an invalid token. It does
+not provision tenant-specific OneLake RLS/CLS role assignments, workspace
+private links, private DNS, or a runner inside a private network. Regional and
+workspace-private DFS host construction is unit tested, but deployments that
+rely on those security or networking configurations must run an additional
+live validation in their own tenant and network.
 
 Delta \code{integer} values normally use R integers and Delta \code{long} values
 normally use \code{\link[bit64:integer64]{bit64::integer64()}}. Because those R representations reserve

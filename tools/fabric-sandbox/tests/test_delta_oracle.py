@@ -74,6 +74,7 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
     deletion_vector_capable = DeltaTable(
         str(tmp_path / "deletion_vector_capable")
     )
+    row_tracking_capable = DeltaTable(str(tmp_path / "row_tracking_capable"))
     large_deletion_vector = DeltaTable(
         str(tmp_path / "large_deletion_vector")
     )
@@ -100,6 +101,7 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
         "mutated_latest",
         "mutated_version_0",
         "deletion_vector_feature_without_vectors",
+        "row_tracking_writer_feature",
     }
     assert all(
         {
@@ -173,6 +175,13 @@ def test_local_fixture_oracle_covers_versions_projection_and_empty_schema(
         "num_records"
     ).to_pylist() == [65_537]
     assert deletion_vector_capable.deletion_vectors().read_all().num_rows == 0
+    row_tracking_protocol = row_tracking_capable.protocol()
+    assert row_tracking_protocol.reader_features is None
+    assert "rowTracking" in row_tracking_protocol.writer_features
+    assert row_tracking_capable.to_pyarrow_table().to_pydict() == {
+        "id": [1, 2],
+        "label": ["one", "two"],
+    }
     large_vectors = large_deletion_vector.deletion_vectors().read_all()
     large_mask = large_vectors.column("selection_vector")[0].as_py()
     assert len(large_mask) == 100_000

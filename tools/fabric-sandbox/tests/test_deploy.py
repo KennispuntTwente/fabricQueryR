@@ -51,6 +51,9 @@ def test_seed_notebook_ids_are_parameterized():
     assert "ADD COLUMNS (profile.metadata_only STRING)" in notebook
     assert "dbo.fabricqueryr_struct_validity" in notebook
     assert "dbo.fabricqueryr_file_row_number_collision" in notebook
+    assert "'delta.enableRowTracking' = 'true'" in notebook
+    assert '"_metadata.row_id"' in notebook
+    assert '"_metadata.row_commit_version"' in notebook
     assert '"canonicalization": "spark-logical-v1"' in notebook
     assert '"format_version": 2' in notebook
     assert "def canonical_spark_value(column, data_type):" in notebook

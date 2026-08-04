@@ -29,6 +29,24 @@ test_that("Delta targets preserve Fabric discovery and ABFSS addressing", {
       "/Tables/dbo/patients"
     )
   )
+  private_target <- resolved$target
+  private_target$dfs_base <- paste0(
+    "https://",
+    workspace_id,
+    ".z12.dfs.fabric.microsoft.com"
+  )
+  expect_identical(
+    fabric_delta_target_uri(private_target),
+    paste0(
+      "abfss://",
+      workspace_id,
+      "@",
+      workspace_id,
+      ".z12.dfs.fabric.microsoft.com/",
+      item_id,
+      "/Tables/dbo/patients"
+    )
+  )
 
   named <- onelake_resolve_target(
     "Research Workspace",

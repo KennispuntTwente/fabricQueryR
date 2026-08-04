@@ -799,6 +799,17 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         allow_protocol_versions_increase=True,
     )
 
+    row_tracking_capable = directory / "row_tracking_capable"
+    write_deltalake(
+        row_tracking_capable,
+        pa.table({"id": [1, 2], "label": ["one", "two"]}),
+        mode="overwrite",
+    )
+    DeltaTable(str(row_tracking_capable)).alter.add_feature(
+        TableFeatures.RowTracking,
+        allow_protocol_versions_increase=True,
+    )
+
     _write_large_deletion_vector_fixture(directory / "large_deletion_vector")
 
     write_deltalake(
@@ -808,6 +819,13 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
     )
 
     cases = [
+        {
+            "name": "row_tracking_writer_feature",
+            "table": "row_tracking_capable",
+            "expected_rows": 2,
+            "expected_version": 1,
+            "expected_columns": ["id", "label"],
+        },
         {
             "name": "deletion_vector_feature_without_vectors",
             "table": "deletion_vector_capable",

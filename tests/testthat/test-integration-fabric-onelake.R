@@ -952,6 +952,10 @@ test_that("Arrow streams deeply match Spark-neutral Fabric references", {
       source = tables$deletion_vectors_dense,
       reference = tables$spark_oracle_deletion_vectors_dense
     ),
+    row_tracking = list(
+      source = tables$row_tracking,
+      reference = tables$spark_oracle_row_tracking
+    ),
     shallow_clone = list(
       source = tables$shallow_clone,
       reference = tables$spark_oracle_shallow_clone
@@ -1029,6 +1033,10 @@ test_that("core Fabric Delta features are handled by the table provider", {
     deletion_vectors_dense = c(
       tables$deletion_vectors_dense,
       tables$spark_oracle_deletion_vectors_dense
+    ),
+    row_tracking = c(
+      tables$row_tracking,
+      tables$spark_oracle_row_tracking
     ),
     shallow_clone = c(
       tables$shallow_clone,
@@ -1151,6 +1159,17 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
     (dense_limit$id < 10000 & dense_limit$id %% 2 == 0) |
       (dense_limit$id >= 70000 & dense_limit$id < 80000)
   ))
+
+  row_tracking <- fabric_test_read_delta(
+    manifest,
+    lakehouse,
+    tables$row_tracking
+  )
+  row_tracking <- row_tracking[order(row_tracking$id), ]
+  expect_named(row_tracking, c("id", "label"))
+  expect_identical(as.character(row_tracking$id), c("1", "2"))
+  expect_identical(row_tracking$label, c("inserted", "updated"))
+  expect_false("_metadata" %in% names(row_tracking))
 })
 
 test_that("unsupported Fabric Delta features fail with actionable errors", {
@@ -1246,6 +1265,7 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
     tables$file_row_number_collision,
     tables$deletion_vectors_stress,
     tables$deletion_vectors_dense,
+    tables$row_tracking,
     tables$shallow_clone
   )
   expect_setequal(names(oracle$tables), sources)
@@ -1289,7 +1309,8 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "partitioned", "column_mapped", "column_mapped_id",
     "column_mapped_id_partitioned_dv", "struct_validity",
     "deletion_vectors", "file_row_number_collision",
-    "deletion_vectors_stress", "deletion_vectors_dense", "shallow_clone",
+    "deletion_vectors_stress", "deletion_vectors_dense", "row_tracking",
+    "shallow_clone",
     "oracle_basic",
     "oracle_partitioned", "oracle_schema_evolved", "oracle_exact_types",
     "oracle_complex_types", "spark_oracle_column_mapped",
@@ -1298,7 +1319,8 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "spark_oracle_struct_validity", "spark_oracle_deletion_vectors",
     "spark_oracle_file_row_number_collision",
     "spark_oracle_deletion_vectors_stress",
-    "spark_oracle_deletion_vectors_dense", "spark_oracle_shallow_clone"
+    "spark_oracle_deletion_vectors_dense", "spark_oracle_row_tracking",
+    "spark_oracle_shallow_clone"
   )
   unsupported_error <- c(
     "deletion_vectors_checkpoint",

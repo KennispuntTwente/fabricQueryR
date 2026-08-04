@@ -44,6 +44,7 @@ ONELAKE_LAKEHOUSE_TABLES = {
     "deletion_vectors_stress": "fabricqueryr_deletion_vectors_stress",
     "deletion_vectors_checkpoint": "fabricqueryr_deletion_vectors_checkpoint",
     "deletion_vectors_dense": "fabricqueryr_deletion_vectors_dense",
+    "row_tracking": "fabricqueryr_row_tracking",
     "exact_types": "fabricqueryr_exact_types",
     "complex_types": "fabricqueryr_complex_types",
     "oracle_basic": "fabricqueryr_oracle_basic",
@@ -72,6 +73,7 @@ ONELAKE_LAKEHOUSE_TABLES = {
     "spark_oracle_deletion_vectors_dense": (
         "fabricqueryr_spark_oracle_deletion_vectors_dense"
     ),
+    "spark_oracle_row_tracking": "fabricqueryr_spark_oracle_row_tracking",
     "spark_oracle_type_widened": "fabricqueryr_spark_oracle_type_widened",
     "spark_oracle_type_widened_exact": (
         "fabricqueryr_spark_oracle_type_widened_exact"
@@ -360,6 +362,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "deletion_vectors_dense": (
                         "fabricqueryr_deletion_vectors_dense"
                     ),
+                    "row_tracking": "fabricqueryr_row_tracking",
                     "exact_types": "fabricqueryr_exact_types",
                     "complex_types": "fabricqueryr_complex_types",
                     "oracle_basic": "fabricqueryr_oracle_basic",
@@ -402,6 +405,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     ),
                     "spark_oracle_deletion_vectors_dense": (
                         "fabricqueryr_spark_oracle_deletion_vectors_dense"
+                    ),
+                    "spark_oracle_row_tracking": (
+                        "fabricqueryr_spark_oracle_row_tracking"
                     ),
                     "spark_oracle_type_widened": (
                         "fabricqueryr_spark_oracle_type_widened"
