@@ -514,8 +514,10 @@ test_that("SQL query retries require idempotency and use fresh connections", {
   queries <- 0L
   disconnected <- integer()
   delays <- numeric()
+  refreshes <- logical()
   local_mocked_bindings(
-    fabric_sql_connect = function(...) {
+    fabric_sql_connect = function(token, ...) {
+      token(.fabric_audience$sql, force_refresh = FALSE)
       connections <<- connections + 1L
       structure(list(id = connections), class = "test_connection")
     },
@@ -544,7 +546,10 @@ test_that("SQL query retries require idempotency and use fresh connections", {
   result <- fabric_sql_query(
     "server",
     "SELECT 1",
-    token = "token",
+    token = function(audience, force_refresh = FALSE) {
+      refreshes <<- c(refreshes, force_refresh)
+      "token"
+    },
     idempotent = TRUE,
     max_tries = 3L,
     retry_delay = 5,
@@ -555,16 +560,21 @@ test_that("SQL query retries require idempotency and use fresh connections", {
   expect_equal(connections, 2L)
   expect_identical(disconnected, c(1L, 2L))
   expect_equal(delays, 5)
+  expect_identical(refreshes, c(FALSE, TRUE))
 
   connections <- 0L
   queries <- 0L
   disconnected <- integer()
   delays <- numeric()
+  refreshes <- logical()
   expect_error(
     fabric_sql_query(
       "server",
       "UPDATE dbo.items SET value = 1",
-      token = "token",
+      token = function(audience, force_refresh = FALSE) {
+        refreshes <<- c(refreshes, force_refresh)
+        "token"
+      },
       max_tries = 3L,
       retry_delay = 5,
       verbose = FALSE
@@ -575,6 +585,7 @@ test_that("SQL query retries require idempotency and use fresh connections", {
   expect_equal(queries, 1L)
   expect_identical(disconnected, 1L)
   expect_length(delays, 0L)
+  expect_identical(refreshes, FALSE)
 })
 
 test_that("SQL retry controls reject invalid values", {

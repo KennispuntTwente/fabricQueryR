@@ -118,7 +118,10 @@ test_that("SQL helpers consume named access_token from dots", {
 
   expect_identical(query_connect_args$database, "Warehouse")
   expect_identical(query_connect_args$port, 1444L)
-  expect_identical(query_connect_args$token, "legacy-token")
+  expect_identical(
+    query_connect_args$token(.fabric_audience$sql),
+    "legacy-token"
+  )
   expect_false("access_token" %in% names(query_connect_args))
   expect_equal(query$value, 1L)
   expect_true(disconnected)

@@ -496,6 +496,12 @@ fabric_sql_query <- function(
   }
   fabric_sql_retry_settings(max_tries, retry_delay)
   fabric_sql_require_backend(backend, result = result)
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
   adbc_params <- identical(backend, "adbc") && !is.null(params)
   query_sql <- if (adbc_params) {
     fabric_sql_adbc_parameter_sql(sql, params)
@@ -515,8 +521,8 @@ fabric_sql_query <- function(
       backend = backend,
       tenant_id = tenant_id,
       client_id = client_id,
-      token = token,
-      auth_args = auth_args,
+      token = credential,
+      auth_args = list(),
       odbc_driver = odbc_driver,
       adbc_driver = adbc_driver,
       port = port,
@@ -531,6 +537,17 @@ fabric_sql_query <- function(
     resolved$dots
   )
   for (attempt in seq_len(as.integer(max_tries))) {
+    force_refresh <- attempt > 1L
+    connect_args$token <- local({
+      refresh_on_first_use <- force_refresh
+      function(audience, force_refresh = FALSE) {
+        fabric_get_token(
+          credential,
+          audience,
+          force_refresh = isTRUE(force_refresh) || refresh_on_first_use
+        )
+      }
+    })
     con <- NULL
     preserve_stream <- FALSE
     outcome <- tryCatch(
