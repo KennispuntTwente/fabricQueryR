@@ -22,6 +22,8 @@ NOTEBOOK_ERROR_PREFIX = "fabricqueryr-seed-error:"
 NOTEBOOK_SUCCESS_VALUE = "fabricqueryr-seed-success"
 JOB_VISIBILITY_RETRIES = 12
 JOB_VISIBILITY_RETRY_SECONDS = 5
+RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+IDEMPOTENT_METHODS = {"GET", "HEAD", "OPTIONS", "PUT", "DELETE"}
 
 
 class FabricApi:
@@ -31,7 +33,10 @@ class FabricApi:
         *,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        max_attempts: int = 4,
     ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
         self.credential = credential
         self.client = httpx.Client(
             base_url=FABRIC_API,
@@ -39,6 +44,7 @@ class FabricApi:
             transport=transport,
         )
         self.sleep = sleep
+        self.max_attempts = max_attempts
 
     def close(self) -> None:
         self.client.close()
@@ -50,10 +56,28 @@ class FabricApi:
         self.close()
 
     def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
-        token = self.credential.get_token(FABRIC_SCOPE).token
-        headers = {"Authorization": f"Bearer {token}"}
-        headers.update(kwargs.pop("headers", {}))
-        response = self.client.request(method, url, headers=headers, **kwargs)
+        target = self._same_origin_url(url)
+        supplied_headers = kwargs.pop("headers", {})
+        method = method.upper()
+        for attempt in range(1, self.max_attempts + 1):
+            token = self.credential.get_token(FABRIC_SCOPE).token
+            headers = {"Authorization": f"Bearer {token}"}
+            headers.update(supplied_headers)
+            response = self.client.request(
+                method,
+                target,
+                headers=headers,
+                **kwargs,
+            )
+            retryable = response.status_code in RETRYABLE_STATUS_CODES and (
+                method in IDEMPOTENT_METHODS or response.status_code == 429
+            )
+            if not retryable or attempt == self.max_attempts:
+                break
+            default = min(30.0, 0.5 * (2 ** (attempt - 1)))
+            delay = self._retry_after(response, default)
+            if delay > 0:
+                self.sleep(delay)
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as error:
@@ -72,6 +96,21 @@ class FabricApi:
                 response=response,
             ) from error
         return response
+
+    def _same_origin_url(self, url: str) -> httpx.URL:
+        target = self.client.build_request("GET", url).url
+        base = self.client.base_url
+        target_origin = (target.scheme, target.host, target.port)
+        base_origin = (base.scheme, base.host, base.port)
+        if (
+            target_origin != base_origin
+            or bool(target.username)
+            or bool(target.password)
+        ):
+            raise ValueError(
+                "Fabric API URLs must remain on the configured HTTPS origin"
+            )
+        return target
 
     @staticmethod
     def _retry_after(response: httpx.Response, default: float) -> float:

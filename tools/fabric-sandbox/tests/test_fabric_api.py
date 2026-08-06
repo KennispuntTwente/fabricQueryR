@@ -33,6 +33,71 @@ def test_list_items_follows_continuation_uri():
     assert [item["id"] for item in items] == ["one", "two"]
 
 
+def test_continuation_uri_cannot_forward_token_to_another_origin():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "value": [{"id": "one"}],
+                "continuationUri": "https://attacker.example/items?page=2",
+            },
+        )
+
+    with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        with pytest.raises(ValueError, match="configured HTTPS origin"):
+            api.list_items("workspace-id")
+
+    assert len(requests) == 1
+    assert requests[0].headers["Authorization"] == "Bearer test-token"
+
+
+def test_request_retries_transient_responses_and_honors_retry_after():
+    attempts = 0
+    sleeps = []
+
+    def handler(_request):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(429, headers={"Retry-After": "3"})
+        if attempts == 2:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"value": []})
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        response = api.request("GET", "/workspaces")
+
+    assert response.status_code == 200
+    assert attempts == 3
+    assert sleeps == [3, 1]
+
+
+def test_request_does_not_retry_ambiguous_post_server_errors():
+    attempts = 0
+
+    def handler(_request):
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503)
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+    ) as api:
+        with pytest.raises(httpx.HTTPStatusError, match="503"):
+            api.request("POST", "/workspaces/workspace-id/items")
+
+    assert attempts == 1
+
+
 def test_list_workspaces_filters_admin_role_and_follows_continuation():
     requests = []
 
