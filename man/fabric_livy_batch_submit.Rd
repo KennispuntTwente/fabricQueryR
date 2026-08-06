@@ -135,6 +135,21 @@ Requests use the
 authentication requires the Livy Lakehouse execution/read and required
 \verb{Code.Access*} scopes documented by Microsoft.
 }
+\examples{
+\dontrun{
+batch <- fabric_livy_batch_submit(
+  lakehouse,
+  file = paste0(
+    "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
+    "lakehouse/Files/jobs/daily.py"
+  ),
+  wait = TRUE,
+  cancel_on_timeout = TRUE
+)
+batch$result()
+}
+
+}
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch}{Microsoft Fabric batch jobs}
 }

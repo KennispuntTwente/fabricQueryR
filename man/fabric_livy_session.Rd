@@ -122,6 +122,29 @@ in functions, for deterministic cleanup. Requests use the
 authentication requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
 \code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All}.
 }
+\examples{
+\dontrun{
+run_shared_state <- function(lakehouse) {
+  session <- fabric_livy_session(lakehouse)
+  on.exit(session$close(), add = TRUE)
+  session$wait()
+  session$run("shared_value = 40", kind = "pyspark")
+  session$run("print(shared_value + 2)", kind = "pyspark")
+}
+
+run_high_concurrency <- function(lakehouse) {
+  session <- fabric_livy_session(
+    lakehouse,
+    high_concurrency = TRUE,
+    session_tag = "report-workers"
+  )
+  on.exit(session$close(), add = TRUE)
+  session$wait()
+  session$run("SELECT current_timestamp()", kind = "sql")
+}
+}
+
+}
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session}{Microsoft session jobs},
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy}{high-concurrency Livy}

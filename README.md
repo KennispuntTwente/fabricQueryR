@@ -141,15 +141,38 @@ livy_sparkr_result <- fabric_livy_query(
   code = "print(1 + 2)"
 )
 
-# Run a Livy session for multiple statements that share state
-livy <- fabric_livy_session(lakehouse)
-livy$wait()
-livy$run("shared_value = 40", kind = "pyspark")
-livy_result <- livy$run(
-  "print(shared_value + 2)",
-  kind = "pyspark"
+# Run a reusable session, with deterministic cleanup on errors
+run_shared_state <- function(lakehouse) {
+  livy <- fabric_livy_session(lakehouse)
+  on.exit(livy$close(), add = TRUE)
+  livy$wait()
+  livy$run("shared_value = 40", kind = "pyspark")
+  livy$run("print(shared_value + 2)", kind = "pyspark")
+}
+
+# Let Fabric pack isolated REPLs into high-concurrency Spark sessions
+run_high_concurrency <- function(lakehouse) {
+  livy <- fabric_livy_session(
+    lakehouse,
+    high_concurrency = TRUE,
+    session_tag = "report-workers"
+  )
+  on.exit(livy$close(), add = TRUE)
+  livy$wait()
+  livy$run("SELECT current_timestamp()", kind = "sql")
+}
+
+# Submit an application file as an independent batch job
+batch <- fabric_livy_batch_submit(
+  lakehouse,
+  file = paste0(
+    "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
+    "lakehouse/Files/jobs/daily.py"
+  ),
+  wait = TRUE,
+  cancel_on_timeout = TRUE
 )
-livy$close()
+batch$result()
 ```
 
 Copy the session or batch connection URL from **Lakehouse settings > Livy
