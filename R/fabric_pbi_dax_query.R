@@ -47,8 +47,9 @@
 #'  BI compresses record batches with LZ4. This endpoint supports semantic
 #'  models on Power BI's modern service infrastructure; deprecated Push models,
 #'  legacy compatibility-level models, monitoring/usage models, and live
-#'  connections to Analysis Services are excluded. It is not limited to
-#'  Premium/Fabric capacity: Microsoft documents separate Pro/PPU throttles.
+#'  connections to Analysis Services are excluded. The Arrow endpoint requires
+#'  Premium, Fabric, or Embedded capacity. Pro and PPU models can use the JSON
+#'  endpoint but do not satisfy the Arrow endpoint's capacity requirement.
 #'  `effectiveUsername` is user-only and requires workspace admin. Users may
 #'  specify only roles they belong to unless they are workspace admins; service
 #'  principals may use `roles` only when they are workspace admins.
@@ -126,6 +127,8 @@
 #' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
 #'
 #' [Power BI Arrow Execute DAX Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-dax-queries-in-group)
+#'
+#' [Power BI Arrow API overview and capacity requirements](https://learn.microsoft.com/en-us/power-bi/developer/execute-dax-queries-arrow/overview)
 #'
 #' [Semantic model permissions](https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions)
 #'
