@@ -50,19 +50,25 @@ class FakeService:
 
 
 def make_settings(root: Path) -> SandboxSettings:
-    seed_notebook = (
-        root
-        / "infra"
-        / "fabric"
-        / "workspace"
-        / "SeedFixtures.Notebook"
-        / "notebook-content.py"
-    )
+    workspace = root / "infra" / "fabric" / "workspace"
+    seed_notebook = workspace / "SeedFixtures.Notebook" / "notebook-content.py"
     seed_notebook.parent.mkdir(parents=True)
     seed_notebook.write_text("seed-v1\n", encoding="utf-8")
-    (seed_notebook.parents[1] / "parameter.yml").write_text(
+    (workspace / "parameter.yml").write_text(
         "parameters-v1\n", encoding="utf-8"
     )
+    deployed_files = {
+        "JobFixtures.Notebook/notebook-content.py": "job-notebook-v1\n",
+        "TestPipeline.DataPipeline/pipeline-content.json": "{}\n",
+        "TestSparkJob.SparkJobDefinition/SparkJobDefinitionV1.json": "{}\n",
+        "TestSparkJob.SparkJobDefinition/Main/main.py": "print('v1')\n",
+        "Model.SemanticModel/definition.pbism": "{}\n",
+        "Model.SemanticModel/model.bim": "{}\n",
+    }
+    for relative, content in deployed_files.items():
+        path = workspace / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
     terraform = root / "infra" / "fabric" / "terraform" / "main.tf"
     terraform.parent.mkdir(parents=True)
     terraform.write_text("terraform-v1\n", encoding="utf-8")
@@ -81,6 +87,9 @@ def make_settings(root: Path) -> SandboxSettings:
         "deploy.py",
         "discover.py",
         "fixture_revision.py",
+        "graphql_api.py",
+        "kusto_api.py",
+        "power_bi_api.py",
         "seed.py",
         "sql_api.py",
     ):
@@ -129,6 +138,22 @@ def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
     terraform_file.write_text("terraform-v2\n", encoding="utf-8")
     different_terraform = fixture_revision(settings)
     assert different_terraform != different_parameters
+
+    job_notebook = (
+        settings.workspace_definition_dir
+        / "JobFixtures.Notebook"
+        / "notebook-content.py"
+    )
+    job_notebook.write_text("job-notebook-v2\n", encoding="utf-8")
+    different_job_notebook = fixture_revision(settings)
+    assert different_job_notebook != different_terraform
+
+    graphql_api = (
+        settings.repository_root
+        / "tools/fabric-sandbox/src/fabricqueryr_sandbox/graphql_api.py"
+    )
+    graphql_api.write_text("graphql_api.py-v2\n", encoding="utf-8")
+    assert fixture_revision(settings) != different_job_notebook
 
 
 def test_fixture_revision_round_trip_and_verification(tmp_path):

@@ -26,16 +26,22 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
         / "fabricqueryr_sandbox"
     )
     fixed = [
-        settings.workspace_definition_dir
-        / "SeedFixtures.Notebook"
-        / "notebook-content.py",
-        settings.workspace_definition_dir / "parameter.yml",
         package_dir / "deploy.py",
         package_dir / "discover.py",
         package_dir / "fixture_revision.py",
+        package_dir / "graphql_api.py",
+        package_dir / "kusto_api.py",
+        package_dir / "power_bi_api.py",
         package_dir / "seed.py",
         package_dir / "sql_api.py",
     ]
+    workspace_files = sorted(
+        path
+        for path in settings.workspace_definition_dir.rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix != ".pyc"
+    )
     terraform_files = sorted(
         path
         for path in (
@@ -46,7 +52,7 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
     fixture_files = sorted(
         path for path in settings.fixture_dir.rglob("*") if path.is_file()
     )
-    inputs = fixed + terraform_files + fixture_files
+    inputs = fixed + workspace_files + terraform_files + fixture_files
     missing = [path for path in inputs if not path.is_file()]
     if missing:
         raise FileNotFoundError(

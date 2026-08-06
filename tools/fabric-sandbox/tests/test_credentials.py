@@ -1,3 +1,6 @@
+import base64
+import json
+
 import pytest
 from azure.core.credentials import AccessToken
 from azure.identity import AzureCliCredential, ClientSecretCredential
@@ -7,6 +10,13 @@ from fabricqueryr_sandbox.credentials import (
     EnvironmentTokenCredential,
     get_credential,
 )
+
+
+def jwt_with_exp(expires_on):
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"exp": expires_on}).encode()
+    ).decode().rstrip("=")
+    return f"header.{payload}.signature"
 
 
 def test_cached_credential_reuses_prefetched_access_tokens():
@@ -27,14 +37,24 @@ def test_cached_credential_reuses_prefetched_access_tokens():
 
 
 def test_environment_credential_selects_tokens_by_scope(monkeypatch):
-    monkeypatch.setenv("FABRIC_TEST_API_TOKEN", "fabric-token")
+    token_value = jwt_with_exp(4102444800)
+    monkeypatch.setenv("FABRIC_TEST_API_TOKEN", token_value)
     credential = EnvironmentTokenCredential()
 
     token = credential.get_token(
         "https://api.fabric.microsoft.com/.default"
     )
 
-    assert token.token == "fabric-token"
+    assert token.token == token_value
+    assert token.expires_on == 4102444800
+
+
+def test_environment_credential_rejects_tokens_without_real_expiry(monkeypatch):
+    monkeypatch.setenv("FABRIC_TEST_API_TOKEN", "opaque-token")
+    credential = EnvironmentTokenCredential()
+
+    with pytest.raises(RuntimeError, match="JWT access token.*exp claim"):
+        credential.get_token("https://api.fabric.microsoft.com/.default")
 
 
 def test_environment_credential_requires_the_requested_token(monkeypatch):

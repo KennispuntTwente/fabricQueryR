@@ -441,7 +441,11 @@ def test_run_notebook_retries_until_job_instance_is_visible():
             )
         get_attempts += 1
         if get_attempts == 1:
-            return httpx.Response(404, json={"errorCode": "ItemNotFound"})
+            return httpx.Response(
+                404,
+                headers={"Retry-After": "3"},
+                json={"errorCode": "ItemNotFound"},
+            )
         return httpx.Response(
             200,
             json={
@@ -464,7 +468,52 @@ def test_run_notebook_retries_until_job_instance_is_visible():
 
     assert result["exitValue"] == "fabricqueryr-seed-success"
     assert get_attempts == 2
-    assert sleeps == [fabric_api.JOB_VISIBILITY_RETRY_SECONDS]
+    assert sleeps == [3]
+
+
+def test_run_notebook_honors_submission_and_status_retry_after():
+    get_attempts = 0
+    sleeps = []
+
+    def handler(request):
+        nonlocal get_attempts
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={
+                    "Location": "/jobs/instances/job-id",
+                    "Retry-After": "7",
+                },
+            )
+        get_attempts += 1
+        if get_attempts == 1:
+            return httpx.Response(
+                200,
+                headers={"Retry-After": "13"},
+                json={"id": "job-id", "status": "InProgress"},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": "job-id",
+                "status": "Completed",
+                "exitValue": "fabricqueryr-seed-success",
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        result = api.run_notebook(
+            "workspace-id",
+            "notebook-id",
+            lakehouse_id="lakehouse-id",
+        )
+
+    assert result["exitValue"] == "fabricqueryr-seed-success"
+    assert sleeps == [7, 13]
 
 
 def test_run_notebook_stops_retrying_persistent_not_found(monkeypatch):

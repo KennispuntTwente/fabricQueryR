@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 import time
 from os import environ
 
@@ -43,6 +46,27 @@ class CachedTokenCredential:
 class EnvironmentTokenCredential:
     """Use explicitly enabled, short-lived integration-test tokens."""
 
+    @staticmethod
+    def _expires_on(token: str, variable: str) -> int:
+        try:
+            payload = token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+            expires_on = int(claims["exp"])
+        except (
+            binascii.Error,
+            IndexError,
+            KeyError,
+            TypeError,
+            UnicodeDecodeError,
+            ValueError,
+            json.JSONDecodeError,
+        ):
+            raise RuntimeError(
+                f"{variable} must be a JWT access token with an exp claim"
+            ) from None
+        return expires_on
+
     def get_token(self, *scopes: str, **_kwargs: object) -> AccessToken:
         if len(scopes) != 1:
             raise ValueError("exactly one token scope is required")
@@ -53,7 +77,7 @@ class EnvironmentTokenCredential:
         token = environ.get(variable)
         if not token:
             raise RuntimeError(f"{variable} is required for local discovery")
-        return AccessToken(token, int(time.time()) + 3600)
+        return AccessToken(token, self._expires_on(token, variable))
 
 
 def get_credential() -> TokenCredential:

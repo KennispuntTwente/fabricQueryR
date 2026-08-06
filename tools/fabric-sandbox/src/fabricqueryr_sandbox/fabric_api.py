@@ -73,6 +73,30 @@ class FabricApi:
             ) from error
         return response
 
+    @staticmethod
+    def _retry_after(response: httpx.Response, default: float) -> float:
+        value = response.headers.get("Retry-After")
+        if value is None:
+            return default
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            return default
+
+    def _sleep_for_poll(
+        self,
+        response: httpx.Response,
+        deadline: float,
+        *,
+        default: float,
+    ) -> None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        delay = min(self._retry_after(response, default), remaining)
+        if delay > 0:
+            self.sleep(delay)
+
     def list_items(self, workspace_id: str) -> list[dict[str, Any]]:
         url: str | None = f"/workspaces/{workspace_id}/items"
         items: list[dict[str, Any]] = []
@@ -453,12 +477,14 @@ class FabricApi:
         )
 
         deadline = time.monotonic() + timeout
+        self._sleep_for_poll(response, deadline, default=0)
         not_found_retries = 0
         while time.monotonic() < deadline:
             try:
-                job = self.request(
+                status_response = self.request(
                     "GET", job_url, params={"beta": "true"}
-                ).json()
+                )
+                job = status_response.json()
             except httpx.HTTPStatusError as error:
                 if (
                     error.response.status_code != 404
@@ -466,7 +492,11 @@ class FabricApi:
                 ):
                     raise
                 not_found_retries += 1
-                self.sleep(JOB_VISIBILITY_RETRY_SECONDS)
+                self._sleep_for_poll(
+                    error.response,
+                    deadline,
+                    default=JOB_VISIBILITY_RETRY_SECONDS,
+                )
                 continue
             status = job.get("status")
             if status in TERMINAL_JOB_STATES:
@@ -490,5 +520,5 @@ class FabricApi:
                     )
                 job["exitValue"] = exit_value
                 return job
-            self.sleep(10)
+            self._sleep_for_poll(status_response, deadline, default=10)
         raise TimeoutError(f"notebook job did not finish within {timeout} seconds")

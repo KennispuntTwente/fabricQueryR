@@ -263,7 +263,6 @@ def seed(settings: SandboxSettings) -> None:
             f"seed notebook completed: {job.get('id')} "
             f"exitValue={job.get('exitValue')!r}"
         )
-    sql_token = credential.get_token(SQL_AUDIENCE).token
     sql_targets = (
         (
             warehouse_item["displayName"],
@@ -277,6 +276,7 @@ def seed(settings: SandboxSettings) -> None:
         ),
     )
     for display_name, connection_string, database_name in sql_targets:
+        sql_token = credential.get_token(SQL_AUDIENCE).token
         publication_start = datetime.now(timezone.utc)
         seed_sql_fixture(
             connection_string,

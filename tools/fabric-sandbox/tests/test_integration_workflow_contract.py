@@ -68,12 +68,14 @@ def test_live_workflow_gates_package_changes_at_the_test_revision():
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
 
 
-def test_provisioning_workflows_acquire_tokens_before_long_running_steps():
+def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     repository_root = Path(__file__).parents[3]
-    workflows = [
-        repository_root / ".github/workflows/integration-fabric.yaml",
-        repository_root / ".github/workflows/fabric-sandbox.yaml",
-    ]
+    integration = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+    persistent = (
+        repository_root / ".github/workflows/fabric-sandbox.yaml"
+    ).read_text()
     resources = [
         "https://storage.azure.com/",
         "https://database.windows.net/",
@@ -82,14 +84,23 @@ def test_provisioning_workflows_acquire_tokens_before_long_running_steps():
         "https://api.kusto.windows.net",
     ]
 
-    for path in workflows:
-        workflow = path.read_text()
-        login = workflow.index("Sign in to Azure with OIDC")
-        acquire = workflow.index("Acquire sandbox access tokens")
-        seed = workflow.index("Seed test data")
-        assert login < acquire < seed
-        assert "FABRIC_SANDBOX_USE_ENV_TOKENS=true" in workflow
-        assert all(resource in workflow for resource in resources)
+    provision = integration.split("\n  integration:", maxsplit=1)[0]
+    assert provision.index("Sign in to Azure with OIDC") < provision.index(
+        "Seed test data"
+    )
+    assert "Acquire sandbox access tokens" not in provision
+    assert "FABRIC_SANDBOX_USE_ENV_TOKENS" not in provision
+
+    assert persistent.index("Sign in to Azure with OIDC") < persistent.index(
+        "Seed test data"
+    )
+    assert "Acquire sandbox access tokens" not in persistent
+    assert "FABRIC_SANDBOX_USE_ENV_TOKENS" not in persistent
+
+    acquire = integration.index("Acquire short-lived test tokens")
+    assert integration.index("setup-r-dependencies@v2") < acquire
+    assert acquire < integration.index("Run Fabric integration tests")
+    assert all(resource in integration for resource in resources)
 
 
 def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
