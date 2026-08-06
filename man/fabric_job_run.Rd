@@ -96,7 +96,8 @@ records containing \code{name}, \code{value}, and \code{type}. Names are compare
 case-insensitively. The simple form, such as
 \code{list(run_date = as.Date("2026-01-31"), full_load = FALSE)}, infers types
 from R values and is appropriate for most runs. Parameter names must match
-those configured in the Fabric item.}
+those configured in the Fabric item. Parameters are not part of the typed
+Spark Job Definition request and are rejected for that route.}
 
 \item{parameter_types}{Optional named character vector overriding inferred
 parameter types. Supported values are \code{VariableReference}, \code{Integer},
@@ -106,7 +107,8 @@ only when R's inferred type is not the type expected in Fabric.}
 \item{execution_data}{Optional advanced workload configuration in the shape
 documented by Fabric. For notebooks this contains \code{compute} and optionally
 \code{computeConfiguration}; for Spark job definitions it is a named list of
-execution overrides. Data pipelines do not accept it here. Use the simpler
+execution overrides. For other item types it is forwarded as the Core Job
+Scheduler's item/job-specific \code{executionData} object. Use the simpler
 arguments below for common notebook settings.}
 
 \item{default_lakehouse}{Optional Lakehouse GUID or discovered record used to

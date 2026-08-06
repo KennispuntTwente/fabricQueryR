@@ -41,7 +41,8 @@
 #'   case-insensitively. The simple form, such as
 #'   `list(run_date = as.Date("2026-01-31"), full_load = FALSE)`, infers types
 #'   from R values and is appropriate for most runs. Parameter names must match
-#'   those configured in the Fabric item.
+#'   those configured in the Fabric item. Parameters are not part of the typed
+#'   Spark Job Definition request and are rejected for that route.
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
 #'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`. Use this
@@ -49,7 +50,8 @@
 #' @param execution_data Optional advanced workload configuration in the shape
 #'   documented by Fabric. For notebooks this contains `compute` and optionally
 #'   `computeConfiguration`; for Spark job definitions it is a named list of
-#'   execution overrides. Data pipelines do not accept it here. Use the simpler
+#'   execution overrides. For other item types it is forwarded as the Core Job
+#'   Scheduler's item/job-specific `executionData` object. Use the simpler
 #'   arguments below for common notebook settings.
 #' @param default_lakehouse Optional Lakehouse GUID or discovered record used to
 #'   set the notebook's default Lakehouse for this run. This changes the run
@@ -173,6 +175,11 @@ fabric_job_run <- function(
     session_tag = session_tag
   )
   parameters <- .fabric_job_parameters(parameters, parameter_types)
+  if (identical(route$route, "spark_job_definition") && length(parameters)) {
+    rlang::abort(
+      "SparkJobDefinition jobs do not support `parameters`; use `execution_data`"
+    )
+  }
   payload <- Filter(
     Negate(is.null),
     list(
@@ -900,13 +907,11 @@ print.fabric_job_instance <- function(x, ...) {
     }
     if (!is.null(execution_data)) {
       if (identical(route$route, "core")) {
-        rlang::abort(paste0(
-          "`execution_data` is not supported for generic item jobs; use the ",
-          "typed Notebook or SparkJobDefinition route"
-        ))
+        .fabric_job_named_list(execution_data, "execution_data")
+      } else {
+        .fabric_job_named_list(execution_data, "execution_data")
+        .fabric_job_validate_spark_definition(execution_data)
       }
-      .fabric_job_named_list(execution_data, "execution_data")
-      .fabric_job_validate_spark_definition(execution_data)
     }
     return(execution_data)
   }

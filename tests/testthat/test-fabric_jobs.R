@@ -363,6 +363,52 @@ test_that("Spark job definition execution data uses its typed route", {
   expect_equal(call$payload$executionData$defaultLakehouseId, reference)
 })
 
+test_that("job payload fields follow the selected route contract", {
+  call <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      ...
+    ) {
+      call <<- list(method = method, url = url, payload = payload)
+      list(
+        status_code = 202L,
+        location = paste0(
+          "/jobs/instances/",
+          "33333333-3333-3333-3333-333333333333"
+        ),
+        retry_after = NULL
+      )
+    }
+  )
+
+  fabric_job_run(
+    job_test_item("DataPipeline"),
+    execution_data = list(executeOption = "ApplyChangesIfNeeded"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1"
+  )
+  expect_equal(
+    call$payload$executionData,
+    list(executeOption = "ApplyChangesIfNeeded")
+  )
+  expect_match(call$url, "/jobs/Pipeline/instances", fixed = TRUE)
+
+  expect_error(
+    fabric_job_run(
+      job_test_item("SparkJobDefinition"),
+      parameters = list(mode = "test"),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    ),
+    "do not support `parameters`",
+    fixed = TRUE
+  )
+})
+
 test_that("status normalizes documented metadata and notebook exit value", {
   called_url <- NULL
   local_mocked_bindings(
@@ -858,7 +904,7 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     .fabric_job_route("Other", "../unsafe"),
     "letters, numbers"
   )
-  expect_error(
+  expect_equal(
     .fabric_job_execution_data(
       target = list(workspace_id = "workspace"),
       route = list(route = "core"),
@@ -868,7 +914,7 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
       compute = NULL,
       session_tag = NULL
     ),
-    "not supported for generic"
+    list(arbitrary = TRUE)
   )
   expect_error(
     .fabric_job_validate_spark_definition(
