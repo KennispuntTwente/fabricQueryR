@@ -373,6 +373,73 @@ test_that("failed download replacement restores the original destination", {
   expect_equal(rename_calls, 3L)
 })
 
+test_that("OneLake download never replaces a directory destination", {
+  dest <- tempfile("onelake-directory-")
+  dir.create(dest)
+  sentinel <- file.path(dest, "sentinel.txt")
+  writeLines("keep", sentinel)
+  on.exit(unlink(dest, recursive = TRUE, force = TRUE), add = TRUE)
+  performed <- FALSE
+  local_mocked_bindings(
+    .httr2_perform = function(...) {
+      performed <<- TRUE
+      rlang::abort("request should not be performed")
+    }
+  )
+
+  expect_error(
+    fabric_onelake_download(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/a.txt",
+      dest = dest,
+      overwrite = TRUE,
+      token = "token"
+    ),
+    "Destination is a directory",
+    fixed = TRUE
+  )
+  expect_false(performed)
+  expect_equal(readLines(sentinel), "keep")
+})
+
+test_that("download commit rechecks no-overwrite destinations", {
+  temporary <- tempfile("onelake-staged-")
+  dest <- tempfile("onelake-raced-")
+  on.exit(unlink(c(temporary, dest), force = TRUE), add = TRUE)
+  writeBin(charToRaw("replacement"), temporary)
+  writeBin(charToRaw("winner"), dest)
+
+  expect_error(
+    onelake_commit_download(temporary, dest, overwrite = FALSE),
+    "Destination already exists",
+    fixed = TRUE
+  )
+  expect_equal(readChar(dest, nchars = 6L, useBytes = TRUE), "winner")
+  expect_true(file.exists(temporary))
+})
+
+test_that("no-overwrite download commit preserves one race winner", {
+  temporary <- tempfile("onelake-staged-")
+  dest <- tempfile("onelake-linked-")
+  on.exit(unlink(c(temporary, dest), force = TRUE), add = TRUE)
+  writeBin(charToRaw("download"), temporary)
+  local_mocked_bindings(
+    .onelake_file_link = function(from, to) {
+      writeBin(charToRaw("winner"), to)
+      FALSE
+    }
+  )
+
+  expect_error(
+    onelake_commit_new_download(temporary, dest),
+    "Destination already exists",
+    fixed = TRUE
+  )
+  expect_equal(readChar(dest, nchars = 6L, useBytes = TRUE), "winner")
+  expect_true(file.exists(temporary))
+})
+
 test_that("OneLake download returns raw zero bytes for an empty file", {
   httr2::local_mocked_responses(function(req) {
     onelake_test_response(

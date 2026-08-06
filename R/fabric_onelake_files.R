@@ -879,6 +879,9 @@ onelake_download_target <- function(
   ) {
     rlang::abort("overwrite must be TRUE or FALSE")
   }
+  if (dir.exists(dest)) {
+    rlang::abort("Destination is a directory; supply a file path")
+  }
   if (file.exists(dest) && !overwrite) {
     rlang::abort("Destination already exists; set overwrite = TRUE")
   }
@@ -891,16 +894,31 @@ onelake_download_target <- function(
     audience = .fabric_audience$storage,
     download_path = temporary
   )
-  onelake_commit_download(temporary, dest)
+  onelake_commit_download(temporary, dest, overwrite = overwrite)
   invisible(normalizePath(dest, winslash = "/", mustWork = TRUE))
 }
 
-onelake_commit_download <- function(temporary, dest) {
+onelake_commit_download <- function(temporary, dest, overwrite) {
+  if (dir.exists(dest)) {
+    rlang::abort("Destination is a directory; supply a file path")
+  }
+  if (file.exists(dest) && !overwrite) {
+    rlang::abort("Destination already exists; set overwrite = TRUE")
+  }
   if (!file.exists(dest)) {
-    if (!.onelake_file_rename(temporary, dest)) {
-      rlang::abort("Could not commit the downloaded file")
+    if (!overwrite) {
+      return(onelake_commit_new_download(temporary, dest))
     }
-    return(invisible(TRUE))
+    if (.onelake_file_rename(temporary, dest)) {
+      return(invisible(TRUE))
+    }
+    if (dir.exists(dest)) {
+      rlang::abort("Destination became a directory during download")
+    }
+    if (file.exists(dest)) {
+      return(onelake_commit_download(temporary, dest, overwrite = TRUE))
+    }
+    rlang::abort("Could not commit the downloaded file")
   }
 
   backup <- tempfile(".fabricqueryr-backup-", tmpdir = dirname(dest))
@@ -910,7 +928,12 @@ onelake_commit_download <- function(temporary, dest) {
     )
   }
   if (.onelake_file_rename(temporary, dest)) {
-    unlink(backup, force = TRUE)
+    if (unlink(backup, force = TRUE) != 0L) {
+      rlang::warn(c(
+        "Downloaded file replaced the destination, but its backup could not be removed.",
+        "i" = cli::format_inline("The backup remains at {.path {backup}}.")
+      ))
+    }
     return(invisible(TRUE))
   }
 
@@ -928,8 +951,63 @@ onelake_commit_download <- function(temporary, dest) {
   )
 }
 
+onelake_commit_new_download <- function(temporary, dest) {
+  if (.onelake_file_link(temporary, dest)) {
+    unlink(temporary, force = TRUE)
+    return(invisible(TRUE))
+  }
+  if (dir.exists(dest)) {
+    rlang::abort("Destination became a directory during download")
+  }
+  if (file.exists(dest)) {
+    rlang::abort("Destination already exists; set overwrite = TRUE")
+  }
+
+  destination <- tryCatch(
+    file(dest, open = "wxb"),
+    error = identity
+  )
+  if (inherits(destination, "error")) {
+    if (dir.exists(dest)) {
+      rlang::abort("Destination became a directory during download")
+    }
+    if (file.exists(dest)) {
+      rlang::abort("Destination already exists; set overwrite = TRUE")
+    }
+    rlang::abort("Could not commit the downloaded file", parent = destination)
+  }
+  source <- file(temporary, open = "rb")
+  committed <- FALSE
+  on.exit(
+    {
+      try(close(source), silent = TRUE)
+      try(close(destination), silent = TRUE)
+      if (!committed) {
+        unlink(dest, force = TRUE)
+      }
+    },
+    add = TRUE
+  )
+  repeat {
+    chunk <- readBin(source, what = "raw", n = 8L * 1024L * 1024L)
+    if (!length(chunk)) {
+      break
+    }
+    writeBin(chunk, destination)
+  }
+  close(source)
+  close(destination)
+  committed <- TRUE
+  unlink(temporary, force = TRUE)
+  invisible(TRUE)
+}
+
 .onelake_file_rename <- function(from, to) {
   file.rename(from, to)
+}
+
+.onelake_file_link <- function(from, to) {
+  file.link(from, to)
 }
 
 onelake_upload_source <- function(source) {
