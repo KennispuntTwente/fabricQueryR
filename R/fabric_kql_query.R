@@ -544,7 +544,9 @@ kusto_parse_response <- function(frames) {
       field_count <- kusto_require_count(frame, "FieldCount", type)
       if (field_count != length(tables[[key]]$Columns)) {
         kusto_abort_malformed(paste0(
-          "TableFragment FieldCount does not match table ", key, " schema"
+          "TableFragment FieldCount does not match table ",
+          key,
+          " schema"
         ))
       }
       operation <- kusto_require_string(frame, "TableFragmentType", type)
@@ -574,9 +576,12 @@ kusto_parse_response <- function(frames) {
       kusto_progressive_table_key(frame, type, tables, completed)
       progress <- frame$TableProgress
       if (
-        !is.numeric(progress) || length(progress) != 1L ||
-          is.na(progress) || !is.finite(progress) ||
-          progress < 0 || progress > 100
+        !is.numeric(progress) ||
+          length(progress) != 1L ||
+          is.na(progress) ||
+          !is.finite(progress) ||
+          progress < 0 ||
+          progress > 100
       ) {
         kusto_abort_malformed("TableProgress must be between 0 and 100")
       }
@@ -648,8 +653,10 @@ kusto_abort_malformed <- function(detail) {
 kusto_require_string <- function(frame, field, type) {
   value <- frame[[field]]
   if (
-    !is.character(value) || length(value) != 1L ||
-      is.na(value) || !nzchar(value)
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
   ) {
     kusto_abort_malformed(paste(type, field, "must be one non-empty string"))
   }
@@ -667,8 +674,12 @@ kusto_require_flag <- function(frame, field, type) {
 kusto_require_count <- function(frame, field, type) {
   value <- frame[[field]]
   if (
-    !is.numeric(value) || length(value) != 1L || is.na(value) ||
-      !is.finite(value) || value < 0 || value != floor(value) ||
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !is.finite(value) ||
+      value < 0 ||
+      value != floor(value) ||
       value > .Machine$integer.max
   ) {
     kusto_abort_malformed(paste(type, field, "must be a non-negative integer"))

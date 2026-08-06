@@ -351,10 +351,12 @@ fabric_sql_connect <- function(
     connect_args <- if (identical(backend, "odbc")) {
       c(
         odbc_args,
-        list(attributes = c(
-          odbc_options$attributes,
-          list(azure_token = token_value)
-        ))
+        list(
+          attributes = c(
+            odbc_options$attributes,
+            list(azure_token = token_value)
+          )
+        )
       )
     } else {
       c(
@@ -943,7 +945,7 @@ fabric_sql_odbc_options <- function(dots) {
   attribute_names <- names(attributes)
   if (
     length(attributes) &&
-      (is.null(attribute_names) || any(!nzchar(attribute_names)))
+      (is.null(attribute_names) || !all(nzchar(attribute_names)))
   ) {
     rlang::abort("attributes in ... must be a named list")
   }

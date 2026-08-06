@@ -700,11 +700,14 @@ pbi_execute_dax_arrow <- function(
     httr2::req_body_json(body)
   payload <- tempfile("fabricqueryr-dax-", fileext = ".arrow")
   keep_payload <- FALSE
-  on.exit({
-    if (!keep_payload) {
-      unlink(payload, force = TRUE)
-    }
-  }, add = TRUE)
+  on.exit(
+    {
+      if (!keep_payload) {
+        unlink(payload, force = TRUE)
+      }
+    },
+    add = TRUE
+  )
   .httr2_perform(
     req,
     credential = credential,
@@ -845,12 +848,16 @@ pbi_parse_dax_arrow_response <- function(
     resource$buffer <- stream_buffer
     resource$reader <- stream_reader
     resource$path <- if (path_payload && isTRUE(cleanup_path)) payload else NULL
-    reg.finalizer(resource, function(environment) {
-      try(environment$buffer$close(), silent = TRUE)
-      if (!is.null(environment$path)) {
-        unlink(environment$path, force = TRUE)
-      }
-    }, onexit = TRUE)
+    reg.finalizer(
+      resource,
+      function(environment) {
+        try(environment$buffer$close(), silent = TRUE)
+        if (!is.null(environment$path)) {
+          unlink(environment$path, force = TRUE)
+        }
+      },
+      onexit = TRUE
+    )
     attr(value, "fabric_dax_resource") <- resource
   } else {
     table <- data_tables[[1L]]

@@ -693,7 +693,8 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
   workspace_private <- fabric_host_matches(
     host,
     "api.fabric.microsoft.com"
-  ) && !identical(host, "api.fabric.microsoft.com")
+  ) &&
+    !identical(host, "api.fabric.microsoft.com")
   if (!workspace_private) {
     return(record)
   }

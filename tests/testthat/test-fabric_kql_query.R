@@ -501,7 +501,11 @@ test_that("Kusto v2 parser validates progressive transitions", {
   wrong_fields$FieldCount <- 2L
   expect_error(
     kusto_parse_response(list(
-      header, table_header, wrong_fields, table_completion, completion
+      header,
+      table_header,
+      wrong_fields,
+      table_completion,
+      completion
     )),
     "FieldCount does not match",
     fixed = TRUE
@@ -510,7 +514,11 @@ test_that("Kusto v2 parser validates progressive transitions", {
   bad_operation$TableFragmentType <- "DataMerge"
   expect_error(
     kusto_parse_response(list(
-      header, table_header, bad_operation, table_completion, completion
+      header,
+      table_header,
+      bad_operation,
+      table_completion,
+      completion
     )),
     "DataAppend or DataReplace",
     fixed = TRUE
@@ -524,14 +532,23 @@ test_that("Kusto v2 parser validates progressive transitions", {
   wrong_rows$RowCount <- 2L
   expect_error(
     kusto_parse_response(list(
-      header, table_header, fragment, wrong_rows, completion
+      header,
+      table_header,
+      fragment,
+      wrong_rows,
+      completion
     )),
     "contains 1 rows",
     fixed = TRUE
   )
   expect_error(
     kusto_parse_response(list(
-      header, table_header, fragment, table_completion, fragment, completion
+      header,
+      table_header,
+      fragment,
+      table_completion,
+      fragment,
+      completion
     )),
     "after TableCompletion",
     fixed = TRUE

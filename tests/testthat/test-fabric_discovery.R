@@ -157,9 +157,11 @@ test_that("workspace-private discovery resolves dedicated SQL hostnames", {
     .httr2_json = function(req, ...) {
       calls <<- c(calls, req$url)
       if (grepl("/connectionString", req$url, fixed = TRUE)) {
-        return(list(connectionString = paste0(
-          "workspace-item.z13.datawarehouse.fabric.microsoft.com"
-        )))
+        return(list(
+          connectionString = paste0(
+            "workspace-item.z13.datawarehouse.fabric.microsoft.com"
+          )
+        ))
       }
       list(
         id = "warehouse-id",
@@ -202,9 +204,11 @@ test_that("workspace-private Lakehouses resolve SQL Endpoint hostnames", {
     .httr2_json = function(req, ...) {
       calls <<- c(calls, req$url)
       if (grepl("/connectionString", req$url, fixed = TRUE)) {
-        return(list(connectionString = paste0(
-          "workspace-lakehouse.z13.datawarehouse.fabric.microsoft.com"
-        )))
+        return(list(
+          connectionString = paste0(
+            "workspace-lakehouse.z13.datawarehouse.fabric.microsoft.com"
+          )
+        ))
       }
       list(
         id = "lakehouse-id",

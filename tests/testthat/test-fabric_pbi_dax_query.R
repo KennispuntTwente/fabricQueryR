@@ -513,12 +513,18 @@ test_that("DAX execution preserves JSON whole numbers outside 2^53", {
   local_mocked_bindings(
     .httr2_json = function(req, bigint_as_char, ...) {
       expect_true(bigint_as_char)
-      list(results = list(list(tables = list(list(rows = list(list(
-        positive = "9007199254740993",
-        negative = "-9007199254740993",
-        fixed_decimal = 123.45,
-        date = "2026-08-06T00:00:00"
-      )))))))
+      list(
+        results = list(list(
+          tables = list(list(
+            rows = list(list(
+              positive = "9007199254740993",
+              negative = "-9007199254740993",
+              fixed_decimal = 123.45,
+              date = "2026-08-06T00:00:00"
+            ))
+          ))
+        ))
+      )
     }
   )
 

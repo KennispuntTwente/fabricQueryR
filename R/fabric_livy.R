@@ -79,7 +79,9 @@ fabric_livy_validate_endpoint <- function(
       !is.null(parsed$port) &&
       as.character(parsed$port) != "443"
   ) {
-    rlang::abort("Microsoft Fabric livy_url may use only the HTTPS default port")
+    rlang::abort(
+      "Microsoft Fabric livy_url may use only the HTTPS default port"
+    )
   }
   if (!fabric_host && !isTRUE(allow_custom_endpoint)) {
     rlang::abort(paste0(
@@ -497,8 +499,10 @@ fabric_livy_parse_table <- function(value) {
     function(header) {
       name <- if (is.list(header)) header$name else NULL
       if (
-        !is.character(name) || length(name) != 1L ||
-          is.na(name) || !nzchar(name)
+        !is.character(name) ||
+          length(name) != 1L ||
+          is.na(name) ||
+          !nzchar(name)
       ) {
         malformed("every header needs one non-empty name")
       }
@@ -527,11 +531,12 @@ fabric_livy_parse_table <- function(value) {
 
 fabric_livy_simplify_column <- function(values) {
   present <- Filter(Negate(is.null), values)
-  scalar_atomic <- length(present) && all(vapply(
-    present,
-    function(value) is.atomic(value) && length(value) == 1L,
-    logical(1)
-  ))
+  scalar_atomic <- length(present) &&
+    all(vapply(
+      present,
+      function(value) is.atomic(value) && length(value) == 1L,
+      logical(1)
+    ))
   if (!scalar_atomic) {
     return(values)
   }
