@@ -15,3 +15,9 @@ playground/*
 ^\.fabric-test-manifest\.json$
 ^fabricQueryR\.Rcheck$
 ^\.pytest_cache$
+^\.Rhistory$
+^\.vscode$
+^check$
+^check-final$
+^check-install-lib$
+^check-review$

@@ -87,6 +87,10 @@
 #'   supplied explicitly.
 #' @details Notebook status uses Fabric's workload-specific beta endpoint first
 #'   and falls back to the core scheduler when that endpoint is unavailable.
+#'   Job submission already uses the release route (`beta=false`). Microsoft
+#'   plans to deprecate the beta notebook API on April 1, 2028; fabricQueryR
+#'   isolates it to the enriched status lookup and will migrate that lookup to
+#'   the stable replacement before the retirement date.
 #'   A beta response that says `Completed` but contains neither an exit value
 #'   nor failure details is reconciled with the core scheduler before it is
 #'   returned. This prevents a failed notebook cell from being reported as a

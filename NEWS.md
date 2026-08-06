@@ -40,17 +40,20 @@
   workspace and dataset IDs, supports optional RLS impersonation, and reports
   incomplete or embedded query errors instead of silently returning partial
   results. It can also use Fabric's Arrow DAX response format to return typed
-  tibbles or Arrow streams, with optional execution metrics.
+  tibbles or Arrow streams. Only request properties in Microsoft's published
+  `executeDaxQueries` contract are accepted.
 
 * `fabric_onelake_read_delta_table()` now reads through the optional Python
   `deltalake` runtime instead of downloading table files first. Python is set up
   on the first Delta read and is not required by other package functions. The
   reader now accepts discovered items and supports snapshot versions, column
-  selection, row limits, and lazy Arrow streams. Tibbles support scalar columns;
-  use an Arrow stream for nested or extension data. The old `dest_dir` argument
-  has been removed. Tables requiring Deletion Vectors, Type Widening, V2
-  Checkpoints, or Fabric Variant remain unsupported, including current
-  Warehouse Delta exports; use SQL or Spark (Livy) for those tables.
+  selection, row limits, and disk-backed Arrow streams that are staged while
+  the OneLake token is current. Tibbles support scalar columns; use an Arrow
+  stream for nested or extension data. The old `dest_dir` argument has been
+  removed. The pinned Python reader reports actionable errors when a table
+  requires unsupported Delta features such as Deletion Vectors, Type Widening,
+  V2 Checkpoints, or Fabric Variant. This can affect some Warehouse exports;
+  use SQL or Spark (Livy) when the package runtime cannot read their protocol.
 
 # fabricQueryR 0.2.1
 
