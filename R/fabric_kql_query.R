@@ -282,6 +282,9 @@ kusto_encode_parameters <- function(parameters) {
 }
 
 kusto_encode_parameter <- function(value) {
+  if (is.numeric(value) && length(value) == 1L && is.nan(value)) {
+    return("real(nan)")
+  }
   if (is.null(value) || !length(value) || anyNA(value)) {
     rlang::abort(
       paste0(
@@ -309,10 +312,14 @@ kusto_encode_parameter <- function(value) {
     return(paste0("datetime(", format(value, "%Y-%m-%d"), ")"))
   }
   if (inherits(value, "difftime")) {
+    seconds <- as.numeric(value, units = "secs")
+    if (!is.finite(seconds)) {
+      rlang::abort("KQL difftime parameter values must be finite")
+    }
     return(paste0(
       "timespan(",
       format(
-        as.numeric(value, units = "secs"),
+        seconds,
         scientific = FALSE,
         trim = TRUE
       ),
@@ -327,6 +334,9 @@ kusto_encode_parameter <- function(value) {
       return(if (value) "true" else "false")
     }
     if (is.numeric(value)) {
+      if (is.infinite(value)) {
+        return(if (value > 0) "real(+inf)" else "real(-inf)")
+      }
       return(format(value, digits = 17L, scientific = FALSE, trim = TRUE))
     }
     return(as.character(value))
