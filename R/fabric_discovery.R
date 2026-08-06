@@ -11,7 +11,9 @@
 #'   visible workspace.
 #' @param prefer_workspace_endpoints Logical. Set to `TRUE` to ask Fabric for a
 #'   workspace-specific API endpoint, which can be needed with workspace-level
-#'   private links. Most users should keep the default, `FALSE`.
+#'   private links. When such an endpoint is returned, Warehouse and Lakehouse
+#'   SQL details are resolved through the dedicated connection-string API with
+#'   `privateLinkType=Workspace`. Most users should keep the default, `FALSE`.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -676,8 +678,75 @@ fabric_enrich_item <- function(record, credential, api_base) {
     workspace_name <- record$workspaceDisplayName
     record <- utils::modifyList(record, detail)
     record$workspaceDisplayName <- workspace_name
+    record <- fabric_enrich_private_sql_target(record, credential, api_base)
   }
   fabric_add_derived_targets(record, api_base)
+}
+
+fabric_enrich_private_sql_target <- function(record, credential, api_base) {
+  parsed <- try(httr2::url_parse(api_base), silent = TRUE)
+  host <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    tolower(parsed$hostname %||% "")
+  }
+  workspace_private <- fabric_host_matches(
+    host,
+    "api.fabric.microsoft.com"
+  ) && !identical(host, "api.fabric.microsoft.com")
+  if (!workspace_private) {
+    return(record)
+  }
+
+  type <- tolower(record$type %||% "")
+  route <- NULL
+  item_id <- NULL
+  if (identical(type, "warehouse")) {
+    route <- "warehouses"
+    item_id <- record$id
+  } else if (identical(type, "lakehouse")) {
+    route <- "sqlEndpoints"
+    item_id <- record$properties$sqlEndpointProperties$id
+  }
+  if (is.null(route) || is.null(item_id)) {
+    return(record)
+  }
+
+  req <- httr2::request(paste0(
+    api_base,
+    "/workspaces/",
+    record$workspaceId,
+    "/",
+    route,
+    "/",
+    item_id,
+    "/connectionString"
+  )) |>
+    httr2::req_url_query(privateLinkType = "Workspace")
+  response <- .httr2_json(
+    req,
+    simplifyVector = FALSE,
+    credential = credential,
+    audience = .fabric_audience$fabric
+  )
+  connection_string <- response$connectionString
+  if (
+    !is.character(connection_string) ||
+      length(connection_string) != 1L ||
+      is.na(connection_string) ||
+      !nzchar(connection_string)
+  ) {
+    rlang::abort(
+      "Fabric returned an invalid workspace-private SQL connection string"
+    )
+  }
+  if (identical(type, "warehouse")) {
+    record$properties$connectionString <- connection_string
+  } else {
+    record$properties$sqlEndpointProperties$connectionString <- connection_string
+  }
+  record$sql_private_link_type <- "Workspace"
+  record
 }
 
 fabric_add_derived_targets <- function(record, api_base) {

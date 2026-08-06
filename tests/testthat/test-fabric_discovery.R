@@ -150,6 +150,99 @@ test_that("workspace-specific API endpoints route item discovery", {
   expect_match(urls[[2L]], "https://explicit.test/v1/workspaces/", fixed = TRUE)
 })
 
+test_that("workspace-private discovery resolves dedicated SQL hostnames", {
+  private_base <- "https://workspace.z13.api.fabric.microsoft.com/v1"
+  calls <- character()
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      calls <<- c(calls, req$url)
+      if (grepl("/connectionString", req$url, fixed = TRUE)) {
+        return(list(connectionString = paste0(
+          "workspace-item.z13.datawarehouse.fabric.microsoft.com"
+        )))
+      }
+      list(
+        id = "warehouse-id",
+        workspaceId = "workspace-id",
+        type = "Warehouse",
+        displayName = "Warehouse",
+        properties = list(
+          connectionString = "public.datawarehouse.fabric.microsoft.com"
+        )
+      )
+    }
+  )
+
+  warehouse <- fabric_enrich_item(
+    list(
+      id = "warehouse-id",
+      workspaceId = "workspace-id",
+      type = "Warehouse",
+      displayName = "Warehouse"
+    ),
+    fabric_credential(token = "token"),
+    private_base
+  )
+
+  expect_identical(
+    warehouse$sql_server,
+    "workspace-item.z13.datawarehouse.fabric.microsoft.com"
+  )
+  expect_identical(warehouse$sql_private_link_type, "Workspace")
+  expect_match(
+    calls[[2L]],
+    "/warehouses/warehouse-id/connectionString"
+  )
+  expect_match(calls[[2L]], "privateLinkType=Workspace")
+})
+
+test_that("workspace-private Lakehouses resolve SQL Endpoint hostnames", {
+  calls <- character()
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      calls <<- c(calls, req$url)
+      if (grepl("/connectionString", req$url, fixed = TRUE)) {
+        return(list(connectionString = paste0(
+          "workspace-lakehouse.z13.datawarehouse.fabric.microsoft.com"
+        )))
+      }
+      list(
+        id = "lakehouse-id",
+        workspaceId = "workspace-id",
+        type = "Lakehouse",
+        displayName = "Lakehouse",
+        properties = list(
+          sqlEndpointProperties = list(
+            id = "sql-endpoint-id",
+            connectionString = "public.datawarehouse.fabric.microsoft.com"
+          )
+        )
+      )
+    }
+  )
+
+  lakehouse <- fabric_enrich_item(
+    list(
+      id = "lakehouse-id",
+      workspaceId = "workspace-id",
+      type = "Lakehouse",
+      displayName = "Lakehouse"
+    ),
+    fabric_credential(token = "token"),
+    "https://workspace.z13.api.fabric.microsoft.com/v1"
+  )
+
+  expect_identical(
+    lakehouse$sql_server,
+    "workspace-lakehouse.z13.datawarehouse.fabric.microsoft.com"
+  )
+  expect_match(
+    calls[[2L]],
+    "/sqlEndpoints/sql-endpoint-id/connectionString"
+  )
+  expect_match(calls[[2L]], "privateLinkType=Workspace")
+})
+
 test_that("workspace-specific API endpoints are validated", {
   expect_equal(
     fabric_workspace_api_base(

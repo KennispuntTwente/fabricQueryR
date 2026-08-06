@@ -22,7 +22,9 @@ visible workspace.}
 
 \item{prefer_workspace_endpoints}{Logical. Set to \code{TRUE} to ask Fabric for a
 workspace-specific API endpoint, which can be needed with workspace-level
-private links. Most users should keep the default, \code{FALSE}.}
+private links. When such an endpoint is returned, Warehouse and Lakehouse
+SQL details are resolved through the dedicated connection-string API with
+\code{privateLinkType=Workspace}. Most users should keep the default, \code{FALSE}.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
