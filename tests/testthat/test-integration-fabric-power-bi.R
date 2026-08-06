@@ -92,9 +92,11 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
 })
 
 test_that("JSON DAX preserves large whole numbers and scalar representations", {
-  fabric_skip_if_not_integration()
   manifest <- fabric_test_manifest()
-  semantic_model <- fabric_test_item(manifest, "semantic_model")
+  semantic_model <- fabric_test_manifest_item(
+    manifest,
+    "TestSemanticModel"
+  )
 
   result <- fabric_pbi_dax_query(
     workspace_id = manifest$workspace_id,
@@ -106,7 +108,7 @@ test_that("JSON DAX preserves large whole numbers and scalar representations", {
       "\"fixed_decimal\", CONVERT(\"123.45\", CURRENCY), ",
       "\"date\", DATE(2026, 8, 6))"
     ),
-    token = fabric_test_token("FABRIC_TEST_POWER_BI_TOKEN")
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
   )
 
   expect_identical(result$`[positive]`, "9007199254740993")
