@@ -434,8 +434,9 @@ test_that("DAX response parser rejects unsupported multiplicity", {
 
 test_that("DAX execution sends impersonation and parses one table", {
   local_mocked_bindings(
-    .httr2_json = function(req, simplifyVector, ...) {
+    .httr2_json = function(req, simplifyVector, bigint_as_char, ...) {
       expect_false(simplifyVector)
+      expect_true(bigint_as_char)
       body <- req$body$data
       expect_equal(body$impersonatedUserName, "reader@example.com")
       expect_true(body$serializerSettings$includeNulls)
@@ -455,6 +456,31 @@ test_that("DAX execution sends impersonation and parses one table", {
     impersonated_user = "reader@example.com"
   )
   expect_equal(result[["[value]"]], 7L)
+})
+
+test_that("DAX execution preserves JSON whole numbers outside 2^53", {
+  local_mocked_bindings(
+    .httr2_json = function(req, bigint_as_char, ...) {
+      expect_true(bigint_as_char)
+      list(results = list(list(tables = list(list(rows = list(list(
+        positive = "9007199254740993",
+        negative = "-9007199254740993",
+        fixed_decimal = 123.45,
+        date = "2026-08-06T00:00:00"
+      )))))))
+    }
+  )
+
+  result <- pbi_execute_dax(
+    credential = fabric_credential(token = "token"),
+    dataset_id = "dataset",
+    dax = "EVALUATE ROW()"
+  )
+
+  expect_identical(result$positive, "9007199254740993")
+  expect_identical(result$negative, "-9007199254740993")
+  expect_identical(result$fixed_decimal, 123.45)
+  expect_identical(result$date, "2026-08-06T00:00:00")
 })
 
 test_that("Arrow DAX execution sends documented endpoint and request body", {

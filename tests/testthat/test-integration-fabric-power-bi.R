@@ -91,6 +91,30 @@ test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   )
 })
 
+test_that("JSON DAX preserves large whole numbers and scalar representations", {
+  fabric_skip_if_not_integration()
+  manifest <- fabric_test_manifest()
+  semantic_model <- fabric_test_item(manifest, "semantic_model")
+
+  result <- fabric_pbi_dax_query(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    dax = paste0(
+      "EVALUATE ROW(",
+      "\"positive\", CONVERT(\"9007199254740993\", INTEGER), ",
+      "\"negative\", CONVERT(\"-9007199254740993\", INTEGER), ",
+      "\"fixed_decimal\", CONVERT(\"123.45\", CURRENCY), ",
+      "\"date\", DATE(2026, 8, 6))"
+    ),
+    token = fabric_test_token("FABRIC_TEST_POWER_BI_TOKEN")
+  )
+
+  expect_identical(result$`[positive]`, "9007199254740993")
+  expect_identical(result$`[negative]`, "-9007199254740993")
+  expect_equal(result$`[fixed_decimal]`, 123.45)
+  expect_match(as.character(result$`[date]`), "^2026-08-06")
+})
+
 test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
   fabric_test_require_package("arrow")
   fabric_test_require_package("nanoarrow")

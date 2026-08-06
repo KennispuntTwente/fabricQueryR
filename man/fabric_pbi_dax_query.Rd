@@ -132,6 +132,10 @@ endpoint. It accepts one DAX query and one result table per request.
 Results are limited to 100,000 rows or 1,000,000 values (whichever is
 reached first), 15 MB, and 120 requests per minute per user. Partial
 results reported by Power BI are treated as errors by this function.
+JSON does not carry the full semantic-model type system. Whole Number
+values outside R's exactly representable numeric range are therefore
+returned as character strings rather than silently rounded. Use the Arrow
+endpoint when exact integer, fixed-decimal, currency, or date types matter.
 Service principals cannot use this JSON endpoint with models that have RLS
 or SSO enabled. Delegated users can supply \code{impersonated_user} for supported
 RLS scenarios.
