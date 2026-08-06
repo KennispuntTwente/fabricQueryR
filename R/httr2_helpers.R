@@ -215,6 +215,7 @@
 .httr2_json <- function(
   req,
   simplifyVector = TRUE,
+  bigint_as_char = FALSE,
   credential = NULL,
   audience = NULL,
   idempotent = NULL,
@@ -227,7 +228,11 @@
     idempotent = idempotent,
     ...
   )
-  httr2::resp_body_json(resp, simplifyVector = simplifyVector)
+  httr2::resp_body_json(
+    resp,
+    simplifyVector = simplifyVector,
+    bigint_as_char = bigint_as_char
+  )
 }
 
 # Perform a request where no response body is needed

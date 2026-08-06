@@ -117,6 +117,10 @@ service-principal flow. The value is ignored for a static token string.
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set \code{idempotent = TRUE} only when the operation is safe
 to repeat.
+
+JSON integers outside R's exact double-precision range are returned as
+character values so identifiers and other large integer fields are not
+rounded.
 }
 \examples{
 \dontrun{

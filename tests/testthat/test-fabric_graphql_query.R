@@ -273,6 +273,25 @@ test_that("GraphQL errors without data and malformed responses are handled", {
   )
 })
 
+test_that("GraphQL responses preserve integers beyond double precision", {
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      graphql_test_response(
+        charToRaw('{"data":{"identifier":9007199254740993}}'),
+        url = req$url
+      )
+    }
+  )
+
+  result <- fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ identifier }",
+    token = "token"
+  )
+
+  expect_identical(result$data$identifier, "9007199254740993")
+})
+
 test_that("empty GraphQL variables are omitted instead of encoded as an array", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {

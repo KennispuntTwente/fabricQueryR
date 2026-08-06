@@ -35,6 +35,10 @@
 #' contain mutations. Set `idempotent = TRUE` only when the operation is safe
 #' to repeat.
 #'
+#' JSON integers outside R's exact double-precision range are returned as
+#' character values so identifiers and other large integer fields are not
+#' rounded.
+#'
 #' @param api GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
 #'   GraphQLApi record. An item from [fabric_graphql_apis()] is usually easiest
 #'   because it supplies the endpoint and workspace ID.
@@ -396,6 +400,7 @@ graphql_execute <- function(
   response <- .httr2_json(
     req,
     simplifyVector = FALSE,
+    bigint_as_char = TRUE,
     credential = credential,
     audience = audience,
     idempotent = idempotent
