@@ -134,15 +134,19 @@ test_that("SQL connections enforce Fabric ODBC options", {
     database = "Warehouse",
     token = "sql-token",
     read_only = TRUE,
+    port = 1544L,
     timeout = 17L,
     verbose = FALSE
   )
 
   expect_identical(result, connection)
   expect_equal(captured$backend, "odbc")
-  expect_equal(captured$server, "server.datawarehouse.fabric.microsoft.com")
+  expect_equal(
+    captured$server,
+    "tcp:server.datawarehouse.fabric.microsoft.com,1544"
+  )
   expect_equal(captured$database, "Warehouse")
-  expect_equal(captured$Port, 1433L)
+  expect_false("Port" %in% names(captured))
   expect_equal(captured$MARS_Connection, "no")
   expect_equal(captured$ApplicationIntent, "ReadOnly")
   expect_equal(captured$timeout, 17L)

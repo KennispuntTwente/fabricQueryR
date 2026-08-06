@@ -89,7 +89,11 @@ test_that("SQL helpers consume named access_token from dots", {
 
   expect_identical(result, connection)
   expect_identical(connect_args$database, "Warehouse")
-  expect_identical(connect_args$Port, 1444L)
+  expect_identical(
+    connect_args$server,
+    "tcp:server.datawarehouse.fabric.microsoft.com,1444"
+  )
+  expect_null(connect_args$Port)
   expect_identical(connect_args$attributes$azure_token, "legacy-token")
   expect_false("access_token" %in% names(connect_args))
 

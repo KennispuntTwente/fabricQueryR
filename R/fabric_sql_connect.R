@@ -310,8 +310,7 @@ fabric_sql_connect <- function(
     list(
       backend = backend,
       driver = odbc_driver,
-      server = info$server,
-      Port = info$port,
+      server = paste0("tcp:", info$server, ",", info$port),
       Encrypt = encrypt,
       TrustServerCertificate = trust_server_certificate,
       MARS_Connection = "no",
