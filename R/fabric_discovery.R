@@ -690,7 +690,7 @@ fabric_add_derived_targets <- function(record, api_base) {
         "Data Source=powerbi://api.powerbi.com/v1.0/myorg/",
         utils::URLencode(workspace_name, reserved = TRUE),
         ";Initial Catalog=",
-        record$displayName,
+        fabric_quote_connection_value(record$displayName),
         ";"
       )
     }

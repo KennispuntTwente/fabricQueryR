@@ -366,7 +366,7 @@ test_that("typed routes and derived targets cover supported workloads", {
       workspaceId = "workspace-id",
       workspaceDisplayName = "Data & AI",
       type = "SemanticModel",
-      displayName = "Sales Model"
+      displayName = "Sales;Archive"
     ),
     .fabric_api_base
   )
@@ -374,6 +374,15 @@ test_that("typed routes and derived targets cover supported workloads", {
     semantic_model$dax_connection_string,
     "Data%20%26%20AI",
     fixed = TRUE
+  )
+  expect_match(
+    semantic_model$dax_connection_string,
+    "Initial Catalog={Sales;Archive};",
+    fixed = TRUE
+  )
+  expect_equal(
+    pbi_parse_connstr(semantic_model$dax_connection_string)$dataset,
+    "Sales;Archive"
   )
 
   eventhouse <- fabric_add_derived_targets(

@@ -75,3 +75,15 @@ fabric_unquote_connection_value <- function(value) {
   }
   value
 }
+
+# Encode a connection-string value using ODBC brace quoting
+fabric_quote_connection_value <- function(value) {
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value)
+  ) {
+    rlang::abort("Connection string values must be single, non-missing strings")
+  }
+  paste0("{", gsub("}", "}}", value, fixed = TRUE), "}")
+}
