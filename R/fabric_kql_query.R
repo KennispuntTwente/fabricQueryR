@@ -19,6 +19,9 @@
 #' interpolated into `query`. Declare them in KQL with
 #' `declare query_parameters(...)`. Scalar R values are encoded as Kusto
 #' parameter values; vectors and lists are encoded as `dynamic(...)` literals.
+#' Zero-length vectors and unnamed lists encode `dynamic([])`. A zero-length
+#' list with non-`NULL` names encodes `dynamic({})`; `NULL` remains invalid so it
+#' cannot be confused with an empty collection or a typed Kusto null.
 #'
 #' KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns normally
 #' become logical, UTC `POSIXct`, integer, `bit64::integer64`, double, and
@@ -285,10 +288,14 @@ kusto_encode_parameter <- function(value) {
   if (is.numeric(value) && length(value) == 1L && is.nan(value)) {
     return("real(nan)")
   }
-  if (is.null(value) || !length(value) || anyNA(value)) {
+  if (!is.null(value) && !length(value)) {
+    empty <- if (is.list(value) && !is.null(names(value))) "{}" else "[]"
+    return(paste0("dynamic(", empty, ")"))
+  }
+  if (is.null(value) || anyNA(value)) {
     rlang::abort(
       paste0(
-        "KQL parameter values cannot be NULL, empty, or NA. ",
+        "KQL parameter values cannot be NULL or NA. ",
         "Use an explicit typed KQL null literal such as 'long(null)'"
       )
     )

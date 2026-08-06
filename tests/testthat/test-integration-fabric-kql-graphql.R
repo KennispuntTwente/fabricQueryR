@@ -97,6 +97,22 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
     token = kusto_token
   )
   expect_equal(as.numeric(still_present$Count), 3)
+
+  empty_dynamic <- fabric_kql_query(
+    target,
+    query = paste(
+      "declare query_parameters(selected:dynamic, options:dynamic);",
+      "print selected_count=array_length(selected),",
+      "option_count=array_length(bag_keys(options))"
+    ),
+    parameters = list(
+      selected = character(),
+      options = setNames(list(), character())
+    ),
+    token = kusto_token
+  )
+  expect_equal(empty_dynamic$selected_count, 0L)
+  expect_equal(empty_dynamic$option_count, 0L)
 })
 
 test_that("fabric_kql_query returns multiple live primary tables", {

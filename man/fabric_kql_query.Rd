@@ -86,6 +86,9 @@ Query parameters are sent through Kusto client request properties, never
 interpolated into \code{query}. Declare them in KQL with
 \verb{declare query_parameters(...)}. Scalar R values are encoded as Kusto
 parameter values; vectors and lists are encoded as \code{dynamic(...)} literals.
+Zero-length vectors and unnamed lists encode \verb{dynamic([])}. A zero-length
+list with non-\code{NULL} names encodes \code{dynamic({})}; \code{NULL} remains invalid so it
+cannot be confused with an empty collection or a typed Kusto null.
 
 KQL \code{bool}, \code{datetime}, \code{int}, \code{long}, \code{real}, and \code{timespan} columns normally
 become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, and

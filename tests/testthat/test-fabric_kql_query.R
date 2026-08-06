@@ -120,6 +120,12 @@ test_that("KQL parameter values are encoded without query interpolation", {
   expect_equal(encoded$day, "datetime(2026-07-24)")
   expect_equal(encoded$elapsed, "timespan(90s)")
   expect_equal(encoded$values, 'dynamic(["A","B"])')
+  expect_equal(kusto_encode_parameter(character()), "dynamic([])")
+  expect_equal(kusto_encode_parameter(list()), "dynamic([])")
+  expect_equal(
+    kusto_encode_parameter(setNames(list(), character())),
+    "dynamic({})"
+  )
   expect_equal(kusto_encode_parameter(NaN), "real(nan)")
   expect_equal(kusto_encode_parameter(Inf), "real(+inf)")
   expect_equal(kusto_encode_parameter(-Inf), "real(-inf)")
@@ -130,6 +136,7 @@ test_that("KQL parameter values are encoded without query interpolation", {
   )
   expect_error(kusto_encode_parameters(list("bad-name" = 1)), "identifiers")
   expect_error(kusto_encode_parameters(list(missing = NA)), "cannot be NULL")
+  expect_error(kusto_encode_parameters(list(missing = NULL)), "cannot be NULL")
   expect_error(kusto_encode_parameters(list(1)), "unique, non-empty names")
   expect_error(
     kusto_encode_parameters(list(
