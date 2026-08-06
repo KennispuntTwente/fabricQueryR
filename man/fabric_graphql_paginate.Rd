@@ -22,7 +22,8 @@ fabric_graphql_paginate(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 )
 }
 \arguments{
@@ -82,6 +83,10 @@ for a custom token provider or unusual identity flow.}
 
 \item{api_base}{Fabric REST API base URL used to derive endpoints from IDs.
 Most users should keep the default.}
+
+\item{allow_custom_endpoint}{Logical. Permit a GraphQL endpoint outside the
+Microsoft Fabric API origin. Keep \code{FALSE} unless the origin is trusted;
+credentials are sent to the supplied endpoint.}
 }
 \value{
 A \code{fabric_graphql_pages} list with \code{pages}, combined \code{errors}, and

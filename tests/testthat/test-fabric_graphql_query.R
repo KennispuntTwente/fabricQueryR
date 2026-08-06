@@ -455,6 +455,38 @@ test_that("GraphQL pagination prevents loops and enforces max_pages", {
   )
   expect_length(error$pages$pages, 2L)
   expect_false(error$pages$complete)
+
+  expect_error(
+    expect_no_warning(fabric_graphql_paginate(
+      "https://api.fabric.microsoft.com/graphql",
+      query = "{ products { id } }",
+      next_cursor = function(result) NULL,
+      max_pages = .Machine$integer.max + 1,
+      token = "token"
+    )),
+    "max_pages must be one positive integer",
+    fixed = TRUE
+  )
+})
+
+test_that("GraphQL pagination forwards trusted custom endpoint opt-in", {
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(
+      list(data = list(products = list(hasNextPage = FALSE))),
+      url = req$url
+    )
+  })
+
+  pages <- fabric_graphql_paginate(
+    "https://trusted.example/graphql",
+    query = "{ products { hasNextPage } }",
+    next_cursor = fabric_graphql_cursor("products"),
+    token = "token",
+    allow_custom_endpoint = TRUE
+  )
+
+  expect_true(pages$complete)
+  expect_length(pages$pages, 1L)
 })
 
 test_that("fabric_graphql_query surfaces authentication and validates inputs", {

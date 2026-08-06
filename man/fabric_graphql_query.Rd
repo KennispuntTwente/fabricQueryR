@@ -118,6 +118,11 @@ GraphQL POST requests are not retried by default because a document can
 contain mutations. Set \code{idempotent = TRUE} only when the operation is safe
 to repeat.
 
+Fabric returns at most 100 items by default and permits at most 100,000 items
+across pagination. Each response is limited to 64 MB, each request to 100
+seconds, and query nesting to 10 levels. Use smaller pages and filtered query
+partitions when a result could approach these service limits.
+
 JSON integers outside R's exact double-precision range are returned as
 character values so identifiers and other large integer fields are not
 rounded.
@@ -148,4 +153,6 @@ result$errors
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-schema-view}{Fabric GraphQL schema explorer}
 
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal}{Use service principals with Fabric API for GraphQL}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits}{Fabric API for GraphQL limits}
 }

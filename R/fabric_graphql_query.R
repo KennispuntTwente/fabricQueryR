@@ -35,6 +35,11 @@
 #' contain mutations. Set `idempotent = TRUE` only when the operation is safe
 #' to repeat.
 #'
+#' Fabric returns at most 100 items by default and permits at most 100,000 items
+#' across pagination. Each response is limited to 64 MB, each request to 100
+#' seconds, and query nesting to 10 levels. Use smaller pages and filtered query
+#' partitions when a result could approach these service limits.
+#'
 #' JSON integers outside R's exact double-precision range are returned as
 #' character values so identifiers and other large integer fields are not
 #' rounded.
@@ -87,6 +92,8 @@
 #' [Fabric GraphQL schema explorer](https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-schema-view)
 #'
 #' [Use service principals with Fabric API for GraphQL](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal)
+#'
+#' [Fabric API for GraphQL limits](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits)
 #' @export
 #'
 #' @examples
@@ -233,7 +240,8 @@ fabric_graphql_paginate <- function(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   if (!is.function(next_cursor)) {
     rlang::abort("next_cursor must be a function")
@@ -248,7 +256,8 @@ fabric_graphql_paginate <- function(
       is.na(max_pages) ||
       !is.finite(max_pages) ||
       max_pages < 1 ||
-      max_pages != as.integer(max_pages)
+      max_pages > .Machine$integer.max ||
+      max_pages != floor(max_pages)
   ) {
     rlang::abort("max_pages must be one positive integer")
   }
@@ -272,7 +281,8 @@ fabric_graphql_paginate <- function(
       token = token,
       auth_args = auth_args,
       audience = audience,
-      api_base = api_base
+      api_base = api_base,
+      allow_custom_endpoint = allow_custom_endpoint
     )
     pages[[page_number]] <- result
     cursor <- next_cursor(result)
