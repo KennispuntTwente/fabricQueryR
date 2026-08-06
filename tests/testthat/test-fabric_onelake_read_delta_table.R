@@ -544,6 +544,44 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 })
 
+test_that("Delta protocol preflight rejects unsupported reader features", {
+  protocol <- function(features) {
+    list(reader_features = features)
+  }
+
+  expect_invisible(fabric_delta_check_protocol(protocol(c(
+    "columnMapping",
+    "timestampNtz"
+  ))))
+  for (feature in c(
+    "deletionVectors",
+    "typeWidening",
+    "typeWidening-preview",
+    "v2Checkpoint",
+    "variantType",
+    "variantShredding"
+  )) {
+    error <- expect_error(
+      fabric_delta_check_protocol(protocol(feature)),
+      class = "fabric_delta_unsupported_feature_error"
+    )
+    expect_true(length(error$delta_features) == 1L, label = feature)
+    expect_match(conditionMessage(error), "SQL or PySpark", label = feature)
+  }
+
+  combined <- expect_error(
+    fabric_delta_check_protocol(protocol(c(
+      "deletionVectors",
+      "v2Checkpoint"
+    ))),
+    class = "fabric_delta_unsupported_feature_error"
+  )
+  expect_setequal(
+    combined$delta_features,
+    c("DeletionVectors", "V2Checkpoint")
+  )
+})
+
 test_that("Delta runtime requirements are declared without forcing initialization", {
   requirements <- reticulate::py_require()
   expect_true("deltalake==1.6.2" %in% requirements$packages)

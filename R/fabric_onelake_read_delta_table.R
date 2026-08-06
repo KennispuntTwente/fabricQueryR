@@ -1,5 +1,13 @@
 .fabric_delta_max_exact_version <- 2^53
 .fabric_delta_result_types <- c("tibble", "arrow_stream")
+.fabric_delta_unsupported_reader_features <- c(
+  deletionvectors = "DeletionVectors",
+  typewidening = "TypeWidening",
+  typewideningpreview = "TypeWidening-preview",
+  v2checkpoint = "V2Checkpoint",
+  varianttype = "VariantType",
+  variantshredding = "VariantShredding"
+)
 
 #' Read a Delta table from OneLake
 #'
@@ -559,15 +567,37 @@ fabric_delta_python_reader <- function(
   }
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
-  features <- reticulate::py_to_r(table$protocol()$reader_features)
+  fabric_delta_check_protocol(table$protocol())
+  builder <- .delta_python$deltalake$QueryBuilder()
+  builder$register("fabric_delta_table", table)
+  reader <- builder$execute(fabric_delta_query(columns, limit))
+  attr(reader, "fabric_delta_table") <- table
+  attr(reader, "fabric_delta_query_builder") <- builder
+  reader
+}
+
+#' Reject known unsupported Delta reader features before planning a query
+#' @keywords internal
+#' @noRd
+fabric_delta_check_protocol <- function(protocol) {
+  features <- reticulate::py_to_r(protocol$reader_features)
   features <- if (is.null(features)) character() else as.character(features)
-  if (any(tolower(features) == "deletionvectors")) {
+  normalized <- gsub("[^a-z0-9]", "", tolower(features))
+  unsupported <- unname(.fabric_delta_unsupported_reader_features[
+    intersect(normalized, names(.fabric_delta_unsupported_reader_features))
+  ])
+  if (length(unsupported)) {
     rlang::abort(
       c(
-        "The selected Delta table requires deletion-vector support.",
+        paste0(
+          "The selected Delta table requires unsupported reader feature",
+          if (length(unsupported) == 1L) " " else "s: ",
+          paste(unsupported, collapse = ", "),
+          "."
+        ),
         "i" = paste0(
-          "The deltalake runtime does not support deletion-vector reads ",
-          "through its stable table API. Use Fabric SQL or PySpark instead."
+          "The pinned deltalake runtime cannot safely read this protocol. ",
+          "Use Fabric SQL or PySpark through Livy instead."
         )
       ),
       class = c(
@@ -575,15 +605,10 @@ fabric_delta_python_reader <- function(
         "fabric_delta_unsupported_error",
         "fabric_delta_error"
       ),
-      delta_features = "DeletionVectors"
+      delta_features = unsupported
     )
   }
-  builder <- .delta_python$deltalake$QueryBuilder()
-  builder$register("fabric_delta_table", table)
-  reader <- builder$execute(fabric_delta_query(columns, limit))
-  attr(reader, "fabric_delta_table") <- table
-  attr(reader, "fabric_delta_query_builder") <- builder
-  reader
+  invisible(features)
 }
 
 #' Render one exact R whole number for Python
