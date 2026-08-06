@@ -32,6 +32,7 @@ fabric_livy_batch_submit(
   wait = FALSE,
   timeout = 1200,
   poll_interval = 5,
+  cancel_on_timeout = TRUE,
   allow_custom_endpoint = FALSE
 )
 }
@@ -102,6 +103,12 @@ object.}
 \item{timeout}{Maximum seconds to wait when \code{wait = TRUE}.}
 
 \item{poll_interval}{Seconds between status checks when waiting.}
+
+\item{cancel_on_timeout}{Logical. When waiting at submission time, request
+cancellation if the local timeout expires. Defaults to \code{TRUE}, so a timed
+out call does not normally leave Spark compute running unattended. The
+structured timeout condition always contains the submitted object in its
+\code{batch} field, including when cancellation fails or is disabled.}
 
 \item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
 Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such

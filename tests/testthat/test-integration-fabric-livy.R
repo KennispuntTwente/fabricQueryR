@@ -321,7 +321,16 @@ test_that("Livy batches cover success, failure, and cancellation", {
   slow_marker <- wait_for_marker("slow")
   expect_equal(slow_marker$mode, "slow")
   expect_equal(as.numeric(slow_marker$row_count), -1)
-  expect_true(slow$cancel())
+  timeout_error <- expect_error(
+    slow$wait(
+      timeout = 0,
+      poll_interval = 0,
+      cancel_on_timeout = TRUE
+    ),
+    class = "fabric_livy_timeout_error"
+  )
+  expect_identical(timeout_error$batch, slow)
+  expect_true(slow$cancel_requested)
   slow$wait(
     timeout = 600,
     poll_interval = 5,

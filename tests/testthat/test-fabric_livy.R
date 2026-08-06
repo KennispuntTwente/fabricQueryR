@@ -553,16 +553,54 @@ test_that("batch timeout can request cancellation", {
     verbose = FALSE,
     allow_custom_endpoint = TRUE
   )
-  expect_error(
+  error <- expect_error(
     batch$wait(
       timeout = 0,
       poll_interval = 0,
       cancel_on_timeout = TRUE
     ),
-    "Timed out"
+    class = "fabric_livy_timeout_error"
   )
+  expect_identical(error$batch, batch)
   expect_true(cancelled)
   expect_true(batch$cancel_requested)
+})
+
+test_that("top-level batch waiting cancels on timeout and exposes its handle", {
+  calls <- character()
+  local_mocked_bindings(
+    fabric_livy_json = function(method, ...) {
+      calls <<- c(calls, method)
+      if (method == "POST") {
+        list(id = "slow-batch", state = "starting")
+      } else {
+        list(id = "slow-batch", state = "running")
+      }
+    },
+    fabric_livy_ok = function(method, ...) {
+      calls <<- c(calls, method)
+      TRUE
+    }
+  )
+
+  error <- expect_error(
+    fabric_livy_batch_submit(
+      "https://example.test/livy/batches",
+      file = "abfss://workspace/lakehouse/Files/slow.py",
+      token = "token",
+      verbose = FALSE,
+      wait = TRUE,
+      timeout = 0,
+      poll_interval = 0,
+      allow_custom_endpoint = TRUE
+    ),
+    class = "fabric_livy_timeout_error"
+  )
+
+  expect_s3_class(error$batch, "FabricLivyBatch")
+  expect_identical(error$batch$id, "slow-batch")
+  expect_true(error$batch$cancel_requested)
+  expect_identical(calls, c("POST", "GET", "DELETE"))
 })
 
 test_that("Livy input and endpoint validation is explicit", {
