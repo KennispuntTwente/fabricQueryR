@@ -773,3 +773,66 @@ test_that("OneLake validates ranges and protected paths before I/O", {
     fixed = TRUE
   )
 })
+
+test_that("OneLake blocks managed Delta file mutations by default", {
+  upload_calls <- 0L
+  local_mocked_bindings(
+    onelake_upload_target = function(...) {
+      upload_calls <<- upload_calls + 1L
+      invisible(TRUE)
+    }
+  )
+  protected <- c(
+    "Tables/orders/_delta_log/00000000000000000001.json",
+    "Tables/orders/part-00001.parquet",
+    "Tables/sales/orders/_delta_log/00000000000000000001.json",
+    "tables/sales/orders/part-00001.parquet"
+  )
+  for (path in protected) {
+    expect_error(
+      fabric_onelake_upload(
+        "Analytics",
+        "Curated.Lakehouse",
+        path,
+        source = raw(),
+        token = "token"
+      ),
+      "below Tables/ is blocked",
+      fixed = TRUE
+    )
+    expect_error(
+      fabric_onelake_delete(
+        "Analytics",
+        "Curated.Lakehouse",
+        path,
+        confirm = TRUE,
+        token = "token"
+      ),
+      "below Tables/ is blocked",
+      fixed = TRUE
+    )
+  }
+  expect_identical(upload_calls, 0L)
+})
+
+test_that("OneLake managed-table mutations require a dangerous opt-in", {
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Tables/orders/part-00001.parquet"
+  )
+  expect_no_error(onelake_require_mutable_path(
+    target,
+    "upload",
+    allow_managed_tables = TRUE
+  ))
+  expect_error(
+    onelake_require_mutable_path(
+      target,
+      "upload",
+      allow_managed_tables = NA
+    ),
+    "must be TRUE or FALSE",
+    fixed = TRUE
+  )
+})

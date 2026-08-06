@@ -95,6 +95,11 @@
 #'   example `"text/csv"`.
 #' @param create_parents Logical. Create missing parent directories below the
 #'   Fabric-managed first-level folder. Keep `TRUE` for normal uploads.
+#' @param allow_managed_tables Logical. Dangerous opt-in for uploading or
+#'   deleting paths below `Tables/`. Keep `FALSE` unless intentionally managing
+#'   the Delta transaction protocol at the file level. Direct changes to data
+#'   files or `_delta_log` can corrupt a managed table; use SQL, Spark, or a
+#'   Delta-aware writer for normal table changes.
 #' @param confirm Safety switch that must be explicitly set to `TRUE` before
 #'   deletion is attempted.
 #'
@@ -282,6 +287,7 @@ fabric_onelake_upload <- function(
   token = NULL,
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE,
   chunk_size = getOption(
     "fabricqueryr.onelake.chunk_size",
     8 * 1024^2
@@ -294,7 +300,11 @@ fabric_onelake_upload <- function(
     item_type,
     dfs_base
   )
-  onelake_require_mutable_path(target, "upload")
+  onelake_require_mutable_path(
+    target,
+    "upload",
+    allow_managed_tables = allow_managed_tables
+  )
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite)) {
     rlang::abort("overwrite must be TRUE or FALSE")
   }
@@ -336,7 +346,8 @@ fabric_onelake_delete <- function(
   ),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE
 ) {
   target <- onelake_resolve_target(
     workspace,
@@ -345,7 +356,11 @@ fabric_onelake_delete <- function(
     item_type,
     dfs_base
   )
-  onelake_require_mutable_path(target, "delete")
+  onelake_require_mutable_path(
+    target,
+    "delete",
+    allow_managed_tables = allow_managed_tables
+  )
   if (!isTRUE(confirm)) {
     rlang::abort(
       "Deletion is disabled by default; set confirm = TRUE explicitly"
@@ -585,13 +600,35 @@ onelake_require_file_path <- function(target, operation) {
   invisible(target)
 }
 
-onelake_require_mutable_path <- function(target, operation) {
+onelake_require_mutable_path <- function(
+  target,
+  operation,
+  allow_managed_tables = FALSE
+) {
+  if (
+    !is.logical(allow_managed_tables) ||
+      length(allow_managed_tables) != 1L ||
+      is.na(allow_managed_tables)
+  ) {
+    rlang::abort("allow_managed_tables must be TRUE or FALSE")
+  }
   onelake_require_file_path(target, operation)
   pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
   if (length(pieces) < 2L) {
     rlang::abort(paste0(
       operation,
       " is not allowed on a Fabric-managed first-level folder"
+    ))
+  }
+  if (
+    identical(tolower(pieces[[1L]]), "tables") &&
+      !isTRUE(allow_managed_tables)
+  ) {
+    rlang::abort(paste0(
+      operation,
+      " below Tables/ is blocked because direct changes can corrupt a ",
+      "managed Delta table; use allow_managed_tables = TRUE only when ",
+      "deliberately managing the Delta protocol"
     ))
   }
   invisible(target)

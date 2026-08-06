@@ -70,6 +70,7 @@ fabric_onelake_upload(
   token = NULL,
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE,
   chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2)
 )
 
@@ -86,7 +87,8 @@ fabric_onelake_delete(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE
 )
 }
 \arguments{
@@ -154,6 +156,12 @@ example \code{"text/csv"}.}
 
 \item{create_parents}{Logical. Create missing parent directories below the
 Fabric-managed first-level folder. Keep \code{TRUE} for normal uploads.}
+
+\item{allow_managed_tables}{Logical. Dangerous opt-in for uploading or
+deleting paths below \verb{Tables/}. Keep \code{FALSE} unless intentionally managing
+the Delta transaction protocol at the file level. Direct changes to data
+files or \verb{_delta_log} can corrupt a managed table; use SQL, Spark, or a
+Delta-aware writer for normal table changes.}
 
 \item{chunk_size}{Positive upload chunk size in bytes. Defaults to 8 MiB;
 larger chunks use fewer requests but more memory.}
