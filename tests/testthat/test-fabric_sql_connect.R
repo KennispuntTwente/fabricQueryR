@@ -153,6 +153,55 @@ test_that("SQL connections enforce Fabric ODBC options", {
   expect_equal(captured$attributes$azure_token, "sql-token")
 })
 
+test_that("ODBC passthrough attributes merge without token override", {
+  captured <- NULL
+  connection <- structure(list(), class = "test_connection")
+  local_mocked_bindings(
+    .fabric_sql_db_connect = function(...) {
+      captured <<- list(...)
+      connection
+    }
+  )
+
+  result <- fabric_sql_connect(
+    "server.datawarehouse.fabric.microsoft.com",
+    token = "sql-token",
+    attributes = list(trace = "yes", custom = "value"),
+    verbose = FALSE
+  )
+  expect_identical(result, connection)
+  expect_equal(
+    captured$attributes,
+    list(trace = "yes", custom = "value", azure_token = "sql-token")
+  )
+
+  for (attributes in list(
+    list(azure_token = "caller-token"),
+    list(AZURE_TOKEN = "caller-token")
+  )) {
+    expect_error(
+      fabric_sql_connect(
+        "server.datawarehouse.fabric.microsoft.com",
+        token = "sql-token",
+        attributes = attributes,
+        verbose = FALSE
+      ),
+      "cannot override",
+      fixed = TRUE
+    )
+  }
+  expect_error(
+    fabric_sql_connect(
+      "server.datawarehouse.fabric.microsoft.com",
+      token = "sql-token",
+      attributes = "not-a-list",
+      verbose = FALSE
+    ),
+    "must be a named list",
+    fixed = TRUE
+  )
+})
+
 test_that("SQL tokens are sent only to trusted endpoints by default", {
   acquired <- FALSE
   local_mocked_bindings(

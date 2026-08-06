@@ -194,7 +194,9 @@ fabric_sql_connection_info <- function(
 #' @param verbose Logical. Show authentication, retry, and connection progress.
 #' @param ... Additional arguments forwarded to [DBI::dbConnect()]. The former
 #'   named `access_token` argument is consumed here as a deprecated alias for
-#'   `token` and is not forwarded.
+#'   `token` and is not forwarded. For ODBC, a caller-supplied `attributes`
+#'   named list is merged with the package-managed `azure_token`; that protected
+#'   attribute cannot be overridden.
 #'
 #' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
 #'   finished. For an ADBC connection with child results still registered,
@@ -312,6 +314,11 @@ fabric_sql_connect <- function(
     "Opening {backend_label} connection to {info$server} / DB '{info$database}'"
   }
   inform(verbose, message)
+  odbc_options <- if (identical(backend, "odbc")) {
+    fabric_sql_odbc_options(resolved$dots)
+  } else {
+    list(dots = resolved$dots, attributes = list())
+  }
   odbc_args <- c(
     list(
       backend = backend,
@@ -324,7 +331,7 @@ fabric_sql_connect <- function(
     ),
     if (!is.null(info$database)) list(database = info$database) else list(),
     if (isTRUE(read_only)) list(ApplicationIntent = "ReadOnly") else list(),
-    resolved$dots
+    odbc_options$dots
   )
   for (attempt in seq_len(as.integer(max_tries))) {
     token_value <- tryCatch(
@@ -342,7 +349,13 @@ fabric_sql_connect <- function(
       }
     )
     connect_args <- if (identical(backend, "odbc")) {
-      c(odbc_args, list(attributes = list(azure_token = token_value)))
+      c(
+        odbc_args,
+        list(attributes = c(
+          odbc_options$attributes,
+          list(azure_token = token_value)
+        ))
+      )
     } else {
       c(
         list(
@@ -913,6 +926,37 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
     )
   }
   invisible(server)
+}
+
+fabric_sql_odbc_options <- function(dots) {
+  positions <- which(names(dots) == "attributes")
+  if (length(positions) > 1L) {
+    rlang::abort("attributes may be supplied only once in ...")
+  }
+  attributes <- if (length(positions)) dots[[positions]] else list()
+  if (length(positions)) {
+    dots <- dots[-positions]
+  }
+  if (!is.list(attributes)) {
+    rlang::abort("attributes in ... must be a named list")
+  }
+  attribute_names <- names(attributes)
+  if (
+    length(attributes) &&
+      (is.null(attribute_names) || any(!nzchar(attribute_names)))
+  ) {
+    rlang::abort("attributes in ... must be a named list")
+  }
+  normalized <- tolower(attribute_names %||% character())
+  if (anyDuplicated(normalized)) {
+    rlang::abort("attributes in ... must have unique names ignoring case")
+  }
+  if ("azure_token" %in% normalized) {
+    rlang::abort(
+      "attributes in ... cannot override the package-managed azure_token"
+    )
+  }
+  list(dots = dots, attributes = attributes)
 }
 
 fabric_sql_retry_delay <- function(attempt, retry_delay) {

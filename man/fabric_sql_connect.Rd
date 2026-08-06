@@ -103,7 +103,9 @@ delays use exponential backoff with jitter, capped at 60 seconds.}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
-\code{token} and is not forwarded.}
+\code{token} and is not forwarded. For ODBC, a caller-supplied \code{attributes}
+named list is merged with the package-managed \code{azure_token}; that protected
+attribute cannot be overridden.}
 }
 \value{
 A live \code{DBIConnection}. Close it with \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}} when
