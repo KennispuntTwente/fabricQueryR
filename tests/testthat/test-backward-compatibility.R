@@ -48,7 +48,8 @@ test_that("fabric_livy_query consumes named access_token from dots", {
     "https://example.test/livy/sessions",
     "1 + 1",
     access_token = "legacy-token",
-    verbose = FALSE
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
   )
 
   expect_identical(captured$token, "legacy-token")
@@ -59,7 +60,8 @@ test_that("fabric_livy_query consumes named access_token from dots", {
       "https://example.test/livy/sessions",
       "1 + 1",
       unexpected = TRUE,
-      verbose = FALSE
+      verbose = FALSE,
+      allow_custom_endpoint = TRUE
     ),
     "unused arguments"
   )
