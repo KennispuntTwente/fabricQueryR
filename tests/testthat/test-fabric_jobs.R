@@ -980,19 +980,39 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     ),
     "Unsupported Spark"
   )
+  expect_error(
+    .fabric_job_validate_notebook_compute(
+      list(highConcurrencyModeOptions = list(sessionTag = "shared")),
+      "Spark"
+    ),
+    "enabled` is required",
+    fixed = TRUE
+  )
+  expect_silent(
+    .fabric_job_validate_notebook_compute(
+      list(
+        highConcurrencyModeOptions = list(
+          enabled = TRUE,
+          sessionTag = "team A / run-1.0"
+        )
+      ),
+      "Spark"
+    )
+  )
   for (invalid_tag in list(
     "",
     NA_character_,
     c("one", "two"),
-    42,
-    "invalid-tag",
-    "invalid tag"
+    42
   )) {
     expect_error(
       .fabric_job_validate_session_tag(invalid_tag, "session_tag"),
-      "non-empty string|letters, numbers, and underscores"
+      "non-empty string"
     )
   }
+  expect_silent(
+    .fabric_job_validate_session_tag("team A / run-1.0", "session_tag")
+  )
 })
 
 test_that("print methods do not expose credentials", {

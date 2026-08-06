@@ -62,8 +62,8 @@
 #'   `"DataWarehouse"`. Use `"Spark"` (the default) for Spark notebooks,
 #'   `"Jupyter"` for a Jupyter runtime, and `"DataWarehouse"` for a notebook
 #'   attached to Warehouse compute. It must match what the notebook code needs.
-#' @param session_tag Optional Spark high-concurrency session tag containing
-#'   only letters, numbers, and underscores. Supplying it enables Fabric's
+#' @param session_tag Optional non-empty Spark high-concurrency session tag.
+#'   Fabric accepts arbitrary string values. Supplying it enables Fabric's
 #'   high-concurrency mode so related notebook runs may reuse Spark compute.
 #'   High-concurrency runs also change how failures are reported: Fabric keeps
 #'   the shared session alive when a statement fails, so the run is reported as
@@ -1081,11 +1081,13 @@ print.fabric_job_instance <- function(x, ...) {
         "`sessionTag`"
       ))
     }
+    if (is.null(options$enabled)) {
+      rlang::abort("`highConcurrencyModeOptions$enabled` is required")
+    }
     if (
-      !is.null(options$enabled) &&
-        (!is.logical(options$enabled) ||
-          length(options$enabled) != 1L ||
-          is.na(options$enabled))
+      !is.logical(options$enabled) ||
+        length(options$enabled) != 1L ||
+        is.na(options$enabled)
     ) {
       rlang::abort("`highConcurrencyModeOptions$enabled` must be logical")
     }
@@ -1101,12 +1103,6 @@ print.fabric_job_instance <- function(x, ...) {
 
 .fabric_job_validate_session_tag <- function(value, name) {
   .fabric_job_nonempty(value, name)
-  if (!grepl("^[A-Za-z0-9_]+$", value)) {
-    rlang::abort(sprintf(
-      "`%s` can only contain letters, numbers, and underscores",
-      name
-    ))
-  }
   invisible(TRUE)
 }
 

@@ -123,8 +123,8 @@ record for \code{default_lakehouse}; defaults to the job workspace.}
 \code{"Jupyter"} for a Jupyter runtime, and \code{"DataWarehouse"} for a notebook
 attached to Warehouse compute. It must match what the notebook code needs.}
 
-\item{session_tag}{Optional Spark high-concurrency session tag containing
-only letters, numbers, and underscores. Supplying it enables Fabric's
+\item{session_tag}{Optional non-empty Spark high-concurrency session tag.
+Fabric accepts arbitrary string values. Supplying it enables Fabric's
 high-concurrency mode so related notebook runs may reuse Spark compute.
 High-concurrency runs also change how failures are reported: Fabric keeps
 the shared session alive when a statement fails, so the run is reported as
