@@ -40,6 +40,15 @@
 #' features include Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant.
 #' Use the SQL or Spark (Livy) functions to read these tables.
 #'
+#' Fabric publishes Warehouse user tables as read-only Delta logs specifically
+#' for access by other engines, so Warehouse access is a Fabric-supported
+#' scenario. This function nevertheless depends on its pinned Python
+#' `deltalake` runtime and is limited to the Delta reader features implemented
+#' by that package. A `fabric_delta_unsupported_error` for a Warehouse table is
+#' therefore a fabricQueryR/runtime interoperability limit, not a statement that
+#' Fabric Warehouse lacks open Delta access. Use [fabric_sql_query()] for the
+#' Warehouse when the pinned reader cannot open its table protocol.
+#'
 #' @param table_path Table name without a schema. Use `schema` separately when
 #'   needed.
 #' @param workspace_name Workspace name, ID, or a record returned by

@@ -123,24 +123,32 @@ to clear cached tokens if the wrong account or tenant is being reused.
 \verb{https://analysis.windows.net/powerbi/api/.default} and require
 \code{Dataset.Read.All} (or \code{Dataset.ReadWrite.All}) plus dataset Read and Build
 permissions. Name lookup also requires \code{Workspace.Read.All} or equivalent.
-\item The Power BI tenant setting \strong{Dataset Execute Queries REST API} must be
-enabled. Service-principal authentication also requires \strong{Allow service
-principals to use Power BI APIs}. Service principals are not supported for
-semantic models with row-level security or single sign-on enabled.
+\item Both APIs require the Power BI tenant setting \strong{Dataset Execute Queries
+REST API}. Service-principal authentication also requires \strong{Allow service
+principals to use Power BI APIs}. The limitations differ by endpoint, as
+described below.
 \item Set \code{api = "json"} (the default) for the established \code{executeQueries}
 endpoint. It accepts one DAX query and one result table per request.
 Results are limited to 100,000 rows or 1,000,000 values (whichever is
 reached first), 15 MB, and 120 requests per minute per user. Partial
 results reported by Power BI are treated as errors by this function.
+Service principals cannot use this JSON endpoint with models that have RLS
+or SSO enabled. Delegated users can supply \code{impersonated_user} for supported
+RLS scenarios.
 \item Set \code{api = "arrow"} for the newer \code{executeDaxQueries} endpoint. It
 preserves Arrow column types, raises errors carried in HTTP 200 Arrow error
 rowsets, and supports the additional documented request properties through
 \code{arrow_options}. The optional \pkg{arrow} package is required because Power
-BI compresses record batches with LZ4. This API requires a Premium, Fabric,
-or Embedded capacity and does not support deprecated Push semantic models.
-The Power BI tenant settings \strong{Dataset Execute Queries REST API} and
+BI compresses record batches with LZ4. This endpoint supports semantic
+models on Power BI's modern service infrastructure; deprecated Push models,
+legacy compatibility-level models, monitoring/usage models, and live
+connections to Analysis Services are excluded. It is not limited to
+Premium/Fabric capacity: Microsoft documents separate Pro/PPU throttles.
+\code{effectiveUsername} is user-only and requires workspace admin. Users may
+specify only roles they belong to unless they are workspace admins; service
+principals may use \code{roles} only when they are workspace admins.
 \strong{Allow XMLA endpoints and Analyze in Excel with on-premises semantic
-models} must both be enabled.
+models} must also be enabled.
 \item Arrow queries may contain multiple \code{EVALUATE} statements, but this helper
 retains its single-table return contract and errors when Power BI returns
 multiple data rowsets.
