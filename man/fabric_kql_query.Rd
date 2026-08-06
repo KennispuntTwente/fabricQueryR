@@ -15,7 +15,8 @@ fabric_kql_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  allow_custom_endpoint = FALSE
 )
 }
 \arguments{
@@ -55,6 +56,10 @@ token or starts its normal interactive login flow.}
 
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+
+\item{allow_custom_endpoint}{Logical. Permit a non-Microsoft Kusto HTTPS
+origin. Keep \code{FALSE} unless the endpoint is trusted; credentials are sent
+to the supplied origin.}
 }
 \value{
 A typed tibble for one primary result, a \code{fabric_kql_tables} list for

@@ -62,6 +62,9 @@
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#' @param allow_custom_endpoint Logical. Permit a non-Microsoft Kusto HTTPS
+#'   origin. Keep `FALSE` unless the endpoint is trusted; credentials are sent
+#'   to the supplied origin.
 #'
 #' @return A typed tibble for one primary result, a `fabric_kql_tables` list for
 #'   multiple primary results (one named element per table), or an empty tibble
@@ -100,7 +103,8 @@ fabric_kql_query <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  allow_custom_endpoint = FALSE
 ) {
   if (
     !is.character(query) ||
@@ -110,7 +114,11 @@ fabric_kql_query <- function(
   ) {
     rlang::abort("query must be one non-empty character value")
   }
-  target <- kusto_resolve_target(cluster, database)
+  target <- kusto_resolve_target(
+    cluster,
+    database,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
   parameters <- kusto_encode_parameters(parameters)
   request_properties <- kusto_named_list(
     request_properties,
@@ -143,7 +151,18 @@ fabric_kql_query <- function(
   )
 }
 
-kusto_resolve_target <- function(cluster, database = NULL) {
+kusto_resolve_target <- function(
+  cluster,
+  database = NULL,
+  allow_custom_endpoint = FALSE
+) {
+  if (
+    !is.logical(allow_custom_endpoint) ||
+      length(allow_custom_endpoint) != 1L ||
+      is.na(allow_custom_endpoint)
+  ) {
+    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+  }
   record <- fabric_as_record(cluster)
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
@@ -188,9 +207,29 @@ kusto_resolve_target <- function(cluster, database = NULL) {
     inherits(parsed, "try-error") ||
       !identical(parsed$scheme, "https") ||
       is.null(parsed$hostname) ||
-      !nzchar(parsed$hostname)
+      !nzchar(parsed$hostname) ||
+      nzchar(parsed$username %||% "") ||
+      nzchar(parsed$password %||% "") ||
+      nzchar(parsed$port %||% "") ||
+      length(parsed$query %||% list()) > 0L ||
+      nzchar(parsed$fragment %||% "")
   ) {
     rlang::abort("cluster must be a valid HTTPS query-service URI")
+  }
+  trusted <- any(vapply(
+    c(
+      "kusto.fabric.microsoft.com",
+      "kusto.windows.net",
+      "kusto.data.microsoft.com"
+    ),
+    function(suffix) fabric_host_matches(parsed$hostname, suffix),
+    logical(1)
+  ))
+  if (!trusted && !allow_custom_endpoint) {
+    rlang::abort(paste0(
+      "cluster must use a Microsoft Kusto endpoint; set ",
+      "allow_custom_endpoint = TRUE only for a trusted custom origin"
+    ))
   }
   path <- parsed$path %||% ""
   if (

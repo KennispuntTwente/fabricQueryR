@@ -72,8 +72,32 @@ test_that("KQL targets normalize direct and discovered coordinates", {
     fixed = TRUE
   )
   expect_error(
-    kusto_resolve_target("https://cluster.test/unexpected", "Events"),
+    kusto_resolve_target(
+      "https://cluster.kusto.fabric.microsoft.com/unexpected",
+      "Events"
+    ),
     "service root",
+    fixed = TRUE
+  )
+  expect_error(
+    kusto_resolve_target("https://attacker.example", "Events"),
+    "Microsoft Kusto endpoint",
+    fixed = TRUE
+  )
+  expect_equal(
+    kusto_resolve_target(
+      "https://trusted.example",
+      "Events",
+      allow_custom_endpoint = TRUE
+    )$url,
+    "https://trusted.example/v2/rest/query"
+  )
+  expect_error(
+    kusto_resolve_target(
+      "https://cluster.kusto.fabric.microsoft.com?token=leak",
+      "Events"
+    ),
+    "valid HTTPS",
     fixed = TRUE
   )
 })
@@ -129,7 +153,7 @@ test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {
 
   audiences <- character()
   result <- fabric_kql_query(
-    "https://cluster.test",
+    "https://cluster.kusto.fabric.microsoft.com",
     query = paste(
       "declare query_parameters(input:string);",
       "print value=42"
@@ -146,7 +170,10 @@ test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {
 
   expect_equal(result$value, 42L)
   expect_equal(audiences, "https://api.kusto.windows.net/.default")
-  expect_equal(captured$url, "https://cluster.test/v2/rest/query")
+  expect_equal(
+    captured$url,
+    "https://cluster.kusto.fabric.microsoft.com/v2/rest/query"
+  )
   expect_equal(captured$headers[["x-ms-readonly"]], "true")
   expect_equal(captured$options$timeout_ms, 17000)
   expect_equal(captured$body$data$db, "Events")
@@ -353,7 +380,7 @@ test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
   })
   expect_error(
     fabric_kql_query(
-      "https://cluster.test",
+      "https://cluster.kusto.fabric.microsoft.com",
       query = "missing_table | take 1",
       database = "Events",
       token = "token"
@@ -365,7 +392,7 @@ test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
 test_that("fabric_kql_query validates query, timeout, and discovery types", {
   expect_error(
     fabric_kql_query(
-      "https://cluster.test",
+      "https://cluster.kusto.fabric.microsoft.com",
       query = "",
       database = "Events",
       token = "token"
@@ -375,7 +402,7 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
   )
   expect_error(
     fabric_kql_query(
-      "https://cluster.test",
+      "https://cluster.kusto.fabric.microsoft.com",
       query = "print 1",
       database = "Events",
       timeout = 0,
@@ -389,7 +416,7 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
       list(
         id = "lakehouse-id",
         type = "Lakehouse",
-        query_service_uri = "https://cluster.test"
+        query_service_uri = "https://cluster.kusto.fabric.microsoft.com"
       ),
       query = "print 1",
       database = "Events",

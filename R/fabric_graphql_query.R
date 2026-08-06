@@ -68,6 +68,9 @@
 #'   for a custom token provider or unusual identity flow.
 #' @param api_base Fabric REST API base URL used to derive endpoints from IDs.
 #'   Most users should keep the default.
+#' @param allow_custom_endpoint Logical. Permit a GraphQL endpoint outside the
+#'   Microsoft Fabric API origin. Keep `FALSE` unless the origin is trusted;
+#'   credentials are sent to the supplied endpoint.
 #'
 #' @return A `fabric_graphql_result` list with `data`, `errors`, `extensions`,
 #'   and `response` (the complete parsed response). `data` follows the nested
@@ -118,7 +121,8 @@ fabric_graphql_query <- function(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   graphql_validate_query(query)
   variables <- graphql_validate_variables(variables)
@@ -141,7 +145,8 @@ fabric_graphql_query <- function(
   endpoint <- graphql_resolve_endpoint(
     api,
     workspace_id = workspace_id,
-    api_base = api_base
+    api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint
   )
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -494,8 +499,10 @@ graphql_pages_result <- function(pages, variables, complete) {
 graphql_resolve_endpoint <- function(
   api,
   workspace_id = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
+  graphql_validate_logical(allow_custom_endpoint, "allow_custom_endpoint")
   record <- fabric_as_record(api)
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
@@ -510,7 +517,7 @@ graphql_resolve_endpoint <- function(
       "graphQLEndpoint"
     )
     if (!is.null(endpoint)) {
-      return(graphql_validate_endpoint(endpoint))
+      return(graphql_validate_endpoint(endpoint, allow_custom_endpoint))
     }
     workspace_id <- workspace_id %||%
       fabric_record_value(record, "workspaceId", "workspace_id")
@@ -533,19 +540,21 @@ graphql_resolve_endpoint <- function(
         "workspace_id must be a GUID when api is a GraphQL API GUID"
       )
     }
-    return(paste0(
+    endpoint <- paste0(
       fabric_api_base(api_base),
       "/workspaces/",
       workspace_id,
       "/graphqlapis/",
       api,
       "/graphql"
-    ))
+    )
+    return(graphql_validate_endpoint(endpoint, allow_custom_endpoint))
   }
-  graphql_validate_endpoint(api)
+  graphql_validate_endpoint(api, allow_custom_endpoint)
 }
 
-graphql_validate_endpoint <- function(endpoint) {
+graphql_validate_endpoint <- function(endpoint, allow_custom_endpoint = FALSE) {
+  graphql_validate_logical(allow_custom_endpoint, "allow_custom_endpoint")
   endpoint <- graphql_required_string(endpoint, "api")
   endpoint <- sub("/+$", "", trimws(endpoint))
   parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
@@ -553,11 +562,36 @@ graphql_validate_endpoint <- function(endpoint) {
     inherits(parsed, "try-error") ||
       !identical(parsed$scheme, "https") ||
       is.null(parsed$hostname) ||
-      !nzchar(parsed$hostname)
+      !nzchar(parsed$hostname) ||
+      nzchar(parsed$username %||% "") ||
+      nzchar(parsed$password %||% "") ||
+      nzchar(parsed$port %||% "") ||
+      length(parsed$query %||% list()) > 0L ||
+      nzchar(parsed$fragment %||% "")
   ) {
     rlang::abort("api must be a valid HTTPS GraphQL endpoint")
   }
+  if (
+    !fabric_host_matches(parsed$hostname, "api.fabric.microsoft.com") &&
+      !allow_custom_endpoint
+  ) {
+    rlang::abort(paste0(
+      "api must use a Microsoft Fabric endpoint; set ",
+      "allow_custom_endpoint = TRUE only for a trusted custom origin"
+    ))
+  }
   endpoint
+}
+
+graphql_validate_logical <- function(value, name) {
+  if (
+    !is.logical(value) ||
+      length(value) != 1L ||
+      is.na(value)
+  ) {
+    rlang::abort(paste0(name, " must be TRUE or FALSE"))
+  }
+  invisible(TRUE)
 }
 
 graphql_validate_query <- function(query) {

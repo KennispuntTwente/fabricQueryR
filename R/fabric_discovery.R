@@ -500,10 +500,18 @@ fabric_workspace_api_base <- function(record, fallback) {
   parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
   path <- if (inherits(parsed, "try-error")) "" else parsed$path %||% ""
   path <- sub("/+$", "", path)
+  hostname <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    tolower(parsed$hostname %||% "")
+  }
   if (
     inherits(parsed, "try-error") ||
       !identical(tolower(parsed$scheme %||% ""), "https") ||
-      !nzchar(parsed$hostname %||% "") ||
+      !fabric_host_matches(hostname, "api.fabric.microsoft.com") ||
+      nzchar(parsed$username %||% "") ||
+      nzchar(parsed$password %||% "") ||
+      nzchar(parsed$port %||% "") ||
       !path %in% c("", "/v1") ||
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
@@ -513,6 +521,12 @@ fabric_workspace_api_base <- function(record, fallback) {
     )
   }
   if (identical(tolower(path), "/v1")) endpoint else paste0(endpoint, "/v1")
+}
+
+fabric_host_matches <- function(hostname, suffix) {
+  hostname <- tolower(hostname %||% "")
+  suffix <- tolower(suffix)
+  identical(hostname, suffix) || endsWith(hostname, paste0(".", suffix))
 }
 
 fabric_resolve_workspace <- function(

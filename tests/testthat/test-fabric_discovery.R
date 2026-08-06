@@ -179,6 +179,13 @@ test_that("workspace-specific API endpoints are validated", {
     ),
     "optional /v1 path"
   )
+  expect_error(
+    fabric_workspace_api_base(
+      list(apiEndpoint = "https://attacker.example/v1"),
+      .fabric_api_base
+    ),
+    "HTTPS origin"
+  )
 })
 
 test_that("fabric_items filters and enriches Lakehouse targets", {

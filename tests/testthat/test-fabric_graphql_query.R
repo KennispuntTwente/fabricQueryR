@@ -57,11 +57,14 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
     expected
   )
   expect_equal(
-    graphql_resolve_endpoint(list(
-      id = api_id,
-      type = "GraphQLApi",
-      graphql_endpoint = "https://custom.test/graphql/"
-    )),
+    graphql_resolve_endpoint(
+      list(
+        id = api_id,
+        type = "GraphQLApi",
+        graphql_endpoint = "https://custom.test/graphql/"
+      ),
+      allow_custom_endpoint = TRUE
+    ),
     "https://custom.test/graphql"
   )
   expect_error(
@@ -80,6 +83,25 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
   )
   expect_error(
     graphql_resolve_endpoint("http://unsafe.test/graphql"),
+    "valid HTTPS",
+    fixed = TRUE
+  )
+  expect_error(
+    graphql_resolve_endpoint("https://attacker.example/graphql"),
+    "Microsoft Fabric endpoint",
+    fixed = TRUE
+  )
+  expect_equal(
+    graphql_resolve_endpoint(
+      "https://trusted.example/graphql",
+      allow_custom_endpoint = TRUE
+    ),
+    "https://trusted.example/graphql"
+  )
+  expect_error(
+    graphql_resolve_endpoint(
+      "https://api.fabric.microsoft.com/graphql?redirect=attacker"
+    ),
     "valid HTTPS",
     fixed = TRUE
   )
