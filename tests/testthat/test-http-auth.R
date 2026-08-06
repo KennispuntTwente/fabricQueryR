@@ -376,6 +376,44 @@ test_that("HTTP errors include diagnostics and redact secrets", {
   expect_false(grepl("url-secret", conditionMessage(error), fixed = TRUE))
 })
 
+test_that("secret redaction consumes complete quoted and nested values", {
+  text <- paste0(
+    '{"password": "space, comma and \\"quoted\\" value",',
+    '"safe":"visible",',
+    '"nested":{"client_secret":"line one\\nline two"}}',
+    "\nauthorization = 'Basic abc def, ghi'",
+    "\nrefresh_token=plain-token&next=visible"
+  )
+
+  redacted <- .httr2_redact(text)
+
+  expect_match(redacted, "visible", fixed = TRUE)
+  matches <- gregexpr("<redacted>", redacted, fixed = TRUE)[[1L]]
+  expect_length(matches[matches > 0L], 4L)
+  for (secret in c(
+    "space, comma",
+    "quoted",
+    "line one",
+    "line two",
+    "Basic abc",
+    "plain-token"
+  )) {
+    expect_false(grepl(secret, redacted, fixed = TRUE), info = secret)
+  }
+
+  object <- list(
+    password = 'comma, quote " and newline\nsecret',
+    nested = list(TOKEN = "another secret", message = "safe")
+  )
+  expect_equal(
+    .httr2_redact_object(object),
+    list(
+      password = "<redacted>",
+      nested = list(TOKEN = "<redacted>", message = "safe")
+    )
+  )
+})
+
 test_that("shared pagination follows continuation URIs and tokens", {
   credential <- fabric_credential(token = "token")
   urls <- character()

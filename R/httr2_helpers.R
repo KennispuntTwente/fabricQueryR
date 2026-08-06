@@ -1,3 +1,12 @@
+.httr2_secret_fields <- c(
+  "access_token",
+  "refresh_token",
+  "authorization",
+  "client_secret",
+  "password",
+  "token"
+)
+
 .httr2_redact <- function(text) {
   text <- gsub(
     "(?i)(bearer\\s+)[A-Za-z0-9._~+/-]+",
@@ -7,9 +16,11 @@
   )
   gsub(
     paste0(
-      "(?i)(\"?(?:access_token|refresh_token|authorization|",
-      "client_secret|password|token)\"?\\s*[:=]\\s*\"?)",
-      "[^\"&,}\\s]+"
+      "(?is)(?<![[:alnum:]_])([\"']?(?:",
+      paste(.httr2_secret_fields, collapse = "|"),
+      ")[\"']?\\s*[:=]\\s*)",
+      "(?:\"(?:\\\\.|[^\"\\\\])*\"|",
+      "'(?:\\\\.|[^'\\\\])*'|[^\\s&,}\\]]+)"
     ),
     "\\1<redacted>",
     text,
@@ -32,7 +43,11 @@
     out <- try(
       {
         obj <- httr2::resp_body_json(resp, simplifyVector = FALSE)
-        jsonlite::toJSON(obj, auto_unbox = TRUE, pretty = TRUE)
+        jsonlite::toJSON(
+          .httr2_redact_object(obj),
+          auto_unbox = TRUE,
+          pretty = TRUE
+        )
       },
       silent = TRUE
     )
@@ -233,6 +248,25 @@
     simplifyVector = simplifyVector,
     bigint_as_char = bigint_as_char
   )
+}
+
+.httr2_redact_object <- function(value) {
+  if (!is.list(value)) {
+    return(value)
+  }
+  value_names <- names(value)
+  for (index in seq_along(value)) {
+    secret <- !is.null(value_names) &&
+      !is.na(value_names[[index]]) &&
+      nzchar(value_names[[index]]) &&
+      tolower(value_names[[index]]) %in% .httr2_secret_fields
+    value[[index]] <- if (secret) {
+      "<redacted>"
+    } else {
+      .httr2_redact_object(value[[index]])
+    }
+  }
+  value
 }
 
 # Perform a request where no response body is needed
