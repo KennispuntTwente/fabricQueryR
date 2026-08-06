@@ -38,22 +38,31 @@ concurrency:
 
 jobs:
   provision:
-    name: Provision Fabric sandbox
+    name: Provision ${{ matrix.lane }} runtime sandbox
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: fabric-integration
     timeout-minutes: 110
-    outputs:
-      terraform-initialized: ${{ steps.terraform_init.outputs.initialized }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - lane: core
+            runtime: "1.3"
+          - lane: preview
+            runtime: "2.0"
     env:
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
-      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
-      FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
+      FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}
+      FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}
 
     steps:
       - uses: actions/checkout@v4
@@ -141,7 +150,7 @@ jobs:
       - name: Share Fabric test manifest
         uses: actions/upload-artifact@v4
         with:
-          name: fabric-test-manifest
+          name: fabric-test-manifest-${{ matrix.lane }}
           path: .fabric-test-manifest.json
           include-hidden-files: true
           if-no-files-found: error
@@ -151,7 +160,7 @@ jobs:
         if: always() && steps.terraform_init.outputs.initialized == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: fabric-terraform-state
+          name: fabric-terraform-state-${{ matrix.lane }}
           path: infra/fabric/terraform/terraform.tfstate
           if-no-files-found: ignore
           retention-days: 1
@@ -168,30 +177,44 @@ jobs:
         include:
           - label: auth and discovery
             filter: integration-fabric-auth-discovery
+            lane: core
+            runtime: "1.3"
             odbc: false
             adbc: false
           - label: KQL and GraphQL
             filter: integration-fabric-kql-graphql
+            lane: core
+            runtime: "1.3"
             odbc: true
             adbc: false
           - label: OneLake and Delta
             filter: integration-fabric-onelake
+            lane: preview
+            runtime: "2.0"
             odbc: false
             adbc: false
           - label: SQL
             filter: integration-fabric-sql
+            lane: core
+            runtime: "1.3"
             odbc: true
             adbc: true
           - label: Livy
             filter: integration-fabric-livy
+            lane: core
+            runtime: "1.3"
             odbc: false
             adbc: false
           - label: item jobs
             filter: integration-fabric-jobs
+            lane: core
+            runtime: "1.3"
             odbc: false
             adbc: false
           - label: Power BI
             filter: integration-fabric-power-bi
+            lane: core
+            runtime: "1.3"
             odbc: false
             adbc: false
     env:
@@ -199,6 +222,8 @@ jobs:
       FABRIC_INTEGRATION_REQUIRED: "true"
       FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}
+      FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}
 
     steps:
       - uses: actions/checkout@v4
@@ -206,7 +231,7 @@ jobs:
       - name: Download Fabric test manifest
         uses: actions/download-artifact@v4
         with:
-          name: fabric-test-manifest
+          name: fabric-test-manifest-${{ matrix.lane }}
           path: .
 
       - name: Sign in to Azure with OIDC
@@ -280,18 +305,22 @@ jobs:
         run: Rscript -e 'devtools::test(filter = Sys.getenv("FABRIC_TEST_FILTER"), stop_on_failure = TRUE)'
 
   teardown:
-    name: Destroy Fabric sandbox
+    name: Destroy ${{ matrix.lane }} runtime sandbox
     needs:
       - provision
       - integration
-    if: always() && needs.provision.outputs.terraform-initialized == 'true'
+    if: always()
     runs-on: ubuntu-latest
     environment: fabric-integration
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [core, preview]
     env:
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
-      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
 
     steps:
@@ -314,11 +343,13 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: fabric-terraform-state
+          name: fabric-terraform-state-${{ matrix.lane }}
           path: infra/fabric/terraform
 
       - name: Initialize Terraform
+        if: hashFiles('infra/fabric/terraform/terraform.tfstate') != ''
         run: terraform -chdir="$TF_DIR" init -input=false
 
       - name: Destroy Fabric sandbox
+        if: hashFiles('infra/fabric/terraform/terraform.tfstate') != ''
         run: terraform -chdir="$TF_DIR" destroy -auto-approve -input=false

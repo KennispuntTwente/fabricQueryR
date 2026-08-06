@@ -552,7 +552,10 @@ class FabricApi:
                     NOTEBOOK_ERROR_PREFIX
                 ):
                     raise RuntimeError(exit_value)
-                if exit_value != NOTEBOOK_SUCCESS_VALUE:
+                if not (
+                    isinstance(exit_value, str)
+                    and exit_value.startswith(f"{NOTEBOOK_SUCCESS_VALUE}:")
+                ):
                     raise RuntimeError(
                         "seed notebook completed without its success marker; "
                         f"exitValue={exit_value!r}"

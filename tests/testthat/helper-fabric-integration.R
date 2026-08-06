@@ -72,6 +72,29 @@ fabric_test_manifest <- function() {
       "rebuild or reseed the sandbox"
     )
   )
+  runtime_fields <- c(
+    "lane",
+    "fabric_runtime",
+    "spark_version",
+    "delta_version"
+  )
+  runtime <- manifest$runtime
+  fabric_test_skip_or_fail(
+    !is.list(runtime) ||
+      !setequal(names(runtime), runtime_fields) ||
+      any(vapply(
+        runtime_fields,
+        function(field) {
+          value <- runtime[[field]]
+          !is.character(value) || length(value) != 1L || !nzchar(value)
+        },
+        logical(1)
+      )),
+    paste(
+      "Fabric integration manifest has no verified runtime contract;",
+      "rebuild or reseed the sandbox"
+    )
+  )
   manifest
 }
 

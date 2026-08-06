@@ -4,6 +4,17 @@
 
 test_that("fabricQueryR acquires a live Fabric token through AzureAuth", {
   manifest <- fabric_test_manifest()
+  expected_lane <- Sys.getenv("FABRIC_SPARK_RUNTIME_LANE")
+  if (nzchar(expected_lane)) {
+    expect_identical(manifest$runtime$lane, expected_lane)
+    core_lane <- identical(expected_lane, "core")
+    expected_runtime <- if (core_lane) "1.3" else "2.0"
+    expected_spark <- if (core_lane) "^3[.]5[.]" else "^4[.]1[.]"
+    expected_delta <- if (core_lane) "^3[.]2[.]" else "^4[.]2[.]"
+    expect_identical(manifest$runtime$fabric_runtime, expected_runtime)
+    expect_match(manifest$runtime$spark_version, expected_spark)
+    expect_match(manifest$runtime$delta_version, expected_delta)
+  }
   auth <- fabric_test_azure_auth_config()
 
   workspaces <- fabric_workspaces(

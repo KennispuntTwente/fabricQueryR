@@ -29,7 +29,7 @@ def test_live_suite_is_split_into_feature_files():
     )
 
 
-def test_live_workflow_provisions_once_and_runs_feature_matrix():
+def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/integration-fabric.yaml"
@@ -38,6 +38,14 @@ def test_live_workflow_provisions_once_and_runs_feature_matrix():
     for group in INTEGRATION_GROUPS:
         assert f"filter: integration-fabric-{group}" in workflow
     assert "fail-fast: false" in workflow
+    assert "FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}" in workflow
+    assert "FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}" in workflow
+    assert "fabric-test-manifest-${{ matrix.lane }}" in workflow
+    assert "fabric-terraform-state-${{ matrix.lane }}" in workflow
+    assert "runtime: \"1.3\"" in workflow
+    assert "runtime: \"2.0\"" in workflow
+    onelake = workflow.index("filter: integration-fabric-onelake")
+    assert workflow.index("lane: preview", onelake) > onelake
     assert "name: fabric-test-manifest" in workflow
     assert "name: fabric-terraform-state" in workflow
     assert "actions/upload-artifact@v4" in workflow
@@ -175,5 +183,7 @@ def test_persistent_sandbox_workflow_is_idempotent_and_manually_removed():
     ) < workflow.index("Create workspace and test targets")
     assert "TF_VAR_test_principal_type: User" in workflow
     assert "TF_VAR_test_principal_role: Admin" in workflow
+    assert "FABRIC_SPARK_RUNTIME_LANE: preview" in workflow
+    assert 'FABRIC_SPARK_RUNTIME_VERSION: "2.0"' in workflow
     assert "9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5" in workflow
     assert "terraform -chdir=\"$TF_DIR\" destroy" not in workflow

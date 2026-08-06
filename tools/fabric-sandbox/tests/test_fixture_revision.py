@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -6,11 +7,20 @@ import pytest
 from fabricqueryr_sandbox.fixture_revision import (
     FIXTURE_REVISION_PATH,
     fixture_revision,
+    read_fixture_contract,
     read_fixture_revision,
     verify_fixture_revision,
     write_fixture_revision,
 )
 from fabricqueryr_sandbox.settings import SandboxSettings
+
+
+RUNTIME_CONTRACT = {
+    "lane": "core",
+    "fabric_runtime": "1.3",
+    "spark_version": "3.5.5.5",
+    "delta_version": "3.2.1",
+}
 
 
 class FakeDownload:
@@ -120,23 +130,40 @@ def test_fixture_revision_changes_with_seed_inputs(tmp_path):
 
 def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
     settings = make_settings(tmp_path)
-    first = fixture_revision(settings)
+    first = fixture_revision(settings, RUNTIME_CONTRACT)
 
     different_runtime = fixture_revision(
-        replace(settings, spark_runtime_version="1.3")
+        replace(
+            settings,
+            spark_runtime_lane="preview",
+            spark_runtime_version="2.0",
+        ),
+        {
+            **RUNTIME_CONTRACT,
+            "lane": "preview",
+            "fabric_runtime": "2.0",
+            "spark_version": "4.1.0.0",
+            "delta_version": "4.2.0",
+        },
     )
     assert different_runtime != first
 
+    different_build = fixture_revision(
+        settings,
+        {**RUNTIME_CONTRACT, "spark_version": "3.5.6.0"},
+    )
+    assert different_build != first
+
     parameter_file = settings.workspace_definition_dir / "parameter.yml"
     parameter_file.write_text("parameters-v2\n", encoding="utf-8")
-    different_parameters = fixture_revision(settings)
+    different_parameters = fixture_revision(settings, RUNTIME_CONTRACT)
     assert different_parameters != first
 
     terraform_file = (
         settings.repository_root / "infra" / "fabric" / "terraform" / "main.tf"
     )
     terraform_file.write_text("terraform-v2\n", encoding="utf-8")
-    different_terraform = fixture_revision(settings)
+    different_terraform = fixture_revision(settings, RUNTIME_CONTRACT)
     assert different_terraform != different_parameters
 
     job_notebook = (
@@ -145,7 +172,7 @@ def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
         / "notebook-content.py"
     )
     job_notebook.write_text("job-notebook-v2\n", encoding="utf-8")
-    different_job_notebook = fixture_revision(settings)
+    different_job_notebook = fixture_revision(settings, RUNTIME_CONTRACT)
     assert different_job_notebook != different_terraform
 
     graphql_api = (
@@ -153,18 +180,19 @@ def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
         / "tools/fabric-sandbox/src/fabricqueryr_sandbox/graphql_api.py"
     )
     graphql_api.write_text("graphql_api.py-v2\n", encoding="utf-8")
-    assert fixture_revision(settings) != different_job_notebook
+    assert fixture_revision(settings, RUNTIME_CONTRACT) != different_job_notebook
 
 
 def test_fixture_revision_round_trip_and_verification(tmp_path):
     settings = make_settings(tmp_path)
     service = FakeService()
-    expected = fixture_revision(settings)
+    expected = fixture_revision(settings, RUNTIME_CONTRACT)
 
     write_fixture_revision(
         "workspace-id",
         "lakehouse-id",
         expected,
+        runtime_contract=RUNTIME_CONTRACT,
         service_client=service,
     )
 
@@ -175,6 +203,14 @@ def test_fixture_revision_round_trip_and_verification(tmp_path):
             service_client=service,
         )
         == expected
+    )
+    assert (
+        read_fixture_contract(
+            "workspace-id",
+            "lakehouse-id",
+            service_client=service,
+        )
+        == {"revision": expected, "runtime": RUNTIME_CONTRACT}
     )
     assert (
         verify_fixture_revision(
@@ -190,12 +226,16 @@ def test_fixture_revision_round_trip_and_verification(tmp_path):
         .files[f"lakehouse-id/{FIXTURE_REVISION_PATH}"]
         .payload
     )
-    assert marker == f"{expected}\n".encode()
+    assert json.loads(marker) == {
+        "revision": expected,
+        "runtime": RUNTIME_CONTRACT,
+    }
 
     write_fixture_revision(
         "workspace-id",
         "lakehouse-id",
         "stale",
+        runtime_contract=RUNTIME_CONTRACT,
         service_client=service,
     )
     with pytest.raises(RuntimeError, match="Rebuild or reseed"):

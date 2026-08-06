@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from os import environ
 from pathlib import Path
 
+RUNTIME_LANES = {"core": "1.3", "preview": "2.0"}
+
 
 @dataclass(frozen=True)
 class SandboxSettings:
@@ -19,8 +21,19 @@ class SandboxSettings:
     environment: str
     repository_root: Path
     manifest_path: Path
-    spark_runtime_version: str = "2.0"
+    spark_runtime_lane: str = "core"
+    spark_runtime_version: str = "1.3"
     non_schema_lakehouse_id: str | None = None
+
+    def __post_init__(self) -> None:
+        expected = RUNTIME_LANES.get(self.spark_runtime_lane)
+        if expected is None:
+            raise ValueError("FABRIC_SPARK_RUNTIME_LANE must be core or preview")
+        if self.spark_runtime_version != expected:
+            raise ValueError(
+                f"runtime lane {self.spark_runtime_lane!r} requires Fabric "
+                f"Runtime {expected}, got {self.spark_runtime_version}"
+            )
 
     @classmethod
     def from_environment(cls) -> "SandboxSettings":
@@ -41,8 +54,11 @@ class SandboxSettings:
                     repository_root / ".fabric-test-manifest.json",
                 )
             ),
+            spark_runtime_lane=environ.get(
+                "FABRIC_SPARK_RUNTIME_LANE", "core"
+            ),
             spark_runtime_version=environ.get(
-                "FABRIC_SPARK_RUNTIME_VERSION", "2.0"
+                "FABRIC_SPARK_RUNTIME_VERSION", "1.3"
             ),
             non_schema_lakehouse_id=environ.get(
                 "FABRIC_NON_SCHEMA_LAKEHOUSE_ID"

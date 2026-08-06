@@ -30,8 +30,15 @@ def test_seed_notebook_ids_are_parameterized():
         assert pattern in parameters
         assert len(re.findall(pattern, notebook)) == 1
     assert "abfss://" in notebook
-    assert 'spark.version.startswith("4.1.")' in notebook
-    assert 'delta_version.startswith("4.2.")' in notebook
+    assert '"1.3": ("3.5.", "3.2.")' in notebook
+    assert '"2.0": ("4.1.", "4.2.")' in notebook
+    assert 'if runtime_lane == "core":' in notebook
+    assert "mssparkutils.notebook.exit(success_value)" in notebook
+    core_exit = notebook.index('if runtime_lane == "core":')
+    assert notebook.rfind("except Exception:", 0, core_exit) > 0
+    assert notebook.index("try:", core_exit) > core_exit
+    assert 'runtime_lane\\s*=\\s*"(core|preview)"' in parameters
+    assert 'expected_runtime_version\\s*=\\s*"(1\\.3|2\\.0)"' in parameters
     assert '.saveAsTable("dbo.fabricqueryr_runtime")' in notebook
     assert '.option("replaceWhere", "category = \'B\'")' in notebook
     assert '"beta-updated"' in notebook

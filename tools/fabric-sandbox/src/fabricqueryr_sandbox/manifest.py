@@ -13,6 +13,7 @@ class SandboxManifest:
     workspace_id: str
     workspace_name: str
     fixture_revision: str
+    runtime: dict[str, str] = field(default_factory=dict)
     items: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def write(self, path: Path) -> None:

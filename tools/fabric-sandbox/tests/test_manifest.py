@@ -7,6 +7,12 @@ def test_manifest_round_trip(tmp_path):
         workspace_id="workspace-id",
         workspace_name="fabricqueryr-test",
         fixture_revision="fixture-revision",
+        runtime={
+            "lane": "core",
+            "fabric_runtime": "1.3",
+            "spark_version": "3.5.5.5",
+            "delta_version": "3.2.1",
+        },
         items={"TestLakehouse": {"id": "lakehouse-id", "type": "Lakehouse"}},
     )
 

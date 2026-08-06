@@ -478,7 +478,7 @@ def test_run_notebook_binds_lakehouse_and_requires_success_marker():
                 "id": "job-id",
                 "status": "Completed",
                 "properties": {
-                    "exitValue": "fabricqueryr-seed-success",
+                    "exitValue": "fabricqueryr-seed-success:{}",
                 },
             },
         )
@@ -490,7 +490,7 @@ def test_run_notebook_binds_lakehouse_and_requires_success_marker():
             lakehouse_id="lakehouse-id",
         )
 
-    assert result["exitValue"] == "fabricqueryr-seed-success"
+    assert result["exitValue"] == "fabricqueryr-seed-success:{}"
 
 
 def test_run_notebook_retries_until_job_instance_is_visible():
@@ -516,7 +516,7 @@ def test_run_notebook_retries_until_job_instance_is_visible():
             json={
                 "id": "job-id",
                 "status": "Completed",
-                "exitValue": "fabricqueryr-seed-success",
+                "exitValue": "fabricqueryr-seed-success:{}",
             },
         )
 
@@ -531,7 +531,7 @@ def test_run_notebook_retries_until_job_instance_is_visible():
             lakehouse_id="lakehouse-id",
         )
 
-    assert result["exitValue"] == "fabricqueryr-seed-success"
+    assert result["exitValue"] == "fabricqueryr-seed-success:{}"
     assert get_attempts == 2
     assert sleeps == [3]
 
@@ -562,7 +562,7 @@ def test_run_notebook_honors_submission_and_status_retry_after():
             json={
                 "id": "job-id",
                 "status": "Completed",
-                "exitValue": "fabricqueryr-seed-success",
+                "exitValue": "fabricqueryr-seed-success:{}",
             },
         )
 
@@ -577,7 +577,7 @@ def test_run_notebook_honors_submission_and_status_retry_after():
             lakehouse_id="lakehouse-id",
         )
 
-    assert result["exitValue"] == "fabricqueryr-seed-success"
+    assert result["exitValue"] == "fabricqueryr-seed-success:{}"
     assert sleeps == [7, 13]
 
 

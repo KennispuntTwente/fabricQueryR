@@ -28,6 +28,8 @@ from pyspark.sql.types import ArrayType, MapType, StructField, StructType
 workspace_id = "00000000-0000-0000-0000-000000000002"
 lakehouse_id = "00000000-0000-0000-0000-000000000001"
 non_schema_lakehouse_id = "00000000-0000-0000-0000-000000000003"
+runtime_lane = "core"
+expected_runtime_version = "1.3"
 spark.conf.set("spark.sql.session.timeZone", "UTC")
 fixture_path = (
     f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
@@ -50,18 +52,46 @@ try:
             delta_source,
         )
         delta_version = delta_match.group(1) if delta_match else None
-    if not spark.version.startswith("4.1."):
+    runtime_components = {
+        "1.3": ("3.5.", "3.2."),
+        "2.0": ("4.1.", "4.2."),
+    }
+    if runtime_lane not in {"core", "preview"}:
+        raise RuntimeError(f"Unknown runtime lane {runtime_lane!r}")
+    expected_lane_version = "1.3" if runtime_lane == "core" else "2.0"
+    if expected_runtime_version != expected_lane_version:
         raise RuntimeError(
-            f"Expected Fabric Runtime 2.0 Spark 4.1, got {spark.version}"
+            f"Runtime lane {runtime_lane!r} requires "
+            f"{expected_lane_version}, got {expected_runtime_version}"
         )
-    if not delta_version or not delta_version.startswith("4.2."):
+    expected_spark, expected_delta = runtime_components[
+        expected_runtime_version
+    ]
+    if not spark.version.startswith(expected_spark):
         raise RuntimeError(
-            "Expected Fabric Runtime 2.0 Delta Lake 4.2, got "
+            f"Expected Fabric Runtime {expected_runtime_version} Spark "
+            f"{expected_spark.rstrip('.')}, got {spark.version}"
+        )
+    if not delta_version or not delta_version.startswith(expected_delta):
+        raise RuntimeError(
+            f"Expected Fabric Runtime {expected_runtime_version} Delta Lake "
+            f"{expected_delta.rstrip('.')}, got "
             f"{delta_version!r} from {delta_source!r}"
         )
+    runtime_contract = {
+        "lane": runtime_lane,
+        "fabric_runtime": expected_runtime_version,
+        "spark_version": spark.version,
+        "delta_version": delta_version,
+    }
+    success_value = "fabricqueryr-seed-success:" + json.dumps(
+        runtime_contract,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
     (
         spark.createDataFrame(
-            [("2.0", spark.version, delta_version)],
+            [(expected_runtime_version, spark.version, delta_version)],
             ["fabric_runtime", "spark_version", "delta_version"],
         )
         .write.format("delta")
@@ -854,6 +884,15 @@ try:
         .saveAsTable("dbo.fabricqueryr_column_mapped_id")
     )
 
+except Exception:
+    mssparkutils.notebook.exit(
+        f"fabricqueryr-seed-error: {stage}\n{traceback.format_exc()}"
+    )
+
+if runtime_lane == "core":
+    mssparkutils.notebook.exit(success_value)
+
+try:
     stage = "write partitioned ID-mapped deletion-vector Delta table"
     spark.sql(
         "DROP TABLE IF EXISTS dbo.fabricqueryr_column_mapped_id_partitioned_dv"
@@ -1735,7 +1774,7 @@ except Exception:
         f"fabricqueryr-seed-error: {stage}\n{traceback.format_exc()}"
     )
 
-mssparkutils.notebook.exit("fabricqueryr-seed-success")
+mssparkutils.notebook.exit(success_value)
 
 # METADATA ********************
 

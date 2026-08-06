@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -39,6 +40,31 @@ from .sql_api import (
     SQL_MUTATION_TABLE,
     seed_sql_fixture,
 )
+
+
+def _runtime_contract(
+    exit_value: object,
+    settings: SandboxSettings,
+) -> dict[str, str]:
+    prefix = "fabricqueryr-seed-success:"
+    if not isinstance(exit_value, str) or not exit_value.startswith(prefix):
+        raise RuntimeError("seed notebook did not report its runtime build")
+    try:
+        value = json.loads(exit_value.removeprefix(prefix))
+    except json.JSONDecodeError as error:
+        raise RuntimeError("seed notebook returned invalid runtime metadata") from error
+    required = {"lane", "fabric_runtime", "spark_version", "delta_version"}
+    if (
+        not isinstance(value, dict)
+        or set(value) != required
+        or not all(isinstance(value[key], str) and value[key] for key in required)
+        or value["lane"] != settings.spark_runtime_lane
+        or value["fabric_runtime"] != settings.spark_runtime_version
+    ):
+        raise RuntimeError(
+            f"seed notebook runtime metadata does not match the lane: {value!r}"
+        )
+    return value
 
 
 def _logical_delta_table_row_count(delta_table: object) -> int:
@@ -263,6 +289,7 @@ def seed(settings: SandboxSettings) -> None:
             f"seed notebook completed: {job.get('id')} "
             f"exitValue={job.get('exitValue')!r}"
         )
+        runtime_contract = _runtime_contract(job.get("exitValue"), settings)
     sql_targets = (
         (
             warehouse_item["displayName"],
@@ -346,11 +373,12 @@ def seed(settings: SandboxSettings) -> None:
         f"{arrow_semantic_model.get('name')} "
         f"({arrow_semantic_model.get('id')})"
     )
-    revision = fixture_revision(settings)
+    revision = fixture_revision(settings, runtime_contract)
     write_fixture_revision(
         workspace_id,
         lakehouse["id"],
         revision,
+        runtime_contract=runtime_contract,
         credential=credential,
     )
     print(f"Fabric fixture revision published: {revision}")

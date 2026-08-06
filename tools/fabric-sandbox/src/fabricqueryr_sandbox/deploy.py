@@ -14,6 +14,10 @@ def deploy(settings: SandboxSettings) -> None:
     environ["$ENV:FABRIC_NON_SCHEMA_LAKEHOUSE_ID"] = (
         settings.require_non_schema_lakehouse()
     )
+    environ["$ENV:FABRIC_SPARK_RUNTIME_LANE"] = settings.spark_runtime_lane
+    environ["$ENV:FABRIC_SPARK_RUNTIME_VERSION"] = (
+        settings.spark_runtime_version
+    )
     workspace = FabricWorkspace(
         workspace_id=settings.require_workspace(),
         repository_directory=str(settings.workspace_definition_dir),

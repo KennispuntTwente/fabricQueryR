@@ -1,15 +1,66 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import pytest
 from azure.core.credentials import AccessToken
 
 from fabricqueryr_sandbox.seed import (
     _logical_delta_table_row_count,
+    _runtime_contract,
     seed,
     upload_fixtures,
     wait_for_delta_log_publication,
 )
 from fabricqueryr_sandbox.settings import SandboxSettings
+
+
+RUNTIME_CONTRACT = {
+    "lane": "core",
+    "fabric_runtime": "1.3",
+    "spark_version": "3.5.5.5",
+    "delta_version": "3.2.1",
+}
+
+
+def test_runtime_contract_accepts_the_selected_observed_build(tmp_path):
+    settings = SandboxSettings(
+        workspace_id=None,
+        lakehouse_id=None,
+        workspace_name="test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    exit_value = (
+        "fabricqueryr-seed-success:"
+        '{"delta_version":"3.2.1","fabric_runtime":"1.3",'
+        '"lane":"core","spark_version":"3.5.5.5"}'
+    )
+
+    assert _runtime_contract(exit_value, settings) == RUNTIME_CONTRACT
+
+
+def test_runtime_contract_rejects_a_mismatched_lane(tmp_path):
+    settings = SandboxSettings(
+        workspace_id=None,
+        lakehouse_id=None,
+        workspace_name="test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    exit_value = (
+        "fabricqueryr-seed-success:"
+        '{"delta_version":"4.2.0","fabric_runtime":"2.0",'
+        '"lane":"preview","spark_version":"4.1.0.0"}'
+    )
+
+    with pytest.raises(RuntimeError, match="does not match the lane"):
+        _runtime_contract(exit_value, settings)
 
 
 class FakeFileClient:
@@ -306,7 +357,15 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
                     lakehouse_id,
                 )
             )
-            return {"id": "seed-job", "exitValue": "fabricqueryr-seed-success"}
+            return {
+                "id": "seed-job",
+                "exitValue": (
+                    "fabricqueryr-seed-success:"
+                    '{"delta_version":"3.2.1",'
+                    '"fabric_runtime":"1.3","lane":"core",'
+                    '"spark_version":"3.5.5.5"}'
+                ),
+            }
 
         def get_warehouse(self, workspace_id, warehouse_id):
             return {
@@ -409,16 +468,25 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.fixture_revision",
-        lambda settings: "fixture-revision",
+        lambda settings, runtime_contract: (
+            calls.append(("fixture_hash_runtime", runtime_contract))
+            or "fixture-revision"
+        ),
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.write_fixture_revision",
-        lambda workspace_id, lakehouse_id, revision, *, credential: calls.append(
+        lambda workspace_id,
+        lakehouse_id,
+        revision,
+        *,
+        runtime_contract=None,
+        credential: calls.append(
             (
                 "fixture_revision",
                 workspace_id,
                 lakehouse_id,
                 revision,
+                runtime_contract,
                 credential,
             )
         ),
@@ -480,7 +548,8 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
 
     seed(settings)
 
-    assert ("spark_runtime", "workspace-id", "2.0") in calls
+    assert ("spark_runtime", "workspace-id", "1.3") in calls
+    assert ("fixture_hash_runtime", RUNTIME_CONTRACT) in calls
     cached_credential = next(
         call[1] for call in calls if call[0] == "fabric_client"
     )
@@ -512,6 +581,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "workspace-id",
             "TestLakehouse-id",
             "incomplete",
+            None,
             cached_credential,
         ),
         (
@@ -519,6 +589,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "workspace-id",
             "TestLakehouse-id",
             "fixture-revision",
+            RUNTIME_CONTRACT,
             cached_credential,
         ),
     ]

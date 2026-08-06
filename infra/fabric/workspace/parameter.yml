@@ -34,6 +34,20 @@ find_replace:
     item_type: "Notebook"
     item_name: "SeedFixtures"
     file_path: "**/notebook-content.py"
+  - find_value: '(?m)^runtime_lane\s*=\s*"(core|preview)"'
+    replace_value:
+      _ALL_: "$ENV:FABRIC_SPARK_RUNTIME_LANE"
+    is_regex: "true"
+    item_type: "Notebook"
+    item_name: "SeedFixtures"
+    file_path: "**/notebook-content.py"
+  - find_value: '(?m)^expected_runtime_version\s*=\s*"(1\.3|2\.0)"'
+    replace_value:
+      _ALL_: "$ENV:FABRIC_SPARK_RUNTIME_VERSION"
+    is_regex: "true"
+    item_type: "Notebook"
+    item_name: "SeedFixtures"
+    file_path: "**/notebook-content.py"
   - find_value: '"defaultLakehouseArtifactId":\s*"([0-9a-fA-F-]{36})"'
     replace_value:
       _ALL_: "$ENV:FABRIC_TEST_LAKEHOUSE_ID"

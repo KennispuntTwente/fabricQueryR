@@ -38,6 +38,8 @@ jobs:
       TF_VAR_test_principal_role: Admin
       FABRIC_WORKSPACE_NAME: fabricqueryr-dev-dhrkoning
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
+      FABRIC_SPARK_RUNTIME_LANE: preview
+      FABRIC_SPARK_RUNTIME_VERSION: "2.0"
 
     steps:
       - uses: actions/checkout@v4

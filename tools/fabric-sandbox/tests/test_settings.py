@@ -50,5 +50,34 @@ def test_paths_are_derived_from_repository_root(tmp_path):
         "SparkJobDefinition",
         "SemanticModel",
     ]
-    assert settings.spark_runtime_version == "2.0"
+    assert settings.spark_runtime_lane == "core"
+    assert settings.spark_runtime_version == "1.3"
     assert settings.require_non_schema_lakehouse() == "non-schema-lakehouse-id"
+
+
+def test_runtime_lane_and_version_must_match(tmp_path):
+    with pytest.raises(ValueError, match="requires Fabric Runtime 2.0"):
+        SandboxSettings(
+            workspace_id=None,
+            lakehouse_id=None,
+            workspace_name="test",
+            capacity_id=None,
+            principal_id=None,
+            environment="TEST",
+            repository_root=tmp_path,
+            manifest_path=tmp_path / "manifest.json",
+            spark_runtime_lane="preview",
+            spark_runtime_version="1.3",
+        )
+
+
+def test_preview_runtime_lane_can_be_selected_from_environment(
+    monkeypatch,
+):
+    monkeypatch.setenv("FABRIC_SPARK_RUNTIME_LANE", "preview")
+    monkeypatch.setenv("FABRIC_SPARK_RUNTIME_VERSION", "2.0")
+
+    settings = SandboxSettings.from_environment()
+
+    assert settings.spark_runtime_lane == "preview"
+    assert settings.spark_runtime_version == "2.0"

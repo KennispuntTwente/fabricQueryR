@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from hashlib import sha256
 from pathlib import Path
 
@@ -62,12 +63,28 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
     return inputs
 
 
-def fixture_revision(settings: SandboxSettings) -> str:
+def fixture_revision(
+    settings: SandboxSettings,
+    runtime_contract: dict[str, str] | None = None,
+) -> str:
     """Hash every source that materially defines deployed Delta fixtures."""
     digest = sha256()
+    digest.update(b"spark_runtime_lane\0")
+    digest.update(settings.spark_runtime_lane.encode("utf-8"))
+    digest.update(b"\0")
     digest.update(b"spark_runtime_version\0")
     digest.update(settings.spark_runtime_version.encode("utf-8"))
     digest.update(b"\0")
+    if runtime_contract is not None:
+        digest.update(b"observed_runtime_contract\0")
+        digest.update(
+            json.dumps(
+                runtime_contract,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        )
+        digest.update(b"\0")
     for path in _fixture_inputs(settings):
         relative = path.relative_to(settings.repository_root).as_posix()
         digest.update(relative.encode("utf-8"))
@@ -99,18 +116,50 @@ def write_fixture_revision(
     lakehouse_id: str,
     revision: str,
     *,
+    runtime_contract: dict[str, str] | None = None,
     service_client: DataLakeServiceClient | None = None,
     credential: TokenCredential | None = None,
 ) -> None:
     """Publish a revision marker after a complete successful seed."""
     if not revision.strip():
         raise ValueError("fixture revision must not be empty")
+    payload = {
+        "revision": revision,
+        "runtime": runtime_contract,
+    }
     _revision_file(
         workspace_id,
         lakehouse_id,
         service_client=service_client,
         credential=credential,
-    ).upload_data((revision + "\n").encode("utf-8"), overwrite=True)
+    ).upload_data(
+        (json.dumps(payload, sort_keys=True) + "\n").encode("utf-8"),
+        overwrite=True,
+    )
+
+
+def read_fixture_contract(
+    workspace_id: str,
+    lakehouse_id: str,
+    *,
+    service_client: DataLakeServiceClient | None = None,
+) -> dict[str, object] | None:
+    """Read the deployed source revision and observed runtime build."""
+    try:
+        payload = _revision_file(
+            workspace_id,
+            lakehouse_id,
+            service_client=service_client,
+        ).download_file().readall()
+    except ResourceNotFoundError:
+        return None
+    try:
+        contract = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(contract, dict):
+        return None
+    return contract
 
 
 def read_fixture_revision(
@@ -120,15 +169,13 @@ def read_fixture_revision(
     service_client: DataLakeServiceClient | None = None,
 ) -> str | None:
     """Read the revision marker currently deployed in OneLake."""
-    try:
-        payload = _revision_file(
-            workspace_id,
-            lakehouse_id,
-            service_client=service_client,
-        ).download_file().readall()
-    except ResourceNotFoundError:
-        return None
-    return payload.decode("utf-8").strip()
+    contract = read_fixture_contract(
+        workspace_id,
+        lakehouse_id,
+        service_client=service_client,
+    )
+    revision = contract.get("revision") if contract else None
+    return revision if isinstance(revision, str) else None
 
 
 def verify_fixture_revision(
@@ -139,13 +186,21 @@ def verify_fixture_revision(
     service_client: DataLakeServiceClient | None = None,
 ) -> str:
     """Fail discovery when the persistent workspace needs rebuilding."""
-    expected = fixture_revision(settings)
-    actual = read_fixture_revision(
+    contract = read_fixture_contract(
         workspace_id,
         lakehouse_id,
         service_client=service_client,
     )
-    if actual != expected:
+    runtime = contract.get("runtime") if contract else None
+    actual = contract.get("revision") if contract else None
+    if not isinstance(runtime, dict):
+        runtime = None
+    expected = fixture_revision(settings, runtime)
+    runtime_matches = runtime is not None and (
+        runtime.get("lane") == settings.spark_runtime_lane
+        and runtime.get("fabric_runtime") == settings.spark_runtime_version
+    )
+    if actual != expected or not runtime_matches:
         deployed = actual or "<missing>"
         raise RuntimeError(
             "Fabric fixture revision mismatch: "

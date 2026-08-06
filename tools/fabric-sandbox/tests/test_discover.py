@@ -139,6 +139,18 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         "fabricqueryr_sandbox.discover.verify_fixture_revision",
         lambda settings, workspace_id, lakehouse_id: "fixture-revision",
     )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.read_fixture_contract",
+        lambda workspace_id, lakehouse_id: {
+            "revision": "fixture-revision",
+            "runtime": {
+                "lane": "core",
+                "fabric_runtime": "1.3",
+                "spark_version": "3.5.5.5",
+                "delta_version": "3.2.1",
+            },
+        },
+    )
 
     manifest = discover_onelake(settings)
 
@@ -148,6 +160,7 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         "TestWarehouse",
     }
     assert manifest.fixture_revision == "fixture-revision"
+    assert manifest.runtime["lane"] == "core"
     assert manifest.items["TestLakehouse"]["tables"] == ONELAKE_LAKEHOUSE_TABLES
     assert manifest.items["TestLakehouse"]["tables"]["basic"] == (
         "fabricqueryr_basic"
@@ -192,10 +205,23 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "fabricqueryr_sandbox.discover.verify_fixture_revision",
         lambda settings, workspace_id, lakehouse_id: "fixture-revision",
     )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.read_fixture_contract",
+        lambda workspace_id, lakehouse_id: {
+            "revision": "fixture-revision",
+            "runtime": {
+                "lane": "core",
+                "fabric_runtime": "1.3",
+                "spark_version": "3.5.5.5",
+                "delta_version": "3.2.1",
+            },
+        },
+    )
 
     manifest = discover(settings)
 
     assert manifest.fixture_revision == "fixture-revision"
+    assert manifest.runtime["fabric_runtime"] == "1.3"
     assert set(manifest.items) == {
         "TestLakehouse",
         "TestLakehouseNoSchemas",

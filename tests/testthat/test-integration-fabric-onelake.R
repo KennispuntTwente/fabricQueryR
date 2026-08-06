@@ -885,7 +885,13 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
     runtime,
     c("fabric_runtime", "spark_version", "delta_version")
   )
+  expect_identical(manifest$runtime$lane, "preview")
+  expect_identical(manifest$runtime$fabric_runtime, "2.0")
+  expect_match(manifest$runtime$spark_version, "^4[.]1[.]")
+  expect_match(manifest$runtime$delta_version, "^4[.]2[.]")
   expect_identical(runtime$fabric_runtime, "2.0")
+  expect_identical(runtime$spark_version, manifest$runtime$spark_version)
+  expect_identical(runtime$delta_version, manifest$runtime$delta_version)
 
   void <- fabric_test_read_delta(manifest, lakehouse, tables$void)
   void <- void[order(void$id), ]
