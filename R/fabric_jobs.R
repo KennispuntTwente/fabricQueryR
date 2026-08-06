@@ -888,6 +888,20 @@ print.fabric_job_instance <- function(x, ...) {
     )
   }
   if (identical(result$status_code, 404L)) {
+    error_code <- .fabric_job_error_code(result$body)
+    if (!is.null(error_code)) {
+      rlang::abort(
+        paste0(
+          "Fabric could not retrieve the job instance (HTTP 404, error code ",
+          error_code,
+          ")"
+        ),
+        class = c("fabric_job_status_error", "fabric_job_error"),
+        job = context$job,
+        error_code = error_code,
+        response = result$body
+      )
+    }
     return(.fabric_job_instance(
       list(id = context$id, status = "NotStarted"),
       context,

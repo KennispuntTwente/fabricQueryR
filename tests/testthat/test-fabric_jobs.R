@@ -941,6 +941,34 @@ test_that("cancel reconciles a lost response against terminal status", {
   expect_equal(calls, 2L)
 })
 
+test_that("status does not turn ItemNotFound into NotStarted", {
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 404L,
+        retry_after = NULL,
+        body = list(
+          errorCode = "ItemNotFound",
+          message = "The requested item was not found"
+        )
+      )
+    }
+  )
+
+  condition <- rlang::catch_cnd(
+    .fabric_job_get_status(
+      .fabric_job_context(job_test_handle(item_type = "DataPipeline")),
+      allow_not_found = TRUE
+    ),
+    classes = "error"
+  )
+
+  expect_s3_class(condition, "fabric_job_status_error")
+  expect_s3_class(condition, "fabric_job_error")
+  expect_equal(condition$error_code, "ItemNotFound")
+  expect_match(condition$message, "HTTP 404", fixed = TRUE)
+})
+
 test_that("cancel reconciles JobAlreadyCompleted but preserves other errors", {
   response_code <- "JobAlreadyCompleted"
   calls <- 0L
