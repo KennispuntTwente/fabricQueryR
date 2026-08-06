@@ -33,7 +33,11 @@
 #' requires `confirm = TRUE`.
 #' Give the signed-in user or application access through a workspace role or
 #' through the item's **Manage OneLake data access** roles. Write access is
-#' required for uploads and deletes.
+#' required for uploads and deletes. A Fabric administrator must also enable
+#' **Users can access data stored in OneLake with apps external to Fabric** for
+#' the caller. If authentication succeeds but OneLake returns HTTP 403, check
+#' this tenant setting as well as the caller's workspace, item, and OneLake
+#' data permissions; changing the token flow alone will not grant data access.
 #'
 #' Uploads are streamed in chunks to a temporary sibling file. The completed
 #' file is atomically renamed to its OneLake destination with the requested
@@ -107,6 +111,8 @@
 #' [Connect to OneLake with ADLS APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 #'
 #' [Create and manage OneLake security roles](https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles)
+#'
+#' [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
 #'
 #' @examples
 #' \dontrun{

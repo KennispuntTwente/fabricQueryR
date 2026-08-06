@@ -81,7 +81,11 @@
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #'   Job submission and cancellation require `Item.Execute.All` or
-#'   the corresponding workload-specific execute permission.
+#'   the corresponding workload-specific execute permission. Status polling
+#'   and waiting also require `Item.Read.All`, `Item.ReadWrite.All`, or the
+#'   corresponding workload-specific read permission (for example,
+#'   `Notebook.Read.All`). A token used for a complete run-and-wait workflow
+#'   therefore needs both execute and read scopes.
 #' @param api_base Fabric REST API base URL. Most users should keep the default.
 #'   A discovered workspace-specific endpoint is used unless this argument is
 #'   supplied explicitly.

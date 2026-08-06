@@ -146,7 +146,11 @@ reuses a matching cached token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.
 Job submission and cancellation require \code{Item.Execute.All} or
-the corresponding workload-specific execute permission.}
+the corresponding workload-specific execute permission. Status polling
+and waiting also require \code{Item.Read.All}, \code{Item.ReadWrite.All}, or the
+corresponding workload-specific read permission (for example,
+\code{Notebook.Read.All}). A token used for a complete run-and-wait workflow
+therefore needs both execute and read scopes.}
 
 \item{api_base}{Fabric REST API base URL. Most users should keep the default.
 A discovered workspace-specific endpoint is used unless this argument is
