@@ -277,6 +277,45 @@ test_that("job POST requests carry an explicit zero-length body", {
   expect_length(request$body$data, 0L)
 })
 
+test_that("job POST requests preserve one-element schema arrays", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      request <<- req
+      httr2::response(status_code = 202L)
+    }
+  )
+
+  .fabric_job_request(
+    "POST",
+    "https://api.fabric.test/v1/jobs",
+    fabric_credential(token = "test-token"),
+    payload = list(
+      executionData = list(
+        additionalLibraryUris = "abfss://account/library.zip",
+        computeConfiguration = list(jars = "abfss://account/library.jar")
+      ),
+      parameters = list(list(name = "mode", type = "Text", value = "test"))
+    ),
+    parse_json = FALSE
+  )
+
+  body <- jsonlite::toJSON(
+    request$body$data,
+    auto_unbox = request$body$params$auto_unbox,
+    null = request$body$params$null
+  )
+  parsed <- jsonlite::fromJSON(body, simplifyVector = FALSE)
+  expect_length(parsed$executionData$additionalLibraryUris, 1L)
+  expect_length(parsed$executionData$computeConfiguration$jars, 1L)
+  expect_length(parsed$parameters, 1L)
+  expect_match(
+    body,
+    '"additionalLibraryUris":\\["abfss://account/library.zip"\\]'
+  )
+  expect_match(body, '"jars":\\["abfss://account/library.jar"\\]')
+})
+
 test_that("Spark job definition execution data uses its typed route", {
   call <- NULL
   local_mocked_bindings(

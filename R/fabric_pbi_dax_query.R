@@ -628,6 +628,9 @@ pbi_execute_dax_arrow <- function(
     )
   }
   body <- c(list(query = dax), options)
+  if (!is.null(body$roles)) {
+    body$roles <- I(body$roles)
+  }
   req <- httr2::request(path) |>
     httr2::req_headers(
       Accept = "application/vnd.apache.arrow.stream"

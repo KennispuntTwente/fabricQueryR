@@ -492,6 +492,13 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
       expect_equal(req$body$data$query, "EVALUATE ROW(\"value\", 1)")
       expect_equal(req$body$data$culture, "en-US")
       expect_equal(req$body$data$queryTimeout, 60)
+      expect_s3_class(req$body$data$roles, "AsIs")
+      encoded <- jsonlite::toJSON(
+        req$body$data,
+        auto_unbox = req$body$params$auto_unbox,
+        null = req$body$params$null
+      )
+      expect_match(encoded, '"roles":\\["Sales"\\]')
       writeBin(payload, download_path)
       httr2::new_response(
         method = "POST",
@@ -511,7 +518,7 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
     dataset_id = "dataset",
     dax = "EVALUATE ROW(\"value\", 1)",
     group_id = "workspace",
-    options = list(culture = "en-US", queryTimeout = 60)
+    options = list(culture = "en-US", queryTimeout = 60, roles = "Sales")
   )
 
   expect_equal(result$x, bit64::as.integer64(1:3))

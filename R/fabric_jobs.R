@@ -527,6 +527,7 @@ print.fabric_job_instance <- function(x, ...) {
   request <- httr2::request(url)
   request <- httr2::req_method(request, method)
   if (!is.null(payload)) {
+    payload <- .fabric_job_preserve_json_arrays(payload)
     request <- httr2::req_body_json(
       request,
       payload,
@@ -559,6 +560,34 @@ print.fabric_job_instance <- function(x, ...) {
       NULL
     }
   )
+}
+
+.fabric_job_preserve_json_arrays <- function(value, field = NULL) {
+  array_fields <- c(
+    "parameters",
+    "additionalLibraryUris",
+    "jars",
+    "pyFiles",
+    "files",
+    "archives",
+    "sparkProperties",
+    "mountPoints"
+  )
+  if (!is.null(field) && field %in% array_fields) {
+    return(I(value))
+  }
+  if (!is.list(value)) {
+    return(value)
+  }
+  value_names <- names(value)
+  for (index in seq_along(value)) {
+    child_field <- if (is.null(value_names)) NULL else value_names[[index]]
+    value[[index]] <- .fabric_job_preserve_json_arrays(
+      value[[index]],
+      field = child_field
+    )
+  }
+  value
 }
 
 .fabric_job_target <- function(
