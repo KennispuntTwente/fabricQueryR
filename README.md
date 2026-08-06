@@ -33,8 +33,8 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 Below is a minimal example of how to find a workspace and some of its items. 
 
 To connect to Microsoft Fabric, you need a Microsoft Entra tenant ID and optionally a client ID.
-See the [authentication vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html) 
-more details on how to set these environment variables and sign in to Microsoft Fabric from R.
+See the [authentication vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
+for more details on how to set these environment variables and sign in to Microsoft Fabric from R.
 
 Once you know these values, you can discover workspaces and items like so:
 
