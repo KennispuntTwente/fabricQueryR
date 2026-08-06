@@ -92,11 +92,11 @@
 #'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers. The
 #'   HTTP response is streamed to a temporary file before Arrow reads it, but
 #'   the returned Arrow table is materialized in memory so that concatenated
-#'   data, error, and metrics rowsets can be validated.
+#'   data and error rowsets can be validated.
 #' @param arrow_options Named list of optional `executeDaxQueries` request
 #'   properties. Supported names are `applicationContext`, `culture`,
-#'   `customData`, `effectiveUsername`, `executionMetrics`, `memoryLimit`,
-#'   `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The
+#'   `customData`, `effectiveUsername`, `memoryLimit`, `queryTimeout`,
+#'   `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The
 #'   required `query` property is supplied from `dax`. Used only by
 #'   `api = "arrow"`.
 #'
@@ -107,8 +107,6 @@
 #'   provide column metadata for an empty table, that path returns a zero-row,
 #'   zero-column tibble. API errors, multiple rowsets, and partial/truncated
 #'   JSON results raise an error rather than silently returning incomplete data.
-#'   When `executionMetrics = TRUE`, the metrics rowset is attached to either
-#'   result as an `execution_metrics` tibble attribute.
 #' @references
 #' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
 #'
@@ -510,7 +508,6 @@ pbi_validate_arrow_options <- function(options) {
     "culture",
     "customData",
     "effectiveUsername",
-    "executionMetrics",
     "memoryLimit",
     "queryTimeout",
     "resultSetRowCountLimit",
@@ -585,7 +582,7 @@ pbi_validate_arrow_options <- function(options) {
   }
   logical_options <- intersect(
     names(options),
-    c("executionMetrics", "schemaOnly")
+    "schemaOnly"
   )
   for (name in logical_options) {
     value <- options[[name]]

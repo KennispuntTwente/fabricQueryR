@@ -87,7 +87,6 @@ test_that("Arrow DAX options and result combinations validate strictly", {
       queryTimeout = 300,
       resultSetRowCountLimit = 100000,
       roles = c("Sales", "Auditor"),
-      executionMetrics = TRUE,
       schemaOnly = FALSE
     )),
     list(
@@ -95,7 +94,6 @@ test_that("Arrow DAX options and result combinations validate strictly", {
       queryTimeout = 300,
       resultSetRowCountLimit = 100000,
       roles = c("Sales", "Auditor"),
-      executionMetrics = TRUE,
       schemaOnly = FALSE
     )
   )
@@ -115,8 +113,8 @@ test_that("Arrow DAX options and result combinations validate strictly", {
     fixed = TRUE
   )
   expect_error(
-    pbi_validate_arrow_options(list(executionMetrics = 1)),
-    "TRUE or FALSE",
+    pbi_validate_arrow_options(list(executionMetrics = TRUE)),
+    "Unsupported arrow_options name(s): executionMetrics",
     fixed = TRUE
   )
   expect_error(

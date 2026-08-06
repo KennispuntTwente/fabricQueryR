@@ -81,12 +81,12 @@ With \code{api = "arrow"}, \code{"arrow_stream"} returns a
 \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} and other Arrow C stream consumers. The
 HTTP response is streamed to a temporary file before Arrow reads it, but
 the returned Arrow table is materialized in memory so that concatenated
-data, error, and metrics rowsets can be validated.}
+data and error rowsets can be validated.}
 
 \item{arrow_options}{Named list of optional \code{executeDaxQueries} request
 properties. Supported names are \code{applicationContext}, \code{culture},
-\code{customData}, \code{effectiveUsername}, \code{executionMetrics}, \code{memoryLimit},
-\code{queryTimeout}, \code{resultSetRowCountLimit}, \code{roles}, and \code{schemaOnly}. The
+\code{customData}, \code{effectiveUsername}, \code{memoryLimit}, \code{queryTimeout},
+\code{resultSetRowCountLimit}, \code{roles}, and \code{schemaOnly}. The
 required \code{query} property is supplied from \code{dax}. Used only by
 \code{api = "arrow"}.}
 }
@@ -98,8 +98,6 @@ Arrow result becomes a typed zero-row result. Because the JSON API does not
 provide column metadata for an empty table, that path returns a zero-row,
 zero-column tibble. API errors, multiple rowsets, and partial/truncated
 JSON results raise an error rather than silently returning incomplete data.
-When \code{executionMetrics = TRUE}, the metrics rowset is attached to either
-result as an \code{execution_metrics} tibble attribute.
 }
 \description{
 Runs a Data Analysis Expressions (DAX) query against a published semantic
