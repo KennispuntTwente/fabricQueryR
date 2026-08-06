@@ -20,11 +20,14 @@
 #' `declare query_parameters(...)`. Scalar R values are encoded as Kusto
 #' parameter values; vectors and lists are encoded as `dynamic(...)` literals.
 #'
-#' KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns become
-#' logical, UTC `POSIXct`, integer, `bit64::integer64`, double, and `difftime`
-#' vectors. `dynamic` columns are list-columns, GUIDs and strings are character
-#' vectors, and decimals are doubles. Decimal values outside R's double
-#' precision should be converted to strings in KQL when exact digits are needed.
+#' KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns normally
+#' become logical, UTC `POSIXct`, integer, `bit64::integer64`, double, and
+#' `difftime` vectors. Base R and `bit64` reserve the minimum signed `int` and
+#' `long` values for missing data; a column containing either boundary is
+#' returned as character with a warning so the value remains exact. `dynamic`
+#' columns are list-columns, GUIDs and strings are character vectors, and
+#' decimals are doubles. Decimal values outside R's double precision should be
+#' converted to strings in KQL when exact digits are needed.
 #'
 #' A query with one primary result table returns a tibble. A query with multiple
 #' primary result tables returns a named list of tibbles with class
@@ -558,6 +561,41 @@ kusto_numeric_column <- function(values, integer = FALSE) {
   out
 }
 
+kusto_integer_column <- function(values, type) {
+  text <- kusto_character_column(values)
+  minimum <- if (identical(type, "int")) {
+    "-2147483648"
+  } else {
+    "-9223372036854775808"
+  }
+  contains_minimum <- any(text == minimum, na.rm = TRUE)
+  if (identical(type, "int")) {
+    parsed <- suppressWarnings(as.integer(text))
+  } else {
+    parsed <- suppressWarnings(bit64::as.integer64(text))
+  }
+  invalid <- !is.na(text) & is.na(parsed) & text != minimum
+  if (any(invalid)) {
+    rlang::abort(
+      "Kusto returned an invalid integer value for its declared type"
+    )
+  }
+  if (contains_minimum) {
+    rlang::warn(
+      paste0(
+        "KQL `",
+        type,
+        "` column contains ",
+        minimum,
+        ", which R reserves for missing data; returning it as character"
+      ),
+      class = "fabric_kql_integer_boundary_warning"
+    )
+    return(text)
+  }
+  parsed
+}
+
 kusto_datetime_column <- function(values) {
   text <- kusto_character_column(values)
   clean <- sub("Z$", "", text, ignore.case = TRUE)
@@ -622,10 +660,10 @@ kusto_convert_column <- function(values, type) {
     ))
   }
   if (type == "int") {
-    return(kusto_numeric_column(values, integer = TRUE))
+    return(kusto_integer_column(values, type))
   }
   if (type == "long") {
-    return(bit64::as.integer64(kusto_character_column(values)))
+    return(kusto_integer_column(values, type))
   }
   if (type %in% c("real", "double", "decimal")) {
     return(kusto_numeric_column(values))

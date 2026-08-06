@@ -245,6 +245,36 @@ test_that("Kusto v2 type metadata produces stable R columns", {
   )
 })
 
+test_that("Kusto signed integer boundaries remain exact", {
+  expect_warning(
+    int <- kusto_convert_column(
+      list("-2147483648", "2147483647", NULL),
+      "int"
+    ),
+    "returning it as character",
+    class = "fabric_kql_integer_boundary_warning"
+  )
+  expect_identical(int, c("-2147483648", "2147483647", NA_character_))
+
+  expect_warning(
+    long <- kusto_convert_column(
+      list("-9223372036854775808", "9223372036854775807", NULL),
+      "long"
+    ),
+    "returning it as character",
+    class = "fabric_kql_integer_boundary_warning"
+  )
+  expect_identical(
+    long,
+    c("-9223372036854775808", "9223372036854775807", NA_character_)
+  )
+  expect_error(
+    kusto_convert_column(list("not-a-long"), "long"),
+    "invalid integer value",
+    fixed = TRUE
+  )
+})
+
 test_that("multiple and progressive Kusto primary tables are assembled", {
   frames <- list(
     list(FrameType = "DataSetHeader", Version = "v2.0", IsProgressive = TRUE),

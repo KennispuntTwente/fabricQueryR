@@ -82,11 +82,14 @@ interpolated into \code{query}. Declare them in KQL with
 \verb{declare query_parameters(...)}. Scalar R values are encoded as Kusto
 parameter values; vectors and lists are encoded as \code{dynamic(...)} literals.
 
-KQL \code{bool}, \code{datetime}, \code{int}, \code{long}, \code{real}, and \code{timespan} columns become
-logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, and \code{difftime}
-vectors. \code{dynamic} columns are list-columns, GUIDs and strings are character
-vectors, and decimals are doubles. Decimal values outside R's double
-precision should be converted to strings in KQL when exact digits are needed.
+KQL \code{bool}, \code{datetime}, \code{int}, \code{long}, \code{real}, and \code{timespan} columns normally
+become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, and
+\code{difftime} vectors. Base R and \code{bit64} reserve the minimum signed \code{int} and
+\code{long} values for missing data; a column containing either boundary is
+returned as character with a warning so the value remains exact. \code{dynamic}
+columns are list-columns, GUIDs and strings are character vectors, and
+decimals are doubles. Decimal values outside R's double precision should be
+converted to strings in KQL when exact digits are needed.
 
 A query with one primary result table returns a tibble. A query with multiple
 primary result tables returns a named list of tibbles with class
