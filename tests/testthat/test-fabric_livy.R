@@ -566,6 +566,43 @@ test_that("batch timeout can request cancellation", {
   expect_true(batch$cancel_requested)
 })
 
+test_that("statement wait polls through cancelling until cancelled", {
+  responses <- list(
+    list(id = "session", state = "idle"),
+    list(id = 7L, state = "running"),
+    list(id = 7L, state = "cancelling"),
+    list(id = 7L, state = "cancelled")
+  )
+  calls <- 0L
+  local_mocked_bindings(
+    fabric_livy_json = function(...) {
+      calls <<- calls + 1L
+      response <- responses[[1L]]
+      responses <<- responses[-1L]
+      response
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+  statement <- session$submit("print(1)", "pyspark")
+  statement$wait(
+    timeout = 1,
+    poll_interval = 0,
+    error_on_failure = FALSE
+  )
+
+  expect_identical(statement$state, "cancelled")
+  expect_identical(calls, 4L)
+  result <- statement$result(refresh = FALSE, error_on_failure = FALSE)
+  expect_identical(result$state, "cancelled")
+})
+
 test_that("top-level batch waiting cancels on timeout and exposes its handle", {
   calls <- character()
   local_mocked_bindings(

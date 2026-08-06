@@ -13,7 +13,6 @@
 
 .fabric_livy_statement_failure_states <- c(
   "error",
-  "cancelling",
   "cancelled"
 )
 
