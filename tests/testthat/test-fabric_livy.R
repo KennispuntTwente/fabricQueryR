@@ -689,6 +689,33 @@ test_that("Livy input and endpoint validation is explicit", {
     fabric_livy_endpoint("https://attacker.example/livy", "sessions"),
     "not a Microsoft Fabric API host"
   )
+  for (url in c(
+    "https://api.fabric.microsoft.com/livy?token=value",
+    "https://api.fabric.microsoft.com/livy#sessions",
+    "https://user@api.fabric.microsoft.com/livy"
+  )) {
+    expect_error(
+      fabric_livy_endpoint(url, "sessions"),
+      "must not contain",
+      fixed = TRUE
+    )
+  }
+  expect_error(
+    fabric_livy_endpoint(
+      "https://api.fabric.microsoft.com:8443/livy",
+      "sessions"
+    ),
+    "default port",
+    fixed = TRUE
+  )
+  expect_equal(
+    fabric_livy_endpoint(
+      "https://example.test:8443/livy",
+      "sessions",
+      allow_custom_endpoint = TRUE
+    ),
+    "https://example.test:8443/livy/sessions"
+  )
   expect_error(
     fabric_livy_session(
       "https://example.test/base",

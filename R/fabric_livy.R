@@ -64,6 +64,23 @@ fabric_livy_validate_endpoint <- function(
   }
   host <- tolower(parsed$hostname)
   fabric_host <- grepl("(^|\\.)api\\.fabric\\.microsoft\\.com$", host)
+  if (
+    nzchar(parsed$username %||% "") ||
+      nzchar(parsed$password %||% "") ||
+      length(parsed$query %||% list()) > 0L ||
+      nzchar(parsed$fragment %||% "")
+  ) {
+    rlang::abort(
+      "livy_url must not contain userinfo, a query string, or a fragment"
+    )
+  }
+  if (
+    fabric_host &&
+      !is.null(parsed$port) &&
+      as.character(parsed$port) != "443"
+  ) {
+    rlang::abort("Microsoft Fabric livy_url may use only the HTTPS default port")
+  }
   if (!fabric_host && !isTRUE(allow_custom_endpoint)) {
     rlang::abort(paste0(
       "livy_url is not a Microsoft Fabric API host; set ",
