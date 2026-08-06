@@ -39,7 +39,9 @@ and easier to quote correctly than building KQL with \code{paste()}.}
 
 \item{request_properties}{Named list of Kusto client request options, such as
 \code{servertimeout = "2m"} or \code{notruncation = TRUE}. Most users can leave this
-empty; these are server-side Kusto controls, not query parameters.}
+empty; these are server-side Kusto controls, not query parameters. Fabric
+does not support \code{queryconsistency} or
+\code{query_weakconsistency_session_id}.}
 
 \item{timeout}{Positive client-side HTTP timeout in seconds. This is separate
 from the Kusto \code{servertimeout} request property.}
@@ -89,6 +91,9 @@ parameter values; vectors and lists are encoded as \code{dynamic(...)} literals.
 Zero-length vectors and unnamed lists encode \verb{dynamic([])}. A zero-length
 list with non-\code{NULL} names encodes \code{dynamic({})}; \code{NULL} remains invalid so it
 cannot be confused with an empty collection or a typed Kusto null.
+Microsoft Fabric does not support the \code{queryconsistency} or
+\code{query_weakconsistency_session_id} request properties. Do not include either
+name in \code{request_properties}, even though Azure Data Explorer supports them.
 
 KQL \code{bool}, \code{datetime}, \code{int}, \code{long}, \code{real}, and \code{timespan} columns normally
 become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, and
@@ -123,6 +128,8 @@ events <- fabric_kql_query(
 \href{https://learn.microsoft.com/en-us/fabric/real-time-intelligence/access-database-copy-uri}{Access a KQL database and copy its Query URI}
 
 \href{https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric}{Kusto query HTTP request and parameters}
+
+\href{https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric}{Kusto request properties}
 
 \href{https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric}{Kusto role-based access control}
 }

@@ -22,6 +22,9 @@
 #' Zero-length vectors and unnamed lists encode `dynamic([])`. A zero-length
 #' list with non-`NULL` names encodes `dynamic({})`; `NULL` remains invalid so it
 #' cannot be confused with an empty collection or a typed Kusto null.
+#' Microsoft Fabric does not support the `queryconsistency` or
+#' `query_weakconsistency_session_id` request properties. Do not include either
+#' name in `request_properties`, even though Azure Data Explorer supports them.
 #'
 #' KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns normally
 #' become logical, UTC `POSIXct`, integer, `bit64::integer64`, double, and
@@ -53,7 +56,9 @@
 #'   and easier to quote correctly than building KQL with `paste()`.
 #' @param request_properties Named list of Kusto client request options, such as
 #'   `servertimeout = "2m"` or `notruncation = TRUE`. Most users can leave this
-#'   empty; these are server-side Kusto controls, not query parameters.
+#'   empty; these are server-side Kusto controls, not query parameters. Fabric
+#'   does not support `queryconsistency` or
+#'   `query_weakconsistency_session_id`.
 #' @param timeout Positive client-side HTTP timeout in seconds. This is separate
 #'   from the Kusto `servertimeout` request property.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
@@ -76,6 +81,8 @@
 #' [Access a KQL database and copy its Query URI](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/access-database-copy-uri)
 #'
 #' [Kusto query HTTP request and parameters](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric)
+#'
+#' [Kusto request properties](https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric)
 #'
 #' [Kusto role-based access control](https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric)
 #' @export
