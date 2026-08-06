@@ -886,7 +886,7 @@ test_that("timeout can request cancellation and retains last status", {
   expect_match(condition$message, "last status: InProgress", fixed = TRUE)
 })
 
-test_that("cancel uses the common scheduler route and is idempotent", {
+test_that("cancel uses the scheduler route without automatic POST retries", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -917,8 +917,81 @@ test_that("cancel uses the common scheduler route and is idempotent", {
     ),
     fixed = TRUE
   )
-  expect_true(call$idempotent)
+  expect_false(call$idempotent)
   expect_null(call$payload)
+})
+
+test_that("cancel reconciles a lost response against terminal status", {
+  calls <- 0L
+  local_mocked_bindings(
+    .fabric_job_request = function(method, ...) {
+      calls <<- calls + 1L
+      if (identical(method, "POST")) {
+        stop("connection closed after request")
+      }
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(id = "job", status = "Cancelled")
+      )
+    }
+  )
+
+  expect_true(fabric_job_cancel(job_test_handle(item_type = "DataPipeline")))
+  expect_equal(calls, 2L)
+})
+
+test_that("cancel reconciles JobAlreadyCompleted but preserves other errors", {
+  response_code <- "JobAlreadyCompleted"
+  calls <- 0L
+  local_mocked_bindings(
+    .fabric_job_request = function(method, ...) {
+      calls <<- calls + 1L
+      if (identical(method, "POST")) {
+        return(list(
+          status_code = 400L,
+          body = list(errorCode = response_code)
+        ))
+      }
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(id = "job", status = "Completed")
+      )
+    }
+  )
+
+  job <- job_test_handle(item_type = "DataPipeline")
+  expect_true(fabric_job_cancel(job))
+  expect_equal(calls, 2L)
+
+  response_code <- "ItemNotFound"
+  condition <- rlang::catch_cnd(fabric_job_cancel(job), classes = "error")
+  expect_s3_class(condition, "fabric_job_cancel_error")
+  expect_equal(condition$error_code, "ItemNotFound")
+  expect_match(condition$message, "HTTP 400", fixed = TRUE)
+  expect_equal(calls, 3L)
+})
+
+test_that("cancel rethrows ambiguous failures while the job is active", {
+  local_mocked_bindings(
+    .fabric_job_request = function(method, ...) {
+      if (identical(method, "POST")) {
+        stop("connection closed after request")
+      }
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(id = "job", status = "InProgress")
+      )
+    }
+  )
+
+  expect_error(
+    fabric_job_cancel(job_test_handle(item_type = "DataPipeline")),
+    "connection closed after request",
+    fixed = TRUE
+  )
 })
 
 test_that("job payload validation rejects ambiguous and unsafe input", {

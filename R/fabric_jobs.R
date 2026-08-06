@@ -118,8 +118,9 @@
 #'   `fabric_job_instance` list with `status`, start/end times,
 #'   `failure_reason`, notebook `exit_value` when available, workload
 #'   `properties`, and `raw` response. `fabric_job_cancel()` returns `TRUE`
-#'   invisibly after Fabric accepts the cancellation request; terminal state
-#'   may not be visible immediately.
+#'   invisibly after Fabric accepts the cancellation request, or after a status
+#'   check confirms that an ambiguous request reached a terminal job. Terminal
+#'   state may not be visible immediately after a newly accepted cancellation.
 #' @examples
 #' \dontrun{
 #' notebook <- fabric_notebooks("Analytics workspace")[[1]]
@@ -476,14 +477,46 @@ fabric_job_cancel <- function(
     context$id,
     "/cancel"
   )
-  .fabric_job_request(
-    "POST",
-    url,
-    context$credential,
-    payload = NULL,
-    idempotent = TRUE,
-    parse_json = FALSE
+  result <- tryCatch(
+    .fabric_job_request(
+      "POST",
+      url,
+      context$credential,
+      payload = NULL,
+      idempotent = FALSE,
+      parse_json = TRUE,
+      accepted_status = c(400L, 404L, 409L)
+    ),
+    error = identity
   )
+  if (!inherits(result, "error") && result$status_code < 400L) {
+    return(invisible(TRUE))
+  }
+
+  error_code <- if (inherits(result, "error")) {
+    NULL
+  } else {
+    .fabric_job_error_code(result$body)
+  }
+  ambiguous <- inherits(result, "error") ||
+    identical(tolower(error_code %||% ""), "jobalreadycompleted")
+  if (ambiguous) {
+    status <- tryCatch(
+      .fabric_job_get_status(context, allow_not_found = FALSE),
+      error = identity
+    )
+    if (
+      inherits(status, "fabric_job_instance") &&
+        status$status %in% .fabric_job_terminal_states
+    ) {
+      return(invisible(TRUE))
+    }
+  }
+
+  if (inherits(result, "error")) {
+    rlang::cnd_signal(result)
+  }
+  .fabric_job_abort_cancel(result, context$job)
   invisible(TRUE)
 }
 
@@ -603,6 +636,32 @@ print.fabric_job_instance <- function(x, ...) {
     )
   }
   value
+}
+
+.fabric_job_error_code <- function(body) {
+  code <- body$errorCode %||% body$error$code %||% body$code
+  if (is.character(code) && length(code) == 1L && nzchar(code)) {
+    code
+  } else {
+    NULL
+  }
+}
+
+.fabric_job_abort_cancel <- function(result, job) {
+  error_code <- .fabric_job_error_code(result$body) %||% "unknown"
+  rlang::abort(
+    paste0(
+      "Fabric did not accept the job cancellation (HTTP ",
+      result$status_code,
+      ", error code ",
+      error_code,
+      ")"
+    ),
+    class = c("fabric_job_cancel_error", "fabric_job_error"),
+    job = job,
+    error_code = error_code,
+    response = result$body
+  )
 }
 
 .fabric_job_target <- function(
