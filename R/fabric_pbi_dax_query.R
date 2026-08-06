@@ -66,11 +66,14 @@
 #'   It may contain `Data Source=` and `Initial Catalog=` parts, or a bare
 #'   `powerbi://...` source plus a `Dataset=`, `Catalog=`, or
 #'   `Initial Catalog=` key. Omit it when `dataset_id` is supplied.
-#' @param workspace_id Optional workspace GUID. Use with `dataset_id` to avoid
-#'   name-based discovery. If omitted with `dataset_id`, the unscoped dataset
-#'   endpoint is used.
+#' @param workspace_id Optional shared-workspace GUID. Use with `dataset_id` to
+#'   avoid name-based discovery. For a model in My Workspace, omit this and set
+#'   `my_workspace = TRUE` explicitly.
 #' @param dataset_id Optional semantic model/dataset GUID. When supplied, no
 #'   connection-string name lookup is performed.
+#' @param my_workspace Logical. Confirm that `dataset_id` belongs to the signed-in
+#'   user's My Workspace and use Power BI's unscoped dataset endpoint. This
+#'   explicit opt-in prevents accidentally using that route for a shared model.
 #' @param dax One DAX query, normally beginning with `EVALUATE`. DAX table
 #'   expressions determine which rows and columns are returned.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
@@ -155,6 +158,7 @@ fabric_pbi_dax_query <- function(
   dax,
   workspace_id = NULL,
   dataset_id = NULL,
+  my_workspace = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -215,6 +219,16 @@ fabric_pbi_dax_query <- function(
   }
   pbi_validate_optional_guid(workspace_id, "workspace_id")
   pbi_validate_optional_guid(dataset_id, "dataset_id")
+  if (
+    !is.logical(my_workspace) ||
+      length(my_workspace) != 1L ||
+      is.na(my_workspace)
+  ) {
+    rlang::abort("my_workspace must be TRUE or FALSE")
+  }
+  if (!is.null(workspace_id) && isTRUE(my_workspace)) {
+    rlang::abort("Supply workspace_id or set my_workspace = TRUE, not both")
+  }
   if (is.null(dataset_id) && is.null(connstr)) {
     rlang::abort(
       "Supply either connstr or dataset_id"
@@ -235,6 +249,11 @@ fabric_pbi_dax_query <- function(
   }
   if (identical(api, "json") && !identical(result, "tibble")) {
     rlang::abort("result = \"arrow_stream\" requires api = \"arrow\"")
+  }
+  if (!is.null(dataset_id) && is.null(workspace_id) && !isTRUE(my_workspace)) {
+    rlang::abort(
+      "dataset_id requires workspace_id or explicit my_workspace = TRUE"
+    )
   }
   if (
     identical(api, "arrow") &&

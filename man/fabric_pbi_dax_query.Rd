@@ -9,6 +9,7 @@ fabric_pbi_dax_query(
   dax,
   workspace_id = NULL,
   dataset_id = NULL,
+  my_workspace = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -35,12 +36,16 @@ It may contain \verb{Data Source=} and \verb{Initial Catalog=} parts, or a bare
 \item{dax}{One DAX query, normally beginning with \code{EVALUATE}. DAX table
 expressions determine which rows and columns are returned.}
 
-\item{workspace_id}{Optional workspace GUID. Use with \code{dataset_id} to avoid
-name-based discovery. If omitted with \code{dataset_id}, the unscoped dataset
-endpoint is used.}
+\item{workspace_id}{Optional shared-workspace GUID. Use with \code{dataset_id} to
+avoid name-based discovery. For a model in My Workspace, omit this and set
+\code{my_workspace = TRUE} explicitly.}
 
 \item{dataset_id}{Optional semantic model/dataset GUID. When supplied, no
 connection-string name lookup is performed.}
+
+\item{my_workspace}{Logical. Confirm that \code{dataset_id} belongs to the signed-in
+user's My Workspace and use Power BI's unscoped dataset endpoint. This
+explicit opt-in prevents accidentally using that route for a shared model.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}

@@ -458,6 +458,43 @@ test_that("DAX execution sends impersonation and parses one table", {
   expect_equal(result[["[value]"]], 7L)
 })
 
+test_that("unscoped DAX endpoints require explicit My Workspace mode", {
+  expect_error(
+    fabric_pbi_dax_query(
+      dax = "EVALUATE ROW()",
+      dataset_id = pbi_test_dataset_id,
+      token = "token"
+    ),
+    "workspace_id or explicit my_workspace = TRUE",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      dax = "EVALUATE ROW()",
+      workspace_id = pbi_test_workspace_id,
+      dataset_id = pbi_test_dataset_id,
+      my_workspace = TRUE,
+      token = "token"
+    ),
+    "not both",
+    fixed = TRUE
+  )
+
+  local_mocked_bindings(
+    pbi_execute_dax = function(group_id, ...) {
+      expect_null(group_id)
+      tibble::tibble(value = 1L)
+    }
+  )
+  result <- fabric_pbi_dax_query(
+    dax = "EVALUATE ROW()",
+    dataset_id = pbi_test_dataset_id,
+    my_workspace = TRUE,
+    token = "token"
+  )
+  expect_identical(result$value, 1L)
+})
+
 test_that("DAX execution preserves JSON whole numbers outside 2^53", {
   local_mocked_bindings(
     .httr2_json = function(req, bigint_as_char, ...) {
