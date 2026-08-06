@@ -1050,7 +1050,7 @@ fabric_infer_sql_target <- function(server) {
     "sql_analytics_endpoint"
   } else if (
     grepl(
-      "\\.(?:database\\.fabric|database\\.windows)\\.microsoft\\.com$",
+      "(?:\\.database\\.fabric\\.microsoft\\.com|\\.database\\.windows\\.net)$",
       server,
       ignore.case = TRUE
     )

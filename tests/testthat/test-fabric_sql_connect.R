@@ -29,6 +29,12 @@ test_that("SQL connection info parses portal strings and bare endpoints", {
     )]
   )
   expect_equal(bare$target_type, "sql_analytics_endpoint")
+
+  azure_sql <- fabric_sql_connection_info(
+    "fabric-db.database.windows.net",
+    database = "Orders"
+  )
+  expect_equal(azure_sql$target_type, "sql_database")
 })
 
 test_that("SQL connection strings preserve quoted semicolons", {
