@@ -605,6 +605,23 @@ fabric_livy_session <- function(
 ) {
   fabric_livy_check_flag(high_concurrency, "high_concurrency")
   fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  fabric_livy_validate_session_fields(
+    name = name,
+    archives = archives,
+    driver_memory = driver_memory,
+    driver_cores = driver_cores,
+    executor_memory = executor_memory,
+    executor_cores = executor_cores,
+    num_executors = num_executors
+  )
+  fabric_livy_check_optional_string(session_tag, "session_tag")
+  fabric_livy_check_optional_string(artifact_name, "artifact_name")
+  fabric_livy_check_optional_string(file, "file")
+  fabric_livy_check_optional_string(class_name, "class_name")
+  fabric_livy_check_string_vector(args, "args", allow_empty_strings = TRUE)
+  fabric_livy_check_string_vector(jars, "jars")
+  fabric_livy_check_string_vector(files, "files")
+  fabric_livy_check_string_vector(py_files, "py_files")
   if (!is.null(session_tag) && !isTRUE(high_concurrency)) {
     rlang::abort(
       "session_tag is only available for high-concurrency sessions"

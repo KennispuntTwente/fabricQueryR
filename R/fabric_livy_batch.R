@@ -300,6 +300,20 @@ fabric_livy_batch_submit <- function(
   fabric_livy_check_string(file, "file")
   fabric_livy_check_flag(wait, "wait")
   fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  fabric_livy_validate_session_fields(
+    name = name,
+    archives = archives,
+    driver_memory = driver_memory,
+    driver_cores = driver_cores,
+    executor_memory = executor_memory,
+    executor_cores = executor_cores,
+    num_executors = num_executors
+  )
+  fabric_livy_check_optional_string(class_name, "class_name")
+  fabric_livy_check_string_vector(args, "args", allow_empty_strings = TRUE)
+  fabric_livy_check_string_vector(jars, "jars")
+  fabric_livy_check_string_vector(files, "files")
+  fabric_livy_check_string_vector(py_files, "py_files")
   tags <- fabric_livy_normalize_named_list(tags, "tags")
   conf <- fabric_livy_conf(conf, environment_id)
   if (!is.null(target_lakehouse_id)) {

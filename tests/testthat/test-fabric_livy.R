@@ -604,7 +604,40 @@ test_that("Livy input and endpoint validation is explicit", {
       tags = list("missing name"),
       token = "token"
     ),
-    "named list"
+    "uniquely named list"
+  )
+  expect_error(
+    fabric_livy_session(
+      "https://example.test/base",
+      conf = list("spark.setting" = 1),
+      token = "token"
+    ),
+    "single, non-missing strings"
+  )
+  expect_error(
+    fabric_livy_session(
+      "https://example.test/base",
+      archives = list("archive.zip"),
+      token = "token"
+    ),
+    "character vector"
+  )
+  expect_error(
+    fabric_livy_session(
+      "https://example.test/base",
+      driver_cores = 1.5,
+      token = "token"
+    ),
+    "whole number"
+  )
+  expect_error(
+    fabric_livy_batch_submit(
+      "https://example.test/base",
+      file = "job.py",
+      tags = list(run = NA_character_),
+      token = "token"
+    ),
+    "non-missing strings"
   )
   expect_error(
     fabric_livy_batch_submit(
@@ -614,4 +647,36 @@ test_that("Livy input and endpoint validation is explicit", {
     ),
     "file must"
   )
+})
+
+test_that("session waits stop on all documented terminal states", {
+  check_terminal <- function(initial_state, high_concurrency = FALSE) {
+    responses <- list(
+      list(id = "terminal-session", state = "starting"),
+      list(id = "terminal-session", state = initial_state)
+    )
+    local_mocked_bindings(
+      fabric_livy_json = function(...) {
+        response <- responses[[1L]]
+        responses <<- responses[-1L]
+        response
+      },
+      fabric_livy_ok = function(...) TRUE
+    )
+    session <- fabric_livy_session(
+      "https://example.test/livy",
+      high_concurrency = high_concurrency,
+      token = "token",
+      verbose = FALSE,
+      allow_custom_endpoint = TRUE
+    )
+    expect_error(
+      session$wait(timeout = 1, poll_interval = 0),
+      class = "fabric_livy_session_error"
+    )
+    session$close()
+  }
+
+  check_terminal("success")
+  check_terminal("Deleting", high_concurrency = TRUE)
 })

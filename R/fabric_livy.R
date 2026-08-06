@@ -6,7 +6,9 @@
   "failed",
   "killed",
   "shutting_down",
-  "cancelled"
+  "cancelled",
+  "success",
+  "deleting"
 )
 
 .fabric_livy_statement_failure_states <- c(
@@ -104,9 +106,57 @@ fabric_livy_check_number <- function(value, name, minimum = 0) {
   invisible(value)
 }
 
+fabric_livy_check_integer <- function(value, name, minimum = 1L) {
+  if (
+    length(value) != 1L ||
+      is.na(value) ||
+      !is.numeric(value) ||
+      !is.finite(value) ||
+      value != trunc(value) ||
+      value < minimum ||
+      value > .Machine$integer.max
+  ) {
+    rlang::abort(paste0(
+      name,
+      " must be one whole number between ",
+      minimum,
+      " and ",
+      .Machine$integer.max
+    ))
+  }
+  invisible(value)
+}
+
 fabric_livy_check_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
     rlang::abort(cli::format_inline("{name} must be TRUE or FALSE"))
+  }
+  invisible(value)
+}
+
+fabric_livy_check_optional_string <- function(value, name) {
+  if (!is.null(value)) {
+    fabric_livy_check_string(value, name)
+  }
+  invisible(value)
+}
+
+fabric_livy_check_string_vector <- function(
+  value,
+  name,
+  allow_empty_strings = FALSE
+) {
+  if (is.null(value)) {
+    return(invisible(value))
+  }
+  valid <- is.character(value) && !anyNA(value)
+  if (valid && !isTRUE(allow_empty_strings)) {
+    valid <- all(nzchar(trimws(value)))
+  }
+  if (!valid) {
+    rlang::abort(cli::format_inline(
+      "{name} must be a character vector without missing{if (!allow_empty_strings) ' or empty' else ''} values"
+    ))
   }
   invisible(value)
 }
@@ -115,10 +165,47 @@ fabric_livy_normalize_named_list <- function(value, name) {
   if (is.null(value)) {
     return(NULL)
   }
-  if (!is.list(value) || is.null(names(value)) || !all(nzchar(names(value)))) {
-    rlang::abort(cli::format_inline("{name} must be a named list"))
+  valid_names <- !is.null(names(value)) &&
+    !anyNA(names(value)) &&
+    all(nzchar(names(value))) &&
+    !anyDuplicated(names(value))
+  valid_values <- is.list(value) &&
+    all(vapply(
+      value,
+      function(x) is.character(x) && length(x) == 1L && !is.na(x),
+      logical(1)
+    ))
+  if (!valid_names || !valid_values) {
+    rlang::abort(cli::format_inline(
+      "{name} must be a uniquely named list of single, non-missing strings"
+    ))
   }
   value
+}
+
+fabric_livy_validate_session_fields <- function(
+  name = NULL,
+  archives = NULL,
+  driver_memory = NULL,
+  driver_cores = NULL,
+  executor_memory = NULL,
+  executor_cores = NULL,
+  num_executors = NULL
+) {
+  fabric_livy_check_optional_string(name, "name")
+  fabric_livy_check_string_vector(archives, "archives")
+  fabric_livy_check_optional_string(driver_memory, "driver_memory")
+  fabric_livy_check_optional_string(executor_memory, "executor_memory")
+  if (!is.null(driver_cores)) {
+    fabric_livy_check_integer(driver_cores, "driver_cores")
+  }
+  if (!is.null(executor_cores)) {
+    fabric_livy_check_integer(executor_cores, "executor_cores")
+  }
+  if (!is.null(num_executors)) {
+    fabric_livy_check_integer(num_executors, "num_executors")
+  }
+  invisible(NULL)
 }
 
 fabric_livy_conf <- function(conf = NULL, environment_id = NULL) {
