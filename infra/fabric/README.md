@@ -128,16 +128,17 @@ The workflow requests `id-token: write`, logs in with `azure/login`, and uses th
 resulting Azure CLI session for Terraform and `fabric-cicd`. The Entra application
 must be permitted by the Fabric tenant settings, be allowed to create workspaces,
 and have sufficient access to assign the configured capacity. The sandbox itself
-does not require a client secret.
+does not require a client secret for provisioning.
 
 To exercise `fabricQueryR`'s own `AzureAuth` token-acquisition path in addition
-to the service tests that use short-lived Azure CLI tokens, optionally define the
-protected environment secret `FABRIC_TEST_AUTH_CLIENT_SECRET`. The smoke test
+to the service tests that use short-lived Azure CLI tokens, define the protected
+environment secret `FABRIC_TEST_AUTH_CLIENT_SECRET`. The smoke test
 uses it with `AZURE_TENANT_ID` and `AZURE_CLIENT_ID` in a client-credentials
 flow, disables the AzureAuth token cache, and verifies that the application can
-discover the ephemeral workspace. When the secret is absent, only this optional
-authentication smoke test is skipped. Use a dedicated, short-lived test secret;
-the federated workflow login remains responsible for sandbox provisioning.
+discover the ephemeral workspace. Required CI fails when the secret is absent;
+optional local runs skip only this authentication smoke test. Use a dedicated,
+short-lived test secret; the federated workflow login remains responsible for
+sandbox provisioning.
 
 The workflow provisions and seeds two isolated workspaces: a Runtime 1.3 `core`
 workspace for authentication/discovery, KQL/GraphQL, SQL, Livy, item jobs, and
