@@ -137,6 +137,37 @@ test_that("local AzureAuth context enables the acquisition integration test", {
   expect_identical(fabric_test_azure_auth_config(), expected)
 })
 
+test_that("required integration mode rejects missing AzureAuth credentials", {
+  old_required <- Sys.getenv("FABRIC_INTEGRATION_REQUIRED", unset = NA)
+  old_secret <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_SECRET", unset = NA)
+  old_config <- getOption("fabricQueryR.integration_auth_config")
+  on.exit(
+    {
+      options(fabricQueryR.integration_auth_config = old_config)
+      if (is.na(old_required)) {
+        Sys.unsetenv("FABRIC_INTEGRATION_REQUIRED")
+      } else {
+        Sys.setenv(FABRIC_INTEGRATION_REQUIRED = old_required)
+      }
+      if (is.na(old_secret)) {
+        Sys.unsetenv("FABRIC_TEST_AUTH_CLIENT_SECRET")
+      } else {
+        Sys.setenv(FABRIC_TEST_AUTH_CLIENT_SECRET = old_secret)
+      }
+    },
+    add = TRUE
+  )
+  options(fabricQueryR.integration_auth_config = NULL)
+  Sys.setenv(FABRIC_INTEGRATION_REQUIRED = "true")
+  Sys.unsetenv("FABRIC_TEST_AUTH_CLIENT_SECRET")
+
+  expect_error(
+    fabric_test_azure_auth_config(),
+    "FABRIC_TEST_AUTH_CLIENT_SECRET",
+    fixed = TRUE
+  )
+})
+
 test_that("the default manifest path resolves from nested test directories", {
   root <- tempfile("fabricqueryr-root-")
   nested <- file.path(root, "tests", "testthat")

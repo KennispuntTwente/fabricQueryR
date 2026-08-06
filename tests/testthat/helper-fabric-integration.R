@@ -158,14 +158,13 @@ fabric_test_azure_auth_config <- function() {
   }
 
   secret <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_SECRET")
-  if (!nzchar(secret)) {
-    testthat::skip(
-      paste(
-        "AzureAuth integration is optional; set",
-        "FABRIC_TEST_AUTH_CLIENT_SECRET to enable it"
-      )
+  fabric_test_skip_or_fail(
+    !nzchar(secret),
+    paste(
+      "AzureAuth integration is optional; set",
+      "FABRIC_TEST_AUTH_CLIENT_SECRET to enable it"
     )
-  }
+  )
   tenant_id <- Sys.getenv("FABRIC_TEST_AUTH_TENANT_ID")
   client_id <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_ID")
   missing <- c(
