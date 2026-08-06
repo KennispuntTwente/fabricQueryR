@@ -222,6 +222,8 @@ FabricLivySession <- R6::R6Class(
       timeout = 600,
       poll_interval = 2
     ) {
+      fabric_livy_check_number(timeout, "timeout")
+      fabric_livy_check_number(poll_interval, "poll_interval")
       statement <- self$submit(
         code = code,
         kind = match.arg(kind),

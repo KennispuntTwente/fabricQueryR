@@ -384,7 +384,8 @@ test_that("fabric_livy_query closes temporary session after failure", {
       "https://example.test/livy/sessions",
       "raise Exception()",
       token = "token",
-      verbose = FALSE
+      verbose = FALSE,
+      allow_custom_endpoint = TRUE
     ),
     "spark failed",
     fixed = TRUE
@@ -722,6 +723,91 @@ test_that("Livy input and endpoint validation is explicit", {
     ),
     "file must"
   )
+})
+
+test_that("Livy wait arguments are validated before remote side effects", {
+  calls <- 0L
+  local_mocked_bindings(
+    fabric_livy_json = function(...) {
+      calls <<- calls + 1L
+      list(id = "created", state = "idle")
+    }
+  )
+
+  expect_error(
+    fabric_livy_query(
+      "https://example.test/livy/sessions",
+      code = "print(1)",
+      timeout = NA_real_,
+      token = "token",
+      allow_custom_endpoint = TRUE
+    ),
+    "timeout"
+  )
+  expect_identical(calls, 0L)
+
+  expect_error(
+    fabric_livy_batch_submit(
+      "https://example.test/livy/batches",
+      file = "job.py",
+      wait = TRUE,
+      poll_interval = -1,
+      token = "token",
+      allow_custom_endpoint = TRUE
+    ),
+    "poll_interval"
+  )
+  expect_identical(calls, 0L)
+})
+
+test_that("session run validates polling before submitting a statement", {
+  posts <- 0L
+  local_mocked_bindings(
+    fabric_livy_json = function(method, ...) {
+      if (method == "POST") {
+        posts <<- posts + 1L
+      }
+      list(id = "session", state = "idle")
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+  expect_identical(posts, 1L)
+
+  expect_error(
+    session$run("print(1)", timeout = Inf),
+    "timeout"
+  )
+  expect_identical(posts, 1L)
+})
+
+test_that("batch result validates error_on_failure before refresh", {
+  gets <- 0L
+  local_mocked_bindings(
+    fabric_livy_json = function(method, ...) {
+      if (method == "POST") {
+        list(id = "batch", state = "success")
+      } else {
+        gets <<- gets + 1L
+        list(id = "batch", state = "success")
+      }
+    }
+  )
+  batch <- fabric_livy_batch_submit(
+    "https://example.test/livy/batches",
+    file = "job.py",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+
+  expect_error(batch$result(error_on_failure = NA), "must be TRUE or FALSE")
+  expect_identical(gets, 0L)
 })
 
 test_that("session waits stop on all documented terminal states", {

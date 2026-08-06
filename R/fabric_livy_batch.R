@@ -139,6 +139,7 @@ FabricLivyBatch <- R6::R6Class(
     #' @param error_on_failure Raise a structured error for a failed batch.
     #' @returns A `fabric_livy_batch_result` list.
     result = function(refresh = TRUE, error_on_failure = TRUE) {
+      fabric_livy_check_flag(error_on_failure, "error_on_failure")
       response <- self$status(refresh = refresh)
       state <- fabric_livy_state(response)
       result <- tolower(response$result %||% "")
@@ -311,6 +312,9 @@ fabric_livy_batch_submit <- function(
   fabric_livy_check_flag(wait, "wait")
   fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
   fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  fabric_livy_check_flag(verbose, "verbose")
+  fabric_livy_check_number(timeout, "timeout")
+  fabric_livy_check_number(poll_interval, "poll_interval")
   fabric_livy_validate_session_fields(
     name = name,
     archives = archives,

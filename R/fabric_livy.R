@@ -517,6 +517,14 @@ fabric_livy_query <- function(
   ...
 ) {
   kind <- match.arg(kind)
+  fabric_livy_check_flag(verbose, "verbose")
+  fabric_livy_check_number(poll_interval, "poll_interval")
+  fabric_livy_check_number(timeout, "timeout")
+  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  fabric_livy_resolve_url(
+    livy_url,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
   resolved <- fabric_resolve_token_alias(
     token = token,
     dots = list(...),
