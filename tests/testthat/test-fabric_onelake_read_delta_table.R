@@ -340,6 +340,67 @@ test_that("Delta reads refresh once after a pre-return authentication failure", 
   }
 })
 
+test_that("Delta Arrow reads refresh when staging encounters expired auth", {
+  refresh <- logical()
+  provider <- function(audience, force_refresh = FALSE) {
+    refresh <<- c(refresh, force_refresh)
+    if (force_refresh) "fresh-token" else "expired-token"
+  }
+  local_mocked_bindings(
+    fabric_delta_resolve_public_target = function(...) {
+      list(
+        table_dir = "Tables/Test",
+        target = list(
+          dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+          workspace = "workspace-id",
+          item = "lakehouse-id",
+          path = "Tables/Test"
+        )
+      )
+    },
+    fabric_delta_read_uri = function(bearer_token, ...) bearer_token,
+    fabric_delta_spool_stream = function(stream) {
+      if (identical(stream, "expired-token")) {
+        stop("HTTP 401 token expired")
+      }
+      nanoarrow::as_nanoarrow_array_stream(data.frame(id = 1L))
+    }
+  )
+
+  value <- fabric_onelake_read_delta_table(
+    "Test",
+    "workspace-id",
+    "lakehouse-id",
+    token = provider,
+    result = "arrow_stream",
+    verbose = FALSE
+  )
+
+  expect_s3_class(value, "nanoarrow_array_stream")
+  expect_identical(refresh, c(FALSE, TRUE))
+})
+
+test_that("staged Delta streams remain readable without their remote reader", {
+  source <- nanoarrow::as_nanoarrow_array_stream(data.frame(
+    id = 1:3,
+    value = c("a", "b", "c")
+  ))
+  attr(source, "fabric_delta_snapshot_version") <- 42
+
+  stream <- fabric_delta_spool_stream(source)
+  path <- attr(stream, "fabric_delta_spool_path", exact = TRUE)
+
+  expect_true(file.exists(path))
+  expect_equal(
+    nanoarrow::convert_array_stream(stream),
+    data.frame(id = 1:3, value = c("a", "b", "c"))
+  )
+  expect_identical(
+    attr(stream, "fabric_delta_snapshot_version", exact = TRUE),
+    42
+  )
+})
+
 test_that("Arrow schemas normalize scalar types for safe collection", {
   skip_if_not_installed("arrow")
   schema <- arrow::schema(

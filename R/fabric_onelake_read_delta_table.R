@@ -20,9 +20,12 @@
 #' version of the table.
 #'
 #' For a large table, or one containing nested data, set
-#' `result = "arrow_stream"` to process the result in batches. The returned
-#' stream is lazy and can be read only once. The first Delta read may take a
-#' little longer while the optional Python reader is set up.
+#' `result = "arrow_stream"` to process the result in batches. The remote data
+#' is staged in a temporary Arrow IPC file while the OneLake token is current,
+#' and the returned disk-backed stream is lazy and can be read only once. This
+#' avoids token expiry between creating and consuming a stream, and keeps the
+#' result out of R memory, but requires enough temporary disk space for the
+#' selected data. The temporary file is removed when the stream is released.
 #'
 #' Direct reads require OneLake data access; item `Read` permission by itself is
 #' not enough. The caller needs `ReadAll` or a suitable OneLake data-access role,
@@ -63,7 +66,7 @@
 #' @param result `"tibble"` (the default) or `"arrow_stream"` for batch
 #'   processing.
 #'
-#' @return A tibble, or a lazy, single-use Arrow stream when
+#' @return A tibble, or a disk-backed, lazy, single-use Arrow stream when
 #'   `result = "arrow_stream"`.
 #' @export
 #'
@@ -157,6 +160,9 @@ fabric_onelake_read_delta_table <- function(
       limit = limit,
       result = result
     )
+    if (identical(result, "arrow_stream")) {
+      value <- fabric_delta_spool_stream(value)
+    }
     list(value = value, token = bearer_token)
   }
 
@@ -183,7 +189,7 @@ fabric_onelake_read_delta_table <- function(
       type = "success"
     )
   } else {
-    inform(verbose, "Opened a lazy Arrow stream", type = "success")
+    inform(verbose, "Staged a disk-backed Arrow stream", type = "success")
   }
   attempt$value
 }
@@ -631,6 +637,60 @@ fabric_delta_reader_stream <- function(reader, collect = FALSE) {
     )
   }
   stream
+}
+
+#' Stage an authenticated stream in a local Arrow IPC file
+#' @keywords internal
+#' @noRd
+fabric_delta_spool_stream <- function(stream) {
+  snapshot_version <- attr(
+    stream,
+    "fabric_delta_snapshot_version",
+    exact = TRUE
+  )
+  path <- tempfile("fabricQueryR-delta-", fileext = ".arrows")
+  complete <- FALSE
+  on.exit(
+    {
+      if (!complete) {
+        unlink(path)
+      }
+    },
+    add = TRUE
+  )
+
+  nanoarrow::write_nanoarrow(stream, path)
+  connection <- file(path, open = "rb")
+  local_stream <- tryCatch(
+    nanoarrow::read_nanoarrow(connection, lazy = TRUE),
+    error = function(error) {
+      close(connection)
+      stop(error)
+    }
+  )
+  cleanup <- local({
+    spool_connection <- connection
+    spool_path <- path
+    function() {
+      if (isOpen(spool_connection)) {
+        close(spool_connection)
+      }
+      unlink(spool_path)
+    }
+  })
+  local_stream <- tryCatch(
+    nanoarrow::array_stream_set_finalizer(local_stream, cleanup),
+    error = function(error) {
+      cleanup()
+      stop(error)
+    }
+  )
+  attr(local_stream, "fabric_delta_spool_path") <- path
+  if (!is.null(snapshot_version)) {
+    attr(local_stream, "fabric_delta_snapshot_version") <- snapshot_version
+  }
+  complete <- TRUE
+  local_stream
 }
 
 #' Detect timestamp-without-time-zone Arrow formats

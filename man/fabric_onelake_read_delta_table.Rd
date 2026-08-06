@@ -65,7 +65,7 @@ leave this as \code{NULL} and let fabricQueryR sign in.}
 processing.}
 }
 \value{
-A tibble, or a lazy, single-use Arrow stream when
+A tibble, or a disk-backed, lazy, single-use Arrow stream when
 \code{result = "arrow_stream"}.
 }
 \description{
@@ -86,9 +86,12 @@ does not guarantee which rows are returned. Use \code{version} to read an earlie
 version of the table.
 
 For a large table, or one containing nested data, set
-\code{result = "arrow_stream"} to process the result in batches. The returned
-stream is lazy and can be read only once. The first Delta read may take a
-little longer while the optional Python reader is set up.
+\code{result = "arrow_stream"} to process the result in batches. The remote data
+is staged in a temporary Arrow IPC file while the OneLake token is current,
+and the returned disk-backed stream is lazy and can be read only once. This
+avoids token expiry between creating and consuming a stream, and keeps the
+result out of R memory, but requires enough temporary disk space for the
+selected data. The temporary file is removed when the stream is released.
 
 Direct reads require OneLake data access; item \code{Read} permission by itself is
 not enough. The caller needs \code{ReadAll} or a suitable OneLake data-access role,
