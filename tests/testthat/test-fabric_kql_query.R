@@ -323,12 +323,14 @@ test_that("multiple and progressive Kusto primary tables are assembled", {
     list(
       FrameType = "TableFragment",
       TableId = 1L,
+      FieldCount = 1L,
       TableFragmentType = "DataAppend",
       Rows = list(list(1L), list(2L))
     ),
     list(
       FrameType = "TableFragment",
       TableId = 1L,
+      FieldCount = 1L,
       TableFragmentType = "DataReplace",
       Rows = list(list(3L))
     ),
@@ -361,23 +363,34 @@ test_that("multiple and progressive Kusto primary tables are assembled", {
 })
 
 test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
+  header <- list(
+    FrameType = "DataSetHeader",
+    Version = "v2.0",
+    IsProgressive = FALSE
+  )
   expect_error(
-    kusto_parse_response(list(kusto_test_completion(
-      TRUE,
-      list(list(code = "SEM0100", message = "missing table"))
-    ))),
+    kusto_parse_response(list(
+      header,
+      kusto_test_completion(
+        TRUE,
+        list(list(code = "SEM0100", message = "missing table"))
+      )
+    )),
     "SEM0100.*missing table"
   )
   expect_error(
-    kusto_parse_response(list(list(
-      FrameType = "DataSetCompletion",
-      HasErrors = FALSE,
-      Cancelled = TRUE
-    ))),
+    kusto_parse_response(list(
+      header,
+      list(
+        FrameType = "DataSetCompletion",
+        HasErrors = FALSE,
+        Cancelled = TRUE
+      )
+    )),
     "cancelled",
     fixed = TRUE
   )
-  expect_error(kusto_parse_response(list()), "DataSetCompletion")
+  expect_error(kusto_parse_response(list()), "malformed v2 response")
 
   httr2::local_mocked_responses(function(req) {
     kusto_test_response(
@@ -394,6 +407,127 @@ test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
       token = "token"
     ),
     "HTTP 400.*invalid KQL"
+  )
+})
+
+test_that("Kusto v2 parser rejects malformed envelopes and rows", {
+  header <- list(
+    FrameType = "DataSetHeader",
+    Version = "v2.0",
+    IsProgressive = FALSE
+  )
+  table <- list(
+    FrameType = "DataTable",
+    TableId = 0L,
+    TableKind = "PrimaryResult",
+    TableName = "PrimaryResult",
+    Columns = list(
+      list(ColumnName = "a", ColumnType = "int"),
+      list(ColumnName = "b", ColumnType = "string")
+    ),
+    Rows = list(list(1L, "one"))
+  )
+  completion <- kusto_test_completion()
+
+  expect_error(
+    kusto_parse_response(list(table, header, completion)),
+    "DataSetHeader must be the first",
+    fixed = TRUE
+  )
+  expect_error(
+    kusto_parse_response(list(header, completion, table)),
+    "DataSetCompletion must be the final",
+    fixed = TRUE
+  )
+  missing_has_errors <- completion
+  missing_has_errors$HasErrors <- NULL
+  expect_error(
+    kusto_parse_response(list(header, table, missing_has_errors)),
+    "HasErrors must be true or false",
+    fixed = TRUE
+  )
+
+  long_row <- table
+  long_row$Rows <- list(list(1L, "one", "extra"))
+  expect_error(
+    kusto_parse_response(list(header, long_row, completion)),
+    "row width must equal the declared 2 columns",
+    fixed = TRUE
+  )
+  short_row <- table
+  short_row$Rows <- list(list(1L))
+  expect_error(
+    kusto_parse_response(list(header, short_row, completion)),
+    "row width must equal the declared 2 columns",
+    fixed = TRUE
+  )
+})
+
+test_that("Kusto v2 parser validates progressive transitions", {
+  header <- list(
+    FrameType = "DataSetHeader",
+    Version = "v2.0",
+    IsProgressive = TRUE
+  )
+  table_header <- list(
+    FrameType = "TableHeader",
+    TableId = 4L,
+    TableKind = "PrimaryResult",
+    TableName = "Progressive",
+    Columns = list(list(ColumnName = "value", ColumnType = "int"))
+  )
+  fragment <- list(
+    FrameType = "TableFragment",
+    TableId = 4L,
+    FieldCount = 1L,
+    TableFragmentType = "DataAppend",
+    Rows = list(list(1L))
+  )
+  table_completion <- list(
+    FrameType = "TableCompletion",
+    TableId = 4L,
+    RowCount = 1L
+  )
+  completion <- kusto_test_completion()
+
+  wrong_fields <- fragment
+  wrong_fields$FieldCount <- 2L
+  expect_error(
+    kusto_parse_response(list(
+      header, table_header, wrong_fields, table_completion, completion
+    )),
+    "FieldCount does not match",
+    fixed = TRUE
+  )
+  bad_operation <- fragment
+  bad_operation$TableFragmentType <- "DataMerge"
+  expect_error(
+    kusto_parse_response(list(
+      header, table_header, bad_operation, table_completion, completion
+    )),
+    "DataAppend or DataReplace",
+    fixed = TRUE
+  )
+  expect_error(
+    kusto_parse_response(list(header, table_header, fragment, completion)),
+    "missing TableCompletion",
+    fixed = TRUE
+  )
+  wrong_rows <- table_completion
+  wrong_rows$RowCount <- 2L
+  expect_error(
+    kusto_parse_response(list(
+      header, table_header, fragment, wrong_rows, completion
+    )),
+    "contains 1 rows",
+    fixed = TRUE
+  )
+  expect_error(
+    kusto_parse_response(list(
+      header, table_header, fragment, table_completion, fragment, completion
+    )),
+    "after TableCompletion",
+    fixed = TRUE
   )
 })
 

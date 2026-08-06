@@ -455,47 +455,145 @@ kusto_frame_type <- function(frame) {
 }
 
 kusto_parse_response <- function(frames) {
-  if (!is.list(frames)) {
+  if (!is.list(frames) || !length(frames)) {
     rlang::abort("Kusto returned a malformed v2 response")
   }
-  completion <- NULL
+  if (!all(vapply(frames, is.list, logical(1)))) {
+    kusto_abort_malformed("every response frame must be an object")
+  }
+  frame_types <- vapply(frames, kusto_frame_type, character(1))
+  if (!identical(frame_types[[1L]], "DataSetHeader")) {
+    kusto_abort_malformed("DataSetHeader must be the first frame")
+  }
+  if (!identical(frame_types[[length(frame_types)]], "DataSetCompletion")) {
+    kusto_abort_malformed("DataSetCompletion must be the final frame")
+  }
+  if (sum(frame_types == "DataSetHeader") != 1L) {
+    kusto_abort_malformed("DataSetHeader must appear exactly once")
+  }
+  if (sum(frame_types == "DataSetCompletion") != 1L) {
+    kusto_abort_malformed("DataSetCompletion must appear exactly once")
+  }
+  if (any(frame_types == "Unknown")) {
+    kusto_abort_malformed("the response contains an unknown frame type")
+  }
+
+  header <- frames[[1L]]
+  kusto_require_string(header, "Version", "DataSetHeader")
+  if (!identical(header$Version, "v2.0")) {
+    kusto_abort_malformed("DataSetHeader Version must be 'v2.0'")
+  }
+  kusto_require_flag(header, "IsProgressive", "DataSetHeader")
+
   tables <- list()
   table_order <- character()
-  for (frame in frames) {
-    type <- kusto_frame_type(frame)
-    if (identical(type, "DataSetCompletion")) {
-      completion <- frame
-    } else if (identical(type, "DataTable")) {
-      key <- as.character(frame$TableId %||% length(table_order))
+  progressive_tables <- character()
+  completed <- character()
+  table_indexes <- if (length(frames) > 2L) {
+    seq.int(2L, length(frames) - 1L)
+  } else {
+    integer()
+  }
+  for (index in table_indexes) {
+    frame <- frames[[index]]
+    type <- frame_types[[index]]
+    if (identical(type, "DataTable")) {
+      kusto_validate_table_frame(frame, "DataTable", require_rows = TRUE)
+      key <- as.character(frame$TableId)
+      if (key %in% table_order) {
+        kusto_abort_malformed(paste0("duplicate table ID ", key))
+      }
       tables[[key]] <- frame
       table_order <- c(table_order, key)
     } else if (identical(type, "TableHeader")) {
+      if (!isTRUE(header$IsProgressive)) {
+        kusto_abort_malformed(
+          "progressive table frames require IsProgressive = true"
+        )
+      }
+      kusto_validate_table_frame(frame, "TableHeader", require_rows = FALSE)
       key <- as.character(frame$TableId)
+      if (key %in% table_order) {
+        kusto_abort_malformed(paste0("duplicate table ID ", key))
+      }
       frame$Rows <- list()
       tables[[key]] <- frame
       table_order <- c(table_order, key)
+      progressive_tables <- c(progressive_tables, key)
     } else if (identical(type, "TableFragment")) {
-      key <- as.character(frame$TableId)
+      if (!isTRUE(header$IsProgressive)) {
+        kusto_abort_malformed(
+          "progressive table frames require IsProgressive = true"
+        )
+      }
+      key <- kusto_progressive_table_key(frame, type, tables, completed)
+      field_count <- kusto_require_count(frame, "FieldCount", type)
+      if (field_count != length(tables[[key]]$Columns)) {
+        kusto_abort_malformed(paste0(
+          "TableFragment FieldCount does not match table ", key, " schema"
+        ))
+      }
+      operation <- kusto_require_string(frame, "TableFragmentType", type)
+      if (!operation %in% c("DataAppend", "DataReplace")) {
+        kusto_abort_malformed(
+          "TableFragmentType must be DataAppend or DataReplace"
+        )
+      }
+      if (!"Rows" %in% names(frame) || !is.list(frame$Rows)) {
+        kusto_abort_malformed("TableFragment Rows must be an array")
+      }
+      kusto_validate_rows(frame$Rows, field_count, "TableFragment")
       if (is.null(tables[[key]])) {
-        rlang::abort(
-          "Kusto returned a table fragment without a table header"
-        )
+        kusto_abort_malformed("table fragment without a table header")
       }
-      if (identical(frame$TableFragmentType, "DataReplace")) {
-        tables[[key]]$Rows <- frame$Rows %||% list()
+      if (identical(operation, "DataReplace")) {
+        tables[[key]]$Rows <- frame$Rows
       } else {
-        tables[[key]]$Rows <- c(
-          tables[[key]]$Rows %||% list(),
-          frame$Rows %||% list()
+        tables[[key]]$Rows <- c(tables[[key]]$Rows, frame$Rows)
+      }
+    } else if (identical(type, "TableProgress")) {
+      if (!isTRUE(header$IsProgressive)) {
+        kusto_abort_malformed(
+          "progressive table frames require IsProgressive = true"
         )
       }
+      kusto_progressive_table_key(frame, type, tables, completed)
+      progress <- frame$TableProgress
+      if (
+        !is.numeric(progress) || length(progress) != 1L ||
+          is.na(progress) || !is.finite(progress) ||
+          progress < 0 || progress > 100
+      ) {
+        kusto_abort_malformed("TableProgress must be between 0 and 100")
+      }
+    } else if (identical(type, "TableCompletion")) {
+      if (!isTRUE(header$IsProgressive)) {
+        kusto_abort_malformed(
+          "progressive table frames require IsProgressive = true"
+        )
+      }
+      key <- kusto_progressive_table_key(frame, type, tables, completed)
+      row_count <- kusto_require_count(frame, "RowCount", type)
+      actual <- length(tables[[key]]$Rows)
+      if (row_count != actual) {
+        kusto_abort_malformed(sprintf(
+          "TableCompletion RowCount is %d but table %s contains %d rows",
+          row_count,
+          key,
+          actual
+        ))
+      }
+      completed <- c(completed, key)
     }
   }
-  if (is.null(completion)) {
-    rlang::abort(
-      "Kusto v2 response did not include a DataSetCompletion frame"
-    )
+  incomplete <- setdiff(progressive_tables, completed)
+  if (length(incomplete)) {
+    kusto_abort_malformed(paste0(
+      "missing TableCompletion for table ID(s): ",
+      paste(incomplete, collapse = ", ")
+    ))
   }
+  completion <- frames[[length(frames)]]
   kusto_check_completion(completion)
 
   table_order <- unique(table_order)
@@ -526,7 +624,96 @@ kusto_parse_response <- function(frames) {
   structure(results, class = c("fabric_kql_tables", "list"))
 }
 
+kusto_abort_malformed <- function(detail) {
+  rlang::abort(
+    paste0("Kusto returned a malformed v2 response: ", detail),
+    class = "fabric_kql_protocol_error"
+  )
+}
+
+kusto_require_string <- function(frame, field, type) {
+  value <- frame[[field]]
+  if (
+    !is.character(value) || length(value) != 1L ||
+      is.na(value) || !nzchar(value)
+  ) {
+    kusto_abort_malformed(paste(type, field, "must be one non-empty string"))
+  }
+  value
+}
+
+kusto_require_flag <- function(frame, field, type) {
+  value <- frame[[field]]
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    kusto_abort_malformed(paste(type, field, "must be true or false"))
+  }
+  value
+}
+
+kusto_require_count <- function(frame, field, type) {
+  value <- frame[[field]]
+  if (
+    !is.numeric(value) || length(value) != 1L || is.na(value) ||
+      !is.finite(value) || value < 0 || value != floor(value) ||
+      value > .Machine$integer.max
+  ) {
+    kusto_abort_malformed(paste(type, field, "must be a non-negative integer"))
+  }
+  as.integer(value)
+}
+
+kusto_validate_table_frame <- function(frame, type, require_rows) {
+  kusto_require_count(frame, "TableId", type)
+  kusto_require_string(frame, "TableKind", type)
+  kusto_require_string(frame, "TableName", type)
+  columns <- frame$Columns
+  if (!is.list(columns)) {
+    kusto_abort_malformed(paste(type, "Columns must be an array"))
+  }
+  for (column in columns) {
+    if (!is.list(column)) {
+      kusto_abort_malformed(paste(type, "column definitions must be objects"))
+    }
+    kusto_require_string(column, "ColumnName", paste(type, "column"))
+    kusto_require_string(column, "ColumnType", paste(type, "column"))
+  }
+  if (isTRUE(require_rows)) {
+    if (!"Rows" %in% names(frame) || !is.list(frame$Rows)) {
+      kusto_abort_malformed(paste(type, "Rows must be an array"))
+    }
+    kusto_validate_rows(frame$Rows, length(columns), type)
+  }
+  invisible(TRUE)
+}
+
+kusto_validate_rows <- function(rows, field_count, type) {
+  for (row in rows) {
+    if (!is.list(row) || length(row) != field_count) {
+      kusto_abort_malformed(sprintf(
+        "%s row width must equal the declared %d columns",
+        type,
+        field_count
+      ))
+    }
+  }
+  invisible(TRUE)
+}
+
+kusto_progressive_table_key <- function(frame, type, tables, completed) {
+  table_id <- kusto_require_count(frame, "TableId", type)
+  key <- as.character(table_id)
+  if (is.null(tables[[key]])) {
+    kusto_abort_malformed(paste(type, "was received without a TableHeader"))
+  }
+  if (key %in% completed) {
+    kusto_abort_malformed(paste(type, "was received after TableCompletion"))
+  }
+  key
+}
+
 kusto_check_completion <- function(completion) {
+  kusto_require_flag(completion, "HasErrors", "DataSetCompletion")
+  kusto_require_flag(completion, "Cancelled", "DataSetCompletion")
   if (isTRUE(completion$Cancelled)) {
     rlang::abort("Kusto query was cancelled before completion")
   }
