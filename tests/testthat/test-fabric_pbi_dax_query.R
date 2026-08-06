@@ -608,7 +608,7 @@ test_that("Arrow DAX parser handles LZ4 and Arrow C stream compatibility", {
   )
 })
 
-test_that("Arrow DAX parser decodes dictionary values for R and streams", {
+test_that("Arrow DAX parser decodes tables and streams native dictionaries", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")
   name <- arrow::DictionaryArray$create(
@@ -628,12 +628,15 @@ test_that("Arrow DAX parser decodes dictionary values for R and streams", {
   result <- pbi_parse_dax_arrow_response(payload)
   stream <- pbi_parse_dax_arrow_response(payload, "arrow_stream")
   streamed <- arrow::as_record_batch_reader(stream)$read_table()
-  streamed <- as.data.frame(streamed)
+  streamed <- suppressWarnings(as.data.frame(streamed))
 
   expect_equal(result$name, c("alpha", "beta", "gamma"))
   expect_equal(result$amount, c(10.5, 20, NA))
-  expect_equal(streamed$name, c("alpha", "beta", "gamma"))
-  expect_equal(streamed$amount, c(10.5, 20, NA))
+  expect_equal(as.character(streamed$name), c("alpha", "beta", "gamma"))
+  expect_equal(
+    as.numeric(as.character(streamed$amount)),
+    c(10.5, 20, NA)
+  )
 })
 
 test_that("Arrow DAX responses can be parsed from disk", {
@@ -652,6 +655,52 @@ test_that("Arrow DAX responses can be parsed from disk", {
 
   expect_equal(result$value, 1:3)
   expect_equal(as.data.frame(streamed)$value, 1:3)
+})
+
+test_that("Arrow DAX stream remains file-backed without collecting its table", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  payload <- arrow::BufferOutputStream$create()
+  writer <- arrow::RecordBatchStreamWriter$create(
+    payload,
+    arrow::schema(value = arrow::int32())
+  )
+  for (index in seq_len(10L)) {
+    writer$write_batch(arrow::record_batch(
+      value = seq.int((index - 1L) * 100L + 1L, index * 100L)
+    ))
+  }
+  writer$close()
+  bytes <- payload$finish()$data()
+
+  local_mocked_bindings(
+    .httr2_perform = function(req, download_path, ...) {
+      writeBin(bytes, download_path)
+      httr2::new_response(
+        method = "POST",
+        url = req$url,
+        status_code = 200L,
+        headers = list(),
+        body = raw(),
+        request = req
+      )
+    }
+  )
+
+  stream <- pbi_execute_dax_arrow(
+    credential = fabric_credential(token = "token"),
+    dataset_id = "dataset",
+    dax = "EVALUATE ROW()",
+    group_id = "workspace",
+    result = "arrow_stream"
+  )
+  resource <- attr(stream, "fabric_dax_resource")
+
+  expect_s3_class(stream, "nanoarrow_array_stream")
+  expect_true(file.exists(resource$path))
+  expect_s3_class(resource$reader, "RecordBatchReader")
+  reader <- arrow::as_record_batch_reader(stream)
+  expect_equal(nrow(reader$read_table()), 1000L)
 })
 
 test_that("Arrow DAX parser rejects error and multiple data rowsets", {

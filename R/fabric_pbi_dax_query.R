@@ -106,9 +106,11 @@
 #'   With `api = "arrow"`, `"arrow_stream"` returns a
 #'   `nanoarrow_array_stream` compatible with
 #'   [arrow::as_record_batch_reader()] and other Arrow C stream consumers. The
-#'   HTTP response is streamed to a temporary file before Arrow reads it, but
-#'   the returned Arrow table is materialized in memory so that concatenated
-#'   data and error rowsets can be validated.
+#'   HTTP response is streamed to a temporary file and record batches remain
+#'   file-backed and lazy. The response is scanned one batch at a time first so
+#'   concatenated data and error rowsets can be validated without collecting the
+#'   data table. Dictionary-encoded columns remain native Arrow dictionaries in
+#'   this mode; their R representation is chosen by the eventual consumer.
 #' @param arrow_options Named list of optional `executeDaxQueries` request
 #'   properties. Supported names are `applicationContext`, `culture`,
 #'   `customData`, `effectiveUsername`, `memoryLimit`, `queryTimeout`,
@@ -669,7 +671,12 @@ pbi_execute_dax_arrow <- function(
     ) |>
     httr2::req_body_json(body)
   payload <- tempfile("fabricqueryr-dax-", fileext = ".arrow")
-  on.exit(unlink(payload, force = TRUE), add = TRUE)
+  keep_payload <- FALSE
+  on.exit({
+    if (!keep_payload) {
+      unlink(payload, force = TRUE)
+    }
+  }, add = TRUE)
   .httr2_perform(
     req,
     credential = credential,
@@ -677,7 +684,13 @@ pbi_execute_dax_arrow <- function(
     idempotent = TRUE,
     download_path = payload
   )
-  pbi_parse_dax_arrow_response(payload, result = result)
+  value <- pbi_parse_dax_arrow_response(
+    payload,
+    result = result,
+    cleanup_path = identical(result, "arrow_stream")
+  )
+  keep_payload <- identical(result, "arrow_stream")
+  value
 }
 
 #' Parse concatenated Execute DAX Queries Arrow IPC streams
@@ -685,7 +698,8 @@ pbi_execute_dax_arrow <- function(
 #' @noRd
 pbi_parse_dax_arrow_response <- function(
   payload,
-  result = c("tibble", "arrow_stream")
+  result = c("tibble", "arrow_stream"),
+  cleanup_path = FALSE
 ) {
   result <- match.arg(result)
   path_payload <- is.character(payload) &&
@@ -708,6 +722,7 @@ pbi_parse_dax_arrow_response <- function(
   }
   size <- if (path_payload) file.info(payload)$size else length(payload)
   data_tables <- list()
+  data_positions <- numeric()
   metrics_tables <- list()
   while (buffer$tell() < size) {
     position <- buffer$tell()
@@ -721,29 +736,49 @@ pbi_parse_dax_arrow_response <- function(
       }
     )
     schema <- reader$schema
-    table <- tryCatch(
-      reader$read_table(),
-      error = function(error) {
-        rlang::abort(
-          "Could not decompress or read the Power BI Arrow DAX response",
-          parent = error
-        )
-      }
-    )
-    table <- pbi_decode_dax_arrow_dictionaries(table)
     metadata <- schema$metadata %||% list()
-    if (identical(tolower(metadata[["IsError"]] %||% "false"), "true")) {
+    is_error <- identical(
+      tolower(metadata[["IsError"]] %||% "false"),
+      "true"
+    )
+    is_metrics <- identical(
+      tolower(metadata[["IsExecMetrics"]] %||% "false"),
+      "true"
+    )
+    materialize <- !identical(result, "arrow_stream") || is_error || is_metrics
+    table <- if (materialize) {
+      value <- tryCatch(
+        reader$read_table(),
+        error = function(error) {
+          rlang::abort(
+            "Could not decompress or read the Power BI Arrow DAX response",
+            parent = error
+          )
+        }
+      )
+      pbi_decode_dax_arrow_dictionaries(value)
+    } else {
+      tryCatch(
+        while (!is.null(reader$read_next_batch())) {
+          # Validate and advance one bounded record batch at a time.
+        },
+        error = function(error) {
+          rlang::abort(
+            "Could not decompress or read the Power BI Arrow DAX response",
+            parent = error
+          )
+        }
+      )
+      NULL
+    }
+    if (is_error) {
       pbi_abort_dax_arrow_error(metadata, table)
     }
-    if (
-      identical(
-        tolower(metadata[["IsExecMetrics"]] %||% "false"),
-        "true"
-      )
-    ) {
+    if (is_metrics) {
       metrics_tables[[length(metrics_tables) + 1L]] <- table
     } else {
-      data_tables[[length(data_tables) + 1L]] <- table
+      data_tables[length(data_tables) + 1L] <- list(table)
+      data_positions <- c(data_positions, position)
     }
     if (buffer$tell() <= position) {
       rlang::abort("Power BI returned a non-advancing Arrow DAX stream")
@@ -764,15 +799,33 @@ pbi_parse_dax_arrow_response <- function(
       length(metrics_tables)
     ))
   }
-  table <- data_tables[[1L]]
   metrics <- if (length(metrics_tables)) {
     tibble::as_tibble(as.data.frame(metrics_tables[[1L]]))
   } else {
     NULL
   }
   if (identical(result, "arrow_stream")) {
-    value <- nanoarrow::as_nanoarrow_array_stream(table)
+    stream_buffer <- if (path_payload) {
+      arrow::mmap_open(payload)
+    } else {
+      arrow::BufferReader$create(payload)
+    }
+    stream_buffer$seek(data_positions[[1L]])
+    stream_reader <- arrow::RecordBatchStreamReader$create(stream_buffer)
+    value <- nanoarrow::as_nanoarrow_array_stream(stream_reader)
+    resource <- new.env(parent = emptyenv())
+    resource$buffer <- stream_buffer
+    resource$reader <- stream_reader
+    resource$path <- if (path_payload && isTRUE(cleanup_path)) payload else NULL
+    reg.finalizer(resource, function(environment) {
+      try(environment$buffer$close(), silent = TRUE)
+      if (!is.null(environment$path)) {
+        unlink(environment$path, force = TRUE)
+      }
+    }, onexit = TRUE)
+    attr(value, "fabric_dax_resource") <- resource
   } else {
+    table <- data_tables[[1L]]
     value <- tibble::as_tibble(as.data.frame(table))
   }
   if (!is.null(metrics)) {

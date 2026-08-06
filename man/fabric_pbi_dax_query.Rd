@@ -84,9 +84,11 @@ Leave \code{NULL} for the normal identity context.}
 With \code{api = "arrow"}, \code{"arrow_stream"} returns a
 \code{nanoarrow_array_stream} compatible with
 \code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} and other Arrow C stream consumers. The
-HTTP response is streamed to a temporary file before Arrow reads it, but
-the returned Arrow table is materialized in memory so that concatenated
-data and error rowsets can be validated.}
+HTTP response is streamed to a temporary file and record batches remain
+file-backed and lazy. The response is scanned one batch at a time first so
+concatenated data and error rowsets can be validated without collecting the
+data table. Dictionary-encoded columns remain native Arrow dictionaries in
+this mode; their R representation is chosen by the eventual consumer.}
 
 \item{arrow_options}{Named list of optional \code{executeDaxQueries} request
 properties. Supported names are \code{applicationContext}, \code{culture},
