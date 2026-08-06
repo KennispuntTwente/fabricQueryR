@@ -5,6 +5,7 @@
   "Deduped"
 )
 .fabric_job_active_states <- c("NotStarted", "InProgress")
+.fabric_job_poll_floor <- 0.1
 
 .fabric_job_parameter_types <- c(
   "VariableReference",
@@ -285,7 +286,8 @@ fabric_job_status <- function(
 
 #' @param poll_interval Minimum seconds between status requests. `NULL` uses
 #'   Fabric's recommended `Retry-After` value, falling back to two seconds.
-#'   Setting a value never polls faster than Fabric requests.
+#'   Setting a value never polls faster than Fabric requests. A 0.1-second
+#'   safety floor applies when both values are zero or absent.
 #' @param timeout Maximum seconds to wait before raising a
 #'   `fabric_job_timeout`.
 #' @param error_on_failure Whether failed, cancelled, or deduplicated jobs raise
@@ -397,6 +399,7 @@ fabric_job_wait <- function(
     }
 
     delay <- max(
+      .fabric_job_poll_floor,
       poll_interval %||% 0,
       retry_after %||% if (is.null(poll_interval)) 2 else 0
     )

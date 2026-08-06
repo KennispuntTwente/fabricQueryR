@@ -166,7 +166,8 @@ supply it together with a \code{fabric_job} handle.}
 
 \item{poll_interval}{Minimum seconds between status requests. \code{NULL} uses
 Fabric's recommended \code{Retry-After} value, falling back to two seconds.
-Setting a value never polls faster than Fabric requests.}
+Setting a value never polls faster than Fabric requests. A 0.1-second
+safety floor applies when both values are zero or absent.}
 
 \item{timeout}{Maximum seconds to wait before raising a
 \code{fabric_job_timeout}.}
@@ -191,8 +192,9 @@ authentication context.
 \code{fabric_job_instance} list with \code{status}, start/end times,
 \code{failure_reason}, notebook \code{exit_value} when available, workload
 \code{properties}, and \code{raw} response. \code{fabric_job_cancel()} returns \code{TRUE}
-invisibly after Fabric accepts the cancellation request; terminal state
-may not be visible immediately.
+invisibly after Fabric accepts the cancellation request, or after a status
+check confirms that an ambiguous request reached a terminal job. Terminal
+state may not be visible immediately after a newly accepted cancellation.
 }
 \description{
 Starts one on-demand run of a supported Fabric item, then lets R inspect,

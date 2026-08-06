@@ -706,6 +706,47 @@ test_that("wait honors Retry-After and returns a completed result", {
   expect_equal(index, 2L)
 })
 
+test_that("wait retains a positive polling floor", {
+  responses <- list(
+    list(
+      status_code = 200L,
+      retry_after = NULL,
+      body = list(id = "job", status = "InProgress")
+    ),
+    list(
+      status_code = 200L,
+      retry_after = NULL,
+      body = list(id = "job", status = "Completed")
+    )
+  )
+  index <- 0L
+  elapsed <- 0
+  sleeps <- numeric()
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      index <<- index + 1L
+      responses[[index]]
+    }
+  )
+
+  result <- fabric_job_wait(
+    job_test_handle(item_type = "DataPipeline", retry_after = NULL),
+    poll_interval = 0,
+    timeout = 1,
+    .sleep = function(seconds) {
+      sleeps <<- c(sleeps, seconds)
+      elapsed <<- elapsed + seconds
+    },
+    .now = function() {
+      as.POSIXct("2026-01-01", tz = "UTC") + elapsed
+    }
+  )
+
+  expect_equal(result$status, "Completed")
+  expect_equal(sleeps, c(.fabric_job_poll_floor, .fabric_job_poll_floor))
+  expect_true(all(sleeps > 0))
+})
+
 test_that("wait tolerates visibility delays until its timeout", {
   polls <- 0L
   elapsed <- 0
