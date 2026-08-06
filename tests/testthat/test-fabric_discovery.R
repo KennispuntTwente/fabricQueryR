@@ -385,6 +385,33 @@ test_that("typed routes and derived targets cover supported workloads", {
     "Sales;Archive"
   )
 
+  personal_model <- fabric_add_derived_targets(
+    list(
+      id = "personal-model-id",
+      workspaceDisplayName = "My Workspace",
+      workspaceType = "Personal",
+      workspaceTenantId = "11111111-1111-4111-8111-111111111111",
+      workspaceOwner = "owner@example.com",
+      type = "SemanticModel",
+      displayName = "Personal Model"
+    ),
+    .fabric_api_base
+  )
+  expect_match(personal_model$dax_connection_string, "/v2.0/")
+  expect_match(
+    personal_model$dax_connection_string,
+    "/home/myworkspace/owner%40example.com",
+    fixed = TRUE
+  )
+  incomplete_personal <- personal_model
+  incomplete_personal$dax_connection_string <- NULL
+  incomplete_personal$workspaceOwner <- NULL
+  incomplete_personal <- fabric_add_derived_targets(
+    incomplete_personal,
+    .fabric_api_base
+  )
+  expect_null(incomplete_personal$dax_connection_string)
+
   eventhouse <- fabric_add_derived_targets(
     list(
       id = "event-id",

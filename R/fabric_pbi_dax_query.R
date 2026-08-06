@@ -13,6 +13,10 @@
 #'   supply `workspace_id` and `dataset_id` (both GUIDs), or a Power BI
 #'   connection string containing the workspace and semantic-model names. IDs
 #'   avoid name lookup and are best for scheduled code.
+#' - Personal workspaces use the current v2 XMLA form:
+#'   `powerbi://api.powerbi.com/v2.0/{tenantId}/home/myworkspace/{owner}`,
+#'   where `owner` is a URI-encoded UPN or object ID. Shared workspaces continue
+#'   to use the v1 URL shown below.
 #' - In Fabric/Power BI, open the semantic model's settings to find its server
 #'   or XMLA connection information. The signed-in identity needs Read and Build
 #'   permission on the semantic model, either through its workspace role or
@@ -140,7 +144,7 @@
 #' @examples
 #' # Example is not executed since it requires configured credentials for Fabric
 #' \dontrun{
-#' conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/My Workspace;Initial Catalog=SalesModel;"
+#' conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;Initial Catalog=SalesModel;"
 #' df <- fabric_pbi_dax_query(
 #'   connstr = conn,
 #'   dax = "EVALUATE TOPN(1000, 'Customers')",
@@ -368,17 +372,27 @@ pbi_parse_connstr <- function(conn) {
     )
   }
   ds <- fabric_unquote_connection_value(ds[[1L]])
-  if (
-    !grepl(
-      "^powerbi://api\\.powerbi\\.com/v1\\.0/[^/]+/[^/]+/?$",
-      ds,
-      ignore.case = TRUE
-    )
-  ) {
+  shared <- regexec(
+    "^powerbi://api\\.powerbi\\.com/v1\\.0/([^/]+)/([^/]+)/?$",
+    ds,
+    ignore.case = TRUE
+  )
+  shared <- regmatches(ds, shared)[[1L]]
+  personal <- regexec(
+    paste0(
+      "^powerbi://api\\.powerbi\\.com/v2\\.0/",
+      "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-",
+      "[0-9a-f]{12})/home/myworkspace/([^/]+)/?$"
+    ),
+    ds,
+    ignore.case = TRUE
+  )
+  personal <- regmatches(ds, personal)[[1L]]
+  if (!length(shared) && !length(personal)) {
     rlang::abort(
       paste0(
-        "Data Source must be a Power BI XMLA workspace URL like ",
-        "'powerbi://api.powerbi.com/v1.0/myorg/Workspace'"
+        "Data Source must be a shared-workspace v1 or personal-workspace ",
+        "v2 Power BI XMLA URL"
       )
     )
   }
@@ -405,17 +419,26 @@ pbi_parse_connstr <- function(conn) {
   }
   dataset_name <- catv[[1L]]
 
-  # Workspace is the last segment of the Data Source URL
-  ds_clean <- sub("/+$", "", sub("(?i)^powerbi://", "", ds))
-  segs <- strsplit(ds_clean, "/", fixed = TRUE)[[1]]
-  workspace_name <- utils::URLdecode(utils::tail(segs, 1))
+  is_personal <- length(personal) > 0L
+  workspace_name <- if (is_personal) {
+    "My Workspace"
+  } else {
+    utils::URLdecode(shared[[3L]])
+  }
   if (!nzchar(workspace_name)) {
     rlang::abort(
       "Power BI Data Source does not contain a workspace name"
     )
   }
 
-  list(server = ds, workspace = workspace_name, dataset = dataset_name)
+  list(
+    server = ds,
+    workspace = workspace_name,
+    dataset = dataset_name,
+    personal = is_personal,
+    tenant_id = if (is_personal) personal[[2L]] else NULL,
+    owner = if (is_personal) utils::URLdecode(personal[[3L]]) else NULL
+  )
 }
 
 #' Resolve workspace & dataset GUIDs using the Power BI REST API
@@ -433,11 +456,15 @@ pbi_resolve_ids_from_connstr <- function(
 ) {
   p <- pbi_parse_connstr(connstr)
 
-  group_id <- pbi_get_group_id_by_name(
-    credential = credential,
-    workspace_name = p$workspace,
-    api_base = api_base
-  )
+  group_id <- if (isTRUE(p$personal)) {
+    NULL
+  } else {
+    pbi_get_group_id_by_name(
+      credential = credential,
+      workspace_name = p$workspace,
+      api_base = api_base
+    )
+  }
   dataset_id <- pbi_get_dataset_id_by_name(
     credential = credential,
     group_id = group_id,
@@ -449,7 +476,8 @@ pbi_resolve_ids_from_connstr <- function(
     group_id = group_id,
     dataset_id = dataset_id,
     workspace = p$workspace,
-    dataset = p$dataset
+    dataset = p$dataset,
+    personal = p$personal
   )
 }
 
@@ -1047,7 +1075,11 @@ pbi_get_dataset_id_by_name <- function(
   dataset_name,
   api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
-  url <- sprintf("%s/groups/%s/datasets", api_base, group_id)
+  url <- if (is.null(group_id)) {
+    sprintf("%s/datasets", api_base)
+  } else {
+    sprintf("%s/groups/%s/datasets", api_base, group_id)
+  }
   vals <- pbi_get_collection(url, credential)
   hits <- vals[vapply(
     vals,

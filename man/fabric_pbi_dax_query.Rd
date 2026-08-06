@@ -119,6 +119,10 @@ than SQL intended for the underlying Lakehouse or Warehouse.
 supply \code{workspace_id} and \code{dataset_id} (both GUIDs), or a Power BI
 connection string containing the workspace and semantic-model names. IDs
 avoid name lookup and are best for scheduled code.
+\item Personal workspaces use the current v2 XMLA form:
+\verb{powerbi://api.powerbi.com/v2.0/\{tenantId\}/home/myworkspace/\{owner\}},
+where \code{owner} is a URI-encoded UPN or object ID. Shared workspaces continue
+to use the v1 URL shown below.
 \item In Fabric/Power BI, open the semantic model's settings to find its server
 or XMLA connection information. The signed-in identity needs Read and Build
 permission on the semantic model, either through its workspace role or
@@ -169,7 +173,7 @@ multiple data rowsets.
 \examples{
 # Example is not executed since it requires configured credentials for Fabric
 \dontrun{
-conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/My Workspace;Initial Catalog=SalesModel;"
+conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;Initial Catalog=SalesModel;"
 df <- fabric_pbi_dax_query(
   connstr = conn,
   dax = "EVALUATE TOPN(1000, 'Customers')",

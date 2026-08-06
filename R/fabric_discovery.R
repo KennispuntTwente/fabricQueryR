@@ -198,6 +198,19 @@ fabric_items <- function(
   records <- lapply(records, function(record) {
     record$workspaceId <- record$workspaceId %||% ws$id
     record$workspaceDisplayName <- ws$displayName
+    record$workspaceType <- fabric_record_value(ws$raw, "type")
+    record$workspaceTenantId <- fabric_record_value(
+      ws$raw,
+      "tenantId",
+      "tenant_id"
+    )
+    record$workspaceOwner <- fabric_record_value(
+      ws$raw,
+      "ownerUserPrincipalName",
+      "userPrincipalName",
+      "ownerId",
+      "userId"
+    )
     record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
       fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
     if (isTRUE(detail)) {
@@ -315,6 +328,18 @@ fabric_item <- function(
   record$workspaceId <- record$workspaceId %||% ws$id
   record$workspaceDisplayName <- record$workspaceDisplayName %||%
     ws$displayName
+  record$workspaceType <- record$workspaceType %||%
+    fabric_record_value(ws$raw, "type")
+  record$workspaceTenantId <- record$workspaceTenantId %||%
+    fabric_record_value(ws$raw, "tenantId", "tenant_id")
+  record$workspaceOwner <- record$workspaceOwner %||%
+    fabric_record_value(
+      ws$raw,
+      "ownerUserPrincipalName",
+      "userPrincipalName",
+      "ownerId",
+      "userId"
+    )
   record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
     fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
   if (!is.null(type) && !identical(tolower(record$type), tolower(type))) {
@@ -686,13 +711,36 @@ fabric_add_derived_targets <- function(record, api_base) {
   } else if (type == "semanticmodel") {
     workspace_name <- record$workspaceDisplayName
     if (!is.null(workspace_name) && !is.na(workspace_name)) {
-      record$dax_connection_string <- paste0(
-        "Data Source=powerbi://api.powerbi.com/v1.0/myorg/",
-        utils::URLencode(workspace_name, reserved = TRUE),
-        ";Initial Catalog=",
-        fabric_quote_connection_value(record$displayName),
-        ";"
-      )
+      workspace_type <- tolower(record$workspaceType %||% "")
+      personal <- workspace_type %in% c("personal", "personalgroup")
+      server <- if (personal) {
+        tenant_id <- record$workspaceTenantId
+        owner <- record$workspaceOwner
+        if (is.null(tenant_id) || is.null(owner)) {
+          NULL
+        } else {
+          paste0(
+            "powerbi://api.powerbi.com/v2.0/",
+            tenant_id,
+            "/home/myworkspace/",
+            utils::URLencode(owner, reserved = TRUE)
+          )
+        }
+      } else {
+        paste0(
+          "powerbi://api.powerbi.com/v1.0/myorg/",
+          utils::URLencode(workspace_name, reserved = TRUE)
+        )
+      }
+      if (!is.null(server)) {
+        record$dax_connection_string <- paste0(
+          "Data Source=",
+          server,
+          ";Initial Catalog=",
+          fabric_quote_connection_value(record$displayName),
+          ";"
+        )
+      }
     }
   } else if (type %in% c("eventhouse", "kqldatabase")) {
     record$query_service_uri <- properties$queryServiceUri

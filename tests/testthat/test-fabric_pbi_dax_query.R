@@ -61,7 +61,7 @@ test_that("pbi_parse_connstr rejects incomplete and non-Power-BI strings", {
     fabricQueryR:::pbi_parse_connstr(
       "Data Source=https://api.powerbi.com/Workspace;Catalog=Dataset;"
     ),
-    "Power BI XMLA workspace URL"
+    "Power BI XMLA URL"
   )
 })
 
@@ -458,6 +458,20 @@ test_that("DAX execution sends impersonation and parses one table", {
   expect_equal(result[["[value]"]], 7L)
 })
 
+test_that("pbi_parse_connstr supports v2 personal-workspace XMLA URLs", {
+  parsed <- pbi_parse_connstr(paste0(
+    "Data Source=powerbi://api.powerbi.com/v2.0/",
+    "11111111-1111-4111-8111-111111111111/home/myworkspace/",
+    "owner%40example.com;Initial Catalog=Personal Model;"
+  ))
+
+  expect_true(parsed$personal)
+  expect_identical(parsed$workspace, "My Workspace")
+  expect_identical(parsed$tenant_id, pbi_test_workspace_id)
+  expect_identical(parsed$owner, "owner@example.com")
+  expect_identical(parsed$dataset, "Personal Model")
+})
+
 test_that("unscoped DAX endpoints require explicit My Workspace mode", {
   expect_error(
     fabric_pbi_dax_query(
@@ -836,4 +850,29 @@ test_that("Power BI name lookup rejects ambiguous case-insensitive names", {
     "Use dataset_id",
     fixed = TRUE
   )
+})
+
+test_that("personal XMLA resolution uses the unscoped dataset collection", {
+  urls <- character()
+  local_mocked_bindings(
+    pbi_get_collection = function(url, ...) {
+      urls <<- c(urls, url)
+      list(list(id = pbi_test_dataset_id, name = "Personal Model"))
+    }
+  )
+
+  resolved <- pbi_resolve_ids_from_connstr(
+    paste0(
+      "Data Source=powerbi://api.powerbi.com/v2.0/",
+      pbi_test_workspace_id,
+      "/home/myworkspace/owner%40example.com;",
+      "Initial Catalog=Personal Model;"
+    ),
+    credential = fabric_credential(token = "token")
+  )
+
+  expect_null(resolved$group_id)
+  expect_true(resolved$personal)
+  expect_match(urls, "/datasets$")
+  expect_false(grepl("/groups/", urls, fixed = TRUE))
 })
