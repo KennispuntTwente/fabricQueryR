@@ -151,7 +151,8 @@ records containing <code>name</code>, <code>value</code>, and <code>type</code>.
 case-insensitively. The simple form, such as
 <code>list(run_date = as.Date("2026-01-31"), full_load = FALSE)</code>, infers types
 from R values and is appropriate for most runs. Parameter names must match
-those configured in the Fabric item.</p></dd>
+those configured in the Fabric item. Parameters are not part of the typed
+Spark Job Definition request and are rejected for that route.</p></dd>
 
 
 <dt id="arg-parameter-types">parameter_types<a class="anchor" aria-label="anchor" href="#arg-parameter-types"></a></dt>
@@ -165,7 +166,8 @@ only when R's inferred type is not the type expected in Fabric.</p></dd>
 <dd><p>Optional advanced workload configuration in the shape
 documented by Fabric. For notebooks this contains <code>compute</code> and optionally
 <code>computeConfiguration</code>; for Spark job definitions it is a named list of
-execution overrides. Data pipelines do not accept it here. Use the simpler
+execution overrides. For other item types it is forwarded as the Core Job
+Scheduler's item/job-specific <code>executionData</code> object. Use the simpler
 arguments below for common notebook settings.</p></dd>
 
 
@@ -188,8 +190,8 @@ attached to Warehouse compute. It must match what the notebook code needs.</p></
 
 
 <dt id="arg-session-tag">session_tag<a class="anchor" aria-label="anchor" href="#arg-session-tag"></a></dt>
-<dd><p>Optional Spark high-concurrency session tag containing
-only letters, numbers, and underscores. Supplying it enables Fabric's
+<dd><p>Optional non-empty Spark high-concurrency session tag.
+Fabric accepts arbitrary string values. Supplying it enables Fabric's
 high-concurrency mode so related notebook runs may reuse Spark compute.
 High-concurrency runs also change how failures are reported: Fabric keeps
 the shared session alive when a statement fails, so the run is reported as
@@ -219,7 +221,11 @@ reuses a matching cached token or starts its normal interactive login flow.</p><
 <dd><p>Named list of additional arguments passed to
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code> when no token source is supplied.
 Job submission and cancellation require <code>Item.Execute.All</code> or
-the corresponding workload-specific execute permission.</p></dd>
+the corresponding workload-specific execute permission. Status polling
+and waiting also require <code>Item.Read.All</code>, <code>Item.ReadWrite.All</code>, or the
+corresponding workload-specific read permission (for example,
+<code>Notebook.Read.All</code>). A token used for a complete run-and-wait workflow
+therefore needs both execute and read scopes.</p></dd>
 
 
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
@@ -243,7 +249,8 @@ supply it together with a <code>fabric_job</code> handle.</p></dd>
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
 <dd><p>Minimum seconds between status requests. <code>NULL</code> uses
 Fabric's recommended <code>Retry-After</code> value, falling back to two seconds.
-Setting a value never polls faster than Fabric requests.</p></dd>
+Setting a value never polls faster than Fabric requests. A 0.1-second
+safety floor applies when both values are zero or absent.</p></dd>
 
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
@@ -280,13 +287,18 @@ authentication context.
 <code>fabric_job_instance</code> list with <code>status</code>, start/end times,
 <code>failure_reason</code>, notebook <code>exit_value</code> when available, workload
 <code>properties</code>, and <code>raw</code> response. <code>fabric_job_cancel()</code> returns <code>TRUE</code>
-invisibly after Fabric accepts the cancellation request; terminal state
-may not be visible immediately.</p>
+invisibly after Fabric accepts the cancellation request, or after a status
+check confirms that an ambiguous request reached a terminal job. Terminal
+state may not be visible immediately after a newly accepted cancellation.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Notebook status uses Fabric's workload-specific beta endpoint first
 and falls back to the core scheduler when that endpoint is unavailable.
+Job submission already uses the release route (<code>beta=false</code>). Microsoft
+plans to deprecate the beta notebook API on April 1, 2028; fabricQueryR
+isolates it to the enriched status lookup and will migrate that lookup to
+the stable replacement before the retirement date.
 A beta response that says <code>Completed</code> but contains neither an exit value
 nor failure details is reconciled with the core scheduler before it is
 returned. This prevents a failed notebook cell from being reported as a

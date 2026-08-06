@@ -14,6 +14,7 @@ fabric_pbi_dax_query(
   dax,
   workspace_id = NULL,
   dataset_id = NULL,
+  my_workspace = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -51,14 +52,20 @@ fabric_pbi_dax_query(
 
 - workspace_id:
 
-  Optional workspace GUID. Use with `dataset_id` to avoid name-based
-  discovery. If omitted with `dataset_id`, the unscoped dataset endpoint
-  is used.
+  Optional shared-workspace GUID. Use with `dataset_id` to avoid
+  name-based discovery. For a model in My Workspace, omit this and set
+  `my_workspace = TRUE` explicitly.
 
 - dataset_id:
 
   Optional semantic model/dataset GUID. When supplied, no
   connection-string name lookup is performed.
+
+- my_workspace:
+
+  Logical. Confirm that `dataset_id` belongs to the signed-in user's My
+  Workspace and use Power BI's unscoped dataset endpoint. This explicit
+  opt-in prevents accidentally using that route for a shared model.
 
 - tenant_id:
 
@@ -118,18 +125,19 @@ fabric_pbi_dax_query(
   compatible with
   [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
   and other Arrow C stream consumers. The HTTP response is streamed to a
-  temporary file before Arrow reads it, but the returned Arrow table is
-  materialized in memory so that concatenated data, error, and metrics
-  rowsets can be validated.
+  temporary file and record batches remain file-backed and lazy. The
+  response is scanned one batch at a time first so concatenated data and
+  error rowsets can be validated without collecting the data table.
+  Dictionary-encoded columns remain native Arrow dictionaries in this
+  mode; their R representation is chosen by the eventual consumer.
 
 - arrow_options:
 
   Named list of optional `executeDaxQueries` request properties.
   Supported names are `applicationContext`, `culture`, `customData`,
-  `effectiveUsername`, `executionMetrics`, `memoryLimit`,
-  `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`.
-  The required `query` property is supplied from `dax`. Used only by
-  `api = "arrow"`.
+  `effectiveUsername`, `memoryLimit`, `queryTimeout`,
+  `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The required
+  `query` property is supplied from `dax`. Used only by `api = "arrow"`.
 
 ## Value
 
@@ -140,9 +148,7 @@ empty Arrow result becomes a typed zero-row result. Because the JSON API
 does not provide column metadata for an empty table, that path returns a
 zero-row, zero-column tibble. API errors, multiple rowsets, and
 partial/truncated JSON results raise an error rather than silently
-returning incomplete data. When `executionMetrics = TRUE`, the metrics
-rowset is attached to either result as an `execution_metrics` tibble
-attribute.
+returning incomplete data.
 
 ## Details
 
@@ -152,6 +158,11 @@ attribute.
   or a Power BI connection string containing the workspace and
   semantic-model names. IDs avoid name lookup and are best for scheduled
   code.
+
+- Personal workspaces use the current v2 XMLA form:
+  `powerbi://api.powerbi.com/v2.0/{tenantId}/home/myworkspace/{owner}`,
+  where `owner` is a URI-encoded UPN or object ID. Shared workspaces
+  continue to use the v1 URL shown below.
 
 - In Fabric/Power BI, open the semantic model's settings to find its
   server or XMLA connection information. The signed-in identity needs
@@ -169,28 +180,40 @@ attribute.
   Build permissions. Name lookup also requires `Workspace.Read.All` or
   equivalent.
 
-- The Power BI tenant setting **Dataset Execute Queries REST API** must
-  be enabled. Service-principal authentication also requires **Allow
-  service principals to use Power BI APIs**. Service principals are not
-  supported for semantic models with row-level security or single
-  sign-on enabled.
+- Both APIs require the Power BI tenant setting **Dataset Execute
+  Queries REST API**. Service-principal authentication also requires
+  **Allow service principals to use Power BI APIs**. The limitations
+  differ by endpoint, as described below.
 
 - Set `api = "json"` (the default) for the established `executeQueries`
   endpoint. It accepts one DAX query and one result table per request.
   Results are limited to 100,000 rows or 1,000,000 values (whichever is
   reached first), 15 MB, and 120 requests per minute per user. Partial
   results reported by Power BI are treated as errors by this function.
+  JSON does not carry the full semantic-model type system. Whole Number
+  values outside R's exactly representable numeric range are therefore
+  returned as character strings rather than silently rounded. Use the
+  Arrow endpoint when exact integer, fixed-decimal, currency, or date
+  types matter. Service principals cannot use this JSON endpoint with
+  models that have RLS or SSO enabled. Delegated users can supply
+  `impersonated_user` for supported RLS scenarios.
 
 - Set `api = "arrow"` for the newer `executeDaxQueries` endpoint. It
   preserves Arrow column types, raises errors carried in HTTP 200 Arrow
   error rowsets, and supports the additional documented request
   properties through `arrow_options`. The optional arrow package is
-  required because Power BI compresses record batches with LZ4. This API
-  requires a Premium, Fabric, or Embedded capacity and does not support
-  deprecated Push semantic models. The Power BI tenant settings
-  **Dataset Execute Queries REST API** and **Allow XMLA endpoints and
-  Analyze in Excel with on-premises semantic models** must both be
-  enabled.
+  required because Power BI compresses record batches with LZ4. This
+  endpoint supports semantic models on Power BI's modern service
+  infrastructure; deprecated Push models, legacy compatibility-level
+  models, monitoring/usage models, and live connections to Analysis
+  Services are excluded. The Arrow endpoint requires Premium, Fabric, or
+  Embedded capacity. Pro and PPU models can use the JSON endpoint but do
+  not satisfy the Arrow endpoint's capacity requirement.
+  `effectiveUsername` is user-only and requires workspace admin. Users
+  may specify only roles they belong to unless they are workspace
+  admins; service principals may use `roles` only when they are
+  workspace admins. **Allow XMLA endpoints and Analyze in Excel with
+  on-premises semantic models** must also be enabled.
 
 - Arrow queries may contain multiple `EVALUATE` statements, but this
   helper retains its single-table return contract and errors when Power
@@ -204,6 +227,9 @@ API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-querie
 [Power BI Arrow Execute DAX Queries REST
 API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-dax-queries-in-group)
 
+[Power BI Arrow API overview and capacity
+requirements](https://learn.microsoft.com/en-us/power-bi/developer/execute-dax-queries-arrow/overview)
+
 [Semantic model
 permissions](https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-permissions)
 
@@ -215,7 +241,7 @@ setting](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-int
 ``` r
 # Example is not executed since it requires configured credentials for Fabric
 if (FALSE) { # \dontrun{
-conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/My Workspace;Initial Catalog=SalesModel;"
+conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;Initial Catalog=SalesModel;"
 df <- fabric_pbi_dax_query(
   connstr = conn,
   dax = "EVALUATE TOPN(1000, 'Customers')",

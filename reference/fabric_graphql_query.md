@@ -23,7 +23,8 @@ fabric_graphql_query(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 )
 ```
 
@@ -108,6 +109,12 @@ fabric_graphql_query(
   Fabric REST API base URL used to derive endpoints from IDs. Most users
   should keep the default.
 
+- allow_custom_endpoint:
+
+  Logical. Permit a GraphQL endpoint outside the Microsoft Fabric API
+  origin. Keep `FALSE` unless the origin is trusted; credentials are
+  sent to the supplied endpoint.
+
 ## Value
 
 A `fabric_graphql_result` list with `data`, `errors`, `extensions`, and
@@ -151,6 +158,16 @@ GraphQL POST requests are not retried by default because a document can
 contain mutations. Set `idempotent = TRUE` only when the operation is
 safe to repeat.
 
+Fabric returns at most 100 items by default and permits at most 100,000
+items across pagination. Each response is limited to 64 MB, each request
+to 100 seconds, and query nesting to 10 levels. Use smaller pages and
+filtered query partitions when a result could approach these service
+limits.
+
+JSON integers outside R's exact double-precision range are returned as
+character values so identifiers and other large integer fields are not
+rounded.
+
 ## References
 
 [Fabric API for GraphQL
@@ -161,6 +178,9 @@ explorer](https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-sche
 
 [Use service principals with Fabric API for
 GraphQL](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal)
+
+[Fabric API for GraphQL
+limits](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits)
 
 ## Examples
 

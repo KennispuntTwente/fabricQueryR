@@ -19,7 +19,8 @@ fabric_kql_query(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  allow_custom_endpoint = FALSE
 )
 ```
 
@@ -89,6 +90,12 @@ fabric_kql_query(
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
   when no token source is supplied.
 
+- allow_custom_endpoint:
+
+  Logical. Permit a non-Microsoft Kusto HTTPS origin. Keep `FALSE`
+  unless the endpoint is trusted; credentials are sent to the supplied
+  origin.
+
 ## Value
 
 A typed tibble for one primary result, a `fabric_kql_tables` list for
@@ -113,15 +120,21 @@ Query parameters are sent through Kusto client request properties, never
 interpolated into `query`. Declare them in KQL with
 `declare query_parameters(...)`. Scalar R values are encoded as Kusto
 parameter values; vectors and lists are encoded as `dynamic(...)`
-literals.
+literals. Zero-length vectors and unnamed lists encode `dynamic([])`. A
+zero-length list with non-`NULL` names encodes `dynamic({})`; `NULL`
+remains invalid so it cannot be confused with an empty collection or a
+typed Kusto null.
 
 KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns
-become logical, UTC `POSIXct`, integer,
+normally become logical, UTC `POSIXct`, integer,
 [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
-double, and `difftime` vectors. `dynamic` columns are list-columns,
-GUIDs and strings are character vectors, and decimals are doubles.
-Decimal values outside R's double precision should be converted to
-strings in KQL when exact digits are needed.
+double, and `difftime` vectors. Base R and `bit64` reserve the minimum
+signed `int` and `long` values for missing data; a column containing
+either boundary is returned as character with a warning so the value
+remains exact. `dynamic` columns are list-columns, GUIDs and strings are
+character vectors, and decimals are doubles. Decimal values outside R's
+double precision should be converted to strings in KQL when exact digits
+are needed.
 
 A query with one primary result table returns a tibble. A query with
 multiple primary result tables returns a named list of tibbles with

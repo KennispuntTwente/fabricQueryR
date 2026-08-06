@@ -130,7 +130,8 @@ leave this as <code>NULL</code> and let fabricQueryR sign in.</p></dd>
 
 
 <dt id="arg-dfs-base">dfs_base<a class="anchor" aria-label="anchor" href="#arg-dfs-base"></a></dt>
-<dd><p>OneLake DFS endpoint. Most users can keep the default.</p></dd>
+<dd><p>Canonical HTTPS OneLake DFS origin, without credentials,
+path, query, or fragment. Most users can keep the default.</p></dd>
 
 
 <dt id="arg-columns">columns<a class="anchor" aria-label="anchor" href="#arg-columns"></a></dt>
@@ -148,7 +149,7 @@ processing.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A tibble, or a lazy, single-use Arrow stream when
+    <p>A tibble, or a disk-backed, lazy, single-use Arrow stream when
 <code>result = "arrow_stream"</code>.</p>
     </div>
     <div class="section level2">
@@ -161,9 +162,12 @@ to select only the fields you need and <code>limit</code> for a quick preview. A
 does not guarantee which rows are returned. Use <code>version</code> to read an earlier
 version of the table.</p>
 <p>For a large table, or one containing nested data, set
-<code>result = "arrow_stream"</code> to process the result in batches. The returned
-stream is lazy and can be read only once. The first Delta read may take a
-little longer while the optional Python reader is set up.</p>
+<code>result = "arrow_stream"</code> to process the result in batches. The remote data
+is staged in a temporary Arrow IPC file while the OneLake token is current,
+and the returned disk-backed stream is lazy and can be read only once. This
+avoids token expiry between creating and consuming a stream, and keeps the
+result out of R memory, but requires enough temporary disk space for the
+selected data. The temporary file is removed when the stream is released.</p>
 <p>Direct reads require OneLake data access; item <code>Read</code> permission by itself is
 not enough. The caller needs <code>ReadAll</code> or a suitable OneLake data-access role,
 and the tenant setting for external OneLake apps must be enabled. Callers
@@ -175,6 +179,14 @@ and <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal
 not support. The function will detect these features and abort. Unsupported
 features include Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant.
 Use the SQL or Spark (Livy) functions to read these tables.</p>
+<p>Fabric publishes Warehouse user tables as read-only Delta logs specifically
+for access by other engines, so Warehouse access is a Fabric-supported
+scenario. This function nevertheless depends on its pinned Python
+<code>deltalake</code> runtime and is limited to the Delta reader features implemented
+by that package. A <code>fabric_delta_unsupported_error</code> for a Warehouse table is
+therefore a fabricQueryR/runtime interoperability limit, not a statement that
+Fabric Warehouse lacks open Delta access. Use <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code> for the
+Warehouse when the pinned reader cannot open its table protocol.</p>
     </div>
 
     <div class="section level2">

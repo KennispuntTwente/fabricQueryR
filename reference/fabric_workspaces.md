@@ -30,8 +30,11 @@ fabric_workspaces(
 - prefer_workspace_endpoints:
 
   Logical. Set to `TRUE` to ask Fabric for a workspace-specific API
-  endpoint, which can be needed with workspace-level private links. Most
-  users should keep the default, `FALSE`.
+  endpoint, which can be needed with workspace-level private links. When
+  such an endpoint is returned, Warehouse and Lakehouse SQL details are
+  resolved through the dedicated connection-string API with
+  `privateLinkType=Workspace`. Most users should keep the default,
+  `FALSE`.
 
 - tenant_id:
 

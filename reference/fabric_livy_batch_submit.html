@@ -74,6 +74,7 @@ good fit for repeatable scripts and unattended processing.</p>
 <span>  wait <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">1200</span>,</span>
 <span>  poll_interval <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>  cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -193,6 +194,14 @@ object.</p></dd>
 
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
 <dd><p>Seconds between status checks when waiting.</p></dd>
+
+
+<dt id="arg-cancel-on-timeout">cancel_on_timeout<a class="anchor" aria-label="anchor" href="#arg-cancel-on-timeout"></a></dt>
+<dd><p>Logical. When waiting at submission time, request
+cancellation if the local timeout expires. Defaults to <code>TRUE</code>, so a timed
+out call does not normally leave Spark compute running unattended. The
+structured timeout condition always contains the submitted object in its
+<code>batch</code> field, including when cancellation fails or is disabled.</p></dd>
 
 
 <dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>

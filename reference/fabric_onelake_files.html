@@ -125,6 +125,7 @@ files through OneLake's ADLS Gen2-compatible API:</p><ul><li><p><code>fabric_one
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
+<span>  allow_managed_tables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  chunk_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"fabricqueryr.onelake.chunk_size"</span>, <span class="fl">8</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -141,7 +142,8 @@ files through OneLake's ADLS Gen2-compatible API:</p><ul><li><p><code>fabric_one
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span></span>
+<span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
+<span>  allow_managed_tables <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -206,8 +208,9 @@ token or starts its normal interactive login flow.</p></dd>
 
 
 <dt id="arg-dfs-base">dfs_base<a class="anchor" aria-label="anchor" href="#arg-dfs-base"></a></dt>
-<dd><p>OneLake DFS endpoint. Regional and workspace-private DFS
-endpoints are supported. Most users should keep the default.</p></dd>
+<dd><p>Canonical HTTPS OneLake DFS origin, without credentials,
+path, query, or fragment. Regional and workspace-private DFS endpoints are
+supported. Most users should keep the default.</p></dd>
 
 
 <dt id="arg-dest">dest<a class="anchor" aria-label="anchor" href="#arg-dest"></a></dt>
@@ -248,6 +251,14 @@ example <code>"text/csv"</code>.</p></dd>
 <dt id="arg-create-parents">create_parents<a class="anchor" aria-label="anchor" href="#arg-create-parents"></a></dt>
 <dd><p>Logical. Create missing parent directories below the
 Fabric-managed first-level folder. Keep <code>TRUE</code> for normal uploads.</p></dd>
+
+
+<dt id="arg-allow-managed-tables">allow_managed_tables<a class="anchor" aria-label="anchor" href="#arg-allow-managed-tables"></a></dt>
+<dd><p>Logical. Dangerous opt-in for uploading or
+deleting paths below <code>Tables/</code>. Keep <code>FALSE</code> unless intentionally managing
+the Delta transaction protocol at the file level. Direct changes to data
+files or <code>_delta_log</code> can corrupt a managed table; use SQL, Spark, or a
+Delta-aware writer for normal table changes.</p></dd>
 
 
 <dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
@@ -292,7 +303,11 @@ operations are limited to descendants of a managed folder. Deletion also
 requires <code>confirm = TRUE</code>.
 Give the signed-in user or application access through a workspace role or
 through the item's <strong>Manage OneLake data access</strong> roles. Write access is
-required for uploads and deletes.</p>
+required for uploads and deletes. A Fabric administrator must also enable
+<strong>Users can access data stored in OneLake with apps external to Fabric</strong> for
+the caller. If authentication succeeds but OneLake returns HTTP 403, check
+this tenant setting as well as the caller's workspace, item, and OneLake
+data permissions; changing the token flow alone will not grant data access.</p>
 <p>Uploads are streamed in chunks to a temporary sibling file. The completed
 file is atomically renamed to its OneLake destination with the requested
 overwrite or ETag precondition, so failed transfers do not truncate an
@@ -304,6 +319,7 @@ restored if the final rename fails.</p>
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">Connect to OneLake with ADLS APIs</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles" class="external-link">Create and manage OneLake security roles</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake tenant settings</a></p>
     </div>
 
     <div class="section level2">

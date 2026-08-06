@@ -60,7 +60,8 @@ telemetry, and time-series data.</p>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -124,6 +125,12 @@ token or starts its normal interactive login flow.</p></dd>
 <dd><p>Named list of additional arguments passed to
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code> when no token source is supplied.</p></dd>
 
+
+<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
+<dd><p>Logical. Permit a non-Microsoft Kusto HTTPS
+origin. Keep <code>FALSE</code> unless the endpoint is trusted; credentials are sent
+to the supplied origin.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -143,12 +150,18 @@ workspace role, Eventhouse sharing, or KQL database sharing.</p>
 <p>Query parameters are sent through Kusto client request properties, never
 interpolated into <code>query</code>. Declare them in KQL with
 <code>declare query_parameters(...)</code>. Scalar R values are encoded as Kusto
-parameter values; vectors and lists are encoded as <code>dynamic(...)</code> literals.</p>
-<p>KQL <code>bool</code>, <code>datetime</code>, <code>int</code>, <code>long</code>, <code>real</code>, and <code>timespan</code> columns become
-logical, UTC <code>POSIXct</code>, integer, <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, double, and <code>difftime</code>
-vectors. <code>dynamic</code> columns are list-columns, GUIDs and strings are character
-vectors, and decimals are doubles. Decimal values outside R's double
-precision should be converted to strings in KQL when exact digits are needed.</p>
+parameter values; vectors and lists are encoded as <code>dynamic(...)</code> literals.
+Zero-length vectors and unnamed lists encode <code>dynamic([])</code>. A zero-length
+list with non-<code>NULL</code> names encodes <code>dynamic({})</code>; <code>NULL</code> remains invalid so it
+cannot be confused with an empty collection or a typed Kusto null.</p>
+<p>KQL <code>bool</code>, <code>datetime</code>, <code>int</code>, <code>long</code>, <code>real</code>, and <code>timespan</code> columns normally
+become logical, UTC <code>POSIXct</code>, integer, <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, double, and
+<code>difftime</code> vectors. Base R and <code>bit64</code> reserve the minimum signed <code>int</code> and
+<code>long</code> values for missing data; a column containing either boundary is
+returned as character with a warning so the value remains exact. <code>dynamic</code>
+columns are list-columns, GUIDs and strings are character vectors, and
+decimals are doubles. Decimal values outside R's double precision should be
+converted to strings in KQL when exact digits are needed.</p>
 <p>A query with one primary result table returns a tibble. A query with multiple
 primary result tables returns a named list of tibbles with class
 <code>fabric_kql_tables</code>. Auxiliary protocol tables are validated but not returned.

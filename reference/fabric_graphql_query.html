@@ -64,7 +64,8 @@ nested response.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -146,6 +147,12 @@ for a custom token provider or unusual identity flow.</p></dd>
 <dd><p>Fabric REST API base URL used to derive endpoints from IDs.
 Most users should keep the default.</p></dd>
 
+
+<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
+<dd><p>Logical. Permit a GraphQL endpoint outside the
+Microsoft Fabric API origin. Keep <code>FALSE</code> unless the origin is trusted;
+credentials are sent to the supplied endpoint.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -181,12 +188,20 @@ service-principal flow. The value is ignored for a static token string.</p>
 <p>GraphQL POST requests are not retried by default because a document can
 contain mutations. Set <code>idempotent = TRUE</code> only when the operation is safe
 to repeat.</p>
+<p>Fabric returns at most 100 items by default and permits at most 100,000 items
+across pagination. Each response is limited to 64 MB, each request to 100
+seconds, and query nesting to 10 levels. Use smaller pages and filtered query
+partitions when a result could approach these service limits.</p>
+<p>JSON integers outside R's exact double-precision range are returned as
+character values so identifiers and other large integer fields are not
+rounded.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-editor" class="external-link">Fabric API for GraphQL editor</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/graphql-schema-view" class="external-link">Fabric GraphQL schema explorer</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal" class="external-link">Use service principals with Fabric API for GraphQL</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits" class="external-link">Fabric API for GraphQL limits</a></p>
     </div>
 
     <div class="section level2">

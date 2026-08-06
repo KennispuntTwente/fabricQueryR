@@ -110,7 +110,9 @@ fabric_job_cancel(
   case-insensitively. The simple form, such as
   `list(run_date = as.Date("2026-01-31"), full_load = FALSE)`, infers
   types from R values and is appropriate for most runs. Parameter names
-  must match those configured in the Fabric item.
+  must match those configured in the Fabric item. Parameters are not
+  part of the typed Spark Job Definition request and are rejected for
+  that route.
 
 - parameter_types:
 
@@ -124,7 +126,8 @@ fabric_job_cancel(
   Optional advanced workload configuration in the shape documented by
   Fabric. For notebooks this contains `compute` and optionally
   `computeConfiguration`; for Spark job definitions it is a named list
-  of execution overrides. Data pipelines do not accept it here. Use the
+  of execution overrides. For other item types it is forwarded as the
+  Core Job Scheduler's item/job-specific `executionData` object. Use the
   simpler arguments below for common notebook settings.
 
 - default_lakehouse:
@@ -147,8 +150,8 @@ fabric_job_cancel(
 
 - session_tag:
 
-  Optional Spark high-concurrency session tag containing only letters,
-  numbers, and underscores. Supplying it enables Fabric's
+  Optional non-empty Spark high-concurrency session tag. Fabric accepts
+  arbitrary string values. Supplying it enables Fabric's
   high-concurrency mode so related notebook runs may reuse Spark
   compute. High-concurrency runs also change how failures are reported:
   Fabric keeps the shared session alive when a statement fails, so the
@@ -180,7 +183,11 @@ fabric_job_cancel(
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
   when no token source is supplied. Job submission and cancellation
   require `Item.Execute.All` or the corresponding workload-specific
-  execute permission.
+  execute permission. Status polling and waiting also require
+  `Item.Read.All`, `Item.ReadWrite.All`, or the corresponding
+  workload-specific read permission (for example, `Notebook.Read.All`).
+  A token used for a complete run-and-wait workflow therefore needs both
+  execute and read scopes.
 
 - api_base:
 
@@ -204,7 +211,8 @@ fabric_job_cancel(
 
   Minimum seconds between status requests. `NULL` uses Fabric's
   recommended `Retry-After` value, falling back to two seconds. Setting
-  a value never polls faster than Fabric requests.
+  a value never polls faster than Fabric requests. A 0.1-second safety
+  floor applies when both values are zero or absent.
 
 - timeout:
 
@@ -238,18 +246,24 @@ authentication context. `fabric_job_status()` and `fabric_job_wait()`
 return a `fabric_job_instance` list with `status`, start/end times,
 `failure_reason`, notebook `exit_value` when available, workload
 `properties`, and `raw` response. `fabric_job_cancel()` returns `TRUE`
-invisibly after Fabric accepts the cancellation request; terminal state
-may not be visible immediately.
+invisibly after Fabric accepts the cancellation request, or after a
+status check confirms that an ambiguous request reached a terminal job.
+Terminal state may not be visible immediately after a newly accepted
+cancellation.
 
 ## Details
 
 Notebook status uses Fabric's workload-specific beta endpoint first and
-falls back to the core scheduler when that endpoint is unavailable. A
-beta response that says `Completed` but contains neither an exit value
-nor failure details is reconciled with the core scheduler before it is
-returned. This prevents a failed notebook cell from being reported as a
-successful run while the two Fabric status stores converge. Because
-Fabric may add job statuses over time, `fabric_job_wait()` raises a
+falls back to the core scheduler when that endpoint is unavailable. Job
+submission already uses the release route (`beta=false`). Microsoft
+plans to deprecate the beta notebook API on April 1, 2028; fabricQueryR
+isolates it to the enriched status lookup and will migrate that lookup
+to the stable replacement before the retirement date. A beta response
+that says `Completed` but contains neither an exit value nor failure
+details is reconciled with the core scheduler before it is returned.
+This prevents a failed notebook cell from being reported as a successful
+run while the two Fabric status stores converge. Because Fabric may add
+job statuses over time, `fabric_job_wait()` raises a
 `fabric_job_unknown_status` condition for an unrecognised state instead
 of polling until timeout.
 

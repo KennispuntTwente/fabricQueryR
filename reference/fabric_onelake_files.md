@@ -80,6 +80,7 @@ fabric_onelake_upload(
   token = NULL,
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE,
   chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2)
 )
 
@@ -96,7 +97,8 @@ fabric_onelake_delete(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE
 )
 ```
 
@@ -163,7 +165,8 @@ fabric_onelake_delete(
 
 - dfs_base:
 
-  OneLake DFS endpoint. Regional and workspace-private DFS endpoints are
+  Canonical HTTPS OneLake DFS origin, without credentials, path, query,
+  or fragment. Regional and workspace-private DFS endpoints are
   supported. Most users should keep the default.
 
 - dest:
@@ -205,6 +208,14 @@ fabric_onelake_delete(
 
   Logical. Create missing parent directories below the Fabric-managed
   first-level folder. Keep `TRUE` for normal uploads.
+
+- allow_managed_tables:
+
+  Logical. Dangerous opt-in for uploading or deleting paths below
+  `Tables/`. Keep `FALSE` unless intentionally managing the Delta
+  transaction protocol at the file level. Direct changes to data files
+  or `_delta_log` can corrupt a managed table; use SQL, Spark, or a
+  Delta-aware writer for normal table changes.
 
 - chunk_size:
 
@@ -251,7 +262,12 @@ delete operations are limited to descendants of a managed folder.
 Deletion also requires `confirm = TRUE`. Give the signed-in user or
 application access through a workspace role or through the item's
 **Manage OneLake data access** roles. Write access is required for
-uploads and deletes.
+uploads and deletes. A Fabric administrator must also enable **Users can
+access data stored in OneLake with apps external to Fabric** for the
+caller. If authentication succeeds but OneLake returns HTTP 403, check
+this tenant setting as well as the caller's workspace, item, and OneLake
+data permissions; changing the token flow alone will not grant data
+access.
 
 Uploads are streamed in chunks to a temporary sibling file. The
 completed file is atomically renamed to its OneLake destination with the
@@ -267,6 +283,9 @@ APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 
 [Create and manage OneLake security
 roles](https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles)
+
+[OneLake tenant
+settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
 
 ## Examples
 

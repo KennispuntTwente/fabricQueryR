@@ -424,6 +424,13 @@ tests/testthat/
 <ul><li>Sandbox tests run the fixture notebook/pipeline through the same public job API.</li>
 <li>Completed, failed, canceled, timed-out, and deduplicated states are handled explicitly.</li>
 </ul></div>
+<div class="section level3">
+<h3 id="notebook-status-route-migration">Notebook status-route migration<a class="anchor" aria-label="anchor" href="#notebook-status-route-migration"></a></h3>
+<p>Microsoft has announced that the beta notebook API used to retrieve the richer workload-specific job status will be deprecated on <strong>April 1, 2028</strong>. The submission route already uses the release contract with <code>beta=false</code>; only the enriched status lookup still calls the beta route before falling back to Core Job Scheduler status.</p>
+<ul><li>By the second quarter of 2027, recheck the Notebook and Core Job Scheduler contracts and add the replacement status response to the live fixture suite.</li>
+<li>By the fourth quarter of 2027, make the supported stable route primary and retain the beta lookup only as a compatibility fallback if it is still needed.</li>
+<li>Remove all <code>beta=true</code> status requests in a release before April 1, 2028, and keep the current failure/exit-value reconciliation covered by integration tests during the migration.</li>
+</ul></div>
 </div>
 <div class="section level2">
 <h2 id="delivery-sequence">Delivery sequence<a class="anchor" aria-label="anchor" href="#delivery-sequence"></a></h2>

@@ -643,6 +643,24 @@ test-data setup.
 - Completed, failed, canceled, timed-out, and deduplicated states are
   handled explicitly.
 
+### Notebook status-route migration
+
+Microsoft has announced that the beta notebook API used to retrieve the
+richer workload-specific job status will be deprecated on **April 1,
+2028**. The submission route already uses the release contract with
+`beta=false`; only the enriched status lookup still calls the beta route
+before falling back to Core Job Scheduler status.
+
+- By the second quarter of 2027, recheck the Notebook and Core Job
+  Scheduler contracts and add the replacement status response to the
+  live fixture suite.
+- By the fourth quarter of 2027, make the supported stable route primary
+  and retain the beta lookup only as a compatibility fallback if it is
+  still needed.
+- Remove all `beta=true` status requests in a release before April 1,
+  2028, and keep the current failure/exit-value reconciliation covered
+  by integration tests during the migration.
+
 ## Delivery sequence
 
 | Milestone | Scope | Release gate |

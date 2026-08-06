@@ -83,7 +83,8 @@ fabric_onelake_read_delta_table(
 
 - dfs_base:
 
-  OneLake DFS endpoint. Most users can keep the default.
+  Canonical HTTPS OneLake DFS origin, without credentials, path, query,
+  or fragment. Most users can keep the default.
 
 - columns:
 
@@ -99,7 +100,7 @@ fabric_onelake_read_delta_table(
 
 ## Value
 
-A tibble, or a lazy, single-use Arrow stream when
+A tibble, or a disk-backed, lazy, single-use Arrow stream when
 `result = "arrow_stream"`.
 
 ## Details
@@ -115,9 +116,13 @@ preview. A limit does not guarantee which rows are returned. Use
 `version` to read an earlier version of the table.
 
 For a large table, or one containing nested data, set
-`result = "arrow_stream"` to process the result in batches. The returned
-stream is lazy and can be read only once. The first Delta read may take
-a little longer while the optional Python reader is set up.
+`result = "arrow_stream"` to process the result in batches. The remote
+data is staged in a temporary Arrow IPC file while the OneLake token is
+current, and the returned disk-backed stream is lazy and can be read
+only once. This avoids token expiry between creating and consuming a
+stream, and keeps the result out of R memory, but requires enough
+temporary disk space for the selected data. The temporary file is
+removed when the stream is released.
 
 Direct reads require OneLake data access; item `Read` permission by
 itself is not enough. The caller needs `ReadAll` or a suitable OneLake
@@ -133,6 +138,17 @@ package does not support. The function will detect these features and
 abort. Unsupported features include Deletion Vectors, Type Widening, V2
 Checkpoints, and Fabric Variant. Use the SQL or Spark (Livy) functions
 to read these tables.
+
+Fabric publishes Warehouse user tables as read-only Delta logs
+specifically for access by other engines, so Warehouse access is a
+Fabric-supported scenario. This function nevertheless depends on its
+pinned Python `deltalake` runtime and is limited to the Delta reader
+features implemented by that package. A `fabric_delta_unsupported_error`
+for a Warehouse table is therefore a fabricQueryR/runtime
+interoperability limit, not a statement that Fabric Warehouse lacks open
+Delta access. Use
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
+for the Warehouse when the pinned reader cannot open its table protocol.
 
 ## Examples
 
