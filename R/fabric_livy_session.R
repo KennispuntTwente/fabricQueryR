@@ -276,7 +276,8 @@ FabricLivySession <- R6::R6Class(
         "DELETE",
         self$url,
         private$credential,
-        idempotent = TRUE
+        idempotent = TRUE,
+        accepted_status = 404L
       )
       self$closed <- TRUE
       inform(self$verbose, "Fabric Livy session closed", type = "success")

@@ -59,7 +59,8 @@ test_that("regular session runs multiple statements and closes", {
       url,
       credential,
       payload = NULL,
-      idempotent = NULL
+      idempotent = NULL,
+      accepted_status = integer()
     ) {
       calls[[length(calls) + 1L]] <<- list(
         method = method,
@@ -364,6 +365,28 @@ test_that("session reset timeout uses its documented endpoint", {
   expect_identical(session$reset_timeout(), session)
   expect_equal(reset_url, paste0(session$url, "/reset-timeout"))
   session$close()
+})
+
+test_that("closing an auto-terminated Livy session accepts 404", {
+  accepted <- NULL
+  local_mocked_bindings(
+    fabric_livy_json = function(...) list(id = "expired", state = "idle"),
+    fabric_livy_ok = function(method, accepted_status, ...) {
+      expect_identical(method, "DELETE")
+      accepted <<- accepted_status
+      TRUE
+    }
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+
+  expect_true(session$close())
+  expect_identical(accepted, 404L)
+  expect_true(session$closed)
 })
 
 test_that("fabric_livy_query closes temporary session after failure", {

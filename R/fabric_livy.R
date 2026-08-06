@@ -278,7 +278,8 @@ fabric_livy_ok <- function(
   url,
   credential,
   payload = NULL,
-  idempotent = NULL
+  idempotent = NULL,
+  accepted_status = integer()
 ) {
   req <- httr2::request(url) |>
     httr2::req_method(method)
@@ -292,7 +293,8 @@ fabric_livy_ok <- function(
     req,
     credential = credential,
     audience = .fabric_audience$fabric,
-    idempotent = idempotent
+    idempotent = idempotent,
+    accepted_status = accepted_status
   )
 }
 
