@@ -6,7 +6,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
   table_name <- fabric_test_spark_table(manifest, lakehouse)
-  token <- fabric_test_token_provider()
+  auth <- fabric_test_azure_auth_config()
 
   result <- fabric_livy_query(
     livy_url = lakehouse$livy_url,
@@ -20,9 +20,9 @@ test_that("fabric_livy_query executes Spark and returns its output", {
       table_name
     ),
     kind = "pyspark",
-    tenant_id = "",
-    client_id = "",
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     conf = list("spark.sql.shuffle.partitions" = "2"),
     verbose = FALSE
   )
@@ -58,10 +58,12 @@ test_that("fabric_livy_query executes Spark and returns its output", {
 test_that("FabricLivySession shares state and preserves statement failures", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  auth <- fabric_test_azure_auth_config()
   session <- fabric_livy_session(
     lakehouse$livy_url,
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     name = "fabricqueryr-integration-session",
     tags = list(test = "multiple-statements"),
     conf = list("spark.sql.shuffle.partitions" = "2"),
@@ -168,14 +170,16 @@ test_that("FabricLivySession shares state and preserves statement failures", {
 test_that("high-concurrency Livy sessions pack but isolate their REPLs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  auth <- fabric_test_azure_auth_config()
   tag <- paste0("fabricqueryr-", manifest$workspace_id)
   session_a <- fabric_livy_session(
     lakehouse$livy_url,
     high_concurrency = TRUE,
     session_tag = tag,
     artifact_name = lakehouse$display_name,
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     verbose = FALSE
   )
   on.exit(try(session_a$close(), silent = TRUE), add = TRUE)
@@ -185,7 +189,9 @@ test_that("high-concurrency Livy sessions pack but isolate their REPLs", {
     high_concurrency = TRUE,
     session_tag = tag,
     artifact_name = lakehouse$display_name,
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     verbose = FALSE
   )
   on.exit(try(session_b$close(), silent = TRUE), add = TRUE)
@@ -227,7 +233,7 @@ test_that("high-concurrency Livy sessions pack but isolate their REPLs", {
 test_that("Livy batches cover success, failure, and cancellation", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  auth <- fabric_test_azure_auth_config()
   storage_token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
   marker <- function() {
     fabric_onelake_read_delta_table(
@@ -267,7 +273,9 @@ test_that("Livy batches cover success, failure, and cancellation", {
     name = "fabricqueryr-batch-success",
     args = "success",
     target_lakehouse_id = lakehouse$id,
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     verbose = FALSE
   )
   success$wait(timeout = 1200, poll_interval = 5)
@@ -285,7 +293,9 @@ test_that("Livy batches cover success, failure, and cancellation", {
     name = "fabricqueryr-batch-failure",
     args = "failure",
     target_lakehouse_id = lakehouse$id,
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     verbose = FALSE
   )
   failure_error <- expect_error(
@@ -303,7 +313,9 @@ test_that("Livy batches cover success, failure, and cancellation", {
     name = "fabricqueryr-batch-cancel",
     args = "slow",
     target_lakehouse_id = lakehouse$id,
-    token = token,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
     verbose = FALSE
   )
   on.exit(try(slow$cancel(), silent = TRUE), add = TRUE)
