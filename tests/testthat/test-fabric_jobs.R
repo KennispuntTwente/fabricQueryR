@@ -93,6 +93,57 @@ test_that("job submission uses workspace-specific API endpoints", {
   expect_match(call$url, "https://explicit.test/v1/workspaces/", fixed = TRUE)
 })
 
+test_that("job item-name lookup uses the workspace-specific endpoint", {
+  lookup_url <- NULL
+  run_url <- NULL
+  workspace <- structure(
+    list(
+      id = "22222222-2222-2222-2222-222222222222",
+      displayName = "Private workspace",
+      apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com"
+    ),
+    class = c("fabric_workspace", "list")
+  )
+  local_mocked_bindings(
+    .httr2_collection = function(url, ...) {
+      lookup_url <<- url
+      list(list(
+        id = "11111111-1111-1111-1111-111111111111",
+        displayName = "Named pipeline",
+        type = "DataPipeline"
+      ))
+    },
+    .fabric_job_request = function(method, url, ...) {
+      run_url <<- url
+      list(
+        status_code = 202L,
+        location = paste0(
+          "/jobs/instances/",
+          "33333333-3333-3333-3333-333333333333"
+        ),
+        retry_after = NULL
+      )
+    }
+  )
+
+  fabric_job_run(
+    "Named pipeline",
+    workspace = workspace,
+    token = "test-token"
+  )
+
+  expect_match(
+    lookup_url,
+    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    fixed = TRUE
+  )
+  expect_match(
+    run_url,
+    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    fixed = TRUE
+  )
+})
+
 test_that("notebook run builds typed release payload and job handle", {
   call <- NULL
   local_mocked_bindings(

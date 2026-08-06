@@ -657,7 +657,7 @@ print.fabric_job_instance <- function(x, ...) {
       resolved_type <- item_type
     } else {
       query <- httr2::request(
-        paste0(api_base, "/workspaces/", workspace_id, "/items")
+        paste0(target_api_base, "/workspaces/", workspace_id, "/items")
       )
       if (!is.null(item_type)) {
         query <- httr2::req_url_query(query, type = item_type)
