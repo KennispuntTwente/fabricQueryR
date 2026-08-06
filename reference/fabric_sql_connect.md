@@ -153,7 +153,10 @@ fabric_sql_connect(
   Additional arguments forwarded to
   [`DBI::dbConnect()`](https://dbi.r-dbi.org/reference/dbConnect.html).
   The former named `access_token` argument is consumed here as a
-  deprecated alias for `token` and is not forwarded.
+  deprecated alias for `token` and is not forwarded. For ODBC, a
+  caller-supplied `attributes` named list is merged with the
+  package-managed `azure_token`; that protected attribute cannot be
+  overridden.
 
 ## Value
 

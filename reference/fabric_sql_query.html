@@ -226,7 +226,9 @@ attempt.</p></dd>
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments forwarded to <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>. The former
 named <code>access_token</code> argument is consumed here as a deprecated alias for
-<code>token</code> and is not forwarded.</p></dd>
+<code>token</code> and is not forwarded. For ODBC, a caller-supplied <code>attributes</code>
+named list is merged with the package-managed <code>azure_token</code>; that protected
+attribute cannot be overridden.</p></dd>
 
 </dl></div>
     <div class="section level2">
