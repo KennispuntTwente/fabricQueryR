@@ -258,6 +258,52 @@ test_that("statement JSON output is parsed independently of lifecycle", {
   expect_equal(result$duration_sec, 2)
 })
 
+test_that("Livy table MIME output is parsed into a tibble", {
+  result <- fabric_livy_output(
+    response = list(
+      id = 5L,
+      state = "available",
+      output = list(
+        status = "ok",
+        data = list(
+          "application/vnd.livy.table.v1+json" = list(
+            headers = list(
+              list(name = "id", type = "BIGINT_TYPE"),
+              list(name = "label", type = "STRING_TYPE")
+            ),
+            data = list(
+              list("9007199254740993", "alpha"),
+              list("-9007199254740993", "beta")
+            )
+          ),
+          "text/plain" = "fallback rendering"
+        )
+      )
+    ),
+    started_local = as.POSIXct("2026-01-01", tz = "UTC"),
+    completed_local = as.POSIXct("2026-01-01 00:00:01", tz = "UTC"),
+    url = "https://example.test/statements/5"
+  )
+
+  expect_s3_class(result$output$parsed, "tbl_df")
+  expect_equal(
+    result$output$parsed$id,
+    c("9007199254740993", "-9007199254740993")
+  )
+  expect_equal(result$output$parsed$label, c("alpha", "beta"))
+})
+
+test_that("Livy table MIME output rejects malformed rows", {
+  expect_error(
+    fabric_livy_parse_table(list(
+      headers = list(list(name = "id"), list(name = "label")),
+      data = list(list(1L))
+    )),
+    "row width",
+    class = "fabric_livy_protocol_error"
+  )
+})
+
 test_that("session finalizer attempts cleanup of open sessions", {
   deleted <- character()
   local_mocked_bindings(

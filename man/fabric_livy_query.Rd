@@ -75,9 +75,9 @@ arguments are rejected.}
 \value{
 Invisibly, a \code{fabric_livy_statement_result} list with statement
 \code{state}, timing information, submitted \code{code}, raw response, and \code{output}.
-\code{output$parsed} contains JSON output converted to an R object or plain-text
-output as a character vector; error details are retained in the other
-\code{output} fields.
+\code{output$parsed} contains Livy table MIME output as a tibble, JSON output as
+an R object, or text output as a character vector; error details and every
+original MIME value are retained in the other \code{output} fields.
 }
 \description{
 Starts Fabric Spark compute, runs one statement, waits for its result, and

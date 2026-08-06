@@ -126,6 +126,9 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   )
   expect_equal(sql$output$status, "ok")
   expect_gt(length(sql$output$data), 0L)
+  expect_s3_class(sql$output$parsed, "tbl_df")
+  expect_equal(nrow(sql$output$parsed), 1L)
+  expect_equal(as.character(sql$output$parsed[[1L]][[1L]]), "42")
   expect_match(
     jsonlite::toJSON(sql$output$data, auto_unbox = TRUE),
     "fabricqueryr_sql_value",

@@ -404,21 +404,7 @@ fabric_livy_abort_batch <- function(response) {
 fabric_livy_output <- function(response, started_local, completed_local, url) {
   out <- response$output %||% list()
   data <- out$data %||% list()
-  parsed <- NULL
-  if (!is.null(data[["application/json"]])) {
-    obj <- try(
-      jsonlite::fromJSON(
-        jsonlite::toJSON(data[["application/json"]], auto_unbox = TRUE),
-        simplifyVector = TRUE
-      ),
-      silent = TRUE
-    )
-    if (!inherits(obj, "try-error")) {
-      parsed <- if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
-    }
-  } else if (!is.null(data[["text/plain"]])) {
-    parsed <- as.character(data[["text/plain"]])
-  }
+  parsed <- fabric_livy_parse_output_data(data)
   structure(
     list(
       id = response$id,
@@ -445,6 +431,124 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
       raw = response
     ),
     class = c("fabric_livy_statement_result", "list")
+  )
+}
+
+fabric_livy_parse_output_data <- function(data) {
+  table_mime <- "application/vnd.livy.table.v1+json"
+  if (!is.null(data[[table_mime]])) {
+    return(fabric_livy_parse_table(data[[table_mime]]))
+  }
+  if (!is.null(data[["application/json"]])) {
+    return(fabric_livy_parse_json(data[["application/json"]]))
+  }
+  if (!is.null(data[["text/plain"]])) {
+    return(as.character(data[["text/plain"]]))
+  }
+  mime_types <- names(data) %||% character()
+  json_mime <- mime_types[grepl("(?:/json|\\+json)$", mime_types)]
+  if (length(json_mime)) {
+    return(fabric_livy_parse_json(data[[json_mime[[1L]]]]))
+  }
+  text_mime <- mime_types[grepl("^text/", mime_types)]
+  if (length(text_mime)) {
+    return(as.character(data[[text_mime[[1L]]]]))
+  }
+  NULL
+}
+
+fabric_livy_parse_json <- function(value) {
+  obj <- try(
+    jsonlite::fromJSON(
+      jsonlite::toJSON(value, auto_unbox = TRUE),
+      simplifyVector = TRUE
+    ),
+    silent = TRUE
+  )
+  if (inherits(obj, "try-error")) {
+    return(NULL)
+  }
+  if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
+}
+
+fabric_livy_parse_table <- function(value) {
+  if (is.character(value) && length(value) == 1L) {
+    value <- try(
+      jsonlite::fromJSON(value, simplifyVector = FALSE),
+      silent = TRUE
+    )
+  }
+  malformed <- function(detail) {
+    rlang::abort(
+      paste0("Livy returned malformed table output: ", detail),
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  if (inherits(value, "try-error") || !is.list(value)) {
+    malformed("the MIME value must be a JSON object")
+  }
+  headers <- value$headers
+  rows <- value$data
+  if (!is.list(headers) || !is.list(rows)) {
+    malformed("headers and data must be arrays")
+  }
+  column_names <- vapply(
+    headers,
+    function(header) {
+      name <- if (is.list(header)) header$name else NULL
+      if (
+        !is.character(name) || length(name) != 1L ||
+          is.na(name) || !nzchar(name)
+      ) {
+        malformed("every header needs one non-empty name")
+      }
+      name
+    },
+    character(1)
+  )
+  if (anyDuplicated(column_names)) {
+    malformed("header names must be unique")
+  }
+  column_count <- length(column_names)
+  valid_rows <- vapply(
+    rows,
+    function(row) is.list(row) && length(row) == column_count,
+    logical(1)
+  )
+  if (!all(valid_rows)) {
+    malformed("every row width must match the headers")
+  }
+  columns <- lapply(seq_len(column_count), function(column) {
+    values <- lapply(rows, function(row) row[[column]])
+    fabric_livy_simplify_column(values)
+  })
+  tibble::as_tibble(stats::setNames(columns, column_names))
+}
+
+fabric_livy_simplify_column <- function(values) {
+  present <- Filter(Negate(is.null), values)
+  scalar_atomic <- length(present) && all(vapply(
+    present,
+    function(value) is.atomic(value) && length(value) == 1L,
+    logical(1)
+  ))
+  if (!scalar_atomic) {
+    return(values)
+  }
+  template <- present[[1L]]
+  missing <- switch(
+    typeof(template),
+    character = NA_character_,
+    integer = NA_integer_,
+    double = NA_real_,
+    logical = NA,
+    complex = NA_complex_,
+    NA
+  )
+  unlist(
+    lapply(values, function(value) value %||% missing),
+    recursive = FALSE,
+    use.names = FALSE
   )
 }
 
@@ -493,9 +597,9 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 #'
 #' @return Invisibly, a `fabric_livy_statement_result` list with statement
 #'   `state`, timing information, submitted `code`, raw response, and `output`.
-#'   `output$parsed` contains JSON output converted to an R object or plain-text
-#'   output as a character vector; error details are retained in the other
-#'   `output` fields.
+#'   `output$parsed` contains Livy table MIME output as a tibble, JSON output as
+#'   an R object, or text output as a character vector; error details and every
+#'   original MIME value are retained in the other `output` fields.
 #' @details
 #' Fabric needs a workspace on supported Fabric capacity and a Lakehouse. In
 #' the Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and
