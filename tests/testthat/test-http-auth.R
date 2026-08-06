@@ -448,6 +448,38 @@ test_that("shared pagination follows continuation URIs and tokens", {
   expect_match(urls[[3]], "continuationToken=next-token")
 })
 
+test_that("shared pagination does not double-encode official tokens", {
+  credential <- fabric_credential(token = "token")
+  urls <- character()
+  pages <- list(
+    list(
+      value = list(list(id = "one")),
+      continuationToken = "opaque%3Dvalue%2Bwith%2Fslashes"
+    ),
+    list(value = list(list(id = "two")))
+  )
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      urls <<- c(urls, req$url)
+      pages[[length(urls)]]
+    }
+  )
+
+  values <- .httr2_collection(
+    "https://example.test/items",
+    credential,
+    .fabric_audience$fabric
+  )
+
+  expect_length(values, 2L)
+  expect_match(
+    urls[[2L]],
+    "continuationToken=opaque%3Dvalue%2Bwith%2Fslashes",
+    fixed = TRUE
+  )
+  expect_false(grepl("%253D|%252B|%252F", urls[[2L]]))
+})
+
 test_that("shared pagination rejects repeated pages and excessive depth", {
   credential <- fabric_credential(token = "token")
   calls <- 0L

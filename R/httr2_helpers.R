@@ -394,6 +394,7 @@
     }
     continuation_token <- page$continuationToken
     if (!is.null(continuation_token) && nzchar(continuation_token)) {
+      continuation_token <- utils::URLdecode(as.character(continuation_token))
       next_url <- url
       offset_pagination <- FALSE
       next
