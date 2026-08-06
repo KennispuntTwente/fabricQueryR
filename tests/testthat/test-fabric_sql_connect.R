@@ -153,6 +153,54 @@ test_that("SQL connections enforce Fabric ODBC options", {
   expect_equal(captured$attributes$azure_token, "sql-token")
 })
 
+test_that("SQL tokens are sent only to trusted endpoints by default", {
+  acquired <- FALSE
+  local_mocked_bindings(
+    .fabric_sql_db_connect = function(...) {
+      structure(list(), class = "test_connection")
+    }
+  )
+
+  expect_error(
+    fabric_sql_connect(
+      "sql.example.test",
+      token = function(...) {
+        acquired <<- TRUE
+        "sql-token"
+      },
+      verbose = FALSE
+    ),
+    class = "fabric_sql_endpoint_error"
+  )
+  expect_false(acquired)
+
+  expect_s3_class(
+    fabric_sql_connect(
+      "sql.example.test",
+      token = "sql-token",
+      allow_custom_endpoint = TRUE,
+      verbose = FALSE
+    ),
+    "test_connection"
+  )
+  expect_silent(fabric_sql_validate_endpoint(
+    "tenant.database.windows.net",
+    FALSE
+  ))
+  expect_error(
+    fabric_sql_validate_endpoint("notfabric.microsoft.com", FALSE),
+    class = "fabric_sql_endpoint_error"
+  )
+  expect_error(
+    fabric_sql_validate_endpoint(
+      "server.datawarehouse.fabric.microsoft.com",
+      NA
+    ),
+    "must be TRUE or FALSE",
+    fixed = TRUE
+  )
+})
+
 test_that("SQL timeouts are not constrained by the TCP port range", {
   expect_silent(fabric_sql_timeout(86400))
   expect_silent(fabric_sql_timeout(0))
@@ -618,7 +666,7 @@ test_that("SQL query retries require idempotency and use fresh connections", {
 test_that("SQL retry controls reject invalid values", {
   expect_error(
     fabric_sql_connect(
-      "server",
+      "server.datawarehouse.fabric.microsoft.com",
       token = "token",
       max_tries = 0,
       verbose = FALSE
@@ -679,7 +727,7 @@ test_that("SQL failures have actionable condition classes", {
   )
   expect_error(
     fabric_sql_connect(
-      "server",
+      "server.datawarehouse.fabric.microsoft.com",
       database = "db",
       token = "token",
       verbose = FALSE

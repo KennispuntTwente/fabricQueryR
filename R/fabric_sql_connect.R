@@ -181,6 +181,10 @@ fabric_sql_connection_info <- function(
 #'   `0` lets the driver use an unlimited or driver-specific timeout.
 #' @param read_only Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a
 #'   connection hint; it is not a substitute for Fabric/SQL permissions.
+#' @param allow_custom_endpoint Logical. Fabric SQL and Microsoft SQL Database
+#'   hostnames are trusted by default. Set to `TRUE` only when deliberately
+#'   sending the SQL access token to another hostname, such as a controlled
+#'   proxy or test server.
 #' @param max_tries Positive maximum number of attempts for transient Fabric SQL
 #'   failures. Connections are always safe to retry. In
 #'   `fabric_sql_query()`, execution failures are retried only when
@@ -250,6 +254,7 @@ fabric_sql_connect <- function(
   trust_server_certificate = "no",
   timeout = 30L,
   read_only = FALSE,
+  allow_custom_endpoint = FALSE,
   verbose = TRUE,
   max_tries = 3L,
   retry_delay = 5,
@@ -287,6 +292,7 @@ fabric_sql_connect <- function(
     target_type = target_type,
     port = port
   )
+  fabric_sql_validate_endpoint(info$server, allow_custom_endpoint)
   if (is.null(token)) {
     inform(
       verbose,
@@ -465,6 +471,7 @@ fabric_sql_query <- function(
   trust_server_certificate = "no",
   timeout = 30L,
   read_only = FALSE,
+  allow_custom_endpoint = FALSE,
   verbose = TRUE,
   max_tries = 3L,
   retry_delay = 5,
@@ -529,6 +536,7 @@ fabric_sql_query <- function(
       trust_server_certificate = trust_server_certificate,
       timeout = timeout,
       read_only = read_only,
+      allow_custom_endpoint = allow_custom_endpoint,
       verbose = verbose,
       max_tries = 1L,
       retry_delay = retry_delay
@@ -871,6 +879,40 @@ fabric_sql_retry_settings <- function(max_tries, retry_delay) {
     rlang::abort("retry_delay must be one non-negative number")
   }
   invisible(TRUE)
+}
+
+fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
+  if (
+    !is.logical(allow_custom_endpoint) ||
+      length(allow_custom_endpoint) != 1L ||
+      is.na(allow_custom_endpoint)
+  ) {
+    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+  }
+  host <- tolower(sub("\\.$", "", trimws(server)))
+  trusted_suffixes <- c(
+    ".datawarehouse.fabric.microsoft.com",
+    ".database.fabric.microsoft.com",
+    ".database.windows.net"
+  )
+  trusted <- any(vapply(
+    trusted_suffixes,
+    function(suffix) {
+      endsWith(host, suffix) && nchar(host) > nchar(suffix)
+    },
+    logical(1)
+  ))
+  if (!trusted && !isTRUE(allow_custom_endpoint)) {
+    rlang::abort(
+      paste0(
+        "Refusing to send a SQL access token to untrusted server '",
+        server,
+        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
+      ),
+      class = c("fabric_sql_endpoint_error", "fabric_sql_target_error")
+    )
+  }
+  invisible(server)
 }
 
 fabric_sql_retry_delay <- function(attempt, retry_delay) {
