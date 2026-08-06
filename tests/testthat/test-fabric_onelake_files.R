@@ -836,3 +836,38 @@ test_that("OneLake managed-table mutations require a dangerous opt-in", {
     fixed = TRUE
   )
 })
+
+test_that("OneLake DFS bases must be canonical HTTPS origins", {
+  resolve <- function(dfs_base) {
+    onelake_resolve_target(
+      "Analytics",
+      "Curated.Lakehouse",
+      dfs_base = dfs_base
+    )
+  }
+  host <- "onelake.dfs.fabric.microsoft.com"
+
+  expect_error(
+    resolve(paste0("https://user:secret@", host)),
+    "must not include user information",
+    fixed = TRUE
+  )
+  expect_error(
+    resolve(paste0("https://", host, ":444")),
+    "default HTTPS port",
+    fixed = TRUE
+  )
+  expect_error(
+    resolve(paste0("https://", host, "?x=y")),
+    "query string or fragment",
+    fixed = TRUE
+  )
+  expect_error(
+    resolve(paste0("https://", host, "#fragment")),
+    "query string or fragment",
+    fixed = TRUE
+  )
+
+  target <- resolve(paste0("https://", host, ":443"))
+  expect_equal(target$dfs_base, paste0("https://", host, ":443"))
+})

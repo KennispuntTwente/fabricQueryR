@@ -128,8 +128,9 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{dfs_base}{OneLake DFS endpoint. Regional and workspace-private DFS
-endpoints are supported. Most users should keep the default.}
+\item{dfs_base}{Canonical HTTPS OneLake DFS origin, without credentials,
+path, query, or fragment. Regional and workspace-private DFS endpoints are
+supported. Most users should keep the default.}
 
 \item{dest}{Optional local destination. When \code{NULL}, download returns a raw
 vector held in R memory. Supply a path to stream large files to disk. A

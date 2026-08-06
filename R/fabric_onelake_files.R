@@ -72,8 +72,9 @@
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
-#' @param dfs_base OneLake DFS endpoint. Regional and workspace-private DFS
-#'   endpoints are supported. Most users should keep the default.
+#' @param dfs_base Canonical HTTPS OneLake DFS origin, without credentials,
+#'   path, query, or fragment. Regional and workspace-private DFS endpoints are
+#'   supported. Most users should keep the default.
 #' @param range Optional inclusive zero-based byte range. Supply one value for
 #'   all bytes from that offset onward, or two values for `start` through `end`.
 #'   Leave `NULL` to download the entire file.
@@ -551,12 +552,24 @@ onelake_validate_endpoint <- function(endpoint) {
   if (!identical(tolower(parsed$scheme %||% ""), "https")) {
     rlang::abort("dfs_base must use HTTPS")
   }
+  if (
+    nzchar(parsed$username %||% "") ||
+      nzchar(parsed$password %||% "")
+  ) {
+    rlang::abort("dfs_base must not include user information")
+  }
   onelake_validate_host(parsed$hostname)
+  if (!is.null(parsed$port) && !identical(parsed$port, "443")) {
+    rlang::abort("dfs_base must use the default HTTPS port (443)")
+  }
   if (
     !identical(parsed$path %||% "", "") &&
       !identical(parsed$path %||% "", "/")
   ) {
     rlang::abort("dfs_base must not include a path")
+  }
+  if (!is.null(parsed$query) || !is.null(parsed$fragment)) {
+    rlang::abort("dfs_base must not include a query string or fragment")
   }
   invisible(endpoint)
 }

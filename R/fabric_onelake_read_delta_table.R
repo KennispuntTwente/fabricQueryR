@@ -77,7 +77,8 @@
 #'   [AzureAuth::get_azure_token()].
 #' @param version Specific table version to read, or `NULL` for the latest.
 #' @param verbose Whether to show authentication and read progress.
-#' @param dfs_base OneLake DFS endpoint. Most users can keep the default.
+#' @param dfs_base Canonical HTTPS OneLake DFS origin, without credentials,
+#'   path, query, or fragment. Most users can keep the default.
 #' @param columns Column names to return, or `NULL` for all columns.
 #' @param limit Maximum number of rows to return, or `NULL` for all rows.
 #' @param result `"tibble"` (the default) or `"arrow_stream"` for batch
