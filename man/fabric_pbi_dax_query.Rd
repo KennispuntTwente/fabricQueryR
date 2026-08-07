@@ -96,19 +96,22 @@ this mode; their R representation is chosen by the eventual consumer.}
 
 \item{arrow_options}{Named list of optional \code{executeDaxQueries} request
 properties. Supported names are \code{applicationContext}, \code{culture},
-\code{customData}, \code{effectiveUsername}, \code{memoryLimit}, \code{queryTimeout},
-\code{resultSetRowCountLimit}, \code{roles}, and \code{schemaOnly}. The
+\code{customData}, \code{effectiveUsername}, \code{executionMetrics}, \code{memoryLimit},
+\code{queryTimeout}, \code{resultSetRowCountLimit}, \code{roles}, and \code{schemaOnly}. The
 required \code{query} property is supplied from \code{dax}. Used only by
 \code{api = "arrow"}.}
 }
 \value{
-With \code{result = "tibble"}, a tibble containing the single result
-table. With \verb{api = "arrow", result = "arrow_stream"}, a
-\code{nanoarrow_array_stream}. Power BI's column names are preserved. An empty
+With \code{result = "tibble"}, a tibble containing a single result table.
+Multiple Arrow data rowsets are returned as a \code{fabric_pbi_dax_rowsets}
+list of tibbles. With \verb{api = "arrow", result = "arrow_stream"}, the same
+rule applies to \code{nanoarrow_array_stream} objects. Power BI's column names
+are preserved. An empty
 Arrow result becomes a typed zero-row result. Because the JSON API does not
 provide column metadata for an empty table, that path returns a zero-row,
-zero-column tibble. API errors, multiple rowsets, and partial/truncated
-JSON results raise an error rather than silently returning incomplete data.
+zero-column tibble. When requested, Arrow execution metrics are attached as
+an \code{execution_metrics} attribute. API errors and partial/truncated JSON
+results raise an error rather than silently returning incomplete data.
 }
 \description{
 Runs a Data Analysis Expressions (DAX) query against a published semantic
@@ -162,16 +165,16 @@ BI compresses record batches with LZ4. This endpoint supports semantic
 models on Power BI's modern service infrastructure; deprecated Push models,
 legacy compatibility-level models, monitoring/usage models, and live
 connections to Analysis Services are excluded. The Arrow endpoint requires
-Premium, Fabric, or Embedded capacity. Pro and PPU models can use the JSON
+Premium or Fabric capacity. Pro and PPU models can use the JSON
 endpoint but do not satisfy the Arrow endpoint's capacity requirement.
 \code{effectiveUsername} is user-only and requires workspace admin. Users may
 specify only roles they belong to unless they are workspace admins; service
 principals may use \code{roles} only when they are workspace admins.
 \strong{Allow XMLA endpoints and Analyze in Excel with on-premises semantic
 models} must also be enabled.
-\item Arrow queries may contain multiple \code{EVALUATE} statements, but this helper
-retains its single-table return contract and errors when Power BI returns
-multiple data rowsets.
+\item Arrow queries may contain multiple \code{EVALUATE} statements. When Power BI
+returns multiple data rowsets, this helper returns them in statement order
+as a \code{fabric_pbi_dax_rowsets} list.
 }
 }
 \examples{

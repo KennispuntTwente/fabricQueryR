@@ -87,6 +87,7 @@ test_that("Arrow DAX options and result combinations validate strictly", {
       queryTimeout = 300,
       resultSetRowCountLimit = 100000,
       roles = c("Sales", "Auditor"),
+      executionMetrics = TRUE,
       schemaOnly = FALSE
     )),
     list(
@@ -94,6 +95,7 @@ test_that("Arrow DAX options and result combinations validate strictly", {
       queryTimeout = 300,
       resultSetRowCountLimit = 100000,
       roles = c("Sales", "Auditor"),
+      executionMetrics = TRUE,
       schemaOnly = FALSE
     )
   )
@@ -113,8 +115,8 @@ test_that("Arrow DAX options and result combinations validate strictly", {
     fixed = TRUE
   )
   expect_error(
-    pbi_validate_arrow_options(list(executionMetrics = TRUE)),
-    "Unsupported arrow_options name(s): executionMetrics",
+    pbi_validate_arrow_options(list(executionMetrics = NA)),
+    "TRUE or FALSE",
     fixed = TRUE
   )
   expect_error(
@@ -573,6 +575,7 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
       expect_equal(req$body$data$query, "EVALUATE ROW(\"value\", 1)")
       expect_equal(req$body$data$culture, "en-US")
       expect_equal(req$body$data$queryTimeout, 60)
+      expect_true(req$body$data$executionMetrics)
       expect_s3_class(req$body$data$roles, "AsIs")
       encoded <- jsonlite::toJSON(
         req$body$data,
@@ -599,7 +602,12 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
     dataset_id = "dataset",
     dax = "EVALUATE ROW(\"value\", 1)",
     group_id = "workspace",
-    options = list(culture = "en-US", queryTimeout = 60, roles = "Sales")
+    options = list(
+      culture = "en-US",
+      queryTimeout = 60,
+      executionMetrics = TRUE,
+      roles = "Sales"
+    )
   )
 
   expect_equal(result$x, bit64::as.integer64(1:3))
@@ -718,12 +726,12 @@ test_that("Arrow DAX stream remains file-backed without collecting its table", {
 
   expect_s3_class(stream, "nanoarrow_array_stream")
   expect_true(file.exists(resource$path))
-  expect_s3_class(resource$reader, "RecordBatchReader")
+  expect_s3_class(resource$readers[[1L]], "RecordBatchReader")
   reader <- arrow::as_record_batch_reader(stream)
   expect_equal(nrow(reader$read_table()), 1000L)
 })
 
-test_that("Arrow DAX parser rejects error and multiple data rowsets", {
+test_that("Arrow DAX parser rejects error rowsets", {
   skip_if_not_installed("arrow")
   arrow_payload <- function(data, metadata = list()) {
     table <- arrow::arrow_table(data)
@@ -753,15 +761,6 @@ test_that("Arrow DAX parser rejects error and multiple data rowsets", {
     class = "fabric_pbi_dax_error"
   )
 
-  multiple <- c(
-    arrow_payload(data.frame(first = 1L)),
-    arrow_payload(data.frame(second = 2L))
-  )
-  expect_error(
-    pbi_parse_dax_arrow_response(multiple),
-    "2 Arrow DAX data rowsets",
-    fixed = TRUE
-  )
   expect_error(
     pbi_parse_dax_arrow_response(raw()),
     "empty Arrow DAX response",
@@ -881,6 +880,37 @@ test_that("personal XMLA resolution uses the unscoped dataset collection", {
   expect_true(resolved$personal)
   expect_match(urls, "/datasets$")
   expect_false(grepl("/groups/", urls, fixed = TRUE))
+})
+
+test_that("Arrow DAX parser returns multiple data rowsets in order", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  arrow_payload <- function(data) {
+    path <- tempfile(fileext = ".arrows")
+    on.exit(unlink(path), add = TRUE)
+    arrow::write_ipc_stream(arrow::arrow_table(data), path)
+    readBin(path, "raw", n = file.info(path)$size)
+  }
+  payload <- c(
+    arrow_payload(data.frame(first = 1:2)),
+    arrow_payload(data.frame(second = c("a", "b")))
+  )
+
+  result <- pbi_parse_dax_arrow_response(payload)
+  streams <- pbi_parse_dax_arrow_response(payload, "arrow_stream")
+
+  expect_s3_class(result, "fabric_pbi_dax_rowsets")
+  expect_length(result, 2L)
+  expect_equal(result[[1L]]$first, 1:2)
+  expect_equal(result[[2L]]$second, c("a", "b"))
+  expect_s3_class(streams, "fabric_pbi_dax_rowsets")
+  expect_length(streams, 2L)
+  expect_s3_class(streams[[1L]], "nanoarrow_array_stream")
+  expect_s3_class(streams[[2L]], "nanoarrow_array_stream")
+  first <- arrow::as_record_batch_reader(streams[[1L]])$read_table()
+  second <- arrow::as_record_batch_reader(streams[[2L]])$read_table()
+  expect_equal(as.data.frame(first)$first, 1:2)
+  expect_equal(as.data.frame(second)$second, c("a", "b"))
 })
 
 test_that("Power BI API bases require a trusted HTTPS origin", {

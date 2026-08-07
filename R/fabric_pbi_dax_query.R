@@ -52,16 +52,16 @@
 #'  models on Power BI's modern service infrastructure; deprecated Push models,
 #'  legacy compatibility-level models, monitoring/usage models, and live
 #'  connections to Analysis Services are excluded. The Arrow endpoint requires
-#'  Premium, Fabric, or Embedded capacity. Pro and PPU models can use the JSON
+#'  Premium or Fabric capacity. Pro and PPU models can use the JSON
 #'  endpoint but do not satisfy the Arrow endpoint's capacity requirement.
 #'  `effectiveUsername` is user-only and requires workspace admin. Users may
 #'  specify only roles they belong to unless they are workspace admins; service
 #'  principals may use `roles` only when they are workspace admins.
 #'  **Allow XMLA endpoints and Analyze in Excel with on-premises semantic
 #'  models** must also be enabled.
-#' - Arrow queries may contain multiple `EVALUATE` statements, but this helper
-#'  retains its single-table return contract and errors when Power BI returns
-#'  multiple data rowsets.
+#' - Arrow queries may contain multiple `EVALUATE` statements. When Power BI
+#'  returns multiple data rowsets, this helper returns them in statement order
+#'  as a `fabric_pbi_dax_rowsets` list.
 #'
 #' @param connstr Optional Power BI connection string or one
 #'   SemanticModel record returned by [fabric_semantic_models()] or
@@ -119,18 +119,21 @@
 #'   this mode; their R representation is chosen by the eventual consumer.
 #' @param arrow_options Named list of optional `executeDaxQueries` request
 #'   properties. Supported names are `applicationContext`, `culture`,
-#'   `customData`, `effectiveUsername`, `memoryLimit`, `queryTimeout`,
-#'   `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The
+#'   `customData`, `effectiveUsername`, `executionMetrics`, `memoryLimit`,
+#'   `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The
 #'   required `query` property is supplied from `dax`. Used only by
 #'   `api = "arrow"`.
 #'
-#' @return With `result = "tibble"`, a tibble containing the single result
-#'   table. With `api = "arrow", result = "arrow_stream"`, a
-#'   `nanoarrow_array_stream`. Power BI's column names are preserved. An empty
+#' @return With `result = "tibble"`, a tibble containing a single result table.
+#'   Multiple Arrow data rowsets are returned as a `fabric_pbi_dax_rowsets`
+#'   list of tibbles. With `api = "arrow", result = "arrow_stream"`, the same
+#'   rule applies to `nanoarrow_array_stream` objects. Power BI's column names
+#'   are preserved. An empty
 #'   Arrow result becomes a typed zero-row result. Because the JSON API does not
 #'   provide column metadata for an empty table, that path returns a zero-row,
-#'   zero-column tibble. API errors, multiple rowsets, and partial/truncated
-#'   JSON results raise an error rather than silently returning incomplete data.
+#'   zero-column tibble. When requested, Arrow execution metrics are attached as
+#'   an `execution_metrics` attribute. API errors and partial/truncated JSON
+#'   results raise an error rather than silently returning incomplete data.
 #' @references
 #' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
 #'
@@ -633,6 +636,7 @@ pbi_validate_arrow_options <- function(options) {
     "culture",
     "customData",
     "effectiveUsername",
+    "executionMetrics",
     "memoryLimit",
     "queryTimeout",
     "resultSetRowCountLimit",
@@ -707,7 +711,7 @@ pbi_validate_arrow_options <- function(options) {
   }
   logical_options <- intersect(
     names(options),
-    "schemaOnly"
+    c("executionMetrics", "schemaOnly")
   )
   for (name in logical_options) {
     value <- options[[name]]
@@ -878,12 +882,6 @@ pbi_parse_dax_arrow_response <- function(
   if (!length(data_tables)) {
     rlang::abort("Power BI returned no Arrow DAX data rowset")
   }
-  if (length(data_tables) != 1L) {
-    rlang::abort(sprintf(
-      "Power BI returned %d Arrow DAX data rowsets; exactly one is supported",
-      length(data_tables)
-    ))
-  }
   if (length(metrics_tables) > 1L) {
     rlang::abort(sprintf(
       "Power BI returned %d Arrow DAX execution-metrics rowsets; at most one is supported",
@@ -896,32 +894,45 @@ pbi_parse_dax_arrow_response <- function(
     NULL
   }
   if (identical(result, "arrow_stream")) {
-    stream_buffer <- if (path_payload) {
-      arrow::mmap_open(payload)
-    } else {
-      arrow::BufferReader$create(payload)
-    }
-    stream_buffer$seek(data_positions[[1L]])
-    stream_reader <- arrow::RecordBatchStreamReader$create(stream_buffer)
-    value <- nanoarrow::as_nanoarrow_array_stream(stream_reader)
     resource <- new.env(parent = emptyenv())
-    resource$buffer <- stream_buffer
-    resource$reader <- stream_reader
+    resource$buffers <- vector("list", length(data_positions))
+    resource$readers <- vector("list", length(data_positions))
     resource$path <- if (path_payload && isTRUE(cleanup_path)) payload else NULL
     reg.finalizer(
       resource,
       function(environment) {
-        try(environment$buffer$close(), silent = TRUE)
+        for (stream_buffer in environment$buffers) {
+          try(stream_buffer$close(), silent = TRUE)
+        }
         if (!is.null(environment$path)) {
           unlink(environment$path, force = TRUE)
         }
       },
       onexit = TRUE
     )
-    attr(value, "fabric_dax_resource") <- resource
+    rowsets <- lapply(seq_along(data_positions), function(index) {
+      stream_buffer <- if (path_payload) {
+        arrow::mmap_open(payload)
+      } else {
+        arrow::BufferReader$create(payload)
+      }
+      stream_buffer$seek(data_positions[[index]])
+      stream_reader <- arrow::RecordBatchStreamReader$create(stream_buffer)
+      resource$buffers[[index]] <- stream_buffer
+      resource$readers[[index]] <- stream_reader
+      stream <- nanoarrow::as_nanoarrow_array_stream(stream_reader)
+      attr(stream, "fabric_dax_resource") <- resource
+      stream
+    })
   } else {
-    table <- data_tables[[1L]]
-    value <- tibble::as_tibble(as.data.frame(table))
+    rowsets <- lapply(data_tables, function(table) {
+      tibble::as_tibble(as.data.frame(table))
+    })
+  }
+  value <- if (length(rowsets) == 1L) {
+    rowsets[[1L]]
+  } else {
+    structure(rowsets, class = c("fabric_pbi_dax_rowsets", "list"))
   }
   if (!is.null(metrics)) {
     attr(value, "execution_metrics") <- metrics
