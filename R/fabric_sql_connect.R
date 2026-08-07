@@ -907,6 +907,9 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
   host <- tolower(sub("\\.$", "", trimws(server)))
   trusted_suffixes <- c(
     ".datawarehouse.fabric.microsoft.com",
+    ".datawarehouse.pbidedicated.microsoft.com",
+    ".pbidedicated.microsoft.com",
+    ".pbidedicated.windows.net",
     ".database.fabric.microsoft.com",
     ".database.windows.net"
   )
@@ -1044,7 +1047,12 @@ fabric_parse_sql_connection_string <- function(server) {
 fabric_infer_sql_target <- function(server) {
   if (
     grepl(
-      "\\.datawarehouse\\.fabric\\.microsoft\\.com$",
+      paste0(
+        "(?:\\.datawarehouse\\.fabric\\.microsoft\\.com|",
+        "\\.datawarehouse\\.pbidedicated\\.microsoft\\.com|",
+        "\\.pbidedicated\\.microsoft\\.com|",
+        "\\.pbidedicated\\.windows\\.net)$"
+      ),
       server,
       ignore.case = TRUE
     )

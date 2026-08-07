@@ -242,10 +242,34 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
     "tenant.database.windows.net",
     FALSE
   ))
+  legacy_warehouse_hosts <- c(
+    "tenant.datawarehouse.pbidedicated.microsoft.com",
+    "tenant.pbidedicated.microsoft.com",
+    "tenant.pbidedicated.windows.net"
+  )
+  for (host in legacy_warehouse_hosts) {
+    expect_silent(fabric_sql_validate_endpoint(host, FALSE))
+    expect_equal(
+      fabric_sql_connection_info(host)$target_type,
+      "sql_analytics_endpoint"
+    )
+  }
   expect_error(
     fabric_sql_validate_endpoint("notfabric.microsoft.com", FALSE),
     class = "fabric_sql_endpoint_error"
   )
+  lookalike_hosts <- c(
+    "tenantdatawarehousepbidedicated.microsoft.com",
+    "tenantpbidedicated.microsoft.com",
+    "tenantpbidedicated.windows.net",
+    "tenant.pbidedicated.microsoft.com.evil.test"
+  )
+  for (host in lookalike_hosts) {
+    expect_error(
+      fabric_sql_validate_endpoint(host, FALSE),
+      class = "fabric_sql_endpoint_error"
+    )
+  }
   expect_error(
     fabric_sql_validate_endpoint(
       "server.datawarehouse.fabric.microsoft.com",
