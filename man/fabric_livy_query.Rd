@@ -13,6 +13,7 @@ fabric_livy_query(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
+  audience = NULL,
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
@@ -47,6 +48,12 @@ token or starts its normal interactive login flow.}
 
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+
+\item{audience}{Optional OAuth audience/scope vector. With \code{NULL}, delegated
+authentication requests Microsoft's four required Livy scopes, while an
+AzureAuth client-credentials flow requests the Power BI \code{.default}
+audience documented for service principals. Supply this explicitly when a
+custom token provider or identity flow requires a different token target.}
 
 \item{environment_id}{Optional GUID of a published Fabric Environment whose
 libraries and Spark settings should be used. Leave \code{NULL} to use the
@@ -93,11 +100,12 @@ variables and Spark state, use \code{\link[=fabric_livy_session]{fabric_livy_ses
 Python, Scala/Java, or R application file, use
 \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
 
-Requests use the
-\verb{https://api.fabric.microsoft.com/.default} audience. Delegated
-authentication requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
-\code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All}; the caller also
-needs an appropriate workspace role.
+Delegated authentication requests \code{Lakehouse.Execute.All},
+\code{Lakehouse.Read.All}, \code{Code.AccessFabric.All}, and
+\code{Code.AccessStorage.All}. AzureAuth client-credentials authentication uses
+\verb{https://analysis.windows.net/powerbi/api/.default}, as documented by
+Microsoft for Livy service principals. The caller also needs an
+appropriate workspace role.
 }
 \examples{
 # Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric

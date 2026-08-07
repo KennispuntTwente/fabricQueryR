@@ -258,14 +258,53 @@ fabric_livy_credential <- function(
   tenant_id,
   client_id,
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  audience = NULL
 ) {
-  fabric_credential(
+  fabric_validate_auth_args(auth_args)
+  audience <- fabric_livy_audience(audience, token, auth_args)
+  credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
     token = token,
     auth_args = auth_args
   )
+  credential$livy_audience <- audience
+  credential
+}
+
+fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
+  if (is.null(audience)) {
+    if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
+      return(.fabric_audience$power_bi)
+    }
+    return(.fabric_audience$livy_delegated)
+  }
+  if (
+    !is.character(audience) ||
+      !length(audience) ||
+      anyNA(audience)
+  ) {
+    rlang::abort(
+      "audience must be a non-empty character vector without duplicates"
+    )
+  }
+  audience <- trimws(audience)
+  if (!all(nzchar(audience)) || anyDuplicated(audience)) {
+    rlang::abort(
+      "audience must be a non-empty character vector without duplicates"
+    )
+  }
+  if (
+    is.null(token) &&
+      fabric_uses_client_credentials(auth_args) &&
+      length(audience) != 1L
+  ) {
+    rlang::abort(
+      "Client-credentials authentication requires one .default audience"
+    )
+  }
+  audience
 }
 
 fabric_livy_json <- function(
@@ -287,7 +326,7 @@ fabric_livy_json <- function(
     req,
     simplifyVector = FALSE,
     credential = credential,
-    audience = .fabric_audience$fabric,
+    audience = credential$livy_audience %||% .fabric_audience$fabric,
     idempotent = idempotent
   )
 }
@@ -311,7 +350,7 @@ fabric_livy_ok <- function(
   .httr2_ok(
     req,
     credential = credential,
-    audience = .fabric_audience$fabric,
+    audience = credential$livy_audience %||% .fabric_audience$fabric,
     idempotent = idempotent,
     accepted_status = accepted_status
   )
@@ -582,6 +621,11 @@ fabric_livy_simplify_column <- function(values) {
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
+#' @param audience Optional OAuth audience/scope vector. With `NULL`, delegated
+#'   authentication requests Microsoft's four required Livy scopes, while an
+#'   AzureAuth client-credentials flow requests the Power BI `.default`
+#'   audience documented for service principals. Supply this explicitly when a
+#'   custom token provider or identity flow requires a different token target.
 #' @param environment_id Optional GUID of a published Fabric Environment whose
 #'   libraries and Spark settings should be used. Leave `NULL` to use the
 #'   Lakehouse/workspace defaults.
@@ -613,11 +657,12 @@ fabric_livy_simplify_column <- function(values) {
 #' Python, Scala/Java, or R application file, use
 #' [fabric_livy_batch_submit()].
 #'
-#' Requests use the
-#'   `https://api.fabric.microsoft.com/.default` audience. Delegated
-#'   authentication requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
-#'   `Code.AccessFabric.All`, and `Code.AccessStorage.All`; the caller also
-#'   needs an appropriate workspace role.
+#' Delegated authentication requests `Lakehouse.Execute.All`,
+#'   `Lakehouse.Read.All`, `Code.AccessFabric.All`, and
+#'   `Code.AccessStorage.All`. AzureAuth client-credentials authentication uses
+#'   `https://analysis.windows.net/powerbi/api/.default`, as documented by
+#'   Microsoft for Livy service principals. The caller also needs an
+#'   appropriate workspace role.
 #'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
@@ -636,6 +681,7 @@ fabric_livy_query <- function(
   ),
   token = NULL,
   auth_args = list(),
+  audience = NULL,
   environment_id = NULL,
   conf = NULL,
   verbose = TRUE,
@@ -668,6 +714,7 @@ fabric_livy_query <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
+    audience = audience,
     environment_id = environment_id,
     conf = conf,
     verbose = verbose,

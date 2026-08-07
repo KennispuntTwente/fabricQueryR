@@ -5,6 +5,12 @@
     "GraphQLApi.Execute.All"
   ),
   power_bi = "https://analysis.windows.net/powerbi/api/.default",
+  livy_delegated = c(
+    "https://api.fabric.microsoft.com/Lakehouse.Execute.All",
+    "https://api.fabric.microsoft.com/Lakehouse.Read.All",
+    "https://api.fabric.microsoft.com/Code.AccessFabric.All",
+    "https://api.fabric.microsoft.com/Code.AccessStorage.All"
+  ),
   sql = "https://database.windows.net/.default",
   storage = "https://storage.azure.com/.default",
   kusto = "https://api.kusto.windows.net/.default"
@@ -138,7 +144,11 @@ fabric_credential <- function(
 
   cache <- new.env(parent = emptyenv())
   provider <- function(audience, force_refresh = FALSE) {
-    key <- gsub("[^A-Za-z0-9]", "_", audience)
+    key <- gsub(
+      "[^A-Za-z0-9]",
+      "_",
+      paste(audience, collapse = "|")
+    )
     azure_token <- cache[[key]]
     if (is.null(azure_token)) {
       args <- c(

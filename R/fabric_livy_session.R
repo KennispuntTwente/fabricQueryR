@@ -550,6 +550,11 @@ FabricLivyStatement <- R6::R6Class(
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
+#' @param audience Optional OAuth audience/scope vector. With `NULL`, delegated
+#'   authentication requests Microsoft's four required Livy scopes, while an
+#'   AzureAuth client-credentials flow requests the Power BI `.default`
+#'   audience documented for service principals. Supply this explicitly when a
+#'   custom token provider or identity flow requires a different token target.
 #' @param verbose Logical. Show session lifecycle messages.
 #' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
 #'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
@@ -565,10 +570,11 @@ FabricLivyStatement <- R6::R6Class(
 #'
 #' A finalizer attempts cleanup if an open object is garbage
 #'   collected. Call `$close()` explicitly, and use `on.exit(session$close())`
-#'   in functions, for deterministic cleanup. Requests use the
-#'   `https://api.fabric.microsoft.com/.default` audience. Delegated
-#'   authentication requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
-#'   `Code.AccessFabric.All`, and `Code.AccessStorage.All`.
+#'   in functions, for deterministic cleanup. Delegated authentication requests
+#'   `Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and
+#'   `Code.AccessStorage.All`. AzureAuth client-credentials authentication uses
+#'   `https://analysis.windows.net/powerbi/api/.default`, as documented by
+#'   Microsoft for Livy service principals.
 #'
 #' @seealso
 #' [Microsoft session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
@@ -625,6 +631,7 @@ fabric_livy_session <- function(
   ),
   token = NULL,
   auth_args = list(),
+  audience = NULL,
   verbose = TRUE,
   allow_custom_endpoint = FALSE
 ) {
@@ -691,7 +698,8 @@ fabric_livy_session <- function(
     tenant_id,
     client_id,
     token,
-    auth_args
+    auth_args,
+    audience
   )
   FabricLivySession$new(
     livy_url = fabric_livy_resolve_url(

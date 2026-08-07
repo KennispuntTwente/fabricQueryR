@@ -127,6 +127,36 @@ test_that("client credentials omit offline_access", {
   expect_equal(calls[[1L]]$password, "secret")
 })
 
+test_that("AzureAuth caches multi-scope delegated tokens", {
+  calls <- list()
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      calls[[length(calls) + 1L]] <<- list(...)
+      fake_azure_token()
+    },
+    .package = "AzureAuth"
+  )
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(auth_type = "device_code")
+  )
+
+  expect_equal(
+    fabric_get_token(credential, .fabric_audience$livy_delegated),
+    "azure-token"
+  )
+  expect_equal(
+    fabric_get_token(credential, .fabric_audience$livy_delegated),
+    "azure-token"
+  )
+  expect_length(calls, 1L)
+  expect_identical(
+    calls[[1L]]$resource,
+    c(.fabric_audience$livy_delegated, "offline_access")
+  )
+})
+
 test_that("authentication inputs are validated consistently", {
   expect_error(
     fabric_credential(token = list(value = "not-a-token")),

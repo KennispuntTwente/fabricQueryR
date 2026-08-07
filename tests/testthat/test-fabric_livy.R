@@ -2,6 +2,62 @@ livy_test_credential <- function() {
   fabric_credential(token = "token")
 }
 
+test_that("Livy selects identity-aware OAuth audiences", {
+  expect_identical(
+    fabric_livy_audience(NULL, NULL, list(auth_type = "device_code")),
+    .fabric_audience$livy_delegated
+  )
+  expect_identical(
+    fabric_livy_audience(
+      NULL,
+      NULL,
+      list(auth_type = "client_credentials", password = "secret")
+    ),
+    .fabric_audience$power_bi
+  )
+  expect_identical(
+    fabric_livy_audience("https://custom.test/.default", "token"),
+    "https://custom.test/.default"
+  )
+  expect_error(
+    fabric_livy_audience(
+      .fabric_audience$livy_delegated,
+      NULL,
+      list(auth_type = "client_credentials", password = "secret")
+    ),
+    "requires one .default audience",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_livy_audience(c("scope", "scope"), "token"),
+    "without duplicates",
+    fixed = TRUE
+  )
+})
+
+test_that("Livy requests use the audience stored on the credential", {
+  requested <- NULL
+  credential <- fabric_livy_credential(
+    tenant_id = NULL,
+    client_id = NULL,
+    token = "token"
+  )
+  local_mocked_bindings(
+    .httr2_json = function(req, audience, ...) {
+      requested <<- audience
+      list(ok = TRUE)
+    }
+  )
+
+  fabric_livy_json(
+    "GET",
+    "https://api.fabric.microsoft.com/livy/sessions/1",
+    credential
+  )
+
+  expect_identical(requested, .fabric_audience$livy_delegated)
+})
+
 test_that("regular session runs multiple statements and closes", {
   calls <- list()
   session_gets <- 0L

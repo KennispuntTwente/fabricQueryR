@@ -28,6 +28,7 @@ fabric_livy_batch_submit(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
+  audience = NULL,
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
@@ -94,6 +95,12 @@ token or starts its normal interactive login flow.}
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
+\item{audience}{Optional OAuth audience/scope vector. With \code{NULL}, delegated
+authentication requests Microsoft's four required Livy scopes, while an
+AzureAuth client-credentials flow requests the Power BI \code{.default}
+audience documented for service principals. Supply this explicitly when a
+custom token provider or identity flow requires a different token target.}
+
 \item{verbose}{Logical. Show submission and lifecycle messages.}
 
 \item{wait}{Logical. \code{FALSE} returns immediately so other R work can
@@ -130,10 +137,10 @@ application file must already be accessible through an ABFS/ABFSS URI; this
 function does not upload a local script. Use \code{\link[=fabric_onelake_upload]{fabric_onelake_upload()}} first
 when needed.
 
-Requests use the
-\verb{https://api.fabric.microsoft.com/.default} audience. Delegated
-authentication requires the Livy Lakehouse execution/read and required
-\verb{Code.Access*} scopes documented by Microsoft.
+Delegated authentication requests the Livy Lakehouse execution/read and
+required \verb{Code.Access*} scopes documented by Microsoft. AzureAuth
+client-credentials authentication uses
+\verb{https://analysis.windows.net/powerbi/api/.default}.
 }
 \examples{
 \dontrun{

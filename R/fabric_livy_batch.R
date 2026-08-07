@@ -242,6 +242,11 @@ FabricLivyBatch <- R6::R6Class(
 #'   token or starts its normal interactive login flow.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()].
+#' @param audience Optional OAuth audience/scope vector. With `NULL`, delegated
+#'   authentication requests Microsoft's four required Livy scopes, while an
+#'   AzureAuth client-credentials flow requests the Power BI `.default`
+#'   audience documented for service principals. Supply this explicitly when a
+#'   custom token provider or identity flow requires a different token target.
 #' @param verbose Logical. Show submission and lifecycle messages.
 #' @param wait Logical. `FALSE` returns immediately so other R work can
 #'   continue; `TRUE` waits for a terminal state before returning the same
@@ -266,10 +271,10 @@ FabricLivyBatch <- R6::R6Class(
 #' function does not upload a local script. Use [fabric_onelake_upload()] first
 #' when needed.
 #'
-#' Requests use the
-#'   `https://api.fabric.microsoft.com/.default` audience. Delegated
-#'   authentication requires the Livy Lakehouse execution/read and required
-#'   `Code.Access*` scopes documented by Microsoft.
+#' Delegated authentication requests the Livy Lakehouse execution/read and
+#'   required `Code.Access*` scopes documented by Microsoft. AzureAuth
+#'   client-credentials authentication uses
+#'   `https://analysis.windows.net/powerbi/api/.default`.
 #'
 #' @seealso
 #' [Microsoft Fabric batch jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)
@@ -315,6 +320,7 @@ fabric_livy_batch_submit <- function(
   ),
   token = NULL,
   auth_args = list(),
+  audience = NULL,
   verbose = TRUE,
   wait = FALSE,
   timeout = 1200,
@@ -371,7 +377,8 @@ fabric_livy_batch_submit <- function(
     tenant_id,
     client_id,
     token,
-    auth_args
+    auth_args,
+    audience
   )
   collection <- fabric_livy_endpoint(
     fabric_livy_resolve_url(
