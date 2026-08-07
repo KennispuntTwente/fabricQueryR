@@ -60,6 +60,26 @@ test_that("SQL connection strings preserve quoted semicolons", {
   )
 })
 
+test_that("connection-string delimiters only open at value boundaries", {
+  parsed <- fabric_parse_sql_connection_string(paste0(
+    "Server=abc.database.fabric.microsoft.com;",
+    "Database=Sales;",
+    "Application Name=O'Brien{preview;",
+    "Password=abc\"def;"
+  ))
+
+  expect_equal(parsed$database, "Sales")
+  expect_equal(parsed$fields$applicationname, "O'Brien{preview")
+  expect_equal(parsed$fields$password, 'abc"def')
+
+  spaced <- fabric_parse_sql_connection_string(paste0(
+    "Server =   {abc.database.fabric.microsoft.com};",
+    "Database =   'Sales; Archive';"
+  ))
+  expect_equal(spaced$server, "abc.database.fabric.microsoft.com")
+  expect_equal(spaced$database, "Sales; Archive")
+})
+
 test_that("SQL connection info consumes discovered item rows", {
   item <- tibble::tibble(
     id = "item-id",

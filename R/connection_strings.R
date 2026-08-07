@@ -5,6 +5,8 @@ fabric_split_connection_string <- function(value) {
   current <- character()
   quote <- NULL
   braced <- FALSE
+  has_equals <- FALSE
+  can_open_value <- TRUE
   index <- 1L
 
   while (index <= length(characters)) {
@@ -20,6 +22,7 @@ fabric_split_connection_string <- function(value) {
           index <- index + 1L
         } else {
           braced <- FALSE
+          can_open_value <- FALSE
         }
       }
     } else if (!is.null(quote)) {
@@ -33,17 +36,27 @@ fabric_split_connection_string <- function(value) {
           index <- index + 1L
         } else {
           quote <- NULL
+          can_open_value <- FALSE
         }
       }
     } else if (identical(char, ";")) {
       tokens <- c(tokens, paste0(current, collapse = ""))
       current <- character()
+      has_equals <- FALSE
+      can_open_value <- TRUE
     } else {
       current <- c(current, char)
-      if (char %in% c("\"", "'")) {
+      if (identical(char, "=") && !isTRUE(has_equals)) {
+        has_equals <- TRUE
+        can_open_value <- TRUE
+      } else if (isTRUE(can_open_value) && grepl("^\\s$", char)) {
+        # Quoted or braced values may have whitespace after the equals sign.
+      } else if (isTRUE(can_open_value) && char %in% c("\"", "'")) {
         quote <- char
-      } else if (identical(char, "{")) {
+      } else if (isTRUE(can_open_value) && identical(char, "{")) {
         braced <- TRUE
+      } else {
+        can_open_value <- FALSE
       }
     }
     index <- index + 1L
