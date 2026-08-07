@@ -72,7 +72,7 @@
 <h2 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
 </h2>
 <p>Below is a minimal example of how to find a workspace and some of its items.</p>
-<p>To connect to Microsoft Fabric, you need a Microsoft Entra tenant ID and optionally a client ID. See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> more details on how to set these environment variables and sign in to Microsoft Fabric from R.</p>
+<p>To connect to Microsoft Fabric, you need a Microsoft Entra tenant ID and optionally a client ID. See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> for more details on how to set these environment variables and sign in to Microsoft Fabric from R.</p>
 <p>Once you know these values, you can discover workspaces and items like so:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
@@ -162,15 +162,38 @@
 <span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Run a Livy session for multiple statements that share state</span></span>
-<span><span class="va">livy</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_session.html">fabric_livy_session</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
-<span><span class="va">livy</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">livy</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span><span class="st">"shared_value = 40"</span>, kind <span class="op">=</span> <span class="st">"pyspark"</span><span class="op">)</span></span>
-<span><span class="va">livy_result</span> <span class="op">&lt;-</span> <span class="va">livy</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span></span>
-<span>  <span class="st">"print(shared_value + 2)"</span>,</span>
-<span>  kind <span class="op">=</span> <span class="st">"pyspark"</span></span>
+<span><span class="co"># Run a reusable session, with deterministic cleanup on errors</span></span>
+<span><span class="va">run_shared_state</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">livy</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_session.html">fabric_livy_session</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">livy</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>  <span class="va">livy</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="va">livy</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span><span class="st">"shared_value = 40"</span>, kind <span class="op">=</span> <span class="st">"pyspark"</span><span class="op">)</span></span>
+<span>  <span class="va">livy</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span><span class="st">"print(shared_value + 2)"</span>, kind <span class="op">=</span> <span class="st">"pyspark"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Let Fabric pack isolated REPLs into high-concurrency Spark sessions</span></span>
+<span><span class="va">run_high_concurrency</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">livy</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_session.html">fabric_livy_session</a></span><span class="op">(</span></span>
+<span>    <span class="va">lakehouse</span>,</span>
+<span>    high_concurrency <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    session_tag <span class="op">=</span> <span class="st">"report-workers"</span></span>
+<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">livy</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>  <span class="va">livy</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="va">livy</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span><span class="st">"SELECT current_timestamp()"</span>, kind <span class="op">=</span> <span class="st">"sql"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Submit an application file as an independent batch job</span></span>
+<span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit</a></span><span class="op">(</span></span>
+<span>  <span class="va">lakehouse</span>,</span>
+<span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"abfss://workspace@onelake.dfs.fabric.microsoft.com/"</span>,</span>
+<span>    <span class="st">"lakehouse/Files/jobs/daily.py"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">livy</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">batch</span><span class="op">$</span><span class="fu">result</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Copy the session or batch connection URL from <strong>Lakehouse settings &gt; Livy endpoint</strong>, or pass a Lakehouse returned by <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code> as above.</p>
 </div>
 <div class="section level3">

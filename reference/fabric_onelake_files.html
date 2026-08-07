@@ -210,7 +210,8 @@ token or starts its normal interactive login flow.</p></dd>
 <dt id="arg-dfs-base">dfs_base<a class="anchor" aria-label="anchor" href="#arg-dfs-base"></a></dt>
 <dd><p>Canonical HTTPS OneLake DFS origin, without credentials,
 path, query, or fragment. Regional and workspace-private DFS endpoints are
-supported. Most users should keep the default.</p></dd>
+supported. When omitted, a DFS endpoint returned by Fabric discovery is
+preferred over the global default.</p></dd>
 
 
 <dt id="arg-dest">dest<a class="anchor" aria-label="anchor" href="#arg-dest"></a></dt>

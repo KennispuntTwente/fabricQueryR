@@ -97,7 +97,9 @@ and easier to quote correctly than building KQL with <code><a href="https://rdrr
 <dt id="arg-request-properties">request_properties<a class="anchor" aria-label="anchor" href="#arg-request-properties"></a></dt>
 <dd><p>Named list of Kusto client request options, such as
 <code>servertimeout = "2m"</code> or <code>notruncation = TRUE</code>. Most users can leave this
-empty; these are server-side Kusto controls, not query parameters.</p></dd>
+empty; these are server-side Kusto controls, not query parameters. Fabric
+does not support <code>queryconsistency</code> or
+<code>query_weakconsistency_session_id</code>.</p></dd>
 
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
@@ -153,7 +155,10 @@ interpolated into <code>query</code>. Declare them in KQL with
 parameter values; vectors and lists are encoded as <code>dynamic(...)</code> literals.
 Zero-length vectors and unnamed lists encode <code>dynamic([])</code>. A zero-length
 list with non-<code>NULL</code> names encodes <code>dynamic({})</code>; <code>NULL</code> remains invalid so it
-cannot be confused with an empty collection or a typed Kusto null.</p>
+cannot be confused with an empty collection or a typed Kusto null.
+Microsoft Fabric does not support the <code>queryconsistency</code> or
+<code>query_weakconsistency_session_id</code> request properties. Do not include either
+name in <code>request_properties</code>, even though Azure Data Explorer supports them.</p>
 <p>KQL <code>bool</code>, <code>datetime</code>, <code>int</code>, <code>long</code>, <code>real</code>, and <code>timespan</code> columns normally
 become logical, UTC <code>POSIXct</code>, integer, <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, double, and
 <code>difftime</code> vectors. Base R and <code>bit64</code> reserve the minimum signed <code>int</code> and
@@ -172,6 +177,7 @@ Management commands and ingestion endpoints are intentionally not supported.</p>
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/fabric/real-time-intelligence/access-database-copy-uri" class="external-link">Access a KQL database and copy its Query URI</a></p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric" class="external-link">Kusto query HTTP request and parameters</a></p>
+<p><a href="https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric" class="external-link">Kusto request properties</a></p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric" class="external-link">Kusto role-based access control</a></p>
     </div>
 

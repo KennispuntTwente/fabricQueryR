@@ -84,7 +84,8 @@ fabric_onelake_read_delta_table(
 - dfs_base:
 
   Canonical HTTPS OneLake DFS origin, without credentials, path, query,
-  or fragment. Most users can keep the default.
+  or fragment. When omitted, a DFS endpoint returned by Fabric discovery
+  is preferred over the global default.
 
 - columns:
 

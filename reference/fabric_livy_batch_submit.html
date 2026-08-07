@@ -232,6 +232,23 @@ authentication requires the Livy Lakehouse execution/read and required
     <div class="dont-index"><p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch" class="external-link">Microsoft Fabric batch jobs</a></p></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_batch_submit</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">lakehouse</span>,</span></span>
+<span class="r-in"><span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="st">"abfss://workspace@onelake.dfs.fabric.microsoft.com/"</span>,</span></span>
+<span class="r-in"><span>    <span class="st">"lakehouse/Files/jobs/daily.py"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span>,</span></span>
+<span class="r-in"><span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>  cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">batch</span><span class="op">$</span><span class="fu">result</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

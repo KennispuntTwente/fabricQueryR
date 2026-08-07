@@ -167,7 +167,8 @@ fabric_onelake_delete(
 
   Canonical HTTPS OneLake DFS origin, without credentials, path, query,
   or fragment. Regional and workspace-private DFS endpoints are
-  supported. Most users should keep the default.
+  supported. When omitted, a DFS endpoint returned by Fabric discovery
+  is preferred over the global default.
 
 - dest:
 

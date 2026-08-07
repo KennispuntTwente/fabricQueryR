@@ -115,9 +115,9 @@ fabric_livy_query(
 
 Invisibly, a `fabric_livy_statement_result` list with statement `state`,
 timing information, submitted `code`, raw response, and `output`.
-`output$parsed` contains JSON output converted to an R object or
-plain-text output as a character vector; error details are retained in
-the other `output` fields.
+`output$parsed` contains Livy table MIME output as a tibble, JSON output
+as an R object, or text output as a character vector; error details and
+every original MIME value are retained in the other `output` fields.
 
 ## Details
 

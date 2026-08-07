@@ -191,3 +191,20 @@ required `Code.Access*` scopes documented by Microsoft.
 
 [Microsoft Fabric batch
 jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+batch <- fabric_livy_batch_submit(
+  lakehouse,
+  file = paste0(
+    "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
+    "lakehouse/Files/jobs/daily.py"
+  ),
+  wait = TRUE,
+  cancel_on_timeout = TRUE
+)
+batch$result()
+} # }
+```

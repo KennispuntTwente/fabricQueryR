@@ -59,7 +59,8 @@ fabric_kql_query(
   Named list of Kusto client request options, such as
   `servertimeout = "2m"` or `notruncation = TRUE`. Most users can leave
   this empty; these are server-side Kusto controls, not query
-  parameters.
+  parameters. Fabric does not support `queryconsistency` or
+  `query_weakconsistency_session_id`.
 
 - timeout:
 
@@ -123,7 +124,10 @@ parameter values; vectors and lists are encoded as `dynamic(...)`
 literals. Zero-length vectors and unnamed lists encode `dynamic([])`. A
 zero-length list with non-`NULL` names encodes `dynamic({})`; `NULL`
 remains invalid so it cannot be confused with an empty collection or a
-typed Kusto null.
+typed Kusto null. Microsoft Fabric does not support the
+`queryconsistency` or `query_weakconsistency_session_id` request
+properties. Do not include either name in `request_properties`, even
+though Azure Data Explorer supports them.
 
 KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns
 normally become logical, UTC `POSIXct`, integer,
@@ -150,6 +154,9 @@ URI](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/access-data
 
 [Kusto query HTTP request and
 parameters](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric)
+
+[Kusto request
+properties](https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric)
 
 [Kusto role-based access
 control](https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric)

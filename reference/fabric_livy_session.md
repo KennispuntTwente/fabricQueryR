@@ -175,3 +175,28 @@ authentication requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
 jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
 [high-concurrency
 Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy)
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+run_shared_state <- function(lakehouse) {
+  session <- fabric_livy_session(lakehouse)
+  on.exit(session$close(), add = TRUE)
+  session$wait()
+  session$run("shared_value = 40", kind = "pyspark")
+  session$run("print(shared_value + 2)", kind = "pyspark")
+}
+
+run_high_concurrency <- function(lakehouse) {
+  session <- fabric_livy_session(
+    lakehouse,
+    high_concurrency = TRUE,
+    session_tag = "report-workers"
+  )
+  on.exit(session$close(), add = TRUE)
+  session$wait()
+  session$run("SELECT current_timestamp()", kind = "sql")
+}
+} # }
+```
