@@ -882,3 +882,34 @@ test_that("personal XMLA resolution uses the unscoped dataset collection", {
   expect_match(urls, "/datasets$")
   expect_false(grepl("/groups/", urls, fixed = TRUE))
 })
+
+test_that("Power BI API bases require a trusted HTTPS origin", {
+  expect_equal(
+    pbi_api_base("https://api.powerbi.com/v1.0/myorg/"),
+    "https://api.powerbi.com/v1.0/myorg"
+  )
+  expect_error(
+    pbi_api_base("https://powerbi.test/v1.0/myorg"),
+    class = "fabric_pbi_endpoint_error"
+  )
+  expect_equal(
+    pbi_api_base("https://powerbi.test/v1.0/myorg", TRUE),
+    "https://powerbi.test/v1.0/myorg"
+  )
+
+  invalid <- c(
+    "http://api.powerbi.com/v1.0/myorg",
+    "https://user@api.powerbi.com/v1.0/myorg",
+    "https://api.powerbi.com:443/v1.0/myorg",
+    "https://api.powerbi.com/v1.0/myorg/groups",
+    "https://api.powerbi.com/v1.0/myorg?token=secret",
+    "https://api.powerbi.com/v1.0/myorg#fragment"
+  )
+  for (endpoint in invalid) {
+    expect_error(
+      pbi_api_base(endpoint, TRUE),
+      class = "fabric_pbi_endpoint_error",
+      info = endpoint
+    )
+  }
+})

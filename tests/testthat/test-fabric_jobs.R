@@ -23,6 +23,7 @@ job_test_handle <- function(
       retry_after = retry_after,
       submitted_at = as.POSIXct("2026-01-01", tz = "UTC"),
       api_base = "https://api.fabric.test/v1",
+      allow_custom_endpoint = TRUE,
       route = if (item_type == "Notebook") "notebook" else "core",
       credential = fabric_credential(token = "test-token"),
       status_result = status_result
@@ -37,7 +38,8 @@ test_that("job submission rejects a contradictory explicit workspace", {
       job_test_item(),
       workspace = "99999999-9999-9999-9999-999999999999",
       token = "test-token",
-      api_base = "https://api.fabric.test/v1"
+      api_base = "https://api.fabric.test/v1",
+      allow_custom_endpoint = TRUE
     ),
     "belongs to a different workspace",
     fixed = TRUE
@@ -88,7 +90,8 @@ test_that("job submission uses workspace-specific API endpoints", {
     job_test_item(),
     workspace = workspace,
     token = "test-token",
-    api_base = "https://explicit.test/v1"
+    api_base = "https://explicit.test/v1",
+    allow_custom_endpoint = TRUE
   )
   expect_match(call$url, "https://explicit.test/v1/workspaces/", fixed = TRUE)
 })
@@ -190,7 +193,8 @@ test_that("notebook run builds typed release payload and job handle", {
     ),
     session_tag = "fabricqueryr_tests",
     token = "test-token",
-    api_base = "https://api.fabric.test/v1/"
+    api_base = "https://api.fabric.test/v1/",
+    allow_custom_endpoint = TRUE
   )
 
   expect_s3_class(job, "fabric_job")
@@ -256,7 +260,8 @@ test_that("notebook run preserves configured compute without overrides", {
   fabric_job_run(
     job_test_item(),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1"
+    api_base = "https://api.fabric.test/v1",
+    allow_custom_endpoint = TRUE
   )
 
   expect_null(payload)
@@ -293,7 +298,8 @@ test_that("pipeline run uses current core path without a JSON payload", {
   job <- fabric_job_run(
     job_test_item("DataPipeline"),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1"
+    api_base = "https://api.fabric.test/v1",
+    allow_custom_endpoint = TRUE
   )
 
   expect_equal(job$job_type, "Pipeline")
@@ -405,7 +411,8 @@ test_that("Spark job definition execution data uses its typed route", {
       defaultLakehouseId = reference
     ),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1"
+    api_base = "https://api.fabric.test/v1",
+    allow_custom_endpoint = TRUE
   )
 
   expect_equal(job$route, "spark_job_definition")
@@ -440,7 +447,8 @@ test_that("job payload fields follow the selected route contract", {
     job_test_item("DataPipeline"),
     execution_data = list(executeOption = "ApplyChangesIfNeeded"),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1"
+    api_base = "https://api.fabric.test/v1",
+    allow_custom_endpoint = TRUE
   )
   expect_equal(
     call$payload$executionData,
@@ -453,7 +461,8 @@ test_that("job payload fields follow the selected route contract", {
       job_test_item("SparkJobDefinition"),
       parameters = list(mode = "test"),
       token = "test-token",
-      api_base = "https://api.fabric.test/v1"
+      api_base = "https://api.fabric.test/v1",
+      allow_custom_endpoint = TRUE
     ),
     "do not support `parameters`",
     fixed = TRUE

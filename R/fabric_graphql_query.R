@@ -556,7 +556,7 @@ graphql_resolve_endpoint <- function(
       )
     }
     endpoint <- paste0(
-      fabric_api_base(api_base),
+      fabric_api_base(api_base, allow_custom_endpoint),
       "/workspaces/",
       workspace_id,
       "/graphqlapis/",

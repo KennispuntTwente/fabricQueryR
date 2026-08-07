@@ -13,7 +13,8 @@ fabric_item(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 )
 }
 \arguments{
@@ -52,6 +53,9 @@ Discovery uses the
 different Fabric cloud or a test service. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 \code{api_base} is supplied explicitly.}
+
+\item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
+a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
 }
 \value{
 A \code{fabric_item} list. It contains common fields such as \code{id},

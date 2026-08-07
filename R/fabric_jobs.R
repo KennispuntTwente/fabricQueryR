@@ -90,6 +90,8 @@
 #' @param api_base Fabric REST API base URL. Most users should keep the default.
 #'   A discovered workspace-specific endpoint is used unless this argument is
 #'   supplied explicitly.
+#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
+#'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token.
 #' @details Notebook status uses Fabric's workload-specific beta endpoint first
 #'   and falls back to the core scheduler when that endpoint is unavailable.
 #'   Job submission already uses the release route (`beta=false`). Microsoft
@@ -155,7 +157,8 @@ fabric_job_run <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
   credential <- fabric_credential(
@@ -164,7 +167,7 @@ fabric_job_run <- function(
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
   target <- .fabric_job_target(
     item,
     workspace,
@@ -235,6 +238,7 @@ fabric_job_run <- function(
       retry_after = result$retry_after,
       submitted_at = Sys.time(),
       api_base = base,
+      allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
       credential = credential
     ),
@@ -264,7 +268,8 @@ fabric_job_status <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
   context <- .fabric_job_context(
@@ -279,6 +284,7 @@ fabric_job_status <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = !api_base_supplied
   )
   .fabric_job_get_status(context, allow_not_found = FALSE)
@@ -315,6 +321,7 @@ fabric_job_wait <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -353,7 +360,8 @@ fabric_job_wait <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
-    api_base = api_base
+    api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint
   )
   started <- .now()
   last <- NULL
@@ -453,7 +461,8 @@ fabric_job_cancel <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
   context <- .fabric_job_context(
@@ -468,6 +477,7 @@ fabric_job_cancel <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = !api_base_supplied
   )
   url <- paste0(
@@ -1469,6 +1479,7 @@ print.fabric_job_instance <- function(x, ...) {
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE,
   use_workspace_endpoint = TRUE
 ) {
   if (inherits(job, "fabric_job")) {
@@ -1494,7 +1505,12 @@ print.fabric_job_instance <- function(x, ...) {
     context <- unclass(handle)
     context$job <- handle
     context$credential <- credential
-    context$api_base <- fabric_api_base(job$api_base %||% api_base)
+    custom_endpoint <- job$allow_custom_endpoint %||% allow_custom_endpoint
+    context$api_base <- fabric_api_base(
+      job$api_base %||% api_base,
+      custom_endpoint
+    )
+    context$allow_custom_endpoint <- custom_endpoint
     return(context)
   }
 
@@ -1512,7 +1528,7 @@ print.fabric_job_instance <- function(x, ...) {
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
   target <- .fabric_job_target(
     item,
     workspace,
@@ -1531,6 +1547,7 @@ print.fabric_job_instance <- function(x, ...) {
       item_type = target$item_type,
       job_type = route$job_type,
       api_base = base,
+      allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
       credential = credential
     ),

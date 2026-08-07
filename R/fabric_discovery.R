@@ -31,6 +31,8 @@
 #'   different Fabric cloud or a test service. When `workspace` is a record
 #'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
 #'   `api_base` is supplied explicitly.
+#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
+#'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token.
 #'
 #' @return A plain list with one `fabric_workspace` object per workspace. Each
 #'   object is a named list containing the fields returned by Fabric, such as
@@ -50,7 +52,8 @@ fabric_workspaces <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   if (
     !is.null(roles) &&
@@ -68,13 +71,14 @@ fabric_workspaces <- function(
   ) {
     rlang::abort("prefer_workspace_endpoints must be TRUE or FALSE")
   }
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
     token = token,
     auth_args = auth_args
   )
-  url <- paste0(fabric_api_base(api_base), "/workspaces")
+  url <- paste0(base, "/workspaces")
   req <- httr2::request(url)
   query <- list(
     roles = if (is.null(roles)) NULL else paste(roles, collapse = ","),
@@ -151,7 +155,8 @@ fabric_items <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
   if (
@@ -170,13 +175,13 @@ fabric_items <- function(
   if (!is.logical(recursive) || length(recursive) != 1L || is.na(recursive)) {
     rlang::abort("recursive must be TRUE or FALSE")
   }
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base)
   ws <- fabric_resolve_workspace(
     workspace,
     credential,
@@ -285,16 +290,17 @@ fabric_item <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base)
   ws <- fabric_resolve_workspace(
     workspace,
     credential,
@@ -465,7 +471,14 @@ fabric_graphql_apis <- function(workspace, detail = TRUE, ...) {
   fabric_items(workspace, type = "GraphQLApi", detail = detail, ...)
 }
 
-fabric_api_base <- function(api_base) {
+fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
+  if (
+    !is.logical(allow_custom_endpoint) ||
+      length(allow_custom_endpoint) != 1L ||
+      is.na(allow_custom_endpoint)
+  ) {
+    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+  }
   if (
     !is.character(api_base) ||
       length(api_base) != 1L ||
@@ -474,7 +487,44 @@ fabric_api_base <- function(api_base) {
   ) {
     rlang::abort("api_base must be one non-empty string")
   }
-  sub("/+$", "", api_base)
+  endpoint <- sub("/+$", "", trimws(api_base))
+  parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
+  path <- if (inherits(parsed, "try-error")) "" else parsed$path %||% ""
+  path <- sub("/+$", "", path)
+  host <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    tolower(parsed$hostname %||% "")
+  }
+  clean_origin <- !inherits(parsed, "try-error") &&
+    identical(tolower(parsed$scheme %||% ""), "https") &&
+    nzchar(host) &&
+    !nzchar(parsed$username %||% "") &&
+    !nzchar(parsed$password %||% "") &&
+    !nzchar(parsed$port %||% "") &&
+    path %in% c("", "/v1") &&
+    length(parsed$query %||% list()) == 0L &&
+    !nzchar(parsed$fragment %||% "")
+  if (!clean_origin) {
+    rlang::abort(
+      "api_base must be an HTTPS origin with an optional /v1 path",
+      class = "fabric_api_endpoint_error"
+    )
+  }
+  if (
+    !fabric_host_matches(host, "api.fabric.microsoft.com") &&
+      !isTRUE(allow_custom_endpoint)
+  ) {
+    rlang::abort(
+      paste0(
+        "Refusing to send a Fabric token to untrusted api_base '",
+        api_base,
+        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
+      ),
+      class = "fabric_api_endpoint_error"
+    )
+  }
+  if (identical(tolower(path), "/v1")) endpoint else paste0(endpoint, "/v1")
 }
 
 fabric_is_guid <- function(value) {

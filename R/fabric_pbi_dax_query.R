@@ -95,6 +95,8 @@
 #'   override it only for a test service that implements the same endpoint and
 #'   authentication contract. Sovereign Microsoft clouds are not currently
 #'   supported by this helper.
+#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
+#'   a non-Microsoft HTTPS origin that you trust to receive a Power BI token.
 #' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
 #'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
 #'   token or starts its normal interactive login flow.
@@ -177,6 +179,7 @@ fabric_pbi_dax_query <- function(
   auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
+  allow_custom_endpoint = FALSE,
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
@@ -184,6 +187,7 @@ fabric_pbi_dax_query <- function(
 ) {
   api <- match.arg(api)
   result <- match.arg(result)
+  api_base <- pbi_api_base(api_base, allow_custom_endpoint)
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
     rlang::abort("dax must be one non-empty string")
   }
@@ -326,6 +330,62 @@ fabric_pbi_dax_query <- function(
     options = arrow_options,
     result = result
   )
+}
+
+pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
+  if (
+    !is.logical(allow_custom_endpoint) ||
+      length(allow_custom_endpoint) != 1L ||
+      is.na(allow_custom_endpoint)
+  ) {
+    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+  }
+  if (
+    !is.character(api_base) ||
+      length(api_base) != 1L ||
+      is.na(api_base) ||
+      !nzchar(api_base)
+  ) {
+    rlang::abort("api_base must be one non-empty string")
+  }
+  endpoint <- sub("/+$", "", trimws(api_base))
+  parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
+  path <- if (inherits(parsed, "try-error")) "" else parsed$path %||% ""
+  path <- sub("/+$", "", path)
+  host <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    tolower(parsed$hostname %||% "")
+  }
+  clean_origin <- !inherits(parsed, "try-error") &&
+    identical(tolower(parsed$scheme %||% ""), "https") &&
+    nzchar(host) &&
+    !nzchar(parsed$username %||% "") &&
+    !nzchar(parsed$password %||% "") &&
+    !nzchar(parsed$port %||% "") &&
+    identical(tolower(path), "/v1.0/myorg") &&
+    length(parsed$query %||% list()) == 0L &&
+    !nzchar(parsed$fragment %||% "")
+  if (!clean_origin) {
+    rlang::abort(
+      "api_base must be an HTTPS origin ending in /v1.0/myorg",
+      class = "fabric_pbi_endpoint_error"
+    )
+  }
+  if (
+    !fabric_host_matches(host, "api.powerbi.com") &&
+      !isTRUE(allow_custom_endpoint)
+  ) {
+    rlang::abort(
+      paste0(
+        "Refusing to send a Power BI token to untrusted api_base '",
+        api_base,
+        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
+      ),
+      class = "fabric_pbi_endpoint_error"
+    )
+  }
+  endpoint
 }
 
 pbi_validate_optional_guid <- function(value, name) {

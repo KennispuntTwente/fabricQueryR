@@ -64,7 +64,8 @@ test_that("public functions accept AzureAuth token objects", {
 
   result <- fabric_workspaces(
     token = token,
-    api_base = "https://fabric.test/v1"
+    api_base = "https://fabric.test/v1",
+    allow_custom_endpoint = TRUE
   )
 
   expect_identical(class(result), "list")
