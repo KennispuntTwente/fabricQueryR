@@ -147,6 +147,31 @@ test_that("KQL parameter values are encoded without query interpolation", {
   )
 })
 
+test_that("Fabric-only KQL request-property restrictions are enforced", {
+  for (property in c(
+    "queryconsistency",
+    "QUERY_WEAKCONSISTENCY_SESSION_ID"
+  )) {
+    options <- setNames(list("unsupported"), property)
+    expect_error(
+      fabric_kql_query(
+        "https://cluster.kusto.fabric.microsoft.com",
+        "Events | take 1",
+        database = "Telemetry",
+        request_properties = options,
+        token = "token"
+      ),
+      property,
+      fixed = TRUE,
+      info = property
+    )
+  }
+  expect_silent(kusto_validate_request_properties(list(
+    servertimeout = "30s",
+    notruncation = TRUE
+  )))
+})
+
 test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {
   captured <- NULL
   response <- list(

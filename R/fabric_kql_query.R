@@ -134,6 +134,7 @@ fabric_kql_query <- function(
     request_properties,
     "request_properties"
   )
+  kusto_validate_request_properties(request_properties)
   if (
     !is.numeric(timeout) ||
       length(timeout) != 1L ||
@@ -278,6 +279,22 @@ kusto_named_list <- function(value, name) {
     )
   }
   value
+}
+
+kusto_validate_request_properties <- function(request_properties) {
+  unsupported <- c(
+    "queryconsistency",
+    "query_weakconsistency_session_id"
+  )
+  supplied <- names(request_properties)
+  matches <- supplied[tolower(supplied) %in% unsupported]
+  if (length(matches)) {
+    rlang::abort(paste0(
+      "Microsoft Fabric does not support request_properties: ",
+      paste(matches, collapse = ", ")
+    ))
+  }
+  invisible(request_properties)
 }
 
 kusto_encode_parameters <- function(parameters) {
