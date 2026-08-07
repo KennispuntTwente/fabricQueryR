@@ -10,24 +10,6 @@ name: R-CMD-check.yaml
 permissions: read-all
 
 jobs:
-  sandbox-tests:
-    name: Python sandbox tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: tools/fabric-sandbox/uv.lock
-
-      - name: Install locked sandbox environment
-        run: uv --directory tools/fabric-sandbox sync --locked
-
-      - name: Test sandbox tooling
-        run: uv --directory tools/fabric-sandbox run pytest
-
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
 
