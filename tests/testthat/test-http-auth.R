@@ -443,6 +443,47 @@ test_that("secret redaction consumes complete quoted and nested values", {
       nested = list(TOKEN = "<redacted>", message = "safe")
     )
   )
+
+  variants <- paste0(
+    '{"AccessToken":"one","client-secret":"two",',
+    '"apiKey":"three","SharedAccessSignature":"four",',
+    '"sig":"five","signature":"six"}',
+    "\nhttps://example.test/path?api-key=seven&sig=eight&safe=visible"
+  )
+  variants_redacted <- .httr2_redact(variants)
+  expect_match(variants_redacted, "safe=visible", fixed = TRUE)
+  for (secret in c(
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight"
+  )) {
+    expect_false(
+      grepl(paste0('[=:\"]', secret), variants_redacted),
+      info = secret
+    )
+  }
+
+  variant_object <- list(
+    AccessToken = "one",
+    `client-secret` = "two",
+    apiKey = "three",
+    SharedAccessSignature = "four",
+    nested = list(signature = "five", safe = "visible")
+  )
+  redacted_object <- .httr2_redact_object(variant_object)
+  expect_true(all(vapply(
+    redacted_object[1:4],
+    identical,
+    logical(1),
+    "<redacted>"
+  )))
+  expect_equal(redacted_object$nested$signature, "<redacted>")
+  expect_equal(redacted_object$nested$safe, "visible")
 })
 
 test_that("shared pagination follows continuation URIs and tokens", {

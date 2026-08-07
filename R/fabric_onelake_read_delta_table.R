@@ -900,6 +900,7 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
     message,
     perl = TRUE
   )
+  message <- .httr2_redact(message)
   environment_error <- grepl(
     "No module named ['\"](?:deltalake|nanoarrow)['\"]|ModuleNotFoundError",
     message,

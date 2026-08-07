@@ -1,11 +1,29 @@
 .httr2_secret_fields <- c(
-  "access_token",
-  "refresh_token",
+  "accesstoken",
+  "refreshtoken",
   "authorization",
-  "client_secret",
+  "clientsecret",
+  "clientassertion",
   "password",
-  "token"
+  "token",
+  "apikey",
+  "sig",
+  "signature",
+  "sharedaccesssignature",
+  "sastoken"
 )
+
+.httr2_secret_field_pattern <- paste0(
+  "(?:access[_. -]*token|refresh[_. -]*token|authorization|",
+  "client[_. -]*(?:secret|assertion)|password|token|",
+  "api[_. -]*key|sig(?:nature)?|",
+  "shared[_. -]*access[_. -]*signature|sas[_. -]*token)"
+)
+
+.httr2_is_secret_field <- function(name) {
+  normalized <- gsub("[^[:alnum:]]", "", tolower(name))
+  normalized %in% .httr2_secret_fields
+}
 
 .httr2_redact <- function(text) {
   text <- gsub(
@@ -17,7 +35,7 @@
   gsub(
     paste0(
       "(?is)(?<![[:alnum:]_])([\"']?(?:",
-      paste(.httr2_secret_fields, collapse = "|"),
+      .httr2_secret_field_pattern,
       ")[\"']?\\s*[:=]\\s*)",
       "(?:\"(?:\\\\.|[^\"\\\\])*\"|",
       "'(?:\\\\.|[^'\\\\])*'|[^\\s&,}\\]]+)"
@@ -259,7 +277,7 @@
     secret <- !is.null(value_names) &&
       !is.na(value_names[[index]]) &&
       nzchar(value_names[[index]]) &&
-      tolower(value_names[[index]]) %in% .httr2_secret_fields
+      .httr2_is_secret_field(value_names[[index]])
     value[[index]] <- if (secret) {
       "<redacted>"
     } else {

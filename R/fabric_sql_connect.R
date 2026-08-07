@@ -1174,12 +1174,13 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
     encoded <- utils::URLencode(secret, reserved = TRUE)
     message <- gsub(encoded, "<redacted>", message, fixed = TRUE)
   }
-  gsub(
+  message <- gsub(
     "(?i)(password=)[^&;[:space:]]+",
     "\\1<redacted>",
     message,
     perl = TRUE
   )
+  .httr2_redact(message)
 }
 
 .fabric_sql_db_connect <- function(
