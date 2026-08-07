@@ -262,13 +262,14 @@ its first-level folders (such as `Files` and `Tables`), so upload and
 delete operations are limited to descendants of a managed folder.
 Deletion also requires `confirm = TRUE`. Give the signed-in user or
 application access through a workspace role or through the item's
-**Manage OneLake data access** roles. Write access is required for
-uploads and deletes. A Fabric administrator must also enable **Users can
-access data stored in OneLake with apps external to Fabric** for the
-caller. If authentication succeeds but OneLake returns HTTP 403, check
-this tenant setting as well as the caller's workspace, item, and OneLake
-data permissions; changing the token flow alone will not grant data
-access.
+**Manage OneLake data access** roles. Uploads and deletes require an
+Admin, Member, or Contributor workspace role, or OneLake security
+`ReadWrite` permission on the affected folders. A Fabric administrator
+must also enable **Users can access data stored in OneLake with apps
+external to Fabric** for the caller. If authentication succeeds but
+OneLake returns HTTP 403, check this tenant setting as well as the
+caller's workspace, item, and OneLake data permissions; changing the
+token flow alone will not grant data access.
 
 Uploads are streamed in chunks to a temporary sibling file. The
 completed file is atomically renamed to its OneLake destination with the
@@ -284,6 +285,9 @@ APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 
 [Create and manage OneLake security
 roles](https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles)
+
+[OneLake security best
+practices](https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake)
 
 [OneLake tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)

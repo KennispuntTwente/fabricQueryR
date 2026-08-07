@@ -268,7 +268,10 @@ as a <code>fabric_pbi_dax_rowsets</code> list.</p></li>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example is not executed since it requires configured credentials for Fabric</span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="st">"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;Initial Catalog=SalesModel;"</span></span></span>
+<span class="r-in"><span><span class="va">conn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="st">"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"Initial Catalog=SalesModel;"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_dax_query</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  connstr <span class="op">=</span> <span class="va">conn</span>,</span></span>
 <span class="r-in"><span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(1000, 'Customers')"</span>,</span></span>

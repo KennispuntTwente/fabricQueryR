@@ -65,9 +65,7 @@ fabric_workspaces(
 - api_base:
 
   Fabric REST API base URL. Leave unchanged unless using a different
-  Fabric cloud or a test service. When `workspace` is a record
-  containing `apiEndpoint`, that workspace-specific endpoint is used
-  unless `api_base` is supplied explicitly.
+  Fabric cloud or a test service.
 
 - allow_custom_endpoint:
 

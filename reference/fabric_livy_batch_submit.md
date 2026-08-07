@@ -207,6 +207,8 @@ jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-
 
 ``` r
 if (FALSE) { # \dontrun{
+lakehouse <- fabric_lakehouses("Analytics workspace")[[1]]
+
 batch <- fabric_livy_batch_submit(
   lakehouse,
   file = paste0(

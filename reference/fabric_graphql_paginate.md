@@ -148,6 +148,8 @@ can vary.
 
 ``` r
 if (FALSE) { # \dontrun{
+api <- fabric_graphql_apis("Analytics workspace")[[1]]
+
 pages <- fabric_graphql_paginate(
   api,
   query = paste(

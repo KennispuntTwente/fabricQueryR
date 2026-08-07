@@ -233,8 +233,10 @@ DBI::dbDisconnect(con)
 
 warehouse <- fabric_warehouses("Analytics")[[1]]
 con <- fabric_sql_connect(warehouse)
+DBI::dbDisconnect(con)
 
 # After installing the external driver with `dbc install mssql`:
 con <- fabric_sql_connect(warehouse, backend = "adbc")
+DBI::dbDisconnect(con)
 } # }
 ```

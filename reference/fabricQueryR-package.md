@@ -35,6 +35,14 @@ so that you rarely need to copy GUIDs or endpoints by hand.
   for Delta tables, and the Livy helpers when Spark processing is
   required.
 
+- Use
+  [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+  [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+  and
+  [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+  to control supported on-demand item jobs.
+
 - See
   [`vignette("authentication", package = "fabricQueryR")`](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md)
   for interactive and unattended authentication setup, required token

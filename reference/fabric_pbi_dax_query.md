@@ -250,7 +250,10 @@ setting](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-int
 ``` r
 # Example is not executed since it requires configured credentials for Fabric
 if (FALSE) { # \dontrun{
-conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;Initial Catalog=SalesModel;"
+conn <- paste0(
+  "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;",
+  "Initial Catalog=SalesModel;"
+)
 df <- fabric_pbi_dax_query(
   connstr = conn,
   dax = "EVALUATE TOPN(1000, 'Customers')",

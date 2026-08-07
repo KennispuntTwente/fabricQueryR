@@ -33,9 +33,10 @@ portal](https://app.fabric.microsoft.com). Open your profile (top-right
 corner) and hover over the tooltip icon near ‘Tenant Name’; this will
 then show ‘Tenant ID: ’.
 
-Alternatively, in the [Azure portal](https://portal.azure.com), open
-**Microsoft Entra ID \> Overview** and copy **Tenant ID** under **Basic
-information**. It may also be called the **Directory (tenant) ID**.
+Alternatively, follow Microsoft’s [tenant ID
+guide](https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant)
+for the Microsoft Entra admin center, Azure portal, PowerShell, or Azure
+CLI. The value may also be called the **Directory (tenant) ID**.
 
 If you do not have access to your tenant ID through either portal, ask
 your Microsoft 365, Azure, or Fabric administrator for the tenant ID.

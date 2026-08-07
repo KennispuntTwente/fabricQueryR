@@ -303,8 +303,10 @@ first-level folders (such as <code>Files</code> and <code>Tables</code>), so upl
 operations are limited to descendants of a managed folder. Deletion also
 requires <code>confirm = TRUE</code>.
 Give the signed-in user or application access through a workspace role or
-through the item's <strong>Manage OneLake data access</strong> roles. Write access is
-required for uploads and deletes. A Fabric administrator must also enable
+through the item's <strong>Manage OneLake data access</strong> roles. Uploads and deletes
+require an Admin, Member, or Contributor workspace role, or OneLake security
+<code>ReadWrite</code> permission on the affected folders. A Fabric administrator must
+also enable
 <strong>Users can access data stored in OneLake with apps external to Fabric</strong> for
 the caller. If authentication succeeds but OneLake returns HTTP 403, check
 this tenant setting as well as the caller's workspace, item, and OneLake
@@ -320,6 +322,7 @@ restored if the final rename fails.</p>
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">Connect to OneLake with ADLS APIs</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles" class="external-link">Create and manage OneLake security roles</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake security best practices</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake tenant settings</a></p>
     </div>
 
