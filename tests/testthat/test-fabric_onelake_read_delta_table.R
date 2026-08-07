@@ -615,3 +615,34 @@ test_that("Delta runtime requirements are declared without forcing initializatio
   )
   expect_error(fabric_delta_config(initialize = NA), "TRUE or FALSE")
 })
+
+test_that("Delta runtime configuration initializes and reports missing modules", {
+  local_mocked_bindings(
+    py_require = function(...) {
+      list(
+        python_version = ">=3.10",
+        packages = c("deltalake==1.6.2", "nanoarrow==0.8.0")
+      )
+    },
+    py_available = function(initialize = FALSE) TRUE,
+    py_config = function(...) {
+      list(
+        python = "C:/python/python.exe",
+        version = numeric_version("3.12.7")
+      )
+    },
+    py_module_available = function(module) FALSE,
+    .package = "reticulate"
+  )
+
+  config <- fabric_delta_config(initialize = TRUE)
+
+  expect_true(config$initialized)
+  expect_identical(config$python, "C:/python/python.exe")
+  expect_identical(config$python_version, "3.12.7")
+  expect_identical(
+    config$available,
+    c(deltalake = FALSE, nanoarrow = FALSE)
+  )
+  expect_null(config$versions)
+})

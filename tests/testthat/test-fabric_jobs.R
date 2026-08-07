@@ -313,6 +313,36 @@ test_that("pipeline run uses current core path without a JSON payload", {
   expect_false(call$idempotent)
 })
 
+test_that("job submission rejects missing or malformed Location headers", {
+  response <- list(status_code = 202L, location = NULL, retry_after = NULL)
+  local_mocked_bindings(
+    .fabric_job_request = function(...) response
+  )
+
+  missing <- expect_error(
+    fabric_job_run(
+      job_test_item(),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1",
+      allow_custom_endpoint = TRUE
+    ),
+    class = "fabric_job_protocol_error"
+  )
+  expect_match(conditionMessage(missing), "Location header", fixed = TRUE)
+
+  response$location <- "/jobs/instances/not-a-guid"
+  malformed <- expect_error(
+    fabric_job_run(
+      job_test_item(),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1",
+      allow_custom_endpoint = TRUE
+    ),
+    class = "fabric_job_protocol_error"
+  )
+  expect_match(conditionMessage(malformed), "valid job instance ID", fixed = TRUE)
+})
+
 test_that("job POST requests carry an explicit zero-length body", {
   request <- NULL
   local_mocked_bindings(
@@ -516,6 +546,48 @@ test_that("status normalizes documented metadata and notebook exit value", {
   expect_true(result$visible)
   expect_match(called_url, "/notebooks/", fixed = TRUE)
   expect_match(called_url, "?beta=true", fixed = TRUE)
+})
+
+test_that("status reconstructs context from a raw job instance ID", {
+  called_url <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(method, url, ...) {
+      called_url <<- url
+      expect_equal(method, "GET")
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "33333333-3333-3333-3333-333333333333",
+          status = "Completed"
+        )
+      )
+    }
+  )
+
+  result <- fabric_job_status(
+    job_instance_id = "33333333-3333-3333-3333-333333333333",
+    workspace = "22222222-2222-2222-2222-222222222222",
+    item = "11111111-1111-1111-1111-111111111111",
+    item_type = "DataPipeline",
+    job_type = "Pipeline",
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1",
+    allow_custom_endpoint = TRUE
+  )
+
+  expect_s3_class(result, "fabric_job_instance")
+  expect_equal(result$status, "Completed")
+  expect_s3_class(result$job, "fabric_job")
+  expect_match(
+    called_url,
+    paste0(
+      "/workspaces/22222222-2222-2222-2222-222222222222/",
+      "items/11111111-1111-1111-1111-111111111111/",
+      "jobs/instances/33333333-3333-3333-3333-333333333333"
+    ),
+    fixed = TRUE
+  )
 })
 
 test_that("status treats a completed response with failure details as failed", {
