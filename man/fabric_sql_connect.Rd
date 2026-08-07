@@ -31,9 +31,9 @@ fabric_sql_connect(
 }
 \arguments{
 \item{server}{A Fabric SQL server name, a complete connection string copied
-from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
-returned by a discovery function. A discovered record is usually simplest
-because it also supplies the database name.}
+from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
+or SQL Database record returned by a discovery function. A discovered
+record is usually simplest because it also supplies the database name.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database
@@ -113,8 +113,9 @@ finished. For an ADBC connection with child results still registered,
 use \code{DBI::dbDisconnect(con, force = TRUE)} to release them immediately.
 }
 \description{
-Opens a standard R DBI connection to a Fabric Warehouse, Lakehouse SQL
-analytics endpoint, or SQL Database using Microsoft Entra authentication.
+Opens a standard R DBI connection to a Fabric Warehouse, Warehouse snapshot,
+Lakehouse SQL analytics endpoint, or SQL Database using Microsoft Entra
+authentication.
 Use the returned connection with familiar DBI functions such as
 \code{\link[DBI:dbListTables]{DBI::dbListTables()}} and \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}.
 }

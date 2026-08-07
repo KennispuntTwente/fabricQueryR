@@ -35,9 +35,9 @@ fabric_sql_query(
 }
 \arguments{
 \item{server}{A Fabric SQL server name, a complete connection string copied
-from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
-returned by a discovery function. A discovered record is usually simplest
-because it also supplies the database name.}
+from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
+or SQL Database record returned by a discovery function. A discovered
+record is usually simplest because it also supplies the database name.}
 
 \item{sql}{One T-SQL statement. A Lakehouse SQL analytics endpoint supports
 read queries but not \code{INSERT}, \code{UPDATE}, or \code{DELETE}.}

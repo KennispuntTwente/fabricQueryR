@@ -426,6 +426,7 @@ test_that("typed routes and derived targets cover supported workloads", {
       c(
         "Lakehouse",
         "Warehouse",
+        "WarehouseSnapshot",
         "SQLDatabase",
         "SemanticModel",
         "Eventhouse",
@@ -439,6 +440,7 @@ test_that("typed routes and derived targets cover supported workloads", {
     c(
       "lakehouses",
       "warehouses",
+      "warehouseSnapshots",
       "sqlDatabases",
       "semanticModels",
       "eventhouses",
@@ -466,6 +468,27 @@ test_that("typed routes and derived targets cover supported workloads", {
     sql_database$sql_server,
     "sql.database.fabric.microsoft.com,1433"
   )
+
+  snapshot <- fabric_add_derived_targets(
+    list(
+      id = "snapshot-id",
+      type = "WarehouseSnapshot",
+      displayName = "Sales at month end",
+      properties = list(
+        connectionString = paste0(
+          "snapshot.datawarehouse.fabric.microsoft.com"
+        ),
+        parentWarehouseId = "warehouse-id",
+        snapshotDateTime = "2026-07-31T23:59:59Z"
+      )
+    ),
+    .fabric_api_base
+  )
+  expect_equal(
+    snapshot$sql_server,
+    "snapshot.datawarehouse.fabric.microsoft.com"
+  )
+  expect_equal(snapshot$sql_database, "Sales at month end")
 
   semantic_model <- fabric_add_derived_targets(
     list(
@@ -552,6 +575,7 @@ test_that("typed convenience helpers forward their workload types", {
   helpers <- list(
     fabric_lakehouses = "Lakehouse",
     fabric_warehouses = "Warehouse",
+    fabric_warehouse_snapshots = "WarehouseSnapshot",
     fabric_sql_databases = "SQLDatabase",
     fabric_semantic_models = "SemanticModel",
     fabric_eventhouses = "Eventhouse",

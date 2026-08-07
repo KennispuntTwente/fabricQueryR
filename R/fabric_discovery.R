@@ -401,9 +401,10 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 #' `detail = FALSE` when only names and identifiers are needed.
 #'
 #' @section Choosing a helper:
-#' - `fabric_lakehouses()` and `fabric_warehouses()` find data stores that can
-#'   be queried through [fabric_sql_query()]; Lakehouses can also be accessed
-#'   through OneLake and Livy.
+#' - `fabric_lakehouses()`, `fabric_warehouses()`, and
+#'   `fabric_warehouse_snapshots()` find data stores that can be queried through
+#'   [fabric_sql_query()]; Lakehouses can also be accessed through OneLake and
+#'   Livy.
 #' - `fabric_sql_databases()` finds transactional Fabric SQL databases.
 #' - `fabric_semantic_models()` finds the business models queried with DAX via
 #'   [fabric_pbi_dax_query()].
@@ -433,6 +434,12 @@ fabric_lakehouses <- function(workspace, detail = TRUE, ...) {
 #' @export
 fabric_warehouses <- function(workspace, detail = TRUE, ...) {
   fabric_items(workspace, type = "Warehouse", detail = detail, ...)
+}
+
+#' @rdname fabric_typed_items
+#' @export
+fabric_warehouse_snapshots <- function(workspace, detail = TRUE, ...) {
+  fabric_items(workspace, type = "WarehouseSnapshot", detail = detail, ...)
 }
 
 #' @rdname fabric_typed_items
@@ -704,6 +711,7 @@ fabric_item_route <- function(type) {
   routes <- c(
     lakehouse = "lakehouses",
     warehouse = "warehouses",
+    warehousesnapshot = "warehouseSnapshots",
     sqldatabase = "sqlDatabases",
     semanticmodel = "semanticModels",
     eventhouse = "eventhouses",
@@ -829,7 +837,7 @@ fabric_add_derived_targets <- function(record, api_base) {
       record$id,
       "/livyapi/versions/2023-12-01/sessions"
     )
-  } else if (type == "warehouse") {
+  } else if (type %in% c("warehouse", "warehousesnapshot")) {
     record$sql_server <- properties$connectionString
     record$sql_database <- record$displayName
   } else if (type == "sqldatabase") {

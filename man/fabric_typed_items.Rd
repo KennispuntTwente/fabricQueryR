@@ -4,6 +4,7 @@
 \alias{fabric_typed_items}
 \alias{fabric_lakehouses}
 \alias{fabric_warehouses}
+\alias{fabric_warehouse_snapshots}
 \alias{fabric_sql_databases}
 \alias{fabric_semantic_models}
 \alias{fabric_eventhouses}
@@ -15,6 +16,8 @@
 fabric_lakehouses(workspace, detail = TRUE, ...)
 
 fabric_warehouses(workspace, detail = TRUE, ...)
+
+fabric_warehouse_snapshots(workspace, detail = TRUE, ...)
 
 fabric_sql_databases(workspace, detail = TRUE, ...)
 
@@ -57,9 +60,10 @@ fields used by the matching query functions. They are equivalent to
 \section{Choosing a helper}{
 
 \itemize{
-\item \code{fabric_lakehouses()} and \code{fabric_warehouses()} find data stores that can
-be queried through \code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses can also be accessed
-through OneLake and Livy.
+\item \code{fabric_lakehouses()}, \code{fabric_warehouses()}, and
+\code{fabric_warehouse_snapshots()} find data stores that can be queried through
+\code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses can also be accessed through OneLake and
+Livy.
 \item \code{fabric_sql_databases()} finds transactional Fabric SQL databases.
 \item \code{fabric_semantic_models()} finds the business models queried with DAX via
 \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}.

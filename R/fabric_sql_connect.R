@@ -5,9 +5,9 @@
 #' directly to [fabric_sql_connect()] and do not need to call this function.
 #'
 #' @param server A Fabric SQL server name, a complete connection string copied
-#'   from the Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
-#'   returned by a discovery function. A discovered record is usually simplest
-#'   because it also supplies the database name.
+#'   from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
+#'   or SQL Database record returned by a discovery function. A discovered
+#'   record is usually simplest because it also supplies the database name.
 #' @param database Optional catalog/database. An explicit value overrides a
 #'   database found in `server`. For a bare endpoint, supply the item database
 #'   shown with its connection string in Fabric. If omitted, Warehouse and SQL
@@ -50,11 +50,16 @@ fabric_sql_connection_info <- function(
   connection_string <- NULL
   if (!is.null(record)) {
     discovered_type <- tolower(fabric_record_value(record, "type") %||% "")
-    if (!discovered_type %in% c("lakehouse", "warehouse", "sqldatabase")) {
+    if (!discovered_type %in% c(
+      "lakehouse",
+      "warehouse",
+      "warehousesnapshot",
+      "sqldatabase"
+    )) {
       rlang::abort(
         paste0(
-          "SQL connections require a discovered Lakehouse, Warehouse, or ",
-          "SQLDatabase item"
+          "SQL connections require a discovered Lakehouse, Warehouse, ",
+          "WarehouseSnapshot, or SQLDatabase item"
         ),
         class = "fabric_sql_target_error"
       )
@@ -76,7 +81,10 @@ fabric_sql_connection_info <- function(
         "sql_database",
         "databaseName"
       )
-    if (is.null(database) && discovered_type %in% c("lakehouse", "warehouse")) {
+    if (
+      is.null(database) &&
+        discovered_type %in% c("lakehouse", "warehouse", "warehousesnapshot")
+    ) {
       database <- fabric_record_value(record, "displayName")
     }
   } else {
@@ -99,6 +107,7 @@ fabric_sql_connection_info <- function(
       discovered_type %||% "",
       lakehouse = "lakehouse",
       warehouse = "warehouse",
+      warehousesnapshot = "warehouse",
       sqldatabase = "sql_database",
       fabric_infer_sql_target(parsed$server)
     )
@@ -120,8 +129,9 @@ fabric_sql_connection_info <- function(
 
 #' Connect to a Microsoft Fabric SQL target
 #'
-#' Opens a standard R DBI connection to a Fabric Warehouse, Lakehouse SQL
-#' analytics endpoint, or SQL Database using Microsoft Entra authentication.
+#' Opens a standard R DBI connection to a Fabric Warehouse, Warehouse snapshot,
+#' Lakehouse SQL analytics endpoint, or SQL Database using Microsoft Entra
+#' authentication.
 #' Use the returned connection with familiar DBI functions such as
 #' [DBI::dbListTables()] and [DBI::dbGetQuery()].
 #'

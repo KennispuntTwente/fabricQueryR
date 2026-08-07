@@ -76,6 +76,29 @@ test_that("SQL connection info consumes discovered item rows", {
   expect_equal(info$target_type, "lakehouse")
   expect_equal(info$source, "discovery")
 
+  snapshot <- structure(
+    list(
+      id = "snapshot-id",
+      displayName = "Sales at month end",
+      type = "WarehouseSnapshot",
+      workspaceId = "workspace-id",
+      properties = list(
+        connectionString = paste0(
+          "snapshot.datawarehouse.fabric.microsoft.com"
+        )
+      )
+    ),
+    class = c("fabric_item", "list")
+  )
+  snapshot_info <- fabric_sql_connection_info(snapshot)
+  expect_equal(
+    snapshot_info$server,
+    "snapshot.datawarehouse.fabric.microsoft.com"
+  )
+  expect_equal(snapshot_info$database, "Sales at month end")
+  expect_equal(snapshot_info$target_type, "warehouse")
+  expect_equal(snapshot_info$source, "discovery")
+
   expect_error(
     fabric_sql_connection_info(
       structure(
