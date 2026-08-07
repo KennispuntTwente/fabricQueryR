@@ -215,6 +215,14 @@ fabric_items <- function(
     )
     record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
       fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
+    workspace_onelake_endpoints <- ws$raw$oneLakeEndpoints %||%
+      ws$raw$one_lake_endpoints
+    if (is.list(workspace_onelake_endpoints)) {
+      record$workspaceOneLakeEndpoints <- workspace_onelake_endpoints
+      record$workspaceOneLakeDfsEndpoint <-
+        workspace_onelake_endpoints$dfsEndpoint %||%
+        workspace_onelake_endpoints$dfs_endpoint
+    }
     if (isTRUE(detail)) {
       tryCatch(
         fabric_enrich_item(record, credential, base),

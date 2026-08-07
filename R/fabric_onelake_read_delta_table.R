@@ -78,7 +78,8 @@
 #' @param version Specific table version to read, or `NULL` for the latest.
 #' @param verbose Whether to show authentication and read progress.
 #' @param dfs_base Canonical HTTPS OneLake DFS origin, without credentials,
-#'   path, query, or fragment. Most users can keep the default.
+#'   path, query, or fragment. When omitted, a DFS endpoint returned by Fabric
+#'   discovery is preferred over the global default.
 #' @param columns Column names to return, or `NULL` for all columns.
 #' @param limit Maximum number of rows to return, or `NULL` for all rows.
 #' @param result `"tibble"` (the default) or `"arrow_stream"` for batch
@@ -125,13 +126,14 @@ fabric_onelake_read_delta_table <- function(
   limit = NULL,
   result = c("tibble", "arrow_stream")
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   result <- rlang::arg_match(result, .fabric_delta_result_types)
   resolved <- fabric_delta_resolve_public_target(
     table_path = table_path,
     workspace_name = workspace_name,
     lakehouse_name = lakehouse_name,
     schema = schema,
-    dfs_base = dfs_base,
+    dfs_base = if (dfs_base_supplied) dfs_base else NULL,
     item_type = item_type
   )
   version <- fabric_delta_validate_whole_number(

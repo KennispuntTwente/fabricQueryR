@@ -56,7 +56,8 @@ leave this as \code{NULL} and let fabricQueryR sign in.}
 \item{verbose}{Whether to show authentication and read progress.}
 
 \item{dfs_base}{Canonical HTTPS OneLake DFS origin, without credentials,
-path, query, or fragment. Most users can keep the default.}
+path, query, or fragment. When omitted, a DFS endpoint returned by Fabric
+discovery is preferred over the global default.}
 
 \item{columns}{Column names to return, or \code{NULL} for all columns.}
 

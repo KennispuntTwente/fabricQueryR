@@ -87,7 +87,11 @@ test_that("workspace-specific API endpoints route item discovery", {
     list(
       id = "11111111-1111-4111-8111-111111111111",
       displayName = "Private workspace",
-      apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com/"
+      apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com/",
+      oneLakeEndpoints = list(
+        dfsEndpoint = "https://workspace.z13.dfs.fabric.microsoft.com",
+        blobEndpoint = "https://workspace.z13.blob.fabric.microsoft.com"
+      )
     ),
     class = c("fabric_workspace", "list")
   )
@@ -118,6 +122,10 @@ test_that("workspace-specific API endpoints route item discovery", {
   expect_equal(
     result[[1L]]$workspaceApiEndpoint,
     "https://workspace.z13.api.fabric.microsoft.com/"
+  )
+  expect_equal(
+    result[[1L]]$workspaceOneLakeDfsEndpoint,
+    "https://workspace.z13.dfs.fabric.microsoft.com"
   )
 
   item_urls <- character()

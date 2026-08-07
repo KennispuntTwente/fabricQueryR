@@ -29,6 +29,18 @@ test_that("Delta targets preserve Fabric discovery and ABFSS addressing", {
       "/Tables/dbo/patients"
     )
   )
+  discovered_dfs <- "https://northeurope-onelake.dfs.fabric.microsoft.com"
+  discovered <- fabric_delta_resolve_public_target(
+    table_path = "patients",
+    workspace_name = list(
+      id = workspace_id,
+      oneLakeEndpoints = list(dfsEndpoint = discovered_dfs)
+    ),
+    lakehouse_name = lakehouse,
+    schema = NULL,
+    dfs_base = NULL
+  )
+  expect_identical(discovered$target$dfs_base, discovered_dfs)
   private_target <- resolved$target
   private_target$dfs_base <- paste0(
     "https://",

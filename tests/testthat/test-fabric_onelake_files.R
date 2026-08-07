@@ -46,6 +46,32 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
   expect_equal(discovered$workspace, workspace_id)
   expect_equal(discovered$item, item_id)
 
+  private_dfs <- paste0(
+    "https://",
+    gsub("-", "", workspace_id),
+    ".z12.dfs.fabric.microsoft.com"
+  )
+  discovered_endpoint <- onelake_resolve_target(
+    list(
+      id = workspace_id,
+      oneLakeEndpoints = list(dfsEndpoint = private_dfs)
+    ),
+    list(id = item_id, workspaceId = workspace_id, type = "Lakehouse"),
+    "Files/nested/file.csv"
+  )
+  expect_equal(discovered_endpoint$dfs_base, private_dfs)
+  expect_equal(
+    onelake_resolve_target(
+      list(
+        id = workspace_id,
+        oneLakeEndpoints = list(dfsEndpoint = private_dfs)
+      ),
+      list(id = item_id, workspaceId = workspace_id, type = "Lakehouse"),
+      dfs_base = "https://westeurope-onelake.dfs.fabric.microsoft.com"
+    )$dfs_base,
+    "https://westeurope-onelake.dfs.fabric.microsoft.com"
+  )
+
   https <- onelake_resolve_target(paste0(
     "https://onelake.dfs.fabric.microsoft.com/",
     workspace_id,

@@ -74,7 +74,8 @@
 #'   [AzureAuth::get_azure_token()].
 #' @param dfs_base Canonical HTTPS OneLake DFS origin, without credentials,
 #'   path, query, or fragment. Regional and workspace-private DFS endpoints are
-#'   supported. Most users should keep the default.
+#'   supported. When omitted, a DFS endpoint returned by Fabric discovery is
+#'   preferred over the global default.
 #' @param range Optional inclusive zero-based byte range. Supply one value for
 #'   all bytes from that offset onward, or two values for `start` through `end`.
 #'   Leave `NULL` to download the entire file.
@@ -171,12 +172,13 @@ fabric_onelake_list <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
     item,
     path,
     item_type,
-    dfs_base
+    if (dfs_base_supplied) dfs_base else NULL
   )
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -208,12 +210,13 @@ fabric_onelake_metadata <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
     item,
     path,
     item_type,
-    dfs_base
+    if (dfs_base_supplied) dfs_base else NULL
   )
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -244,12 +247,13 @@ fabric_onelake_download <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
     item,
     path,
     item_type,
-    dfs_base
+    if (dfs_base_supplied) dfs_base else NULL
   )
   onelake_require_file_path(target, "download")
   credential <- fabric_credential(
@@ -294,12 +298,13 @@ fabric_onelake_upload <- function(
     8 * 1024^2
   )
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
     item,
     path,
     item_type,
-    dfs_base
+    if (dfs_base_supplied) dfs_base else NULL
   )
   onelake_require_mutable_path(
     target,
@@ -350,12 +355,13 @@ fabric_onelake_delete <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   allow_managed_tables = FALSE
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
     item,
     path,
     item_type,
-    dfs_base
+    if (dfs_base_supplied) dfs_base else NULL
   )
   onelake_require_mutable_path(
     target,
@@ -386,7 +392,7 @@ onelake_resolve_target <- function(
   item = NULL,
   path = "",
   item_type = NULL,
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = NULL
 ) {
   if (
     is.character(workspace) &&
@@ -460,6 +466,11 @@ onelake_resolve_target <- function(
     }
   }
 
+  if (is.null(dfs_base)) {
+    dfs_base <- onelake_record_dfs_endpoint(workspace_record) %||%
+      onelake_record_dfs_endpoint(item_record) %||%
+      "https://onelake.dfs.fabric.microsoft.com"
+  }
   onelake_validate_endpoint(dfs_base)
   structure(
     list(
@@ -470,6 +481,30 @@ onelake_resolve_target <- function(
     ),
     class = "fabric_onelake_target"
   )
+}
+
+onelake_record_dfs_endpoint <- function(record) {
+  if (is.null(record)) {
+    return(NULL)
+  }
+  endpoint <- fabric_record_value(
+    record,
+    "workspaceOneLakeDfsEndpoint",
+    "oneLakeDfsEndpoint",
+    "dfsEndpoint",
+    "dfs_endpoint"
+  )
+  if (!is.null(endpoint)) {
+    return(endpoint)
+  }
+  endpoints <- record$oneLakeEndpoints %||%
+    record$one_lake_endpoints %||%
+    record$workspaceOneLakeEndpoints
+  if (is.list(endpoints)) {
+    endpoints$dfsEndpoint %||% endpoints$dfs_endpoint
+  } else {
+    NULL
+  }
 }
 
 onelake_parse_uri <- function(uri) {
