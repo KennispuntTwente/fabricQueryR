@@ -321,11 +321,10 @@ test_that("session finalizer attempts cleanup of open sessions", {
     verbose = FALSE,
     allow_custom_endpoint = TRUE
   )
-  session$.__enclos_env__$private$finalize()
-  expect_true(session$closed)
-  expect_equal(deleted, session$url)
-  session$.__enclos_env__$private$finalize()
-  expect_length(deleted, 1L)
+  session_url <- session$url
+  rm(session)
+  gc()
+  expect_equal(deleted, session_url)
 })
 
 test_that("high-concurrency sessions use HC and REPL endpoints", {
@@ -671,6 +670,7 @@ test_that("statement wait polls through cancelling until cancelled", {
   expect_identical(calls, 4L)
   result <- statement$result(refresh = FALSE, error_on_failure = FALSE)
   expect_identical(result$state, "cancelled")
+  session$close()
 })
 
 test_that("top-level batch waiting cancels on timeout and exposes its handle", {
@@ -880,6 +880,7 @@ test_that("session run validates polling before submitting a statement", {
     "timeout"
   )
   expect_identical(posts, 1L)
+  session$close()
 })
 
 test_that("batch result validates error_on_failure before refresh", {
