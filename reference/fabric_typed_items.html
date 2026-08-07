@@ -53,6 +53,8 @@ fields used by the matching query functions. They are equivalent to
 <span></span>
 <span><span class="fu">fabric_warehouses</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">fabric_warehouse_snapshots</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">fabric_sql_databases</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_semantic_models</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
@@ -100,9 +102,10 @@ contains common item metadata and applicable connection fields. See
     <h2 id="choosing-a-helper">Choosing a helper<a class="anchor" aria-label="anchor" href="#choosing-a-helper"></a></h2>
 
 
-<ul><li><p><code>fabric_lakehouses()</code> and <code>fabric_warehouses()</code> find data stores that can
-be queried through <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>; Lakehouses can also be accessed
-through OneLake and Livy.</p></li>
+<ul><li><p><code>fabric_lakehouses()</code>, <code>fabric_warehouses()</code>, and
+<code>fabric_warehouse_snapshots()</code> find data stores that can be queried through
+<code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>; Lakehouses can also be accessed through OneLake and
+Livy.</p></li>
 <li><p><code>fabric_sql_databases()</code> finds transactional Fabric SQL databases.</p></li>
 <li><p><code>fabric_semantic_models()</code> finds the business models queried with DAX via
 <code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>.</p></li>

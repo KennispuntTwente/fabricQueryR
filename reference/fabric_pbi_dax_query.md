@@ -22,6 +22,7 @@ fabric_pbi_dax_query(
   auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
+  allow_custom_endpoint = FALSE,
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
@@ -106,6 +107,11 @@ fabric_pbi_dax_query(
   endpoint and authentication contract. Sovereign Microsoft clouds are
   not currently supported by this helper.
 
+- allow_custom_endpoint:
+
+  Logical. Set to `TRUE` only when `api_base` is a non-Microsoft HTTPS
+  origin that you trust to receive a Power BI token.
+
 - impersonated_user:
 
   Optional user principal name, such as `"analyst@example.com"`, sent as
@@ -135,20 +141,23 @@ fabric_pbi_dax_query(
 
   Named list of optional `executeDaxQueries` request properties.
   Supported names are `applicationContext`, `culture`, `customData`,
-  `effectiveUsername`, `memoryLimit`, `queryTimeout`,
-  `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The required
-  `query` property is supplied from `dax`. Used only by `api = "arrow"`.
+  `effectiveUsername`, `executionMetrics`, `memoryLimit`,
+  `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`.
+  The required `query` property is supplied from `dax`. Used only by
+  `api = "arrow"`.
 
 ## Value
 
-With `result = "tibble"`, a tibble containing the single result table.
-With `api = "arrow", result = "arrow_stream"`, a
-`nanoarrow_array_stream`. Power BI's column names are preserved. An
-empty Arrow result becomes a typed zero-row result. Because the JSON API
-does not provide column metadata for an empty table, that path returns a
-zero-row, zero-column tibble. API errors, multiple rowsets, and
-partial/truncated JSON results raise an error rather than silently
-returning incomplete data.
+With `result = "tibble"`, a tibble containing a single result table.
+Multiple Arrow data rowsets are returned as a `fabric_pbi_dax_rowsets`
+list of tibbles. With `api = "arrow", result = "arrow_stream"`, the same
+rule applies to `nanoarrow_array_stream` objects. Power BI's column
+names are preserved. An empty Arrow result becomes a typed zero-row
+result. Because the JSON API does not provide column metadata for an
+empty table, that path returns a zero-row, zero-column tibble. When
+requested, Arrow execution metrics are attached as an
+`execution_metrics` attribute. API errors and partial/truncated JSON
+results raise an error rather than silently returning incomplete data.
 
 ## Details
 
@@ -206,18 +215,18 @@ returning incomplete data.
   endpoint supports semantic models on Power BI's modern service
   infrastructure; deprecated Push models, legacy compatibility-level
   models, monitoring/usage models, and live connections to Analysis
-  Services are excluded. The Arrow endpoint requires Premium, Fabric, or
-  Embedded capacity. Pro and PPU models can use the JSON endpoint but do
-  not satisfy the Arrow endpoint's capacity requirement.
-  `effectiveUsername` is user-only and requires workspace admin. Users
-  may specify only roles they belong to unless they are workspace
-  admins; service principals may use `roles` only when they are
-  workspace admins. **Allow XMLA endpoints and Analyze in Excel with
-  on-premises semantic models** must also be enabled.
+  Services are excluded. The Arrow endpoint requires Premium or Fabric
+  capacity. Pro and PPU models can use the JSON endpoint but do not
+  satisfy the Arrow endpoint's capacity requirement. `effectiveUsername`
+  is user-only and requires workspace admin. Users may specify only
+  roles they belong to unless they are workspace admins; service
+  principals may use `roles` only when they are workspace admins.
+  **Allow XMLA endpoints and Analyze in Excel with on-premises semantic
+  models** must also be enabled.
 
-- Arrow queries may contain multiple `EVALUATE` statements, but this
-  helper retains its single-table return contract and errors when Power
-  BI returns multiple data rowsets.
+- Arrow queries may contain multiple `EVALUATE` statements. When Power
+  BI returns multiple data rowsets, this helper returns them in
+  statement order as a `fabric_pbi_dax_rowsets` list.
 
 ## References
 

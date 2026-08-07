@@ -65,6 +65,7 @@ than SQL intended for the underlying Lakehouse or Warehouse.</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  include_nulls <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  impersonated_user <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  api <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"json"</span>, <span class="st">"arrow"</span><span class="op">)</span>,</span>
 <span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tibble"</span>, <span class="st">"arrow_stream"</span><span class="op">)</span>,</span>
@@ -146,6 +147,11 @@ authentication contract. Sovereign Microsoft clouds are not currently
 supported by this helper.</p></dd>
 
 
+<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
+<dd><p>Logical. Set to <code>TRUE</code> only when <code>api_base</code> is
+a non-Microsoft HTTPS origin that you trust to receive a Power BI token.</p></dd>
+
+
 <dt id="arg-impersonated-user">impersonated_user<a class="anchor" aria-label="anchor" href="#arg-impersonated-user"></a></dt>
 <dd><p>Optional user principal name, such as
 <code>"analyst@example.com"</code>, sent as <code>impersonatedUserName</code> for supported
@@ -173,21 +179,24 @@ this mode; their R representation is chosen by the eventual consumer.</p></dd>
 <dt id="arg-arrow-options">arrow_options<a class="anchor" aria-label="anchor" href="#arg-arrow-options"></a></dt>
 <dd><p>Named list of optional <code>executeDaxQueries</code> request
 properties. Supported names are <code>applicationContext</code>, <code>culture</code>,
-<code>customData</code>, <code>effectiveUsername</code>, <code>memoryLimit</code>, <code>queryTimeout</code>,
-<code>resultSetRowCountLimit</code>, <code>roles</code>, and <code>schemaOnly</code>. The
+<code>customData</code>, <code>effectiveUsername</code>, <code>executionMetrics</code>, <code>memoryLimit</code>,
+<code>queryTimeout</code>, <code>resultSetRowCountLimit</code>, <code>roles</code>, and <code>schemaOnly</code>. The
 required <code>query</code> property is supplied from <code>dax</code>. Used only by
 <code>api = "arrow"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>With <code>result = "tibble"</code>, a tibble containing the single result
-table. With <code>api = "arrow", result = "arrow_stream"</code>, a
-<code>nanoarrow_array_stream</code>. Power BI's column names are preserved. An empty
+    <p>With <code>result = "tibble"</code>, a tibble containing a single result table.
+Multiple Arrow data rowsets are returned as a <code>fabric_pbi_dax_rowsets</code>
+list of tibbles. With <code>api = "arrow", result = "arrow_stream"</code>, the same
+rule applies to <code>nanoarrow_array_stream</code> objects. Power BI's column names
+are preserved. An empty
 Arrow result becomes a typed zero-row result. Because the JSON API does not
 provide column metadata for an empty table, that path returns a zero-row,
-zero-column tibble. API errors, multiple rowsets, and partial/truncated
-JSON results raise an error rather than silently returning incomplete data.</p>
+zero-column tibble. When requested, Arrow execution metrics are attached as
+an <code>execution_metrics</code> attribute. API errors and partial/truncated JSON
+results raise an error rather than silently returning incomplete data.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -235,16 +244,16 @@ BI compresses record batches with LZ4. This endpoint supports semantic
 models on Power BI's modern service infrastructure; deprecated Push models,
 legacy compatibility-level models, monitoring/usage models, and live
 connections to Analysis Services are excluded. The Arrow endpoint requires
-Premium, Fabric, or Embedded capacity. Pro and PPU models can use the JSON
+Premium or Fabric capacity. Pro and PPU models can use the JSON
 endpoint but do not satisfy the Arrow endpoint's capacity requirement.
 <code>effectiveUsername</code> is user-only and requires workspace admin. Users may
 specify only roles they belong to unless they are workspace admins; service
 principals may use <code>roles</code> only when they are workspace admins.
 <strong>Allow XMLA endpoints and Analyze in Excel with on-premises semantic
 models</strong> must also be enabled.</p></li>
-<li><p>Arrow queries may contain multiple <code>EVALUATE</code> statements, but this helper
-retains its single-table return contract and errors when Power BI returns
-multiple data rowsets.</p></li>
+<li><p>Arrow queries may contain multiple <code>EVALUATE</code> statements. When Power BI
+returns multiple data rowsets, this helper returns them in statement order
+as a <code>fabric_pbi_dax_rowsets</code> list.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

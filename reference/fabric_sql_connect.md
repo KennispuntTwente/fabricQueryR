@@ -1,9 +1,9 @@
 # Connect to a Microsoft Fabric SQL target
 
-Opens a standard R DBI connection to a Fabric Warehouse, Lakehouse SQL
-analytics endpoint, or SQL Database using Microsoft Entra
-authentication. Use the returned connection with familiar DBI functions
-such as
+Opens a standard R DBI connection to a Fabric Warehouse, Warehouse
+snapshot, Lakehouse SQL analytics endpoint, or SQL Database using
+Microsoft Entra authentication. Use the returned connection with
+familiar DBI functions such as
 [`DBI::dbListTables()`](https://dbi.r-dbi.org/reference/dbListTables.html)
 and
 [`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html).
@@ -42,9 +42,9 @@ fabric_sql_connect(
 - server:
 
   A Fabric SQL server name, a complete connection string copied from the
-  Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
-  returned by a discovery function. A discovered record is usually
-  simplest because it also supplies the database name.
+  Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot, or SQL
+  Database record returned by a discovery function. A discovered record
+  is usually simplest because it also supplies the database name.
 
 - database:
 

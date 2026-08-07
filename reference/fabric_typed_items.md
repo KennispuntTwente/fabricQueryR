@@ -14,6 +14,8 @@ fabric_lakehouses(workspace, detail = TRUE, ...)
 
 fabric_warehouses(workspace, detail = TRUE, ...)
 
+fabric_warehouse_snapshots(workspace, detail = TRUE, ...)
+
 fabric_sql_databases(workspace, detail = TRUE, ...)
 
 fabric_semantic_models(workspace, detail = TRUE, ...)
@@ -60,8 +62,9 @@ for details.
 
 ## Choosing a helper
 
-- `fabric_lakehouses()` and `fabric_warehouses()` find data stores that
-  can be queried through
+- `fabric_lakehouses()`, `fabric_warehouses()`, and
+  `fabric_warehouse_snapshots()` find data stores that can be queried
+  through
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md);
   Lakehouses can also be accessed through OneLake and Livy.
 

@@ -58,6 +58,7 @@ data; it has more startup overhead than querying an existing SQL endpoint.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  environment_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  conf <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -109,6 +110,14 @@ token or starts its normal interactive login flow.</p></dd>
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
 <dd><p>Named list of additional arguments passed to
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code>.</p></dd>
+
+
+<dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
+<dd><p>Optional OAuth audience/scope vector. With <code>NULL</code>, delegated
+authentication requests Microsoft's four required Livy scopes, while an
+AzureAuth client-credentials flow requests the Power BI <code>.default</code>
+audience documented for service principals. Supply this explicitly when a
+custom token provider or identity flow requires a different token target.</p></dd>
 
 
 <dt id="arg-environment-id">environment_id<a class="anchor" aria-label="anchor" href="#arg-environment-id"></a></dt>
@@ -165,11 +174,12 @@ copy the session-job connection string. For several statements that reuse
 variables and Spark state, use <code><a href="fabric_livy_session.html">fabric_livy_session()</a></code>. To run a complete
 Python, Scala/Java, or R application file, use
 <code><a href="fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>.</p>
-<p>Requests use the
-<code>https://api.fabric.microsoft.com/.default</code> audience. Delegated
-authentication requires <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>,
-<code>Code.AccessFabric.All</code>, and <code>Code.AccessStorage.All</code>; the caller also
-needs an appropriate workspace role.</p>
+<p>Delegated authentication requests <code>Lakehouse.Execute.All</code>,
+<code>Lakehouse.Read.All</code>, <code>Code.AccessFabric.All</code>, and
+<code>Code.AccessStorage.All</code>. AzureAuth client-credentials authentication uses
+<code>https://analysis.windows.net/powerbi/api/.default</code>, as documented by
+Microsoft for Livy service principals. The caller also needs an
+appropriate workspace role.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

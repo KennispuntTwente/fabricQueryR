@@ -72,6 +72,7 @@ compute for each call.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -178,6 +179,14 @@ token or starts its normal interactive login flow.</p></dd>
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code>.</p></dd>
 
 
+<dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
+<dd><p>Optional OAuth audience/scope vector. With <code>NULL</code>, delegated
+authentication requests Microsoft's four required Livy scopes, while an
+AzureAuth client-credentials flow requests the Power BI <code>.default</code>
+audience documented for service principals. Supply this explicitly when a
+custom token provider or identity flow requires a different token target.</p></dd>
+
+
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. Show session lifecycle messages.</p></dd>
 
@@ -201,10 +210,11 @@ Spark statement streams at the same time; it is not necessary merely to run
 several statements sequentially.</p>
 <p>A finalizer attempts cleanup if an open object is garbage
 collected. Call <code>$close()</code> explicitly, and use <code>on.exit(session$close())</code>
-in functions, for deterministic cleanup. Requests use the
-<code>https://api.fabric.microsoft.com/.default</code> audience. Delegated
-authentication requires <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>,
-<code>Code.AccessFabric.All</code>, and <code>Code.AccessStorage.All</code>.</p>
+in functions, for deterministic cleanup. Delegated authentication requests
+<code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>, <code>Code.AccessFabric.All</code>, and
+<code>Code.AccessStorage.All</code>. AzureAuth client-credentials authentication uses
+<code>https://analysis.windows.net/powerbi/api/.default</code>, as documented by
+Microsoft for Livy service principals.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

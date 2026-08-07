@@ -23,9 +23,9 @@ fabric_sql_connection_info(
 - server:
 
   A Fabric SQL server name, a complete connection string copied from the
-  Fabric portal, or one Lakehouse, Warehouse, or SQL Database record
-  returned by a discovery function. A discovered record is usually
-  simplest because it also supplies the database name.
+  Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot, or SQL
+  Database record returned by a discovery function. A discovered record
+  is usually simplest because it also supplies the database name.
 
 - database:
 

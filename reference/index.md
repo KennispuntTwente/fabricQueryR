@@ -12,6 +12,7 @@ Find Fabric workspaces, items, and workload-specific connection details
   : Discover one Microsoft Fabric item
 - [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_warehouse_snapshots()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_sql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)

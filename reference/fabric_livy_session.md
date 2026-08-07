@@ -33,6 +33,7 @@ fabric_livy_session(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
+  audience = NULL,
   verbose = TRUE,
   allow_custom_endpoint = FALSE
 )
@@ -138,6 +139,15 @@ fabric_livy_session(
   Named list of additional arguments passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
+- audience:
+
+  Optional OAuth audience/scope vector. With `NULL`, delegated
+  authentication requests Microsoft's four required Livy scopes, while
+  an AzureAuth client-credentials flow requests the Power BI `.default`
+  audience documented for service principals. Supply this explicitly
+  when a custom token provider or identity flow requires a different
+  token target.
+
 - verbose:
 
   Logical. Show session lifecycle messages.
@@ -164,10 +174,11 @@ merely to run several statements sequentially.
 
 A finalizer attempts cleanup if an open object is garbage collected.
 Call `$close()` explicitly, and use `on.exit(session$close())` in
-functions, for deterministic cleanup. Requests use the
-`https://api.fabric.microsoft.com/.default` audience. Delegated
-authentication requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
-`Code.AccessFabric.All`, and `Code.AccessStorage.All`.
+functions, for deterministic cleanup. Delegated authentication requests
+`Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`,
+and `Code.AccessStorage.All`. AzureAuth client-credentials
+authentication uses `https://analysis.windows.net/powerbi/api/.default`,
+as documented by Microsoft for Livy service principals.
 
 ## See also
 
