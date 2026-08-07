@@ -1179,9 +1179,9 @@ onelake_upload_target <- function(
 
   temporary <- onelake_upload_temporary_target(target)
   committed <- FALSE
-  temporary_created <- FALSE
+  temporary_may_exist <- FALSE
   on.exit(
-    if (temporary_created && !committed) {
+    if (temporary_may_exist && !committed) {
       try(
         onelake_delete_target(temporary, credential),
         silent = TRUE
@@ -1201,13 +1201,15 @@ onelake_upload_target <- function(
   ) |>
     httr2::req_url_query(resource = "file") |>
     httr2::req_body_raw(raw())
+  # A transport failure can occur after OneLake commits the create. Mark the
+  # unique staging path before transmission so cleanup covers that ambiguity.
+  temporary_may_exist <- TRUE
   .httr2_perform(
     create,
     credential = credential,
     audience = .fabric_audience$storage,
     idempotent = FALSE
   )
-  temporary_created <- TRUE
 
   onelake_upload_chunks(upload, chunk_size, function(bytes, position) {
     append <- onelake_request(onelake_path_url(temporary), "PATCH") |>

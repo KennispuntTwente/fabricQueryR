@@ -641,6 +641,42 @@ test_that("OneLake upload removes temporary files after transfer failure", {
   )))
 })
 
+test_that("OneLake upload cleans up an ambiguously failed temporary create", {
+  calls <- list()
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      calls[[length(calls) + 1L]] <<- req
+      if (length(calls) == 1L) {
+        rlang::abort("connection closed after the create was sent")
+      }
+      onelake_test_response(status = 200L, url = req$url)
+    }
+  )
+
+  expect_error(
+    fabric_onelake_upload(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/create-failure.txt",
+      source = charToRaw("content"),
+      token = "token"
+    ),
+    "connection closed after the create was sent",
+    fixed = TRUE
+  )
+
+  expect_equal(
+    vapply(calls, function(req) req$method, character(1)),
+    c("PUT", "DELETE")
+  )
+  expect_match(calls[[1L]]$url, "fabricqueryr-upload", fixed = TRUE)
+  expect_match(calls[[2L]]$url, "fabricqueryr-upload", fixed = TRUE)
+  expect_equal(
+    sub("\\?.*$", "", calls[[1L]]$url),
+    sub("\\?.*$", "", calls[[2L]]$url)
+  )
+})
+
 test_that("OneLake upload preserves conflict errors and creates nested parents", {
   calls <- list()
   httr2::local_mocked_responses(function(req) {
