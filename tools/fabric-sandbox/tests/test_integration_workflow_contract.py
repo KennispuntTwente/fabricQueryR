@@ -8,6 +8,7 @@ INTEGRATION_GROUPS = {
     "livy",
     "onelake",
     "power-bi",
+    "runtime-compatibility",
     "sql",
 }
 
@@ -44,6 +45,8 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     assert "fabric-terraform-state-${{ matrix.lane }}" in workflow
     assert "runtime: \"1.3\"" in workflow
     assert "runtime: \"2.0\"" in workflow
+    assert "label: Delta on core runtime" in workflow
+    assert "label: Livy on preview runtime" in workflow
     onelake = workflow.index("filter: integration-fabric-onelake")
     assert workflow.index("lane: preview", onelake) > onelake
     assert "name: fabric-test-manifest" in workflow
@@ -111,7 +114,7 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert all(resource in integration for resource in resources)
 
 
-def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
+def test_delta_matrices_install_the_locked_delta_rs_oracle():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/integration-fabric.yaml"
@@ -121,6 +124,7 @@ def test_onelake_matrix_installs_the_locked_delta_rs_oracle():
         "if: matrix.adbc || "
         "matrix.filter == 'integration-fabric-onelake'"
     ) in workflow
+    assert "|| matrix.delta" in workflow
     assert "Install locked delta-rs runtime environment" in workflow
     assert "Select the locked delta-rs Python environment" in workflow
     assert "uv --directory tools/fabric-sandbox sync --locked" in workflow

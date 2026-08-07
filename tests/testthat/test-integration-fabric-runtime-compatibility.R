@@ -1,4 +1,5 @@
-# Cross-runtime smoke coverage complements the full OneLake tests on the
+# Fabric integration coverage: cross-runtime compatibility smoke tests.
+# These complement the full OneLake tests on the
 # preview runtime and the full Livy tests on the core runtime.
 
 test_that("delta-rs reads a Fabric table on the core Spark runtime", {
