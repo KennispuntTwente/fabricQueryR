@@ -340,7 +340,11 @@ test_that("job submission rejects missing or malformed Location headers", {
     ),
     class = "fabric_job_protocol_error"
   )
-  expect_match(conditionMessage(malformed), "valid job instance ID", fixed = TRUE)
+  expect_match(
+    conditionMessage(malformed),
+    "valid job instance ID",
+    fixed = TRUE
+  )
 })
 
 test_that("job POST requests carry an explicit zero-length body", {

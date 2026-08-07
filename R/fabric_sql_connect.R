@@ -50,12 +50,15 @@ fabric_sql_connection_info <- function(
   connection_string <- NULL
   if (!is.null(record)) {
     discovered_type <- tolower(fabric_record_value(record, "type") %||% "")
-    if (!discovered_type %in% c(
-      "lakehouse",
-      "warehouse",
-      "warehousesnapshot",
-      "sqldatabase"
-    )) {
+    if (
+      !discovered_type %in%
+        c(
+          "lakehouse",
+          "warehouse",
+          "warehousesnapshot",
+          "sqldatabase"
+        )
+    ) {
       rlang::abort(
         paste0(
           "SQL connections require a discovered Lakehouse, Warehouse, ",
