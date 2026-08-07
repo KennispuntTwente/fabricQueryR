@@ -28,9 +28,7 @@
 #'   `https://api.fabric.microsoft.com/.default` audience and requires
 #'   `Workspace.Read.All` or `Workspace.ReadWrite.All`.
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
-#'   different Fabric cloud or a test service. When `workspace` is a record
-#'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
-#'   `api_base` is supplied explicitly.
+#'   different Fabric cloud or a test service.
 #' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
 #'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token.
 #'
@@ -121,6 +119,9 @@ fabric_workspaces <- function(
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
 #'   `FALSE` lists only items at the workspace root.
 #' @inheritParams fabric_workspaces
+#' @param api_base Fabric REST API base URL. When `workspace` is a record
+#'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
+#'   `api_base` is supplied explicitly.
 #'
 #' @return A list with one `fabric_item` object per item. Each object is a
 #'   named list with common fields including `id`, `displayName`, `type`,

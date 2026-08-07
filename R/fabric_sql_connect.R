@@ -234,9 +234,11 @@ fabric_sql_connection_info <- function(
 #'
 #' warehouse <- fabric_warehouses("Analytics")[[1]]
 #' con <- fabric_sql_connect(warehouse)
+#' DBI::dbDisconnect(con)
 #'
 #' # After installing the external driver with `dbc install mssql`:
 #' con <- fabric_sql_connect(warehouse, backend = "adbc")
+#' DBI::dbDisconnect(con)
 #' }
 fabric_sql_connect <- function(
   server,
@@ -456,6 +458,7 @@ fabric_sql_connect <- function(
 #'   params = list("West")
 #' )
 #'
+#' warehouse <- fabric_warehouses("Analytics")[[1]]
 #' stream <- fabric_sql_query(
 #'   warehouse,
 #'   "SELECT * FROM dbo.Customers",

@@ -144,6 +144,8 @@ client-credentials authentication uses
 }
 \examples{
 \dontrun{
+lakehouse <- fabric_lakehouses("Analytics workspace")[[1]]
+
 batch <- fabric_livy_batch_submit(
   lakehouse,
   file = paste0(

@@ -16,6 +16,8 @@
 #' - Use [fabric_onelake_files] for ordinary files,
 #'   [fabric_onelake_read_delta_table()] for Delta tables, and the Livy helpers
 #'   when Spark processing is required.
+#' - Use [fabric_job_run()], [fabric_job_status()], [fabric_job_wait()], and
+#'   [fabric_job_cancel()] to control supported on-demand item jobs.
 #' - See `vignette("authentication", package = "fabricQueryR")` for interactive
 #'   and unattended authentication setup, required token audiences, and Fabric
 #'   permissions.

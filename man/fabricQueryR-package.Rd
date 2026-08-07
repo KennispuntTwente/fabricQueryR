@@ -24,6 +24,8 @@ Lakehouse SQL analytics endpoint.
 \item Use \link{fabric_onelake_files} for ordinary files,
 \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} for Delta tables, and the Livy helpers
 when Spark processing is required.
+\item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and
+\code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs.
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive
 and unattended authentication setup, required token audiences, and Fabric
 permissions.

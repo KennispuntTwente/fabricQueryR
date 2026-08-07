@@ -101,6 +101,8 @@ because that location depends on the API schema.
 }
 \examples{
 \dontrun{
+api <- fabric_graphql_apis("Analytics workspace")[[1]]
+
 pages <- fabric_graphql_paginate(
   api,
   query = paste(

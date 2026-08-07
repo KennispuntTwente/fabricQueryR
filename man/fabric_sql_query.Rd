@@ -156,6 +156,7 @@ result <- fabric_sql_query(
   params = list("West")
 )
 
+warehouse <- fabric_warehouses("Analytics")[[1]]
 stream <- fabric_sql_query(
   warehouse,
   "SELECT * FROM dbo.Customers",

@@ -207,6 +207,8 @@ fabric_graphql_query <- function(
 #'
 #' @examples
 #' \dontrun{
+#' api <- fabric_graphql_apis("Analytics workspace")[[1]]
+#'
 #' pages <- fabric_graphql_paginate(
 #'   api,
 #'   query = paste(
