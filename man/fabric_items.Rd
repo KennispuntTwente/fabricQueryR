@@ -35,9 +35,10 @@ such as SQL connection strings and Livy or KQL endpoints, but is slower
 and can require additional permissions. The typed helpers below use
 \code{TRUE}.}
 
-\item{detail_errors}{How workload-detail failures are handled. \code{"record"}
-retains the item, stores the message in \code{detail_error}, and emits one
-summary warning. \code{"abort"} preserves strict all-or-nothing behavior.}
+\item{detail_errors}{How workload-detail or optional private SQL endpoint
+failures are handled. \code{"record"} retains every successfully retrieved
+field, stores the message in \code{detail_error}, and emits one summary warning.
+\code{"abort"} preserves strict all-or-nothing behavior.}
 
 \item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
 \code{FALSE} lists only items at the workspace root.}

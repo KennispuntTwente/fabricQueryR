@@ -390,7 +390,7 @@ test_that("item discovery records partial detail failures", {
       detail = TRUE,
       token = "token"
     ),
-    "Could not retrieve workload details for 1 Fabric item",
+    "Could not fully enrich 1 Fabric item",
     fixed = TRUE
   )
   expect_length(result, 2L)
@@ -416,6 +416,74 @@ test_that("item discovery records partial detail failures", {
       token = "token"
     ),
     "detail request was forbidden",
+    fixed = TRUE
+  )
+})
+
+test_that("private SQL failures retain successful workload details", {
+  private_base <- "https://workspace.z13.api.fabric.microsoft.com/v1"
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = "workspace-id",
+        displayName = "Analytics",
+        api_base = private_base
+      )
+    },
+    .httr2_collection = function(...) {
+      list(list(
+        id = "warehouse-id",
+        displayName = "Sales",
+        type = "Warehouse"
+      ))
+    },
+    .httr2_json = function(req, ...) {
+      if (grepl("/connectionString", req$url, fixed = TRUE)) {
+        rlang::abort("private SQL endpoint is unavailable")
+      }
+      list(
+        id = "warehouse-id",
+        workspaceId = "workspace-id",
+        displayName = "Sales",
+        type = "Warehouse",
+        description = "Detailed warehouse description",
+        properties = list(
+          connectionString = "public.datawarehouse.fabric.microsoft.com"
+        )
+      )
+    }
+  )
+
+  expect_warning(
+    result <- fabric_items(
+      "Analytics",
+      detail = TRUE,
+      detail_errors = "record",
+      token = "token"
+    ),
+    "Could not fully enrich 1 Fabric item",
+    fixed = TRUE
+  )
+  warehouse <- result[[1L]]
+  expect_equal(warehouse$description, "Detailed warehouse description")
+  expect_equal(
+    warehouse$sql_server,
+    "public.datawarehouse.fabric.microsoft.com"
+  )
+  expect_equal(
+    warehouse$detail_error_stage,
+    "private_sql_connection_string"
+  )
+  expect_match(warehouse$detail_error, "unavailable", fixed = TRUE)
+
+  expect_error(
+    fabric_items(
+      "Analytics",
+      detail = TRUE,
+      detail_errors = "abort",
+      token = "token"
+    ),
+    "private SQL endpoint is unavailable",
     fixed = TRUE
   )
 })

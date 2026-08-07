@@ -114,9 +114,10 @@ fabric_workspaces <- function(
 #'   such as SQL connection strings and Livy or KQL endpoints, but is slower
 #'   and can require additional permissions. The typed helpers below use
 #'   `TRUE`.
-#' @param detail_errors How workload-detail failures are handled. `"record"`
-#'   retains the item, stores the message in `detail_error`, and emits one
-#'   summary warning. `"abort"` preserves strict all-or-nothing behavior.
+#' @param detail_errors How workload-detail or optional private SQL endpoint
+#'   failures are handled. `"record"` retains every successfully retrieved
+#'   field, stores the message in `detail_error`, and emits one summary warning.
+#'   `"abort"` preserves strict all-or-nothing behavior.
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
 #'   `FALSE` lists only items at the workspace root.
 #' @inheritParams fabric_workspaces
@@ -230,7 +231,12 @@ fabric_items <- function(
     }
     if (isTRUE(detail)) {
       tryCatch(
-        fabric_enrich_item(record, credential, base),
+        fabric_enrich_item(
+          record,
+          credential,
+          base,
+          private_sql_errors = detail_errors
+        ),
         error = function(error) {
           if (identical(detail_errors, "abort")) {
             rlang::cnd_signal(error)
@@ -252,7 +258,7 @@ fabric_items <- function(
   if (failed > 0) {
     rlang::warn(sprintf(
       paste0(
-        "Could not retrieve workload details for %d Fabric item%s; ",
+        "Could not fully enrich %d Fabric item%s; ",
         "see detail_error"
       ),
       failed,
@@ -722,7 +728,13 @@ fabric_item_route <- function(type) {
   unname(routes[[tolower(type)]])
 }
 
-fabric_enrich_item <- function(record, credential, api_base) {
+fabric_enrich_item <- function(
+  record,
+  credential,
+  api_base,
+  private_sql_errors = c("abort", "record")
+) {
+  private_sql_errors <- match.arg(private_sql_errors)
   route <- fabric_item_route(record$type %||% "")
   if (!is.null(route)) {
     detail <- .httr2_json(
@@ -744,7 +756,18 @@ fabric_enrich_item <- function(record, credential, api_base) {
     workspace_name <- record$workspaceDisplayName
     record <- utils::modifyList(record, detail)
     record$workspaceDisplayName <- workspace_name
-    record <- fabric_enrich_private_sql_target(record, credential, api_base)
+    record <- tryCatch(
+      fabric_enrich_private_sql_target(record, credential, api_base),
+      error = function(error) {
+        if (identical(private_sql_errors, "abort")) {
+          rlang::cnd_signal(error)
+        }
+        record$detail_error <- conditionMessage(error)
+        record$detail_error_class <- class(error)[[1L]]
+        record$detail_error_stage <- "private_sql_connection_string"
+        record
+      }
+    )
   }
   fabric_add_derived_targets(record, api_base)
 }
