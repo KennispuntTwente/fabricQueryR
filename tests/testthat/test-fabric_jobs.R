@@ -1102,6 +1102,31 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     ),
     "whole 32-bit"
   )
+  for (type in c("Integer", "Number", "Text", "Boolean", "Guid")) {
+    expect_error(
+      .fabric_job_parameters(
+        list(run_date = as.Date("2026-08-07")),
+        c(run_date = type)
+      ),
+      "use type DateTime or Automatic",
+      fixed = TRUE,
+      info = type
+    )
+  }
+  automatic_date <- .fabric_job_parameters(
+    list(run_date = as.Date("2026-08-07")),
+    c(run_date = "Automatic")
+  )[[1L]]
+  expect_equal(automatic_date$type, "Automatic")
+  expect_equal(automatic_date$value, "2026-08-07T00:00:00Z")
+  posix_parameter <- .fabric_job_parameters(list(
+    list(
+      name = "started_at",
+      value = as.POSIXct("2026-08-07 10:15:30", tz = "Europe/Amsterdam"),
+      type = "DateTime"
+    )
+  ))[[1L]]
+  expect_equal(posix_parameter$value, "2026-08-07T08:15:30Z")
   expect_error(
     .fabric_job_route("Other", "../unsafe"),
     "letters, numbers"

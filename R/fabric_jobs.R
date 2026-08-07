@@ -1386,14 +1386,27 @@ print.fabric_job_instance <- function(x, ...) {
       sprintf("Fabric parameter `%s` must be one non-missing scalar", name)
     )
   }
-  if (inherits(value, c("POSIXct", "POSIXlt"))) {
-    value <- format(
-      as.POSIXct(value, tz = "UTC"),
-      "%Y-%m-%dT%H:%M:%SZ",
-      tz = "UTC"
-    )
-  } else if (inherits(value, "Date")) {
-    value <- paste0(format(value, "%Y-%m-%d"), "T00:00:00Z")
+  date_time_value <- inherits(value, c("POSIXct", "POSIXlt", "Date"))
+  if (date_time_value && !type %in% c("DateTime", "Automatic")) {
+    rlang::abort(sprintf(
+      paste0(
+        "%s parameter `%s` cannot use an R Date or POSIXt value; ",
+        "use type DateTime or Automatic"
+      ),
+      type,
+      name
+    ))
+  }
+  if (date_time_value) {
+    if (inherits(value, c("POSIXct", "POSIXlt"))) {
+      value <- format(
+        as.POSIXct(value, tz = "UTC"),
+        "%Y-%m-%dT%H:%M:%SZ",
+        tz = "UTC"
+      )
+    } else {
+      value <- paste0(format(value, "%Y-%m-%d"), "T00:00:00Z")
+    }
   } else if (identical(type, "DateTime")) {
     if (
       !is.character(value) ||
