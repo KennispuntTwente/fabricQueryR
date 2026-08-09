@@ -59,6 +59,8 @@ items <- fabric_items(workspace)
 
 # Find the first item of each type
 lakehouse <- fabric_lakehouses(workspace) |> first()
+warehouse <- fabric_warehouses(workspace) |> first()
+warehouse_snapshot <- fabric_warehouse_snapshots(workspace) |> first()
 sql_database <- fabric_sql_databases(workspace) |> first()
 semantic_model <- fabric_semantic_models(workspace) |> first()
 kql_database <- fabric_kql_databases(workspace) |> first()

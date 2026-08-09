@@ -16,6 +16,7 @@ reference:
       - fabric_item
       - fabric_lakehouses
       - fabric_warehouses
+      - fabric_warehouse_snapshots
       - fabric_sql_databases
       - fabric_semantic_models
       - fabric_eventhouses
