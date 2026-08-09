@@ -135,13 +135,49 @@ fabric_graphql_query <- function(
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE
 ) {
-  graphql_validate_query(query)
   variables <- graphql_validate_variables(variables)
+  context <- graphql_request_context(
+    api = api,
+    query = query,
+    operation_name = operation_name,
+    workspace_id = workspace_id,
+    error_policy = error_policy,
+    timeout = timeout,
+    idempotent = idempotent,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    audience = audience,
+    api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+
+  graphql_execute_context(context, variables)
+}
+
+graphql_request_context <- function(
+  api,
+  query,
+  operation_name,
+  workspace_id,
+  error_policy,
+  timeout,
+  idempotent,
+  tenant_id,
+  client_id,
+  token,
+  auth_args,
+  audience,
+  api_base,
+  allow_custom_endpoint
+) {
+  graphql_validate_query(query)
   operation_name <- graphql_optional_string(
     operation_name,
     "operation_name"
   )
-  error_policy <- match.arg(error_policy)
+  error_policy <- match.arg(error_policy, c("return", "warn", "error"))
   graphql_validate_scalar(
     timeout,
     is.numeric,
@@ -171,16 +207,29 @@ fabric_graphql_query <- function(
     auth_args = auth_args
   )
 
-  graphql_execute(
-    endpoint,
+  list(
+    endpoint = endpoint,
     query = query,
-    variables = variables,
     operation_name = operation_name,
     error_policy = error_policy,
     timeout = timeout,
     idempotent = idempotent,
     credential = credential,
     audience = audience
+  )
+}
+
+graphql_execute_context <- function(context, variables) {
+  graphql_execute(
+    context$endpoint,
+    query = context$query,
+    variables = variables,
+    operation_name = context$operation_name,
+    error_policy = context$error_policy,
+    timeout = context$timeout,
+    idempotent = context$idempotent,
+    credential = context$credential,
+    audience = context$audience
   )
 }
 
@@ -264,28 +313,28 @@ fabric_graphql_paginate <- function(
     rlang::abort("max_pages must be one positive integer")
   }
   variables <- graphql_validate_variables(variables)
-  error_policy <- match.arg(error_policy)
+  error_policy <- match.arg(error_policy, c("return", "warn", "error"))
+  context <- graphql_request_context(
+    api = api,
+    query = query,
+    operation_name = operation_name,
+    workspace_id = workspace_id,
+    error_policy = error_policy,
+    timeout = timeout,
+    idempotent = idempotent,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    audience = audience,
+    api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
   pages <- list()
   seen <- character()
 
   for (page_number in seq_len(as.integer(max_pages))) {
-    result <- fabric_graphql_query(
-      api = api,
-      query = query,
-      variables = variables,
-      operation_name = operation_name,
-      workspace_id = workspace_id,
-      error_policy = error_policy,
-      timeout = timeout,
-      idempotent = idempotent,
-      tenant_id = tenant_id,
-      client_id = client_id,
-      token = token,
-      auth_args = auth_args,
-      audience = audience,
-      api_base = api_base,
-      allow_custom_endpoint = allow_custom_endpoint
-    )
+    result <- graphql_execute_context(context, variables)
     pages[[page_number]] <- result
     cursor <- next_cursor(result)
     if (is.null(cursor)) {

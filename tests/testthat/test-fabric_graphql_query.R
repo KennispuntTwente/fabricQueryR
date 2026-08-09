@@ -402,6 +402,44 @@ test_that("fabric_graphql_paginate passes opaque cursors and combines errors", {
   expect_equal(pages$variables$after, "page-one")
 })
 
+test_that("GraphQL pagination reuses one AzureAuth credential", {
+  token_requests <- 0L
+  page <- 0L
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      token_requests <<- token_requests + 1L
+      graphql_fake_azure_token()
+    },
+    .package = "AzureAuth"
+  )
+  httr2::local_mocked_responses(function(req) {
+    page <<- page + 1L
+    graphql_test_response(
+      list(
+        data = list(
+          products = list(
+            hasNextPage = page == 1L,
+            endCursor = if (page == 1L) "page-one" else NULL
+          )
+        )
+      ),
+      url = req$url
+    )
+  })
+
+  pages <- fabric_graphql_paginate(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ products { hasNextPage endCursor } }",
+    next_cursor = fabric_graphql_cursor("products"),
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(auth_type = "device_code", use_cache = FALSE)
+  )
+
+  expect_length(pages$pages, 2L)
+  expect_identical(token_requests, 1L)
+})
+
 test_that("GraphQL pagination prevents loops and enforces max_pages", {
   httr2::local_mocked_responses(function(req) {
     graphql_test_response(

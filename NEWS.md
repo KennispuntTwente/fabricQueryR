@@ -27,6 +27,9 @@
 
 ## Improved
 
+* GraphQL pagination now reuses one credential across pages instead of
+  reacquiring AzureAuth credentials for every request.
+
 * Empty `conf = list()` and `tags = list()` inputs are now treated as omitted
   Livy settings.
 
