@@ -58,6 +58,22 @@ resource "fabric_warehouse" "test" {
   }
 }
 
+resource "fabric_warehouse_snapshot" "test" {
+  display_name = "TestWarehouseSnapshot"
+  description  = "Ephemeral warehouse snapshot for fabricQueryR integration tests"
+  workspace_id = fabric_workspace.sandbox.id
+
+  configuration = {
+    parent_warehouse_id = fabric_warehouse.test.id
+  }
+
+  timeouts = {
+    create = "20m"
+    update = "15m"
+    delete = "15m"
+  }
+}
+
 resource "fabric_sql_database" "test" {
   display_name = "TestSQLDatabase"
   description  = "Ephemeral integration-test SQL database for fabricQueryR"

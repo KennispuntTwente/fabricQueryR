@@ -57,6 +57,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     "TestPipeline",
     "TestSparkJob",
     "TestWarehouse",
+    "TestWarehouseSnapshot",
     "TestSQLDatabase",
     "TestEventhouse",
     "TestKQLDatabase",
@@ -92,6 +93,20 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_equal(
     warehouse$sql_database,
     manifest$items$TestWarehouse$database_name
+  )
+
+  warehouse_snapshots <- fabric_warehouse_snapshots(workspace, token = token)
+  warehouse_snapshot <- find_item(
+    warehouse_snapshots,
+    manifest$items$TestWarehouseSnapshot$id
+  )
+  expect_equal(
+    warehouse_snapshot$sql_server,
+    manifest$items$TestWarehouseSnapshot$connection_string
+  )
+  expect_equal(
+    warehouse_snapshot$sql_database,
+    manifest$items$TestWarehouseSnapshot$database_name
   )
 
   sql_databases <- fabric_sql_databases(workspace, token = token)

@@ -251,18 +251,23 @@ def test_get_workload_items_uses_typed_routes():
 
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
         warehouse = api.get_warehouse("workspace-id", "warehouse-id")
+        warehouse_snapshot = api.get_warehouse_snapshot(
+            "workspace-id", "snapshot-id"
+        )
         sql_database = api.get_sql_database("workspace-id", "database-id")
         eventhouse = api.get_eventhouse("workspace-id", "eventhouse-id")
         kql_database = api.get_kql_database("workspace-id", "kql-database-id")
         graphql_api = api.get_graphql_api("workspace-id", "graphql-api-id")
 
     assert warehouse["id"] == "warehouse-id"
+    assert warehouse_snapshot["id"] == "snapshot-id"
     assert sql_database["id"] == "database-id"
     assert eventhouse["id"] == "eventhouse-id"
     assert kql_database["id"] == "kql-database-id"
     assert graphql_api["id"] == "graphql-api-id"
     assert paths == [
         "/v1/workspaces/workspace-id/warehouses/warehouse-id",
+        "/v1/workspaces/workspace-id/warehouseSnapshots/snapshot-id",
         "/v1/workspaces/workspace-id/sqlDatabases/database-id",
         "/v1/workspaces/workspace-id/eventhouses/eventhouse-id",
         "/v1/workspaces/workspace-id/kqlDatabases/kql-database-id",

@@ -1,8 +1,9 @@
 # Fabric integration sandbox
 
 This directory contains the real-service test environment for `fabricQueryR`.
-Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse, SQL
-Database, Eventhouse, KQL database, GraphQL API, and access assignments. `fabric-cicd`
+Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse,
+Warehouse snapshot, SQL Database, Eventhouse, KQL database, GraphQL API, and
+access assignments. `fabric-cicd`
 publishes the source-controlled seed notebook. The Python package uploads fixture
 files, runs the notebook, seeds the KQL database, and writes the manifest
 consumed by R.
@@ -17,7 +18,8 @@ supported by the Microsoft Fabric Terraform provider.
 - Microsoft ODBC Driver 18 and the ADBC Driver Foundry `mssql` driver
 - Azure CLI authenticated to the target tenant
 - A Fabric capacity ID
-- A capacity/region that supports Warehouse and SQL Database items
+- A capacity/region that supports Warehouse, Warehouse snapshot preview, and
+  SQL Database items
 - A capacity/region that supports Eventhouse and KQL Database items
 - A capacity/region that supports API for GraphQL items
 - A capacity/region that supports Fabric Spark Runtime 1.3; the preview Delta
@@ -45,6 +47,7 @@ export FABRIC_WORKSPACE_NAME="$(terraform -chdir=infra/fabric/terraform output -
 export FABRIC_LAKEHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw lakehouse_id)"
 export FABRIC_NON_SCHEMA_LAKEHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw non_schema_lakehouse_id)"
 export FABRIC_WAREHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_id)"
+export FABRIC_WAREHOUSE_SNAPSHOT_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_snapshot_id)"
 export FABRIC_SQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw sql_database_id)"
 export FABRIC_EVENTHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw eventhouse_id)"
 export FABRIC_KQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw kql_database_id)"
@@ -250,7 +253,8 @@ installation is operating-system specific.
 
 ## Current fixture scope
 
-The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestSQLDatabase`,
+The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestWarehouseSnapshot`,
+`TestSQLDatabase`,
 `TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, `SeedFixtures`,
 `JobFixtures`, `TestPipeline`, and `TestSparkJob`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. Its
@@ -284,10 +288,10 @@ fixtures are not capability-gated: provisioning, discovery, seeding, or
 connectivity failures fail the integration job.
 
 The SQL portion runs the ODBC and ADBC backends against the Lakehouse SQL
-analytics endpoint, Warehouse, and SQL Database. It checks direct DBI
-connections and lifecycle, table metadata, discovery records, portal connection
-strings, bare server/database pairs, bound parameters, typed and null values,
-collected tibbles, and Arrow streams that remain consumable after the one-shot
-helper closes its connection. ODBC and ADBC results are normalized and compared
-for the writable SQL items. The stream checks cover both nanoarrow collection
-and conversion to an `arrow::RecordBatchReader`.
+analytics endpoint, Warehouse, Warehouse snapshot, and SQL Database. It checks
+direct DBI connections and lifecycle, table metadata, discovery records, portal
+connection strings, bare server/database pairs, bound parameters, typed and
+null values, collected tibbles, and Arrow streams that remain consumable after
+the one-shot helper closes its connection. ODBC and ADBC results are normalized
+and compared for the writable SQL items. The stream checks cover both nanoarrow
+collection and conversion to an `arrow::RecordBatchReader`.

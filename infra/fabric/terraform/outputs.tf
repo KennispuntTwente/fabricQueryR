@@ -33,6 +33,11 @@ output "warehouse_id" {
   value       = fabric_warehouse.test.id
 }
 
+output "warehouse_snapshot_id" {
+  description = "ID of the Warehouse snapshot exercised by SQL integration tests."
+  value       = fabric_warehouse_snapshot.test.id
+}
+
 output "sql_database_id" {
   description = "ID of the SQL Database exercised by SQL integration tests."
   value       = fabric_sql_database.test.id

@@ -189,15 +189,21 @@ def _wait_for_sql_properties(
     item_type: str,
     timeout: int = 900,
 ) -> dict[str, Any]:
-    getters = {
-        "Warehouse": api.get_warehouse,
-        "SQLDatabase": api.get_sql_database,
+    getter_names = {
+        "Warehouse": "get_warehouse",
+        "WarehouseSnapshot": "get_warehouse_snapshot",
+        "SQLDatabase": "get_sql_database",
     }
     required_properties = {
         "Warehouse": ("connectionString",),
+        "WarehouseSnapshot": (
+            "connectionString",
+            "parentWarehouseId",
+            "snapshotDateTime",
+        ),
         "SQLDatabase": ("connectionString", "serverFqdn", "databaseName"),
     }
-    getter = getters[item_type]
+    getter = getattr(api, getter_names[item_type])
     required = required_properties[item_type]
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -254,6 +260,11 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         warehouse_item = api.find_item(
             workspace_id, "TestWarehouse", "Warehouse"
         )
+        warehouse_snapshot_item = api.find_item(
+            workspace_id,
+            "TestWarehouseSnapshot",
+            "WarehouseSnapshot",
+        )
         sql_database_item = api.find_item(
             workspace_id, "TestSQLDatabase", "SQLDatabase"
         )
@@ -274,6 +285,12 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             workspace_id,
             warehouse_item["id"],
             item_type="Warehouse",
+        )
+        warehouse_snapshot = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            warehouse_snapshot_item["id"],
+            item_type="WarehouseSnapshot",
         )
         sql_database = _wait_for_sql_properties(
             api,
@@ -299,6 +316,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     properties = lakehouse["properties"]
     sql_endpoint = properties["sqlEndpointProperties"]
     warehouse_properties = warehouse["properties"]
+    warehouse_snapshot_properties = warehouse_snapshot["properties"]
     sql_database_properties = sql_database["properties"]
     eventhouse_properties = eventhouse["properties"]
     kql_database_properties = kql_database["properties"]
@@ -501,6 +519,21 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "types": SQL_FIXTURE_TABLE,
                     "mutations": SQL_MUTATION_TABLE,
                 },
+            },
+            "TestWarehouseSnapshot": {
+                "id": warehouse_snapshot_item["id"],
+                "type": "WarehouseSnapshot",
+                "display_name": warehouse_snapshot_item["displayName"],
+                "connection_string": warehouse_snapshot_properties[
+                    "connectionString"
+                ],
+                "database_name": warehouse_snapshot_item["displayName"],
+                "parent_warehouse_id": warehouse_snapshot_properties[
+                    "parentWarehouseId"
+                ],
+                "snapshot_date_time": warehouse_snapshot_properties[
+                    "snapshotDateTime"
+                ],
             },
             "TestSQLDatabase": {
                 "id": sql_database_item["id"],

@@ -404,6 +404,39 @@ test_that("provisioned Warehouse target is discoverable and connectable", {
   expect_identical(results[[1L]], results[[2L]])
 })
 
+test_that("provisioned Warehouse snapshot is discoverable and connectable", {
+  manifest <- fabric_test_manifest()
+  provisioned <- fabric_test_manifest_item(
+    manifest,
+    "TestWarehouseSnapshot"
+  )
+  target <- fabric_item(
+    manifest$workspace_id,
+    provisioned$id,
+    type = provisioned$type,
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
+  info <- fabric_sql_connection_info(target)
+  expect_equal(info$database, provisioned$database_name)
+  expect_equal(info$target_type, "warehouse")
+  expect_equal(info$source, "discovery")
+
+  for (backend in fabric_test_sql_backends()) {
+    result <- fabric_sql_query(
+      target,
+      "SELECT DB_NAME() AS database_name",
+      backend = backend,
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_equal(
+      result$database_name,
+      provisioned$database_name,
+      info = backend
+    )
+  }
+})
+
 test_that("provisioned SQL Database target is discoverable and connectable", {
   results <- lapply(
     fabric_test_sql_backends(),

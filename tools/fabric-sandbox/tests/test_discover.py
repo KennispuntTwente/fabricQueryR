@@ -52,6 +52,17 @@ class FakeFabricApi:
             },
         }
 
+    def get_warehouse_snapshot(self, workspace_id, snapshot_id):
+        return {
+            "id": snapshot_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "connectionString": "snapshot.sql.test",
+                "parentWarehouseId": "TestWarehouse-id",
+                "snapshotDateTime": "2026-08-09T12:00:00Z",
+            },
+        }
+
     def get_sql_database(self, workspace_id, database_id):
         return {
             "id": database_id,
@@ -230,6 +241,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "TestPipeline",
         "TestSparkJob",
         "TestWarehouse",
+        "TestWarehouseSnapshot",
         "TestSQLDatabase",
         "TestEventhouse",
         "TestKQLDatabase",
@@ -277,6 +289,15 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
             "types": "fabricqueryr_sql_types",
             "mutations": "fabricqueryr_sql_mutations",
         },
+    }
+    assert manifest.items["TestWarehouseSnapshot"] == {
+        "id": "TestWarehouseSnapshot-id",
+        "type": "WarehouseSnapshot",
+        "display_name": "TestWarehouseSnapshot",
+        "connection_string": "snapshot.sql.test",
+        "database_name": "TestWarehouseSnapshot",
+        "parent_warehouse_id": "TestWarehouse-id",
+        "snapshot_date_time": "2026-08-09T12:00:00Z",
     }
     assert manifest.items["TestSQLDatabase"] == {
         "id": "TestSQLDatabase-id",

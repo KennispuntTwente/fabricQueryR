@@ -214,6 +214,15 @@ class FabricApi:
             "GET", f"/workspaces/{workspace_id}/warehouses/{warehouse_id}"
         ).json()
 
+    def get_warehouse_snapshot(
+        self, workspace_id: str, warehouse_snapshot_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            f"/workspaces/{workspace_id}/warehouseSnapshots/"
+            f"{warehouse_snapshot_id}",
+        ).json()
+
     def get_sql_database(
         self, workspace_id: str, sql_database_id: str
     ) -> dict[str, Any]:
