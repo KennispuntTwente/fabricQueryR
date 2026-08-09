@@ -305,9 +305,11 @@ test_that("HTTP-date Retry-After parsing is locale independent", {
   }
   skip_if(is.na(selected), "No non-English locale is installed")
 
-  response <- json_response(headers = list(
-    "retry-after" = "Sun, 09 Aug 2026 12:02:00 GMT"
-  ))
+  response <- json_response(
+    headers = list(
+      "retry-after" = "Sun, 09 Aug 2026 12:02:00 GMT"
+    )
+  )
   now <- as.POSIXct("2026-08-09 12:00:00", tz = "GMT")
 
   expect_equal(.httr2_retry_after(response, now = now), 120)
