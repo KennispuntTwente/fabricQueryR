@@ -24,6 +24,10 @@
 
 ## Improved
 
+* POSIXlt job parameters now work on every declared R version, including R
+  4.1 and 4.2, while still rejecting vectors of multiple timestamps. CI now
+  includes an R 4.1 lane.
+
 * Discovery can now construct personal-workspace semantic-model XMLA targets
   when `personal_workspace_tenant_id` and `personal_workspace_owner` are
   supplied explicitly. These required values are absent from Fabric's

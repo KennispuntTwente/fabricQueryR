@@ -1377,8 +1377,13 @@ print.fabric_job_instance <- function(x, ...) {
     ))
   }
   type <- .fabric_job_parameter_types[[type_index]]
+  value_length <- if (inherits(value, "POSIXlt")) {
+    length(as.POSIXct(value))
+  } else {
+    length(value)
+  }
   if (
-    length(value) != 1L ||
+    value_length != 1L ||
       (is.list(value) && !inherits(value, "POSIXlt")) ||
       is.na(value)
   ) {
@@ -1400,7 +1405,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (date_time_value) {
     if (inherits(value, c("POSIXct", "POSIXlt"))) {
       value <- format(
-        as.POSIXct(value, tz = "UTC"),
+        as.POSIXct(value),
         "%Y-%m-%dT%H:%M:%SZ",
         tz = "UTC"
       )

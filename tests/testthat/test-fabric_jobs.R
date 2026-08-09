@@ -1203,6 +1203,28 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     )
   ))[[1L]]
   expect_equal(posix_parameter$value, "2026-08-07T08:15:30Z")
+  length.legacy_POSIXlt <- function(x) 9L
+  legacy_posixlt <- as.POSIXlt(
+    "2026-08-07 10:15:30",
+    tz = "Europe/Amsterdam"
+  )
+  class(legacy_posixlt) <- c("legacy_POSIXlt", class(legacy_posixlt))
+  expect_equal(length(legacy_posixlt), 9L)
+  legacy_parameter <- .fabric_job_parameters(list(
+    started_at = legacy_posixlt
+  ))[[1L]]
+  expect_equal(legacy_parameter$type, "DateTime")
+  expect_equal(legacy_parameter$value, "2026-08-07T08:15:30Z")
+  expect_error(
+    .fabric_job_parameters(list(
+      started_at = as.POSIXlt(
+        c("2026-08-07 10:15:30", "2026-08-08 10:15:30"),
+        tz = "Europe/Amsterdam"
+      )
+    )),
+    "one non-missing scalar",
+    fixed = TRUE
+  )
   expect_error(
     .fabric_job_route("Other", "../unsafe"),
     "letters, numbers"
