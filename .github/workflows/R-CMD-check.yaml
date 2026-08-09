@@ -24,7 +24,6 @@ jobs:
           - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,   r: 'release'}
           - {os: ubuntu-latest,   r: 'oldrel-1'}
-          - {os: ubuntu-latest,   r: '4.1'}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -80,3 +79,65 @@ jobs:
           Rscript -e
           'devtools::test(filter = "delta-rs-oracle",
           stop_on_failure = TRUE)'
+
+  R-4-1-compatibility:
+    runs-on: ubuntu-latest
+    name: ubuntu-latest (R 4.1 compatibility)
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.1'
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"hard"'
+          cache: false
+
+      - name: Install package without suggested dependencies
+        run: R CMD INSTALL .
+
+      - name: Verify POSIXlt job parameters on R 4.1
+        shell: Rscript {0}
+        run: |
+          stopifnot(getRversion() >= "4.1", getRversion() < "4.2")
+
+          parameters <- getFromNamespace(
+            ".fabric_job_parameters",
+            "fabricQueryR"
+          )
+          scalar <- as.POSIXlt(
+            "2026-08-07 10:15:30",
+            tz = "Europe/Amsterdam"
+          )
+
+          stopifnot(length(scalar) == 9L)
+          result <- parameters(list(started_at = scalar))[[1L]]
+          stopifnot(
+            identical(result$type, "DateTime"),
+            identical(result$value, "2026-08-07T08:15:30Z")
+          )
+
+          multiple <- as.POSIXlt(
+            c("2026-08-07 10:15:30", "2026-08-07 10:15:31"),
+            tz = "UTC"
+          )
+          error <- tryCatch(
+            parameters(list(started_at = multiple)),
+            error = identity
+          )
+          stopifnot(
+            inherits(error, "error"),
+            grepl(
+              "one non-missing scalar value",
+              conditionMessage(error),
+              fixed = TRUE
+            )
+          )

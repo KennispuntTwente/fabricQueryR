@@ -145,6 +145,29 @@ def test_locked_delta_bridge_runs_on_every_release_platform():
     assert "FABRIC_DELTA_RS_ORACLE_TESTS" in workflow
 
 
+def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/R-CMD-check.yaml"
+    ).read_text()
+
+    compatibility = workflow.split(
+        "\n  R-4-1-compatibility:", maxsplit=1
+    )[1]
+    check_matrix = workflow.split(
+        "\n  R-4-1-compatibility:", maxsplit=1
+    )[0]
+
+    assert "r: '4.1'" not in check_matrix
+    assert "r-version: '4.1'" in compatibility
+    assert "dependencies: '\"hard\"'" in compatibility
+    assert "cache: false" in compatibility
+    assert "R CMD INSTALL ." in compatibility
+    assert 'getFromNamespace(' in compatibility
+    assert '".fabric_job_parameters"' in compatibility
+    assert "stopifnot(length(scalar) == 9L)" in compatibility
+
+
 def test_live_sql_matrix_installs_required_client_drivers():
     repository_root = Path(__file__).parents[3]
     workflow = (
