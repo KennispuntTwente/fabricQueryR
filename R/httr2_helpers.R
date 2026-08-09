@@ -120,6 +120,12 @@
   if (!is.na(seconds) && is.finite(seconds)) {
     return(max(0, seconds))
   }
+  old_locale <- Sys.getlocale("LC_TIME")
+  on.exit(
+    suppressWarnings(Sys.setlocale("LC_TIME", old_locale)),
+    add = TRUE
+  )
+  suppressWarnings(Sys.setlocale("LC_TIME", "C"))
   when <- suppressWarnings(as.POSIXct(
     value,
     format = "%a, %d %b %Y %H:%M:%S",

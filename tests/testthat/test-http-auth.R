@@ -282,6 +282,38 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
+test_that("HTTP-date Retry-After parsing is locale independent", {
+  old_locale <- Sys.getlocale("LC_TIME")
+  on.exit(
+    suppressWarnings(Sys.setlocale("LC_TIME", old_locale)),
+    add = TRUE
+  )
+  candidates <- c(
+    "Dutch_Netherlands.1252",
+    "nl_NL.UTF-8",
+    "German_Germany.1252",
+    "de_DE.UTF-8",
+    "French_France.1252",
+    "fr_FR.UTF-8"
+  )
+  selected <- NA_character_
+  for (candidate in candidates) {
+    selected <- suppressWarnings(Sys.setlocale("LC_TIME", candidate))
+    if (!is.na(selected)) {
+      break
+    }
+  }
+  skip_if(is.na(selected), "No non-English locale is installed")
+
+  response <- json_response(headers = list(
+    "retry-after" = "Sun, 09 Aug 2026 12:02:00 GMT"
+  ))
+  now <- as.POSIXct("2026-08-09 12:00:00", tz = "GMT")
+
+  expect_equal(.httr2_retry_after(response, now = now), 120)
+  expect_identical(Sys.getlocale("LC_TIME"), selected)
+})
+
 test_that("HTTP retries cap long Retry-After values", {
   calls <- 0L
   delays <- numeric()
