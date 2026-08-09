@@ -2,6 +2,9 @@
 
 ## New
 
+* `fabric_onelake_list()` now exposes the ADLS Gen2 `beginFrom` cursor through
+  `begin_from`, allowing a listing to start at a relative path.
+
 * Added workspace and item discovery with `fabric_workspaces()`,
   `fabric_items()`, and typed helpers for common Fabric item types. Discovered
   records can be passed directly to the package's query, OneLake, Livy, and job

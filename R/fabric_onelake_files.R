@@ -61,6 +61,10 @@
 #'   direct children. For deletion, allow removal of a non-empty directory.
 #' @param page_size Maximum paths requested from OneLake per API call, from 1 to
 #'   5000. Smaller values reduce each response size but require more requests.
+#' @param begin_from Optional relative path within `path` at which listing
+#'   begins. This is useful for resuming a lexicographically ordered scan
+#'   without a service continuation token. Recursive listings support multiple
+#'   path levels; non-recursive listings support one level.
 #' @param item_type Optional Fabric item type appended to an item name unless
 #'   that name already ends in the same suffix, for example `"Lakehouse"`.
 #'   Usually unnecessary for a discovered item or a name such as
@@ -119,6 +123,8 @@
 #' @references
 #' [Connect to OneLake with ADLS APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 #'
+#' [ADLS Gen2 List Paths](https://learn.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/list)
+#'
 #' [Create and manage OneLake security roles](https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles)
 #'
 #' [OneLake security best practices](https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake)
@@ -166,6 +172,7 @@ fabric_onelake_list <- function(
   path = "",
   recursive = FALSE,
   page_size = 5000L,
+  begin_from = NULL,
   item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
@@ -194,7 +201,8 @@ fabric_onelake_list <- function(
     target,
     credential,
     recursive = recursive,
-    page_size = page_size
+    page_size = page_size,
+    begin_from = begin_from
   )
 }
 

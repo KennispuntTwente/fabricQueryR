@@ -15,6 +15,7 @@ fabric_onelake_list(
   path = "",
   recursive = FALSE,
   page_size = 5000L,
+  begin_from = NULL,
   item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -109,6 +110,11 @@ direct children. For deletion, allow removal of a non-empty directory.}
 
 \item{page_size}{Maximum paths requested from OneLake per API call, from 1 to
 5000. Smaller values reduce each response size but require more requests.}
+
+\item{begin_from}{Optional relative path within \code{path} at which listing
+begins. This is useful for resuming a lexicographically ordered scan
+without a service continuation token. Recursive listings support multiple
+path levels; non-recursive listings support one level.}
 
 \item{item_type}{Optional Fabric item type appended to an item name unless
 that name already ends in the same suffix, for example \code{"Lakehouse"}.
@@ -263,6 +269,8 @@ fabric_onelake_delete(
 }
 \references{
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{Connect to OneLake with ADLS APIs}
+
+\href{https://learn.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/list}{ADLS Gen2 List Paths}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles}{Create and manage OneLake security roles}
 

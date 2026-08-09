@@ -237,23 +237,21 @@ test_that("OneLake listing can begin from a lexicographic path", {
     captured <<- req
     onelake_test_response(body = list(paths = list()))
   })
-  target <- onelake_resolve_target(
+  fabric_onelake_list(
     "Analytics",
     "Curated.Lakehouse",
-    "Tables/table/_delta_log"
-  )
-
-  onelake_list_target(
-    target,
-    fabric_credential(token = "token"),
+    path = "Tables/table/_delta_log",
+    token = "token",
     begin_from = "00000000000000000100"
   )
 
   expect_match(captured$url, "beginFrom=00000000000000000100")
   expect_error(
-    onelake_list_target(
-      target,
-      fabric_credential(token = "token"),
+    fabric_onelake_list(
+      "Analytics",
+      "Curated.Lakehouse",
+      path = "Tables/table/_delta_log",
+      token = "token",
       begin_from = "../outside"
     ),
     "unsafe segment",

@@ -1265,6 +1265,16 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
       "Files/fixtures/nested/unicode/café-数据.txt"
     )
   )
+  resumed <- fabric_onelake_list(
+    manifest$workspace_id,
+    lakehouse$id,
+    path = "Files/fixtures/nested",
+    recursive = TRUE,
+    begin_from = "b/duplicate.txt",
+    token = token
+  )
+  expect_false(any(grepl("/a/duplicate[.]txt$", resumed$path)))
+  expect_true(any(grepl("/b/duplicate[.]txt$", resumed$path)))
 
   unicode_path <- "Files/fixtures/nested/unicode/café-数据.txt"
   expect_identical(
