@@ -118,6 +118,13 @@ fabric_workspaces <- function(
 #'   `"abort"` preserves strict all-or-nothing behavior.
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
 #'   `FALSE` lists only items at the workspace root.
+#' @param personal_workspace_tenant_id Optional Microsoft Entra tenant ID used
+#'   to build the XMLA endpoint for a Personal workspace.
+#' @param personal_workspace_owner Optional owner UPN or Entra object ID used
+#'   to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
+#'   workspace API does not return either personal-workspace identifier, so
+#'   supply this together with `personal_workspace_tenant_id` when a
+#'   `dax_connection_string` is needed for a semantic model in My Workspace.
 #' @inheritParams fabric_workspaces
 #' @param api_base Fabric REST API base URL. When `workspace` is a record
 #'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
@@ -138,11 +145,15 @@ fabric_workspaces <- function(
 #' sufficient for the core list operation). Workload enrichment additionally
 #' requires `Item.Read.All`/`Item.ReadWrite.All` or the corresponding
 #' workload-specific read scope and access to the item.
+#' Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
+#' require both `personal_workspace_tenant_id` and `personal_workspace_owner`.
 #'
 #' @references
 #' [List items REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
 #'
 #' [Fabric item management overview](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview)
+#'
+#' [Personal-workspace XMLA endpoints](https://learn.microsoft.com/en-us/fabric/enterprise/powerbi/service-premium-connect-tools#connecting-to-a-personal-workspace)
 #' @export
 fabric_items <- function(
   workspace,
@@ -150,6 +161,8 @@ fabric_items <- function(
   detail = FALSE,
   detail_errors = c("record", "abort"),
   recursive = TRUE,
+  personal_workspace_tenant_id = NULL,
+  personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -177,6 +190,10 @@ fabric_items <- function(
   if (!is.logical(recursive) || length(recursive) != 1L || is.na(recursive)) {
     rlang::abort("recursive must be TRUE or FALSE")
   }
+  fabric_validate_personal_workspace_identity(
+    personal_workspace_tenant_id,
+    personal_workspace_owner
+  )
   base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -205,20 +222,11 @@ fabric_items <- function(
     audience = .fabric_audience$fabric
   )
   records <- lapply(records, function(record) {
-    record$workspaceId <- record$workspaceId %||% ws$id
-    record$workspaceDisplayName <- ws$displayName
-    record$workspaceType <- fabric_record_value(ws$raw, "type")
-    record$workspaceTenantId <- fabric_record_value(
-      ws$raw,
-      "tenantId",
-      "tenant_id"
-    )
-    record$workspaceOwner <- fabric_record_value(
-      ws$raw,
-      "ownerUserPrincipalName",
-      "userPrincipalName",
-      "ownerId",
-      "userId"
+    record <- fabric_add_workspace_context(
+      record,
+      ws,
+      personal_workspace_tenant_id,
+      personal_workspace_owner
     )
     record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
       fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
@@ -290,6 +298,8 @@ fabric_item <- function(
   workspace,
   item,
   type = NULL,
+  personal_workspace_tenant_id = NULL,
+  personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -301,6 +311,10 @@ fabric_item <- function(
   allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
+  fabric_validate_personal_workspace_identity(
+    personal_workspace_tenant_id,
+    personal_workspace_owner
+  )
   base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -348,21 +362,12 @@ fabric_item <- function(
     }
   }
   fabric_validate_item_workspace(record, ws$id)
-  record$workspaceId <- record$workspaceId %||% ws$id
-  record$workspaceDisplayName <- record$workspaceDisplayName %||%
-    ws$displayName
-  record$workspaceType <- record$workspaceType %||%
-    fabric_record_value(ws$raw, "type")
-  record$workspaceTenantId <- record$workspaceTenantId %||%
-    fabric_record_value(ws$raw, "tenantId", "tenant_id")
-  record$workspaceOwner <- record$workspaceOwner %||%
-    fabric_record_value(
-      ws$raw,
-      "ownerUserPrincipalName",
-      "userPrincipalName",
-      "ownerId",
-      "userId"
-    )
+  record <- fabric_add_workspace_context(
+    record,
+    ws,
+    personal_workspace_tenant_id,
+    personal_workspace_owner
+  )
   record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
     fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
   if (!is.null(type) && !identical(tolower(record$type), tolower(type))) {
@@ -378,6 +383,66 @@ fabric_item <- function(
   fabric_item_list(list(
     fabric_enrich_item(record, credential, base)
   ))[[1L]]
+}
+
+fabric_discovery_optional_string <- function(value, name) {
+  if (
+    !is.null(value) &&
+      (!is.character(value) ||
+        length(value) != 1L ||
+        is.na(value) ||
+        !nzchar(value))
+  ) {
+    rlang::abort(paste0(name, " must be NULL or one non-empty string"))
+  }
+  invisible(value)
+}
+
+fabric_validate_personal_workspace_identity <- function(tenant_id, owner) {
+  fabric_discovery_optional_string(
+    tenant_id,
+    "personal_workspace_tenant_id"
+  )
+  fabric_discovery_optional_string(owner, "personal_workspace_owner")
+  if (xor(is.null(tenant_id), is.null(owner))) {
+    rlang::abort(paste0(
+      "personal_workspace_tenant_id and personal_workspace_owner ",
+      "must be supplied together"
+    ))
+  }
+  invisible(TRUE)
+}
+
+fabric_add_workspace_context <- function(
+  record,
+  workspace,
+  personal_workspace_tenant_id = NULL,
+  personal_workspace_owner = NULL
+) {
+  record$workspaceId <- record$workspaceId %||% workspace$id
+  record$workspaceDisplayName <- record$workspaceDisplayName %||%
+    workspace$displayName
+  record$workspaceType <- record$workspaceType %||%
+    fabric_record_value(workspace$raw, "type")
+  record$workspaceTenantId <- record$workspaceTenantId %||%
+    fabric_record_value(workspace$raw, "tenantId", "tenant_id")
+  record$workspaceOwner <- record$workspaceOwner %||%
+    fabric_record_value(
+      workspace$raw,
+      "ownerUserPrincipalName",
+      "userPrincipalName",
+      "ownerId",
+      "userId"
+    )
+  personal <- tolower(record$workspaceType %||% "") %in%
+    c("personal", "personalgroup")
+  if (personal) {
+    record$workspaceTenantId <- personal_workspace_tenant_id %||%
+      record$workspaceTenantId
+    record$workspaceOwner <- personal_workspace_owner %||%
+      record$workspaceOwner
+  }
+  record
 }
 
 fabric_validate_item_workspace <- function(item, workspace_id) {

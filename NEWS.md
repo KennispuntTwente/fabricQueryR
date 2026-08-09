@@ -24,6 +24,11 @@
 
 ## Improved
 
+* Discovery can now construct personal-workspace semantic-model XMLA targets
+  when `personal_workspace_tenant_id` and `personal_workspace_owner` are
+  supplied explicitly. These required values are absent from Fabric's
+  workspace response.
+
 * Delta reads now accept deletion-vector table protocols. Deterministic
   runtime tests verify both an enabled-but-unused feature and actual deleted
   rows against the pinned `deltalake` reader.

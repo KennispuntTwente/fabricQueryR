@@ -10,6 +10,8 @@ fabric_items(
   detail = FALSE,
   detail_errors = c("record", "abort"),
   recursive = TRUE,
+  personal_workspace_tenant_id = NULL,
+  personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -42,6 +44,15 @@ field, stores the message in \code{detail_error}, and emits one summary warning.
 
 \item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
 \code{FALSE} lists only items at the workspace root.}
+
+\item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
+to build the XMLA endpoint for a Personal workspace.}
+
+\item{personal_workspace_owner}{Optional owner UPN or Entra object ID used
+to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
+workspace API does not return either personal-workspace identifier, so
+supply this together with \code{personal_workspace_tenant_id} when a
+\code{dax_connection_string} is needed for a semantic model in My Workspace.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -88,9 +99,13 @@ The caller needs at least access to the workspace (the Viewer role is
 sufficient for the core list operation). Workload enrichment additionally
 requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the corresponding
 workload-specific read scope and access to the item.
+Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
+require both \code{personal_workspace_tenant_id} and \code{personal_workspace_owner}.
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items}{List items REST API}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview}{Fabric item management overview}
+
+\href{https://learn.microsoft.com/en-us/fabric/enterprise/powerbi/service-premium-connect-tools#connecting-to-a-personal-workspace}{Personal-workspace XMLA endpoints}
 }

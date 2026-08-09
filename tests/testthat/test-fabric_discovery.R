@@ -670,6 +670,49 @@ test_that("detail enrichment skips item types without a detail route", {
   expect_match(detail_urls, "/warehouses/warehouse-id$", perl = TRUE)
 })
 
+test_that("personal workspace identity builds a documented v2 DAX target", {
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = "personal-workspace-id",
+        displayName = "My Workspace",
+        raw = list(type = "Personal")
+      )
+    },
+    .httr2_collection = function(...) {
+      list(list(
+        id = "model-id",
+        displayName = "Personal Model",
+        type = "SemanticModel"
+      ))
+    }
+  )
+
+  model <- fabric_items(
+    "My Workspace",
+    type = "SemanticModel",
+    personal_workspace_tenant_id = "11111111-1111-4111-8111-111111111111",
+    personal_workspace_owner = "owner@example.com",
+    token = "token"
+  )[[1L]]
+
+  expect_match(model$dax_connection_string, "/v2.0/")
+  expect_match(
+    model$dax_connection_string,
+    "/home/myworkspace/owner%40example.com",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_items(
+      "My Workspace",
+      personal_workspace_owner = "owner@example.com",
+      token = "token"
+    ),
+    "must be supplied together",
+    fixed = TRUE
+  )
+})
+
 test_that("typed convenience helpers forward their workload types", {
   calls <- list()
   local_mocked_bindings(

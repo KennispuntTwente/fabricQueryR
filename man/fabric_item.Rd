@@ -8,6 +8,8 @@ fabric_item(
   workspace,
   item,
   type = NULL,
+  personal_workspace_tenant_id = NULL,
+  personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -31,6 +33,15 @@ duplicated.}
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
 \code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
 Fabric, so use the API spelling. Leave \code{NULL} to list all item types.}
+
+\item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
+to build the XMLA endpoint for a Personal workspace.}
+
+\item{personal_workspace_owner}{Optional owner UPN or Entra object ID used
+to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
+workspace API does not return either personal-workspace identifier, so
+supply this together with \code{personal_workspace_tenant_id} when a
+\code{dax_connection_string} is needed for a semantic model in My Workspace.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
