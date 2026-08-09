@@ -953,7 +953,8 @@ kusto_convert_column <- function(values, type) {
     seconds <- vapply(
       kusto_character_column(values),
       kusto_timespan_seconds,
-      numeric(1)
+      numeric(1),
+      USE.NAMES = FALSE
     )
     return(as.difftime(seconds, units = "secs"))
   }

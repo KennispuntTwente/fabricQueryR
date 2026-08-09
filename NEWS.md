@@ -24,6 +24,9 @@
 
 ## Improved
 
+* KQL timespan columns no longer retain the service's raw text values as
+  element names.
+
 * POSIXlt job parameters now work on every declared R version, including R
   4.1 and 4.2, while still rejecting vectors of multiple timestamps. CI now
   includes an R 4.1 lane.

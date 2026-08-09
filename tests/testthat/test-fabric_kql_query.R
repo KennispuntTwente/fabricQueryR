@@ -295,6 +295,7 @@ test_that("Kusto v2 type metadata produces stable R columns", {
   expect_equal(result$text, c("hello", NA))
   expect_s3_class(result$elapsed, "difftime")
   expect_equal(as.numeric(result$elapsed, units = "secs"), c(93784.5, NA))
+  expect_null(names(result$elapsed))
   expect_equal(
     attr(result, "kusto_schema")$type,
     c(
