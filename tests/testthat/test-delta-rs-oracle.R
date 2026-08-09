@@ -87,11 +87,14 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     rep(0L, 3L)
   )
   expect_true(
-    all(base::match(
-      c("1", "65537", "99998"),
-      deletion_vector_ids,
-      nomatch = 0L
-    ) > 0L)
+    all(
+      base::match(
+        c("1", "65537", "99998"),
+        deletion_vector_ids,
+        nomatch = 0L
+      ) >
+        0L
+    )
   )
 
   row_tracking <- fabric_delta_read_uri(
