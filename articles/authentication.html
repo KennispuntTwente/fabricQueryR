@@ -385,8 +385,20 @@ used by the function:</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Discovery, Fabric REST, jobs, and Livy</td>
+<td>Discovery, Fabric REST, and jobs</td>
 <td><code>https://api.fabric.microsoft.com/.default</code></td>
+</tr>
+<tr class="even">
+<td>Livy as a delegated user</td>
+<td>
+<code>https://api.fabric.microsoft.com/Lakehouse.Execute.All</code>,
+<code>Lakehouse.Read.All</code>, <code>Code.AccessFabric.All</code>, and
+<code>Code.AccessStorage.All</code>
+</td>
+</tr>
+<tr class="odd">
+<td>Livy as a service principal</td>
+<td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
 </tr>
 <tr class="even">
 <td>OneLake files and Delta tables</td>
