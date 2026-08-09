@@ -70,8 +70,10 @@ a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
 \value{
 A \code{fabric_item} list. It contains common fields such as \code{id},
 \code{displayName}, \code{type}, and \code{workspaceId}, the nested workload
-\code{properties}, and applicable connection targets such as
-\code{sql_connection_string}, \code{livy_url}, or \code{query_service_uri}.
+\code{properties}, and applicable connection targets. SQLDatabase records use
+\code{sql_connection_string}; Lakehouse, Warehouse, and WarehouseSnapshot
+records use \code{sql_server} and \code{sql_database}. Other workloads can include
+\code{livy_url}, \code{dax_connection_string}, or \code{query_service_uri}.
 }
 \description{
 Finds one item and retrieves the connection details that fabricQueryR can

@@ -82,9 +82,11 @@ a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
 A list with one \code{fabric_item} object per item. Each object is a
 named list with common fields including \code{id}, \code{displayName}, \code{type},
 \code{workspaceId}, and \code{folderId}. With \code{detail = TRUE}, applicable objects
-also contain ready-to-use \code{sql_connection_string},
-\verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
-\code{query_service_uri}, or \code{graphql_endpoint} values. When supplied by
+also contain ready-to-use connection fields. SQLDatabase records contain
+\code{sql_connection_string}; Lakehouse, Warehouse, and WarehouseSnapshot
+records contain \code{sql_server} and \code{sql_database}. Other workloads can
+contain \verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
+\code{query_service_uri}, or \code{graphql_endpoint}. When supplied by
 Fabric, \code{workspaceApiEndpoint} preserves the workspace-specific API origin
 for later job calls. Fields that do not apply to an item are absent;
 \code{detail_error} records failed enrichment requests.
