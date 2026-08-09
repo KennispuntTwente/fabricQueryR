@@ -24,6 +24,10 @@
 
 ## Improved
 
+* Shared HTTP retries now cap server-provided `Retry-After` delays at 120
+  seconds by default. Set `options(fabricqueryr.http.max_retry_delay = ...)`
+  to choose a different non-negative ceiling.
+
 * Authentication is now consistent across the package. Functions accept an
   `AzureAuth::AzureToken`, bearer token, or refreshable token provider through
   `token`, with `auth_args` available for AzureAuth login options. The old

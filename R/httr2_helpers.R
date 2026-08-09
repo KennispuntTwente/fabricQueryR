@@ -150,6 +150,7 @@
   download_path = NULL,
   max_tries = 4L,
   request_timeout = getOption("fabricqueryr.http.timeout", 300),
+  max_retry_delay = getOption("fabricqueryr.http.max_retry_delay", 120),
   .sleep = Sys.sleep,
   .runif = stats::runif,
   .now = Sys.time
@@ -167,6 +168,15 @@
         request_timeout <= 0)
   ) {
     rlang::abort("request_timeout must be NULL or one positive number")
+  }
+  if (
+    length(max_retry_delay) != 1L ||
+      is.na(max_retry_delay) ||
+      !is.numeric(max_retry_delay) ||
+      !is.finite(max_retry_delay) ||
+      max_retry_delay < 0
+  ) {
+    rlang::abort("max_retry_delay must be one non-negative number")
   }
   if (
     !is.null(request_timeout) &&
@@ -235,7 +245,7 @@
     }
 
     delay <- if (!is.null(retry_after)) {
-      retry_after
+      min(retry_after, max_retry_delay)
     } else {
       min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
     }

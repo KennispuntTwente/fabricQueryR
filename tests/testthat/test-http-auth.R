@@ -282,7 +282,7 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
-test_that("HTTP retries do not truncate long Retry-After values", {
+test_that("HTTP retries cap long Retry-After values", {
   calls <- 0L
   delays <- numeric()
   httr2::local_mocked_responses(function(req) {
@@ -303,7 +303,29 @@ test_that("HTTP retries do not truncate long Retry-After values", {
   )
 
   expect_equal(httr2::resp_status(response), 200L)
-  expect_equal(delays, 300)
+  expect_equal(delays, 120)
+
+  calls <- 0L
+  delays <- numeric()
+  response <- .httr2_perform(
+    httr2::request("https://example.test/items"),
+    max_tries = 2L,
+    max_retry_delay = 10,
+    .sleep = function(delay) {
+      delays <<- c(delays, delay)
+    }
+  )
+
+  expect_equal(httr2::resp_status(response), 200L)
+  expect_equal(delays, 10)
+  expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      max_retry_delay = -1
+    ),
+    "max_retry_delay",
+    fixed = TRUE
+  )
 })
 
 test_that("shared HTTP requests have bounded overridable timeouts", {
