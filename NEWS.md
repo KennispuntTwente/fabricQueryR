@@ -24,6 +24,9 @@
 
 ## Improved
 
+* Empty `conf = list()` and `tags = list()` inputs are now treated as omitted
+  Livy settings.
+
 * Fabric REST and KQL endpoint validation now accepts an explicit `:443`,
   consistently with OneLake and Livy, while still rejecting non-default ports.
 

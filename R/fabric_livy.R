@@ -180,7 +180,7 @@ fabric_livy_check_string_vector <- function(
 }
 
 fabric_livy_normalize_named_list <- function(value, name) {
-  if (is.null(value)) {
+  if (is.null(value) || !length(value)) {
     return(NULL)
   }
   valid_names <- !is.null(names(value)) &&

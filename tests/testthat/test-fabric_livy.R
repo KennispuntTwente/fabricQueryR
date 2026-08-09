@@ -767,6 +767,8 @@ test_that("top-level batch waiting cancels on timeout and exposes its handle", {
 })
 
 test_that("Livy input and endpoint validation is explicit", {
+  expect_null(fabric_livy_normalize_named_list(list(), "tags"))
+  expect_null(fabric_livy_conf(list()))
   expect_equal(
     fabric_livy_endpoint(
       "https://example.test/base/sessions/",
