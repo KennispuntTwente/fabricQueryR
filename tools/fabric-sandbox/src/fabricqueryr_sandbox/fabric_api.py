@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
+from uuid import UUID
 
 from azure.core.credentials import TokenCredential
 import httpx
@@ -355,10 +356,20 @@ class FabricApi:
         timeout: int,
         return_result: bool = False,
     ) -> dict[str, Any]:
-        location = response.headers.get("Location")
+        operation_id = response.headers.get("x-ms-operation-id")
+        if operation_id:
+            try:
+                operation_id = str(UUID(operation_id))
+            except ValueError as error:
+                raise RuntimeError(
+                    f"{operation_name} included an invalid x-ms-operation-id"
+                ) from error
+            location = f"/operations/{operation_id}"
+        else:
+            location = response.headers.get("Location")
         if not location:
             raise RuntimeError(
-                f"{operation_name} did not include a Location header"
+                f"{operation_name} did not include an operation identifier"
             )
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:

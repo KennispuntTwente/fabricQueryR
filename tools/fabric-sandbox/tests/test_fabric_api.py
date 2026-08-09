@@ -302,6 +302,61 @@ def test_update_graphql_definition_encodes_supported_public_definition():
     assert decoded == definition
 
 
+def test_update_graphql_definition_polls_validated_operation_id():
+    operation_id = "31b2a510-1703-4fc6-b5f2-a8a314ebcce3"
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.method == "POST":
+            return httpx.Response(
+                202,
+                headers={
+                    "Location": "https://regional.fabric.example/operations/ignored",
+                    "x-ms-operation-id": operation_id,
+                },
+            )
+        assert request.url == httpx.URL(
+            f"https://api.fabric.microsoft.com/v1/operations/{operation_id}"
+        )
+        return httpx.Response(200, json={"status": "Succeeded"})
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+    ) as api:
+        result = api.update_graphql_definition(
+            "workspace-id",
+            "graphql-api-id",
+            {"datasources": []},
+        )
+
+    assert result == {"status": "Succeeded"}
+    assert len(requests) == 2
+
+
+def test_update_graphql_definition_rejects_invalid_operation_id():
+    def handler(_request):
+        return httpx.Response(
+            202,
+            headers={
+                "Location": "/operations/operation-id",
+                "x-ms-operation-id": "../unsafe",
+            },
+        )
+
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        with pytest.raises(RuntimeError, match="invalid x-ms-operation-id"):
+            api.update_graphql_definition(
+                "workspace-id",
+                "graphql-api-id",
+                {"datasources": []},
+            )
+
+
 def test_request_preserves_fabric_error_details():
     def handler(request):
         return httpx.Response(
