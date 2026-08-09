@@ -275,7 +275,9 @@ function:
 
 | Operations | Azure AD v2 resource/scope |
 |---|---|
-| Discovery, Fabric REST, jobs, and Livy | `https://api.fabric.microsoft.com/.default` |
+| Discovery, Fabric REST, and jobs | `https://api.fabric.microsoft.com/.default` |
+| Livy as a delegated user | `https://api.fabric.microsoft.com/Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and `Code.AccessStorage.All` |
+| Livy as a service principal | `https://analysis.windows.net/powerbi/api/.default` |
 | OneLake files and Delta tables | `https://storage.azure.com/.default` |
 | SQL connections | `https://database.windows.net/.default` |
 | DAX / Power BI Execute Queries | `https://analysis.windows.net/powerbi/api/.default` |
