@@ -580,13 +580,16 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     nzchar(host) &&
     !nzchar(parsed$username %||% "") &&
     !nzchar(parsed$password %||% "") &&
-    !nzchar(parsed$port %||% "") &&
+    (parsed$port %||% "") %in% c("", "443") &&
     path %in% c("", "/v1") &&
     length(parsed$query %||% list()) == 0L &&
     !nzchar(parsed$fragment %||% "")
   if (!clean_origin) {
     rlang::abort(
-      "api_base must be an HTTPS origin with an optional /v1 path",
+      paste0(
+        "api_base must be an HTTPS origin using the default port (443), ",
+        "with an optional /v1 path"
+      ),
       class = "fabric_api_endpoint_error"
     )
   }
@@ -675,13 +678,16 @@ fabric_workspace_api_base <- function(record, fallback) {
       !fabric_host_matches(hostname, "api.fabric.microsoft.com") ||
       nzchar(parsed$username %||% "") ||
       nzchar(parsed$password %||% "") ||
-      nzchar(parsed$port %||% "") ||
+      !(parsed$port %||% "") %in% c("", "443") ||
       !path %in% c("", "/v1") ||
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
     rlang::abort(
-      "The workspace apiEndpoint must be an HTTPS origin with an optional /v1 path"
+      paste0(
+        "The workspace apiEndpoint must be an HTTPS origin using the ",
+        "default port (443), with an optional /v1 path"
+      )
     )
   }
   if (identical(tolower(path), "/v1")) endpoint else paste0(endpoint, "/v1")

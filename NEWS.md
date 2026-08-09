@@ -24,6 +24,9 @@
 
 ## Improved
 
+* Fabric REST and KQL endpoint validation now accepts an explicit `:443`,
+  consistently with OneLake and Livy, while still rejecting non-default ports.
+
 * KQL timespan columns no longer retain the service's raw text values as
   element names.
 

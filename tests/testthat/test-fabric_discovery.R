@@ -271,6 +271,13 @@ test_that("workspace-specific API endpoints are validated", {
     ),
     "https://workspace.z13.api.fabric.microsoft.com/v1"
   )
+  expect_equal(
+    fabric_workspace_api_base(
+      list(apiEndpoint = "https://workspace.z13.api.fabric.microsoft.com:443"),
+      .fabric_api_base
+    ),
+    "https://workspace.z13.api.fabric.microsoft.com:443/v1"
+  )
   expect_error(
     fabric_workspace_api_base(
       list(apiEndpoint = "http://workspace.example.test"),
@@ -903,6 +910,10 @@ test_that("Fabric REST API bases require a trusted HTTPS origin", {
     ),
     "https://workspace.z13.api.fabric.microsoft.com/v1"
   )
+  expect_equal(
+    fabric_api_base("https://api.fabric.microsoft.com:443"),
+    "https://api.fabric.microsoft.com:443/v1"
+  )
   expect_error(
     fabric_api_base("https://fabric.test/v1"),
     class = "fabric_api_endpoint_error"
@@ -915,7 +926,7 @@ test_that("Fabric REST API bases require a trusted HTTPS origin", {
   invalid <- c(
     "http://api.fabric.microsoft.com/v1",
     "https://user@api.fabric.microsoft.com/v1",
-    "https://api.fabric.microsoft.com:443/v1",
+    "https://api.fabric.microsoft.com:8443/v1",
     "https://api.fabric.microsoft.com/v1/workspaces",
     "https://api.fabric.microsoft.com/v1?token=secret",
     "https://api.fabric.microsoft.com/v1#fragment"

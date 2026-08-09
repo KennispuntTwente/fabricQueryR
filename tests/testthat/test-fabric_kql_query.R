@@ -42,6 +42,15 @@ test_that("KQL targets normalize direct and discovered coordinates", {
   )
   expect_equal(direct$database, "Telemetry")
 
+  explicit_default_port <- kusto_resolve_target(
+    "https://cluster.kusto.fabric.microsoft.com:443",
+    "Telemetry"
+  )
+  expect_equal(
+    explicit_default_port$url,
+    "https://cluster.kusto.fabric.microsoft.com:443/v2/rest/query"
+  )
+
   upgraded <- kusto_resolve_target(
     "https://cluster.kusto.fabric.microsoft.com/v1/rest/query",
     "Telemetry"
@@ -69,6 +78,14 @@ test_that("KQL targets normalize direct and discovered coordinates", {
   expect_error(
     kusto_resolve_target("http://cluster.test", "Events"),
     "valid HTTPS",
+    fixed = TRUE
+  )
+  expect_error(
+    kusto_resolve_target(
+      "https://cluster.kusto.fabric.microsoft.com:8443",
+      "Events"
+    ),
+    "default port (443)",
     fixed = TRUE
   )
   expect_error(

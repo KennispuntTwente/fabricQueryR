@@ -221,11 +221,14 @@ kusto_resolve_target <- function(
       !nzchar(parsed$hostname) ||
       nzchar(parsed$username %||% "") ||
       nzchar(parsed$password %||% "") ||
-      nzchar(parsed$port %||% "") ||
+      !(parsed$port %||% "") %in% c("", "443") ||
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort("cluster must be a valid HTTPS query-service URI")
+    rlang::abort(paste0(
+      "cluster must be a valid HTTPS query-service URI using the ",
+      "default port (443)"
+    ))
   }
   trusted <- any(vapply(
     c(
