@@ -11,6 +11,8 @@ fabric_item(
   workspace,
   item,
   type = NULL,
+  personal_workspace_tenant_id = NULL,
+  personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -43,6 +45,19 @@ fabric_item(
   Optional Fabric API item type, for example `"Lakehouse"`,
   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
   Fabric, so use the API spelling. Leave `NULL` to list all item types.
+
+- personal_workspace_tenant_id:
+
+  Optional Microsoft Entra tenant ID used to build the XMLA endpoint for
+  a Personal workspace.
+
+- personal_workspace_owner:
+
+  Optional owner UPN or Entra object ID used to build the XMLA endpoint
+  for a Personal workspace. Microsoft Fabric's workspace API does not
+  return either personal-workspace identifier, so supply this together
+  with `personal_workspace_tenant_id` when a `dax_connection_string` is
+  needed for a semantic model in My Workspace.
 
 - tenant_id:
 
@@ -84,5 +99,7 @@ fabric_item(
 
 A `fabric_item` list. It contains common fields such as `id`,
 `displayName`, `type`, and `workspaceId`, the nested workload
-`properties`, and applicable connection targets such as
-`sql_connection_string`, `livy_url`, or `query_service_uri`.
+`properties`, and applicable connection targets. SQLDatabase records use
+`sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
+records use `sql_server` and `sql_database`. Other workloads can include
+`livy_url`, `dax_connection_string`, or `query_service_uri`.

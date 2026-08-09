@@ -70,6 +70,7 @@ files through OneLake's ADLS Gen2-compatible API:</p><ul><li><p><code>fabric_one
 <span>  path <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  recursive <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  page_size <span class="op">=</span> <span class="fl">5000L</span>,</span>
+<span>  begin_from <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  item_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
@@ -177,6 +178,13 @@ direct children. For deletion, allow removal of a non-empty directory.</p></dd>
 <dt id="arg-page-size">page_size<a class="anchor" aria-label="anchor" href="#arg-page-size"></a></dt>
 <dd><p>Maximum paths requested from OneLake per API call, from 1 to
 5000. Smaller values reduce each response size but require more requests.</p></dd>
+
+
+<dt id="arg-begin-from">begin_from<a class="anchor" aria-label="anchor" href="#arg-begin-from"></a></dt>
+<dd><p>Optional relative path within <code>path</code> at which listing
+begins. This is useful for resuming a lexicographically ordered scan
+without a service continuation token. Recursive listings support multiple
+path levels; non-recursive listings support one level.</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
@@ -321,6 +329,7 @@ restored if the final rename fails.</p>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">Connect to OneLake with ADLS APIs</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/list" class="external-link">ADLS Gen2 List Paths</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles" class="external-link">Create and manage OneLake security roles</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake security best practices</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake tenant settings</a></p>

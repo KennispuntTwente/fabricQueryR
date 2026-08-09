@@ -4,6 +4,10 @@
 
 ### New
 
+- [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  now exposes the ADLS Gen2 `beginFrom` cursor through `begin_from`,
+  allowing a listing to start at a relative path.
+
 - Added workspace and item discovery with
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
   [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
@@ -35,6 +39,36 @@
   remains available for one-shot execution.
 
 ### Improved
+
+- Explicit `tenant_id` or `client_id` arguments now replace the
+  credential stored in a `fabric_job` handle instead of being silently
+  ignored.
+
+- GraphQL pagination now reuses one credential across pages instead of
+  reacquiring AzureAuth credentials for every request.
+
+- Empty `conf = list()` and `tags = list()` inputs are now treated as
+  omitted Livy settings.
+
+- Fabric REST and KQL endpoint validation now accepts an explicit
+  `:443`, consistently with OneLake and Livy, while still rejecting
+  non-default ports.
+
+- KQL timespan columns no longer retain the service’s raw text values as
+  element names.
+
+- POSIXlt job parameters now work on every declared R version, including
+  R 4.1 and 4.2, while still rejecting vectors of multiple timestamps.
+  CI now includes an R 4.1 lane.
+
+- Discovery can now construct personal-workspace semantic-model XMLA
+  targets when `personal_workspace_tenant_id` and
+  `personal_workspace_owner` are supplied explicitly. These required
+  values are absent from Fabric’s workspace response.
+
+- Delta reads now accept deletion-vector table protocols. Deterministic
+  runtime tests verify both an enabled-but-unused feature and actual
+  deleted rows against the pinned `deltalake` reader.
 
 - Shared HTTP retries now cap server-provided `Retry-After` delays at
   120 seconds by default. Set

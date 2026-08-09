@@ -49,6 +49,8 @@ such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.</p>
 <span>  detail <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  detail_errors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"record"</span>, <span class="st">"abort"</span><span class="op">)</span>,</span>
 <span>  recursive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  personal_workspace_tenant_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  personal_workspace_owner <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
@@ -96,6 +98,19 @@ field, stores the message in <code>detail_error</code>, and emits one summary wa
 <code>FALSE</code> lists only items at the workspace root.</p></dd>
 
 
+<dt id="arg-personal-workspace-tenant-id">personal_workspace_tenant_id<a class="anchor" aria-label="anchor" href="#arg-personal-workspace-tenant-id"></a></dt>
+<dd><p>Optional Microsoft Entra tenant ID used
+to build the XMLA endpoint for a Personal workspace.</p></dd>
+
+
+<dt id="arg-personal-workspace-owner">personal_workspace_owner<a class="anchor" aria-label="anchor" href="#arg-personal-workspace-owner"></a></dt>
+<dd><p>Optional owner UPN or Entra object ID used
+to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
+workspace API does not return either personal-workspace identifier, so
+supply this together with <code>personal_workspace_tenant_id</code> when a
+<code>dax_connection_string</code> is needed for a semantic model in My Workspace.</p></dd>
+
+
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
 <dd><p>Microsoft Entra tenant ID. Defaults to
 <code>FABRICQUERYR_TENANT_ID</code>.</p></dd>
@@ -137,9 +152,11 @@ a non-Microsoft HTTPS origin that you trust to receive a Fabric token.</p></dd>
     <p>A list with one <code>fabric_item</code> object per item. Each object is a
 named list with common fields including <code>id</code>, <code>displayName</code>, <code>type</code>,
 <code>workspaceId</code>, and <code>folderId</code>. With <code>detail = TRUE</code>, applicable objects
-also contain ready-to-use <code>sql_connection_string</code>,
-<code>one_lake_*_path</code>, <code>dax_connection_string</code>, <code>livy_url</code>,
-<code>query_service_uri</code>, or <code>graphql_endpoint</code> values. When supplied by
+also contain ready-to-use connection fields. SQLDatabase records contain
+<code>sql_connection_string</code>; Lakehouse, Warehouse, and WarehouseSnapshot
+records contain <code>sql_server</code> and <code>sql_database</code>. Other workloads can
+contain <code>one_lake_*_path</code>, <code>dax_connection_string</code>, <code>livy_url</code>,
+<code>query_service_uri</code>, or <code>graphql_endpoint</code>. When supplied by
 Fabric, <code>workspaceApiEndpoint</code> preserves the workspace-specific API origin
 for later job calls. Fields that do not apply to an item are absent;
 <code>detail_error</code> records failed enrichment requests.
@@ -150,12 +167,15 @@ Nested service data is retained in place, including in <code>properties</code>.<
     <p>The caller needs at least access to the workspace (the Viewer role is
 sufficient for the core list operation). Workload enrichment additionally
 requires <code>Item.Read.All</code>/<code>Item.ReadWrite.All</code> or the corresponding
-workload-specific read scope and access to the item.</p>
+workload-specific read scope and access to the item.
+Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
+require both <code>personal_workspace_tenant_id</code> and <code>personal_workspace_owner</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items" class="external-link">List items REST API</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview" class="external-link">Fabric item management overview</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/enterprise/powerbi/service-premium-connect-tools#connecting-to-a-personal-workspace" class="external-link">Personal-workspace XMLA endpoints</a></p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

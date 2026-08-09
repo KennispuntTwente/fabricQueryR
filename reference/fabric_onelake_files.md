@@ -25,6 +25,7 @@ fabric_onelake_list(
   path = "",
   recursive = FALSE,
   page_size = 5000L,
+  begin_from = NULL,
   item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -133,6 +134,13 @@ fabric_onelake_delete(
 
   Maximum paths requested from OneLake per API call, from 1 to 5000.
   Smaller values reduce each response size but require more requests.
+
+- begin_from:
+
+  Optional relative path within `path` at which listing begins. This is
+  useful for resuming a lexicographically ordered scan without a service
+  continuation token. Recursive listings support multiple path levels;
+  non-recursive listings support one level.
 
 - item_type:
 
@@ -282,6 +290,9 @@ a backup and restored if the final rename fails.
 
 [Connect to OneLake with ADLS
 APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+
+[ADLS Gen2 List
+Paths](https://learn.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/list)
 
 [Create and manage OneLake security
 roles](https://learn.microsoft.com/en-us/fabric/onelake/security/create-manage-roles)

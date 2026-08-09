@@ -218,7 +218,9 @@ have the notebook signal its own outcome through
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Preferred token input: an <code><a href="https://rdrr.io/pkg/AzureAuth/man/AzureToken.html" class="external-link">AzureAuth::AzureToken</a></code> object,
 bearer-token string, or token-provider function. With <code>NULL</code>, <code>AzureAuth</code>
-reuses a matching cached token or starts its normal interactive login flow.</p></dd>
+reuses a matching cached token or starts its normal interactive login flow.
+A <code>fabric_job</code> handle reuses its stored credential unless <code>tenant_id</code>,
+<code>client_id</code>, <code>token</code>, or non-empty <code>auth_args</code> is supplied explicitly.</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>

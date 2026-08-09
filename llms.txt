@@ -62,6 +62,8 @@ items <- fabric_items(workspace)
 
 # Find the first item of each type
 lakehouse <- fabric_lakehouses(workspace) |> first()
+warehouse <- fabric_warehouses(workspace) |> first()
+warehouse_snapshot <- fabric_warehouse_snapshots(workspace) |> first()
 sql_database <- fabric_sql_databases(workspace) |> first()
 semantic_model <- fabric_semantic_models(workspace) |> first()
 kql_database <- fabric_kql_databases(workspace) |> first()
@@ -212,10 +214,9 @@ reader <- arrow::as_record_batch_reader(stream)
 ```
 
 This direct reader intentionally stops on Delta features unsupported by
-its pinned `deltalake` runtime, including deletion vectors, type
-widening, V2 checkpoints, and Variant. Fabric Runtime 2.0 enables
-deletion vectors by default for common `MERGE`, `UPDATE`, and `DELETE`
-workflows, so those tables may not be readable here. Query them through
+its pinned `deltalake` runtime, including type widening, V2 checkpoints,
+and Variant. Deletion-vector tables are supported by the pinned reader.
+Query unsupported tables through
 [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
 or Spark through the Livy helpers instead. See Microsoft’s [runtime
 compatibility

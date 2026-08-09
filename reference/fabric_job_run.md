@@ -179,7 +179,9 @@ fabric_job_cancel(
   [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
   object, bearer-token string, or token-provider function. With `NULL`,
   `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  interactive login flow. A `fabric_job` handle reuses its stored
+  credential unless `tenant_id`, `client_id`, `token`, or non-empty
+  `auth_args` is supplied explicitly.
 
 - auth_args:
 
