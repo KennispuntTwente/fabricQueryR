@@ -105,7 +105,7 @@ and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-on
 
 Some tables use advanced Delta features that the deltalake Python package does
 not support. The function will detect these features and abort. Unsupported
-features include Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant.
+features include Type Widening, V2 Checkpoints, and Fabric Variant.
 Use the SQL or Spark (Livy) functions to read these tables.
 
 Fabric publishes Warehouse user tables as read-only Delta logs specifically

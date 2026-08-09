@@ -563,10 +563,10 @@ test_that("Delta protocol preflight rejects unsupported reader features", {
 
   expect_invisible(fabric_delta_check_protocol(protocol(c(
     "columnMapping",
-    "timestampNtz"
+    "timestampNtz",
+    "deletionVectors"
   ))))
   for (feature in c(
-    "deletionVectors",
     "typeWidening",
     "typeWidening-preview",
     "v2Checkpoint",
@@ -590,7 +590,7 @@ test_that("Delta protocol preflight rejects unsupported reader features", {
   )
   expect_setequal(
     combined$delta_features,
-    c("DeletionVectors", "V2Checkpoint")
+    "V2Checkpoint"
   )
 })
 

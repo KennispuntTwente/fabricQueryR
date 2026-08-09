@@ -1,7 +1,6 @@
 .fabric_delta_max_exact_version <- 2^53
 .fabric_delta_result_types <- c("tibble", "arrow_stream")
 .fabric_delta_unsupported_reader_features <- c(
-  deletionvectors = "DeletionVectors",
   typewidening = "TypeWidening",
   typewideningpreview = "TypeWidening-preview",
   v2checkpoint = "V2Checkpoint",
@@ -45,7 +44,7 @@
 #'
 #' Some tables use advanced Delta features that the deltalake Python package does
 #' not support. The function will detect these features and abort. Unsupported
-#' features include Deletion Vectors, Type Widening, V2 Checkpoints, and Fabric Variant.
+#' features include Type Widening, V2 Checkpoints, and Fabric Variant.
 #' Use the SQL or Spark (Livy) functions to read these tables.
 #'
 #' Fabric publishes Warehouse user tables as read-only Delta logs specifically

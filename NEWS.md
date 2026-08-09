@@ -24,6 +24,10 @@
 
 ## Improved
 
+* Delta reads now accept deletion-vector table protocols. Deterministic
+  runtime tests verify both an enabled-but-unused feature and actual deleted
+  rows against the pinned `deltalake` reader.
+
 * Shared HTTP retries now cap server-provided `Retry-After` delays at 120
   seconds by default. Set `options(fabricqueryr.http.max_retry_delay = ...)`
   to choose a different non-negative ceiling.

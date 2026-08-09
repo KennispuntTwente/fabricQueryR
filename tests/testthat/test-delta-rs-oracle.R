@@ -46,9 +46,6 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
 
   expect_identical(manifest$deltalake_version, "1.6.2")
   for (case in manifest$cases) {
-    if (case$table %in% c("deletion_vector_capable", "large_deletion_vector")) {
-      next
-    }
     if (identical(case$table, "nested")) {
       next
     }
@@ -76,14 +73,12 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
     )
   }
 
-  for (name in c("deletion_vector_capable", "large_deletion_vector")) {
-    error <- tryCatch(
-      fabric_delta_read_uri(file.path(directory, name)),
-      error = identity
-    )
-    expect_s3_class(error, "fabric_delta_unsupported_feature_error")
-    expect_identical(error$delta_features, "DeletionVectors")
-  }
+  deletion_vectors <- fabric_delta_read_uri(
+    file.path(directory, "large_deletion_vector")
+  )
+  expect_equal(nrow(deletion_vectors), 99997L)
+  expect_false(any(c("0", "65536", "99999") %in% deletion_vectors$id))
+  expect_true(all(c("1", "65537", "99998") %in% deletion_vectors$id))
 
   row_tracking <- fabric_delta_read_uri(
     file.path(directory, "row_tracking_capable"),

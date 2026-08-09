@@ -963,12 +963,6 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
   unsupported <- c(
-    column_mapped_id_partitioned_dv = "deletion-vector",
-    deletion_vectors = "deletion-vector",
-    file_row_number_collision = "deletion-vector",
-    deletion_vectors_stress = "deletion-vector",
-    deletion_vectors_dense = "deletion-vector",
-    row_tracking = "deletion-vector",
     type_widened = "TypeWidening",
     type_widened_exact = "TypeWidening",
     type_widened_pending = "TypeWidening",
@@ -1055,7 +1049,13 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
   sources <- c(
     tables$column_mapped,
     tables$column_mapped_id,
-    tables$shallow_clone
+    tables$shallow_clone,
+    tables$column_mapped_id_partitioned_dv,
+    tables$deletion_vectors,
+    tables$file_row_number_collision,
+    tables$deletion_vectors_stress,
+    tables$deletion_vectors_dense,
+    tables$row_tracking
   )
   expect_true(all(sources %in% names(oracle$tables)))
   for (source in sources) {
@@ -1105,6 +1105,12 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "partitioned",
     "column_mapped",
     "column_mapped_id",
+    "column_mapped_id_partitioned_dv",
+    "deletion_vectors",
+    "file_row_number_collision",
+    "deletion_vectors_stress",
+    "deletion_vectors_dense",
+    "row_tracking",
     "shallow_clone",
     "oracle_basic",
     "oracle_partitioned",
@@ -1121,12 +1127,6 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "spark_oracle_struct_validity"
   )
   unsupported_error <- c(
-    "column_mapped_id_partitioned_dv",
-    "deletion_vectors",
-    "file_row_number_collision",
-    "deletion_vectors_stress",
-    "deletion_vectors_dense",
-    "row_tracking",
     "deletion_vectors_checkpoint",
     "type_widened",
     "type_widened_exact",
