@@ -47,6 +47,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
 
   items <- fabric_items(
     workspace,
+    detail = TRUE,
     token = token
   )
   expected_items <- c(

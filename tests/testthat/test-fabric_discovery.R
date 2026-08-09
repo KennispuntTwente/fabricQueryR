@@ -517,6 +517,8 @@ test_that("typed routes and derived targets cover supported workloads", {
       "graphQLApis"
     )
   )
+  expect_null(fabric_item_route("Report"))
+  expect_null(fabric_item_route(""))
 
   sql_database <- fabric_add_derived_targets(
     list(
@@ -626,6 +628,46 @@ test_that("typed routes and derived targets cover supported workloads", {
     eventhouse$query_service_uri,
     "https://cluster.kusto.fabric.microsoft.com"
   )
+})
+
+test_that("detail enrichment skips item types without a detail route", {
+  detail_urls <- character()
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = "workspace-id",
+        displayName = "Analytics",
+        raw = list(type = "Workspace")
+      )
+    },
+    .httr2_collection = function(...) {
+      list(
+        list(id = "report-id", displayName = "Sales", type = "Report"),
+        list(
+          id = "warehouse-id",
+          displayName = "Warehouse",
+          type = "Warehouse"
+        )
+      )
+    },
+    .httr2_json = function(req, ...) {
+      detail_urls <<- c(detail_urls, req$url)
+      list(
+        id = "warehouse-id",
+        displayName = "Warehouse",
+        type = "Warehouse",
+        properties = list(connectionString = "server.fabric.microsoft.com")
+      )
+    }
+  )
+
+  items <- fabric_items("Analytics", detail = TRUE, token = "token")
+
+  expect_length(items, 2L)
+  expect_equal(items[[1L]]$type, "Report")
+  expect_equal(items[[2L]]$sql_server, "server.fabric.microsoft.com")
+  expect_length(detail_urls, 1L)
+  expect_match(detail_urls, "/warehouses/warehouse-id$", perl = TRUE)
 })
 
 test_that("typed convenience helpers forward their workload types", {

@@ -726,7 +726,11 @@ fabric_item_route <- function(type) {
     notebook = "notebooks",
     graphqlapi = "graphQLApis"
   )
-  unname(routes[[tolower(type)]])
+  index <- match(tolower(type), names(routes))
+  if (is.na(index)) {
+    return(NULL)
+  }
+  unname(routes[[index]])
 }
 
 fabric_enrich_item <- function(
