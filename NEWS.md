@@ -27,6 +27,9 @@
 
 ## Improved
 
+* Explicit `tenant_id` or `client_id` arguments now replace the credential
+  stored in a `fabric_job` handle instead of being silently ignored.
+
 * GraphQL pagination now reuses one credential across pages instead of
   reacquiring AzureAuth credentials for every request.
 

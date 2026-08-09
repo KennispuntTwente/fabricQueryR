@@ -79,6 +79,8 @@
 #' @param token Preferred token input: an `AzureAuth::AzureToken` object,
 #'   bearer-token string, or token-provider function. With `NULL`, `AzureAuth`
 #'   reuses a matching cached token or starts its normal interactive login flow.
+#'   A `fabric_job` handle reuses its stored credential unless `tenant_id`,
+#'   `client_id`, `token`, or non-empty `auth_args` is supplied explicitly.
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #'   Job submission and cancellation require `Item.Execute.All` or
@@ -272,6 +274,10 @@ fabric_job_status <- function(
   allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
+  override_auth <- !missing(tenant_id) ||
+    !missing(client_id) ||
+    !is.null(token) ||
+    length(auth_args) > 0L
   context <- .fabric_job_context(
     job = job,
     workspace = workspace,
@@ -285,7 +291,8 @@ fabric_job_status <- function(
     auth_args = auth_args,
     api_base = api_base,
     allow_custom_endpoint = allow_custom_endpoint,
-    use_workspace_endpoint = !api_base_supplied
+    use_workspace_endpoint = !api_base_supplied,
+    override_auth = override_auth
   )
   .fabric_job_get_status(context, allow_not_found = FALSE)
 }
@@ -325,6 +332,10 @@ fabric_job_wait <- function(
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
+  override_auth <- !missing(tenant_id) ||
+    !missing(client_id) ||
+    !is.null(token) ||
+    length(auth_args) > 0L
   if (!inherits(job, "fabric_job")) {
     rlang::abort("`job` must be a `fabric_job` returned by fabric_job_run()")
   }
@@ -361,7 +372,8 @@ fabric_job_wait <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint
+    allow_custom_endpoint = allow_custom_endpoint,
+    override_auth = override_auth
   )
   started <- .now()
   last <- NULL
@@ -465,6 +477,10 @@ fabric_job_cancel <- function(
   allow_custom_endpoint = FALSE
 ) {
   api_base_supplied <- !missing(api_base)
+  override_auth <- !missing(tenant_id) ||
+    !missing(client_id) ||
+    !is.null(token) ||
+    length(auth_args) > 0L
   context <- .fabric_job_context(
     job = job,
     workspace = workspace,
@@ -478,7 +494,8 @@ fabric_job_cancel <- function(
     auth_args = auth_args,
     api_base = api_base,
     allow_custom_endpoint = allow_custom_endpoint,
-    use_workspace_endpoint = !api_base_supplied
+    use_workspace_endpoint = !api_base_supplied,
+    override_auth = override_auth
   )
   url <- paste0(
     context$api_base,
@@ -1498,7 +1515,8 @@ print.fabric_job_instance <- function(x, ...) {
   auth_args = list(),
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
-  use_workspace_endpoint = TRUE
+  use_workspace_endpoint = TRUE,
+  override_auth = !is.null(token) || length(auth_args) > 0L
 ) {
   if (inherits(job, "fabric_job")) {
     if (!is.null(job_instance_id)) {
@@ -1506,8 +1524,6 @@ print.fabric_job_instance <- function(x, ...) {
         "`job_instance_id` cannot be combined with a `fabric_job`"
       )
     }
-    override_auth <- !is.null(token) ||
-      length(auth_args) > 0L
     credential <- if (override_auth) {
       fabric_credential(
         tenant_id = tenant_id,

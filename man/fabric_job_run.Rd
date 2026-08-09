@@ -145,7 +145,9 @@ have the notebook signal its own outcome through
 
 \item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
 bearer-token string, or token-provider function. With \code{NULL}, \code{AzureAuth}
-reuses a matching cached token or starts its normal interactive login flow.}
+reuses a matching cached token or starts its normal interactive login flow.
+A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
+\code{client_id}, \code{token}, or non-empty \code{auth_args} is supplied explicitly.}
 
 \item{auth_args}{Named list of additional arguments passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.

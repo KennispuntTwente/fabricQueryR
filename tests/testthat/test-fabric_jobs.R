@@ -552,6 +552,48 @@ test_that("status normalizes documented metadata and notebook exit value", {
   expect_match(called_url, "?beta=true", fixed = TRUE)
 })
 
+test_that("job handles honor explicit tenant and client authentication", {
+  captured_credential <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(
+      method,
+      url,
+      credential,
+      ...
+    ) {
+      captured_credential <<- credential
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "33333333-3333-3333-3333-333333333333",
+          status = "Completed"
+        )
+      )
+    }
+  )
+  job <- job_test_handle(item_type = "DataPipeline")
+
+  fabric_job_status(job)
+  expect_identical(captured_credential, job$credential)
+
+  fabric_job_status(
+    job,
+    tenant_id = "other-tenant",
+    client_id = "other-client"
+  )
+  expect_identical(captured_credential$type, "AzureAuth")
+  provider_environment <- environment(captured_credential$provider)
+  expect_identical(
+    get("tenant_id", envir = provider_environment),
+    "other-tenant"
+  )
+  expect_identical(
+    get("client_id", envir = provider_environment),
+    "other-client"
+  )
+})
+
 test_that("status reconstructs context from a raw job instance ID", {
   called_url <- NULL
   local_mocked_bindings(
