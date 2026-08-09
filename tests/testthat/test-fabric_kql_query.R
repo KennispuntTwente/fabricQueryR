@@ -343,6 +343,14 @@ test_that("Kusto signed integer boundaries remain exact", {
   )
 })
 
+test_that("Kusto real specials survive numeric conversion", {
+  values <- kusto_numeric_column(list("NaN", "Infinity", "-Infinity"))
+
+  expect_true(is.nan(values[[1L]]))
+  expect_identical(values[[2L]], Inf)
+  expect_identical(values[[3L]], -Inf)
+})
+
 test_that("multiple and progressive Kusto primary tables are assembled", {
   frames <- list(
     list(FrameType = "DataSetHeader", Version = "v2.0", IsProgressive = TRUE),

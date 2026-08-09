@@ -813,7 +813,7 @@ kusto_character_column <- function(values) {
   )
 }
 
-kusto_numeric_column <- function(values, integer = FALSE) {
+kusto_numeric_column <- function(values) {
   text <- kusto_character_column(values)
   special <- c(
     "NaN" = NaN,
@@ -827,10 +827,7 @@ kusto_numeric_column <- function(values, integer = FALSE) {
   out <- suppressWarnings(as.numeric(text))
   matched <- match(text, names(special))
   out[!is.na(matched)] <- unname(special[matched[!is.na(matched)]])
-  if (integer) {
-    out <- suppressWarnings(as.integer(text))
-  }
-  invalid <- !is.na(text) & is.na(out)
+  invalid <- !is.na(text) & is.na(out) & is.na(matched)
   if (any(invalid)) {
     rlang::abort(
       "Kusto returned an invalid numeric value for its declared type"
