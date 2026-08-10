@@ -614,7 +614,10 @@ test_that("deletion-vector scans preserve source row order", {
   builder <- list(
     execute = function(sql) {
       calls <<- c(calls, sql)
-      list(read_all = function() calls <<- c(calls, "read_all"))
+      list(read_all = function() {
+        calls <<- c(calls, "read_all")
+        invisible(NULL)
+      })
     }
   )
 

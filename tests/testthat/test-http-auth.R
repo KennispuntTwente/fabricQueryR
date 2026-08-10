@@ -796,7 +796,10 @@ test_that("long-running operation polling handles terminal states", {
     "https://example.test/operations/1",
     credential,
     poll_interval = 0,
-    .sleep = function(delay) sleeps <<- c(sleeps, delay)
+    .sleep = function(delay) {
+      sleeps <<- c(sleeps, delay)
+      invisible(NULL)
+    }
   )
   expect_equal(result$id, "item")
   expect_equal(sleeps, 3)
@@ -837,7 +840,10 @@ test_that("long-running operation polling handles terminal states", {
       credential,
       timeout = 1,
       poll_interval = 5,
-      .sleep = function(delay) now <<- now + delay,
+      .sleep = function(delay) {
+        now <<- now + delay
+        invisible(NULL)
+      },
       .now = function() now
     ),
     "Timed out",

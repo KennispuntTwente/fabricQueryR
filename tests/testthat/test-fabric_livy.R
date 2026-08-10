@@ -889,7 +889,10 @@ test_that("Livy polling sleep is clamped to the remaining budget", {
     now + 2,
     poll_interval = 10,
     .now = function() now,
-    .sleep = function(seconds) slept <<- c(slept, seconds)
+    .sleep = function(seconds) {
+      slept <<- c(slept, seconds)
+      invisible(NULL)
+    }
   )
   expect_equal(remaining, 2)
   expect_equal(slept, 2)

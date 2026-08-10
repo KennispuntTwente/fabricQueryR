@@ -850,7 +850,10 @@ test_that("manual status honors the submission Retry-After delay", {
   result <- fabric_job_status(
     job,
     .now = function() submitted + 2,
-    .sleep = function(seconds) slept <<- c(slept, seconds)
+    .sleep = function(seconds) {
+      slept <<- c(slept, seconds)
+      invisible(NULL)
+    }
   )
   expect_true(requested)
   expect_equal(result$status, "InProgress")
@@ -861,7 +864,10 @@ test_that("manual status honors the submission Retry-After delay", {
     job,
     respect_retry_after = FALSE,
     .now = function() submitted,
-    .sleep = function(seconds) slept <<- c(slept, seconds)
+    .sleep = function(seconds) {
+      slept <<- c(slept, seconds)
+      invisible(NULL)
+    }
   )
   expect_length(slept, 0L)
 })
