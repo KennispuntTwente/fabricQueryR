@@ -594,6 +594,31 @@ test_that("Delta protocol preflight rejects unsupported reader features", {
   )
 })
 
+test_that("deletion-vector scans preserve source row order", {
+  calls <- character()
+  builder <- list(
+    execute = function(sql) {
+      calls <<- c(calls, sql)
+      list(read_all = function() calls <<- c(calls, "read_all"))
+    }
+  )
+
+  expect_invisible(fabric_delta_configure_query(
+    builder,
+    c("columnMapping", "timestampNtz")
+  ))
+  expect_length(calls, 0L)
+
+  expect_invisible(fabric_delta_configure_query(builder, "deletionVectors"))
+  expect_identical(
+    calls,
+    c(
+      "SET datafusion.execution.target_partitions = '1'",
+      "read_all"
+    )
+  )
+})
+
 test_that("Delta runtime requirements are declared without forcing initialization", {
   requirements <- reticulate::py_require()
   expect_true("deltalake==1.6.2" %in% requirements$packages)

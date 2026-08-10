@@ -569,8 +569,9 @@ fabric_delta_python_reader <- function(
   }
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
-  fabric_delta_check_protocol(table$protocol())
+  features <- fabric_delta_check_protocol(table$protocol())
   builder <- .delta_python$deltalake$QueryBuilder()
+  fabric_delta_configure_query(builder, features)
   builder$register("fabric_delta_table", table)
   reader <- builder$execute(fabric_delta_query(columns, limit))
   attr(reader, "fabric_delta_table") <- table
@@ -611,6 +612,26 @@ fabric_delta_check_protocol <- function(protocol) {
     )
   }
   invisible(features)
+}
+
+#' Configure DataFusion for protocol-sensitive Delta scans
+#' @keywords internal
+#' @noRd
+fabric_delta_configure_query <- function(builder, features) {
+  normalized <- gsub("[^a-z0-9]", "", tolower(features))
+  if (!"deletionvectors" %in% normalized) {
+    return(invisible(builder))
+  }
+
+  # DeltaScan consumes each deletion-vector mask in source row order. A
+  # round-robin scan can deliver batches from one file concurrently and apply
+  # the right mask positions to the wrong rows. Keep deletion-vector scans in
+  # one execution partition until delta-rs associates masks with row offsets.
+  setting <- builder$execute(
+    "SET datafusion.execution.target_partitions = '1'"
+  )
+  setting$read_all()
+  invisible(builder)
 }
 
 #' Render one exact R whole number for Python
