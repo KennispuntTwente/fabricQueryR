@@ -84,7 +84,11 @@ Invisibly, a \code{fabric_livy_statement_result} list with statement
 \code{state}, timing information, submitted \code{code}, raw response, and \code{output}.
 \code{output$parsed} contains Livy table MIME output as a tibble, JSON output as
 an R object, or text output as a character vector; error details and every
-original MIME value are retained in the other \code{output} fields.
+original MIME value are retained in the other \code{output} fields. Parsed
+tables retain their declared headers in \code{attr(x, "spark_schema")}. Spark
+long and decimal columns are character vectors, dates and timestamps use
+R temporal classes, binary and nested types use list-columns, and primitive
+numeric, string, and Boolean columns use their corresponding R vectors.
 }
 \description{
 Starts Fabric Spark compute, runs one statement, waits for its result, and

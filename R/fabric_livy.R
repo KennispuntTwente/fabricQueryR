@@ -641,9 +641,103 @@ fabric_livy_parse_table <- function(value) {
   }
   columns <- lapply(seq_len(column_count), function(column) {
     values <- lapply(rows, function(row) row[[column]])
-    fabric_livy_simplify_column(values)
+    type <- if (is.list(headers[[column]])) headers[[column]]$type else NULL
+    fabric_livy_convert_column(values, type)
   })
-  tibble::as_tibble(stats::setNames(columns, column_names))
+  out <- tibble::as_tibble(stats::setNames(columns, column_names))
+  attr(out, "spark_schema") <- headers
+  out
+}
+
+fabric_livy_spark_type <- function(type) {
+  if (is.list(type)) {
+    type <- type$type %||% type$name
+  }
+  if (!is.character(type) || length(type) != 1L || is.na(type)) {
+    return(NULL)
+  }
+  normalized <- tolower(trimws(type))
+  normalized <- sub("_type$", "", normalized)
+  sub("[<(].*$", "", normalized)
+}
+
+fabric_livy_atomic_text <- function(values) {
+  vapply(
+    values,
+    function(value) if (is.null(value)) NA_character_ else as.character(value),
+    character(1)
+  )
+}
+
+fabric_livy_invalid_type <- function(kind) {
+  rlang::abort(
+    paste0("Livy returned an invalid value for declared Spark type ", kind),
+    class = "fabric_livy_protocol_error"
+  )
+}
+
+fabric_livy_convert_column <- function(values, type) {
+  kind <- fabric_livy_spark_type(type)
+  if (is.null(kind)) {
+    return(fabric_livy_simplify_column(values))
+  }
+  if (kind %in% c("string", "char", "varchar", "decimal", "bigint", "long")) {
+    return(fabric_livy_atomic_text(values))
+  }
+  if (kind %in% c("byte", "short", "integer", "int")) {
+    text <- fabric_livy_atomic_text(values)
+    out <- suppressWarnings(as.integer(text))
+    if (any(!is.na(text) & is.na(out))) fabric_livy_invalid_type(kind)
+    return(out)
+  }
+  if (kind %in% c("float", "double")) {
+    text <- fabric_livy_atomic_text(values)
+    out <- suppressWarnings(as.numeric(text))
+    if (any(!is.na(text) & is.na(out))) fabric_livy_invalid_type(kind)
+    return(out)
+  }
+  if (kind %in% c("boolean", "bool")) {
+    text <- tolower(fabric_livy_atomic_text(values))
+    invalid <- !is.na(text) & !text %in% c("true", "false")
+    if (any(invalid)) fabric_livy_invalid_type(kind)
+    return(ifelse(is.na(text), NA, text == "true"))
+  }
+  if (identical(kind, "date")) {
+    text <- fabric_livy_atomic_text(values)
+    out <- as.Date(text, format = "%Y-%m-%d")
+    if (any(!is.na(text) & is.na(out))) fabric_livy_invalid_type(kind)
+    return(out)
+  }
+  if (kind %in% c("timestamp", "timestamp_ntz")) {
+    text <- fabric_livy_atomic_text(values)
+    parsed <- vapply(text, function(value) {
+      if (is.na(value)) return(NA_real_)
+      formats <- c(
+        "%Y-%m-%dT%H:%M:%OSZ",
+        "%Y-%m-%dT%H:%M:%OS%z",
+        "%Y-%m-%d %H:%M:%OS"
+      )
+      for (format in formats) {
+        candidate <- suppressWarnings(as.POSIXct(value, format = format, tz = "UTC"))
+        if (!is.na(candidate)) return(as.numeric(candidate))
+      }
+      NA_real_
+    }, numeric(1))
+    if (any(!is.na(text) & is.na(parsed))) fabric_livy_invalid_type(kind)
+    return(as.POSIXct(parsed, origin = "1970-01-01", tz = "UTC"))
+  }
+  if (identical(kind, "binary")) {
+    return(lapply(values, function(value) {
+      if (is.null(value)) return(NULL)
+      if (is.raw(value)) return(value)
+      decoded <- try(jsonlite::base64_dec(as.character(value)), silent = TRUE)
+      if (inherits(decoded, "try-error")) fabric_livy_invalid_type(kind)
+      decoded
+    }))
+  }
+  # Arrays, maps, structs, intervals, variants, and future Spark types retain
+  # their decoded JSON values as a stable list-column.
+  values
 }
 
 fabric_livy_simplify_column <- function(values) {
@@ -726,7 +820,11 @@ fabric_livy_simplify_column <- function(values) {
 #'   `state`, timing information, submitted `code`, raw response, and `output`.
 #'   `output$parsed` contains Livy table MIME output as a tibble, JSON output as
 #'   an R object, or text output as a character vector; error details and every
-#'   original MIME value are retained in the other `output` fields.
+#'   original MIME value are retained in the other `output` fields. Parsed
+#'   tables retain their declared headers in `attr(x, "spark_schema")`. Spark
+#'   long and decimal columns are character vectors, dates and timestamps use
+#'   R temporal classes, binary and nested types use list-columns, and primitive
+#'   numeric, string, and Boolean columns use their corresponding R vectors.
 #' @details
 #' Fabric needs a workspace on supported Fabric capacity and a Lakehouse. In
 #' the Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and

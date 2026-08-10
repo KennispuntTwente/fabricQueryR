@@ -374,6 +374,58 @@ test_that("Livy raw JSON boundaries preserve Spark BIGINT values", {
   expect_identical(parsed_sql$id, "9007199254740993")
 })
 
+test_that("Livy table conversion follows the declared Spark schema", {
+  parsed <- fabric_livy_parse_table(list(
+    headers = list(
+      list(name = "all_null_date", type = "DATE_TYPE"),
+      list(name = "long", type = "BIGINT_TYPE"),
+      list(name = "amount", type = "decimal(38,15)"),
+      list(name = "at", type = "timestamp"),
+      list(name = "bytes", type = "binary"),
+      list(name = "nested", type = list(type = "array", elementType = "long"))
+    ),
+    data = list(
+      list(
+        NULL,
+        "9007199254740993",
+        "12345678901234567890.123456789012345",
+        "2026-08-10T12:30:01.125Z",
+        jsonlite::base64_enc(charToRaw("abc")),
+        list("9007199254740993", NULL)
+      ),
+      list(NULL, "-1", "-0.0100", NULL, NULL, NULL)
+    )
+  ))
+
+  expect_s3_class(parsed$all_null_date, "Date")
+  expect_true(all(is.na(parsed$all_null_date)))
+  expect_identical(parsed$long, c("9007199254740993", "-1"))
+  expect_identical(
+    parsed$amount,
+    c("12345678901234567890.123456789012345", "-0.0100")
+  )
+  expect_s3_class(parsed$at, "POSIXct")
+  expect_equal(format(parsed$at[[1L]], "%Y-%m-%d %H:%M:%OS3", tz = "UTC"),
+    "2026-08-10 12:30:01.125"
+  )
+  expect_identical(rawToChar(parsed$bytes[[1L]]), "abc")
+  expect_null(parsed$bytes[[2L]])
+  expect_identical(parsed$nested[[1L]][[1L]], "9007199254740993")
+  expect_identical(attr(parsed, "spark_schema")[[2L]]$type, "BIGINT_TYPE")
+
+  empty <- fabric_livy_parse_table(list(
+    headers = list(
+      list(name = "id", type = "long"),
+      list(name = "day", type = "date")
+    ),
+    data = list()
+  ))
+  expect_identical(empty$id, character())
+  expect_s3_class(empty$day, "Date")
+  expect_length(empty$day, 0L)
+  expect_length(attr(empty, "spark_schema"), 2L)
+})
+
 test_that("Spark SQL JSON output is parsed into a tibble", {
   result <- fabric_livy_output(
     response = list(

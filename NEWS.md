@@ -27,6 +27,11 @@
 
 ## Improved
 
+* Livy table results now convert columns from their declared Spark schema and
+  retain that schema in the `spark_schema` attribute. Longs and decimals remain
+  exact character values; typed null/empty, temporal, binary, and nested
+  columns now have stable representations.
+
 * OneLake workspace, item, item-type, and Delta schema identifiers must now be
   exactly one URI segment, and conflicting `.Lakehouse`/`.Warehouse` suffixes
   are rejected instead of changing the URL hierarchy.
