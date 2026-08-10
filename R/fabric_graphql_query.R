@@ -637,7 +637,7 @@ graphql_validate_endpoint <- function(endpoint, allow_custom_endpoint = FALSE) {
       !nzchar(parsed$hostname) ||
       nzchar(parsed$username %||% "") ||
       nzchar(parsed$password %||% "") ||
-      nzchar(parsed$port %||% "") ||
+      (nzchar(parsed$port %||% "") && !identical(parsed$port, "443")) ||
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {

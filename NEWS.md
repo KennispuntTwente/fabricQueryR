@@ -27,6 +27,9 @@
 
 ## Improved
 
+* GraphQL endpoint validation now accepts an explicit default HTTPS port
+  (`:443`) while continuing to reject non-default ports.
+
 * Livy session documentation now marks high-concurrency sessions as a Microsoft
   preview capability.
 

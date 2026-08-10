@@ -98,6 +98,19 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
     ),
     "https://trusted.example/graphql"
   )
+  expect_equal(
+    graphql_resolve_endpoint(
+      "https://api.fabric.microsoft.com:443/v1/graphql"
+    ),
+    "https://api.fabric.microsoft.com:443/v1/graphql"
+  )
+  expect_error(
+    graphql_resolve_endpoint(
+      "https://api.fabric.microsoft.com:444/v1/graphql"
+    ),
+    "valid HTTPS",
+    fixed = TRUE
+  )
   expect_error(
     graphql_resolve_endpoint(
       "https://api.fabric.microsoft.com/graphql?redirect=attacker"
