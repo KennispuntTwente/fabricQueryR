@@ -139,7 +139,7 @@ test_that("workspace-specific API endpoints route item discovery", {
       )
     }
   )
-  fabric_item(
+  singular <- fabric_item(
     workspace,
     "33333333-3333-4333-8333-333333333333",
     token = "token"
@@ -149,6 +149,14 @@ test_that("workspace-specific API endpoints route item discovery", {
     item_urls,
     fixed = TRUE
   )))
+  expect_equal(
+    singular$workspaceOneLakeDfsEndpoint,
+    "https://workspace.z13.dfs.fabric.microsoft.com"
+  )
+  expect_equal(
+    singular$workspaceOneLakeEndpoints$blobEndpoint,
+    "https://workspace.z13.blob.fabric.microsoft.com"
+  )
 
   fabric_items(
     workspace,

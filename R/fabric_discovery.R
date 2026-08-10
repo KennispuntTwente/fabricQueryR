@@ -230,16 +230,7 @@ fabric_items <- function(
       personal_workspace_tenant_id,
       personal_workspace_owner
     )
-    record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
-      fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
-    workspace_onelake_endpoints <- ws$raw$oneLakeEndpoints %||%
-      ws$raw$one_lake_endpoints
-    if (is.list(workspace_onelake_endpoints)) {
-      record$workspaceOneLakeEndpoints <- workspace_onelake_endpoints
-      record$workspaceOneLakeDfsEndpoint <-
-        workspace_onelake_endpoints$dfsEndpoint %||%
-        workspace_onelake_endpoints$dfs_endpoint
-    }
+    record <- fabric_add_workspace_endpoints(record, ws)
     if (isTRUE(detail)) {
       tryCatch(
         fabric_enrich_item(
@@ -372,8 +363,7 @@ fabric_item <- function(
     personal_workspace_tenant_id,
     personal_workspace_owner
   )
-  record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
-    fabric_record_value(ws$raw, "apiEndpoint", "api_endpoint")
+  record <- fabric_add_workspace_endpoints(record, ws)
   if (!is.null(type) && !identical(tolower(record$type), tolower(type))) {
     rlang::abort(
       sprintf(
@@ -387,6 +377,19 @@ fabric_item <- function(
   fabric_item_list(list(
     fabric_enrich_item(record, credential, base)
   ))[[1L]]
+}
+
+fabric_add_workspace_endpoints <- function(record, workspace) {
+  record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
+    fabric_record_value(workspace$raw, "apiEndpoint", "api_endpoint")
+  onelake <- workspace$raw$oneLakeEndpoints %||%
+    workspace$raw$one_lake_endpoints
+  if (is.list(onelake)) {
+    record$workspaceOneLakeEndpoints <- onelake
+    record$workspaceOneLakeDfsEndpoint <- onelake$dfsEndpoint %||%
+      onelake$dfs_endpoint
+  }
+  record
 }
 
 fabric_discovery_optional_string <- function(value, name) {

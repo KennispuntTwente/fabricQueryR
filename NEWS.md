@@ -27,6 +27,9 @@
 
 ## Improved
 
+* Singular `fabric_item()` discovery now retains workspace-specific OneLake DFS
+  and Blob endpoint metadata, matching `fabric_items()` in private-link setups.
+
 * `fabric_job_status()` now honors a newly submitted job's initial
   `Retry-After` delay by default; job handles retain the corresponding
   `next_poll_at` timestamp.
