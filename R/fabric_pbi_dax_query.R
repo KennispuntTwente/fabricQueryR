@@ -218,7 +218,10 @@ fabric_pbi_dax_query <- function(
     }
     discovered_workspace_id <- fabric_record_value(discovered, "workspaceId")
     discovered_dataset_id <- fabric_record_value(discovered, "id")
-    pbi_validate_optional_guid(discovered_workspace_id, "discovered workspaceId")
+    pbi_validate_optional_guid(
+      discovered_workspace_id,
+      "discovered workspaceId"
+    )
     pbi_validate_optional_guid(discovered_dataset_id, "discovered dataset id")
     pbi_reject_conflicting_id(
       workspace_id,
@@ -1093,7 +1096,12 @@ pbi_parse_dax_response <- function(out) {
   dplyr::bind_rows(rows)
 }
 
-pbi_reject_conflicting_id <- function(explicit, discovered, explicit_name, source) {
+pbi_reject_conflicting_id <- function(
+  explicit,
+  discovered,
+  explicit_name,
+  source
+) {
   if (
     !is.null(explicit) &&
       !is.null(discovered) &&

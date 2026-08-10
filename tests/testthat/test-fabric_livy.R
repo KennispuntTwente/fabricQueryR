@@ -405,7 +405,8 @@ test_that("Livy table conversion follows the declared Spark schema", {
     c("12345678901234567890.123456789012345", "-0.0100")
   )
   expect_s3_class(parsed$at, "POSIXct")
-  expect_equal(format(parsed$at[[1L]], "%Y-%m-%d %H:%M:%OS3", tz = "UTC"),
+  expect_equal(
+    format(parsed$at[[1L]], "%Y-%m-%d %H:%M:%OS3", tz = "UTC"),
     "2026-08-10 12:30:01.125"
   )
   expect_identical(rawToChar(parsed$bytes[[1L]]), "abc")

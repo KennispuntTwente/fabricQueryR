@@ -107,12 +107,20 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
     fixed = TRUE
   )
   expect_error(
-    onelake_resolve_target("Analytics", "Folder/Curated", item_type = "Lakehouse"),
+    onelake_resolve_target(
+      "Analytics",
+      "Folder/Curated",
+      item_type = "Lakehouse"
+    ),
     "item must be exactly one URI path segment",
     fixed = TRUE
   )
   expect_error(
-    onelake_resolve_target("Analytics", "Curated.Warehouse", item_type = "Lakehouse"),
+    onelake_resolve_target(
+      "Analytics",
+      "Curated.Warehouse",
+      item_type = "Lakehouse"
+    ),
     "conflicts with the item's existing type suffix",
     fixed = TRUE
   )

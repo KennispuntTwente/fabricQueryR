@@ -654,7 +654,9 @@ fabric_sql_query <- function(
 
 fabric_sql_validate_query_statement <- function(sql) {
   tokens <- fabric_sql_top_level_tokens(sql)
-  actions <- tokens[tokens %in% c("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE")]
+  actions <- tokens[
+    tokens %in% c("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE")
+  ]
   valid <- length(actions) > 0L && identical(actions[[1L]], "SELECT")
   if (!valid) {
     rlang::abort(
@@ -697,13 +699,22 @@ fabric_sql_top_level_tokens <- function(sql) {
     }
     if (identical(char, "-") && identical(next_char, "-")) {
       flush()
-      newline <- which(chars[seq.int(index + 2L, length(chars))] %in% c("\r", "\n"))
-      index <- if (length(newline)) index + 1L + newline[[1L]] else length(chars) + 1L
+      newline <- which(
+        chars[seq.int(index + 2L, length(chars))] %in% c("\r", "\n")
+      )
+      index <- if (length(newline)) {
+        index + 1L + newline[[1L]]
+      } else {
+        length(chars) + 1L
+      }
       next
     }
     if (identical(char, "/") && identical(next_char, "*")) {
       flush()
-      remainder <- paste0(chars[seq.int(index + 2L, length(chars))], collapse = "")
+      remainder <- paste0(
+        chars[seq.int(index + 2L, length(chars))],
+        collapse = ""
+      )
       close <- regexpr("*/", remainder, fixed = TRUE)[[1L]]
       if (close < 0L) {
         rlang::abort("sql contains an unterminated block comment")

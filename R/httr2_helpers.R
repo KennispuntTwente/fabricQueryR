@@ -105,7 +105,11 @@
   if (inherits(payload, "try-error") || !is.list(payload)) {
     payload <- NULL
   }
-  redacted_payload <- if (is.null(payload)) NULL else .httr2_redact_object(payload)
+  redacted_payload <- if (is.null(payload)) {
+    NULL
+  } else {
+    .httr2_redact_object(payload)
+  }
   error_code <- payload$errorCode %||% payload$error$code %||% NULL
   is_retriable <- payload$isRetriable %||%
     payload$error$isRetriable %||%
@@ -230,7 +234,9 @@
   }
   if (
     !is.null(deadline) &&
-      (!inherits(deadline, "POSIXt") || length(deadline) != 1L || is.na(deadline))
+      (!inherits(deadline, "POSIXt") ||
+        length(deadline) != 1L ||
+        is.na(deadline))
   ) {
     rlang::abort("deadline must be NULL or one POSIX date-time")
   }

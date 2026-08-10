@@ -693,14 +693,22 @@ kusto_parse_response <- function(frames, metadata = list()) {
   result
 }
 
-kusto_attach_metadata <- function(result, frames, completion, auxiliary, metadata) {
+kusto_attach_metadata <- function(
+  result,
+  frames,
+  completion,
+  auxiliary,
+  metadata
+) {
   attr(result, "kusto_auxiliary_tables") <- auxiliary
   attr(result, "kusto_completion") <- completion
   attr(result, "kusto_raw_frames") <- frames
-  attr(result, "kusto_client_request_id") <- metadata$client_request_id %||% NULL
+  attr(result, "kusto_client_request_id") <- metadata$client_request_id %||%
+    NULL
   attr(result, "kusto_request_id") <- metadata$request_id %||% NULL
   attr(result, "kusto_activity_id") <- metadata$activity_id %||% NULL
-  attr(result, "kusto_response_headers") <- metadata$response_headers %||% list()
+  attr(result, "kusto_response_headers") <- metadata$response_headers %||%
+    list()
   result
 }
 

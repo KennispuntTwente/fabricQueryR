@@ -468,7 +468,9 @@ onelake_resolve_target <- function(
     if (!is.null(item_type)) {
       onelake_segment(item_type, "item_type")
       suffix <- paste0(".", item_type)
-      known_suffix <- if (grepl("\\.lakehouse$", item_value, ignore.case = TRUE)) {
+      known_suffix <- if (
+        grepl("\\.lakehouse$", item_value, ignore.case = TRUE)
+      ) {
         "Lakehouse"
       } else if (grepl("\\.warehouse$", item_value, ignore.case = TRUE)) {
         "Warehouse"

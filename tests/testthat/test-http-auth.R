@@ -772,11 +772,18 @@ test_that("shared pagination resolves relative links and rejects new origins", {
 test_that("long-running operation polling handles terminal states", {
   credential <- fabric_credential(token = "token")
   responses <- list(
-    json_response(202L, list(status = "Running"), headers = list(`retry-after` = "3")),
-    json_response(200L, list(
-      status = "Succeeded",
-      resourceLocation = "https://example.test/items/item"
-    )),
+    json_response(
+      202L,
+      list(status = "Running"),
+      headers = list(`retry-after` = "3")
+    ),
+    json_response(
+      200L,
+      list(
+        status = "Succeeded",
+        resourceLocation = "https://example.test/items/item"
+      )
+    ),
     json_response(200L, list(id = "item"))
   )
   calls <- 0L

@@ -352,7 +352,12 @@ fabric_livy_poll_sleep <- function(
 }
 
 fabric_livy_abort_timeout <- function(kind, handle, response) {
-  field <- switch(kind, session = "session", statement = "statement", batch = "batch")
+  field <- switch(
+    kind,
+    session = "session",
+    statement = "statement",
+    batch = "batch"
+  )
   data <- list(
     message = paste0("Timed out waiting for the Livy ", kind),
     class = "fabric_livy_timeout_error",
@@ -687,51 +692,77 @@ fabric_livy_convert_column <- function(values, type) {
   if (kind %in% c("byte", "short", "integer", "int")) {
     text <- fabric_livy_atomic_text(values)
     out <- suppressWarnings(as.integer(text))
-    if (any(!is.na(text) & is.na(out))) fabric_livy_invalid_type(kind)
+    if (any(!is.na(text) & is.na(out))) {
+      fabric_livy_invalid_type(kind)
+    }
     return(out)
   }
   if (kind %in% c("float", "double")) {
     text <- fabric_livy_atomic_text(values)
     out <- suppressWarnings(as.numeric(text))
-    if (any(!is.na(text) & is.na(out))) fabric_livy_invalid_type(kind)
+    if (any(!is.na(text) & is.na(out))) {
+      fabric_livy_invalid_type(kind)
+    }
     return(out)
   }
   if (kind %in% c("boolean", "bool")) {
     text <- tolower(fabric_livy_atomic_text(values))
     invalid <- !is.na(text) & !text %in% c("true", "false")
-    if (any(invalid)) fabric_livy_invalid_type(kind)
+    if (any(invalid)) {
+      fabric_livy_invalid_type(kind)
+    }
     return(ifelse(is.na(text), NA, text == "true"))
   }
   if (identical(kind, "date")) {
     text <- fabric_livy_atomic_text(values)
     out <- as.Date(text, format = "%Y-%m-%d")
-    if (any(!is.na(text) & is.na(out))) fabric_livy_invalid_type(kind)
+    if (any(!is.na(text) & is.na(out))) {
+      fabric_livy_invalid_type(kind)
+    }
     return(out)
   }
   if (kind %in% c("timestamp", "timestamp_ntz")) {
     text <- fabric_livy_atomic_text(values)
-    parsed <- vapply(text, function(value) {
-      if (is.na(value)) return(NA_real_)
-      formats <- c(
-        "%Y-%m-%dT%H:%M:%OSZ",
-        "%Y-%m-%dT%H:%M:%OS%z",
-        "%Y-%m-%d %H:%M:%OS"
-      )
-      for (format in formats) {
-        candidate <- suppressWarnings(as.POSIXct(value, format = format, tz = "UTC"))
-        if (!is.na(candidate)) return(as.numeric(candidate))
-      }
-      NA_real_
-    }, numeric(1))
-    if (any(!is.na(text) & is.na(parsed))) fabric_livy_invalid_type(kind)
+    parsed <- vapply(
+      text,
+      function(value) {
+        if (is.na(value)) {
+          return(NA_real_)
+        }
+        formats <- c(
+          "%Y-%m-%dT%H:%M:%OSZ",
+          "%Y-%m-%dT%H:%M:%OS%z",
+          "%Y-%m-%d %H:%M:%OS"
+        )
+        for (format in formats) {
+          candidate <- suppressWarnings(as.POSIXct(
+            value,
+            format = format,
+            tz = "UTC"
+          ))
+          if (!is.na(candidate)) return(as.numeric(candidate))
+        }
+        NA_real_
+      },
+      numeric(1)
+    )
+    if (any(!is.na(text) & is.na(parsed))) {
+      fabric_livy_invalid_type(kind)
+    }
     return(as.POSIXct(parsed, origin = "1970-01-01", tz = "UTC"))
   }
   if (identical(kind, "binary")) {
     return(lapply(values, function(value) {
-      if (is.null(value)) return(NULL)
-      if (is.raw(value)) return(value)
+      if (is.null(value)) {
+        return(NULL)
+      }
+      if (is.raw(value)) {
+        return(value)
+      }
       decoded <- try(jsonlite::base64_dec(as.character(value)), silent = TRUE)
-      if (inherits(decoded, "try-error")) fabric_livy_invalid_type(kind)
+      if (inherits(decoded, "try-error")) {
+        fabric_livy_invalid_type(kind)
+      }
       decoded
     }))
   }
