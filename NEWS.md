@@ -27,6 +27,9 @@
 
 ## Improved
 
+* The README's name-based Livy ABFSS example now includes the required
+  `.Lakehouse` item suffix.
+
 * Delta-reader documentation now includes the complete source-to-result type
   conversion table for both tibble and Arrow-stream results.
 
