@@ -325,6 +325,7 @@ fabric_livy_json <- function(
   .httr2_json(
     req,
     simplifyVector = FALSE,
+    bigint_as_char = TRUE,
     credential = credential,
     audience = credential$livy_audience %||% .fabric_audience$fabric,
     idempotent = idempotent
@@ -506,7 +507,8 @@ fabric_livy_parse_json <- function(value) {
   obj <- try(
     jsonlite::fromJSON(
       jsonlite::toJSON(value, auto_unbox = TRUE),
-      simplifyVector = TRUE
+      simplifyVector = TRUE,
+      bigint_as_char = TRUE
     ),
     silent = TRUE
   )
@@ -519,7 +521,11 @@ fabric_livy_parse_json <- function(value) {
 fabric_livy_parse_sql_json <- function(value) {
   if (is.character(value) && length(value) == 1L) {
     value <- try(
-      jsonlite::fromJSON(value, simplifyVector = FALSE),
+      jsonlite::fromJSON(
+        value,
+        simplifyVector = FALSE,
+        bigint_as_char = TRUE
+      ),
       silent = TRUE
     )
   }
@@ -551,7 +557,11 @@ fabric_livy_parse_sql_json <- function(value) {
 fabric_livy_parse_table <- function(value) {
   if (is.character(value) && length(value) == 1L) {
     value <- try(
-      jsonlite::fromJSON(value, simplifyVector = FALSE),
+      jsonlite::fromJSON(
+        value,
+        simplifyVector = FALSE,
+        bigint_as_char = TRUE
+      ),
       silent = TRUE
     )
   }

@@ -37,14 +37,16 @@ test_that("Livy selects identity-aware OAuth audiences", {
 
 test_that("Livy requests use the audience stored on the credential", {
   requested <- NULL
+  bigint_as_char <- NULL
   credential <- fabric_livy_credential(
     tenant_id = NULL,
     client_id = NULL,
     token = "token"
   )
   local_mocked_bindings(
-    .httr2_json = function(req, audience, ...) {
+    .httr2_json = function(req, audience, bigint_as_char, ...) {
       requested <<- audience
+      bigint_as_char <<- bigint_as_char
       list(ok = TRUE)
     }
   )
@@ -56,6 +58,7 @@ test_that("Livy requests use the audience stored on the credential", {
   )
 
   expect_identical(requested, .fabric_audience$livy_delegated)
+  expect_true(bigint_as_char)
 })
 
 test_that("regular session runs multiple statements and closes", {
@@ -347,6 +350,26 @@ test_that("Livy table MIME output is parsed into a tibble", {
     c("9007199254740993", "-9007199254740993")
   )
   expect_equal(result$output$parsed$label, c("alpha", "beta"))
+})
+
+test_that("Livy raw JSON boundaries preserve Spark BIGINT values", {
+  raw_table <- paste0(
+    '{"headers":[{"name":"id","type":"BIGINT_TYPE"}],',
+    '"data":[[9007199254740993],[-9007199254740993]]}'
+  )
+  parsed_table <- fabric_livy_parse_table(raw_table)
+  expect_identical(
+    parsed_table$id,
+    c("9007199254740993", "-9007199254740993")
+  )
+
+  raw_sql <- paste0(
+    '{"schema":{"type":"struct","fields":[',
+    '{"name":"id","type":"long","nullable":false}]},',
+    '"data":[[9007199254740993]]}'
+  )
+  parsed_sql <- fabric_livy_parse_sql_json(raw_sql)
+  expect_identical(parsed_sql$id, "9007199254740993")
 })
 
 test_that("Spark SQL JSON output is parsed into a tibble", {
