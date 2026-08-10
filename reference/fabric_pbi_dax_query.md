@@ -168,10 +168,11 @@ results raise an error rather than silently returning incomplete data.
   semantic-model names. IDs avoid name lookup and are best for scheduled
   code.
 
-- Personal workspaces use the current v2 XMLA form:
-  `powerbi://api.powerbi.com/v2.0/{tenantId}/home/myworkspace/{owner}`,
-  where `owner` is a URI-encoded UPN or object ID. Shared workspaces
-  continue to use the v1 URL shown below.
+- Power BI's REST dataset route cannot faithfully identify the tenant
+  and owner embedded in a personal-workspace v2 XMLA URL. For My
+  Workspace, use an explicit `dataset_id` with `my_workspace = TRUE`;
+  name-based connection string resolution is supported only for shared
+  workspaces.
 
 - In Fabric/Power BI, open the semantic model's settings to find its
   server or XMLA connection information. The signed-in identity needs

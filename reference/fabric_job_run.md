@@ -43,7 +43,10 @@ fabric_job_status(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  allow_custom_endpoint = FALSE,
+  respect_retry_after = TRUE,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 )
 
 fabric_job_wait(
@@ -218,6 +221,16 @@ fabric_job_cancel(
   Alternative argument for a job instance GUID. Do not supply it
   together with a `fabric_job` handle.
 
+- respect_retry_after:
+
+  Logical. For a newly submitted job handle, wait until Fabric's initial
+  `Retry-After` time before making the status request. Set to `FALSE`
+  only when deliberately overriding the service guidance.
+
+- .sleep, .now:
+
+  Internal hooks for deterministic tests.
+
 - poll_interval:
 
   Minimum seconds between status requests. `NULL` uses Fabric's
@@ -244,10 +257,6 @@ fabric_job_cancel(
   Optional callback checked between polls. Returning `TRUE` cancels the
   Fabric job and raises a `fabric_job_cancelled_by_caller` condition.
   This is useful for an application-specific stop button.
-
-- .sleep, .now:
-
-  Internal hooks for deterministic tests.
 
 ## Value
 

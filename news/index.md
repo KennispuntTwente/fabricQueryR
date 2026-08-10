@@ -40,6 +40,42 @@
 
 ### Improved
 
+- KQL results now retain auxiliary tables, completion information, raw
+  frames, response headers, and correlation IDs. HTTP-200
+  partial-failure conditions carry any primary data already returned by
+  Kusto.
+
+- Singular
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
+  discovery now retains workspace-specific OneLake DFS and Blob endpoint
+  metadata, matching
+  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
+  in private-link setups.
+
+- [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+  now honors a newly submitted job’s initial `Retry-After` delay by
+  default; job handles retain the corresponding `next_poll_at`
+  timestamp.
+
+- Livy session, statement, and batch waits now enforce one wall-clock
+  deadline across status requests, HTTP retries, retry delays, and
+  polling sleeps. Timeout conditions consistently retain the last
+  response and state.
+
+- [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
+  now rejects conflicting connection strings, discovered-record IDs, and
+  explicit target IDs instead of silently allowing one selector to
+  override another.
+
+- Personal-workspace v2 XMLA strings are no longer resolved through the
+  authenticated caller’s unscoped `/datasets` collection, which could
+  select a same-named model belonging to the wrong owner. Use an
+  explicit `dataset_id` with `my_workspace = TRUE`.
+
+- [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  now returns Kusto `decimal` columns as character vectors so their full
+  128-bit decimal representation remains exact.
+
 - Explicit `tenant_id` or `client_id` arguments now replace the
   credential stored in a `fabric_job` handle instead of being silently
   ignored.

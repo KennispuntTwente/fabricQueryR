@@ -123,13 +123,17 @@ Retrieve current batch metadata.
 
 #### Usage
 
-    FabricLivyBatch$status(refresh = TRUE)
+    FabricLivyBatch$status(refresh = TRUE, deadline = NULL)
 
 #### Arguments
 
 - `refresh`:
 
   Whether to retrieve current state from Fabric.
+
+- `deadline`:
+
+  Internal wall-clock deadline for the status request.
 
 #### Returns
 

@@ -83,7 +83,10 @@ recurring timetable with Fabric's scheduler in the portal or scheduler API.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  respect_retry_after <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
+<span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_job_wait</span><span class="op">(</span></span>
@@ -257,6 +260,16 @@ simpler because it already stores that context.</p></dd>
 supply it together with a <code>fabric_job</code> handle.</p></dd>
 
 
+<dt id="arg-respect-retry-after">respect_retry_after<a class="anchor" aria-label="anchor" href="#arg-respect-retry-after"></a></dt>
+<dd><p>Logical. For a newly submitted job handle, wait
+until Fabric's initial <code>Retry-After</code> time before making the status request.
+Set to <code>FALSE</code> only when deliberately overriding the service guidance.</p></dd>
+
+
+<dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
+<dd><p>Internal hooks for deterministic tests.</p></dd>
+
+
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
 <dd><p>Minimum seconds between status requests. <code>NULL</code> uses
 Fabric's recommended <code>Retry-After</code> value, falling back to two seconds.
@@ -283,10 +296,6 @@ timeout expires. <code>FALSE</code> stops waiting but leaves the Fabric job runn
 <dd><p>Optional callback checked between polls. Returning <code>TRUE</code>
 cancels the Fabric job and raises a <code>fabric_job_cancelled_by_caller</code>
 condition. This is useful for an application-specific stop button.</p></dd>
-
-
-<dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
-<dd><p>Internal hooks for deterministic tests.</p></dd>
 
 </dl></div>
     <div class="section level2">

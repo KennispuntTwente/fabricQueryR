@@ -46,7 +46,14 @@
 </ul></div>
 <div class="section level3">
 <h3 id="improved-development-version">Improved<a class="anchor" aria-label="anchor" href="#improved-development-version"></a></h3>
-<ul><li><p>Explicit <code>tenant_id</code> or <code>client_id</code> arguments now replace the credential stored in a <code>fabric_job</code> handle instead of being silently ignored.</p></li>
+<ul><li><p>KQL results now retain auxiliary tables, completion information, raw frames, response headers, and correlation IDs. HTTP-200 partial-failure conditions carry any primary data already returned by Kusto.</p></li>
+<li><p>Singular <code><a href="../reference/fabric_item.html">fabric_item()</a></code> discovery now retains workspace-specific OneLake DFS and Blob endpoint metadata, matching <code><a href="../reference/fabric_items.html">fabric_items()</a></code> in private-link setups.</p></li>
+<li><p><code><a href="../reference/fabric_job_run.html">fabric_job_status()</a></code> now honors a newly submitted job’s initial <code>Retry-After</code> delay by default; job handles retain the corresponding <code>next_poll_at</code> timestamp.</p></li>
+<li><p>Livy session, statement, and batch waits now enforce one wall-clock deadline across status requests, HTTP retries, retry delays, and polling sleeps. Timeout conditions consistently retain the last response and state.</p></li>
+<li><p><code><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code> now rejects conflicting connection strings, discovered-record IDs, and explicit target IDs instead of silently allowing one selector to override another.</p></li>
+<li><p>Personal-workspace v2 XMLA strings are no longer resolved through the authenticated caller’s unscoped <code>/datasets</code> collection, which could select a same-named model belonging to the wrong owner. Use an explicit <code>dataset_id</code> with <code>my_workspace = TRUE</code>.</p></li>
+<li><p><code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code> now returns Kusto <code>decimal</code> columns as character vectors so their full 128-bit decimal representation remains exact.</p></li>
+<li><p>Explicit <code>tenant_id</code> or <code>client_id</code> arguments now replace the credential stored in a <code>fabric_job</code> handle instead of being silently ignored.</p></li>
 <li><p>GraphQL pagination now reuses one credential across pages instead of reacquiring AzureAuth credentials for every request.</p></li>
 <li><p>Empty <code>conf = list()</code> and <code>tags = list()</code> inputs are now treated as omitted Livy settings.</p></li>
 <li><p>Fabric REST and KQL endpoint validation now accepts an explicit <code>:443</code>, consistently with OneLake and Livy, while still rejecting non-default ports.</p></li>

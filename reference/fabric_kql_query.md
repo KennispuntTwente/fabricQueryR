@@ -135,15 +135,16 @@ normally become logical, UTC `POSIXct`, integer,
 double, and `difftime` vectors. Base R and `bit64` reserve the minimum
 signed `int` and `long` values for missing data; a column containing
 either boundary is returned as character with a warning so the value
-remains exact. `dynamic` columns are list-columns, GUIDs and strings are
-character vectors, and decimals are doubles. Decimal values outside R's
-double precision should be converted to strings in KQL when exact digits
-are needed.
+remains exact. `dynamic` columns are list-columns, and GUIDs, strings,
+and `decimal` values are character vectors. Keeping decimal values in
+their original lexical form avoids the silent precision loss that
+conversion to an R double can cause.
 
 A query with one primary result table returns a tibble. A query with
 multiple primary result tables returns a named list of tibbles with
-class `fabric_kql_tables`. Auxiliary protocol tables are validated but
-not returned. A query with no primary table returns an empty tibble.
+class `fabric_kql_tables`. Auxiliary tables, completion information, raw
+frames, response headers, and correlation IDs are retained as `kusto_*`
+attributes. A query with no primary table returns an empty tibble.
 Management commands and ingestion endpoints are intentionally not
 supported.
 
