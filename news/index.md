@@ -40,6 +40,10 @@
 
 ### Improved
 
+- GraphQL query and pagination HTTP timeouts now default to 110 seconds,
+  leaving response-transfer overhead beyond Fabric’s 100-second server
+  execution limit.
+
 - [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   now rejects DDL and DML instead of sending arbitrary statements
   through

@@ -19,7 +19,7 @@ fabric_graphql_paginate(
   workspace_id = NULL,
   error_policy = c("return", "warn", "error"),
   max_pages = 100L,
-  timeout = 100,
+  timeout = 110,
   idempotent = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -87,7 +87,9 @@ fabric_graphql_paginate(
 
 - timeout:
 
-  Positive HTTP timeout in seconds.
+  Positive wall-clock HTTP timeout in seconds. The 110-second default
+  leaves transfer overhead beyond Fabric's 100-second server execution
+  limit, allowing the service's own timeout response to arrive.
 
 - idempotent:
 
