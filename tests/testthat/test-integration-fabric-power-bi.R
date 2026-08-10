@@ -168,12 +168,15 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
   )
   expect_s3_class(stream, "nanoarrow_array_stream")
   streamed <- arrow::as_record_batch_reader(stream)$read_table()
-  streamed <- as.data.frame(streamed)
+  streamed <- suppressWarnings(as.data.frame(streamed))
   names(streamed) <- sub("^.*\\[([^]]+)\\]$", "\\1", names(streamed))
   expect_equal(nrow(streamed), 3L)
   expect_equal(as.numeric(streamed$id), c(1, 2, 3))
-  expect_equal(streamed$name, c("alpha", "beta", "gamma"))
-  expect_equal(as.numeric(streamed$amount), c(10.5, 20, NA))
+  expect_equal(as.character(streamed$name), c("alpha", "beta", "gamma"))
+  expect_equal(
+    as.numeric(as.character(streamed$amount)),
+    c(10.5, 20, NA)
+  )
 
   schema <- fabric_pbi_dax_query(
     workspace_id = manifest$workspace_id,
