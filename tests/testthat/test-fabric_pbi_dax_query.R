@@ -377,6 +377,52 @@ test_that("DAX response parser preserves names, nulls, and empty results", {
   )
 })
 
+test_that("DAX target selectors cannot silently override each other", {
+  connstr <- paste0(
+    "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;",
+    "Initial Catalog=Model;"
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      connstr = connstr,
+      dax = "EVALUATE ROW()",
+      workspace_id = pbi_test_workspace_id,
+      dataset_id = pbi_test_dataset_id,
+      token = "token"
+    ),
+    "not both",
+    class = "fabric_pbi_target_conflict"
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      connstr = "malformed and previously ignored",
+      dax = "EVALUATE ROW()",
+      dataset_id = pbi_test_dataset_id,
+      my_workspace = TRUE,
+      token = "token"
+    ),
+    "not both",
+    class = "fabric_pbi_target_conflict"
+  )
+
+  discovered <- list(
+    id = pbi_test_dataset_id,
+    workspaceId = pbi_test_workspace_id,
+    type = "SemanticModel",
+    dax_connection_string = connstr
+  )
+  expect_error(
+    fabric_pbi_dax_query(
+      connstr = discovered,
+      dax = "EVALUATE ROW()",
+      dataset_id = "33333333-3333-4333-8333-333333333333",
+      token = "token"
+    ),
+    "conflicts with the discovered SemanticModel id",
+    class = "fabric_pbi_target_conflict"
+  )
+})
+
 test_that("DAX response parser promotes mixed-size Whole Numbers", {
   parsed <- pbi_parse_dax_response(list(
     results = list(list(

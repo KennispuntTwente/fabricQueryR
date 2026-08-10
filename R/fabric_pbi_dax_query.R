@@ -216,16 +216,29 @@ fabric_pbi_dax_query <- function(
         "connstr discovery record must be a SemanticModel item"
       )
     }
-    workspace_id <- workspace_id %||%
-      fabric_record_value(
-        discovered,
-        "workspaceId"
-      )
-    dataset_id <- dataset_id %||% fabric_record_value(discovered, "id")
-    connstr <- fabric_record_value(
-      discovered,
-      "dax_connection_string"
+    discovered_workspace_id <- fabric_record_value(discovered, "workspaceId")
+    discovered_dataset_id <- fabric_record_value(discovered, "id")
+    pbi_validate_optional_guid(discovered_workspace_id, "discovered workspaceId")
+    pbi_validate_optional_guid(discovered_dataset_id, "discovered dataset id")
+    pbi_reject_conflicting_id(
+      workspace_id,
+      discovered_workspace_id,
+      "workspace_id",
+      "the discovered SemanticModel workspaceId"
     )
+    pbi_reject_conflicting_id(
+      dataset_id,
+      discovered_dataset_id,
+      "dataset_id",
+      "the discovered SemanticModel id"
+    )
+    workspace_id <- workspace_id %||% discovered_workspace_id
+    dataset_id <- dataset_id %||% discovered_dataset_id
+    connstr <- if (is.null(dataset_id)) {
+      fabric_record_value(discovered, "dax_connection_string")
+    } else {
+      NULL
+    }
   }
   if (
     !is.null(connstr) &&
@@ -247,6 +260,19 @@ fabric_pbi_dax_query <- function(
   }
   if (!is.null(workspace_id) && isTRUE(my_workspace)) {
     rlang::abort("Supply workspace_id or set my_workspace = TRUE, not both")
+  }
+  if (
+    is.null(discovered) &&
+      !is.null(connstr) &&
+      (!is.null(workspace_id) || !is.null(dataset_id) || isTRUE(my_workspace))
+  ) {
+    rlang::abort(
+      paste0(
+        "Supply a connection string or explicit workspace/dataset selectors, ",
+        "not both"
+      ),
+      class = "fabric_pbi_target_conflict"
+    )
   }
   if (is.null(dataset_id) && is.null(connstr)) {
     rlang::abort(
@@ -1065,6 +1091,20 @@ pbi_parse_dax_response <- function(out) {
   # integer column remains exact and does not fail dplyr's type negotiation.
   rows <- pbi_normalize_dax_integer_columns(rows)
   dplyr::bind_rows(rows)
+}
+
+pbi_reject_conflicting_id <- function(explicit, discovered, explicit_name, source) {
+  if (
+    !is.null(explicit) &&
+      !is.null(discovered) &&
+      !identical(tolower(explicit), tolower(discovered))
+  ) {
+    rlang::abort(
+      paste0(explicit_name, " conflicts with ", source),
+      class = "fabric_pbi_target_conflict"
+    )
+  }
+  invisible()
 }
 
 pbi_normalize_dax_integer_columns <- function(rows) {

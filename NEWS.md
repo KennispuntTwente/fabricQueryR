@@ -27,6 +27,10 @@
 
 ## Improved
 
+* `fabric_pbi_dax_query()` now rejects conflicting connection strings,
+  discovered-record IDs, and explicit target IDs instead of silently allowing
+  one selector to override another.
+
 * Personal-workspace v2 XMLA strings are no longer resolved through the
   authenticated caller's unscoped `/datasets` collection, which could select a
   same-named model belonging to the wrong owner. Use an explicit `dataset_id`
