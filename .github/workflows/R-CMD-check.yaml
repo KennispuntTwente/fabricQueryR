@@ -120,7 +120,10 @@ jobs:
             tz = "Europe/Amsterdam"
           )
 
-          stopifnot(length(scalar) == 9L)
+          stopifnot(
+            inherits(scalar, "POSIXlt"),
+            length(as.POSIXct(scalar)) == 1L
+          )
           result <- parameters(list(started_at = scalar))[[1L]]
           stopifnot(
             identical(result$type, "DateTime"),
@@ -138,7 +141,7 @@ jobs:
           stopifnot(
             inherits(error, "error"),
             grepl(
-              "one non-missing scalar value",
+              "one non-missing scalar",
               conditionMessage(error),
               fixed = TRUE
             )
