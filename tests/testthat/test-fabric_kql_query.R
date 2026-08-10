@@ -298,7 +298,7 @@ test_that("Kusto v2 type metadata produces stable R columns", {
     as.numeric(as.POSIXct("2026-07-24 12:30:01.125", tz = "UTC")),
     tolerance = 1e-6
   )
-  expect_equal(result$amount, c(12.5, NA))
+  expect_identical(result$amount, c("12.50", NA_character_))
   expect_equal(result$payload[[1L]]$a, 1L)
   expect_null(result$payload[[2L]])
   expect_equal(
@@ -326,6 +326,24 @@ test_that("Kusto v2 type metadata produces stable R columns", {
       "real",
       "string",
       "timespan"
+    )
+  )
+})
+
+test_that("Kusto decimal columns preserve exact lexical values", {
+  values <- list(
+    "12345678901234567890.123456789012345",
+    "-12345678901234567890.123456789012345",
+    "1.2300",
+    NULL
+  )
+  expect_identical(
+    kusto_convert_column(values, "decimal"),
+    c(
+      "12345678901234567890.123456789012345",
+      "-12345678901234567890.123456789012345",
+      "1.2300",
+      NA_character_
     )
   )
 })

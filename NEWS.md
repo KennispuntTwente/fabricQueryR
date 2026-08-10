@@ -27,6 +27,9 @@
 
 ## Improved
 
+* `fabric_kql_query()` now returns Kusto `decimal` columns as character vectors
+  so their full 128-bit decimal representation remains exact.
+
 * Explicit `tenant_id` or `client_id` arguments now replace the credential
   stored in a `fabric_job` handle instead of being silently ignored.
 

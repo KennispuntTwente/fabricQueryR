@@ -31,9 +31,9 @@
 #' `difftime` vectors. Base R and `bit64` reserve the minimum signed `int` and
 #' `long` values for missing data; a column containing either boundary is
 #' returned as character with a warning so the value remains exact. `dynamic`
-#' columns are list-columns, GUIDs and strings are character vectors, and
-#' decimals are doubles. Decimal values outside R's double precision should be
-#' converted to strings in KQL when exact digits are needed.
+#' columns are list-columns, and GUIDs, strings, and `decimal` values are
+#' character vectors. Keeping decimal values in their original lexical form
+#' avoids the silent precision loss that conversion to an R double can cause.
 #'
 #' A query with one primary result table returns a tibble. A query with multiple
 #' primary result tables returns a named list of tibbles with class
@@ -943,7 +943,10 @@ kusto_convert_column <- function(values, type) {
   if (type == "long") {
     return(kusto_integer_column(values, type))
   }
-  if (type %in% c("real", "double", "decimal")) {
+  if (type == "decimal") {
+    return(kusto_character_column(values))
+  }
+  if (type %in% c("real", "double")) {
     return(kusto_numeric_column(values))
   }
   if (type %in% c("datetime", "date")) {
