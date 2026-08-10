@@ -27,6 +27,9 @@
 
 ## Improved
 
+* Livy session documentation now marks high-concurrency sessions as a Microsoft
+  preview capability.
+
 * GraphQL documentation now identifies Lakehouse and mirrored SQL analytics
   endpoint sources as read-only instead of implying every source supports
   mutations.

@@ -531,7 +531,9 @@ FabricLivyStatement <- R6::R6Class(
 #' @param high_concurrency Logical. `FALSE` creates a standard session for
 #'   sequential or low-concurrency work. `TRUE` creates an isolated REPL that
 #'   Fabric can pack into shared Spark sessions, which is useful when an
-#'   application runs several independent Spark workloads concurrently.
+#'   application runs several independent Spark workloads concurrently. High
+#'   concurrency is currently a Microsoft preview capability; its availability
+#'   and service contract can change before general availability.
 #' @param session_tag Optional high-concurrency packing hint. Related requests
 #'   with the same tag may share an underlying Livy session while keeping
 #'   separate REPL state. Each call still returns a distinct HC session.
