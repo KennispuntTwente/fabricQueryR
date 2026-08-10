@@ -144,6 +144,14 @@ a non-Microsoft HTTPS origin that you trust to receive a Fabric token.</p></dd>
 records use <code>sql_server</code> and <code>sql_database</code>. Other workloads can include
 <code>livy_url</code>, <code>dax_connection_string</code>, or <code>query_service_uri</code>.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The caller needs access to the workspace for the core item lookup. This
+singular helper always performs workload-specific enrichment as well, which
+additionally requires <code>Item.Read.All</code>/<code>Item.ReadWrite.All</code> or the applicable
+workload-specific read scope and access to the item. Use
+<code><a href="fabric_items.html">fabric_items()</a></code> with <code>detail = FALSE</code> when only core item metadata is needed.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

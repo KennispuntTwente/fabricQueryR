@@ -103,3 +103,12 @@ A `fabric_item` list. It contains common fields such as `id`,
 `sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
 records use `sql_server` and `sql_database`. Other workloads can include
 `livy_url`, `dax_connection_string`, or `query_service_uri`.
+
+## Details
+
+The caller needs access to the workspace for the core item lookup. This
+singular helper always performs workload-specific enrichment as well,
+which additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the
+applicable workload-specific read scope and access to the item. Use
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
+with `detail = FALSE` when only core item metadata is needed.

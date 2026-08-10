@@ -589,9 +589,14 @@ granular permissions</a>.</li>
 <strong>DAX.</strong> Enable the <strong>Semantic Model Execute
 Queries REST API</strong> tenant setting. A user needs semantic-model
 Read and Build permissions. Service principals additionally need the
-Power BI service-principal tenant setting; they are not supported for
-models with RLS or SSO enabled. See <a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group" class="external-link">JSON
-Execute Queries</a>.</li>
+Power BI service-principal tenant setting. For
+<code>api = "json"</code>, service principals cannot query models with
+RLS or SSO enabled. The <code>api = "arrow"</code> endpoint has a
+different effective-identity contract: <code>effectiveUsername</code> is
+user-only, while a service principal may use <code>roles</code> when it
+is a workspace admin. See <a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group" class="external-link">JSON
+Execute Queries</a> and the endpoint-specific notes in
+<code><a href="../reference/fabric_pbi_dax_query.html">?fabric_pbi_dax_query</a></code>.</li>
 <li>
 <strong>GraphQL.</strong> Grant <strong>Run Queries and
 Mutations</strong> (Execute) on the GraphQL API and grant access to its

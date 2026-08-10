@@ -169,6 +169,12 @@ and the returned disk-backed stream is lazy and can be read only once. This
 avoids token expiry between creating and consuming a stream, and keeps the
 result out of R memory, but requires enough temporary disk space for the
 selected data. The temporary file is removed when the stream is released.</p>
+<p>Result types are normalized deliberately; even <code>result = "arrow_stream"</code>
+does not always preserve the source Arrow storage type:</p><table class="table table"><tr><td>Delta/Arrow source</td><td>Arrow stream result</td><td>Tibble result</td></tr><tr><td>Decimal (any precision/scale)</td><td>UTF-8 text</td><td>character</td></tr><tr><td>Large UTF-8 / large binary</td><td>UTF-8 / binary with 32-bit offsets</td><td>character / blob list-column</td></tr><tr><td>Large-list variants</td><td>list with 32-bit offsets</td><td>rejected as nested</td></tr><tr><td>Signed/unsigned 64-bit integer</td><td>original integer type</td><td>exact character</td></tr><tr><td>Signed 32-bit integer</td><td>original integer type</td><td>double</td></tr><tr><td>Timestamp without timezone</td><td>original Arrow timestamp</td><td>character</td></tr><tr><td>Timestamp with timezone</td><td>original Arrow timestamp</td><td>UTC <code>POSIXct</code></td></tr><tr><td>Date, Boolean, floating point, smaller integers, UTF-8, binary</td><td>corresponding Arrow scalar</td><td>nanoarrow's corresponding R scalar type</td></tr><tr><td>Struct, map, list, extension/Variant</td><td>corresponding normalized Arrow type when supported</td><td>rejected; request an Arrow stream</td></tr></table><p>Decimal text retains its scale and digits. Offset downcasts are necessary for
+the R nanoarrow bridge used here and can fail if an individual buffer exceeds
+the 32-bit representation. Tibble collection additionally changes 32-bit
+integers to doubles and timezone-free timestamps to text so missing values
+and timezone semantics are not silently confused.</p>
 <p>Direct reads require OneLake data access; item <code>Read</code> permission by itself is
 not enough. The caller needs <code>ReadAll</code> or a suitable OneLake data-access role,
 and the tenant setting for external OneLake apps must be enabled. Callers

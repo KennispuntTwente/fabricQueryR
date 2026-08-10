@@ -125,6 +125,29 @@ stream, and keeps the result out of R memory, but requires enough
 temporary disk space for the selected data. The temporary file is
 removed when the stream is released.
 
+Result types are normalized deliberately; even `result = "arrow_stream"`
+does not always preserve the source Arrow storage type:
+
+|  |  |  |
+|----|----|----|
+| Delta/Arrow source | Arrow stream result | Tibble result |
+| Decimal (any precision/scale) | UTF-8 text | character |
+| Large UTF-8 / large binary | UTF-8 / binary with 32-bit offsets | character / blob list-column |
+| Large-list variants | list with 32-bit offsets | rejected as nested |
+| Signed/unsigned 64-bit integer | original integer type | exact character |
+| Signed 32-bit integer | original integer type | double |
+| Timestamp without timezone | original Arrow timestamp | character |
+| Timestamp with timezone | original Arrow timestamp | UTC `POSIXct` |
+| Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | nanoarrow's corresponding R scalar type |
+| Struct, map, list, extension/Variant | corresponding normalized Arrow type when supported | rejected; request an Arrow stream |
+
+Decimal text retains its scale and digits. Offset downcasts are
+necessary for the R nanoarrow bridge used here and can fail if an
+individual buffer exceeds the 32-bit representation. Tibble collection
+additionally changes 32-bit integers to doubles and timezone-free
+timestamps to text so missing values and timezone semantics are not
+silently confused.
+
 Direct reads require OneLake data access; item `Read` permission by
 itself is not enough. The caller needs `ReadAll` or a suitable OneLake
 data-access role, and the tenant setting for external OneLake apps must

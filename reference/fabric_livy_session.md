@@ -56,7 +56,10 @@ fabric_livy_session(
   Logical. `FALSE` creates a standard session for sequential or
   low-concurrency work. `TRUE` creates an isolated REPL that Fabric can
   pack into shared Spark sessions, which is useful when an application
-  runs several independent Spark workloads concurrently.
+  runs several independent Spark workloads concurrently. High
+  concurrency is currently a Microsoft preview capability; its
+  availability and service contract can change before general
+  availability.
 
 - session_tag:
 

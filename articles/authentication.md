@@ -472,9 +472,14 @@ The main workload considerations are:
 - **DAX.** Enable the **Semantic Model Execute Queries REST API** tenant
   setting. A user needs semantic-model Read and Build permissions.
   Service principals additionally need the Power BI service-principal
-  tenant setting; they are not supported for models with RLS or SSO
-  enabled. See [JSON Execute
-  Queries](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group).
+  tenant setting. For `api = "json"`, service principals cannot query
+  models with RLS or SSO enabled. The `api = "arrow"` endpoint has a
+  different effective-identity contract: `effectiveUsername` is
+  user-only, while a service principal may use `roles` when it is a
+  workspace admin. See [JSON Execute
+  Queries](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
+  and the endpoint-specific notes in
+  [`?fabric_pbi_dax_query`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md).
 - **GraphQL.** Grant **Run Queries and Mutations** (Execute) on the
   GraphQL API and grant access to its underlying data source. A
   Contributor workspace role is convenient for development but

@@ -40,6 +40,29 @@
 
 ### Improved
 
+- KQL request properties with missing names now raise the package’s
+  validation error instead of leaking a base-R missing-value condition.
+
+- GraphQL endpoint validation now accepts an explicit default HTTPS port
+  (`:443`) while continuing to reject non-default ports.
+
+- Livy session documentation now marks high-concurrency sessions as a
+  Microsoft preview capability.
+
+- GraphQL documentation now identifies Lakehouse and mirrored SQL
+  analytics endpoint sources as read-only instead of implying every
+  source supports mutations.
+
+- [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
+  documentation now states that its automatic workload enrichment
+  requires permissions beyond the core item lookup.
+
+- The README’s name-based Livy ABFSS example now includes the required
+  `.Lakehouse` item suffix.
+
+- Delta-reader documentation now includes the complete source-to-result
+  type conversion table for both tibble and Arrow-stream results.
+
 - GraphQL query and pagination HTTP timeouts now default to 110 seconds,
   leaving response-transfer overhead beyond Fabric’s 100-second server
   execution limit.
@@ -172,10 +195,10 @@
   while the OneLake token is current. Tibbles support scalar columns;
   use an Arrow stream for nested or extension data. The old `dest_dir`
   argument has been removed. The pinned Python reader reports actionable
-  errors when a table requires unsupported Delta features such as
-  Deletion Vectors, Type Widening, V2 Checkpoints, or Fabric Variant.
-  This can affect some Warehouse exports; use SQL or Spark (Livy) when
-  the package runtime cannot read their protocol.
+  errors when a table requires unsupported Delta features such as Type
+  Widening, V2 Checkpoints, or Fabric Variant. This can affect some
+  Warehouse exports; use SQL or Spark (Livy) when the package runtime
+  cannot read their protocol.
 
 ## fabricQueryR 0.2.1
 
