@@ -112,6 +112,7 @@ FabricLivySession <- R6::R6Class(
 
     #' @description Return the latest session response.
     #' @param refresh Whether to retrieve current state from Fabric.
+    #' @param deadline Internal wall-clock deadline for the status request.
     #' @returns The raw session response list.
     status = function(refresh = TRUE, deadline = NULL) {
       private$assert_open()
@@ -401,6 +402,7 @@ FabricLivyStatement <- R6::R6Class(
 
     #' @description Retrieve statement state and available output.
     #' @param refresh Whether to retrieve current state from Fabric.
+    #' @param deadline Internal wall-clock deadline for the status request.
     #' @returns The raw statement response list.
     status = function(refresh = TRUE, deadline = NULL) {
       fabric_livy_check_flag(refresh, "refresh")

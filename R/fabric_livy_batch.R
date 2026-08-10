@@ -60,6 +60,7 @@ FabricLivyBatch <- R6::R6Class(
 
     #' @description Retrieve current batch metadata.
     #' @param refresh Whether to retrieve current state from Fabric.
+    #' @param deadline Internal wall-clock deadline for the status request.
     #' @returns The raw batch response list.
     status = function(refresh = TRUE, deadline = NULL) {
       fabric_livy_check_flag(refresh, "refresh")

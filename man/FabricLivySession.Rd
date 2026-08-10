@@ -114,13 +114,14 @@ may receive the Fabric bearer token.}
   Return the latest session response.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivySession$status(refresh = TRUE)}
+    \preformatted{FabricLivySession$status(refresh = TRUE, deadline = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
+      \item{\code{deadline}}{Internal wall-clock deadline for the status request.}
     }
     \if{html}{\out{</div>}}
   }

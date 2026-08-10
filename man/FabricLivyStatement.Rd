@@ -97,13 +97,14 @@ then \verb{$result()} to retrieve parsed output, or use
   Retrieve statement state and available output.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivyStatement$status(refresh = TRUE)}
+    \preformatted{FabricLivyStatement$status(refresh = TRUE, deadline = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
+      \item{\code{deadline}}{Internal wall-clock deadline for the status request.}
     }
     \if{html}{\out{</div>}}
   }

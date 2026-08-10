@@ -99,13 +99,14 @@ to inspect the outcome, and \verb{$cancel()} to request cancellation.
   Retrieve current batch metadata.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivyBatch$status(refresh = TRUE)}
+    \preformatted{FabricLivyBatch$status(refresh = TRUE, deadline = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
+      \item{\code{deadline}}{Internal wall-clock deadline for the status request.}
     }
     \if{html}{\out{</div>}}
   }
