@@ -46,7 +46,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="improved-development-version">Improved<a class="anchor" aria-label="anchor" href="#improved-development-version"></a></h3>
-<ul><li><p>Shared HTTP failures now use <code>fabric_http_error</code> conditions carrying the service error code, retryability, status, request/activity IDs, and redacted response metadata.</p></li>
+<ul><li><p>The internal Fabric long-running-operation poller now honors <code>Retry-After</code>, shares one deadline across requests and sleeps, returns structured timeout context, and follows a successful operation’s result location.</p></li>
+<li><p>Shared HTTP failures now use <code>fabric_http_error</code> conditions carrying the service error code, retryability, status, request/activity IDs, and redacted response metadata.</p></li>
 <li><p>SQL timeout and retry-count validation now rejects values above R’s integer range before driver or loop coercion can overflow.</p></li>
 <li><p>Notebook jobs now reject missing or vector <code>compute</code> values with an explicit package validation error.</p></li>
 <li><p>Automatic authentication now validates missing and vector <code>tenant_id</code> and <code>client_id</code> inputs with stable package conditions.</p></li>

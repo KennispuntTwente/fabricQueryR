@@ -40,6 +40,11 @@
 
 ### Improved
 
+- The internal Fabric long-running-operation poller now honors
+  `Retry-After`, shares one deadline across requests and sleeps, returns
+  structured timeout context, and follows a successful operation’s
+  result location.
+
 - Shared HTTP failures now use `fabric_http_error` conditions carrying
   the service error code, retryability, status, request/activity IDs,
   and redacted response metadata.
