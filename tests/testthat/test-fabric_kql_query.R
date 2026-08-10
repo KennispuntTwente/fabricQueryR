@@ -188,8 +188,11 @@ test_that("Fabric-only KQL request-property restrictions are enforced", {
     notruncation = TRUE
   )))
   expect_error(
-    kusto_validate_request_properties(stats::setNames(list(TRUE), NA_character_)),
-    "named list",
+    kusto_named_list(
+      stats::setNames(list(TRUE), NA_character_),
+      "request_properties"
+    ),
+    "unique, non-empty names",
     fixed = TRUE
   )
 })
