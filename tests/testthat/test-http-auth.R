@@ -296,6 +296,39 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
+test_that("Fabric HTTP errors expose stable structured metadata", {
+  response <- json_response(
+    status = 400L,
+    body = list(
+      errorCode = "InvalidRequest",
+      message = "The request is invalid",
+      isRetriable = FALSE,
+      requestId = "body-request-id",
+      token = "body-secret"
+    ),
+    headers = list(
+      `x-ms-request-id` = "header-request-id",
+      `x-ms-activity-id` = "activity-id",
+      Authorization = "Bearer header-secret"
+    )
+  )
+
+  error <- expect_error(
+    .httr2_stop_http(response),
+    class = "fabric_http_error"
+  )
+  expect_identical(error$status, 400L)
+  expect_identical(error$errorCode, "InvalidRequest")
+  expect_false(error$isRetriable)
+  expect_identical(error$request_id, "header-request-id")
+  expect_identical(error$activity_id, "activity-id")
+  expect_identical(
+    error$response_metadata$headers$authorization,
+    "<redacted>"
+  )
+  expect_identical(error$response_metadata$body$token, "<redacted>")
+})
+
 test_that("HTTP retry sequences honor a shared deadline", {
   calls <- 0L
   slept <- numeric()

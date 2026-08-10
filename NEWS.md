@@ -27,6 +27,10 @@
 
 ## Improved
 
+* Shared HTTP failures now use `fabric_http_error` conditions carrying the
+  service error code, retryability, status, request/activity IDs, and redacted
+  response metadata.
+
 * SQL timeout and retry-count validation now rejects values above R's integer
   range before driver or loop coercion can overflow.
 

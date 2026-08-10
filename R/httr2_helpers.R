@@ -94,6 +94,32 @@
     httr2::resp_header(resp, "activity-id")
   endpoint <- .httr2_redact(resp$url %||% resp$request$url)
   body <- .httr2_body_preview(resp)
+  payload <- try(
+    httr2::resp_body_json(
+      resp,
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
+    ),
+    silent = TRUE
+  )
+  if (inherits(payload, "try-error") || !is.list(payload)) {
+    payload <- NULL
+  }
+  redacted_payload <- if (is.null(payload)) NULL else .httr2_redact_object(payload)
+  error_code <- payload$errorCode %||% payload$error$code %||% NULL
+  is_retriable <- payload$isRetriable %||%
+    payload$error$isRetriable %||%
+    NULL
+  rid <- rid %||% payload$requestId %||% payload$error$requestId %||% NULL
+  headers <- httr2::resp_headers(resp)
+  redacted_headers <- lapply(names(headers), function(name) {
+    if (.httr2_is_secret_field(name)) {
+      "<redacted>"
+    } else {
+      .httr2_redact(as.character(headers[[name]]))
+    }
+  })
+  names(redacted_headers) <- tolower(names(headers))
 
   hdr <- paste0(prefix, ": HTTP ", status, " ", reason, ".")
   mid <- paste(
@@ -108,7 +134,24 @@
     "\n--- Response body ---\n",
     body
   )
-  rlang::abort(msg)
+  rlang::abort(
+    msg,
+    class = "fabric_http_error",
+    status = status,
+    error_code = error_code,
+    errorCode = error_code,
+    is_retriable = is_retriable,
+    isRetriable = is_retriable,
+    request_id = rid,
+    activity_id = act,
+    response_metadata = list(
+      endpoint = endpoint,
+      status = status,
+      content_type = httr2::resp_content_type(resp),
+      headers = redacted_headers,
+      body = redacted_payload
+    )
+  )
 }
 
 .httr2_retry_after <- function(resp, now = Sys.time()) {
