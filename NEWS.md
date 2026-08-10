@@ -27,6 +27,9 @@
 
 ## Improved
 
+* SQL timeout and retry-count validation now rejects values above R's integer
+  range before driver or loop coercion can overflow.
+
 * Notebook jobs now reject missing or vector `compute` values with an explicit
   package validation error.
 

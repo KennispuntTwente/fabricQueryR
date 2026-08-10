@@ -982,7 +982,8 @@ fabric_sql_retry_settings <- function(max_tries, retry_delay) {
       !is.numeric(max_tries) ||
       !is.finite(max_tries) ||
       max_tries < 1 ||
-      max_tries != floor(max_tries)
+      max_tries != floor(max_tries) ||
+      max_tries > .Machine$integer.max
   ) {
     rlang::abort("max_tries must be one positive integer")
   }
@@ -1221,7 +1222,8 @@ fabric_sql_timeout <- function(value) {
       !is.numeric(value) ||
       !is.finite(value) ||
       value < 0 ||
-      value != floor(value)
+      value != floor(value) ||
+      value > .Machine$integer.max
   ) {
     rlang::abort(
       "timeout must be one non-negative whole number",

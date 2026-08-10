@@ -326,7 +326,15 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
 test_that("SQL timeouts are not constrained by the TCP port range", {
   expect_silent(fabric_sql_timeout(86400))
   expect_silent(fabric_sql_timeout(0))
-  for (value in list(-1, 1.5, Inf, NA_real_, "30", c(1, 2))) {
+  for (value in list(
+    -1,
+    1.5,
+    Inf,
+    NA_real_,
+    "30",
+    c(1, 2),
+    .Machine$integer.max + 1
+  )) {
     expect_error(
       fabric_sql_timeout(value),
       "non-negative whole number",
@@ -818,6 +826,16 @@ test_that("SQL retry controls reject invalid values", {
       "server.datawarehouse.fabric.microsoft.com",
       token = "token",
       max_tries = 0,
+      verbose = FALSE
+    ),
+    "max_tries",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_sql_connect(
+      "server.datawarehouse.fabric.microsoft.com",
+      token = "token",
+      max_tries = .Machine$integer.max + 1,
       verbose = FALSE
     ),
     "max_tries",
