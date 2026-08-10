@@ -187,6 +187,11 @@ test_that("Fabric-only KQL request-property restrictions are enforced", {
     servertimeout = "30s",
     notruncation = TRUE
   )))
+  expect_error(
+    kusto_validate_request_properties(stats::setNames(list(TRUE), NA_character_)),
+    "named list",
+    fixed = TRUE
+  )
 })
 
 test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {

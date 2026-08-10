@@ -27,6 +27,9 @@
 
 ## Improved
 
+* KQL request properties with missing names now raise the package's validation
+  error instead of leaking a base-R missing-value condition.
+
 * GraphQL endpoint validation now accepts an explicit default HTTPS port
   (`:443`) while continuing to reject non-default ports.
 

@@ -275,6 +275,7 @@ kusto_named_list <- function(value, name) {
   if (
     length(value) &&
       (is.null(names(value)) ||
+        anyNA(names(value)) ||
         !all(nzchar(names(value))) ||
         anyDuplicated(names(value)))
   ) {
