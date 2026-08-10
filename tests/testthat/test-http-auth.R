@@ -185,6 +185,20 @@ test_that("authentication inputs are validated consistently", {
     ),
     "Unknown AzureAuth argument"
   )
+  for (tenant_id in list(NA_character_, c("one", "two"))) {
+    expect_error(
+      fabric_credential(tenant_id = tenant_id, client_id = "client"),
+      "tenant_id must be one non-empty string",
+      class = "fabric_auth_validation_error"
+    )
+  }
+  for (client_id in list(NA_character_, c("one", "two"))) {
+    expect_error(
+      fabric_credential(tenant_id = "tenant", client_id = client_id),
+      "client_id must be one non-empty string",
+      class = "fabric_auth_validation_error"
+    )
+  }
 })
 
 test_that("all exported authenticated functions share auth arguments", {

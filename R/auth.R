@@ -131,14 +131,26 @@ fabric_credential <- function(
     }
   }
 
-  if (is.null(tenant_id) || !nzchar(tenant_id)) {
+  if (
+    !is.character(tenant_id) ||
+      length(tenant_id) != 1L ||
+      is.na(tenant_id) ||
+      !nzchar(tenant_id)
+  ) {
     rlang::abort(
-      "tenant_id is required (or set FABRICQUERYR_TENANT_ID env var)"
+      "tenant_id must be one non-empty string (or set FABRICQUERYR_TENANT_ID)",
+      class = "fabric_auth_validation_error"
     )
   }
-  if (is.null(client_id) || !nzchar(client_id)) {
+  if (
+    !is.character(client_id) ||
+      length(client_id) != 1L ||
+      is.na(client_id) ||
+      !nzchar(client_id)
+  ) {
     rlang::abort(
-      "client_id is required (or set FABRICQUERYR_CLIENT_ID env var)"
+      "client_id must be one non-empty string (or set FABRICQUERYR_CLIENT_ID)",
+      class = "fabric_auth_validation_error"
     )
   }
 

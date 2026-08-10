@@ -27,6 +27,9 @@
 
 ## Improved
 
+* Automatic authentication now validates missing and vector `tenant_id` and
+  `client_id` inputs with stable package conditions.
+
 * KQL request properties with missing names now raise the package's validation
   error instead of leaking a base-R missing-value condition.
 
