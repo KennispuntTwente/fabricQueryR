@@ -772,29 +772,35 @@ test_that("shared pagination resolves relative links and rejects new origins", {
 test_that("long-running operation polling handles terminal states", {
   credential <- fabric_credential(token = "token")
   responses <- list(
-    list(status = "Running"),
-    list(status = "Succeeded", result = list(id = "item"))
+    json_response(202L, list(status = "Running"), headers = list(`retry-after` = "3")),
+    json_response(200L, list(
+      status = "Succeeded",
+      resourceLocation = "https://example.test/items/item"
+    )),
+    json_response(200L, list(id = "item"))
   )
   calls <- 0L
-  local_mocked_bindings(
-    .httr2_json = function(...) {
-      calls <<- calls + 1L
-      responses[[calls]]
-    }
-  )
+  sleeps <- numeric()
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    responses[[calls]]
+  })
   result <- .httr2_poll_lro(
     "https://example.test/operations/1",
     credential,
     poll_interval = 0,
-    .sleep = function(...) NULL
+    .sleep = function(delay) sleeps <<- c(sleeps, delay)
   )
-  expect_equal(result$result$id, "item")
+  expect_equal(result$id, "item")
+  expect_equal(sleeps, 3)
+  expect_identical(calls, 3L)
 
-  local_mocked_bindings(
-    .httr2_json = function(...) {
+  httr2::local_mocked_responses(function(req) {
+    json_response(
+      200L,
       list(status = "Failed", error = list(message = "capacity unavailable"))
-    }
-  )
+    )
+  })
   expect_error(
     .httr2_poll_lro(
       "https://example.test/operations/2",
@@ -814,25 +820,22 @@ test_that("long-running operation polling handles terminal states", {
     fixed = TRUE
   )
 
-  ticks <- as.POSIXct("2026-01-01", tz = "UTC") + c(0, 0, 2)
-  tick <- 0L
-  local_mocked_bindings(
-    .httr2_json = function(...) list(status = "Running")
-  )
+  now <- as.POSIXct("2026-01-01", tz = "UTC")
+  httr2::local_mocked_responses(function(req) {
+    json_response(202L, list(status = "Running"))
+  })
   expect_error(
     .httr2_poll_lro(
       "https://example.test/operations/4",
       credential,
       timeout = 1,
-      poll_interval = 0,
-      .sleep = function(...) NULL,
-      .now = function() {
-        tick <<- tick + 1L
-        ticks[[tick]]
-      }
+      poll_interval = 5,
+      .sleep = function(delay) now <<- now + delay,
+      .now = function() now
     ),
     "Timed out",
-    fixed = TRUE
+    fixed = TRUE,
+    class = "fabric_lro_timeout_error"
   )
 })
 

@@ -544,23 +544,73 @@
   .now = Sys.time
 ) {
   deadline <- .now() + timeout
+  last_body <- NULL
+  last_state <- NULL
+  abort_timeout <- function() {
+    rlang::abort(
+      "Timed out waiting for the Fabric operation",
+      class = "fabric_lro_timeout_error",
+      last_response = last_body,
+      last_state = last_state,
+      operation_url = operation_url
+    )
+  }
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
       rlang::abort(
         "Fabric long-running operation polling was cancelled"
       )
     }
-    if (.now() > deadline) {
-      rlang::abort("Timed out waiting for the Fabric operation")
+    if (.now() >= deadline) {
+      abort_timeout()
     }
-    body <- .httr2_json(
-      httr2::request(operation_url),
-      simplifyVector = FALSE,
-      credential = credential,
-      audience = audience
+    response <- tryCatch(
+      .httr2_perform(
+        httr2::request(operation_url),
+        credential = credential,
+        audience = audience,
+        idempotent = TRUE,
+        deadline = deadline
+      ),
+      fabric_http_deadline_error = function(error) abort_timeout()
     )
+    body <- httr2::resp_body_json(
+      response,
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
+    )
+    last_body <- body
     state <- tolower(body$status %||% body$state %||% "")
+    last_state <- state
     if (state %in% c("succeeded", "success", "completed")) {
+      result_location <- body$resourceLocation %||%
+        body$resultLocation %||%
+        body$location %||%
+        httr2::resp_header(response, "location")
+      if (!is.null(result_location) && nzchar(result_location)) {
+        result_url <- .httr2_continuation_url(
+          operation_url,
+          operation_url,
+          result_location
+        )
+        if (!identical(result_url, operation_url)) {
+          result_response <- tryCatch(
+            .httr2_perform(
+              httr2::request(result_url),
+              credential = credential,
+              audience = audience,
+              idempotent = TRUE,
+              deadline = deadline
+            ),
+            fabric_http_deadline_error = function(error) abort_timeout()
+          )
+          return(httr2::resp_body_json(
+            result_response,
+            simplifyVector = FALSE,
+            bigint_as_char = TRUE
+          ))
+        }
+      }
       return(body)
     }
     if (state %in% c("failed", "cancelled", "canceled")) {
@@ -578,6 +628,11 @@
         )
       )
     }
-    .sleep(poll_interval)
+    delay <- .httr2_retry_after(response, now = .now()) %||% poll_interval
+    remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+    if (remaining <= 0) {
+      abort_timeout()
+    }
+    .sleep(min(delay, remaining))
   }
 }
