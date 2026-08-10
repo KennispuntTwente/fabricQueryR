@@ -377,6 +377,30 @@ test_that("DAX response parser preserves names, nulls, and empty results", {
   )
 })
 
+test_that("DAX response parser promotes mixed-size Whole Numbers", {
+  parsed <- pbi_parse_dax_response(list(
+    results = list(list(
+      tables = list(list(
+        rows = list(
+          list(x = 1L, y = -2L),
+          list(x = "9007199254740993", y = NULL),
+          list(y = "-9007199254740993"),
+          list(x = NULL, y = 3L)
+        )
+      ))
+    ))
+  ))
+
+  expect_identical(
+    parsed$x,
+    c("1", "9007199254740993", NA_character_, NA_character_)
+  )
+  expect_identical(
+    parsed$y,
+    c("-2", NA_character_, "-9007199254740993", "3")
+  )
+})
+
 test_that("DAX response parser raises every embedded error level", {
   expect_error(
     pbi_parse_dax_response(list(

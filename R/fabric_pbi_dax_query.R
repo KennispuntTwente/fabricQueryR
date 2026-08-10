@@ -1053,8 +1053,40 @@ pbi_parse_dax_response <- function(out) {
     return(tibble::tibble())
   }
 
-  # bind_rows preserves qualified and bracketed Power BI column names
+  # bigint_as_char preserves large Whole Numbers as strings. Promote smaller
+  # numeric values in the same column before binding so a valid mixed-size
+  # integer column remains exact and does not fail dplyr's type negotiation.
+  rows <- pbi_normalize_dax_integer_columns(rows)
   dplyr::bind_rows(rows)
+}
+
+pbi_normalize_dax_integer_columns <- function(rows) {
+  column_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
+  for (column_name in column_names) {
+    values <- lapply(rows, function(row) row[[column_name]])
+    present <- Filter(Negate(is.null), values)
+    has_character <- any(vapply(present, is.character, logical(1)))
+    has_numeric <- any(vapply(
+      present,
+      function(value) is.integer(value) || is.double(value),
+      logical(1)
+    ))
+    if (!has_character || !has_numeric) {
+      next
+    }
+    rows <- lapply(rows, function(row) {
+      value <- row[[column_name]]
+      if (!is.null(value) && (is.integer(value) || is.double(value))) {
+        row[[column_name]] <- if (is.na(value)) {
+          NA_character_
+        } else {
+          format(value, scientific = FALSE, trim = TRUE, digits = 22)
+        }
+      }
+      row
+    })
+  }
+  rows
 }
 
 #' Raise an actionable embedded Execute Queries error
