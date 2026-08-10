@@ -14,7 +14,7 @@ fabric_graphql_paginate(
   workspace_id = NULL,
   error_policy = c("return", "warn", "error"),
   max_pages = 100L,
-  timeout = 100,
+  timeout = 110,
   idempotent = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -58,7 +58,9 @@ visible immediately; \code{"error"} stops and attaches the result to a
 \item{max_pages}{Positive maximum number of requests. This guards against a
 faulty or unexpectedly large pagination loop.}
 
-\item{timeout}{Positive HTTP timeout in seconds.}
+\item{timeout}{Positive wall-clock HTTP timeout in seconds. The 110-second
+default leaves transfer overhead beyond Fabric's 100-second server
+execution limit, allowing the service's own timeout response to arrive.}
 
 \item{idempotent}{Logical. Permit retries after transient HTTP failures.
 \code{TRUE} is normally suitable for a read-only query, but not for a mutation

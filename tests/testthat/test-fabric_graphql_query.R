@@ -107,6 +107,11 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
   )
 })
 
+test_that("GraphQL HTTP defaults include server-timeout overhead", {
+  expect_identical(formals(fabric_graphql_query)$timeout, 110)
+  expect_identical(formals(fabric_graphql_paginate)$timeout, 110)
+})
+
 test_that("fabric_graphql_query sends variables and operation names unchanged", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {

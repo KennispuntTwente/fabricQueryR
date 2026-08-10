@@ -11,7 +11,7 @@ fabric_graphql_query(
   operation_name = NULL,
   workspace_id = NULL,
   error_policy = c("return", "warn", "error"),
-  timeout = 100,
+  timeout = 110,
   idempotent = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
@@ -45,7 +45,9 @@ lets the caller inspect partial data and errors; \code{"warn"} also makes errors
 visible immediately; \code{"error"} stops and attaches the result to a
 \code{fabric_graphql_error}. HTTP/authentication failures always stop.}
 
-\item{timeout}{Positive HTTP timeout in seconds.}
+\item{timeout}{Positive wall-clock HTTP timeout in seconds. The 110-second
+default leaves transfer overhead beyond Fabric's 100-second server
+execution limit, allowing the service's own timeout response to arrive.}
 
 \item{idempotent}{Logical. Permit retries after transient HTTP failures.
 \code{TRUE} is normally suitable for a read-only query, but not for a mutation

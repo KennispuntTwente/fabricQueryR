@@ -59,7 +59,9 @@
 #'   lets the caller inspect partial data and errors; `"warn"` also makes errors
 #'   visible immediately; `"error"` stops and attaches the result to a
 #'   `fabric_graphql_error`. HTTP/authentication failures always stop.
-#' @param timeout Positive HTTP timeout in seconds.
+#' @param timeout Positive wall-clock HTTP timeout in seconds. The 110-second
+#'   default leaves transfer overhead beyond Fabric's 100-second server
+#'   execution limit, allowing the service's own timeout response to arrive.
 #' @param idempotent Logical. Permit retries after transient HTTP failures.
 #'   `TRUE` is normally suitable for a read-only query, but not for a mutation
 #'   that could be applied twice.
@@ -122,7 +124,7 @@ fabric_graphql_query <- function(
   operation_name = NULL,
   workspace_id = NULL,
   error_policy = c("return", "warn", "error"),
-  timeout = 100,
+  timeout = 110,
   idempotent = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
@@ -281,7 +283,7 @@ fabric_graphql_paginate <- function(
   workspace_id = NULL,
   error_policy = c("return", "warn", "error"),
   max_pages = 100L,
-  timeout = 100,
+  timeout = 110,
   idempotent = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
