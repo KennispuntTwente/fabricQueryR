@@ -138,8 +138,8 @@
   the OneLake token is current. Tibbles support scalar columns; use an Arrow
   stream for nested or extension data. The old `dest_dir` argument has been
   removed. The pinned Python reader reports actionable errors when a table
-  requires unsupported Delta features such as Deletion Vectors, Type Widening,
-  V2 Checkpoints, or Fabric Variant. This can affect some Warehouse exports;
+  requires unsupported Delta features such as Type Widening, V2 Checkpoints,
+  or Fabric Variant. This can affect some Warehouse exports;
   use SQL or Spark (Livy) when the package runtime cannot read their protocol.
 
 # fabricQueryR 0.2.1
