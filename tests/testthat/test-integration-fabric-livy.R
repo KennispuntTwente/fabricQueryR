@@ -140,6 +140,17 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     fixed = TRUE
   )
 
+  bigint <- session$run(
+    "SELECT CAST(9007199254740993 AS BIGINT) AS fabricqueryr_bigint",
+    kind = "sql",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_identical(
+    bigint$output$parsed$fabricqueryr_bigint,
+    "9007199254740993"
+  )
+
   failed <- session$submit(
     "raise RuntimeError('FABRICQUERYR_INTENTIONAL_STATEMENT_FAILURE')",
     kind = "pyspark"
