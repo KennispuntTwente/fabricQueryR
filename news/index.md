@@ -40,6 +40,19 @@
 
 ### Improved
 
+- Shared HTTP failures now use `fabric_http_error` conditions carrying
+  the service error code, retryability, status, request/activity IDs,
+  and redacted response metadata.
+
+- SQL timeout and retry-count validation now rejects values above R’s
+  integer range before driver or loop coercion can overflow.
+
+- Notebook jobs now reject missing or vector `compute` values with an
+  explicit package validation error.
+
+- Automatic authentication now validates missing and vector `tenant_id`
+  and `client_id` inputs with stable package conditions.
+
 - KQL request properties with missing names now raise the package’s
   validation error instead of leaking a base-R missing-value condition.
 

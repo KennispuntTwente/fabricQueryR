@@ -46,7 +46,11 @@
 </ul></div>
 <div class="section level3">
 <h3 id="improved-development-version">Improved<a class="anchor" aria-label="anchor" href="#improved-development-version"></a></h3>
-<ul><li><p>KQL request properties with missing names now raise the package’s validation error instead of leaking a base-R missing-value condition.</p></li>
+<ul><li><p>Shared HTTP failures now use <code>fabric_http_error</code> conditions carrying the service error code, retryability, status, request/activity IDs, and redacted response metadata.</p></li>
+<li><p>SQL timeout and retry-count validation now rejects values above R’s integer range before driver or loop coercion can overflow.</p></li>
+<li><p>Notebook jobs now reject missing or vector <code>compute</code> values with an explicit package validation error.</p></li>
+<li><p>Automatic authentication now validates missing and vector <code>tenant_id</code> and <code>client_id</code> inputs with stable package conditions.</p></li>
+<li><p>KQL request properties with missing names now raise the package’s validation error instead of leaking a base-R missing-value condition.</p></li>
 <li><p>GraphQL endpoint validation now accepts an explicit default HTTPS port (<code>:443</code>) while continuing to reject non-default ports.</p></li>
 <li><p>Livy session documentation now marks high-concurrency sessions as a Microsoft preview capability.</p></li>
 <li><p>GraphQL documentation now identifies Lakehouse and mirrored SQL analytics endpoint sources as read-only instead of implying every source supports mutations.</p></li>
