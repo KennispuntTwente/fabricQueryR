@@ -110,11 +110,12 @@
   } else {
     .httr2_redact_object(payload)
   }
-  error_code <- payload$errorCode %||% payload$error$code %||% NULL
+  nested_error <- if (is.list(payload$error)) payload$error else list()
+  error_code <- payload$errorCode %||% nested_error$code %||% NULL
   is_retriable <- payload$isRetriable %||%
-    payload$error$isRetriable %||%
+    nested_error$isRetriable %||%
     NULL
-  rid <- rid %||% payload$requestId %||% payload$error$requestId %||% NULL
+  rid <- rid %||% payload$requestId %||% nested_error$requestId %||% NULL
   headers <- httr2::resp_headers(resp)
   redacted_headers <- lapply(names(headers), function(name) {
     if (.httr2_is_secret_field(name)) {
