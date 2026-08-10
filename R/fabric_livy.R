@@ -312,7 +312,8 @@ fabric_livy_json <- function(
   url,
   credential,
   payload = NULL,
-  idempotent = NULL
+  idempotent = NULL,
+  deadline = NULL
 ) {
   req <- httr2::request(url) |>
     httr2::req_method(method)
@@ -328,8 +329,39 @@ fabric_livy_json <- function(
     bigint_as_char = TRUE,
     credential = credential,
     audience = credential$livy_audience %||% .fabric_audience$fabric,
-    idempotent = idempotent
+    idempotent = idempotent,
+    deadline = deadline
   )
+}
+
+fabric_livy_remaining <- function(deadline) {
+  max(0, as.numeric(difftime(deadline, Sys.time(), units = "secs")))
+}
+
+fabric_livy_poll_sleep <- function(
+  deadline,
+  poll_interval,
+  .now = Sys.time,
+  .sleep = Sys.sleep
+) {
+  remaining <- max(0, as.numeric(difftime(deadline, .now(), units = "secs")))
+  if (remaining > 0 && poll_interval > 0) {
+    .sleep(min(poll_interval, remaining))
+  }
+  invisible(remaining)
+}
+
+fabric_livy_abort_timeout <- function(kind, handle, response) {
+  field <- switch(kind, session = "session", statement = "statement", batch = "batch")
+  data <- list(
+    message = paste0("Timed out waiting for the Livy ", kind),
+    class = "fabric_livy_timeout_error",
+    kind = kind,
+    last_response = response,
+    last_state = fabric_livy_state(response)
+  )
+  data[[field]] <- handle
+  do.call(rlang::abort, data)
 }
 
 fabric_livy_ok <- function(

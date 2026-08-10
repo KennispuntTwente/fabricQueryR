@@ -61,13 +61,14 @@ FabricLivyBatch <- R6::R6Class(
     #' @description Retrieve current batch metadata.
     #' @param refresh Whether to retrieve current state from Fabric.
     #' @returns The raw batch response list.
-    status = function(refresh = TRUE) {
+    status = function(refresh = TRUE, deadline = NULL) {
       fabric_livy_check_flag(refresh, "refresh")
       if (isTRUE(refresh)) {
         self$response <- fabric_livy_json(
           "GET",
           self$url,
-          private$credential
+          private$credential,
+          deadline = deadline
         )
         self$state <- self$response$state %||% self$state
       }
@@ -92,7 +93,21 @@ FabricLivyBatch <- R6::R6Class(
       fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
       deadline <- Sys.time() + timeout
       repeat {
-        response <- self$status()
+        if (fabric_livy_remaining(deadline) <= 0) {
+          if (isTRUE(cancel_on_timeout)) {
+            try(self$cancel(), silent = TRUE)
+          }
+          fabric_livy_abort_timeout("batch", self, self$response)
+        }
+        response <- tryCatch(
+          self$status(deadline = deadline),
+          fabric_http_deadline_error = function(error) {
+            if (isTRUE(cancel_on_timeout)) {
+              try(self$cancel(), silent = TRUE)
+            }
+            fabric_livy_abort_timeout("batch", self, self$response)
+          }
+        )
         state <- fabric_livy_state(response)
         result <- tolower(response$result %||% "")
         fabric_state <- tolower(
@@ -112,17 +127,7 @@ FabricLivyBatch <- R6::R6Class(
           }
           return(invisible(self))
         }
-        if (Sys.time() >= deadline) {
-          if (isTRUE(cancel_on_timeout)) {
-            try(self$cancel(), silent = TRUE)
-          }
-          rlang::abort(
-            "Timed out waiting for the Livy batch",
-            class = "fabric_livy_timeout_error",
-            batch = self
-          )
-        }
-        Sys.sleep(poll_interval)
+        fabric_livy_poll_sleep(deadline, poll_interval)
       }
     },
 

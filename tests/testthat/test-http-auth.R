@@ -282,6 +282,31 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
+test_that("HTTP retry sequences honor a shared deadline", {
+  calls <- 0L
+  slept <- numeric()
+  now <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC")
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(429L, headers = list("retry-after" = "30"))
+  })
+
+  expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      deadline = now + 5,
+      .now = function() now,
+      .sleep = function(delay) {
+        slept <<- c(slept, delay)
+        now <<- now + delay
+      }
+    ),
+    class = "fabric_http_deadline_error"
+  )
+  expect_identical(calls, 1L)
+  expect_equal(slept, 5)
+})
+
 test_that("HTTP-date Retry-After parsing is locale independent", {
   old_locale <- Sys.getlocale("LC_TIME")
   on.exit(

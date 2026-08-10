@@ -113,14 +113,15 @@ FabricLivySession <- R6::R6Class(
     #' @description Return the latest session response.
     #' @param refresh Whether to retrieve current state from Fabric.
     #' @returns The raw session response list.
-    status = function(refresh = TRUE) {
+    status = function(refresh = TRUE, deadline = NULL) {
       private$assert_open()
       fabric_livy_check_flag(refresh, "refresh")
       if (isTRUE(refresh)) {
         private$update(fabric_livy_json(
           "GET",
           self$url,
-          private$credential
+          private$credential,
+          deadline = deadline
         ))
       }
       self$response
@@ -136,7 +137,15 @@ FabricLivySession <- R6::R6Class(
       fabric_livy_check_number(poll_interval, "poll_interval")
       deadline <- Sys.time() + timeout
       repeat {
-        response <- self$status()
+        if (fabric_livy_remaining(deadline) <= 0) {
+          fabric_livy_abort_timeout("session", self, self$response)
+        }
+        response <- tryCatch(
+          self$status(deadline = deadline),
+          fabric_http_deadline_error = function(error) {
+            fabric_livy_abort_timeout("session", self, self$response)
+          }
+        )
         state <- fabric_livy_state(response)
         ready <- if (self$high_concurrency) {
           identical(state, "idle") &&
@@ -159,10 +168,7 @@ FabricLivySession <- R6::R6Class(
         ) {
           fabric_livy_abort_session(response)
         }
-        if (Sys.time() >= deadline) {
-          rlang::abort("Timed out waiting for the Livy session")
-        }
-        Sys.sleep(poll_interval)
+        fabric_livy_poll_sleep(deadline, poll_interval)
       }
     },
 
@@ -396,13 +402,14 @@ FabricLivyStatement <- R6::R6Class(
     #' @description Retrieve statement state and available output.
     #' @param refresh Whether to retrieve current state from Fabric.
     #' @returns The raw statement response list.
-    status = function(refresh = TRUE) {
+    status = function(refresh = TRUE, deadline = NULL) {
       fabric_livy_check_flag(refresh, "refresh")
       if (isTRUE(refresh)) {
         self$response <- fabric_livy_json(
           "GET",
           self$url,
-          private$credential
+          private$credential,
+          deadline = deadline
         )
         self$state <- self$response$state %||% self$state
       }
@@ -424,7 +431,15 @@ FabricLivyStatement <- R6::R6Class(
       fabric_livy_check_flag(error_on_failure, "error_on_failure")
       deadline <- Sys.time() + timeout
       repeat {
-        response <- self$status()
+        if (fabric_livy_remaining(deadline) <= 0) {
+          fabric_livy_abort_timeout("statement", self, self$response)
+        }
+        response <- tryCatch(
+          self$status(deadline = deadline),
+          fabric_http_deadline_error = function(error) {
+            fabric_livy_abort_timeout("statement", self, self$response)
+          }
+        )
         state <- fabric_livy_state(response)
         output_error <- identical(
           tolower(response$output$status %||% ""),
@@ -443,10 +458,7 @@ FabricLivyStatement <- R6::R6Class(
           }
           return(invisible(self))
         }
-        if (Sys.time() >= deadline) {
-          rlang::abort("Timed out waiting for the Livy statement")
-        }
-        Sys.sleep(poll_interval)
+        fabric_livy_poll_sleep(deadline, poll_interval)
       }
     },
 

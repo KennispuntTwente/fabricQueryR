@@ -27,6 +27,10 @@
 
 ## Improved
 
+* Livy session, statement, and batch waits now enforce one wall-clock deadline
+  across status requests, HTTP retries, retry delays, and polling sleeps.
+  Timeout conditions consistently retain the last response and state.
+
 * `fabric_pbi_dax_query()` now rejects conflicting connection strings,
   discovered-record IDs, and explicit target IDs instead of silently allowing
   one selector to override another.

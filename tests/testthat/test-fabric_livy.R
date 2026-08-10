@@ -72,7 +72,8 @@ test_that("regular session runs multiple statements and closes", {
       url,
       credential,
       payload = NULL,
-      idempotent = NULL
+      idempotent = NULL,
+      deadline = NULL
     ) {
       calls[[length(calls) + 1L]] <<- list(
         method = method,
@@ -200,7 +201,8 @@ test_that("submit returns an inspectable and cancellable statement", {
       url,
       credential,
       payload = NULL,
-      idempotent = NULL
+      idempotent = NULL,
+      deadline = NULL
     ) {
       calls[[length(calls) + 1L]] <<- list(
         method = method,
@@ -447,7 +449,8 @@ test_that("high-concurrency sessions use HC and REPL endpoints", {
       url,
       credential,
       payload = NULL,
-      idempotent = NULL
+      idempotent = NULL,
+      deadline = NULL
     ) {
       calls[[length(calls) + 1L]] <<- list(
         method = method,
@@ -582,7 +585,8 @@ test_that("batch jobs expose success logs and structured results", {
       url,
       credential,
       payload = NULL,
-      idempotent = NULL
+      idempotent = NULL,
+      deadline = NULL
     ) {
       calls[[length(calls) + 1L]] <<- list(
         method = method,
@@ -743,6 +747,9 @@ test_that("batch timeout can request cancellation", {
     class = "fabric_livy_timeout_error"
   )
   expect_identical(error$batch, batch)
+  expect_identical(error$kind, "batch")
+  expect_identical(error$last_state, "starting")
+  expect_identical(error$last_response, batch$response)
   expect_true(cancelled)
   expect_true(batch$cancel_requested)
 })
@@ -819,7 +826,20 @@ test_that("top-level batch waiting cancels on timeout and exposes its handle", {
   expect_s3_class(error$batch, "FabricLivyBatch")
   expect_identical(error$batch$id, "slow-batch")
   expect_true(error$batch$cancel_requested)
-  expect_identical(calls, c("POST", "GET", "DELETE"))
+  expect_identical(calls, c("POST", "DELETE"))
+})
+
+test_that("Livy polling sleep is clamped to the remaining budget", {
+  slept <- numeric()
+  now <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC")
+  remaining <- fabric_livy_poll_sleep(
+    now + 2,
+    poll_interval = 10,
+    .now = function() now,
+    .sleep = function(seconds) slept <<- c(slept, seconds)
+  )
+  expect_equal(remaining, 2)
+  expect_equal(slept, 2)
 })
 
 test_that("Livy input and endpoint validation is explicit", {

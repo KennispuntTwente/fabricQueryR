@@ -157,6 +157,7 @@
   max_tries = 4L,
   request_timeout = getOption("fabricqueryr.http.timeout", 300),
   max_retry_delay = getOption("fabricqueryr.http.max_retry_delay", 120),
+  deadline = NULL,
   .sleep = Sys.sleep,
   .runif = stats::runif,
   .now = Sys.time
@@ -185,10 +186,10 @@
     rlang::abort("max_retry_delay must be one non-negative number")
   }
   if (
-    !is.null(request_timeout) &&
-      is.null(req$options$timeout_ms)
+    !is.null(deadline) &&
+      (!inherits(deadline, "POSIXt") || length(deadline) != 1L || is.na(deadline))
   ) {
-    req <- httr2::req_timeout(req, request_timeout)
+    rlang::abort("deadline must be NULL or one POSIX date-time")
   }
   can_retry <- .httr2_is_idempotent(req, idempotent)
   refresh_attempted <- FALSE
@@ -196,6 +197,18 @@
   last_failure <- NULL
 
   for (attempt in seq_len(max_tries)) {
+    remaining <- if (is.null(deadline)) {
+      Inf
+    } else {
+      as.numeric(difftime(deadline, .now(), units = "secs"))
+    }
+    if (remaining <= 0) {
+      rlang::abort(
+        "The HTTP request deadline was exhausted",
+        class = "fabric_http_deadline_error",
+        parent = last_failure
+      )
+    }
     retry_after <- NULL
     attempt_req <- req
     if (!is.null(credential)) {
@@ -209,6 +222,26 @@
         Authorization = paste("Bearer", token)
       )
       force_refresh <- FALSE
+    }
+    remaining <- if (is.null(deadline)) {
+      Inf
+    } else {
+      as.numeric(difftime(deadline, .now(), units = "secs"))
+    }
+    if (remaining <= 0) {
+      rlang::abort(
+        "The HTTP request deadline was exhausted",
+        class = "fabric_http_deadline_error",
+        parent = last_failure
+      )
+    }
+    timeout_limits <- c(request_timeout, remaining)
+    if (!is.null(req$options$timeout_ms)) {
+      timeout_limits <- c(timeout_limits, req$options$timeout_ms / 1000)
+    }
+    timeout_limits <- timeout_limits[is.finite(timeout_limits)]
+    if (length(timeout_limits)) {
+      attempt_req <- httr2::req_timeout(attempt_req, min(timeout_limits))
     }
     attempt_req <- httr2::req_error(
       attempt_req,
@@ -254,6 +287,17 @@
       min(retry_after, max_retry_delay)
     } else {
       min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
+    }
+    if (!is.null(deadline)) {
+      remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+      if (remaining <= 0) {
+        rlang::abort(
+          "The HTTP request deadline was exhausted",
+          class = "fabric_http_deadline_error",
+          parent = last_failure
+        )
+      }
+      delay <- min(delay, remaining)
     }
     .sleep(delay)
   }
