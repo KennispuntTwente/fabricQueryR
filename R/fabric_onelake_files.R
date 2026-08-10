@@ -453,8 +453,8 @@ onelake_resolve_target <- function(
     }
     workspace_value <- item_workspace
   }
-  onelake_scalar(workspace_value, "workspace")
-  onelake_scalar(item_value, "item")
+  onelake_segment(workspace_value, "workspace")
+  onelake_segment(item_value, "item")
   onelake_scalar(path, "path", allow_empty = TRUE)
 
   workspace_guid <- fabric_is_guid(workspace_value)
@@ -466,8 +466,21 @@ onelake_resolve_target <- function(
   }
   if (!item_guid) {
     if (!is.null(item_type)) {
-      onelake_scalar(item_type, "item_type")
+      onelake_segment(item_type, "item_type")
       suffix <- paste0(".", item_type)
+      known_suffix <- if (grepl("\\.lakehouse$", item_value, ignore.case = TRUE)) {
+        "Lakehouse"
+      } else if (grepl("\\.warehouse$", item_value, ignore.case = TRUE)) {
+        "Warehouse"
+      } else {
+        NULL
+      }
+      if (
+        !is.null(known_suffix) &&
+          !identical(tolower(known_suffix), tolower(item_type))
+      ) {
+        rlang::abort("item_type conflicts with the item's existing type suffix")
+      }
       if (!endsWith(tolower(item_value), tolower(suffix))) {
         item_value <- paste0(item_value, ".", item_type)
       }
@@ -589,6 +602,14 @@ onelake_scalar <- function(value, name, allow_empty = FALSE) {
       if (allow_empty) "" else "non-empty ",
       "character value"
     ))
+  }
+  invisible(value)
+}
+
+onelake_segment <- function(value, name) {
+  onelake_scalar(value, name)
+  if (grepl("[/\\\\]", value)) {
+    rlang::abort(paste0(name, " must be exactly one URI path segment"))
   }
   invisible(value)
 }

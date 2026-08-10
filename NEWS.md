@@ -27,6 +27,10 @@
 
 ## Improved
 
+* OneLake workspace, item, item-type, and Delta schema identifiers must now be
+  exactly one URI segment, and conflicting `.Lakehouse`/`.Warehouse` suffixes
+  are rejected instead of changing the URL hierarchy.
+
 * KQL results now retain auxiliary tables, completion information, raw frames,
   response headers, and correlation IDs. HTTP-200 partial-failure conditions
   carry any primary data already returned by Kusto.

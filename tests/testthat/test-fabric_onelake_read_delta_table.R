@@ -229,6 +229,21 @@ test_that("Delta discovery records enforce type and workspace ownership", {
   )
 })
 
+test_that("Delta schemas must be one OneLake path segment", {
+  expect_error(
+    fabric_delta_resolve_public_target(
+      table_path = "Orders",
+      workspace_name = "Analytics",
+      lakehouse_name = "Curated.Lakehouse",
+      schema = "sales/archive",
+      dfs_base = NULL,
+      item_type = "Lakehouse"
+    ),
+    "schema must be exactly one URI path segment",
+    fixed = TRUE
+  )
+})
+
 test_that("Delta public projection, limit, and version arguments validate", {
   read_table <- function(...) {
     fabric_onelake_read_delta_table(

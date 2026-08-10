@@ -392,6 +392,9 @@ fabric_delta_resolve_public_target <- function(
   )
   if (!is.null(schema)) {
     fabric_delta_validate_non_empty(schema, "schema")
+    if (grepl("[/\\\\]", schema)) {
+      rlang::abort("schema must be exactly one URI path segment")
+    }
   }
 
   table_name <- table_path
