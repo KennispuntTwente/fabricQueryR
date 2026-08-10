@@ -806,6 +806,18 @@ test_that("Arrow streams deeply match Spark-neutral Fabric references", {
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   tables <- lakehouse$tables
   cases <- list(
+    column_mapped = list(
+      source = tables$column_mapped,
+      reference = tables$spark_oracle_column_mapped
+    ),
+    column_mapped_id = list(
+      source = tables$column_mapped_id,
+      reference = tables$spark_oracle_column_mapped_id
+    ),
+    column_mapped_id_partitioned_dv = list(
+      source = tables$column_mapped_id_partitioned_dv,
+      reference = tables$spark_oracle_column_mapped_id_partitioned_dv
+    ),
     exact_types = list(
       source = tables$exact_types,
       reference = tables$oracle_exact_types
@@ -860,14 +872,6 @@ test_that("core Fabric Delta features are handled by the table provider", {
       tables$exact_types,
       tables$oracle_exact_types
     ),
-    column_mapped = c(
-      tables$column_mapped,
-      tables$spark_oracle_column_mapped
-    ),
-    column_mapped_id = c(
-      tables$column_mapped_id,
-      tables$spark_oracle_column_mapped_id
-    ),
     shallow_clone = c(
       tables$shallow_clone,
       tables$spark_oracle_shallow_clone
@@ -902,6 +906,7 @@ test_that("Delta reference ordering accepts both fixture key conventions", {
 })
 
 test_that("remaining supported Fabric Delta fixtures cover edge cases", {
+  fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -921,7 +926,11 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   expect_identical(runtime$spark_version, manifest$runtime$spark_version)
   expect_identical(runtime$delta_version, manifest$runtime$delta_version)
 
-  void <- fabric_test_read_delta(manifest, lakehouse, tables$void)
+  void <- as.data.frame(fabric_test_read_arrow_table(
+    manifest,
+    lakehouse,
+    tables$void
+  ))
   void <- void[order(void$id), ]
   expect_named(void, c("id", "always_null", "details"))
   expect_identical(as.character(void$id), as.character(0:2))
@@ -1022,6 +1031,7 @@ test_that("unsupported Fabric Delta features fail with actionable errors", {
 })
 
 test_that("neutral references for unsupported Fabric features fully scan", {
+  fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -1045,21 +1055,22 @@ test_that("neutral references for unsupported Fabric features fully scan", {
   )
 
   for (reference in references) {
-    value <- fabric_test_read_delta(
+    value <- fabric_test_read_arrow_table(
       manifest,
       lakehouse,
       tables[[reference]]
     )
-    expect_s3_class(value, "tbl_df")
-    expect_gt(nrow(value), 0L, label = reference)
-    expect_gt(ncol(value), 0L, label = reference)
-    key <- intersect(c("id", "row_id", "event_id"), names(value))
+    expect_true(inherits(value, "Table"), label = reference)
+    expect_gt(value$num_rows, 0L, label = reference)
+    expect_gt(value$num_columns, 0L, label = reference)
+    key <- intersect(c("id", "row_id", "event_id"), value$ColumnNames())
     expect_true(
       length(key) == 1L,
       label = paste(reference, "has one stable key")
     )
+    key_values <- value$GetColumnByName(key[[1L]])$as_vector()
     expect_false(
-      anyDuplicated(value[[key]]) > 0L,
+      anyDuplicated(key_values) > 0L,
       label = paste(reference, "unique stable key")
     )
   }
@@ -1075,10 +1086,7 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
   expect_identical(oracle$canonicalization, "spark-logical-v1")
 
   sources <- c(
-    tables$column_mapped,
-    tables$column_mapped_id,
     tables$shallow_clone,
-    tables$column_mapped_id_partitioned_dv,
     tables$deletion_vectors,
     tables$file_row_number_collision,
     tables$deletion_vectors_stress,
@@ -1121,7 +1129,6 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "runtime",
     "basic",
     "empty",
-    "void",
     "typed_partitions",
     "binary_partitions",
     "schema_evolved",
@@ -1131,9 +1138,6 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   )
   reference_comparison <- c(
     "partitioned",
-    "column_mapped",
-    "column_mapped_id",
-    "column_mapped_id_partitioned_dv",
     "deletion_vectors",
     "file_row_number_collision",
     "deletion_vectors_stress",
@@ -1144,15 +1148,20 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "oracle_partitioned",
     "oracle_schema_evolved",
     "oracle_exact_types",
-    "spark_oracle_column_mapped",
-    "spark_oracle_column_mapped_id",
     "spark_oracle_shallow_clone"
   )
   stream_only <- c(
+    "void",
     "complex_types",
     "oracle_complex_types",
     "struct_validity",
-    "spark_oracle_struct_validity"
+    "spark_oracle_struct_validity",
+    "column_mapped",
+    "spark_oracle_column_mapped",
+    "column_mapped_id",
+    "spark_oracle_column_mapped_id",
+    "column_mapped_id_partitioned_dv",
+    "spark_oracle_column_mapped_id_partitioned_dv"
   )
   unsupported_error <- c(
     "deletion_vectors_checkpoint",
@@ -1166,7 +1175,6 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
     "variant_id_dv"
   )
   full_scan <- c(
-    "spark_oracle_column_mapped_id_partitioned_dv",
     "spark_oracle_deletion_vectors",
     "spark_oracle_file_row_number_collision",
     "spark_oracle_deletion_vectors_stress",
