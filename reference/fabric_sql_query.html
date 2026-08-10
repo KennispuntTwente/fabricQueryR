@@ -91,8 +91,11 @@ record is usually simplest because it also supplies the database name.</p></dd>
 
 
 <dt id="arg-sql">sql<a class="anchor" aria-label="anchor" href="#arg-sql"></a></dt>
-<dd><p>One T-SQL statement. A Lakehouse SQL analytics endpoint supports
-read queries but not <code>INSERT</code>, <code>UPDATE</code>, or <code>DELETE</code>.</p></dd>
+<dd><p>One result-producing T-SQL <code>SELECT</code> statement, optionally beginning
+with a common-table-expression <code>WITH</code> clause. For DDL or DML, open a
+connection with <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> and call <code><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">DBI::dbExecute()</a></code>. A
+Lakehouse SQL analytics endpoint is read-only and does not support
+<code>INSERT</code>, <code>UPDATE</code>, or <code>DELETE</code>.</p></dd>
 
 
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>

@@ -40,6 +40,26 @@
 
 ### Improved
 
+- [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  now rejects DDL and DML instead of sending arbitrary statements
+  through
+  [`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html).
+  Use
+  [`DBI::dbExecute()`](https://dbi.r-dbi.org/reference/dbExecute.html)
+  on a
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  connection for side-effecting statements.
+
+- Livy table results now convert columns from their declared Spark
+  schema and retain that schema in the `spark_schema` attribute. Longs
+  and decimals remain exact character values; typed null/empty,
+  temporal, binary, and nested columns now have stable representations.
+
+- OneLake workspace, item, item-type, and Delta schema identifiers must
+  now be exactly one URI segment, and conflicting
+  `.Lakehouse`/`.Warehouse` suffixes are rejected instead of changing
+  the URL hierarchy.
+
 - KQL results now retain auxiliary tables, completion information, raw
   frames, response headers, and correlation IDs. HTTP-200
   partial-failure conditions carry any primary data already returned by

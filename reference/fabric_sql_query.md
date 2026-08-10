@@ -52,8 +52,14 @@ fabric_sql_query(
 
 - sql:
 
-  One T-SQL statement. A Lakehouse SQL analytics endpoint supports read
-  queries but not `INSERT`, `UPDATE`, or `DELETE`.
+  One result-producing T-SQL `SELECT` statement, optionally beginning
+  with a common-table-expression `WITH` clause. For DDL or DML, open a
+  connection with
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  and call
+  [`DBI::dbExecute()`](https://dbi.r-dbi.org/reference/dbExecute.html).
+  A Lakehouse SQL analytics endpoint is read-only and does not support
+  `INSERT`, `UPDATE`, or `DELETE`.
 
 - params:
 
