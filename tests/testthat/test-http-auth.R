@@ -296,14 +296,15 @@ test_that("HTTP-date Retry-After parsing is locale independent", {
     "French_France.1252",
     "fr_FR.UTF-8"
   )
-  selected <- NA_character_
+  selected <- ""
   for (candidate in candidates) {
-    selected <- suppressWarnings(Sys.setlocale("LC_TIME", candidate))
-    if (!is.na(selected)) {
+    changed <- suppressWarnings(Sys.setlocale("LC_TIME", candidate))
+    if (nzchar(changed)) {
+      selected <- Sys.getlocale("LC_TIME")
       break
     }
   }
-  skip_if(is.na(selected), "No non-English locale is installed")
+  skip_if(!nzchar(selected), "No non-English locale is installed")
 
   response <- json_response(
     headers = list(
