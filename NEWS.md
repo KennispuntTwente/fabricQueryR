@@ -27,6 +27,10 @@
 
 ## Improved
 
+* `fabric_job_status()` now honors a newly submitted job's initial
+  `Retry-After` delay by default; job handles retain the corresponding
+  `next_poll_at` timestamp.
+
 * Livy session, statement, and batch waits now enforce one wall-clock deadline
   across status requests, HTTP retries, retry delays, and polling sleeps.
   Timeout conditions consistently retain the last response and state.

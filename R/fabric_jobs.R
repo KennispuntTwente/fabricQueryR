@@ -229,6 +229,12 @@ fabric_job_run <- function(
     )
   }
 
+  submitted_at <- Sys.time()
+  next_poll_at <- if (is.null(result$retry_after)) {
+    submitted_at
+  } else {
+    submitted_at + result$retry_after
+  }
   structure(
     list(
       id = instance_id,
@@ -238,7 +244,8 @@ fabric_job_run <- function(
       job_type = route$job_type,
       location = location,
       retry_after = result$retry_after,
-      submitted_at = Sys.time(),
+      submitted_at = submitted_at,
+      next_poll_at = next_poll_at,
       api_base = base,
       allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
@@ -254,6 +261,9 @@ fabric_job_run <- function(
 #'   simpler because it already stores that context.
 #' @param job_instance_id Alternative argument for a job instance GUID. Do not
 #'   supply it together with a `fabric_job` handle.
+#' @param respect_retry_after Logical. For a newly submitted job handle, wait
+#'   until Fabric's initial `Retry-After` time before making the status request.
+#'   Set to `FALSE` only when deliberately overriding the service guidance.
 #' @rdname fabric_job_run
 #' @export
 fabric_job_status <- function(
@@ -271,8 +281,34 @@ fabric_job_status <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  allow_custom_endpoint = FALSE,
+  respect_retry_after = TRUE,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
+  if (
+    !is.logical(respect_retry_after) ||
+      length(respect_retry_after) != 1L ||
+      is.na(respect_retry_after)
+  ) {
+    rlang::abort("`respect_retry_after` must be TRUE or FALSE")
+  }
+  if (isTRUE(respect_retry_after) && inherits(job, "fabric_job")) {
+    next_poll_at <- job$next_poll_at
+    if (
+      is.null(next_poll_at) &&
+        !is.null(job$submitted_at) &&
+        !is.null(job$retry_after)
+    ) {
+      next_poll_at <- job$submitted_at + job$retry_after
+    }
+    if (!is.null(next_poll_at)) {
+      delay <- as.numeric(difftime(next_poll_at, .now(), units = "secs"))
+      if (is.finite(delay) && delay > 0) {
+        .sleep(delay)
+      }
+    }
+  }
   api_base_supplied <- !missing(api_base)
   override_auth <- !missing(tenant_id) ||
     !missing(client_id) ||

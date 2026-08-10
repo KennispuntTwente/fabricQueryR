@@ -41,7 +41,10 @@ fabric_job_status(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  allow_custom_endpoint = FALSE,
+  respect_retry_after = TRUE,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 )
 
 fabric_job_wait(
@@ -173,6 +176,12 @@ simpler because it already stores that context.}
 \item{job_instance_id}{Alternative argument for a job instance GUID. Do not
 supply it together with a \code{fabric_job} handle.}
 
+\item{respect_retry_after}{Logical. For a newly submitted job handle, wait
+until Fabric's initial \code{Retry-After} time before making the status request.
+Set to \code{FALSE} only when deliberately overriding the service guidance.}
+
+\item{.sleep, .now}{Internal hooks for deterministic tests.}
+
 \item{poll_interval}{Minimum seconds between status requests. \code{NULL} uses
 Fabric's recommended \code{Retry-After} value, falling back to two seconds.
 Setting a value never polls faster than Fabric requests. A 0.1-second
@@ -190,8 +199,6 @@ timeout expires. \code{FALSE} stops waiting but leaves the Fabric job running.}
 \item{cancel}{Optional callback checked between polls. Returning \code{TRUE}
 cancels the Fabric job and raises a \code{fabric_job_cancelled_by_caller}
 condition. This is useful for an application-specific stop button.}
-
-\item{.sleep, .now}{Internal hooks for deterministic tests.}
 }
 \value{
 \code{fabric_job_run()} returns a \code{fabric_job} handle containing the job

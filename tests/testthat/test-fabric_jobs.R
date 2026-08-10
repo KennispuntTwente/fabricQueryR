@@ -833,6 +833,39 @@ test_that("wait honors Retry-After and returns a completed result", {
   expect_equal(index, 2L)
 })
 
+test_that("manual status honors the submission Retry-After delay", {
+  requested <- FALSE
+  slept <- numeric()
+  submitted <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC")
+  job <- job_test_handle(retry_after = 7)
+  job$submitted_at <- submitted
+  job$next_poll_at <- submitted + 7
+  local_mocked_bindings(
+    .fabric_job_get_status = function(...) {
+      requested <<- TRUE
+      list(status = "InProgress")
+    }
+  )
+
+  result <- fabric_job_status(
+    job,
+    .now = function() submitted + 2,
+    .sleep = function(seconds) slept <<- c(slept, seconds)
+  )
+  expect_true(requested)
+  expect_equal(result$status, "InProgress")
+  expect_equal(slept, 5)
+
+  slept <- numeric()
+  fabric_job_status(
+    job,
+    respect_retry_after = FALSE,
+    .now = function() submitted,
+    .sleep = function(seconds) slept <<- c(slept, seconds)
+  )
+  expect_length(slept, 0L)
+})
+
 test_that("wait retains a positive polling floor", {
   responses <- list(
     list(
