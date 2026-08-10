@@ -571,7 +571,7 @@ test_that("the delta-rs reader handles a schema-disabled Fabric Lakehouse", {
   )
   result <- result[order(result$id), ]
 
-  expect_identical(result$id, 1:3)
+  expect_identical(result$id, c(1, 2, 3))
   expect_identical(result$name, c("alpha", "beta", "gamma"))
   expect_identical(result$category, c("A", "B", "A"))
   expect_identical(result$amount, c(10.5, 20, NA_real_))
@@ -602,7 +602,7 @@ test_that("a refreshable credential retries and reads live OneLake data", {
   result <- result[order(result$id), ]
 
   expect_identical(calls, c(FALSE, TRUE))
-  expect_identical(result$id, 1:3)
+  expect_identical(result$id, c(1, 2, 3))
   expect_identical(result$name, c("alpha", "beta", "gamma"))
 })
 
@@ -665,7 +665,7 @@ test_that("the delta-rs reader preserves empty and exact Fabric values", {
       "positive_infinity"
     )
   )
-  expect_identical(exact$row_id, 1L)
+  expect_identical(exact$row_id, 1)
   expect_type(exact$minimum_integer, "double")
   expect_identical(exact$minimum_integer, -2147483648)
   expect_identical(exact$minimum_long, "-9223372036854775808")
@@ -908,7 +908,7 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
     tables$binary_partitions
   )
   binary <- binary[order(binary$id), ]
-  expect_identical(binary$id, 1:4)
+  expect_identical(binary$id, c(1, 2, 3, 4))
   expect_identical(binary$binary_part[[1L]], as.raw(0L))
   expect_identical(binary$binary_part[[2L]], as.raw(c(194L, 128L)))
   expect_identical(binary$binary_part[[3L]], as.raw(c(195L, 191L)))
@@ -921,7 +921,7 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   )
   evolved <- evolved[order(evolved$id), ]
   expect_named(evolved, c("id", "name", "evolved_value"))
-  expect_identical(evolved$id, 1:3)
+  expect_identical(evolved$id, c(1, 2, 3))
   expect_identical(evolved$name, c("alpha", "beta", "gamma"))
   expect_identical(evolved$evolved_value, c(NA, NA, "introduced"))
 
@@ -933,7 +933,7 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   )
   original <- original[order(original$id), ]
   expect_named(original, c("id", "name"))
-  expect_identical(original$id, 1:2)
+  expect_identical(original$id, c(1, 2))
   expect_identical(original$name, c("alpha", "beta"))
 
   typed_reference <- fabric_test_read_delta(
@@ -942,7 +942,7 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
     tables$oracle_typed_partitions
   )
   typed_reference <- typed_reference[order(typed_reference$id), ]
-  expect_identical(typed_reference$id, 1:3)
+  expect_identical(typed_reference$id, c(1, 2, 3))
   expect_identical(
     typed_reference$decimal_part,
     c("12.30", "0.50", NA_character_)
