@@ -33,7 +33,7 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   expect_equal(result$id, c(1L, 2L, 3L))
   expect_equal(result$name, c("alpha", "beta", "gamma"))
   expect_equal(result$category, c("A", "B", "A"))
-  expect_equal(result$amount, c(10.5, 20, NA))
+  expect_identical(result$amount, c("10.5", "20", NA_character_))
   expect_s3_class(result$observed_at, "POSIXct")
   expect_equal(
     as.Date(result$observed_at),
@@ -50,6 +50,24 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   )
   expect_equal(result$metadata[[1L]]$source, "sandbox")
   expect_equal(result$metadata[[1L]]$rank, 1L)
+
+  exact_decimal <- fabric_kql_query(
+    database$query_service_uri,
+    query = paste0(
+      "print positive=decimal(12345678901234567890.123456789012345), ",
+      "negative=decimal(-12345678901234567890.123456789012345)"
+    ),
+    database = database$database_name,
+    token = token
+  )
+  expect_identical(
+    exact_decimal$positive,
+    "12345678901234567890.123456789012345"
+  )
+  expect_identical(
+    exact_decimal$negative,
+    "-12345678901234567890.123456789012345"
+  )
 })
 
 test_that("fabric_kql_query discovers targets and binds safe parameters", {
