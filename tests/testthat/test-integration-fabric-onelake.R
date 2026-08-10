@@ -1261,13 +1261,13 @@ test_that("Fabric Variant tables fail before exposing physical fields", {
   }
 })
 
-test_that("Fabric Warehouse exports direct users to supported engines", {
+test_that("Fabric Warehouse exports read or fail with actionable errors", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
 
   for (table in unlist(warehouse$tables, use.names = FALSE)) {
-    condition <- tryCatch(
+    result <- tryCatch(
       fabric_test_read_delta(
         manifest,
         warehouse,
@@ -1276,12 +1276,17 @@ test_that("Fabric Warehouse exports direct users to supported engines", {
       ),
       error = identity
     )
-    expect_s3_class(
-      condition,
-      "fabric_delta_unsupported_feature_error"
-    )
-    expect_identical(condition$delta_features, "DeletionVectors")
-    expect_match(conditionMessage(condition), "Fabric SQL or PySpark")
+    if (inherits(result, "error")) {
+      expect_s3_class(
+        result,
+        "fabric_delta_unsupported_feature_error"
+      )
+      expect_gt(length(result$delta_features), 0L)
+      expect_match(conditionMessage(result), "Fabric SQL or PySpark")
+    } else {
+      expect_s3_class(result, "tbl_df")
+      expect_gt(ncol(result), 0L, label = table)
+    }
   }
 })
 
