@@ -27,6 +27,9 @@
 
 ## Improved
 
+* Delta-reader documentation now includes the complete source-to-result type
+  conversion table for both tibble and Arrow-stream results.
+
 * GraphQL query and pagination HTTP timeouts now default to 110 seconds, leaving
   response-transfer overhead beyond Fabric's 100-second server execution limit.
 
