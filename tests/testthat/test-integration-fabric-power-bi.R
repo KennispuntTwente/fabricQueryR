@@ -115,6 +115,18 @@ test_that("JSON DAX preserves large whole numbers and scalar representations", {
   expect_identical(result$`[negative]`, "-9007199254740993")
   expect_equal(result$`[fixed_decimal]`, 123.45)
   expect_match(as.character(result$`[date]`), "^2026-08-06")
+
+  mixed <- fabric_pbi_dax_query(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    dax = paste0(
+      "EVALUATE UNION(",
+      "ROW(\"mixed\", CONVERT(\"1\", INTEGER)), ",
+      "ROW(\"mixed\", CONVERT(\"9007199254740993\", INTEGER)))"
+    ),
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+  )
+  expect_identical(mixed$`[mixed]`, c("1", "9007199254740993"))
 })
 
 test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
