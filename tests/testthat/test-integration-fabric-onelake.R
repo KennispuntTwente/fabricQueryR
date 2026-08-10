@@ -121,10 +121,22 @@ fabric_test_expect_arrow_scalar_values <- function(
   )]
   expect_gt(length(scalar), 0L, label = paste(feature, "scalar columns"))
   for (name in scalar) {
-    actual_value <- actual_frame[[name]]
+    actual_column <- actual$GetColumnByName(name)
+    timestamp_text <- is.character(expected[[name]]) &&
+      grepl("^timestamp\\[", actual_column$type$ToString())
+    actual_value <- if (timestamp_text) {
+      actual_column$cast(arrow::utf8())$as_vector()
+    } else {
+      actual_frame[[name]]
+    }
+    expected_value <- if (timestamp_text) {
+      sub("T", " ", expected[[name]], fixed = TRUE)
+    } else {
+      expected[[name]]
+    }
     expect_identical(
       fabric_test_arrow_scalar_text(actual_value),
-      fabric_test_arrow_scalar_text(expected[[name]]),
+      fabric_test_arrow_scalar_text(expected_value),
       label = paste(feature, name)
     )
   }
@@ -430,6 +442,22 @@ test_that("deep Arrow comparison preserves row order and binary values", {
   expect_true(fabric_test_arrow_column_equals(
     nan_actual$GetColumnByName("value"),
     nan_expected$GetColumnByName("value")
+  ))
+
+  timestamp_value <- "2026-07-28 09:08:07.654321"
+  timestamp_table <- arrow::Table$create(
+    id = 1L,
+    local_at = arrow::Array$create(timestamp_value)$cast(
+      arrow::timestamp("us")
+    )
+  )
+  expect_no_error(fabric_test_expect_arrow_scalar_values(
+    timestamp_table,
+    tibble::tibble(
+      id = 1L,
+      local_at = "2026-07-28T09:08:07.654321"
+    ),
+    "local timestamp fixture"
   ))
 
   map_type <- arrow::map_of(arrow::utf8(), arrow::int32())
