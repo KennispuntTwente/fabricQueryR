@@ -126,10 +126,10 @@ than SQL intended for the underlying Lakehouse or Warehouse.
 supply \code{workspace_id} and \code{dataset_id} (both GUIDs), or a Power BI
 connection string containing the workspace and semantic-model names. IDs
 avoid name lookup and are best for scheduled code.
-\item Personal workspaces use the current v2 XMLA form:
-\verb{powerbi://api.powerbi.com/v2.0/\{tenantId\}/home/myworkspace/\{owner\}},
-where \code{owner} is a URI-encoded UPN or object ID. Shared workspaces continue
-to use the v1 URL shown below.
+\item Power BI's REST dataset route cannot faithfully identify the tenant and
+owner embedded in a personal-workspace v2 XMLA URL. For My Workspace, use
+an explicit \code{dataset_id} with \code{my_workspace = TRUE}; name-based connection
+string resolution is supported only for shared workspaces.
 \item In Fabric/Power BI, open the semantic model's settings to find its server
 or XMLA connection information. The signed-in identity needs Read and Build
 permission on the semantic model, either through its workspace role or

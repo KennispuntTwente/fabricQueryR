@@ -27,6 +27,11 @@
 
 ## Improved
 
+* Personal-workspace v2 XMLA strings are no longer resolved through the
+  authenticated caller's unscoped `/datasets` collection, which could select a
+  same-named model belonging to the wrong owner. Use an explicit `dataset_id`
+  with `my_workspace = TRUE`.
+
 * `fabric_kql_query()` now returns Kusto `decimal` columns as character vectors
   so their full 128-bit decimal representation remains exact.
 

@@ -13,10 +13,10 @@
 #'   supply `workspace_id` and `dataset_id` (both GUIDs), or a Power BI
 #'   connection string containing the workspace and semantic-model names. IDs
 #'   avoid name lookup and are best for scheduled code.
-#' - Personal workspaces use the current v2 XMLA form:
-#'   `powerbi://api.powerbi.com/v2.0/{tenantId}/home/myworkspace/{owner}`,
-#'   where `owner` is a URI-encoded UPN or object ID. Shared workspaces continue
-#'   to use the v1 URL shown below.
+#' - Power BI's REST dataset route cannot faithfully identify the tenant and
+#'   owner embedded in a personal-workspace v2 XMLA URL. For My Workspace, use
+#'   an explicit `dataset_id` with `my_workspace = TRUE`; name-based connection
+#'   string resolution is supported only for shared workspaces.
 #' - In Fabric/Power BI, open the semantic model's settings to find its server
 #'   or XMLA connection information. The signed-in identity needs Read and Build
 #'   permission on the semantic model, either through its workspace role or
@@ -522,15 +522,22 @@ pbi_resolve_ids_from_connstr <- function(
 ) {
   p <- pbi_parse_connstr(connstr)
 
-  group_id <- if (isTRUE(p$personal)) {
-    NULL
-  } else {
-    pbi_get_group_id_by_name(
-      credential = credential,
-      workspace_name = p$workspace,
-      api_base = api_base
+  if (isTRUE(p$personal)) {
+    rlang::abort(
+      paste0(
+        "A personal-workspace XMLA target cannot be resolved safely through ",
+        "the unscoped Power BI REST dataset route. Supply dataset_id and set ",
+        "my_workspace = TRUE instead"
+      ),
+      class = "fabric_pbi_personal_workspace_error"
     )
   }
+
+  group_id <- pbi_get_group_id_by_name(
+    credential = credential,
+    workspace_name = p$workspace,
+    api_base = api_base
+  )
   dataset_id <- pbi_get_dataset_id_by_name(
     credential = credential,
     group_id = group_id,

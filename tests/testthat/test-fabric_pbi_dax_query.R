@@ -881,29 +881,29 @@ test_that("Power BI name lookup rejects ambiguous case-insensitive names", {
   )
 })
 
-test_that("personal XMLA resolution uses the unscoped dataset collection", {
-  urls <- character()
+test_that("personal XMLA resolution rejects unrepresentable owner identity", {
+  called <- FALSE
   local_mocked_bindings(
     pbi_get_collection = function(url, ...) {
-      urls <<- c(urls, url)
-      list(list(id = pbi_test_dataset_id, name = "Personal Model"))
+      called <<- TRUE
+      list()
     }
   )
 
-  resolved <- pbi_resolve_ids_from_connstr(
-    paste0(
-      "Data Source=powerbi://api.powerbi.com/v2.0/",
-      pbi_test_workspace_id,
-      "/home/myworkspace/owner%40example.com;",
-      "Initial Catalog=Personal Model;"
+  expect_error(
+    pbi_resolve_ids_from_connstr(
+      paste0(
+        "Data Source=powerbi://api.powerbi.com/v2.0/",
+        pbi_test_workspace_id,
+        "/home/myworkspace/owner%40example.com;",
+        "Initial Catalog=Personal Model;"
+      ),
+      credential = fabric_credential(token = "token")
     ),
-    credential = fabric_credential(token = "token")
+    "cannot be resolved safely",
+    class = "fabric_pbi_personal_workspace_error"
   )
-
-  expect_null(resolved$group_id)
-  expect_true(resolved$personal)
-  expect_match(urls, "/datasets$")
-  expect_false(grepl("/groups/", urls, fixed = TRUE))
+  expect_false(called)
 })
 
 test_that("Arrow DAX parser returns multiple data rowsets in order", {
