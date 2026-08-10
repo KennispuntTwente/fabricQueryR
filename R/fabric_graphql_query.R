@@ -12,6 +12,10 @@
 #' explorer are the easiest places to design and test a document before copying
 #' it to R.
 #'
+#' Mutation availability depends on the configured source. Fabric Warehouse and
+#' SQL Database sources can expose supported mutations, while Lakehouse and
+#' mirrored SQL analytics endpoint sources are read-only and expose queries only.
+#'
 #' A direct endpoint has the form
 #' `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
 #' You can instead pass a GraphQL API GUID with `workspace_id`, or one item from

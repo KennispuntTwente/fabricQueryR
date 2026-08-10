@@ -27,6 +27,10 @@
 
 ## Improved
 
+* GraphQL documentation now identifies Lakehouse and mirrored SQL analytics
+  endpoint sources as read-only instead of implying every source supports
+  mutations.
+
 * `fabric_item()` documentation now states that its automatic workload
   enrichment requires permissions beyond the core item lookup.
 
