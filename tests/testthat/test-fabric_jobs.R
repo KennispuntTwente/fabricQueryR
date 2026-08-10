@@ -1329,6 +1329,21 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     ),
     "Unsupported Spark"
   )
+  for (compute in list(NA_character_, c("Spark", "Jupyter"))) {
+    expect_error(
+      .fabric_job_execution_data(
+        target = list(workspace_id = "workspace"),
+        route = list(route = "notebook"),
+        execution_data = list(compute = compute),
+        default_lakehouse = NULL,
+        default_lakehouse_workspace = NULL,
+        compute = NULL,
+        session_tag = NULL
+      ),
+      "must be one non-empty string",
+      class = "fabric_job_validation_error"
+    )
+  }
   expect_error(
     .fabric_job_validate_notebook_compute(
       list(highConcurrencyModeOptions = list(sessionTag = "shared")),

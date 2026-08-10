@@ -27,6 +27,9 @@
 
 ## Improved
 
+* Notebook jobs now reject missing or vector `compute` values with an explicit
+  package validation error.
+
 * Automatic authentication now validates missing and vector `tenant_id` and
   `client_id` inputs with stable package conditions.
 

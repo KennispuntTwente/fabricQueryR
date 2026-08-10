@@ -1144,6 +1144,17 @@ print.fabric_job_instance <- function(x, ...) {
     ))
   }
   compute <- execution_data$compute %||% "Spark"
+  if (
+    !is.character(compute) ||
+      length(compute) != 1L ||
+      is.na(compute) ||
+      !nzchar(compute)
+  ) {
+    rlang::abort(
+      "Notebook `compute` must be one non-empty string",
+      class = "fabric_job_validation_error"
+    )
+  }
   allowed_compute <- c("Spark", "Jupyter", "DataWarehouse")
   match <- match(tolower(compute), tolower(allowed_compute))
   if (is.na(match)) {
