@@ -1223,7 +1223,7 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   )
 })
 
-test_that("Fabric Variant preview tables fail before exposing physical fields", {
+test_that("Fabric Variant tables fail before exposing physical fields", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -1248,10 +1248,15 @@ test_that("Fabric Variant preview tables fail before exposing physical fields", 
         condition,
         "fabric_delta_unsupported_feature_error"
       )
-      expect_match(
-        conditionMessage(condition),
-        "VariantShreddingPreview"
+      expect_true(
+        length(condition$delta_features) > 0L &&
+          all(
+            condition$delta_features %in%
+              c("VariantType", "VariantShredding")
+          ),
+        label = table
       )
+      expect_match(conditionMessage(condition), "Variant(Type|Shredding)")
     }
   }
 })
