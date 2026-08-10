@@ -100,6 +100,8 @@ jobs:
         with:
           dependencies: '"hard"'
           cache: false
+          install-pandoc: false
+          install-quarto: false
 
       - name: Install package without suggested dependencies
         run: R CMD INSTALL .

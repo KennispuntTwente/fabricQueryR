@@ -162,6 +162,8 @@ def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
     assert "r-version: '4.1'" in compatibility
     assert "dependencies: '\"hard\"'" in compatibility
     assert "cache: false" in compatibility
+    assert "install-pandoc: false" in compatibility
+    assert "install-quarto: false" in compatibility
     assert "R CMD INSTALL ." in compatibility
     assert 'getFromNamespace(' in compatibility
     assert '".fabric_job_parameters"' in compatibility
