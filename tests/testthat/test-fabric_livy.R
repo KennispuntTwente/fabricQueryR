@@ -349,6 +349,39 @@ test_that("Livy table MIME output is parsed into a tibble", {
   expect_equal(result$output$parsed$label, c("alpha", "beta"))
 })
 
+test_that("Spark SQL JSON output is parsed into a tibble", {
+  result <- fabric_livy_output(
+    response = list(
+      id = 6L,
+      state = "available",
+      output = list(
+        status = "ok",
+        data = list(
+          "application/json" = list(
+            schema = list(
+              type = "struct",
+              fields = list(
+                list(
+                  name = "fabricqueryr_sql_value",
+                  type = "integer",
+                  nullable = FALSE
+                )
+              )
+            ),
+            data = list(list(42L))
+          )
+        )
+      )
+    ),
+    started_local = as.POSIXct("2026-01-01", tz = "UTC"),
+    completed_local = as.POSIXct("2026-01-01 00:00:01", tz = "UTC"),
+    url = "https://example.test/statements/6"
+  )
+
+  expect_s3_class(result$output$parsed, "tbl_df")
+  expect_identical(result$output$parsed$fabricqueryr_sql_value, 42L)
+})
+
 test_that("Livy table MIME output rejects malformed rows", {
   expect_error(
     fabric_livy_parse_table(list(

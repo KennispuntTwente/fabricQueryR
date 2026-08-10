@@ -499,6 +499,10 @@ fabric_livy_parse_output_data <- function(data) {
 }
 
 fabric_livy_parse_json <- function(value) {
+  table <- fabric_livy_parse_sql_json(value)
+  if (!is.null(table)) {
+    return(table)
+  }
   obj <- try(
     jsonlite::fromJSON(
       jsonlite::toJSON(value, auto_unbox = TRUE),
@@ -510,6 +514,38 @@ fabric_livy_parse_json <- function(value) {
     return(NULL)
   }
   if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
+}
+
+fabric_livy_parse_sql_json <- function(value) {
+  if (is.character(value) && length(value) == 1L) {
+    value <- try(
+      jsonlite::fromJSON(value, simplifyVector = FALSE),
+      silent = TRUE
+    )
+  }
+  if (
+    inherits(value, "try-error") ||
+      !is.list(value) ||
+      !is.list(value$schema) ||
+      !identical(tolower(value$schema$type %||% ""), "struct") ||
+      is.null(value$data)
+  ) {
+    return(NULL)
+  }
+  fields <- value$schema$fields
+  if (!is.list(fields)) {
+    rlang::abort(
+      "Livy returned malformed Spark SQL output: schema fields must be an array",
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  headers <- lapply(fields, function(field) {
+    list(
+      name = if (is.list(field)) field$name else NULL,
+      type = if (is.list(field)) field$type else NULL
+    )
+  })
+  fabric_livy_parse_table(list(headers = headers, data = value$data))
 }
 
 fabric_livy_parse_table <- function(value) {
