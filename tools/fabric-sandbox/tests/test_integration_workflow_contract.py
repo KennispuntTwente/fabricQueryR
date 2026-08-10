@@ -167,7 +167,9 @@ def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
     assert "R CMD INSTALL ." in compatibility
     assert 'getFromNamespace(' in compatibility
     assert '".fabric_job_parameters"' in compatibility
-    assert "stopifnot(length(scalar) == 9L)" in compatibility
+    assert 'inherits(scalar, "POSIXlt")' in compatibility
+    assert "length(as.POSIXct(scalar)) == 1L" in compatibility
+    assert "length(scalar) == 9L" not in compatibility
 
 
 def test_live_sql_matrix_installs_required_client_drivers():
