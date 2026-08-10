@@ -106,7 +106,8 @@ avoids the silent precision loss that conversion to an R double can cause.
 
 A query with one primary result table returns a tibble. A query with multiple
 primary result tables returns a named list of tibbles with class
-\code{fabric_kql_tables}. Auxiliary protocol tables are validated but not returned.
+\code{fabric_kql_tables}. Auxiliary tables, completion information, raw frames,
+response headers, and correlation IDs are retained as \verb{kusto_*} attributes.
 A query with no primary table returns an empty tibble.
 Management commands and ingestion endpoints are intentionally not supported.
 }

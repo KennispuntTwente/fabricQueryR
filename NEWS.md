@@ -27,6 +27,10 @@
 
 ## Improved
 
+* KQL results now retain auxiliary tables, completion information, raw frames,
+  response headers, and correlation IDs. HTTP-200 partial-failure conditions
+  carry any primary data already returned by Kusto.
+
 * Singular `fabric_item()` discovery now retains workspace-specific OneLake DFS
   and Blob endpoint metadata, matching `fabric_items()` in private-link setups.
 

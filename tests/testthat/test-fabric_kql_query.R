@@ -486,6 +486,86 @@ test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
   )
 })
 
+test_that("Kusto results retain auxiliary frames and correlation metadata", {
+  frames <- list(
+    list(FrameType = "DataSetHeader", Version = "v2.0", IsProgressive = FALSE),
+    list(
+      FrameType = "DataTable",
+      TableId = 0L,
+      TableKind = "PrimaryResult",
+      TableName = "PrimaryResult",
+      Columns = list(list(ColumnName = "value", ColumnType = "int")),
+      Rows = list(list(42L))
+    ),
+    list(
+      FrameType = "DataTable",
+      TableId = 1L,
+      TableKind = "QueryProperties",
+      TableName = "QueryProperties",
+      Columns = list(list(ColumnName = "Key", ColumnType = "string")),
+      Rows = list(list("best_effort_warning"))
+    ),
+    list(
+      FrameType = "DataSetCompletion",
+      HasErrors = FALSE,
+      Cancelled = FALSE,
+      Warnings = list("Some shards were unavailable")
+    )
+  )
+  result <- kusto_parse_response(
+    frames,
+    metadata = list(
+      client_request_id = "client-id",
+      request_id = "request-id",
+      activity_id = "activity-id",
+      response_headers = list(`x-ms-request-id` = "request-id")
+    )
+  )
+
+  expect_identical(result$value, 42L)
+  expect_identical(
+    attr(result, "kusto_auxiliary_tables")$QueryProperties$Key,
+    "best_effort_warning"
+  )
+  expect_identical(
+    attr(result, "kusto_completion")$Warnings[[1L]],
+    "Some shards were unavailable"
+  )
+  expect_identical(attr(result, "kusto_request_id"), "request-id")
+  expect_identical(attr(result, "kusto_activity_id"), "activity-id")
+  expect_identical(attr(result, "kusto_raw_frames"), frames)
+})
+
+test_that("Kusto partial failures retain returned data and diagnostics", {
+  frames <- list(
+    list(FrameType = "DataSetHeader", Version = "v2.0", IsProgressive = FALSE),
+    list(
+      FrameType = "DataTable",
+      TableId = 0L,
+      TableKind = "PrimaryResult",
+      TableName = "PrimaryResult",
+      Columns = list(list(ColumnName = "value", ColumnType = "int")),
+      Rows = list(list(42L))
+    ),
+    kusto_test_completion(
+      TRUE,
+      list(list(code = "PartialError", message = "one shard failed"))
+    )
+  )
+  error <- expect_error(
+    kusto_parse_response(
+      frames,
+      metadata = list(request_id = "request-id", activity_id = "activity-id")
+    ),
+    class = "fabric_kql_partial_error"
+  )
+
+  expect_identical(error$partial_data$value, 42L)
+  expect_identical(error$raw_frames, frames)
+  expect_identical(error$request_id, "request-id")
+  expect_identical(error$activity_id, "activity-id")
+})
+
 test_that("Kusto v2 parser rejects malformed envelopes and rows", {
   header <- list(
     FrameType = "DataSetHeader",

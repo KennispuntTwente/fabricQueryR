@@ -37,7 +37,8 @@
 #'
 #' A query with one primary result table returns a tibble. A query with multiple
 #' primary result tables returns a named list of tibbles with class
-#' `fabric_kql_tables`. Auxiliary protocol tables are validated but not returned.
+#' `fabric_kql_tables`. Auxiliary tables, completion information, raw frames,
+#' response headers, and correlation IDs are retained as `kusto_*` attributes.
 #' A query with no primary table returns an empty tibble.
 #' Management commands and ingestion endpoints are intentionally not supported.
 #'
@@ -450,7 +451,17 @@ kusto_execute_query <- function(
     simplifyVector = FALSE,
     bigint_as_char = TRUE
   )
-  kusto_parse_response(frames)
+  response_headers <- httr2::resp_headers(resp)
+  kusto_parse_response(
+    frames,
+    metadata = list(
+      client_request_id = client_request_id,
+      request_id = httr2::resp_header(resp, "x-ms-request-id"),
+      activity_id = httr2::resp_header(resp, "x-ms-activity-id") %||%
+        httr2::resp_header(resp, "x-ms-root-activity-id"),
+      response_headers = response_headers
+    )
+  )
 }
 
 kusto_frame_type <- function(frame) {
@@ -488,7 +499,7 @@ kusto_frame_type <- function(frame) {
   "Unknown"
 }
 
-kusto_parse_response <- function(frames) {
+kusto_parse_response <- function(frames, metadata = list()) {
   if (!is.list(frames) || !length(frames)) {
     rlang::abort("Kusto returned a malformed v2 response")
   }
@@ -633,12 +644,11 @@ kusto_parse_response <- function(frames) {
     ))
   }
   completion <- frames[[length(frames)]]
-  kusto_check_completion(completion)
 
   table_order <- unique(table_order)
-  primary <- tables[table_order]
-  primary <- primary[vapply(
-    primary,
+  ordered_tables <- tables[table_order]
+  is_primary <- vapply(
+    ordered_tables,
     function(table) {
       identical(
         tolower(table$TableKind %||% ""),
@@ -646,10 +656,17 @@ kusto_parse_response <- function(frames) {
       )
     },
     logical(1)
-  )]
-  if (!length(primary)) {
-    return(tibble::tibble())
-  }
+  )
+  primary <- ordered_tables[is_primary]
+  auxiliary <- ordered_tables[!is_primary]
+  auxiliary_results <- lapply(auxiliary, kusto_parse_table)
+  auxiliary_names <- vapply(
+    auxiliary,
+    function(table) table$TableName %||% table$TableKind %||% "Auxiliary",
+    character(1)
+  )
+  names(auxiliary_results) <- make.unique(auxiliary_names, sep = "_")
+
   results <- lapply(primary, kusto_parse_table)
   result_names <- vapply(
     primary,
@@ -657,10 +674,33 @@ kusto_parse_response <- function(frames) {
     character(1)
   )
   names(results) <- make.unique(result_names, sep = "_")
-  if (length(results) == 1L) {
-    return(results[[1L]])
+  result <- if (!length(results)) {
+    tibble::tibble()
+  } else if (length(results) == 1L) {
+    results[[1L]]
+  } else {
+    structure(results, class = c("fabric_kql_tables", "list"))
   }
-  structure(results, class = c("fabric_kql_tables", "list"))
+  result <- kusto_attach_metadata(
+    result,
+    frames,
+    completion,
+    auxiliary_results,
+    metadata
+  )
+  kusto_check_completion(completion, result, frames, metadata)
+  result
+}
+
+kusto_attach_metadata <- function(result, frames, completion, auxiliary, metadata) {
+  attr(result, "kusto_auxiliary_tables") <- auxiliary
+  attr(result, "kusto_completion") <- completion
+  attr(result, "kusto_raw_frames") <- frames
+  attr(result, "kusto_client_request_id") <- metadata$client_request_id %||% NULL
+  attr(result, "kusto_request_id") <- metadata$request_id %||% NULL
+  attr(result, "kusto_activity_id") <- metadata$activity_id %||% NULL
+  attr(result, "kusto_response_headers") <- metadata$response_headers %||% list()
+  result
 }
 
 kusto_abort_malformed <- function(detail) {
@@ -756,11 +796,24 @@ kusto_progressive_table_key <- function(frame, type, tables, completed) {
   key
 }
 
-kusto_check_completion <- function(completion) {
+kusto_check_completion <- function(
+  completion,
+  partial_data = NULL,
+  raw_frames = NULL,
+  metadata = list()
+) {
   kusto_require_flag(completion, "HasErrors", "DataSetCompletion")
   kusto_require_flag(completion, "Cancelled", "DataSetCompletion")
   if (isTRUE(completion$Cancelled)) {
-    rlang::abort("Kusto query was cancelled before completion")
+    rlang::abort(
+      "Kusto query was cancelled before completion",
+      class = "fabric_kql_partial_error",
+      partial_data = partial_data,
+      raw_frames = raw_frames,
+      completion = completion,
+      request_id = metadata$request_id %||% NULL,
+      activity_id = metadata$activity_id %||% NULL
+    )
   }
   if (!isTRUE(completion$HasErrors)) {
     return(invisible())
@@ -775,7 +828,13 @@ kusto_check_completion <- function(completion) {
     paste0(
       "Kusto query failed after HTTP success: ",
       paste(detail, collapse = ": ")
-    )
+    ),
+    class = "fabric_kql_partial_error",
+    partial_data = partial_data,
+    raw_frames = raw_frames,
+    completion = completion,
+    request_id = metadata$request_id %||% NULL,
+    activity_id = metadata$activity_id %||% NULL
   )
 }
 
