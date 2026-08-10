@@ -39,8 +39,11 @@ from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
 or SQL Database record returned by a discovery function. A discovered
 record is usually simplest because it also supplies the database name.}
 
-\item{sql}{One T-SQL statement. A Lakehouse SQL analytics endpoint supports
-read queries but not \code{INSERT}, \code{UPDATE}, or \code{DELETE}.}
+\item{sql}{One result-producing T-SQL \code{SELECT} statement, optionally beginning
+with a common-table-expression \code{WITH} clause. For DDL or DML, open a
+connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and call \code{\link[DBI:dbExecute]{DBI::dbExecute()}}. A
+Lakehouse SQL analytics endpoint is read-only and does not support
+\code{INSERT}, \code{UPDATE}, or \code{DELETE}.}
 
 \item{params}{Optional list of values for DBI parameter placeholders (\verb{?}).
 Strings, dates, missing values, and values containing SQL metacharacters

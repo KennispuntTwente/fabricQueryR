@@ -27,6 +27,10 @@
 
 ## Improved
 
+* `fabric_sql_query()` now rejects DDL and DML instead of sending arbitrary
+  statements through `DBI::dbGetQuery()`. Use `DBI::dbExecute()` on a
+  `fabric_sql_connect()` connection for side-effecting statements.
+
 * Livy table results now convert columns from their declared Spark schema and
   retain that schema in the `spark_schema` attribute. Longs and decimals remain
   exact character values; typed null/empty, temporal, binary, and nested

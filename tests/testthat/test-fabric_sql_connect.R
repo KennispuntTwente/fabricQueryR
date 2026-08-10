@@ -528,6 +528,33 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   expect_true(disconnect_force)
 })
 
+test_that("fabric_sql_query rejects DDL and DML for both backends", {
+  statements <- c(
+    "INSERT INTO dbo.t VALUES (1)",
+    "UPDATE dbo.t SET value = 2",
+    "DELETE FROM dbo.t",
+    "CREATE TABLE dbo.t (value int)",
+    "WITH doomed AS (SELECT * FROM dbo.t) DELETE FROM doomed"
+  )
+  for (backend in c("odbc", "adbc")) {
+    for (statement in statements) {
+      expect_error(
+        fabric_sql_query(
+          "server.datawarehouse.fabric.microsoft.com",
+          statement,
+          backend = backend,
+          token = "token"
+        ),
+        "only result-producing SELECT statements",
+        class = "fabric_sql_statement_error"
+      )
+    }
+  }
+  expect_silent(fabric_sql_validate_query_statement(
+    "WITH source AS (SELECT 1 AS value) SELECT value FROM source"
+  ))
+})
+
 test_that("ADBC parameter translation ignores SQL literals and comments", {
   sql <- paste0(
     "SELECT ?, '?', \"?\", [?], [a]]?], ",
@@ -776,13 +803,13 @@ test_that("SQL query retries require idempotency and use fresh connections", {
       retry_delay = 5,
       verbose = FALSE
     ),
-    class = "fabric_sql_execution_error"
+    class = "fabric_sql_statement_error"
   )
-  expect_equal(connections, 1L)
-  expect_equal(queries, 1L)
-  expect_identical(disconnected, 1L)
+  expect_equal(connections, 0L)
+  expect_equal(queries, 0L)
+  expect_length(disconnected, 0L)
   expect_length(delays, 0L)
-  expect_identical(refreshes, FALSE)
+  expect_length(refreshes, 0L)
 })
 
 test_that("SQL retry controls reject invalid values", {

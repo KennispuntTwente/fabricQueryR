@@ -425,8 +425,11 @@ fabric_sql_connect <- function(
 #' Values in `params` are bound by DBI rather than pasted into the SQL string.
 #'
 #' @inheritParams fabric_sql_connect
-#' @param sql One T-SQL statement. A Lakehouse SQL analytics endpoint supports
-#'   read queries but not `INSERT`, `UPDATE`, or `DELETE`.
+#' @param sql One result-producing T-SQL `SELECT` statement, optionally beginning
+#'   with a common-table-expression `WITH` clause. For DDL or DML, open a
+#'   connection with [fabric_sql_connect()] and call [DBI::dbExecute()]. A
+#'   Lakehouse SQL analytics endpoint is read-only and does not support
+#'   `INSERT`, `UPDATE`, or `DELETE`.
 #' @param params Optional list of values for DBI parameter placeholders (`?`).
 #'   Strings, dates, missing values, and values containing SQL metacharacters
 #'   are passed unchanged to the driver. With `backend = "adbc"`, placeholders
@@ -518,6 +521,7 @@ fabric_sql_query <- function(
   result <- match.arg(result)
   backend <- match.arg(backend)
   fabric_sql_scalar(sql, "sql")
+  fabric_sql_validate_query_statement(sql)
   if (!is.null(params) && !is.list(params)) {
     rlang::abort(
       "params must be NULL or a list",
@@ -646,6 +650,88 @@ fabric_sql_query <- function(
     .fabric_sql_sleep(delay)
   }
   rlang::abort("Fabric SQL query retry loop ended unexpectedly")
+}
+
+fabric_sql_validate_query_statement <- function(sql) {
+  tokens <- fabric_sql_top_level_tokens(sql)
+  actions <- tokens[tokens %in% c("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE")]
+  valid <- length(actions) > 0L && identical(actions[[1L]], "SELECT")
+  if (!valid) {
+    rlang::abort(
+      paste0(
+        "fabric_sql_query() accepts only result-producing SELECT statements. ",
+        "Use DBI::dbExecute() with fabric_sql_connect() for DDL or DML"
+      ),
+      class = "fabric_sql_statement_error"
+    )
+  }
+  invisible(sql)
+}
+
+fabric_sql_top_level_tokens <- function(sql) {
+  chars <- strsplit(sql, "", fixed = TRUE)[[1L]]
+  tokens <- character()
+  token <- character()
+  depth <- 0L
+  quote <- NULL
+  index <- 1L
+  flush <- function() {
+    if (length(token) && depth == 0L) {
+      tokens <<- c(tokens, toupper(paste0(token, collapse = "")))
+    }
+    token <<- character()
+  }
+  while (index <= length(chars)) {
+    char <- chars[[index]]
+    next_char <- if (index < length(chars)) chars[[index + 1L]] else ""
+    if (!is.null(quote)) {
+      if (identical(char, quote)) {
+        if (identical(next_char, quote)) {
+          index <- index + 2L
+          next
+        }
+        quote <- NULL
+      }
+      index <- index + 1L
+      next
+    }
+    if (identical(char, "-") && identical(next_char, "-")) {
+      flush()
+      newline <- which(chars[seq.int(index + 2L, length(chars))] %in% c("\r", "\n"))
+      index <- if (length(newline)) index + 1L + newline[[1L]] else length(chars) + 1L
+      next
+    }
+    if (identical(char, "/") && identical(next_char, "*")) {
+      flush()
+      remainder <- paste0(chars[seq.int(index + 2L, length(chars))], collapse = "")
+      close <- regexpr("*/", remainder, fixed = TRUE)[[1L]]
+      if (close < 0L) {
+        rlang::abort("sql contains an unterminated block comment")
+      }
+      index <- index + close + 3L
+      next
+    }
+    if (char %in% c("'", '"', "[")) {
+      flush()
+      quote <- if (identical(char, "[")) "]" else char
+      index <- index + 1L
+      next
+    }
+    if (identical(char, "(")) {
+      flush()
+      depth <- depth + 1L
+    } else if (identical(char, ")")) {
+      flush()
+      depth <- max(0L, depth - 1L)
+    } else if (grepl("[A-Za-z_]", char)) {
+      token <- c(token, char)
+    } else {
+      flush()
+    }
+    index <- index + 1L
+  }
+  flush()
+  tokens
 }
 
 fabric_sql_require_backend <- function(
