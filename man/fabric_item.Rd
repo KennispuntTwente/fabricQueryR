@@ -80,3 +80,10 @@ Finds one item and retrieves the connection details that fabricQueryR can
 use. This is convenient when you know the item's name and do not need a
 collection of every item in the workspace.
 }
+\details{
+The caller needs access to the workspace for the core item lookup. This
+singular helper always performs workload-specific enrichment as well, which
+additionally requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the applicable
+workload-specific read scope and access to the item. Use
+\code{\link[=fabric_items]{fabric_items()}} with \code{detail = FALSE} when only core item metadata is needed.
+}

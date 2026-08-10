@@ -27,6 +27,9 @@
 
 ## Improved
 
+* `fabric_item()` documentation now states that its automatic workload
+  enrichment requires permissions beyond the core item lookup.
+
 * The README's name-based Livy ABFSS example now includes the required
   `.Lakehouse` item suffix.
 

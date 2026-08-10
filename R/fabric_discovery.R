@@ -288,6 +288,12 @@ fabric_items <- function(
 #'   `sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
 #'   records use `sql_server` and `sql_database`. Other workloads can include
 #'   `livy_url`, `dax_connection_string`, or `query_service_uri`.
+#' @details
+#' The caller needs access to the workspace for the core item lookup. This
+#' singular helper always performs workload-specific enrichment as well, which
+#' additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the applicable
+#' workload-specific read scope and access to the item. Use
+#' [fabric_items()] with `detail = FALSE` when only core item metadata is needed.
 #' @export
 fabric_item <- function(
   workspace,
