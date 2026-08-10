@@ -100,7 +100,7 @@ become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, an
 \code{difftime} vectors. Base R and \code{bit64} reserve the minimum signed \code{int} and
 \code{long} values for missing data; a column containing either boundary is
 returned as character with a warning so the value remains exact. \code{dynamic}
-columns are list-columns, and GUIDs, strings, and code{decimal} values are
+columns are list-columns, and GUIDs, strings, and \code{decimal} values are
 character vectors. Keeping decimal values in their original lexical form
 avoids the silent precision loss that conversion to an R double can cause.
 
