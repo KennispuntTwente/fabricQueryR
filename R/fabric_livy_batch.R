@@ -195,6 +195,7 @@ FabricLivyBatch <- R6::R6Class(
         self$url,
         private$credential,
         idempotent = TRUE,
+        accepted_status = 404L,
         deadline = deadline
       )
       self$cancel_requested <- TRUE

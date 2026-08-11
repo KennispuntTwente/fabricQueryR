@@ -740,6 +740,7 @@ test_that("Livy vector fields remain JSON arrays when length one", {
 
 test_that("batch failures and cancellation preserve service details", {
   mode <- "failure"
+  accepted <- NULL
   local_mocked_bindings(
     fabric_livy_json = function(method, ...) {
       if (method == "POST") {
@@ -753,8 +754,14 @@ test_that("batch failures and cancellation preserve service details", {
         errorInfo = list(list(message = "python exited with status 1"))
       )
     },
-    fabric_livy_ok = function(method, url, ...) {
+    fabric_livy_ok = function(
+      method,
+      url,
+      ...,
+      accepted_status = integer()
+    ) {
       mode <<- paste(method, url)
+      accepted <<- accepted_status
       TRUE
     }
   )
@@ -776,6 +783,7 @@ test_that("batch failures and cancellation preserve service details", {
   expect_true(batch$cancel())
   expect_true(batch$cancel_requested)
   expect_match(mode, paste0("^DELETE ", batch$url, "$"))
+  expect_identical(accepted, 404L)
 })
 
 test_that("batch timeout can request cancellation", {

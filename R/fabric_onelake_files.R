@@ -1454,7 +1454,8 @@ onelake_delete_target <- function(
     response <- .httr2_perform(
       req,
       credential = credential,
-      audience = .fabric_audience$storage
+      audience = .fabric_audience$storage,
+      accepted_status = 404L
     )
     continuation <- httr2::resp_header(response, "x-ms-continuation")
     if (is.null(continuation) || !nzchar(continuation)) break

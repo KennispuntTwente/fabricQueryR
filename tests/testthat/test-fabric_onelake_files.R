@@ -872,6 +872,32 @@ test_that("OneLake deletion omits directory parameters for files", {
   expect_false(grepl("paginated=", calls[[2L]]$url, fixed = TRUE))
 })
 
+test_that("OneLake deletion reconciles an ambiguous retry with 404", {
+  accepted <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(
+      req,
+      ...,
+      accepted_status = integer()
+    ) {
+      accepted <<- accepted_status
+      onelake_test_response(status = 404L, url = req$url)
+    }
+  )
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/already-deleted.txt"
+  )
+
+  expect_true(onelake_delete_target(
+    target,
+    fabric_credential(token = "token"),
+    is_directory = FALSE
+  ))
+  expect_identical(accepted, 404L)
+})
+
 test_that("OneLake deletion rejects repeated continuation tokens", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {
