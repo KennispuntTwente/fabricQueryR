@@ -1,9 +1,11 @@
 # Submit a Microsoft Fabric Livy batch job
 
-Starts a complete Spark application file stored in OneLake or ADLS.
-Unlike an interactive Livy session, a batch has its own application
-lifecycle and is a good fit for repeatable scripts and unattended
-processing.
+Runs a complete Python, R, or Java/Scala Spark application stored in
+OneLake or ADLS. Use this for repeatable scripts and unattended
+processing; use
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
+when several interactive statements should share variables and Spark
+state.
 
 ## Usage
 
@@ -126,25 +128,18 @@ fabric_livy_batch_submit(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - audience:
 
-  Optional OAuth audience/scope vector. With `NULL`, delegated
-  authentication requests Microsoft's four required Livy scopes, while
-  an AzureAuth client-credentials flow requests the Power BI `.default`
-  audience documented for service principals. Supply this explicitly
-  when a custom token provider or identity flow requires a different
-  token target.
+  Optional sign-in scope. Most users should leave this `NULL`; set it
+  only for a custom token provider or identity flow.
 
 - verbose:
 
@@ -185,18 +180,17 @@ R6 object. Inspect its `$state`, call `$result()` for structured
 metadata and logs, and call `$wait()` later when submitting with
 `wait = FALSE`.
 
-## Details
+## Before you submit
 
-Fabric needs a workspace on supported Fabric capacity and a Lakehouse.
-The application file must already be accessible through an ABFS/ABFSS
-URI; this function does not upload a local script. Use
+Fabric needs a workspace on supported capacity and a Lakehouse. The
+application file must already be accessible through an ABFS/ABFSS URI;
+this function does not upload a local script. Use
 [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
 first when needed.
 
-Delegated authentication requests the Livy Lakehouse execution/read and
-required `Code.Access*` scopes documented by Microsoft. AzureAuth
-client-credentials authentication uses
-`https://analysis.windows.net/powerbi/api/.default`.
+The signed-in identity needs Lakehouse read and execute access,
+permission for code to access Fabric and storage, and an appropriate
+workspace role.
 
 ## See also
 

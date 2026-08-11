@@ -1,8 +1,9 @@
 # Discover Microsoft Fabric workspaces
 
-Lists the Fabric workspaces the signed-in user or application can
-access. A workspace is the top-level container that holds Lakehouses,
-Warehouses, semantic models, notebooks, and other Fabric items.
+Returns the Fabric workspaces available to the signed-in user or
+application. Use the result to choose a workspace for
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
+or one of the typed discovery helpers.
 
 ## Usage
 
@@ -30,12 +31,8 @@ fabric_workspaces(
 
 - prefer_workspace_endpoints:
 
-  Logical. Set to `TRUE` to ask Fabric for a workspace-specific API
-  endpoint, which can be needed with workspace-level private links. When
-  such an endpoint is returned, Warehouse and Lakehouse SQL details are
-  resolved through the dedicated connection-string API with
-  `privateLinkType=Workspace`. Most users should keep the default,
-  `FALSE`.
+  Whether to request workspace-specific endpoints. Keep `FALSE` unless
+  your organization uses workspace-level private links.
 
 - tenant_id:
 
@@ -48,19 +45,13 @@ fabric_workspaces(
 
 - token:
 
-  Preferred token input: an
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
-  object, bearer-token string, or token-provider function. With `NULL`
-  (the default), `AzureAuth` reuses a matching cached token or starts
-  its normal interactive login flow when a new token is required.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied. Discovery uses the
-  `https://api.fabric.microsoft.com/.default` audience and requires
-  `Workspace.Read.All` or `Workspace.ReadWrite.All`.
+  Additional sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - api_base:
 
@@ -74,9 +65,15 @@ fabric_workspaces(
 
 ## Value
 
-A plain list with one `fabric_workspace` object per workspace. Each
-object is a named list containing the fields returned by Fabric, such as
-`id`, `displayName`, `capacityRegion`, `apiEndpoint`, and nested `tags`.
+A list with one workspace record per visible workspace. Each record
+includes its ID and display name, together with other details returned
+by Fabric.
+
+## Details
+
+The caller needs permission to read Fabric workspaces. Discovery uses
+the Fabric API and requires `Workspace.Read.All` or
+`Workspace.ReadWrite.All`.
 
 ## References
 

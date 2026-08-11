@@ -1,9 +1,8 @@
 # Connect to a Microsoft Fabric SQL target
 
-Opens a standard R DBI connection to a Fabric Warehouse, Warehouse
-snapshot, Lakehouse SQL analytics endpoint, or SQL Database using
-Microsoft Entra authentication. Use the returned connection with
-familiar DBI functions such as
+Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot,
+Lakehouse, or SQL Database. Use the connection with familiar DBI
+functions such as
 [`DBI::dbListTables()`](https://dbi.r-dbi.org/reference/dbListTables.html)
 and
 [`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html).
@@ -56,17 +55,13 @@ fabric_sql_connect(
 
 - target_type:
 
-  Label for the endpoint kind. Keep `"auto"` unless the hostname is
-  custom or ambiguous. The explicit choices distinguish a Lakehouse SQL
-  analytics endpoint, Warehouse, transactional SQL Database, or another
-  read-only SQL analytics endpoint; they do not convert one kind of
-  endpoint into another.
+  Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
+  prevents fabricQueryR from identifying it.
 
 - backend:
 
-  SQL client backend. Use `"odbc"` for broad DBI compatibility and the
-  easiest setup; use `"adbc"` for its native Arrow result path after
-  separately installing the ADBC `mssql` driver.
+  Connection driver. Use `"odbc"` for ordinary DBI work or `"adbc"` for
+  a native Arrow path after installing its `mssql` driver.
 
 - tenant_id:
 
@@ -79,15 +74,12 @@ fabric_sql_connect(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - odbc_driver:
@@ -122,8 +114,8 @@ fabric_sql_connect(
 
 - read_only:
 
-  Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a connection
-  hint; it is not a substitute for Fabric/SQL permissions.
+  Whether to ask the driver for a read-only connection. This is a
+  connection hint, not a replacement for Fabric or SQL permissions.
 
 - allow_custom_endpoint:
 
@@ -138,15 +130,12 @@ fabric_sql_connect(
 
 - max_tries:
 
-  Positive maximum number of attempts for transient Fabric SQL failures.
-  Connections are always safe to retry. In
-  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md),
-  execution failures are retried only when `idempotent = TRUE`.
+  Maximum attempts after temporary Fabric SQL failures.
 
 - retry_delay:
 
-  Non-negative initial retry delay in seconds. Subsequent delays use
-  exponential backoff with jitter, capped at 60 seconds.
+  Initial delay in seconds before retrying. Later retries wait
+  progressively longer, up to 60 seconds.
 
 - ...:
 
@@ -168,41 +157,31 @@ immediately.
 
 ## Details
 
-In Fabric, copy a SQL connection string from the Warehouse, SQL
-analytics endpoint, or SQL Database settings. Alternatively, use a row
-returned by
+The easiest input is an item returned by
 [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
 [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
 or
 [`fabric_sql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-A Lakehouse's SQL analytics endpoint is read-only; use Spark or another
-OneLake writer when data must be changed.
+You can also paste a SQL connection string from Fabric. A Lakehouse's
+SQL endpoint is read-only; use Spark or another OneLake writer to change
+Lakehouse data.
 
-`"odbc"` is the most familiar choice for DBI workflows and requires
-Microsoft ODBC Driver 18 or newer. `"adbc"` is useful when a query
-result should remain in Arrow form, especially for larger analytical
-results. It uses
-[`adbi::adbi()`](https://adbi.r-dbi.org/reference/dbConnect.html) with
-the `mssql` driver loaded by
-[`adbcdrivermanager::adbc_driver()`](https://arrow.apache.org/adbc/current/r/adbcdrivermanager/reference/adbc_driver_void.html).
-Install that external driver separately with `dbc install mssql`. The
-package checks that the driver can be loaded before authenticating or
-opening a network connection. `adbcdrivermanager` discovers and loads
-installed drivers; it does not install driver binaries. Multiple Active
-Result Sets (MARS) is disabled because Fabric Warehouse does not support
-it.
+## Choosing a backend
 
-Complete portal connection strings and enriched discovery records
-provide a catalog automatically. Bare endpoints may omit `database` to
-use Fabric's `master` context; the package never guesses a catalog name.
+`backend = "odbc"` is the default and works well for ordinary DBI use.
+It requires Microsoft ODBC Driver 18 or newer. Use `backend = "adbc"`
+when you want a native Arrow result path, typically for larger
+analytical results. ADBC requires the external `mssql` driver; install
+it separately with `dbc install mssql`.
 
-Transient Fabric connection failures are retried on fresh connections
-with refreshed tokens and bounded exponential backoff.
+## Connection and permissions
 
-The SQL audience is `https://database.windows.net/.default`. In Fabric,
-give the user or application access through a workspace role or the
-item's **Manage permissions** dialog. SQL `GRANT`/`DENY` rules can
-further restrict what the identity may query.
+Discovery records and complete portal connection strings normally
+include the database. A bare server can omit `database` to open Fabric's
+`master` context. Transient connection failures are retried
+automatically. The user or application must have access through a
+workspace role or the item's **Manage permissions** settings; SQL
+permissions may further restrict data.
 
 ## References
 
@@ -222,17 +201,16 @@ Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-
 
 ``` r
 if (FALSE) { # \dontrun{
-con <- fabric_sql_connect(
-  server = paste0(
-    "Server=tcp:example.datawarehouse.fabric.microsoft.com,1433;",
-    "Initial Catalog=SalesWarehouse;"
-  )
-)
+warehouse <- fabric_warehouses("Analytics")[[1]]
+con <- fabric_sql_connect(warehouse)
 DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.Customers")
 DBI::dbDisconnect(con)
 
-warehouse <- fabric_warehouses("Analytics")[[1]]
-con <- fabric_sql_connect(warehouse)
+# A connection string copied from Fabric also works
+con <- fabric_sql_connect(paste0(
+  "Server=tcp:example.datawarehouse.fabric.microsoft.com,1433;",
+  "Initial Catalog=SalesWarehouse;"
+))
 DBI::dbDisconnect(con)
 
 # After installing the external driver with `dbc install mssql`:

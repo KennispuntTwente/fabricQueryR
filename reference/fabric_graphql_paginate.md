@@ -1,10 +1,10 @@
-# Paginate a Microsoft Fabric GraphQL operation
+# Read all pages from a Fabric GraphQL query
 
 Repeats
 [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
-while `next_cursor` returns a cursor. The callback tells the function
-where the current page stores its next cursor, because that location
-depends on the API schema.
+until the API reports that no more pages are available. Because every
+GraphQL schema can store pagination information in a different place,
+`next_cursor` tells the function where to find it.
 
 ## Usage
 
@@ -36,8 +36,8 @@ fabric_graphql_paginate(
 
 - api:
 
-  GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered GraphQLApi
-  record. An item from
+  GraphQL endpoint, API ID, or one discovered GraphQLApi record. An item
+  from
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   is usually easiest because it supplies the endpoint and workspace ID.
 
@@ -55,12 +55,10 @@ fabric_graphql_paginate(
 
 - variables:
 
-  Named list of GraphQL variables. Values must be representable as JSON;
-  names must match variables declared in `query`. Scalar vectors are
-  encoded as JSON scalars when they have length one. Wrap a one-element
-  GraphQL list in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
-  `list(ids = I("x"))`, to preserve its JSON array shape. Vectors with
-  two or more elements are arrays normally.
+  Named list of values for variables declared in `query`. One-element
+  values are normally sent as scalars. Wrap a one-element list variable
+  in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
+  `list(ids = I("x"))`, to send it as an array.
 
 - cursor_variable:
 
@@ -91,9 +89,8 @@ fabric_graphql_paginate(
 
 - timeout:
 
-  Positive wall-clock HTTP timeout in seconds. The 110-second default
-  leaves transfer overhead beyond Fabric's 100-second server execution
-  limit, allowing the service's own timeout response to arrive.
+  Maximum time in seconds for the request. The default allows Fabric's
+  own 100-second query timeout response to arrive.
 
 - idempotent:
 
@@ -113,17 +110,13 @@ fabric_graphql_paginate(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied.
+  Additional sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - audience:
 

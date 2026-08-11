@@ -1,9 +1,8 @@
-# Query a Microsoft Fabric API for GraphQL
+# Run a query against a Fabric GraphQL API
 
-Sends a GraphQL query or mutation to an API for GraphQL item configured
-in Fabric. Fabric generates the API schema from selected Lakehouse,
-Warehouse, or SQL Database objects; this function calls that API from R
-and returns its nested response.
+Sends a GraphQL query or mutation to an **API for GraphQL** item and
+returns the result as a nested R list. Use this when a Fabric API
+already exposes the Lakehouse, Warehouse, or SQL Database data you need.
 
 ## Usage
 
@@ -32,8 +31,8 @@ fabric_graphql_query(
 
 - api:
 
-  GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered GraphQLApi
-  record. An item from
+  GraphQL endpoint, API ID, or one discovered GraphQLApi record. An item
+  from
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   is usually easiest because it supplies the endpoint and workspace ID.
 
@@ -44,12 +43,10 @@ fabric_graphql_query(
 
 - variables:
 
-  Named list of GraphQL variables. Values must be representable as JSON;
-  names must match variables declared in `query`. Scalar vectors are
-  encoded as JSON scalars when they have length one. Wrap a one-element
-  GraphQL list in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
-  `list(ids = I("x"))`, to preserve its JSON array shape. Vectors with
-  two or more elements are arrays normally.
+  Named list of values for variables declared in `query`. One-element
+  values are normally sent as scalars. Wrap a one-element list variable
+  in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
+  `list(ids = I("x"))`, to send it as an array.
 
 - operation_name:
 
@@ -70,9 +67,8 @@ fabric_graphql_query(
 
 - timeout:
 
-  Positive wall-clock HTTP timeout in seconds. The 110-second default
-  leaves transfer overhead beyond Fabric's 100-second server execution
-  limit, allowing the service's own timeout response to arrive.
+  Maximum time in seconds for the request. The default allows Fabric's
+  own 100-second query timeout response to arrive.
 
 - idempotent:
 
@@ -92,17 +88,13 @@ fabric_graphql_query(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied.
+  Additional sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - audience:
 
@@ -129,7 +121,7 @@ shape requested in the GraphQL document and is usually a combination of
 named lists and vectors, not a tibble. Because GraphQL can return
 partial data, inspect `errors` even when `data` is present.
 
-## Details
+## Before you query
 
 Before using this function, create an **API for GraphQL** item in a
 Fabric workspace, connect its data source, and choose which tables,
@@ -142,28 +134,28 @@ and SQL Database sources can expose supported mutations, while Lakehouse
 and mirrored SQL analytics endpoint sources are read-only and expose
 queries only.
 
-A direct endpoint has the form
-`https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
-You can instead pass a GraphQL API GUID with `workspace_id`, or one item
-from
-[`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
-or
-[`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
+The easiest input is an item from
+[`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+You can instead supply the API's endpoint, or its ID together with
+`workspace_id`.
 
-Interactive/delegated authentication requires the Power BI delegated
-scope `GraphQLApi.Execute.All`, plus **Run Queries and Mutations**
-permission on the API. Service principals are also supported by Fabric:
-request a Fabric API token with `auth_args` or pass one through `token`,
-enable service principals for Fabric APIs in the tenant, and grant the
+## Permissions and authentication
+
+Interactive authentication requires the Power BI delegated scope
+`GraphQLApi.Execute.All`, plus **Run Queries and Mutations** permission
+on the API. Service principals are also supported by Fabric: request a
+Fabric API token with `auth_args` or pass one through `token`, enable
+service principals for Fabric APIs in the tenant, and grant the
 principal API Execute access or a suitable workspace role. With SSO
 connectivity, the caller also needs the required access to the
 underlying data source. Saved-credential APIs use the configured
 connection instead.
 
-When `audience = NULL`, the package selects the Fabric API scope for an
-AzureAuth client-credentials flow and the delegated GraphQL scope
-otherwise. Set `audience` explicitly when a custom token provider uses a
-service-principal flow. The value is ignored for a static token string.
+Most users can leave `audience = NULL`; fabricQueryR chooses the
+documented scope for the sign-in flow. Set it only for a custom identity
+provider.
+
+## Retries and service limits
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set `idempotent = TRUE` only when the operation is
@@ -175,9 +167,8 @@ to 100 seconds, and query nesting to 10 levels. Use smaller pages and
 filtered query partitions when a result could approach these service
 limits.
 
-JSON integers outside R's exact double-precision range are returned as
-character values so identifiers and other large integer fields are not
-rounded.
+Large integers outside R's exact numeric range are returned as character
+values so identifiers and other large integer fields are not rounded.
 
 ## References
 

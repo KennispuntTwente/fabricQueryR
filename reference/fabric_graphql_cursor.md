@@ -1,6 +1,8 @@
-# Build a Fabric GraphQL cursor extractor
+# Locate pagination information in a GraphQL result
 
-Build a Fabric GraphQL cursor extractor
+Creates the `next_cursor` function used by
+[`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
+for the common `hasNextPage` and `endCursor` pagination fields.
 
 ## Usage
 

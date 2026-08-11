@@ -26,7 +26,7 @@ Find Fabric workspaces, items, and workload-specific connection details
 Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
 
 - [`fabric_sql_connection_info()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connection_info.md)
-  : Parse a Microsoft Fabric SQL target
+  : Get connection details for a Fabric SQL item
 - [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   : Connect to a Microsoft Fabric SQL target
 - [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
@@ -64,18 +64,18 @@ Resolve and read supported Delta Lake snapshots from OneLake
 Query Eventhouse and KQL Database data
 
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
-  : Query a Microsoft Fabric Eventhouse with KQL
+  : Run a KQL query in Microsoft Fabric
 
 ## GraphQL
 
 Execute GraphQL operations and traverse cursor-based pages
 
 - [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
-  : Query a Microsoft Fabric API for GraphQL
+  : Run a query against a Fabric GraphQL API
 - [`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
-  : Paginate a Microsoft Fabric GraphQL operation
+  : Read all pages from a Fabric GraphQL query
 - [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
-  : Build a Fabric GraphQL cursor extractor
+  : Locate pagination information in a GraphQL result
 
 ## Livy and Spark
 

@@ -1,12 +1,11 @@
 # Run a parameterized query against Microsoft Fabric SQL
 
-Opens a connection with
-[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md),
-executes `sql`, and closes it automatically. This is the convenient
-choice for a single query; use
+Runs one SQL query and returns its rows, opening and closing the
+connection automatically. Use
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-when several queries should share one connection. Values in `params` are
-bound by DBI rather than pasted into the SQL string.
+instead when several operations should share a connection. Supply
+changing values through `params` rather than pasting them into the SQL
+text.
 
 ## Usage
 
@@ -63,25 +62,17 @@ fabric_sql_query(
 
 - params:
 
-  Optional list of values for DBI parameter placeholders (`?`). Strings,
-  dates, missing values, and values containing SQL metacharacters are
-  passed unchanged to the driver. With `backend = "adbc"`, placeholders
-  outside SQL strings, identifiers, and comments are safely translated
-  to the SQL Server driver's native `@p1`, `@p2`, ... syntax.
+  Optional list of values for `?` placeholders in `sql`. Values are sent
+  separately from the SQL text, which is safer and easier to quote
+  correctly than building a query with
+  [`paste()`](https://rdrr.io/r/base/paste.html).
 
 - result:
 
-  Result representation. `"tibble"` collects the query result.
-  `"arrow_stream"` returns a `nanoarrow_array_stream` from
-  [`DBI::dbGetQueryArrow()`](https://dbi.r-dbi.org/reference/dbGetQueryArrow.html).
-  ADBC provides the native Arrow path; DBI may materialize results when
-  adapting an ODBC connection. The stream implements the Arrow C Stream
-  interface and can be converted directly with
-  [`arrow::as_record_batch_reader()`](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
-  when the optional `arrow` package is installed. A stream is
-  single-use. Prefer `"tibble"` for ordinary analysis and
-  `"arrow_stream"` when avoiding collection into an R data frame
-  matters.
+  Return a `"tibble"` for ordinary R analysis, or a single-use
+  `"arrow_stream"` when a large result should be processed without first
+  collecting it into an R data frame. The native Arrow path uses the
+  ADBC backend.
 
 - database:
 
@@ -93,17 +84,13 @@ fabric_sql_query(
 
 - target_type:
 
-  Label for the endpoint kind. Keep `"auto"` unless the hostname is
-  custom or ambiguous. The explicit choices distinguish a Lakehouse SQL
-  analytics endpoint, Warehouse, transactional SQL Database, or another
-  read-only SQL analytics endpoint; they do not convert one kind of
-  endpoint into another.
+  Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
+  prevents fabricQueryR from identifying it.
 
 - backend:
 
-  SQL client backend. Use `"odbc"` for broad DBI compatibility and the
-  easiest setup; use `"adbc"` for its native Arrow result path after
-  separately installing the ADBC `mssql` driver.
+  Connection driver. Use `"odbc"` for ordinary DBI work or `"adbc"` for
+  a native Arrow path after installing its `mssql` driver.
 
 - tenant_id:
 
@@ -116,15 +103,12 @@ fabric_sql_query(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - odbc_driver:
@@ -159,8 +143,8 @@ fabric_sql_query(
 
 - read_only:
 
-  Logical. `TRUE` sends `ApplicationIntent=ReadOnly` as a connection
-  hint; it is not a substitute for Fabric/SQL permissions.
+  Whether to ask the driver for a read-only connection. This is a
+  connection hint, not a replacement for Fabric or SQL permissions.
 
 - allow_custom_endpoint:
 
@@ -175,14 +159,12 @@ fabric_sql_query(
 
 - max_tries:
 
-  Positive maximum number of attempts for transient Fabric SQL failures.
-  Connections are always safe to retry. In `fabric_sql_query()`,
-  execution failures are retried only when `idempotent = TRUE`.
+  Maximum attempts after temporary Fabric SQL failures.
 
 - retry_delay:
 
-  Non-negative initial retry delay in seconds. Subsequent delays use
-  exponential backoff with jitter, capped at 60 seconds.
+  Initial delay in seconds before retrying. Later retries wait
+  progressively longer, up to 60 seconds.
 
 - idempotent:
 
@@ -211,16 +193,13 @@ Arrow-compatible tools.
 
 ``` r
 if (FALSE) { # \dontrun{
+warehouse <- fabric_warehouses("Analytics")[[1]]
 result <- fabric_sql_query(
-  server = paste0(
-    "Server=example.datawarehouse.fabric.microsoft.com;",
-    "Database=SalesWarehouse;"
-  ),
+  warehouse,
   sql = "SELECT * FROM dbo.Customers WHERE region = ?",
   params = list("West")
 )
 
-warehouse <- fabric_warehouses("Analytics")[[1]]
 stream <- fabric_sql_query(
   warehouse,
   "SELECT * FROM dbo.Customers",

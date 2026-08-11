@@ -1,10 +1,9 @@
 # Run Spark code in a temporary Microsoft Fabric Livy session
 
-Starts Fabric Spark compute, runs one statement, waits for its result,
-and closes the session. This is the simplest Livy helper for a one-off
-Spark operation. Spark is useful for distributed processing or changing
-Lakehouse data; it has more startup overhead than querying an existing
-SQL endpoint.
+Starts Spark, runs one piece of code, returns its output, and closes the
+Spark session. This is the simplest Livy helper for a one-off operation.
+For quick reads from a Lakehouse or Warehouse, SQL is often faster to
+start.
 
 ## Usage
 
@@ -63,25 +62,18 @@ fabric_livy_query(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - audience:
 
-  Optional OAuth audience/scope vector. With `NULL`, delegated
-  authentication requests Microsoft's four required Livy scopes, while
-  an AzureAuth client-credentials flow requests the Power BI `.default`
-  audience documented for service principals. Supply this explicitly
-  when a custom token provider or identity flow requires a different
-  token target.
+  Optional sign-in scope. Most users should leave this `NULL`; set it
+  only for a custom token provider or identity flow.
 
 - environment_id:
 
@@ -123,33 +115,28 @@ fabric_livy_query(
 
 ## Value
 
-Invisibly, a `fabric_livy_statement_result` list with statement `state`,
-timing information, submitted `code`, raw response, and `output`.
-`output$parsed` contains Livy table MIME output as a tibble, JSON output
-as an R object, or text output as a character vector; error details and
-every original MIME value are retained in the other `output` fields.
-Parsed tables retain their declared headers in
-`attr(x, "spark_schema")`. Spark long and decimal columns are character
-vectors, dates and timestamps use R temporal classes, binary and nested
-types use list-columns, and primitive numeric, string, and Boolean
-columns use their corresponding R vectors.
+Invisibly, a `fabric_livy_statement_result` list. The most useful
+component is `output$parsed`: a tibble for tabular output, an R object
+for JSON, or a character vector for text. The result also keeps status,
+timing, submitted code, errors, and the original response.
 
-## Details
+## Before you run code
 
-Fabric needs a workspace on supported Fabric capacity and a Lakehouse.
-In the Fabric portal, open the Lakehouse settings, find **Livy
-endpoint**, and copy the session-job connection string. For several
-statements that reuse variables and Spark state, use
+Fabric needs a workspace on supported capacity and a Lakehouse. In the
+Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and
+copy the session-job connection string. For several statements that
+reuse variables and Spark state, use
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
 To run a complete Python, Scala/Java, or R application file, use
 [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
 
-Delegated authentication requests `Lakehouse.Execute.All`,
-`Lakehouse.Read.All`, `Code.AccessFabric.All`, and
-`Code.AccessStorage.All`. AzureAuth client-credentials authentication
-uses `https://analysis.windows.net/powerbi/api/.default`, as documented
-by Microsoft for Livy service principals. The caller also needs an
-appropriate workspace role.
+The signed-in identity needs Lakehouse read and execute access,
+permission for code to access Fabric and storage, and an appropriate
+workspace role.
+
+Spark long and decimal columns are returned as character values when
+needed to preserve them exactly. Dates and timestamps use R temporal
+classes; binary and nested values use list-columns.
 
 ## See also
 

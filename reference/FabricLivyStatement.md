@@ -1,8 +1,10 @@
 # A statement submitted to a Fabric Livy session
 
-Instances are returned by `FabricLivySession$submit()`. Call `$wait()`
-and then `$result()` to retrieve parsed output, or use
-`FabricLivySession$run()` to perform those steps together.
+Represents one piece of code submitted to a
+[FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
+Call `$wait()` and then `$result()` to retrieve its output. For the
+usual submit-and-wait workflow, use the session's `$run()` method
+instead.
 
 ## Format
 

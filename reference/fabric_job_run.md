@@ -1,10 +1,9 @@
 # Run and monitor Microsoft Fabric item jobs
 
-Starts one on-demand run of a supported Fabric item, then lets R
-inspect, wait for, or cancel that run. Typical examples are running a
-Notebook, data pipeline, or Spark job definition. This is for immediate
-runs; configure a recurring timetable with Fabric's scheduler in the
-portal or scheduler API.
+Start a Notebook, data pipeline, Spark job definition, or another
+supported Fabric item from R. The related functions check its progress,
+wait for it to finish, or request cancellation. Use Fabric's scheduler
+for recurring runs.
 
 ## Usage
 
@@ -99,10 +98,9 @@ fabric_job_cancel(
 
 - job_type:
 
-  Fabric job type. Known defaults are `"RunNotebook"` for notebooks,
+  Fabric job type. fabricQueryR knows the usual values for notebooks,
   `"Pipeline"` for data pipelines, and `"SparkJob"` for Spark job
-  definitions. Normally omit it for those item types; supply the API's
-  job type for another supported item.
+  definitions, so normally omit this unless running another item type.
 
 - item_type:
 
@@ -112,14 +110,11 @@ fabric_job_cancel(
 
 - parameters:
 
-  A named list of scalar parameter values, or a list of records
-  containing `name`, `value`, and `type`. Names are compared
-  case-insensitively. The simple form, such as
+  A named list of values to pass to the job, such as
   `list(run_date = as.Date("2026-01-31"), full_load = FALSE)`, infers
-  types from R values and is appropriate for most runs. Parameter names
-  must match those configured in the Fabric item. Parameters are not
-  part of the typed Spark Job Definition request and are rejected for
-  that route.
+  types from R and is appropriate for most runs. Names must match the
+  parameters configured in Fabric. Advanced callers can instead supply
+  records with `name`, `value`, and `type`.
 
 - parameter_types:
 
@@ -130,12 +125,9 @@ fabric_job_cancel(
 
 - execution_data:
 
-  Optional advanced workload configuration in the shape documented by
-  Fabric. For notebooks this contains `compute` and optionally
-  `computeConfiguration`; for Spark job definitions it is a named list
-  of execution overrides. For other item types it is forwarded as the
-  Core Job Scheduler's item/job-specific `executionData` object. Use the
-  simpler arguments below for common notebook settings.
+  Optional advanced job settings in the format documented for the Fabric
+  item type. Use the simpler arguments below for common notebook
+  settings.
 
 - default_lakehouse:
 
@@ -157,15 +149,9 @@ fabric_job_cancel(
 
 - session_tag:
 
-  Optional non-empty Spark high-concurrency session tag. Fabric accepts
-  arbitrary string values. Supplying it enables Fabric's
-  high-concurrency mode so related notebook runs may reuse Spark
-  compute. High-concurrency runs also change how failures are reported:
-  Fabric keeps the shared session alive when a statement fails, so the
-  run is reported as `Completed` with no exit value instead of `Failed`.
-  Omit `session_tag` when the caller must detect a failed notebook from
-  the job status, and have the notebook signal its own outcome through
-  `mssparkutils.notebook.exit()` otherwise.
+  Optional tag that enables Spark high-concurrency mode, so related
+  notebook runs may reuse compute. See Details for its effect on failure
+  reporting.
 
 - tenant_id:
 
@@ -178,25 +164,16 @@ fabric_job_cancel(
 
 - token:
 
-  Preferred token input: an
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
-  object, bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow. A `fabric_job` handle reuses its stored
-  credential unless `tenant_id`, `client_id`, `token`, or non-empty
-  `auth_args` is supplied explicitly.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow. A `fabric_job` handle reuses
+  its stored credential unless `tenant_id`, `client_id`, `token`, or
+  non-empty `auth_args` is supplied explicitly.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied. Job submission and cancellation
-  require `Item.Execute.All` or the corresponding workload-specific
-  execute permission. Status polling and waiting also require
-  `Item.Read.All`, `Item.ReadWrite.All`, or the corresponding
-  workload-specific read permission (for example, `Notebook.Read.All`).
-  A token used for a complete run-and-wait workflow therefore needs both
-  execute and read scopes.
+  when no token source is supplied.
 
 - api_base:
 
@@ -223,9 +200,8 @@ fabric_job_cancel(
 
 - respect_retry_after:
 
-  Logical. For a newly submitted job handle, wait until Fabric's initial
-  `Retry-After` time before making the status request. Set to `FALSE`
-  only when deliberately overriding the service guidance.
+  Whether to wait for Fabric's recommended first status-check time. Keep
+  `TRUE` for normal use.
 
 - .sleep, .now:
 
@@ -233,10 +209,8 @@ fabric_job_cancel(
 
 - poll_interval:
 
-  Minimum seconds between status requests. `NULL` uses Fabric's
-  recommended `Retry-After` value, falling back to two seconds. Setting
-  a value never polls faster than Fabric requests. A 0.1-second safety
-  floor applies when both values are zero or absent.
+  Minimum seconds between status checks. `NULL` follows Fabric's
+  recommendation, with a two-second fallback.
 
 - timeout:
 
@@ -254,40 +228,40 @@ fabric_job_cancel(
 
 - cancel:
 
-  Optional callback checked between polls. Returning `TRUE` cancels the
-  Fabric job and raises a `fabric_job_cancelled_by_caller` condition.
-  This is useful for an application-specific stop button. Timeout and
-  caller-cancel conditions contain `cancel_accepted` and `cancel_error`
-  fields so a failure to stop the remote job is never hidden.
+  Optional function checked between status updates. If it returns
+  `TRUE`, fabricQueryR requests cancellation. This can support an
+  application's stop button.
 
 ## Value
 
-`fabric_job_run()` returns a `fabric_job` handle containing the job
-instance ID and resolved workspace, item, job type, status URL, and
-authentication context. `fabric_job_status()` and `fabric_job_wait()`
-return a `fabric_job_instance` list with `status`, start/end times,
-`failure_reason`, notebook `exit_value` when available, workload
-`properties`, and `raw` response. `fabric_job_cancel()` returns `TRUE`
-invisibly after Fabric accepts the cancellation request, or after a
-status check confirms that an ambiguous request reached a terminal job.
-Terminal state may not be visible immediately after a newly accepted
+`fabric_job_run()` returns a `fabric_job` handle for use with the other
+job functions. `fabric_job_status()` and `fabric_job_wait()` return a
+`fabric_job_instance` record with status, times, failure information,
+and a notebook exit value when available. `fabric_job_cancel()`
+invisibly returns `TRUE` after Fabric accepts or confirms the
 cancellation.
 
-## Details
+## Typical workflow
 
-Notebook status uses Fabric's workload-specific beta endpoint first and
-falls back to the core scheduler when that endpoint is unavailable. Job
-submission already uses the release route (`beta=false`). Microsoft
-plans to deprecate the beta notebook API on April 1, 2028; fabricQueryR
-isolates it to the enriched status lookup and will migrate that lookup
-to the stable replacement before the retirement date. A beta response
-that says `Completed` but contains neither an exit value nor failure
-details is reconciled with the core scheduler before it is returned.
-This prevents a failed notebook cell from being reported as a successful
-run while the two Fabric status stores converge. Because Fabric may add
-job statuses over time, `fabric_job_wait()` raises a
-`fabric_job_unknown_status` condition for an unrecognised state instead
-of polling until timeout.
+Start a job with `fabric_job_run()`, then pass the returned handle to
+`fabric_job_wait()`. The handle keeps the workspace, item, job type, and
+sign-in context, so later calls do not need those details again.
+
+## High-concurrency notebooks
+
+A `session_tag` lets related notebook runs share Spark compute, but
+Fabric may report a failed statement as a completed shared session with
+no exit value. Omit the tag when job status must reliably signal
+notebook failure. Otherwise, have the notebook report its outcome with
+`mssparkutils.notebook.exit()`.
+
+## Permissions and status handling
+
+Running and cancelling need an item execute permission. Checking or
+waiting also needs an item read permission. fabricQueryR reconciles
+notebook status information from Fabric before returning it and stops
+with a typed error if Fabric reports an unfamiliar state instead of
+waiting indefinitely.
 
 ## References
 

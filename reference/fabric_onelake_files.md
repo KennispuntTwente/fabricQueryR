@@ -1,8 +1,8 @@
 # Work with files in Microsoft Fabric OneLake
 
-Lists, inspects, downloads, uploads, or deletes files in OneLake, the
-storage layer shared by Fabric data items. These functions treat paths
-as ordinary files through OneLake's ADLS Gen2-compatible API:
+List, inspect, download, upload, and delete ordinary files stored in
+OneLake. These helpers are intended for files such as CSV, JSON, images,
+and model artifacts in a Fabric item's `Files/` area.
 
 - `fabric_onelake_list()` lists paths and follows all continuation
   tokens.
@@ -107,10 +107,9 @@ fabric_onelake_delete(
 
 - workspace:
 
-  Workspace display name, GUID, record from
+  Workspace name, ID, record from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
-  or complete OneLake HTTPS/ABFSS path. Names are convenient
-  interactively; GUIDs avoid problems with spaces and renaming.
+  or a complete OneLake HTTPS/ABFSS path.
 
 - item:
 
@@ -127,8 +126,8 @@ fabric_onelake_delete(
 
 - recursive:
 
-  Logical. For listing, include descendants rather than only direct
-  children. For deletion, allow removal of a non-empty directory.
+  For listing, whether to include all descendants. For deletion, whether
+  a non-empty directory may be removed.
 
 - page_size:
 
@@ -137,10 +136,8 @@ fabric_onelake_delete(
 
 - begin_from:
 
-  Optional relative path within `path` at which listing begins. This is
-  useful for resuming a lexicographically ordered scan without a service
-  continuation token. Recursive listings support multiple path levels;
-  non-recursive listings support one level.
+  Optional path at which to begin a listing. Use this to resume a long,
+  alphabetically ordered scan.
 
 - item_type:
 
@@ -160,23 +157,19 @@ fabric_onelake_delete(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - dfs_base:
 
-  Canonical HTTPS OneLake DFS origin, without credentials, path, query,
-  or fragment. Regional and workspace-private DFS endpoints are
-  supported. When omitted, a DFS endpoint returned by Fabric discovery
-  is preferred over the global default.
+  OneLake service address. Most users should keep the default; a
+  workspace-specific address discovered from Fabric is used when
+  available.
 
 - dest:
 
@@ -192,16 +185,14 @@ fabric_onelake_delete(
 
 - overwrite:
 
-  Logical. Whether an existing destination may be replaced. Both
-  downloads and uploads protect existing files by default. Upload with
-  `overwrite = FALSE` uses `If-None-Match: *`.
+  Whether an existing local or OneLake file may be replaced. Existing
+  files are protected by default.
 
 - if_match:
 
-  Optional ETag for a conditional operation. Values returned by
-  `fabric_onelake_metadata()` can be passed back unchanged. This
-  prevents overwriting, downloading, or deleting a file that changed
-  since it was inspected.
+  Optional file version (`etag`) returned by
+  `fabric_onelake_metadata()`. The operation proceeds only if the file
+  still has that version.
 
 - source:
 
@@ -220,16 +211,13 @@ fabric_onelake_delete(
 
 - allow_managed_tables:
 
-  Logical. Dangerous opt-in for uploading or deleting paths below
-  `Tables/`. Keep `FALSE` unless intentionally managing the Delta
-  transaction protocol at the file level. Direct changes to data files
-  or `_delta_log` can corrupt a managed table; use SQL, Spark, or a
-  Delta-aware writer for normal table changes.
+  Whether to allow direct changes below `Tables/`. Keep `FALSE` for
+  normal use: changing Delta files directly can corrupt a managed table.
 
 - chunk_size:
 
-  Positive upload chunk size in bytes. Defaults to 8 MiB; larger chunks
-  use fewer requests but more memory.
+  Upload chunk size in bytes. The default suits most files; larger
+  values make fewer requests but use more memory.
 
 - confirm:
 
@@ -247,44 +235,36 @@ raw vector when `dest = NULL`, or invisibly returns the destination path
 after writing to disk. `fabric_onelake_delete()` invisibly returns
 `TRUE`.
 
-## Details
+## Choosing a target
 
-A Lakehouse normally contains a `Files/` area for ordinary files and a
-`Tables/` area managed as Delta tables. These helpers are well suited to
-CSV, JSON, images, and other files under `Files/`. They do not interpret
-the Delta transaction log: use
+The easiest inputs are a workspace plus an item returned by
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+You can also use names, IDs, or a complete OneLake HTTPS/ABFSS path.
+When using an item name, include its type suffix, such as
+`"Sales.Lakehouse"`, or supply `item_type`.
+
+A Lakehouse's `Tables/` area is managed as Delta tables. Use
 [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-to read a Delta table, and do not upload or delete individual files
-under `Tables/`, because doing so can make the table inconsistent.
+to read those tables, and use SQL, Spark, or another Delta-aware tool to
+change them. Uploading or deleting individual files below `Tables/` can
+damage a table and is blocked by default.
 
-`workspace` and `item` may be names, GUIDs, or discovery records.
-Name-based items must include their item-type suffix (for example,
-`"Sales.Lakehouse"`) or supply `item_type`. Microsoft requires workspace
-and item GUIDs to be used together. As a convenience, `workspace` may
-instead be a complete `https://...dfs.fabric.microsoft.com/...` or
-`abfss://...` OneLake path, in which case `item` must be `NULL`.
+## Permissions
 
-OneLake uses the Storage token audience
-`https://storage.azure.com/.default`. Fabric manages the item root and
-its first-level folders (such as `Files` and `Tables`), so upload and
-delete operations are limited to descendants of a managed folder.
-Deletion also requires `confirm = TRUE`. Give the signed-in user or
-application access through a workspace role or through the item's
-**Manage OneLake data access** roles. Uploads and deletes require an
-Admin, Member, or Contributor workspace role, or OneLake security
-`ReadWrite` permission on the affected folders. A Fabric administrator
-must also enable **Users can access data stored in OneLake with apps
-external to Fabric** for the caller. If authentication succeeds but
-OneLake returns HTTP 403, check this tenant setting as well as the
-caller's workspace, item, and OneLake data permissions; changing the
-token flow alone will not grant data access.
+The signed-in user or application needs access through a workspace role
+or the item's **Manage OneLake data access** roles. Uploading and
+deleting need write permission. Your Fabric administrator must also
+allow external apps to access OneLake. If a call returns HTTP 403 after
+sign-in succeeds, check both that tenant setting and the item's data
+permissions.
 
-Uploads are streamed in chunks to a temporary sibling file. The
-completed file is atomically renamed to its OneLake destination with the
-requested overwrite or ETag precondition, so failed transfers do not
-truncate an existing remote file. Downloads to disk are also staged in a
-temporary sibling. When replacing a local file, the original is moved to
-a backup and restored if the final rename fails.
+## Safe file replacement
+
+Existing files are protected unless `overwrite = TRUE`. Uploads and
+downloads are staged before replacing their destination, so an
+interrupted transfer does not normally leave a partial file. Use
+`if_match` when a file should be replaced only if it has not changed
+since you inspected it.
 
 ## References
 

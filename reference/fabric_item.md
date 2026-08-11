@@ -1,8 +1,8 @@
 # Discover one Microsoft Fabric item
 
-Finds one item and retrieves the connection details that fabricQueryR
-can use. This is convenient when you know the item's name and do not
-need a collection of every item in the workspace.
+Finds one item and returns the connection details needed by
+fabricQueryR. Use this when you know the item's name or ID and do not
+need to list every item in the workspace.
 
 ## Usage
 
@@ -27,11 +27,10 @@ fabric_item(
 
 - workspace:
 
-  Workspace GUID, exact display name, or a workspace record returned by
+  Workspace name, ID, or record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A record avoids an extra lookup and, if it contains `apiEndpoint`,
-  routes workspace calls through that endpoint. A name is often easier
-  for interactive use.
+  A name is convenient for interactive use; a record avoids an extra
+  lookup.
 
 - item:
 
@@ -70,19 +69,13 @@ fabric_item(
 
 - token:
 
-  Preferred token input: an
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
-  object, bearer-token string, or token-provider function. With `NULL`
-  (the default), `AzureAuth` reuses a matching cached token or starts
-  its normal interactive login flow when a new token is required.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied. Discovery uses the
-  `https://api.fabric.microsoft.com/.default` audience and requires
-  `Workspace.Read.All` or `Workspace.ReadWrite.All`.
+  Additional sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - api_base:
 
@@ -97,12 +90,8 @@ fabric_item(
 
 ## Value
 
-A `fabric_item` list. It contains common fields such as `id`,
-`displayName`, `type`, and `workspaceId`, the nested workload
-`properties`, and applicable connection targets. SQLDatabase records use
-`sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
-records use `sql_server` and `sql_database`. Other workloads can include
-`livy_url`, `dax_connection_string`, or `query_service_uri`.
+One `fabric_item` record containing the item's name, ID, type,
+workspace, and any connection details that Fabric makes available.
 
 ## Details
 

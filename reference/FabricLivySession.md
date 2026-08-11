@@ -1,11 +1,11 @@
 # A Microsoft Fabric Livy session
 
-`FabricLivySession` represents either a regular interactive Livy session
-or a high-concurrency (HC) session. Create instances with
-[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
-rather than calling `$new()` directly. Use `$wait()` before submitting
-work, `$run()` for a convenient submit-and-wait operation, and
-`$close()` when finished.
+A Livy session keeps Spark running while you submit several pieces of
+code. Create one with
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
+call `$wait()` once it starts, use `$run()` to execute code, and call
+`$close()` when finished. Most users do not need to call this R6 class
+directly.
 
 ## Format
 

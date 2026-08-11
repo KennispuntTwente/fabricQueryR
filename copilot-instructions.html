@@ -55,9 +55,23 @@ uv --directory tools/fabric-sandbox run fabric-sandbox discover</code></pre>
 <span><span class="fu">run_fabric_integration_tests</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>The runner first reuses matching cached AzureAuth tokens. If a matching token is unavailable and the three <code>FABRICQUERYR_*</code> variables are configured, it uses AzureAuth’s client-credentials flow. Its final fallback is AzureAuth’s normal interactive sign-in. The application or signed-in user must already have access to the target Fabric workspace.</p>
 </div>
+<div class="section level2">
+<h2 id="roxygen2-documentation">Roxygen2 documentation<a class="anchor" aria-label="anchor" href="#roxygen2-documentation"></a></h2>
+<p>Write public documentation for a typical R user first. Assume the reader knows R, but may not know Fabric’s REST APIs, Azure terminology, storage protocols, token audiences, or internal response formats.</p>
+<ul><li>Start each topic with the user task and the result, in plain language.</li>
+<li>Put the simplest and most common workflow before advanced alternatives.</li>
+<li>Prefer Fabric portal terms that users can see, and briefly explain an unavoidable specialist term the first time it appears.</li>
+<li>Keep parameter descriptions practical: say what to pass, when it is needed, and what the default does. Avoid repeating implementation details there.</li>
+<li>Move permissions, service limits, protocol behavior, exact type mappings, retry rules, and unusual authentication flows into clearly named sections after the basic usage guidance.</li>
+<li>Keep technical detail when it affects correctness, security, data loss, precision, performance, or troubleshooting, but do not make it the opening explanation.</li>
+<li>Use examples based on discovered Fabric records when that is the easiest workflow; show raw IDs, endpoints, or connection strings as alternatives.</li>
+<li>Before adding detail, ask whether it helps most users choose, call, or understand the function. If it serves maintainers rather than users, prefer an internal comment or developer documentation.</li>
+</ul><p>When changing a public function, review its whole help topic for readability; do not append new implementation notes to an already dense introduction.</p>
+</div>
 </div>
 
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

@@ -1,10 +1,10 @@
-# Parse a Microsoft Fabric SQL target
+# Get connection details for a Fabric SQL item
 
-Converts the different ways Fabric identifies a SQL endpoint into one
-consistent set of connection values. Most users can pass a discovered
-item directly to
+Shows the server, database, port, and item type that fabricQueryR will
+use for a Fabric SQL connection. Most users can pass a discovered item
+directly to
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-and do not need to call this function.
+and do not need to call this helper.
 
 ## Usage
 
@@ -37,11 +37,8 @@ fabric_sql_connection_info(
 
 - target_type:
 
-  Label for the endpoint kind. Keep `"auto"` unless the hostname is
-  custom or ambiguous. The explicit choices distinguish a Lakehouse SQL
-  analytics endpoint, Warehouse, transactional SQL Database, or another
-  read-only SQL analytics endpoint; they do not convert one kind of
-  endpoint into another.
+  Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
+  prevents fabricQueryR from identifying it.
 
 - port:
 

@@ -1,10 +1,9 @@
 # Read a Delta table from OneLake
 
-Read a Delta table from Microsoft Fabric OneLake using the Python
-[deltalake](https://pypi.org/project/deltalake/) package through the
-`reticulate` R package. Return a tibble by default or a lazy Arrow
-stream for batch processing. Column selection, row limits, and table
-version reads are supported.
+Loads a Lakehouse or compatible Warehouse table into R. By default the
+result is a tibble; you can select columns, preview a limited number of
+rows, read an earlier table version, or return an Arrow stream for
+larger results.
 
 ## Usage
 
@@ -33,7 +32,7 @@ fabric_onelake_read_delta_table(
 
 - table_path:
 
-  Table name without a schema. Use `schema` separately when needed.
+  Table name. Supply its schema separately when needed.
 
 - workspace_name:
 
@@ -83,9 +82,9 @@ fabric_onelake_read_delta_table(
 
 - dfs_base:
 
-  Canonical HTTPS OneLake DFS origin, without credentials, path, query,
-  or fragment. When omitted, a DFS endpoint returned by Fabric discovery
-  is preferred over the global default.
+  OneLake service address. Most users should keep the default; a
+  workspace-specific address discovered from Fabric is used when
+  available.
 
 - columns:
 
@@ -104,29 +103,32 @@ fabric_onelake_read_delta_table(
 A tibble, or a disk-backed, lazy, single-use Arrow stream when
 `result = "arrow_stream"`.
 
-## Details
+## Basic use
 
-Most users only need to provide the table, workspace, and Lakehouse.
-These can be names, IDs, or records returned by fabricQueryR's discovery
-functions. If the Lakehouse uses schemas, provide the table's `schema`
-separately.
+Supply the table name, workspace, and Lakehouse. Names, IDs, and
+discovery records are accepted. If the Lakehouse uses schemas, pass the
+schema name separately. The function otherwise reads the latest version
+and all columns and rows into a tibble.
 
-By default, the function reads all rows and columns into memory. Use
-`columns` to select only the fields you need and `limit` for a quick
-preview. A limit does not guarantee which rows are returned. Use
-`version` to read an earlier version of the table.
+Use `columns` to keep only the fields you need, `limit` for a quick
+preview, and `version` to read an earlier version. A row limit does not
+guarantee which rows are selected.
+
+## Large and nested results
 
 For a large table, or one containing nested data, set
-`result = "arrow_stream"` to process the result in batches. The remote
-data is staged in a temporary Arrow IPC file while the OneLake token is
-current, and the returned disk-backed stream is lazy and can be read
-only once. This avoids token expiry between creating and consuming a
-stream, and keeps the result out of R memory, but requires enough
-temporary disk space for the selected data. The temporary file is
-removed when the stream is released.
+`result = "arrow_stream"` to process rows in batches instead of
+collecting them all into R memory. The stream is disk-backed and can be
+read only once, so enough temporary disk space must be available for the
+selected data.
 
-Result types are normalized deliberately; even `result = "arrow_stream"`
-does not always preserve the source Arrow storage type:
+## Column types
+
+Common dates, timestamps, numbers, text, and logical values are
+converted to practical R types. Values that R cannot represent exactly,
+including decimal and 64-bit integer values, are returned as character
+data when collecting a tibble. Nested columns require an Arrow stream.
+The complete mapping is:
 
 |  |  |  |
 |----|----|----|
@@ -141,12 +143,11 @@ does not always preserve the source Arrow storage type:
 | Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | nanoarrow's corresponding R scalar type |
 | Struct, map, list, extension/Variant | corresponding normalized Arrow type when supported | rejected; request an Arrow stream |
 
-Decimal text retains its scale and digits. Offset downcasts are
-necessary for the R nanoarrow bridge used here and can fail if an
-individual buffer exceeds the 32-bit representation. Tibble collection
-additionally changes 32-bit integers to doubles and timezone-free
-timestamps to text so missing values and timezone semantics are not
-silently confused.
+Decimal text retains its scale and digits. Some large Arrow buffer types
+are normalized for R compatibility and may fail if one value exceeds the
+supported buffer size.
+
+## Permissions and supported tables
 
 Direct reads require OneLake data access; item `Read` permission by
 itself is not enough. The caller needs `ReadAll` or a suitable OneLake
@@ -157,22 +158,16 @@ model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 and [OneLake tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
 
-Some tables use advanced Delta features that the deltalake Python
-package does not support. The function will detect these features and
-abort. Unsupported features include Type Widening, V2 Checkpoints, and
-Fabric Variant. Use the SQL or Spark (Livy) functions to read these
-tables.
+This function uses the Python
+[deltalake](https://pypi.org/project/deltalake/) reader through
+`reticulate`. Some newer Delta features, including Type Widening, V2
+Checkpoints, and Fabric Variant, are not supported by that reader. Use
+SQL or Spark (Livy) if the function reports an unsupported table
+feature.
 
-Fabric publishes Warehouse user tables as read-only Delta logs
-specifically for access by other engines, so Warehouse access is a
-Fabric-supported scenario. This function nevertheless depends on its
-pinned Python `deltalake` runtime and is limited to the Delta reader
-features implemented by that package. A `fabric_delta_unsupported_error`
-for a Warehouse table is therefore a fabricQueryR/runtime
-interoperability limit, not a statement that Fabric Warehouse lacks open
-Delta access. Use
-[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-for the Warehouse when the pinned reader cannot open its table protocol.
+Compatible Warehouse tables can also be read through their published
+Delta logs. If the reader cannot open a Warehouse table, use
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md).
 
 ## Examples
 

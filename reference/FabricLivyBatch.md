@@ -1,10 +1,10 @@
 # A Microsoft Fabric Livy batch job
 
-Instances are returned by
+Represents a Spark application submitted with
 [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
-Use `$status()` to refresh metadata, `$wait()` to block until
-completion, `$logs()`/`$result()` to inspect the outcome, and
-`$cancel()` to request cancellation.
+Use `$wait()` to wait for completion, `$result()` or `$logs()` to
+inspect the outcome, and `$cancel()` to request cancellation. Most users
+do not need to call this R6 class directly.
 
 ## Format
 

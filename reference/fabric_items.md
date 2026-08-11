@@ -1,8 +1,8 @@
 # Discover Microsoft Fabric items
 
-Lists the items stored in one workspace. In Fabric, an *item* is a
-resource such as a Lakehouse, Warehouse, semantic model, notebook, or
-Eventhouse.
+Returns the Lakehouses, Warehouses, semantic models, notebooks, and
+other items stored in a workspace. Set `detail = TRUE` when you want
+records that can be passed directly to query or connection functions.
 
 ## Usage
 
@@ -29,11 +29,10 @@ fabric_items(
 
 - workspace:
 
-  Workspace GUID, exact display name, or a workspace record returned by
+  Workspace name, ID, or record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A record avoids an extra lookup and, if it contains `apiEndpoint`,
-  routes workspace calls through that endpoint. A name is often easier
-  for interactive use.
+  A name is convenient for interactive use; a record avoids an extra
+  lookup.
 
 - type:
 
@@ -43,18 +42,15 @@ fabric_items(
 
 - detail:
 
-  Logical. `FALSE` makes the fewest API calls and is sufficient for
-  names and IDs. `TRUE` also retrieves supported workload properties,
-  such as SQL connection strings and Livy or KQL endpoints, but is
-  slower and can require additional permissions. The typed helpers below
-  use `TRUE`.
+  Whether to retrieve connection details as well as names and IDs. This
+  takes more requests and may require additional permissions. The typed
+  discovery helpers use `TRUE` by default.
 
 - detail_errors:
 
-  How workload-detail or optional private SQL endpoint failures are
-  handled. `"record"` retains every successfully retrieved field, stores
-  the message in `detail_error`, and emits one summary warning.
-  `"abort"` preserves strict all-or-nothing behavior.
+  What to do if some connection details cannot be read. `"record"`
+  returns the available information and stores an error message with the
+  affected item; `"abort"` stops the call.
 
 - recursive:
 
@@ -85,19 +81,13 @@ fabric_items(
 
 - token:
 
-  Preferred token input: an
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html)
-  object, bearer-token string, or token-provider function. With `NULL`
-  (the default), `AzureAuth` reuses a matching cached token or starts
-  its normal interactive login flow when a new token is required.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied. Discovery uses the
-  `https://api.fabric.microsoft.com/.default` audience and requires
-  `Workspace.Read.All` or `Workspace.ReadWrite.All`.
+  Additional sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - api_base:
 
@@ -112,18 +102,10 @@ fabric_items(
 
 ## Value
 
-A list with one `fabric_item` object per item. Each object is a named
-list with common fields including `id`, `displayName`, `type`,
-`workspaceId`, and `folderId`. With `detail = TRUE`, applicable objects
-also contain ready-to-use connection fields. SQLDatabase records contain
-`sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
-records contain `sql_server` and `sql_database`. Other workloads can
-contain `one_lake_*_path`, `dax_connection_string`, `livy_url`,
-`query_service_uri`, or `graphql_endpoint`. When supplied by Fabric,
-`workspaceApiEndpoint` preserves the workspace-specific API origin for
-later job calls. Fields that do not apply to an item are absent;
-`detail_error` records failed enrichment requests. Nested service data
-is retained in place, including in `properties`.
+A list with one item record per match. Every record includes common
+fields such as `id`, `displayName`, `type`, and `workspaceId`. With
+`detail = TRUE`, records also include the connection details needed by
+the matching fabricQueryR functions when Fabric makes them available.
 
 ## Details
 

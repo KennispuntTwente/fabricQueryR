@@ -1,11 +1,9 @@
 # Typed Microsoft Fabric item discovery
 
-These shortcuts list one kind of item and include the detailed
-connection fields used by the matching query functions. They are
-equivalent to
-[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
-with a fixed item type and `detail = TRUE`. Set `detail = FALSE` when
-only names and identifiers are needed.
+These shortcuts find one kind of Fabric item. By default, they also
+retrieve the connection details needed by the matching query functions,
+so their results can usually be passed straight to the next fabricQueryR
+call. Set `detail = FALSE` when you only need names and IDs.
 
 ## Usage
 
@@ -33,19 +31,16 @@ fabric_graphql_apis(workspace, detail = TRUE, ...)
 
 - workspace:
 
-  Workspace GUID, exact display name, or a workspace record returned by
+  Workspace name, ID, or record returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A record avoids an extra lookup and, if it contains `apiEndpoint`,
-  routes workspace calls through that endpoint. A name is often easier
-  for interactive use.
+  A name is convenient for interactive use; a record avoids an extra
+  lookup.
 
 - detail:
 
-  Logical. `FALSE` makes the fewest API calls and is sufficient for
-  names and IDs. `TRUE` also retrieves supported workload properties,
-  such as SQL connection strings and Livy or KQL endpoints, but is
-  slower and can require additional permissions. The typed helpers below
-  use `TRUE`.
+  Whether to retrieve connection details as well as names and IDs. This
+  takes more requests and may require additional permissions. The typed
+  discovery helpers use `TRUE` by default.
 
 - ...:
 

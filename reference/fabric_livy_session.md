@@ -1,8 +1,9 @@
 # Create a Microsoft Fabric Livy session
 
-Starts an interactive Spark context that can run several statements
-while retaining variables and Spark state between them. This avoids
-starting new compute for each call.
+Starts Spark compute that can run several statements while keeping
+variables and Spark state between calls. Use
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
+instead for a single, self-contained operation.
 
 ## Usage
 
@@ -53,13 +54,9 @@ fabric_livy_session(
 
 - high_concurrency:
 
-  Logical. `FALSE` creates a standard session for sequential or
-  low-concurrency work. `TRUE` creates an isolated REPL that Fabric can
-  pack into shared Spark sessions, which is useful when an application
-  runs several independent Spark workloads concurrently. High
-  concurrency is currently a Microsoft preview capability; its
-  availability and service contract can change before general
-  availability.
+  Whether to let Fabric share Spark compute between several isolated
+  workloads. Keep `FALSE` for a typical sequence of calls in one R
+  process. This Fabric capability is currently in preview.
 
 - session_tag:
 
@@ -131,25 +128,18 @@ fabric_livy_session(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
+  Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - audience:
 
-  Optional OAuth audience/scope vector. With `NULL`, delegated
-  authentication requests Microsoft's four required Livy scopes, while
-  an AzureAuth client-credentials flow requests the Power BI `.default`
-  audience documented for service principals. Supply this explicitly
-  when a custom token provider or identity flow requires a different
-  token target.
+  Optional sign-in scope. Most users should leave this `NULL`; set it
+  only for a custom token provider or identity flow.
 
 - verbose:
 
@@ -168,20 +158,20 @@ A newly created
 It may still be starting; call `$wait()` before `$submit()`/`$run()`,
 and `$close()` when finished.
 
-## Details
+## Choosing a session type
 
-Use a standard session for a typical interactive sequence in one R
-process. High concurrency is intended for automation that needs multiple
-isolated Spark statement streams at the same time; it is not necessary
-merely to run several statements sequentially.
+Use a standard session for a typical sequence in one R process. High
+concurrency is for applications that run several independent Spark
+workloads at the same time; it is not needed for several sequential
+statements.
+
+## Cleanup and permissions
 
 No network request is made when an open object is garbage collected.
-Call `$close()` explicitly, and use `on.exit(session$close())` in
-functions, for deterministic cleanup. Delegated authentication requests
-`Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`,
-and `Code.AccessStorage.All`. AzureAuth client-credentials
-authentication uses `https://analysis.windows.net/powerbi/api/.default`,
-as documented by Microsoft for Livy service principals.
+Call `$close()` explicitly, and use `on.exit(session$close())` inside
+functions. The signed-in identity needs Lakehouse read and execute
+access, permission for code to access Fabric and storage, and an
+appropriate workspace role.
 
 ## See also
 

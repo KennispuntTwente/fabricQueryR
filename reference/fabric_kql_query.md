@@ -1,9 +1,8 @@
-# Query a Microsoft Fabric Eventhouse with KQL
+# Run a KQL query in Microsoft Fabric
 
-Runs a read-only Kusto Query Language (KQL) query against a KQL database
-and converts the result to R objects. In Fabric, an Eventhouse is a
-container for one or more KQL databases designed for fast analysis of
-event, log, telemetry, and time-series data.
+Runs a read-only query against a KQL database and returns the result as
+a tibble. KQL databases are commonly used for event, log, telemetry, and
+time-series data in a Fabric Eventhouse.
 
 ## Usage
 
@@ -28,7 +27,7 @@ fabric_kql_query(
 
 - cluster:
 
-  Query-service URI, or one Eventhouse or KQLDatabase record returned by
+  Query URI, or one Eventhouse or KQLDatabase record returned by
   [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   or
@@ -48,11 +47,8 @@ fabric_kql_query(
 
 - parameters:
 
-  Named list of values for parameters declared by
-  `declare query_parameters(...)` in `query`. Scalar R values become
-  Kusto scalar values; vectors and lists become `dynamic` values.
-  Binding is safer and easier to quote correctly than building KQL with
-  [`paste()`](https://rdrr.io/r/base/paste.html).
+  Named list of values declared with `declare query_parameters(...)` in
+  `query`.
 
 - request_properties:
 
@@ -79,17 +75,13 @@ fabric_kql_query(
 
 - token:
 
-  Optional
-  [`AzureAuth::AzureToken`](https://rdrr.io/pkg/AzureAuth/man/AzureToken.html),
-  bearer-token string, or token-provider function. With `NULL`,
-  `AzureAuth` reuses a matching cached token or starts its normal
-  interactive login flow.
+  Optional access token or token-provider function. Leave `NULL` to let
+  fabricQueryR use its normal sign-in flow.
 
 - auth_args:
 
-  Named list of additional arguments passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-  when no token source is supplied.
+  Additional sign-in options passed to
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 
 - allow_custom_endpoint:
 
@@ -104,30 +96,30 @@ multiple primary results (one named element per table), or an empty
 tibble when there is no primary result. See Details for the KQL-to-R
 type mapping.
 
-## Details
+## Basic use
 
 The easiest input is an item from
 [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
-because it supplies both the database name and its **Query URI**. If
-copying a URI from Fabric, use **Query URI**, not **Ingestion URI**;
-this function queries existing data and does not load new data. The
-caller needs database access through a Fabric workspace role, Eventhouse
-sharing, or KQL database sharing.
+which already contains the database name and its **Query URI**. If you
+copy a URI from Fabric, choose **Query URI**, not **Ingestion URI**.
+This function reads existing data; it does not load data or run
+management commands.
 
-This function uses the Kusto v2 REST query endpoint and requests a token
-for `https://api.kusto.windows.net/.default`.
+Put changing values in `parameters` and declare them in KQL with
+`declare query_parameters(...)`. The values are sent separately from the
+query text, which is safer and easier to quote correctly than using
+[`paste()`](https://rdrr.io/r/base/paste.html). Scalar R values become
+KQL scalar values; vectors and lists become `dynamic` arrays or objects.
 
-Query parameters are sent through Kusto client request properties, never
-interpolated into `query`. Declare them in KQL with
-`declare query_parameters(...)`. Scalar R values are encoded as Kusto
-parameter values; vectors and lists are encoded as `dynamic(...)`
-literals. Zero-length vectors and unnamed lists encode `dynamic([])`. A
-zero-length list with non-`NULL` names encodes `dynamic({})`; `NULL`
-remains invalid so it cannot be confused with an empty collection or a
-typed Kusto null. Microsoft Fabric does not support the
-`queryconsistency` or `query_weakconsistency_session_id` request
-properties. Do not include either name in `request_properties`, even
-though Azure Data Explorer supports them.
+## Advanced request options
+
+`request_properties` controls server behavior such as timeouts and
+result truncation. Most users can leave it empty. Microsoft Fabric does
+not support the `queryconsistency` or `query_weakconsistency_session_id`
+request properties. Do not include either name in `request_properties`,
+even though Azure Data Explorer supports them.
+
+## Result types
 
 KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns
 normally become logical, UTC `POSIXct`, integer,
@@ -140,13 +132,15 @@ and `decimal` values are character vectors. Keeping decimal values in
 their original lexical form avoids the silent precision loss that
 conversion to an R double can cause.
 
-A query with one primary result table returns a tibble. A query with
-multiple primary result tables returns a named list of tibbles with
-class `fabric_kql_tables`. Auxiliary tables, completion information, raw
-frames, response headers, and correlation IDs are retained as `kusto_*`
-attributes. A query with no primary table returns an empty tibble.
-Management commands and ingestion endpoints are intentionally not
-supported.
+A query with several result tables returns a named `fabric_kql_tables`
+list; a query with no result table returns an empty tibble. Service
+metadata is retained in `kusto_*` attributes for troubleshooting.
+
+## Permissions
+
+The caller needs database access through a Fabric workspace role,
+Eventhouse sharing, or KQL database sharing. Authentication uses the
+Kusto query service.
 
 ## References
 
