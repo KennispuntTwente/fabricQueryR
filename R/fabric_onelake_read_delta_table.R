@@ -4,6 +4,7 @@
   typewidening = "TypeWidening",
   typewideningpreview = "TypeWidening-preview",
   v2checkpoint = "V2Checkpoint",
+  varianttype = "VariantType",
   variantshredding = "VariantShredding"
 )
 
