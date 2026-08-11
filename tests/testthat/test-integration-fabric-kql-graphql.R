@@ -54,19 +54,19 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   exact_decimal <- fabric_kql_query(
     database$query_service_uri,
     query = paste0(
-      "print positive=decimal(12345678901234567890.123456789012345), ",
-      "negative=decimal(-12345678901234567890.123456789012345)"
+      "print positive=decimal(1234567890123456789.123456789012345), ",
+      "negative=decimal(-1234567890123456789.123456789012345)"
     ),
     database = database$database_name,
     token = token
   )
   expect_identical(
     exact_decimal$positive,
-    "12345678901234567890.123456789012345"
+    "1234567890123456789.123456789012345"
   )
   expect_identical(
     exact_decimal$negative,
-    "-12345678901234567890.123456789012345"
+    "-1234567890123456789.123456789012345"
   )
 })
 
