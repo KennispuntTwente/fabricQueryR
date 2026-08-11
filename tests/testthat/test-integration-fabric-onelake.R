@@ -1136,10 +1136,15 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
       actual,
       expected$schema
     )
-    expect_equal(
+    differences <- fabric_test_delta_differences(
       actual_rows,
       expected$rows,
-      info = paste(source, "complete Spark logical rows")
+      source
+    )
+    expect_length(
+      differences,
+      0L,
+      info = paste(differences, collapse = "\n")
     )
   }
 })
