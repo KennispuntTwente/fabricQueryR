@@ -416,6 +416,13 @@ fabric_test_delta_differences <- function(actual, expected, feature) {
   )
 }
 
+fabric_test_expect_no_delta_differences <- function(differences) {
+  if (length(differences)) {
+    testthat::fail(paste(differences, collapse = "\n"))
+  }
+  invisible(NULL)
+}
+
 test_that("Delta oracle differences are bounded for large tables", {
   actual <- data.frame(id = seq_len(100000L))
   expected <- actual
@@ -429,6 +436,12 @@ test_that("Delta oracle differences are bounded for large tables", {
 
   expect_lte(length(differences), 10L)
   expect_lt(nchar(paste(differences, collapse = "\n")), 5000L)
+  failure <- tryCatch(
+    fabric_test_expect_no_delta_differences(differences),
+    expectation_failure = identity
+  )
+  expect_s3_class(failure, "expectation_failure")
+  expect_lt(nchar(conditionMessage(failure)), 5000L)
 })
 
 test_that("Delta row ordering treats exact integer text numerically", {
@@ -1142,11 +1155,7 @@ test_that("supported Delta rows match the independent Spark logical oracle", {
       expected$rows,
       source
     )
-    expect_length(
-      differences,
-      0L,
-      info = paste(differences, collapse = "\n")
-    )
+    fabric_test_expect_no_delta_differences(differences)
   }
 })
 
