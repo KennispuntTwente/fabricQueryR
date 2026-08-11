@@ -66,3 +66,26 @@ token audiences, or internal response formats.
 
 When changing a public function, review its whole help topic for readability;
 do not append new implementation notes to an already dense introduction.
+
+## NEWS.md
+
+Treat the current development section as release notes for users, not as a
+development log. Its comparison point is the latest git-tagged release.
+
+- Before editing NEWS, inspect the net change from the latest release tag to
+  `HEAD` (for example with `git diff <tag>..HEAD` and `git log <tag>..HEAD`).
+- Include the most important user-visible additions, behavior changes,
+  deprecations, compatibility breaks, and fixes to functionality that existed
+  in the tagged release.
+- Describe the final behavior of a feature once. Fold later fixes and
+  refinements to a feature introduced during the same development cycle into
+  its original entry; do not give those intermediate changes separate bullets.
+- Omit internal refactors, test and CI work, documentation-only edits, routine
+  validation details, and implementation mechanics unless they have a material
+  consequence for package users.
+- Write concise, plain-language bullets organized by user task. Mention
+  function or argument names when they help users find or adapt to a change,
+  but avoid protocol details and exhaustive lists of edge cases.
+- Re-audit the whole development section when updating it. Remove entries that
+  became obsolete, were superseded, or describe differences only between
+  untagged development commits.
