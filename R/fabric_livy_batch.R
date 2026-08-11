@@ -147,7 +147,10 @@ FabricLivyBatch <- R6::R6Class(
         response$fabricBatchStateInfo$state %||% ""
       )
       terminal <- state %in%
-        c(.fabric_livy_batch_success_states, .fabric_livy_batch_failure_states) ||
+        c(
+          .fabric_livy_batch_success_states,
+          .fabric_livy_batch_failure_states
+        ) ||
         result %in% c("succeeded", "failed", "cancelled", "canceled") ||
         fabric_state %in% c("error", "cancelled", "canceled", "expired")
       if (terminal) {
