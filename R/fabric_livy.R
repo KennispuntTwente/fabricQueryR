@@ -710,7 +710,7 @@ fabric_livy_convert_column <- function(values, type) {
   if (kind %in% c("float", "double")) {
     text <- fabric_livy_atomic_text(values)
     out <- suppressWarnings(as.numeric(text))
-    if (any(!is.na(text) & is.na(out))) {
+    if (any(!is.na(text) & is.na(out) & !is.nan(out))) {
       fabric_livy_invalid_type(kind)
     }
     return(out)
@@ -731,7 +731,10 @@ fabric_livy_convert_column <- function(values, type) {
     }
     return(out)
   }
-  if (kind %in% c("timestamp", "timestamp_ntz")) {
+  if (identical(kind, "timestamp_ntz")) {
+    return(fabric_livy_atomic_text(values))
+  }
+  if (identical(kind, "timestamp")) {
     text <- fabric_livy_atomic_text(values)
     parsed <- vapply(
       text,

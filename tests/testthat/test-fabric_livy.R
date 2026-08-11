@@ -381,6 +381,8 @@ test_that("Livy table conversion follows the declared Spark schema", {
       list(name = "long", type = "BIGINT_TYPE"),
       list(name = "amount", type = "decimal(38,15)"),
       list(name = "at", type = "timestamp"),
+      list(name = "local_at", type = "timestamp_ntz"),
+      list(name = "measurement", type = "double"),
       list(name = "bytes", type = "binary"),
       list(name = "nested", type = list(type = "array", elementType = "long"))
     ),
@@ -390,10 +392,12 @@ test_that("Livy table conversion follows the declared Spark schema", {
         "9007199254740993",
         "12345678901234567890.123456789012345",
         "2026-08-10T12:30:01.125Z",
+        "2026-08-10 12:30:01.125",
+        "NaN",
         jsonlite::base64_enc(charToRaw("abc")),
         list("9007199254740993", NULL)
       ),
-      list(NULL, "-1", "-0.0100", NULL, NULL, NULL)
+      list(NULL, "-1", "-0.0100", NULL, NULL, "Infinity", NULL, NULL)
     )
   ))
 
@@ -409,6 +413,12 @@ test_that("Livy table conversion follows the declared Spark schema", {
     format(parsed$at[[1L]], "%Y-%m-%d %H:%M:%OS3", tz = "UTC"),
     "2026-08-10 12:30:01.125"
   )
+  expect_identical(
+    parsed$local_at,
+    c("2026-08-10 12:30:01.125", NA_character_)
+  )
+  expect_true(is.nan(parsed$measurement[[1L]]))
+  expect_identical(parsed$measurement[[2L]], Inf)
   expect_identical(rawToChar(parsed$bytes[[1L]]), "abc")
   expect_null(parsed$bytes[[2L]])
   expect_identical(parsed$nested[[1L]][[1L]], "9007199254740993")

@@ -151,6 +151,21 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     "9007199254740993"
   )
 
+  special_values <- session$run(
+    paste0(
+      "SELECT CAST('NaN' AS DOUBLE) AS nan_value, ",
+      "TIMESTAMP_NTZ '2026-08-10 12:30:01.125' AS local_at"
+    ),
+    kind = "sql",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_true(is.nan(special_values$output$parsed$nan_value[[1L]]))
+  expect_identical(
+    special_values$output$parsed$local_at,
+    "2026-08-10 12:30:01.125"
+  )
+
   failed <- session$submit(
     "raise RuntimeError('FABRICQUERYR_INTENTIONAL_STATEMENT_FAILURE')",
     kind = "pyspark"
