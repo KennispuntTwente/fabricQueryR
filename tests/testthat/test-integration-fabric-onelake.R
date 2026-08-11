@@ -1450,6 +1450,46 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
     )),
     "second-version"
   )
+
+  file_delete_path <- paste0(test_root, "/individual-file.txt")
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    file_delete_path,
+    source = charToRaw("delete-me"),
+    token = token
+  )
+  expect_true(fabric_onelake_delete(
+    manifest$workspace_id,
+    lakehouse$id,
+    file_delete_path,
+    confirm = TRUE,
+    token = token
+  ))
+
+  empty_directory_file <- paste0(test_root, "/empty-directory/file.txt")
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    empty_directory_file,
+    source = raw(),
+    token = token
+  )
+  expect_true(fabric_onelake_delete(
+    manifest$workspace_id,
+    lakehouse$id,
+    empty_directory_file,
+    confirm = TRUE,
+    token = token
+  ))
+  expect_true(fabric_onelake_delete(
+    manifest$workspace_id,
+    lakehouse$id,
+    paste0(test_root, "/empty-directory"),
+    confirm = TRUE,
+    token = token
+  ))
+
   expect_true(fabric_onelake_delete(
     manifest$workspace_id,
     lakehouse$id,

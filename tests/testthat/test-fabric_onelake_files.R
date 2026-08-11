@@ -651,6 +651,7 @@ test_that("OneLake upload removes temporary files after transfer failure", {
     c("PUT", "PATCH", "DELETE")
   )
   expect_match(calls[[3L]]$url, "fabricqueryr-upload")
+  expect_false(grepl("recursive=", calls[[3L]]$url, fixed = TRUE))
   expect_false(any(grepl(
     "Files/failure.txt\\?mode=posix",
     vapply(
@@ -696,6 +697,7 @@ test_that("OneLake upload cleans up an ambiguously failed temporary create", {
     sub("\\?.*$", "", calls[[1L]]$url),
     sub("\\?.*$", "", calls[[2L]]$url)
   )
+  expect_false(grepl("recursive=", calls[[2L]]$url, fixed = TRUE))
 })
 
 test_that("OneLake upload preserves conflict errors and creates nested parents", {
@@ -764,9 +766,15 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
   calls <- list()
   httr2::local_mocked_responses(function(req) {
     calls[[length(calls) + 1L]] <<- req
+    if (identical(req$method, "HEAD")) {
+      return(onelake_test_response(
+        headers = list("x-ms-resource-type" = "directory"),
+        url = req$url
+      ))
+    }
     onelake_test_response(
       status = 200L,
-      headers = if (length(calls) == 1L) {
+      headers = if (length(calls) == 2L) {
         list("x-ms-continuation" = "delete-token")
       } else {
         list()
@@ -783,20 +791,57 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
     if_match = "\"etag\"",
     token = "token"
   ))
-  expect_equal(length(calls), 2L)
+  expect_equal(length(calls), 3L)
+  expect_equal(calls[[1L]]$method, "HEAD")
   expect_true(all(
-    vapply(calls, function(req) req$method, character(1)) == "DELETE"
+    vapply(calls[-1L], function(req) req$method, character(1)) == "DELETE"
   ))
-  expect_match(calls[[1L]]$url, "recursive=true")
-  expect_match(calls[[1L]]$url, "paginated=true")
-  expect_match(calls[[2L]]$url, "continuation=delete-token")
-  expect_equal(calls[[1L]]$headers[["If-Match"]], "\"etag\"")
+  expect_match(calls[[2L]]$url, "recursive=true")
+  expect_match(calls[[2L]]$url, "paginated=true")
+  expect_match(calls[[3L]]$url, "continuation=delete-token")
+  expect_equal(calls[[2L]]$headers[["If-Match"]], "\"etag\"")
+})
+
+test_that("OneLake deletion omits directory parameters for files", {
+  calls <- list()
+  httr2::local_mocked_responses(function(req) {
+    calls[[length(calls) + 1L]] <<- req
+    onelake_test_response(
+      headers = if (identical(req$method, "HEAD")) {
+        list("x-ms-resource-type" = "file")
+      } else {
+        list()
+      },
+      url = req$url
+    )
+  })
+
+  expect_true(fabric_onelake_delete(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/file.txt",
+    recursive = TRUE,
+    confirm = TRUE,
+    token = "token"
+  ))
+  expect_equal(
+    vapply(calls, function(req) req$method, character(1)),
+    c("HEAD", "DELETE")
+  )
+  expect_false(grepl("recursive=", calls[[2L]]$url, fixed = TRUE))
+  expect_false(grepl("paginated=", calls[[2L]]$url, fixed = TRUE))
 })
 
 test_that("OneLake deletion rejects repeated continuation tokens", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {
     calls <<- calls + 1L
+    if (identical(req$method, "HEAD")) {
+      return(onelake_test_response(
+        headers = list("x-ms-resource-type" = "directory"),
+        url = req$url
+      ))
+    }
     onelake_test_response(
       status = 200L,
       headers = list("x-ms-continuation" = "repeated-token"),
@@ -816,7 +861,7 @@ test_that("OneLake deletion rejects repeated continuation tokens", {
     "repeated pagination URL",
     fixed = TRUE
   )
-  expect_equal(calls, 2L)
+  expect_equal(calls, 3L)
 })
 
 test_that("OneLake validates ranges and protected paths before I/O", {

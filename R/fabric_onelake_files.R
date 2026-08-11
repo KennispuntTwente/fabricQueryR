@@ -1218,7 +1218,11 @@ onelake_upload_target <- function(
   on.exit(
     if (temporary_may_exist && !committed) {
       try(
-        onelake_delete_target(temporary, credential),
+        onelake_delete_target(
+          temporary,
+          credential,
+          is_directory = FALSE
+        ),
         silent = TRUE
       )
     },
@@ -1383,7 +1387,8 @@ onelake_delete_target <- function(
   target,
   credential,
   recursive = FALSE,
-  if_match = NULL
+  if_match = NULL,
+  is_directory = NULL
 ) {
   if (
     !is.logical(recursive) ||
@@ -1391,6 +1396,17 @@ onelake_delete_target <- function(
       is.na(recursive)
   ) {
     rlang::abort("recursive must be TRUE or FALSE")
+  }
+  if (is.null(is_directory)) {
+    metadata <- onelake_metadata_target(target, credential)
+    is_directory <- metadata$is_directory[[1L]]
+  }
+  if (
+    !is.logical(is_directory) ||
+      length(is_directory) != 1L ||
+      is.na(is_directory)
+  ) {
+    rlang::abort("is_directory must be TRUE or FALSE")
   }
   headers <- list()
   if (!is.null(if_match)) {
@@ -1405,8 +1421,11 @@ onelake_delete_target <- function(
       "DELETE",
       headers = headers
     )
-    query <- list(req, recursive = if (recursive) "true" else "false")
-    if (recursive) {
+    query <- list(req)
+    if (is_directory) {
+      query$recursive <- if (recursive) "true" else "false"
+    }
+    if (is_directory && recursive) {
       query$paginated <- "true"
     }
     if (!is.null(continuation)) {
