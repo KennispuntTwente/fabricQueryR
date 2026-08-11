@@ -7,9 +7,9 @@
 An \link[R6:R6Class]{R6::R6Class} generator.
 }
 \description{
-Instances are returned by \code{FabricLivySession$submit()}. Call \verb{$wait()} and
-then \verb{$result()} to retrieve parsed output, or use
-\code{FabricLivySession$run()} to perform those steps together.
+Represents one piece of code submitted to a \link{FabricLivySession}. Call
+\verb{$wait()} and then \verb{$result()} to retrieve its output. For the usual
+submit-and-wait workflow, use the session's \verb{$run()} method instead.
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}

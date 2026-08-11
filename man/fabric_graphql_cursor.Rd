@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_graphql_query.R
 \name{fabric_graphql_cursor}
 \alias{fabric_graphql_cursor}
-\title{Build a Fabric GraphQL cursor extractor}
+\title{Locate pagination information in a GraphQL result}
 \usage{
 fabric_graphql_cursor(path, has_next = "hasNextPage", end_cursor = "endCursor")
 }
@@ -23,5 +23,6 @@ A function suitable for \code{next_cursor} in
 \code{has_next} is true, otherwise \code{NULL}.
 }
 \description{
-Build a Fabric GraphQL cursor extractor
+Creates the \code{next_cursor} function used by \code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}} for the
+common \code{hasNextPage} and \code{endCursor} pagination fields.
 }

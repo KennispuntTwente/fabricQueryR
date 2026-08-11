@@ -7,11 +7,10 @@
 An \link[R6:R6Class]{R6::R6Class} generator.
 }
 \description{
-\code{FabricLivySession} represents either a regular interactive Livy session or
-a high-concurrency (HC) session. Create instances with
-\code{\link[=fabric_livy_session]{fabric_livy_session()}} rather than calling \verb{$new()} directly. Use
-\verb{$wait()} before submitting work, \verb{$run()} for a convenient submit-and-wait
-operation, and \verb{$close()} when finished.
+A Livy session keeps Spark running while you submit several pieces of code.
+Create one with \code{\link[=fabric_livy_session]{fabric_livy_session()}}, call \verb{$wait()} once it starts, use
+\verb{$run()} to execute code, and call \verb{$close()} when finished. Most users do
+not need to call this R6 class directly.
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}

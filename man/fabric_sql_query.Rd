@@ -45,20 +45,14 @@ connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and call
 Lakehouse SQL analytics endpoint is read-only and does not support
 \code{INSERT}, \code{UPDATE}, or \code{DELETE}.}
 
-\item{params}{Optional list of values for DBI parameter placeholders (\verb{?}).
-Strings, dates, missing values, and values containing SQL metacharacters
-are passed unchanged to the driver. With \code{backend = "adbc"}, placeholders
-outside SQL strings, identifiers, and comments are safely translated to
-the SQL Server driver's native \verb{@p1}, \verb{@p2}, ... syntax.}
+\item{params}{Optional list of values for \verb{?} placeholders in \code{sql}. Values
+are sent separately from the SQL text, which is safer and easier to quote
+correctly than building a query with \code{paste()}.}
 
-\item{result}{Result representation. \code{"tibble"} collects the query result.
-\code{"arrow_stream"} returns a \code{nanoarrow_array_stream} from
-\code{\link[DBI:dbGetQueryArrow]{DBI::dbGetQueryArrow()}}. ADBC provides the native Arrow path; DBI may
-materialize results when adapting an ODBC connection. The stream implements
-the Arrow C Stream interface and can be converted directly with
-\code{arrow::as_record_batch_reader()} when the optional \code{arrow} package is
-installed. A stream is single-use. Prefer \code{"tibble"} for ordinary analysis
-and \code{"arrow_stream"} when avoiding collection into an R data frame matters.}
+\item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
+\code{"arrow_stream"} when a large result should be processed without first
+collecting it into an R data frame. The native Arrow path uses the ADBC
+backend.}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database
@@ -66,15 +60,11 @@ shown with its connection string in Fabric. If omitted, Warehouse and SQL
 analytics endpoints open Fabric's \code{master} context, which is useful for
 discovery but does not select the item's tables.}
 
-\item{target_type}{Label for the endpoint kind. Keep \code{"auto"} unless the
-hostname is custom or ambiguous. The explicit choices distinguish a
-Lakehouse SQL analytics endpoint, Warehouse, transactional SQL Database,
-or another read-only SQL analytics endpoint; they do not convert one kind
-of endpoint into another.}
+\item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
+hostname prevents fabricQueryR from identifying it.}
 
-\item{backend}{SQL client backend. Use \code{"odbc"} for broad DBI compatibility
-and the easiest setup; use \code{"adbc"} for its native Arrow result path after
-separately installing the ADBC \code{mssql} driver.}
+\item{backend}{Connection driver. Use \code{"odbc"} for ordinary DBI work or
+\code{"adbc"} for a native Arrow path after installing its \code{mssql} driver.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -82,11 +72,10 @@ separately installing the ADBC \code{mssql} driver.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
+\item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
@@ -108,8 +97,8 @@ unless diagnosing a controlled test environment.}
 \item{timeout}{Non-negative whole-number login/connect timeout in seconds;
 \code{0} lets the driver use an unlimited or driver-specific timeout.}
 
-\item{read_only}{Logical. \code{TRUE} sends \code{ApplicationIntent=ReadOnly} as a
-connection hint; it is not a substitute for Fabric/SQL permissions.}
+\item{read_only}{Whether to ask the driver for a read-only connection. This
+is a connection hint, not a replacement for Fabric or SQL permissions.}
 
 \item{allow_custom_endpoint}{Logical. Fabric SQL and Microsoft SQL Database
 hostnames are trusted by default. Set to \code{TRUE} only when deliberately
@@ -118,13 +107,10 @@ proxy or test server.}
 
 \item{verbose}{Logical. Show authentication, retry, and connection progress.}
 
-\item{max_tries}{Positive maximum number of attempts for transient Fabric SQL
-failures. Connections are always safe to retry. In
-\code{fabric_sql_query()}, execution failures are retried only when
-\code{idempotent = TRUE}.}
+\item{max_tries}{Maximum attempts after temporary Fabric SQL failures.}
 
-\item{retry_delay}{Non-negative initial retry delay in seconds. Subsequent
-delays use exponential backoff with jitter, capped at 60 seconds.}
+\item{retry_delay}{Initial delay in seconds before retrying. Later retries
+wait progressively longer, up to 60 seconds.}
 
 \item{idempotent}{Logical. Set to \code{TRUE} only if running the entire statement
 a second time has no unwanted effect (usually a plain \code{SELECT}). This
@@ -143,23 +129,20 @@ driver-converted column types. With \code{result = "arrow_stream"}, a single-use
 \code{nanoarrow_array_stream} that can be consumed by Arrow-compatible tools.
 }
 \description{
-Opens a connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}}, executes \code{sql}, and closes
-it automatically. This is the convenient choice for a single query; use
-\code{\link[=fabric_sql_connect]{fabric_sql_connect()}} when several queries should share one connection.
-Values in \code{params} are bound by DBI rather than pasted into the SQL string.
+Runs one SQL query and returns its rows, opening and closing the connection
+automatically. Use \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} instead when several operations
+should share a connection. Supply changing values through \code{params} rather
+than pasting them into the SQL text.
 }
 \examples{
 \dontrun{
+warehouse <- fabric_warehouses("Analytics")[[1]]
 result <- fabric_sql_query(
-  server = paste0(
-    "Server=example.datawarehouse.fabric.microsoft.com;",
-    "Database=SalesWarehouse;"
-  ),
+  warehouse,
   sql = "SELECT * FROM dbo.Customers WHERE region = ?",
   params = list("West")
 )
 
-warehouse <- fabric_warehouses("Analytics")[[1]]
 stream <- fabric_sql_query(
   warehouse,
   "SELECT * FROM dbo.Customers",

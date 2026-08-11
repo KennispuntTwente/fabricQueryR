@@ -42,18 +42,14 @@ must match the syntax in \code{code}.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
+\item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{audience}{Optional OAuth audience/scope vector. With \code{NULL}, delegated
-authentication requests Microsoft's four required Livy scopes, while an
-AzureAuth client-credentials flow requests the Power BI \code{.default}
-audience documented for service principals. Supply this explicitly when a
-custom token provider or identity flow requires a different token target.}
+\item{audience}{Optional sign-in scope. Most users should leave this \code{NULL};
+set it only for a custom token provider or identity flow.}
 
 \item{environment_id}{Optional GUID of a published Fabric Environment whose
 libraries and Spark settings should be used. Leave \code{NULL} to use the
@@ -80,37 +76,33 @@ argument is accepted here as a deprecated alias for \code{token}; all other
 arguments are rejected.}
 }
 \value{
-Invisibly, a \code{fabric_livy_statement_result} list with statement
-\code{state}, timing information, submitted \code{code}, raw response, and \code{output}.
-\code{output$parsed} contains Livy table MIME output as a tibble, JSON output as
-an R object, or text output as a character vector; error details and every
-original MIME value are retained in the other \code{output} fields. Parsed
-tables retain their declared headers in \code{attr(x, "spark_schema")}. Spark
-long and decimal columns are character vectors, dates and timestamps use
-R temporal classes, binary and nested types use list-columns, and primitive
-numeric, string, and Boolean columns use their corresponding R vectors.
+Invisibly, a \code{fabric_livy_statement_result} list. The most useful
+component is \code{output$parsed}: a tibble for tabular output, an R object for
+JSON, or a character vector for text. The result also keeps status, timing,
+submitted code, errors, and the original response.
 }
 \description{
-Starts Fabric Spark compute, runs one statement, waits for its result, and
-closes the session. This is the simplest Livy helper for a one-off Spark
-operation. Spark is useful for distributed processing or changing Lakehouse
-data; it has more startup overhead than querying an existing SQL endpoint.
+Starts Spark, runs one piece of code, returns its output, and closes the Spark
+session. This is the simplest Livy helper for a one-off operation. For quick
+reads from a Lakehouse or Warehouse, SQL is often faster to start.
 }
-\details{
-Fabric needs a workspace on supported Fabric capacity and a Lakehouse. In
+\section{Before you run code}{
+
+Fabric needs a workspace on supported capacity and a Lakehouse. In
 the Fabric portal, open the Lakehouse settings, find \strong{Livy endpoint}, and
 copy the session-job connection string. For several statements that reuse
 variables and Spark state, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}. To run a complete
 Python, Scala/Java, or R application file, use
 \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
 
-Delegated authentication requests \code{Lakehouse.Execute.All},
-\code{Lakehouse.Read.All}, \code{Code.AccessFabric.All}, and
-\code{Code.AccessStorage.All}. AzureAuth client-credentials authentication uses
-\verb{https://analysis.windows.net/powerbi/api/.default}, as documented by
-Microsoft for Livy service principals. The caller also needs an
-appropriate workspace role.
+The signed-in identity needs Lakehouse read and execute access, permission for
+code to access Fabric and storage, and an appropriate workspace role.
+
+Spark long and decimal columns are returned as character values when needed
+to preserve them exactly. Dates and timestamps use R temporal classes;
+binary and nested values use list-columns.
 }
+
 \examples{
 # Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric
 # This function is not called automatically because it requires credentials and

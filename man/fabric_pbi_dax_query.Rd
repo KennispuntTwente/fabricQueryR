@@ -25,10 +25,9 @@ fabric_pbi_dax_query(
 )
 }
 \arguments{
-\item{connstr}{Optional Power BI connection string or one
-SemanticModel record returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}} or
-\code{\link[=fabric_item]{fabric_item()}}. For a discovered record, workspace and dataset IDs are
-used directly. A character connection string can be, for example,
+\item{connstr}{Optional semantic model record from
+\code{\link[=fabric_semantic_models]{fabric_semantic_models()}} or \code{\link[=fabric_item]{fabric_item()}}, or a Power BI connection
+string. A character connection string can be, for example,
 \code{"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"}.
 It may contain \verb{Data Source=} and \verb{Initial Catalog=} parts, or a bare
 \verb{powerbi://...} source plus a \verb{Dataset=}, \verb{Catalog=}, or
@@ -44,9 +43,8 @@ avoid name-based discovery. For a model in My Workspace, omit this and set
 \item{dataset_id}{Optional semantic model/dataset GUID. When supplied, no
 connection-string name lookup is performed.}
 
-\item{my_workspace}{Logical. Confirm that \code{dataset_id} belongs to the signed-in
-user's My Workspace and use Power BI's unscoped dataset endpoint. This
-explicit opt-in prevents accidentally using that route for a shared model.}
+\item{my_workspace}{Whether \code{dataset_id} belongs to the signed-in user's My
+Workspace. Leave \code{FALSE} for shared workspaces.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -54,12 +52,11 @@ explicit opt-in prevents accidentally using that route for a shared model.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{include_nulls}{Logical. With \code{TRUE}, Power BI includes properties whose
 value is blank/null. With \code{FALSE}, those properties can be absent from a
@@ -81,18 +78,12 @@ a non-Microsoft HTTPS origin that you trust to receive a Power BI token.}
 JSON row-level-security scenarios or as \code{effectiveUsername} for Arrow.
 Leave \code{NULL} for the normal identity context.}
 
-\item{api}{Response API. \code{"json"} uses \code{executeQueries}; \code{"arrow"} uses
-\code{executeDaxQueries}.}
+\item{api}{Response format provided by Power BI. Use \code{"json"} for ordinary
+queries or \code{"arrow"} for richer types and multiple result tables.}
 
-\item{result}{Return format. \code{"tibble"} collects the result in R memory.
-With \code{api = "arrow"}, \code{"arrow_stream"} returns a
-\code{nanoarrow_array_stream} compatible with
-\code{\link[arrow:as_record_batch_reader]{arrow::as_record_batch_reader()}} and other Arrow C stream consumers. The
-HTTP response is streamed to a temporary file and record batches remain
-file-backed and lazy. The response is scanned one batch at a time first so
-concatenated data and error rowsets can be validated without collecting the
-data table. Dictionary-encoded columns remain native Arrow dictionaries in
-this mode; their R representation is chosen by the eventual consumer.}
+\item{result}{Return a \code{"tibble"}, or with \code{api = "arrow"}, a single-use
+\code{"arrow_stream"} for batch processing without first collecting all rows in
+R memory.}
 
 \item{arrow_options}{Named list of optional \code{executeDaxQueries} request
 properties. Supported names are \code{applicationContext}, \code{culture},
@@ -102,99 +93,65 @@ required \code{query} property is supplied from \code{dax}. Used only by
 \code{api = "arrow"}.}
 }
 \value{
-With \code{result = "tibble"}, a tibble containing a single result table.
-Multiple Arrow data rowsets are returned as a \code{fabric_pbi_dax_rowsets}
-list of tibbles. With \verb{api = "arrow", result = "arrow_stream"}, the same
-rule applies to \code{nanoarrow_array_stream} objects. Power BI's column names
-are preserved. An empty
-Arrow result becomes a typed zero-row result. Because the JSON API does not
-provide column metadata for an empty table, that path returns a zero-row,
-zero-column tibble. When requested, Arrow execution metrics are attached as
-an \code{execution_metrics} attribute. API errors and partial/truncated JSON
-results raise an error rather than silently returning incomplete data.
+A tibble for one result table. Multiple Arrow result tables are
+returned as a \code{fabric_pbi_dax_rowsets} list of tibbles or Arrow streams.
+Power BI column names are preserved. Empty JSON results have no column
+metadata and therefore return a zero-row, zero-column tibble. Partial or
+truncated results raise an error.
 }
 \description{
-Runs a Data Analysis Expressions (DAX) query against a published semantic
-model and returns its result as a tibble. A semantic model is the
-report-ready layer behind Power BI reports: it contains tables,
-relationships, measures, and business calculations. Use DAX here, rather
-than SQL intended for the underlying Lakehouse or Warehouse.
+Runs a DAX query against a published semantic model and returns the result as
+a tibble. A semantic model is the report-ready data behind Power BI reports,
+including tables, relationships, measures, and business calculations.
 }
-\details{
-\itemize{
-\item The easiest input is an item from \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}. You can instead
-supply \code{workspace_id} and \code{dataset_id} (both GUIDs), or a Power BI
-connection string containing the workspace and semantic-model names. IDs
-avoid name lookup and are best for scheduled code.
-\item Power BI's REST dataset route cannot faithfully identify the tenant and
-owner embedded in a personal-workspace v2 XMLA URL. For My Workspace, use
-an explicit \code{dataset_id} with \code{my_workspace = TRUE}; name-based connection
-string resolution is supported only for shared workspaces.
-\item In Fabric/Power BI, open the semantic model's settings to find its server
-or XMLA connection information. The signed-in identity needs Read and Build
-permission on the semantic model, either through its workspace role or
-through \strong{Manage permissions} on the model.
-\item \pkg{AzureAuth} is used to acquire the token. Be wary of
-caching behavior; you may want to call \code{\link[AzureAuth:clean_token_directory]{AzureAuth::clean_token_directory()}}
-to clear cached tokens if the wrong account or tenant is being reused.
-\item Requests use the Power BI audience
-\verb{https://analysis.windows.net/powerbi/api/.default} and require
-\code{Dataset.Read.All} (or \code{Dataset.ReadWrite.All}) plus dataset Read and Build
-permissions. Name lookup also requires \code{Workspace.Read.All} or equivalent.
-\item Both APIs require the Power BI tenant setting \strong{Dataset Execute Queries
-REST API}. Service-principal authentication also requires \strong{Allow service
-principals to use Power BI APIs}. The limitations differ by endpoint, as
-described below.
-\item Set \code{api = "json"} (the default) for the established \code{executeQueries}
-endpoint. It accepts one DAX query and one result table per request.
-Results are limited to 100,000 rows or 1,000,000 values (whichever is
-reached first), 15 MB, and 120 requests per minute per user. Partial
-results reported by Power BI are treated as errors by this function.
-JSON does not carry the full semantic-model type system. Whole Number
-values outside R's exactly representable numeric range are therefore
-returned as character strings rather than silently rounded. Use the Arrow
-endpoint when exact integer, fixed-decimal, currency, or date types matter.
-Service principals cannot use this JSON endpoint with models that have RLS
-or SSO enabled. Delegated users can supply \code{impersonated_user} for supported
-RLS scenarios.
-\item Set \code{api = "arrow"} for the newer \code{executeDaxQueries} endpoint. It
-preserves Arrow column types, raises errors carried in HTTP 200 Arrow error
-rowsets, and supports the additional documented request properties through
-\code{arrow_options}. The optional \pkg{arrow} package is required because Power
-BI compresses record batches with LZ4. This endpoint supports semantic
-models on Power BI's modern service infrastructure; deprecated Push models,
-legacy compatibility-level models, monitoring/usage models, and live
-connections to Analysis Services are excluded. The Arrow endpoint requires
-Premium or Fabric capacity. Pro and PPU models can use the JSON
-endpoint but do not satisfy the Arrow endpoint's capacity requirement.
-\code{effectiveUsername} is user-only and requires workspace admin. Users may
-specify only roles they belong to unless they are workspace admins; service
-principals may use \code{roles} only when they are workspace admins.
-\strong{Allow XMLA endpoints and Analyze in Excel with on-premises semantic
-models} must also be enabled.
-\item Arrow queries may contain multiple \code{EVALUATE} statements. When Power BI
-returns multiple data rowsets, this helper returns them in statement order
-as a \code{fabric_pbi_dax_rowsets} list.
+\section{Choosing a model}{
+
+The easiest input is an item from \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}. You can instead
+supply workspace and dataset IDs, or a Power BI connection string copied from
+the semantic model settings. IDs are the most reliable choice for scheduled
+code. For a model in My Workspace, supply \code{dataset_id} and set
+\code{my_workspace = TRUE}.
 }
+
+\section{Choosing a response format}{
+
+Keep \code{api = "json"} for ordinary queries and broad compatibility. It returns
+one result table and is available to Pro, PPU, and capacity-backed models.
+Results are limited by Power BI; fabricQueryR raises an error instead of
+silently returning a partial result. Very large whole numbers are returned as
+character values so they are not rounded.
+
+Use \code{api = "arrow"} when exact semantic-model types matter, when a query has
+several \code{EVALUATE} statements, or when you want an Arrow stream. It requires
+the optional \pkg{arrow} package, a model on supported modern infrastructure,
+and Premium or Fabric capacity. Multiple result tables are returned in
+statement order as a \code{fabric_pbi_dax_rowsets} list.
 }
+
+\section{Permissions and tenant settings}{
+
+The signed-in identity needs Read and Build permission on the semantic model.
+Your Power BI administrator must enable \strong{Dataset Execute Queries REST API};
+service principals also need the relevant service-principal tenant setting.
+The APIs use the Power BI scope and require \code{Dataset.Read.All} (or
+\code{Dataset.ReadWrite.All}). Name lookup also requires workspace read access.
+Row-level security, SSO, user impersonation, and the Arrow endpoint have
+additional Power BI restrictions; see the linked Microsoft documentation.
+}
+
 \examples{
 # Example is not executed since it requires configured credentials for Fabric
 \dontrun{
-conn <- paste0(
-  "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales Workspace;",
-  "Initial Catalog=SalesModel;"
-)
+model <- fabric_semantic_models("Sales Workspace")[[1]]
 df <- fabric_pbi_dax_query(
-  connstr = conn,
-  dax = "EVALUATE TOPN(1000, 'Customers')",
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID")
+  model,
+  dax = "EVALUATE TOPN(1000, 'Customers')"
 )
 dplyr::glimpse(df)
 
-# Arrow IPC endpoint, returned through the Arrow C stream interface
+# Keep a large Arrow result out of R memory
 stream <- fabric_pbi_dax_query(
-  connstr = conn,
+  model,
   dax = "EVALUATE TOPN(1000, 'Customers')",
   api = "arrow",
   result = "arrow_stream"

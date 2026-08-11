@@ -2,11 +2,10 @@
 
 #' A Microsoft Fabric Livy session
 #'
-#' `FabricLivySession` represents either a regular interactive Livy session or
-#' a high-concurrency (HC) session. Create instances with
-#' [fabric_livy_session()] rather than calling `$new()` directly. Use
-#' `$wait()` before submitting work, `$run()` for a convenient submit-and-wait
-#' operation, and `$close()` when finished.
+#' A Livy session keeps Spark running while you submit several pieces of code.
+#' Create one with [fabric_livy_session()], call `$wait()` once it starts, use
+#' `$run()` to execute code, and call `$close()` when finished. Most users do
+#' not need to call this R6 class directly.
 #'
 #' @field id Fabric session or high-concurrency acquisition ID.
 #' @field url Session lifecycle URL.
@@ -339,9 +338,9 @@ FabricLivySession <- R6::R6Class(
 
 #' A statement submitted to a Fabric Livy session
 #'
-#' Instances are returned by `FabricLivySession$submit()`. Call `$wait()` and
-#' then `$result()` to retrieve parsed output, or use
-#' `FabricLivySession$run()` to perform those steps together.
+#' Represents one piece of code submitted to a [FabricLivySession]. Call
+#' `$wait()` and then `$result()` to retrieve its output. For the usual
+#' submit-and-wait workflow, use the session's `$run()` method instead.
 #'
 #' @field id Numeric Livy statement ID.
 #' @field url Statement lifecycle URL.
@@ -516,20 +515,17 @@ FabricLivyStatement <- R6::R6Class(
 
 #' Create a Microsoft Fabric Livy session
 #'
-#' Starts an interactive Spark context that can run several statements while
-#' retaining variables and Spark state between them. This avoids starting new
-#' compute for each call.
+#' Starts Spark compute that can run several statements while keeping variables
+#' and Spark state between calls. Use [fabric_livy_query()] instead for a single,
+#' self-contained operation.
 #'
 #' @param livy_url A copied session or batch connection URL, Livy API base URL,
 #'   or enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
 #'   Copy the session-job URL from **Lakehouse settings > Livy endpoint**, or
 #'   use a discovered record to avoid handling IDs manually.
-#' @param high_concurrency Logical. `FALSE` creates a standard session for
-#'   sequential or low-concurrency work. `TRUE` creates an isolated REPL that
-#'   Fabric can pack into shared Spark sessions, which is useful when an
-#'   application runs several independent Spark workloads concurrently. High
-#'   concurrency is currently a Microsoft preview capability; its availability
-#'   and service contract can change before general availability.
+#' @param high_concurrency Whether to let Fabric share Spark compute between
+#'   several isolated workloads. Keep `FALSE` for a typical sequence of calls in
+#'   one R process. This Fabric capability is currently in preview.
 #' @param session_tag Optional high-concurrency packing hint. Related requests
 #'   with the same tag may share an underlying Livy session while keeping
 #'   separate REPL state. Each call still returns a distinct HC session.
@@ -557,16 +553,12 @@ FabricLivyStatement <- R6::R6Class(
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
-#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
-#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
-#'   token or starts its normal interactive login flow.
-#' @param auth_args Named list of additional arguments passed to
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()].
-#' @param audience Optional OAuth audience/scope vector. With `NULL`, delegated
-#'   authentication requests Microsoft's four required Livy scopes, while an
-#'   AzureAuth client-credentials flow requests the Power BI `.default`
-#'   audience documented for service principals. Supply this explicitly when a
-#'   custom token provider or identity flow requires a different token target.
+#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
+#'   set it only for a custom token provider or identity flow.
 #' @param verbose Logical. Show session lifecycle messages.
 #' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
 #'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
@@ -574,19 +566,16 @@ FabricLivyStatement <- R6::R6Class(
 #'
 #' @return A newly created [FabricLivySession]. It may still be starting; call
 #'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished.
-#' @details
-#' Use a standard session for a typical interactive sequence in one R process.
-#' High concurrency is intended for automation that needs multiple isolated
-#' Spark statement streams at the same time; it is not necessary merely to run
-#' several statements sequentially.
+#' @section Choosing a session type:
+#' Use a standard session for a typical sequence in one R process. High
+#' concurrency is for applications that run several independent Spark workloads
+#' at the same time; it is not needed for several sequential statements.
 #'
+#' @section Cleanup and permissions:
 #' No network request is made when an open object is garbage collected. Call
-#'   `$close()` explicitly, and use `on.exit(session$close())` in functions,
-#'   for deterministic cleanup. Delegated authentication requests
-#'   `Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and
-#'   `Code.AccessStorage.All`. AzureAuth client-credentials authentication uses
-#'   `https://analysis.windows.net/powerbi/api/.default`, as documented by
-#'   Microsoft for Livy service principals.
+#' `$close()` explicitly, and use `on.exit(session$close())` inside functions.
+#' The signed-in identity needs Lakehouse read and execute access, permission for
+#' code to access Fabric and storage, and an appropriate workspace role.
 #'
 #' @seealso
 #' [Microsoft session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),

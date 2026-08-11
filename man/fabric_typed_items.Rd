@@ -32,16 +32,13 @@ fabric_notebooks(workspace, detail = TRUE, ...)
 fabric_graphql_apis(workspace, detail = TRUE, ...)
 }
 \arguments{
-\item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record avoids an extra lookup and, if
-it contains \code{apiEndpoint}, routes workspace calls through that endpoint. A
-name is often easier for interactive use.}
+\item{workspace}{Workspace name, ID, or record returned by
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
+avoids an extra lookup.}
 
-\item{detail}{Logical. \code{FALSE} makes the fewest API calls and is sufficient
-for names and IDs. \code{TRUE} also retrieves supported workload properties,
-such as SQL connection strings and Livy or KQL endpoints, but is slower
-and can require additional permissions. The typed helpers below use
-\code{TRUE}.}
+\item{detail}{Whether to retrieve connection details as well as names and
+IDs. This takes more requests and may require additional permissions. The
+typed discovery helpers use \code{TRUE} by default.}
 
 \item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}.
 Do not supply \code{type}; each helper sets that value.}
@@ -52,10 +49,10 @@ contains common item metadata and applicable connection fields. See
 \code{\link[=fabric_items]{fabric_items()}} for details.
 }
 \description{
-These shortcuts list one kind of item and include the detailed connection
-fields used by the matching query functions. They are equivalent to
-\code{\link[=fabric_items]{fabric_items()}} with a fixed item type and \code{detail = TRUE}. Set
-\code{detail = FALSE} when only names and identifiers are needed.
+These shortcuts find one kind of Fabric item. By default, they also retrieve
+the connection details needed by the matching query functions, so their
+results can usually be passed straight to the next fabricQueryR call. Set
+\code{detail = FALSE} when you only need names and IDs.
 }
 \section{Choosing a helper}{
 

@@ -2,39 +2,35 @@
 
 #' Discover Microsoft Fabric workspaces
 #'
-#' Lists the Fabric workspaces the signed-in user or application can access. A
-#' workspace is the top-level container that holds Lakehouses, Warehouses,
-#' semantic models, notebooks, and other Fabric items.
+#' Returns the Fabric workspaces available to the signed-in user or application.
+#' Use the result to choose a workspace for [fabric_items()] or one of the typed
+#' discovery helpers.
 #'
 #' @param roles Optional workspace roles to include, such as `"Viewer"`,
 #'   `"Contributor"`, `"Member"`, or `"Admin"`. Leave `NULL` to return every
 #'   visible workspace.
-#' @param prefer_workspace_endpoints Logical. Set to `TRUE` to ask Fabric for a
-#'   workspace-specific API endpoint, which can be needed with workspace-level
-#'   private links. When such an endpoint is returned, Warehouse and Lakehouse
-#'   SQL details are resolved through the dedicated connection-string API with
-#'   `privateLinkType=Workspace`. Most users should keep the default, `FALSE`.
+#' @param prefer_workspace_endpoints Whether to request workspace-specific
+#'   endpoints. Keep `FALSE` unless your organization uses workspace-level
+#'   private links.
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
-#' @param token Preferred token input: an `AzureAuth::AzureToken` object,
-#'   bearer-token string, or token-provider function. With `NULL` (the
-#'   default), `AzureAuth` reuses a matching cached token or starts its normal
-#'   interactive login flow when a new token is required.
-#' @param auth_args Named list of additional arguments passed to
-#'   [AzureAuth::get_azure_token()] when no token source is supplied.
-#'   Discovery uses the
-#'   `https://api.fabric.microsoft.com/.default` audience and requires
-#'   `Workspace.Read.All` or `Workspace.ReadWrite.All`.
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
 #'   different Fabric cloud or a test service.
 #' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
 #'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token.
 #'
-#' @return A plain list with one `fabric_workspace` object per workspace. Each
-#'   object is a named list containing the fields returned by Fabric, such as
-#'   `id`, `displayName`, `capacityRegion`, `apiEndpoint`, and nested `tags`.
+#' @return A list with one workspace record per visible workspace. Each record
+#'   includes its ID and display name, together with other details returned by
+#'   Fabric.
+#' @details
+#' The caller needs permission to read Fabric workspaces. Discovery uses the
+#' Fabric API and requires `Workspace.Read.All` or `Workspace.ReadWrite.All`.
 #' @references
 #' [List workspaces REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
 #'
@@ -97,25 +93,22 @@ fabric_workspaces <- function(
 
 #' Discover Microsoft Fabric items
 #'
-#' Lists the items stored in one workspace. In Fabric, an *item* is a resource
-#' such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.
+#' Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
+#' items stored in a workspace. Set `detail = TRUE` when you want records that
+#' can be passed directly to query or connection functions.
 #'
-#' @param workspace Workspace GUID, exact display name, or a workspace record
-#'   returned by [fabric_workspaces()]. A record avoids an extra lookup and, if
-#'   it contains `apiEndpoint`, routes workspace calls through that endpoint. A
-#'   name is often easier for interactive use.
+#' @param workspace Workspace name, ID, or record returned by
+#'   [fabric_workspaces()]. A name is convenient for interactive use; a record
+#'   avoids an extra lookup.
 #' @param type Optional Fabric API item type, for example `"Lakehouse"`,
 #'   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
 #'   Fabric, so use the API spelling. Leave `NULL` to list all item types.
-#' @param detail Logical. `FALSE` makes the fewest API calls and is sufficient
-#'   for names and IDs. `TRUE` also retrieves supported workload properties,
-#'   such as SQL connection strings and Livy or KQL endpoints, but is slower
-#'   and can require additional permissions. The typed helpers below use
-#'   `TRUE`.
-#' @param detail_errors How workload-detail or optional private SQL endpoint
-#'   failures are handled. `"record"` retains every successfully retrieved
-#'   field, stores the message in `detail_error`, and emits one summary warning.
-#'   `"abort"` preserves strict all-or-nothing behavior.
+#' @param detail Whether to retrieve connection details as well as names and
+#'   IDs. This takes more requests and may require additional permissions. The
+#'   typed discovery helpers use `TRUE` by default.
+#' @param detail_errors What to do if some connection details cannot be read.
+#'   `"record"` returns the available information and stores an error message
+#'   with the affected item; `"abort"` stops the call.
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
 #'   `FALSE` lists only items at the workspace root.
 #' @param personal_workspace_tenant_id Optional Microsoft Entra tenant ID used
@@ -130,18 +123,10 @@ fabric_workspaces <- function(
 #'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
 #'   `api_base` is supplied explicitly.
 #'
-#' @return A list with one `fabric_item` object per item. Each object is a
-#'   named list with common fields including `id`, `displayName`, `type`,
-#'   `workspaceId`, and `folderId`. With `detail = TRUE`, applicable objects
-#'   also contain ready-to-use connection fields. SQLDatabase records contain
-#'   `sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
-#'   records contain `sql_server` and `sql_database`. Other workloads can
-#'   contain `one_lake_*_path`, `dax_connection_string`, `livy_url`,
-#'   `query_service_uri`, or `graphql_endpoint`. When supplied by
-#'   Fabric, `workspaceApiEndpoint` preserves the workspace-specific API origin
-#'   for later job calls. Fields that do not apply to an item are absent;
-#'   `detail_error` records failed enrichment requests.
-#'   Nested service data is retained in place, including in `properties`.
+#' @return A list with one item record per match. Every record includes common
+#'   fields such as `id`, `displayName`, `type`, and `workspaceId`. With
+#'   `detail = TRUE`, records also include the connection details needed by the
+#'   matching fabricQueryR functions when Fabric makes them available.
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
 #' sufficient for the core list operation). Workload enrichment additionally
@@ -272,9 +257,9 @@ fabric_items <- function(
 
 #' Discover one Microsoft Fabric item
 #'
-#' Finds one item and retrieves the connection details that fabricQueryR can
-#' use. This is convenient when you know the item's name and do not need a
-#' collection of every item in the workspace.
+#' Finds one item and returns the connection details needed by fabricQueryR.
+#' Use this when you know the item's name or ID and do not need to list every
+#' item in the workspace.
 #'
 #' @param item Item GUID, exact display name, or an item record returned
 #'   by a discovery function. A display name must identify exactly one item of
@@ -282,12 +267,8 @@ fabric_items <- function(
 #'   duplicated.
 #' @inheritParams fabric_items
 #'
-#' @return A `fabric_item` list. It contains common fields such as `id`,
-#'   `displayName`, `type`, and `workspaceId`, the nested workload
-#'   `properties`, and applicable connection targets. SQLDatabase records use
-#'   `sql_connection_string`; Lakehouse, Warehouse, and WarehouseSnapshot
-#'   records use `sql_server` and `sql_database`. Other workloads can include
-#'   `livy_url`, `dax_connection_string`, or `query_service_uri`.
+#' @return One `fabric_item` record containing the item's name, ID, type,
+#'   workspace, and any connection details that Fabric makes available.
 #' @details
 #' The caller needs access to the workspace for the core item lookup. This
 #' singular helper always performs workload-specific enrichment as well, which
@@ -480,10 +461,10 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 
 #' Typed Microsoft Fabric item discovery
 #'
-#' These shortcuts list one kind of item and include the detailed connection
-#' fields used by the matching query functions. They are equivalent to
-#' [fabric_items()] with a fixed item type and `detail = TRUE`. Set
-#' `detail = FALSE` when only names and identifiers are needed.
+#' These shortcuts find one kind of Fabric item. By default, they also retrieve
+#' the connection details needed by the matching query functions, so their
+#' results can usually be passed straight to the next fabricQueryR call. Set
+#' `detail = FALSE` when you only need names and IDs.
 #'
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`, and

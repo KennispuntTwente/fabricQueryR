@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_kql_query.R
 \name{fabric_kql_query}
 \alias{fabric_kql_query}
-\title{Query a Microsoft Fabric Eventhouse with KQL}
+\title{Run a KQL query in Microsoft Fabric}
 \usage{
 fabric_kql_query(
   cluster,
@@ -20,7 +20,7 @@ fabric_kql_query(
 )
 }
 \arguments{
-\item{cluster}{Query-service URI, or one Eventhouse or
+\item{cluster}{Query URI, or one Eventhouse or
 KQLDatabase record returned by \code{\link[=fabric_eventhouses]{fabric_eventhouses()}},
 \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, or \code{\link[=fabric_item]{fabric_item()}}. A KQLDatabase record also
 supplies \code{database}. Despite the argument name, use Fabric's \strong{Query URI}
@@ -32,10 +32,8 @@ here.}
 \item{database}{KQL database display name. Supply it with a copied Query URI
 or an Eventhouse record; omit it when \code{cluster} is a KQLDatabase record.}
 
-\item{parameters}{Named list of values for parameters declared by
-\verb{declare query_parameters(...)} in \code{query}. Scalar R values become Kusto
-scalar values; vectors and lists become \code{dynamic} values. Binding is safer
-and easier to quote correctly than building KQL with \code{paste()}.}
+\item{parameters}{Named list of values declared with
+\verb{declare query_parameters(...)} in \code{query}.}
 
 \item{request_properties}{Named list of Kusto client request options, such as
 \code{servertimeout = "2m"} or \code{notruncation = TRUE}. Most users can leave this
@@ -52,12 +50,11 @@ from the Kusto \code{servertimeout} request property.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{allow_custom_endpoint}{Logical. Permit a non-Microsoft Kusto HTTPS
 origin. Keep \code{FALSE} unless the endpoint is trusted; credentials are sent
@@ -69,31 +66,34 @@ multiple primary results (one named element per table), or an empty tibble
 when there is no primary result. See Details for the KQL-to-R type mapping.
 }
 \description{
-Runs a read-only Kusto Query Language (KQL) query against a KQL database and
-converts the result to R objects. In Fabric, an Eventhouse is a container for
-one or more KQL databases designed for fast analysis of event, log,
-telemetry, and time-series data.
+Runs a read-only query against a KQL database and returns the result as a
+tibble. KQL databases are commonly used for event, log, telemetry, and
+time-series data in a Fabric Eventhouse.
 }
-\details{
-The easiest input is an item from \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, because it supplies
-both the database name and its \strong{Query URI}. If copying a URI from Fabric,
-use \strong{Query URI}, not \strong{Ingestion URI}; this function queries existing data
-and does not load new data. The caller needs database access through a Fabric
-workspace role, Eventhouse sharing, or KQL database sharing.
+\section{Basic use}{
 
-This function uses the Kusto v2 REST query endpoint and requests a token for
-\verb{https://api.kusto.windows.net/.default}.
+The easiest input is an item from \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, which already
+contains the database name and its \strong{Query URI}. If you copy a URI from
+Fabric, choose \strong{Query URI}, not \strong{Ingestion URI}. This function reads
+existing data; it does not load data or run management commands.
 
-Query parameters are sent through Kusto client request properties, never
-interpolated into \code{query}. Declare them in KQL with
-\verb{declare query_parameters(...)}. Scalar R values are encoded as Kusto
-parameter values; vectors and lists are encoded as \code{dynamic(...)} literals.
-Zero-length vectors and unnamed lists encode \verb{dynamic([])}. A zero-length
-list with non-\code{NULL} names encodes \code{dynamic({})}; \code{NULL} remains invalid so it
-cannot be confused with an empty collection or a typed Kusto null.
+Put changing values in \code{parameters} and declare them in KQL with
+\verb{declare query_parameters(...)}. The values are sent separately from the
+query text, which is safer and easier to quote correctly than using
+\code{paste()}. Scalar R values become KQL scalar values; vectors and lists become
+\code{dynamic} arrays or objects.
+}
+
+\section{Advanced request options}{
+
+\code{request_properties} controls server behavior such as timeouts and result
+truncation. Most users can leave it empty.
 Microsoft Fabric does not support the \code{queryconsistency} or
 \code{query_weakconsistency_session_id} request properties. Do not include either
 name in \code{request_properties}, even though Azure Data Explorer supports them.
+}
+
+\section{Result types}{
 
 KQL \code{bool}, \code{datetime}, \code{int}, \code{long}, \code{real}, and \code{timespan} columns normally
 become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, and
@@ -104,13 +104,17 @@ columns are list-columns, and GUIDs, strings, and \code{decimal} values are
 character vectors. Keeping decimal values in their original lexical form
 avoids the silent precision loss that conversion to an R double can cause.
 
-A query with one primary result table returns a tibble. A query with multiple
-primary result tables returns a named list of tibbles with class
-\code{fabric_kql_tables}. Auxiliary tables, completion information, raw frames,
-response headers, and correlation IDs are retained as \verb{kusto_*} attributes.
-A query with no primary table returns an empty tibble.
-Management commands and ingestion endpoints are intentionally not supported.
+A query with several result tables returns a named \code{fabric_kql_tables} list;
+a query with no result table returns an empty tibble. Service metadata is
+retained in \verb{kusto_*} attributes for troubleshooting.
 }
+
+\section{Permissions}{
+
+The caller needs database access through a Fabric workspace role, Eventhouse
+sharing, or KQL database sharing. Authentication uses the Kusto query service.
+}
+
 \examples{
 \dontrun{
 database <- fabric_kql_databases("Telemetry workspace")[[1]]

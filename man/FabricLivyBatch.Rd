@@ -7,9 +7,10 @@
 An \link[R6:R6Class]{R6::R6Class} generator.
 }
 \description{
-Instances are returned by \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}. Use \verb{$status()} to
-refresh metadata, \verb{$wait()} to block until completion, \verb{$logs()}/\verb{$result()}
-to inspect the outcome, and \verb{$cancel()} to request cancellation.
+Represents a Spark application submitted with \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
+Use \verb{$wait()} to wait for completion, \verb{$result()} or \verb{$logs()} to inspect the
+outcome, and \verb{$cancel()} to request cancellation. Most users do not need to
+call this R6 class directly.
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}

@@ -21,11 +21,9 @@ fabric_workspaces(
 \code{"Contributor"}, \code{"Member"}, or \code{"Admin"}. Leave \code{NULL} to return every
 visible workspace.}
 
-\item{prefer_workspace_endpoints}{Logical. Set to \code{TRUE} to ask Fabric for a
-workspace-specific API endpoint, which can be needed with workspace-level
-private links. When such an endpoint is returned, Warehouse and Lakehouse
-SQL details are resolved through the dedicated connection-string API with
-\code{privateLinkType=Workspace}. Most users should keep the default, \code{FALSE}.}
+\item{prefer_workspace_endpoints}{Whether to request workspace-specific
+endpoints. Keep \code{FALSE} unless your organization uses workspace-level
+private links.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}.}
@@ -33,16 +31,11 @@ SQL details are resolved through the dedicated connection-string API with
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
-bearer-token string, or token-provider function. With \code{NULL} (the
-default), \code{AzureAuth} reuses a matching cached token or starts its normal
-interactive login flow when a new token is required.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.
-Discovery uses the
-\verb{https://api.fabric.microsoft.com/.default} audience and requires
-\code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
 different Fabric cloud or a test service.}
@@ -51,14 +44,18 @@ different Fabric cloud or a test service.}
 a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
 }
 \value{
-A plain list with one \code{fabric_workspace} object per workspace. Each
-object is a named list containing the fields returned by Fabric, such as
-\code{id}, \code{displayName}, \code{capacityRegion}, \code{apiEndpoint}, and nested \code{tags}.
+A list with one workspace record per visible workspace. Each record
+includes its ID and display name, together with other details returned by
+Fabric.
 }
 \description{
-Lists the Fabric workspaces the signed-in user or application can access. A
-workspace is the top-level container that holds Lakehouses, Warehouses,
-semantic models, notebooks, and other Fabric items.
+Returns the Fabric workspaces available to the signed-in user or application.
+Use the result to choose a workspace for \code{\link[=fabric_items]{fabric_items()}} or one of the typed
+discovery helpers.
+}
+\details{
+The caller needs permission to read Fabric workspaces. Discovery uses the
+Fabric API and requires \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces}{List workspaces REST API}

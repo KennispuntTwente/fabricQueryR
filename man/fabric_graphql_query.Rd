@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_graphql_query.R
 \name{fabric_graphql_query}
 \alias{fabric_graphql_query}
-\title{Query a Microsoft Fabric API for GraphQL}
+\title{Run a query against a Fabric GraphQL API}
 \usage{
 fabric_graphql_query(
   api,
@@ -24,18 +24,16 @@ fabric_graphql_query(
 )
 }
 \arguments{
-\item{api}{GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-GraphQLApi record. An item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
+\item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
 because it supplies the endpoint and workspace ID.}
 
 \item{query}{One GraphQL document containing a query or mutation. Use
 variables for changing values instead of pasting values into this string.}
 
-\item{variables}{Named list of GraphQL variables. Values must be representable
-as JSON; names must match variables declared in \code{query}. Scalar vectors are
-encoded as JSON scalars when they have length one. Wrap a one-element
-GraphQL list in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to preserve its
-JSON array shape. Vectors with two or more elements are arrays normally.}
+\item{variables}{Named list of values for variables declared in \code{query}.
+One-element values are normally sent as scalars. Wrap a one-element list
+variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array.}
 
 \item{operation_name}{Optional operation name. Supply it when the document
 contains more than one named operation; otherwise leave \code{NULL}.}
@@ -48,9 +46,8 @@ lets the caller inspect partial data and errors; \code{"warn"} also makes errors
 visible immediately; \code{"error"} stops and attaches the result to a
 \code{fabric_graphql_error}. HTTP/authentication failures always stop.}
 
-\item{timeout}{Positive wall-clock HTTP timeout in seconds. The 110-second
-default leaves transfer overhead beyond Fabric's 100-second server
-execution limit, allowing the service's own timeout response to arrive.}
+\item{timeout}{Maximum time in seconds for the request. The default allows
+Fabric's own 100-second query timeout response to arrive.}
 
 \item{idempotent}{Logical. Permit retries after transient HTTP failures.
 \code{TRUE} is normally suitable for a read-only query, but not for a mutation
@@ -62,12 +59,11 @@ that could be applied twice.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
 selects the documented scope from the authentication flow. Set this only
@@ -88,12 +84,12 @@ named lists and vectors, not a tibble. Because GraphQL can return partial
 data, inspect \code{errors} even when \code{data} is present.
 }
 \description{
-Sends a GraphQL query or mutation to an API for GraphQL item configured in
-Fabric. Fabric generates the API schema from selected Lakehouse, Warehouse,
-or SQL Database objects; this function calls that API from R and returns its
-nested response.
+Sends a GraphQL query or mutation to an \strong{API for GraphQL} item and returns
+the result as a nested R list. Use this when a Fabric API already exposes the
+Lakehouse, Warehouse, or SQL Database data you need.
 }
-\details{
+\section{Before you query}{
+
 Before using this function, create an \strong{API for GraphQL} item in a Fabric
 workspace, connect its data source, and choose which tables, fields, queries,
 and mutations the API exposes. Fabric's built-in GraphQL editor and schema
@@ -104,12 +100,13 @@ Mutation availability depends on the configured source. Fabric Warehouse and
 SQL Database sources can expose supported mutations, while Lakehouse and
 mirrored SQL analytics endpoint sources are read-only and expose queries only.
 
-A direct endpoint has the form
-\verb{https://api.fabric.microsoft.com/v1/workspaces/\{workspace-id\}/graphqlapis/\{api-id\}/graphql}.
-You can instead pass a GraphQL API GUID with \code{workspace_id}, or one item from
-\code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} or \code{\link[=fabric_item]{fabric_item()}}.
+The easiest input is an item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}}. You can instead
+supply the API's endpoint, or its ID together with \code{workspace_id}.
+}
 
-Interactive/delegated authentication requires the Power BI delegated scope
+\section{Permissions and authentication}{
+
+Interactive authentication requires the Power BI delegated scope
 \code{GraphQLApi.Execute.All}, plus \strong{Run Queries and Mutations} permission on
 the API. Service principals are also supported by Fabric: request a Fabric
 API token with \code{auth_args} or pass one through \code{token}, enable service
@@ -118,10 +115,11 @@ Execute access or a suitable workspace role. With SSO connectivity, the
 caller also needs the required access to the underlying data source.
 Saved-credential APIs use the configured connection instead.
 
-When \code{audience = NULL}, the package selects the Fabric API scope for an
-AzureAuth client-credentials flow and the delegated GraphQL scope otherwise.
-Set \code{audience} explicitly when a custom token provider uses a
-service-principal flow. The value is ignored for a static token string.
+Most users can leave \code{audience = NULL}; fabricQueryR chooses the documented
+scope for the sign-in flow. Set it only for a custom identity provider.
+}
+
+\section{Retries and service limits}{
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set \code{idempotent = TRUE} only when the operation is safe
@@ -132,10 +130,11 @@ across pagination. Each response is limited to 64 MB, each request to 100
 seconds, and query nesting to 10 levels. Use smaller pages and filtered query
 partitions when a result could approach these service limits.
 
-JSON integers outside R's exact double-precision range are returned as
+Large integers outside R's exact numeric range are returned as
 character values so identifiers and other large integer fields are not
 rounded.
 }
+
 \examples{
 \dontrun{
 api <- fabric_graphql_apis("Analytics workspace")[[1]]

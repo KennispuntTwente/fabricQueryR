@@ -2,9 +2,10 @@
 
 #' A Microsoft Fabric Livy batch job
 #'
-#' Instances are returned by [fabric_livy_batch_submit()]. Use `$status()` to
-#' refresh metadata, `$wait()` to block until completion, `$logs()`/`$result()`
-#' to inspect the outcome, and `$cancel()` to request cancellation.
+#' Represents a Spark application submitted with [fabric_livy_batch_submit()].
+#' Use `$wait()` to wait for completion, `$result()` or `$logs()` to inspect the
+#' outcome, and `$cancel()` to request cancellation. Most users do not need to
+#' call this R6 class directly.
 #'
 #' @field id Fabric batch ID.
 #' @field url Batch lifecycle URL.
@@ -234,9 +235,10 @@ FabricLivyBatch <- R6::R6Class(
 
 #' Submit a Microsoft Fabric Livy batch job
 #'
-#' Starts a complete Spark application file stored in OneLake or ADLS. Unlike an
-#' interactive Livy session, a batch has its own application lifecycle and is a
-#' good fit for repeatable scripts and unattended processing.
+#' Runs a complete Python, R, or Java/Scala Spark application stored in OneLake
+#' or ADLS. Use this for repeatable scripts and unattended processing; use
+#' [fabric_livy_session()] when several interactive statements should share
+#' variables and Spark state.
 #'
 #' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
 #'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
@@ -271,16 +273,12 @@ FabricLivyBatch <- R6::R6Class(
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
-#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
-#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
-#'   token or starts its normal interactive login flow.
-#' @param auth_args Named list of additional arguments passed to
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()].
-#' @param audience Optional OAuth audience/scope vector. With `NULL`, delegated
-#'   authentication requests Microsoft's four required Livy scopes, while an
-#'   AzureAuth client-credentials flow requests the Power BI `.default`
-#'   audience documented for service principals. Supply this explicitly when a
-#'   custom token provider or identity flow requires a different token target.
+#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
+#'   set it only for a custom token provider or identity flow.
 #' @param verbose Logical. Show submission and lifecycle messages.
 #' @param wait Logical. `FALSE` returns immediately so other R work can
 #'   continue; `TRUE` waits for a terminal state before returning the same
@@ -299,16 +297,14 @@ FabricLivyBatch <- R6::R6Class(
 #' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
 #'   `$result()` for structured metadata and logs, and call `$wait()` later when
 #'   submitting with `wait = FALSE`.
-#' @details
-#' Fabric needs a workspace on supported Fabric capacity and a Lakehouse. The
+#' @section Before you submit:
+#' Fabric needs a workspace on supported capacity and a Lakehouse. The
 #' application file must already be accessible through an ABFS/ABFSS URI; this
 #' function does not upload a local script. Use [fabric_onelake_upload()] first
 #' when needed.
 #'
-#' Delegated authentication requests the Livy Lakehouse execution/read and
-#'   required `Code.Access*` scopes documented by Microsoft. AzureAuth
-#'   client-credentials authentication uses
-#'   `https://analysis.windows.net/powerbi/api/.default`.
+#' The signed-in identity needs Lakehouse read and execute access, permission for
+#' code to access Fabric and storage, and an appropriate workspace role.
 #'
 #' @seealso
 #' [Microsoft Fabric batch jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)

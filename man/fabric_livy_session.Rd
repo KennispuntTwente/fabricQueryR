@@ -41,12 +41,9 @@ or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehou
 Copy the session-job URL from \strong{Lakehouse settings > Livy endpoint}, or
 use a discovered record to avoid handling IDs manually.}
 
-\item{high_concurrency}{Logical. \code{FALSE} creates a standard session for
-sequential or low-concurrency work. \code{TRUE} creates an isolated REPL that
-Fabric can pack into shared Spark sessions, which is useful when an
-application runs several independent Spark workloads concurrently. High
-concurrency is currently a Microsoft preview capability; its availability
-and service contract can change before general availability.}
+\item{high_concurrency}{Whether to let Fabric share Spark compute between
+several isolated workloads. Keep \code{FALSE} for a typical sequence of calls in
+one R process. This Fabric capability is currently in preview.}
 
 \item{session_tag}{Optional high-concurrency packing hint. Related requests
 with the same tag may share an underlying Livy session while keeping
@@ -90,18 +87,14 @@ supplied to Spark.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
+\item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
-\item{audience}{Optional OAuth audience/scope vector. With \code{NULL}, delegated
-authentication requests Microsoft's four required Livy scopes, while an
-AzureAuth client-credentials flow requests the Power BI \code{.default}
-audience documented for service principals. Supply this explicitly when a
-custom token provider or identity flow requires a different token target.}
+\item{audience}{Optional sign-in scope. Most users should leave this \code{NULL};
+set it only for a custom token provider or identity flow.}
 
 \item{verbose}{Logical. Show session lifecycle messages.}
 
@@ -114,24 +107,25 @@ A newly created \link{FabricLivySession}. It may still be starting; call
 \verb{$wait()} before \verb{$submit()}/\verb{$run()}, and \verb{$close()} when finished.
 }
 \description{
-Starts an interactive Spark context that can run several statements while
-retaining variables and Spark state between them. This avoids starting new
-compute for each call.
+Starts Spark compute that can run several statements while keeping variables
+and Spark state between calls. Use \code{\link[=fabric_livy_query]{fabric_livy_query()}} instead for a single,
+self-contained operation.
 }
-\details{
-Use a standard session for a typical interactive sequence in one R process.
-High concurrency is intended for automation that needs multiple isolated
-Spark statement streams at the same time; it is not necessary merely to run
-several statements sequentially.
+\section{Choosing a session type}{
+
+Use a standard session for a typical sequence in one R process. High
+concurrency is for applications that run several independent Spark workloads
+at the same time; it is not needed for several sequential statements.
+}
+
+\section{Cleanup and permissions}{
 
 No network request is made when an open object is garbage collected. Call
-\verb{$close()} explicitly, and use \code{on.exit(session$close())} in functions,
-for deterministic cleanup. Delegated authentication requests
-\code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All}, \code{Code.AccessFabric.All}, and
-\code{Code.AccessStorage.All}. AzureAuth client-credentials authentication uses
-\verb{https://analysis.windows.net/powerbi/api/.default}, as documented by
-Microsoft for Livy service principals.
+\verb{$close()} explicitly, and use \code{on.exit(session$close())} inside functions.
+The signed-in identity needs Lakehouse read and execute access, permission for
+code to access Fabric and storage, and an appropriate workspace role.
 }
+
 \examples{
 \dontrun{
 run_shared_state <- function(lakehouse) {

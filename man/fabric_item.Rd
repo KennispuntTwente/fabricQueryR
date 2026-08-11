@@ -20,10 +20,9 @@ fabric_item(
 )
 }
 \arguments{
-\item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record avoids an extra lookup and, if
-it contains \code{apiEndpoint}, routes workspace calls through that endpoint. A
-name is often easier for interactive use.}
+\item{workspace}{Workspace name, ID, or record returned by
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
+avoids an extra lookup.}
 
 \item{item}{Item GUID, exact display name, or an item record returned
 by a discovery function. A display name must identify exactly one item of
@@ -49,16 +48,11 @@ supply this together with \code{personal_workspace_tenant_id} when a
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
-bearer-token string, or token-provider function. With \code{NULL} (the
-default), \code{AzureAuth} reuses a matching cached token or starts its normal
-interactive login flow when a new token is required.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.
-Discovery uses the
-\verb{https://api.fabric.microsoft.com/.default} audience and requires
-\code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
@@ -68,17 +62,13 @@ containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
 }
 \value{
-A \code{fabric_item} list. It contains common fields such as \code{id},
-\code{displayName}, \code{type}, and \code{workspaceId}, the nested workload
-\code{properties}, and applicable connection targets. SQLDatabase records use
-\code{sql_connection_string}; Lakehouse, Warehouse, and WarehouseSnapshot
-records use \code{sql_server} and \code{sql_database}. Other workloads can include
-\code{livy_url}, \code{dax_connection_string}, or \code{query_service_uri}.
+One \code{fabric_item} record containing the item's name, ID, type,
+workspace, and any connection details that Fabric makes available.
 }
 \description{
-Finds one item and retrieves the connection details that fabricQueryR can
-use. This is convenient when you know the item's name and do not need a
-collection of every item in the workspace.
+Finds one item and returns the connection details needed by fabricQueryR.
+Use this when you know the item's name or ID and do not need to list every
+item in the workspace.
 }
 \details{
 The caller needs access to the workspace for the core item lookup. This

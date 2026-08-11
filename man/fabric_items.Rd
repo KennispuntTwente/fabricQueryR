@@ -22,25 +22,21 @@ fabric_items(
 )
 }
 \arguments{
-\item{workspace}{Workspace GUID, exact display name, or a workspace record
-returned by \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A record avoids an extra lookup and, if
-it contains \code{apiEndpoint}, routes workspace calls through that endpoint. A
-name is often easier for interactive use.}
+\item{workspace}{Workspace name, ID, or record returned by
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
+avoids an extra lookup.}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
 \code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
 Fabric, so use the API spelling. Leave \code{NULL} to list all item types.}
 
-\item{detail}{Logical. \code{FALSE} makes the fewest API calls and is sufficient
-for names and IDs. \code{TRUE} also retrieves supported workload properties,
-such as SQL connection strings and Livy or KQL endpoints, but is slower
-and can require additional permissions. The typed helpers below use
-\code{TRUE}.}
+\item{detail}{Whether to retrieve connection details as well as names and
+IDs. This takes more requests and may require additional permissions. The
+typed discovery helpers use \code{TRUE} by default.}
 
-\item{detail_errors}{How workload-detail or optional private SQL endpoint
-failures are handled. \code{"record"} retains every successfully retrieved
-field, stores the message in \code{detail_error}, and emits one summary warning.
-\code{"abort"} preserves strict all-or-nothing behavior.}
+\item{detail_errors}{What to do if some connection details cannot be read.
+\code{"record"} returns the available information and stores an error message
+with the affected item; \code{"abort"} stops the call.}
 
 \item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
 \code{FALSE} lists only items at the workspace root.}
@@ -60,16 +56,11 @@ supply this together with \code{personal_workspace_tenant_id} when a
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
 
-\item{token}{Preferred token input: an \code{AzureAuth::AzureToken} object,
-bearer-token string, or token-provider function. With \code{NULL} (the
-default), \code{AzureAuth} reuses a matching cached token or starts its normal
-interactive login flow when a new token is required.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.
-Discovery uses the
-\verb{https://api.fabric.microsoft.com/.default} audience and requires
-\code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
@@ -79,22 +70,15 @@ containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
 }
 \value{
-A list with one \code{fabric_item} object per item. Each object is a
-named list with common fields including \code{id}, \code{displayName}, \code{type},
-\code{workspaceId}, and \code{folderId}. With \code{detail = TRUE}, applicable objects
-also contain ready-to-use connection fields. SQLDatabase records contain
-\code{sql_connection_string}; Lakehouse, Warehouse, and WarehouseSnapshot
-records contain \code{sql_server} and \code{sql_database}. Other workloads can
-contain \verb{one_lake_*_path}, \code{dax_connection_string}, \code{livy_url},
-\code{query_service_uri}, or \code{graphql_endpoint}. When supplied by
-Fabric, \code{workspaceApiEndpoint} preserves the workspace-specific API origin
-for later job calls. Fields that do not apply to an item are absent;
-\code{detail_error} records failed enrichment requests.
-Nested service data is retained in place, including in \code{properties}.
+A list with one item record per match. Every record includes common
+fields such as \code{id}, \code{displayName}, \code{type}, and \code{workspaceId}. With
+\code{detail = TRUE}, records also include the connection details needed by the
+matching fabricQueryR functions when Fabric makes them available.
 }
 \description{
-Lists the items stored in one workspace. In Fabric, an \emph{item} is a resource
-such as a Lakehouse, Warehouse, semantic model, notebook, or Eventhouse.
+Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
+items stored in a workspace. Set \code{detail = TRUE} when you want records that
+can be passed directly to query or connection functions.
 }
 \details{
 The caller needs at least access to the workspace (the Viewer role is

@@ -1,31 +1,29 @@
-#' Query a Microsoft Fabric Eventhouse with KQL
+#' Run a KQL query in Microsoft Fabric
 #'
-#' Runs a read-only Kusto Query Language (KQL) query against a KQL database and
-#' converts the result to R objects. In Fabric, an Eventhouse is a container for
-#' one or more KQL databases designed for fast analysis of event, log,
-#' telemetry, and time-series data.
+#' Runs a read-only query against a KQL database and returns the result as a
+#' tibble. KQL databases are commonly used for event, log, telemetry, and
+#' time-series data in a Fabric Eventhouse.
 #'
-#' @details
-#' The easiest input is an item from [fabric_kql_databases()], because it supplies
-#' both the database name and its **Query URI**. If copying a URI from Fabric,
-#' use **Query URI**, not **Ingestion URI**; this function queries existing data
-#' and does not load new data. The caller needs database access through a Fabric
-#' workspace role, Eventhouse sharing, or KQL database sharing.
+#' @section Basic use:
+#' The easiest input is an item from [fabric_kql_databases()], which already
+#' contains the database name and its **Query URI**. If you copy a URI from
+#' Fabric, choose **Query URI**, not **Ingestion URI**. This function reads
+#' existing data; it does not load data or run management commands.
 #'
-#' This function uses the Kusto v2 REST query endpoint and requests a token for
-#' `https://api.kusto.windows.net/.default`.
+#' Put changing values in `parameters` and declare them in KQL with
+#' `declare query_parameters(...)`. The values are sent separately from the
+#' query text, which is safer and easier to quote correctly than using
+#' `paste()`. Scalar R values become KQL scalar values; vectors and lists become
+#' `dynamic` arrays or objects.
 #'
-#' Query parameters are sent through Kusto client request properties, never
-#' interpolated into `query`. Declare them in KQL with
-#' `declare query_parameters(...)`. Scalar R values are encoded as Kusto
-#' parameter values; vectors and lists are encoded as `dynamic(...)` literals.
-#' Zero-length vectors and unnamed lists encode `dynamic([])`. A zero-length
-#' list with non-`NULL` names encodes `dynamic({})`; `NULL` remains invalid so it
-#' cannot be confused with an empty collection or a typed Kusto null.
+#' @section Advanced request options:
+#' `request_properties` controls server behavior such as timeouts and result
+#' truncation. Most users can leave it empty.
 #' Microsoft Fabric does not support the `queryconsistency` or
 #' `query_weakconsistency_session_id` request properties. Do not include either
 #' name in `request_properties`, even though Azure Data Explorer supports them.
 #'
+#' @section Result types:
 #' KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns normally
 #' become logical, UTC `POSIXct`, integer, `bit64::integer64`, double, and
 #' `difftime` vectors. Base R and `bit64` reserve the minimum signed `int` and
@@ -35,14 +33,15 @@
 #' character vectors. Keeping decimal values in their original lexical form
 #' avoids the silent precision loss that conversion to an R double can cause.
 #'
-#' A query with one primary result table returns a tibble. A query with multiple
-#' primary result tables returns a named list of tibbles with class
-#' `fabric_kql_tables`. Auxiliary tables, completion information, raw frames,
-#' response headers, and correlation IDs are retained as `kusto_*` attributes.
-#' A query with no primary table returns an empty tibble.
-#' Management commands and ingestion endpoints are intentionally not supported.
+#' A query with several result tables returns a named `fabric_kql_tables` list;
+#' a query with no result table returns an empty tibble. Service metadata is
+#' retained in `kusto_*` attributes for troubleshooting.
 #'
-#' @param cluster Query-service URI, or one Eventhouse or
+#' @section Permissions:
+#' The caller needs database access through a Fabric workspace role, Eventhouse
+#' sharing, or KQL database sharing. Authentication uses the Kusto query service.
+#'
+#' @param cluster Query URI, or one Eventhouse or
 #'   KQLDatabase record returned by [fabric_eventhouses()],
 #'   [fabric_kql_databases()], or [fabric_item()]. A KQLDatabase record also
 #'   supplies `database`. Despite the argument name, use Fabric's **Query URI**
@@ -51,10 +50,8 @@
 #'   `"Events | where Severity == 'Error' | take 100"`.
 #' @param database KQL database display name. Supply it with a copied Query URI
 #'   or an Eventhouse record; omit it when `cluster` is a KQLDatabase record.
-#' @param parameters Named list of values for parameters declared by
-#'   `declare query_parameters(...)` in `query`. Scalar R values become Kusto
-#'   scalar values; vectors and lists become `dynamic` values. Binding is safer
-#'   and easier to quote correctly than building KQL with `paste()`.
+#' @param parameters Named list of values declared with
+#'   `declare query_parameters(...)` in `query`.
 #' @param request_properties Named list of Kusto client request options, such as
 #'   `servertimeout = "2m"` or `notruncation = TRUE`. Most users can leave this
 #'   empty; these are server-side Kusto controls, not query parameters. Fabric
@@ -66,11 +63,10 @@
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback.
-#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
-#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
-#'   token or starts its normal interactive login flow.
-#' @param auth_args Named list of additional arguments passed to
-#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param allow_custom_endpoint Logical. Permit a non-Microsoft Kusto HTTPS
 #'   origin. Keep `FALSE` unless the endpoint is trusted; credentials are sent
 #'   to the supplied origin.

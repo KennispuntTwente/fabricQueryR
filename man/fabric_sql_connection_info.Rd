@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_sql_connect.R
 \name{fabric_sql_connection_info}
 \alias{fabric_sql_connection_info}
-\title{Parse a Microsoft Fabric SQL target}
+\title{Get connection details for a Fabric SQL item}
 \usage{
 fabric_sql_connection_info(
   server,
@@ -24,11 +24,8 @@ shown with its connection string in Fabric. If omitted, Warehouse and SQL
 analytics endpoints open Fabric's \code{master} context, which is useful for
 discovery but does not select the item's tables.}
 
-\item{target_type}{Label for the endpoint kind. Keep \code{"auto"} unless the
-hostname is custom or ambiguous. The explicit choices distinguish a
-Lakehouse SQL analytics endpoint, Warehouse, transactional SQL Database,
-or another read-only SQL analytics endpoint; they do not convert one kind
-of endpoint into another.}
+\item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
+hostname prevents fabricQueryR from identifying it.}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
 \code{server}; otherwise the standard SQL port, 1433, is used.}
@@ -39,7 +36,7 @@ A \code{fabric_sql_connection_info} list with \code{server}, \code{database},
 discovery record). No connection is opened.
 }
 \description{
-Converts the different ways Fabric identifies a SQL endpoint into one
-consistent set of connection values. Most users can pass a discovered item
-directly to \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this function.
+Shows the server, database, port, and item type that fabricQueryR will use for
+a Fabric SQL connection. Most users can pass a discovered item directly to
+\code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this helper.
 }

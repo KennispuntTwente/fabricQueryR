@@ -1,11 +1,10 @@
-#' Query a Microsoft Fabric API for GraphQL
+#' Run a query against a Fabric GraphQL API
 #'
-#' Sends a GraphQL query or mutation to an API for GraphQL item configured in
-#' Fabric. Fabric generates the API schema from selected Lakehouse, Warehouse,
-#' or SQL Database objects; this function calls that API from R and returns its
-#' nested response.
+#' Sends a GraphQL query or mutation to an **API for GraphQL** item and returns
+#' the result as a nested R list. Use this when a Fabric API already exposes the
+#' Lakehouse, Warehouse, or SQL Database data you need.
 #'
-#' @details
+#' @section Before you query:
 #' Before using this function, create an **API for GraphQL** item in a Fabric
 #' workspace, connect its data source, and choose which tables, fields, queries,
 #' and mutations the API exposes. Fabric's built-in GraphQL editor and schema
@@ -16,12 +15,11 @@
 #' SQL Database sources can expose supported mutations, while Lakehouse and
 #' mirrored SQL analytics endpoint sources are read-only and expose queries only.
 #'
-#' A direct endpoint has the form
-#' `https://api.fabric.microsoft.com/v1/workspaces/{workspace-id}/graphqlapis/{api-id}/graphql`.
-#' You can instead pass a GraphQL API GUID with `workspace_id`, or one item from
-#' [fabric_graphql_apis()] or [fabric_item()].
+#' The easiest input is an item from [fabric_graphql_apis()]. You can instead
+#' supply the API's endpoint, or its ID together with `workspace_id`.
 #'
-#' Interactive/delegated authentication requires the Power BI delegated scope
+#' @section Permissions and authentication:
+#' Interactive authentication requires the Power BI delegated scope
 #' `GraphQLApi.Execute.All`, plus **Run Queries and Mutations** permission on
 #' the API. Service principals are also supported by Fabric: request a Fabric
 #' API token with `auth_args` or pass one through `token`, enable service
@@ -30,11 +28,10 @@
 #' caller also needs the required access to the underlying data source.
 #' Saved-credential APIs use the configured connection instead.
 #'
-#' When `audience = NULL`, the package selects the Fabric API scope for an
-#' AzureAuth client-credentials flow and the delegated GraphQL scope otherwise.
-#' Set `audience` explicitly when a custom token provider uses a
-#' service-principal flow. The value is ignored for a static token string.
+#' Most users can leave `audience = NULL`; fabricQueryR chooses the documented
+#' scope for the sign-in flow. Set it only for a custom identity provider.
 #'
+#' @section Retries and service limits:
 #' GraphQL POST requests are not retried by default because a document can
 #' contain mutations. Set `idempotent = TRUE` only when the operation is safe
 #' to repeat.
@@ -44,20 +41,18 @@
 #' seconds, and query nesting to 10 levels. Use smaller pages and filtered query
 #' partitions when a result could approach these service limits.
 #'
-#' JSON integers outside R's exact double-precision range are returned as
+#' Large integers outside R's exact numeric range are returned as
 #' character values so identifiers and other large integer fields are not
 #' rounded.
 #'
-#' @param api GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-#'   GraphQLApi record. An item from [fabric_graphql_apis()] is usually easiest
+#' @param api GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+#'   item from [fabric_graphql_apis()] is usually easiest
 #'   because it supplies the endpoint and workspace ID.
 #' @param query One GraphQL document containing a query or mutation. Use
 #'   variables for changing values instead of pasting values into this string.
-#' @param variables Named list of GraphQL variables. Values must be representable
-#'   as JSON; names must match variables declared in `query`. Scalar vectors are
-#'   encoded as JSON scalars when they have length one. Wrap a one-element
-#'   GraphQL list in [I()], for example `list(ids = I("x"))`, to preserve its
-#'   JSON array shape. Vectors with two or more elements are arrays normally.
+#' @param variables Named list of values for variables declared in `query`.
+#'   One-element values are normally sent as scalars. Wrap a one-element list
+#'   variable in [I()], for example `list(ids = I("x"))`, to send it as an array.
 #' @param operation_name Optional operation name. Supply it when the document
 #'   contains more than one named operation; otherwise leave `NULL`.
 #' @param workspace_id Workspace GUID. Required when `api` is a GraphQL API
@@ -66,9 +61,8 @@
 #'   lets the caller inspect partial data and errors; `"warn"` also makes errors
 #'   visible immediately; `"error"` stops and attaches the result to a
 #'   `fabric_graphql_error`. HTTP/authentication failures always stop.
-#' @param timeout Positive wall-clock HTTP timeout in seconds. The 110-second
-#'   default leaves transfer overhead beyond Fabric's 100-second server
-#'   execution limit, allowing the service's own timeout response to arrive.
+#' @param timeout Maximum time in seconds for the request. The default allows
+#'   Fabric's own 100-second query timeout response to arrive.
 #' @param idempotent Logical. Permit retries after transient HTTP failures.
 #'   `TRUE` is normally suitable for a read-only query, but not for a mutation
 #'   that could be applied twice.
@@ -76,11 +70,10 @@
 #'   `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback.
-#' @param token Optional `AzureAuth::AzureToken`, bearer-token string, or
-#'   token-provider function. With `NULL`, `AzureAuth` reuses a matching cached
-#'   token or starts its normal interactive login flow.
-#' @param auth_args Named list of additional arguments passed to
-#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
 #' @param audience OAuth audience/scope passed to the credential. `NULL`
 #'   selects the documented scope from the authentication flow. Set this only
 #'   for a custom token provider or unusual identity flow.
@@ -242,11 +235,11 @@ graphql_execute_context <- function(context, variables) {
   )
 }
 
-#' Paginate a Microsoft Fabric GraphQL operation
+#' Read all pages from a Fabric GraphQL query
 #'
-#' Repeats [fabric_graphql_query()] while `next_cursor` returns a cursor. The
-#' callback tells the function where the current page stores its next cursor,
-#' because that location depends on the API schema.
+#' Repeats [fabric_graphql_query()] until the API reports that no more pages are
+#' available. Because every GraphQL schema can store pagination information in
+#' a different place, `next_cursor` tells the function where to find it.
 #'
 #' @param next_cursor Function accepting a `fabric_graphql_result` and returning
 #'   the next opaque cursor, or `NULL` when pagination is complete. Use
@@ -384,7 +377,10 @@ graphql_resolve_audience <- function(audience, token, auth_args) {
   }
 }
 
-#' Build a Fabric GraphQL cursor extractor
+#' Locate pagination information in a GraphQL result
+#'
+#' Creates the `next_cursor` function used by [fabric_graphql_paginate()] for the
+#' common `hasNextPage` and `endCursor` pagination fields.
 #'
 #' @param path Character path from the result's `data` field to a connection
 #'   object, for example `"products"` or `c("viewer", "products")`. This is the

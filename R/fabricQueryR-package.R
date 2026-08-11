@@ -1,9 +1,9 @@
 #' Work with Microsoft Fabric from R
 #'
-#' fabricQueryR provides R-friendly access to common Microsoft Fabric data
-#' interfaces. It can discover the workspaces and items available to you, then
-#' pass those discovered records directly to query and file functions so that
-#' you rarely need to copy GUIDs or endpoints by hand.
+#' fabricQueryR helps you find and work with Microsoft Fabric data from R. Start
+#' by discovering the workspaces and items available to you, then pass those
+#' results directly to the package's query, file, Spark, and job functions. In
+#' most workflows, you do not need to copy IDs or connection details by hand.
 #'
 #' @section Where to start:
 #' - Use [fabric_workspaces()] and the typed discovery helpers, such as

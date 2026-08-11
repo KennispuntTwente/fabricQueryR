@@ -2,7 +2,7 @@
 % Please edit documentation in R/fabric_graphql_query.R
 \name{fabric_graphql_paginate}
 \alias{fabric_graphql_paginate}
-\title{Paginate a Microsoft Fabric GraphQL operation}
+\title{Read all pages from a Fabric GraphQL query}
 \usage{
 fabric_graphql_paginate(
   api,
@@ -27,8 +27,8 @@ fabric_graphql_paginate(
 )
 }
 \arguments{
-\item{api}{GraphQL HTTPS endpoint, GraphQL API GUID, or one discovered
-GraphQLApi record. An item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
+\item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
 because it supplies the endpoint and workspace ID.}
 
 \item{query}{One GraphQL document containing a query or mutation. Use
@@ -38,11 +38,9 @@ variables for changing values instead of pasting values into this string.}
 the next opaque cursor, or \code{NULL} when pagination is complete. Use
 \code{\link[=fabric_graphql_cursor]{fabric_graphql_cursor()}} for Fabric's normal connection fields.}
 
-\item{variables}{Named list of GraphQL variables. Values must be representable
-as JSON; names must match variables declared in \code{query}. Scalar vectors are
-encoded as JSON scalars when they have length one. Wrap a one-element
-GraphQL list in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to preserve its
-JSON array shape. Vectors with two or more elements are arrays normally.}
+\item{variables}{Named list of values for variables declared in \code{query}.
+One-element values are normally sent as scalars. Wrap a one-element list
+variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array.}
 
 \item{cursor_variable}{Name of the GraphQL variable that receives the next
 cursor, commonly \code{"after"}. It must match the variable declared in \code{query}.}
@@ -61,9 +59,8 @@ visible immediately; \code{"error"} stops and attaches the result to a
 \item{max_pages}{Positive maximum number of requests. This guards against a
 faulty or unexpectedly large pagination loop.}
 
-\item{timeout}{Positive wall-clock HTTP timeout in seconds. The 110-second
-default leaves transfer overhead beyond Fabric's 100-second server
-execution limit, allowing the service's own timeout response to arrive.}
+\item{timeout}{Maximum time in seconds for the request. The default allows
+Fabric's own 100-second query timeout response to arrive.}
 
 \item{idempotent}{Logical. Permit retries after transient HTTP failures.
 \code{TRUE} is normally suitable for a read-only query, but not for a mutation
@@ -75,12 +72,11 @@ that could be applied twice.}
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
 
-\item{token}{Optional \code{AzureAuth::AzureToken}, bearer-token string, or
-token-provider function. With \code{NULL}, \code{AzureAuth} reuses a matching cached
-token or starts its normal interactive login flow.}
+\item{token}{Optional access token or token-provider function. Leave \code{NULL}
+to let fabricQueryR use its normal sign-in flow.}
 
-\item{auth_args}{Named list of additional arguments passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+\item{auth_args}{Additional sign-in options passed to
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
 selects the documented scope from the authentication flow. Set this only
@@ -100,9 +96,9 @@ request and \code{complete} is \code{TRUE} when the callback reported no next pa
 Results are kept page-by-page because the requested schema shape can vary.
 }
 \description{
-Repeats \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} while \code{next_cursor} returns a cursor. The
-callback tells the function where the current page stores its next cursor,
-because that location depends on the API schema.
+Repeats \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} until the API reports that no more pages are
+available. Because every GraphQL schema can store pagination information in
+a different place, \code{next_cursor} tells the function where to find it.
 }
 \examples{
 \dontrun{
