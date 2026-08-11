@@ -351,7 +351,13 @@ fabric_livy_poll_sleep <- function(
   invisible(remaining)
 }
 
-fabric_livy_abort_timeout <- function(kind, handle, response) {
+fabric_livy_abort_timeout <- function(
+  kind,
+  handle,
+  response,
+  cancel_accepted = NULL,
+  cancel_error = NULL
+) {
   field <- switch(
     kind,
     session = "session",
@@ -363,7 +369,9 @@ fabric_livy_abort_timeout <- function(kind, handle, response) {
     class = "fabric_livy_timeout_error",
     kind = kind,
     last_response = response,
-    last_state = fabric_livy_state(response)
+    last_state = fabric_livy_state(response),
+    cancel_accepted = cancel_accepted,
+    cancel_error = cancel_error
   )
   data[[field]] <- handle
   do.call(rlang::abort, data)
@@ -375,7 +383,8 @@ fabric_livy_ok <- function(
   credential,
   payload = NULL,
   idempotent = NULL,
-  accepted_status = integer()
+  accepted_status = integer(),
+  deadline = NULL
 ) {
   req <- httr2::request(url) |>
     httr2::req_method(method)
@@ -390,7 +399,8 @@ fabric_livy_ok <- function(
     credential = credential,
     audience = credential$livy_audience %||% .fabric_audience$fabric,
     idempotent = idempotent,
-    accepted_status = accepted_status
+    accepted_status = accepted_status,
+    deadline = deadline
   )
 }
 

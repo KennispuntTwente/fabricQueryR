@@ -124,9 +124,9 @@ High concurrency is intended for automation that needs multiple isolated
 Spark statement streams at the same time; it is not necessary merely to run
 several statements sequentially.
 
-A finalizer attempts cleanup if an open object is garbage
-collected. Call \verb{$close()} explicitly, and use \code{on.exit(session$close())}
-in functions, for deterministic cleanup. Delegated authentication requests
+No network request is made when an open object is garbage collected. Call
+\verb{$close()} explicitly, and use \code{on.exit(session$close())} in functions,
+for deterministic cleanup. Delegated authentication requests
 \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All}, \code{Code.AccessFabric.All}, and
 \code{Code.AccessStorage.All}. AzureAuth client-credentials authentication uses
 \verb{https://analysis.windows.net/powerbi/api/.default}, as documented by

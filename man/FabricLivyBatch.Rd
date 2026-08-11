@@ -197,7 +197,14 @@ to inspect the outcome, and \verb{$cancel()} to request cancellation.
   Request batch cancellation.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivyBatch$cancel()}
+    \preformatted{FabricLivyBatch$cancel(deadline = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deadline}}{Internal wall-clock deadline for the cancellation request.}
+    }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{

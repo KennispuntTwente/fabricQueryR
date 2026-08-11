@@ -162,10 +162,12 @@ FabricLivySession <- R6::R6Class(
         fabric_state <- tolower(
           response$fabricSessionStateInfo$state %||% ""
         )
+        result <- tolower(response$result %||% "")
         if (
           state %in%
             .fabric_livy_session_terminal_states ||
-            fabric_state %in% c("error", "cancelled", "canceled")
+            fabric_state %in% c("error", "cancelled", "canceled") ||
+            result %in% c("uncertain", "failed", "cancelled", "canceled")
         ) {
           fabric_livy_abort_session(response)
         }
@@ -294,12 +296,6 @@ FabricLivySession <- R6::R6Class(
   private = list(
     credential = NULL,
     collection_url = NULL,
-
-    finalize = function() {
-      if (!isTRUE(self$closed) && !is.null(self$url)) {
-        try(self$close(), silent = TRUE)
-      }
-    },
 
     assert_open = function() {
       if (isTRUE(self$closed)) {
@@ -584,9 +580,9 @@ FabricLivyStatement <- R6::R6Class(
 #' Spark statement streams at the same time; it is not necessary merely to run
 #' several statements sequentially.
 #'
-#' A finalizer attempts cleanup if an open object is garbage
-#'   collected. Call `$close()` explicitly, and use `on.exit(session$close())`
-#'   in functions, for deterministic cleanup. Delegated authentication requests
+#' No network request is made when an open object is garbage collected. Call
+#'   `$close()` explicitly, and use `on.exit(session$close())` in functions,
+#'   for deterministic cleanup. Delegated authentication requests
 #'   `Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and
 #'   `Code.AccessStorage.All`. AzureAuth client-credentials authentication uses
 #'   `https://analysis.windows.net/powerbi/api/.default`, as documented by

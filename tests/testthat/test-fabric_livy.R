@@ -471,7 +471,7 @@ test_that("Livy table MIME output rejects malformed rows", {
   )
 })
 
-test_that("session finalizer attempts cleanup of open sessions", {
+test_that("session finalizer does not perform network cleanup", {
   deleted <- character()
   local_mocked_bindings(
     fabric_livy_json = function(...) list(id = "finalize-me", state = "idle"),
@@ -488,10 +488,9 @@ test_that("session finalizer attempts cleanup of open sessions", {
     verbose = FALSE,
     allow_custom_endpoint = TRUE
   )
-  session_url <- session$url
   rm(session)
   gc()
-  expect_equal(deleted, session_url)
+  expect_length(deleted, 0L)
 })
 
 test_that("high-concurrency sessions use HC and REPL endpoints", {
@@ -771,6 +770,7 @@ test_that("batch failures and cancellation preserve service details", {
 
 test_that("batch timeout can request cancellation", {
   cancelled <- FALSE
+  cancel_deadline <- NULL
   local_mocked_bindings(
     fabric_livy_json = function(method, ...) {
       if (method == "POST") {
@@ -779,8 +779,9 @@ test_that("batch timeout can request cancellation", {
         list(id = "slow-batch", state = "running")
       }
     },
-    fabric_livy_ok = function(...) {
+    fabric_livy_ok = function(..., deadline = NULL) {
       cancelled <<- TRUE
+      cancel_deadline <<- deadline
       TRUE
     }
   )
@@ -805,6 +806,40 @@ test_that("batch timeout can request cancellation", {
   expect_identical(error$last_response, batch$response)
   expect_true(cancelled)
   expect_true(batch$cancel_requested)
+  expect_s3_class(cancel_deadline, "POSIXct")
+  expect_true(error$cancel_accepted)
+  expect_null(error$cancel_error)
+})
+
+test_that("batch timeout retains a bounded cancellation failure", {
+  local_mocked_bindings(
+    fabric_livy_json = function(...) {
+      list(id = "slow-batch", state = "running")
+    },
+    fabric_livy_ok = function(..., deadline = NULL) {
+      expect_s3_class(deadline, "POSIXct")
+      rlang::abort("cancellation deadline exhausted")
+    }
+  )
+  batch <- fabric_livy_batch_submit(
+    "https://example.test/livy/batches",
+    file = "job.py",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+
+  error <- expect_error(
+    batch$wait(timeout = 0, cancel_on_timeout = TRUE),
+    class = "fabric_livy_timeout_error"
+  )
+  expect_false(error$cancel_accepted)
+  expect_match(
+    conditionMessage(error$cancel_error),
+    "cancellation deadline exhausted",
+    fixed = TRUE
+  )
+  expect_false(batch$cancel_requested)
 })
 
 test_that("statement wait polls through cancelling until cancelled", {
@@ -1098,10 +1133,18 @@ test_that("batch result validates error_on_failure before refresh", {
 })
 
 test_that("session waits stop on all documented terminal states", {
-  check_terminal <- function(initial_state, high_concurrency = FALSE) {
+  check_terminal <- function(
+    initial_state,
+    result = NULL,
+    high_concurrency = FALSE
+  ) {
     responses <- list(
       list(id = "terminal-session", state = "starting"),
-      list(id = "terminal-session", state = initial_state)
+      list(
+        id = "terminal-session",
+        state = initial_state,
+        result = result
+      )
     )
     local_mocked_bindings(
       fabric_livy_json = function(...) {
@@ -1127,4 +1170,7 @@ test_that("session waits stop on all documented terminal states", {
 
   check_terminal("success")
   check_terminal("Deleting", high_concurrency = TRUE)
+  check_terminal("starting", result = "Failed")
+  check_terminal("unrecognized", result = "Cancelled")
+  check_terminal("running", result = "Uncertain")
 })

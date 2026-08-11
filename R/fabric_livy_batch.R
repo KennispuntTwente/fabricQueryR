@@ -95,18 +95,12 @@ FabricLivyBatch <- R6::R6Class(
       deadline <- Sys.time() + timeout
       repeat {
         if (fabric_livy_remaining(deadline) <= 0) {
-          if (isTRUE(cancel_on_timeout)) {
-            try(self$cancel(), silent = TRUE)
-          }
-          fabric_livy_abort_timeout("batch", self, self$response)
+          private$abort_timeout(deadline, cancel_on_timeout)
         }
         response <- tryCatch(
           self$status(deadline = deadline),
           fabric_http_deadline_error = function(error) {
-            if (isTRUE(cancel_on_timeout)) {
-              try(self$cancel(), silent = TRUE)
-            }
-            fabric_livy_abort_timeout("batch", self, self$response)
+            private$abort_timeout(deadline, cancel_on_timeout)
           }
         )
         state <- fabric_livy_state(response)
@@ -186,20 +180,43 @@ FabricLivyBatch <- R6::R6Class(
     },
 
     #' @description Request batch cancellation.
+    #' @param deadline Internal wall-clock deadline for the cancellation request.
     #' @returns `TRUE`, invisibly, after Fabric accepts the request.
-    cancel = function() {
+    cancel = function(deadline = NULL) {
       fabric_livy_ok(
         "DELETE",
         self$url,
         private$credential,
-        idempotent = TRUE
+        idempotent = TRUE,
+        deadline = deadline
       )
       self$cancel_requested <- TRUE
       invisible(TRUE)
     }
   ),
   private = list(
-    credential = NULL
+    credential = NULL,
+
+    abort_timeout = function(deadline, cancel_on_timeout) {
+      cancellation <- if (isTRUE(cancel_on_timeout)) {
+        tryCatch(
+          {
+            self$cancel(deadline = deadline)
+            list(accepted = TRUE, error = NULL)
+          },
+          error = function(error) list(accepted = FALSE, error = error)
+        )
+      } else {
+        list(accepted = NULL, error = NULL)
+      }
+      fabric_livy_abort_timeout(
+        "batch",
+        self,
+        self$response,
+        cancel_accepted = cancellation$accepted,
+        cancel_error = cancellation$error
+      )
+    }
   ),
   cloneable = FALSE
 )
