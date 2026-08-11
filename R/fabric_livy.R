@@ -732,7 +732,12 @@ fabric_livy_convert_column <- function(values, type) {
     return(out)
   }
   if (identical(kind, "timestamp_ntz")) {
-    return(fabric_livy_atomic_text(values))
+    text <- fabric_livy_atomic_text(values)
+    return(sub(
+      "^([0-9]{4}-[0-9]{2}-[0-9]{2})T",
+      "\\1 ",
+      text
+    ))
   }
   if (identical(kind, "timestamp")) {
     text <- fabric_livy_atomic_text(values)
@@ -871,8 +876,11 @@ fabric_livy_simplify_column <- function(values) {
 #' code to access Fabric and storage, and an appropriate workspace role.
 #'
 #' Spark long and decimal columns are returned as character values when needed
-#' to preserve them exactly. Dates and timestamps use R temporal classes;
-#' binary and nested values use list-columns.
+#' to preserve them exactly. Dates and timestamps with a time zone use R
+#' temporal classes; timestamps without a time zone remain wall-clock text.
+#' Fabric's SQL JSON output represents non-finite floating-point values as
+#' `null`, so those values are returned as typed missing values. Binary and
+#' nested values use list-columns.
 #'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),

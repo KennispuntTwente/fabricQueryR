@@ -160,7 +160,11 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     timeout = 300,
     poll_interval = 2
   )
-  expect_true(is.nan(special_values$output$parsed$nan_value[[1L]]))
+  # Fabric serializes non-finite SQL doubles as JSON null. Preserve the typed
+  # missing value instead of guessing whether the source was NaN or SQL NULL.
+  wire_values <- special_values$output$data[["application/json"]]$data
+  expect_null(wire_values[[1L]][[1L]])
+  expect_identical(special_values$output$parsed$nan_value, NA_real_)
   expect_identical(
     special_values$output$parsed$local_at,
     "2026-08-10 12:30:01.125"

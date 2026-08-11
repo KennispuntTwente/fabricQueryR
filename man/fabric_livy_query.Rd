@@ -99,8 +99,11 @@ The signed-in identity needs Lakehouse read and execute access, permission for
 code to access Fabric and storage, and an appropriate workspace role.
 
 Spark long and decimal columns are returned as character values when needed
-to preserve them exactly. Dates and timestamps use R temporal classes;
-binary and nested values use list-columns.
+to preserve them exactly. Dates and timestamps with a time zone use R
+temporal classes; timestamps without a time zone remain wall-clock text.
+Fabric's SQL JSON output represents non-finite floating-point values as
+\code{null}, so those values are returned as typed missing values. Binary and
+nested values use list-columns.
 }
 
 \examples{

@@ -392,7 +392,7 @@ test_that("Livy table conversion follows the declared Spark schema", {
         "9007199254740993",
         "12345678901234567890.123456789012345",
         "2026-08-10T12:30:01.125Z",
-        "2026-08-10 12:30:01.125",
+        "2026-08-10T12:30:01.125",
         "NaN",
         jsonlite::base64_enc(charToRaw("abc")),
         list("9007199254740993", NULL)
@@ -435,6 +435,22 @@ test_that("Livy table conversion follows the declared Spark schema", {
   expect_s3_class(empty$day, "Date")
   expect_length(empty$day, 0L)
   expect_length(attr(empty, "spark_schema"), 2L)
+})
+
+test_that("Fabric SQL nulls remain distinguishable from textual NaN", {
+  parsed <- fabric_livy_parse_sql_json(list(
+    schema = list(
+      type = "struct",
+      fields = list(
+        list(name = "nan_value", type = "double", nullable = TRUE),
+        list(name = "local_at", type = "timestamp_ntz", nullable = TRUE)
+      )
+    ),
+    data = list(list(NULL, "2026-08-10T12:30:01.125"))
+  ))
+
+  expect_identical(parsed$nan_value, NA_real_)
+  expect_identical(parsed$local_at, "2026-08-10 12:30:01.125")
 })
 
 test_that("Spark SQL JSON output is parsed into a tibble", {
