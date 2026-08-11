@@ -198,7 +198,9 @@ timeout expires. \code{FALSE} stops waiting but leaves the Fabric job running.}
 
 \item{cancel}{Optional callback checked between polls. Returning \code{TRUE}
 cancels the Fabric job and raises a \code{fabric_job_cancelled_by_caller}
-condition. This is useful for an application-specific stop button.}
+condition. This is useful for an application-specific stop button. Timeout
+and caller-cancel conditions contain \code{cancel_accepted} and \code{cancel_error}
+fields so a failure to stop the remote job is never hidden.}
 }
 \value{
 \code{fabric_job_run()} returns a \code{fabric_job} handle containing the job

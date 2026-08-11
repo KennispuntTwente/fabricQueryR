@@ -345,7 +345,9 @@ fabric_job_status <- function(
 #'   timeout expires. `FALSE` stops waiting but leaves the Fabric job running.
 #' @param cancel Optional callback checked between polls. Returning `TRUE`
 #'   cancels the Fabric job and raises a `fabric_job_cancelled_by_caller`
-#'   condition. This is useful for an application-specific stop button.
+#'   condition. This is useful for an application-specific stop button. Timeout
+#'   and caller-cancel conditions contain `cancel_accepted` and `cancel_error`
+#'   fields so a failure to stop the remote job is never hidden.
 #' @param .sleep,.now Internal hooks for deterministic tests.
 #' @rdname fabric_job_run
 #' @export
@@ -416,18 +418,22 @@ fabric_job_wait <- function(
   retry_after <- job$retry_after
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
-      try(fabric_job_cancel(context$job), silent = TRUE)
+      cancellation <- .fabric_job_cancel_outcome(context$job)
       rlang::abort(
         "Fabric job polling was cancelled by the caller",
         class = c("fabric_job_cancelled_by_caller", "fabric_job_error"),
         job = job,
-        last_status = last
+        last_status = last,
+        cancel_accepted = cancellation$accepted,
+        cancel_error = cancellation$error
       )
     }
     elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
     if (elapsed >= timeout) {
-      if (isTRUE(cancel_on_timeout)) {
-        try(fabric_job_cancel(context$job), silent = TRUE)
+      cancellation <- if (isTRUE(cancel_on_timeout)) {
+        .fabric_job_cancel_outcome(context$job)
+      } else {
+        list(accepted = NULL, error = NULL)
       }
       last_detail <- if (!is.null(last)) {
         paste0(
@@ -450,7 +456,9 @@ fabric_job_wait <- function(
         ),
         class = c("fabric_job_timeout", "fabric_job_error"),
         job = job,
-        last_status = last
+        last_status = last,
+        cancel_accepted = cancellation$accepted,
+        cancel_error = cancellation$error
       )
     }
 
@@ -491,6 +499,16 @@ fabric_job_wait <- function(
     }
     .fabric_job_abort_terminal(last, job)
   }
+}
+
+.fabric_job_cancel_outcome <- function(job) {
+  tryCatch(
+    {
+      fabric_job_cancel(job)
+      list(accepted = TRUE, error = NULL)
+    },
+    error = function(error) list(accepted = FALSE, error = error)
+  )
 }
 
 #' @rdname fabric_job_run

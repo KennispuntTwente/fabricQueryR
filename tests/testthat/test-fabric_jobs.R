@@ -1091,6 +1091,47 @@ test_that("timeout can request cancellation and retains last status", {
   expect_s3_class(condition, "fabric_job_timeout")
   expect_true(any(grepl("/cancel$", calls)))
   expect_match(condition$message, "last status: InProgress", fixed = TRUE)
+  expect_true(condition$cancel_accepted)
+  expect_null(condition$cancel_error)
+})
+
+test_that("wait conditions retain remote cancellation failures", {
+  local_mocked_bindings(
+    fabric_job_cancel = function(...) {
+      rlang::abort(
+        "Fabric rejected cancellation",
+        class = "fabric_job_cancel_error"
+      )
+    }
+  )
+
+  timed_out <- rlang::catch_cnd(
+    fabric_job_wait(
+      job_test_handle(),
+      timeout = 0,
+      cancel_on_timeout = TRUE
+    ),
+    classes = "error"
+  )
+  expect_s3_class(timed_out, "fabric_job_timeout")
+  expect_false(timed_out$cancel_accepted)
+  expect_s3_class(timed_out$cancel_error, "fabric_job_cancel_error")
+
+  cancelled <- rlang::catch_cnd(
+    fabric_job_wait(
+      job_test_handle(),
+      timeout = 1,
+      cancel = function() TRUE
+    ),
+    classes = "error"
+  )
+  expect_s3_class(cancelled, "fabric_job_cancelled_by_caller")
+  expect_false(cancelled$cancel_accepted)
+  expect_match(
+    conditionMessage(cancelled$cancel_error),
+    "Fabric rejected cancellation",
+    fixed = TRUE
+  )
 })
 
 test_that("cancel uses the scheduler route without automatic POST retries", {
