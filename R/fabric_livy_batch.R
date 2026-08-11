@@ -310,7 +310,7 @@ FabricLivyBatch <- R6::R6Class(
 #'   lakehouse,
 #'   file = paste0(
 #'     "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
-#'     "lakehouse/Files/jobs/daily.py"
+#'     "lakehouse.Lakehouse/Files/jobs/daily.py"
 #'   ),
 #'   wait = TRUE,
 #'   cancel_on_timeout = TRUE
