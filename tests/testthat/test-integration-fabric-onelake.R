@@ -55,9 +55,10 @@ fabric_test_order_delta_rows <- function(value, feature) {
     label = paste(feature, "has one stable id, row_id, or event_id column")
   )
   key_values <- value[[key]]
-  integer_text <- is.character(key_values) && all(
-    is.na(key_values) | grepl("^[+-]?[0-9]+$", key_values)
-  )
+  integer_text <- is.character(key_values) &&
+    all(
+      is.na(key_values) | grepl("^[+-]?[0-9]+$", key_values)
+    )
   if (integer_text) {
     key_values <- bit64::as.integer64(key_values)
   }
