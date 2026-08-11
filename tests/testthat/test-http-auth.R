@@ -771,6 +771,22 @@ test_that("shared pagination resolves relative links and rejects new origins", {
   )
   expect_equal(length(values), 2L)
   expect_equal(urls[[2L]], "https://example.test/items?page=2")
+  expect_equal(
+    .httr2_continuation_url(
+      "https://example.test/items",
+      "https://example.test/items",
+      "https://example.test:443/items?page=3"
+    ),
+    "https://example.test:443/items?page=3"
+  )
+  expect_equal(
+    .httr2_continuation_url(
+      "https://example.test:443/items",
+      "https://example.test:443/items",
+      "https://example.test/items?page=3"
+    ),
+    "https://example.test/items?page=3"
+  )
 
   local_mocked_bindings(
     .httr2_json = function(...) {
