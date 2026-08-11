@@ -654,20 +654,41 @@ fabric_sql_query <- function(
 
 fabric_sql_validate_query_statement <- function(sql) {
   tokens <- fabric_sql_top_level_tokens(sql)
-  actions <- tokens[
-    tokens %in% c("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE")
-  ]
-  valid <- length(actions) > 0L && identical(actions[[1L]], "SELECT")
+  terminators <- which(tokens == ";")
+  if (length(terminators)) {
+    valid_terminator <- length(terminators) == 1L &&
+      identical(terminators, length(tokens))
+    if (!valid_terminator) {
+      fabric_sql_statement_error()
+    }
+    tokens <- tokens[-length(tokens)]
+  }
+  first <- if (length(tokens)) tokens[[1L]] else ""
+  select <- match("SELECT", tokens, nomatch = 0L)
+  valid_start <- identical(first, "SELECT") ||
+    (identical(first, "WITH") && select > 0L)
+  select_tokens <- if (select > 0L) {
+    tokens[seq.int(select, length(tokens))]
+  } else {
+    character()
+  }
+  write_capable <- "INTO" %in% select_tokens
+  valid <- valid_start && !write_capable
   if (!valid) {
-    rlang::abort(
-      paste0(
-        "fabric_sql_query() accepts only result-producing SELECT statements. ",
-        "Use DBI::dbExecute() with fabric_sql_connect() for DDL or DML"
-      ),
-      class = "fabric_sql_statement_error"
-    )
+    fabric_sql_statement_error()
   }
   invisible(sql)
+}
+
+fabric_sql_statement_error <- function() {
+  rlang::abort(
+    paste0(
+      "fabric_sql_query() accepts only result-producing SELECT statements, ",
+      "with exactly one statement per call. ",
+      "Use DBI::dbExecute() with fabric_sql_connect() for DDL or DML"
+    ),
+    class = "fabric_sql_statement_error"
+  )
 }
 
 fabric_sql_top_level_tokens <- function(sql) {
@@ -738,6 +759,9 @@ fabric_sql_top_level_tokens <- function(sql) {
       token <- c(token, char)
     } else {
       flush()
+      if (identical(char, ";") && depth == 0L) {
+        tokens <- c(tokens, ";")
+      }
     }
     index <- index + 1L
   }

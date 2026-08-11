@@ -536,13 +536,18 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
   expect_true(disconnect_force)
 })
 
-test_that("fabric_sql_query rejects DDL and DML for both backends", {
+test_that("fabric_sql_query accepts exactly one read-only SELECT", {
   statements <- c(
     "INSERT INTO dbo.t VALUES (1)",
     "UPDATE dbo.t SET value = 2",
     "DELETE FROM dbo.t",
     "CREATE TABLE dbo.t (value int)",
-    "WITH doomed AS (SELECT * FROM dbo.t) DELETE FROM doomed"
+    "WITH doomed AS (SELECT * FROM dbo.t) DELETE FROM doomed",
+    "SELECT 1; DELETE FROM dbo.t",
+    "CREATE TABLE dbo.t(value int); SELECT 1",
+    "EXEC dbo.proc; SELECT 1",
+    "SELECT * INTO dbo.copy FROM dbo.source",
+    "SELECT 1;;"
   )
   for (backend in c("odbc", "adbc")) {
     for (statement in statements) {
@@ -560,6 +565,12 @@ test_that("fabric_sql_query rejects DDL and DML for both backends", {
   }
   expect_silent(fabric_sql_validate_query_statement(
     "WITH source AS (SELECT 1 AS value) SELECT value FROM source"
+  ))
+  expect_silent(fabric_sql_validate_query_statement(
+    paste0(
+      "SELECT ';' AS terminator, 'INTO' AS keyword ",
+      "/* ; DELETE INTO */ -- ; EXEC\n;"
+    )
   ))
 })
 
