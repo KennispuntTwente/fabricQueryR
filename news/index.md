@@ -4,10 +4,6 @@
 
 ### New
 
-- [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-  now exposes the ADLS Gen2 `beginFrom` cursor through `begin_from`,
-  allowing a listing to start at a relative path.
-
 - Added workspace and item discovery with
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
   [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
@@ -19,8 +15,8 @@
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   and Fabric APIs for GraphQL with
   [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md).
-  GraphQL helpers also support variables, mutations, and cursor
-  pagination.
+  GraphQL helpers also support variables, cursor pagination, and
+  mutations where the configured API permits them.
 
 - Added OneLake file management with
   [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
@@ -34,150 +30,12 @@
   on-demand Notebook, pipeline, and Spark job definition runs.
 
 - Expanded Livy support with reusable Spark sessions, including
-  high-concurrency sessions, and standalone batch applications.
+  high-concurrency sessions (a Fabric preview), and standalone batch
+  applications.
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   remains available for one-shot execution.
 
-### Improved
-
-- The internal Fabric long-running-operation poller now honors
-  `Retry-After`, shares one deadline across requests and sleeps, returns
-  structured timeout context, and follows a successful operation’s
-  result location.
-
-- Shared HTTP failures now use `fabric_http_error` conditions carrying
-  the service error code, retryability, status, request/activity IDs,
-  and redacted response metadata.
-
-- SQL timeout and retry-count validation now rejects values above R’s
-  integer range before driver or loop coercion can overflow.
-
-- Notebook jobs now reject missing or vector `compute` values with an
-  explicit package validation error.
-
-- Automatic authentication now validates missing and vector `tenant_id`
-  and `client_id` inputs with stable package conditions.
-
-- KQL request properties with missing names now raise the package’s
-  validation error instead of leaking a base-R missing-value condition.
-
-- GraphQL endpoint validation now accepts an explicit default HTTPS port
-  (`:443`) while continuing to reject non-default ports.
-
-- Livy session documentation now marks high-concurrency sessions as a
-  Microsoft preview capability.
-
-- GraphQL documentation now identifies Lakehouse and mirrored SQL
-  analytics endpoint sources as read-only instead of implying every
-  source supports mutations.
-
-- [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
-  documentation now states that its automatic workload enrichment
-  requires permissions beyond the core item lookup.
-
-- The README’s name-based Livy ABFSS example now includes the required
-  `.Lakehouse` item suffix.
-
-- Delta-reader documentation now includes the complete source-to-result
-  type conversion table for both tibble and Arrow-stream results.
-
-- GraphQL query and pagination HTTP timeouts now default to 110 seconds,
-  leaving response-transfer overhead beyond Fabric’s 100-second server
-  execution limit.
-
-- [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-  now rejects DDL and DML instead of sending arbitrary statements
-  through
-  [`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html).
-  Use
-  [`DBI::dbExecute()`](https://dbi.r-dbi.org/reference/dbExecute.html)
-  on a
-  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-  connection for side-effecting statements.
-
-- Livy table results now convert columns from their declared Spark
-  schema and retain that schema in the `spark_schema` attribute. Longs
-  and decimals remain exact character values; typed null/empty,
-  temporal, binary, and nested columns now have stable representations.
-
-- OneLake workspace, item, item-type, and Delta schema identifiers must
-  now be exactly one URI segment, and conflicting
-  `.Lakehouse`/`.Warehouse` suffixes are rejected instead of changing
-  the URL hierarchy.
-
-- KQL results now retain auxiliary tables, completion information, raw
-  frames, response headers, and correlation IDs. HTTP-200
-  partial-failure conditions carry any primary data already returned by
-  Kusto.
-
-- Singular
-  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
-  discovery now retains workspace-specific OneLake DFS and Blob endpoint
-  metadata, matching
-  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
-  in private-link setups.
-
-- [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
-  now honors a newly submitted job’s initial `Retry-After` delay by
-  default; job handles retain the corresponding `next_poll_at`
-  timestamp.
-
-- Livy session, statement, and batch waits now enforce one wall-clock
-  deadline across status requests, HTTP retries, retry delays, and
-  polling sleeps. Timeout conditions consistently retain the last
-  response and state.
-
-- [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
-  now rejects conflicting connection strings, discovered-record IDs, and
-  explicit target IDs instead of silently allowing one selector to
-  override another.
-
-- Personal-workspace v2 XMLA strings are no longer resolved through the
-  authenticated caller’s unscoped `/datasets` collection, which could
-  select a same-named model belonging to the wrong owner. Use an
-  explicit `dataset_id` with `my_workspace = TRUE`.
-
-- [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
-  now returns Kusto `decimal` columns as character vectors so their full
-  128-bit decimal representation remains exact.
-
-- Explicit `tenant_id` or `client_id` arguments now replace the
-  credential stored in a `fabric_job` handle instead of being silently
-  ignored.
-
-- GraphQL pagination now reuses one credential across pages instead of
-  reacquiring AzureAuth credentials for every request.
-
-- Empty `conf = list()` and `tags = list()` inputs are now treated as
-  omitted Livy settings.
-
-- Fabric REST and KQL endpoint validation now accepts an explicit
-  `:443`, consistently with OneLake and Livy, while still rejecting
-  non-default ports.
-
-- KQL timespan columns no longer retain the service’s raw text values as
-  element names.
-
-- POSIXlt job parameters now work on every declared R version, including
-  R 4.1 and 4.2, while still rejecting vectors of multiple timestamps.
-  CI now includes an R 4.1 lane.
-
-- Discovery can now construct personal-workspace semantic-model XMLA
-  targets when `personal_workspace_tenant_id` and
-  `personal_workspace_owner` are supplied explicitly. These required
-  values are absent from Fabric’s workspace response.
-
-- Delta reads now accept deletion-vector table protocols. Deterministic
-  runtime tests verify both an enabled-but-unused feature and actual
-  deleted rows against the pinned `deltalake` reader.
-
-- Shared HTTP retries now cap server-provided `Retry-After` delays at
-  120 seconds by default. Set
-  `options(fabricqueryr.http.max_retry_delay = ...)` to choose a
-  different non-negative ceiling.
-
-- HTTP-date `Retry-After` headers are now parsed independently of the
-  session’s time locale.
+### Changed
 
 - Authentication is now consistent across the package. Functions accept
   an
@@ -187,36 +45,44 @@
   `access_token` argument for SQL and Livy remains as a deprecated
   alias.
 
-- SQL functions now support Fabric Warehouse, Lakehouse SQL analytics
-  endpoints, and SQL Database. They accept discovered items and portal
-  connection strings, support DBI query parameters, and can optionally
-  use an ADBC backend.
+- SQL functions now also support Fabric SQL Database and accept
+  discovered SQL items and complete portal connection strings. They
+  support DBI query parameters, can optionally use an ADBC backend, and
+  can return query results as either a tibble or an Arrow stream.
+
+- The `database` default for SQL functions is now `NULL`: complete
+  targets infer their database, while bare endpoints connect through
+  `master` unless one is supplied.
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-  can return either a tibble or an Arrow stream. The `database` default
-  is now `NULL`; complete targets infer their database, while bare
-  endpoints connect through `master` unless one is given.
+  now accepts only a single read-only statement; use a connection from
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  for other SQL work.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct workspace and dataset
   IDs, supports optional RLS impersonation, and reports incomplete or
   embedded query errors instead of silently returning partial results.
   It can also use Fabric’s Arrow DAX response format to return typed
-  tibbles or Arrow streams. Only request properties in Microsoft’s
-  published `executeDaxQueries` contract are accepted.
+  tibbles or Arrow streams.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   now reads through the optional Python `deltalake` runtime instead of
   downloading table files first. Python is set up on the first Delta
-  read and is not required by other package functions. The reader now
-  accepts discovered items and supports snapshot versions, column
-  selection, row limits, and disk-backed Arrow streams that are staged
-  while the OneLake token is current. Tibbles support scalar columns;
-  use an Arrow stream for nested or extension data. The old `dest_dir`
-  argument has been removed. The pinned Python reader reports actionable
-  errors when a table requires unsupported Delta features such as Type
-  Widening, V2 Checkpoints, or Fabric Variant. This can affect some
-  Warehouse exports; use SQL or Spark (Livy) when the package runtime
-  cannot read their protocol.
+  read and is not required elsewhere. The reader accepts discovered
+  Lakehouses and compatible Warehouses, and supports historical
+  versions, column selection, row limits, and Arrow streams for large or
+  nested results. The old `dest_dir` argument has been removed. Tables
+  using features unsupported by the Python reader must instead be
+  queried through SQL or Spark.
+
+- Livy table results now follow the declared Spark schema and preserve
+  large whole numbers and decimals exactly.
+
+- Authenticated functions now reject unrecognized service hosts by
+  default, reducing the risk of sending access tokens to unintended
+  servers. Where custom hosts are supported, they can be enabled with
+  `allow_custom_endpoint = TRUE`. Requests also retry temporary failures
+  more consistently and provide clearer timeout and service errors.
 
 ## fabricQueryR 0.2.1
 

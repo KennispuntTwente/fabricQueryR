@@ -68,6 +68,16 @@ uv --directory tools/fabric-sandbox run fabric-sandbox discover</code></pre>
 <li>Before adding detail, ask whether it helps most users choose, call, or understand the function. If it serves maintainers rather than users, prefer an internal comment or developer documentation.</li>
 </ul><p>When changing a public function, review its whole help topic for readability; do not append new implementation notes to an already dense introduction.</p>
 </div>
+<div class="section level2">
+<h2 id="newsmd">NEWS.md<a class="anchor" aria-label="anchor" href="#newsmd"></a></h2>
+<p>Treat the current development section as release notes for users, not as a development log. Its comparison point is the latest git-tagged release.</p>
+<ul><li>Before editing NEWS, inspect the net change from the latest release tag to <code>HEAD</code> (for example with <code>git diff &lt;tag&gt;..HEAD</code> and <code>git log &lt;tag&gt;..HEAD</code>).</li>
+<li>Include the most important user-visible additions, behavior changes, deprecations, compatibility breaks, and fixes to functionality that existed in the tagged release.</li>
+<li>Describe the final behavior of a feature once. Fold later fixes and refinements to a feature introduced during the same development cycle into its original entry; do not give those intermediate changes separate bullets.</li>
+<li>Omit internal refactors, test and CI work, documentation-only edits, routine validation details, and implementation mechanics unless they have a material consequence for package users.</li>
+<li>Write concise, plain-language bullets organized by user task. Mention function or argument names when they help users find or adapt to a change, but avoid protocol details and exhaustive lists of edge cases.</li>
+<li>Re-audit the whole development section when updating it. Remove entries that became obsolete, were superseded, or describe differences only between untagged development commits.</li>
+</ul></div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
