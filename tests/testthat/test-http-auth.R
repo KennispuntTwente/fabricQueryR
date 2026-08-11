@@ -338,7 +338,7 @@ test_that("HTTP retry sequences honor a shared deadline", {
     json_response(429L, headers = list("retry-after" = "30"))
   })
 
-  expect_error(
+  error <- expect_error(
     .httr2_perform(
       httr2::request("https://example.test/items"),
       deadline = now + 5,
@@ -351,7 +351,9 @@ test_that("HTTP retry sequences honor a shared deadline", {
     class = "fabric_http_deadline_error"
   )
   expect_identical(calls, 1L)
-  expect_equal(slept, 5)
+  expect_length(slept, 0L)
+  expect_equal(error$retry_after, 30)
+  expect_equal(error$remaining, 5)
 })
 
 test_that("HTTP-date Retry-After parsing is locale independent", {
@@ -389,7 +391,7 @@ test_that("HTTP-date Retry-After parsing is locale independent", {
   expect_identical(Sys.getlocale("LC_TIME"), selected)
 })
 
-test_that("HTTP retries cap long Retry-After values", {
+test_that("HTTP retries never shorten service Retry-After values", {
   calls <- 0L
   delays <- numeric()
   httr2::local_mocked_responses(function(req) {
@@ -401,30 +403,50 @@ test_that("HTTP retries cap long Retry-After values", {
     }
   })
 
-  response <- .httr2_perform(
-    httr2::request("https://example.test/items"),
-    max_tries = 2L,
-    .sleep = function(delay) {
-      delays <<- c(delays, delay)
-    }
+  error <- expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      max_tries = 2L,
+      .sleep = function(delay) {
+        delays <<- c(delays, delay)
+      }
+    ),
+    class = "fabric_http_retry_after_error"
   )
 
-  expect_equal(httr2::resp_status(response), 200L)
-  expect_equal(delays, 120)
+  expect_identical(calls, 1L)
+  expect_length(delays, 0L)
+  expect_equal(error$retry_after, 300)
+  expect_equal(error$max_retry_delay, 120)
 
   calls <- 0L
   delays <- numeric()
+  expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      max_tries = 2L,
+      max_retry_delay = 10,
+      .sleep = function(delay) {
+        delays <<- c(delays, delay)
+      }
+    ),
+    class = "fabric_http_retry_after_error"
+  )
+  expect_identical(calls, 1L)
+  expect_length(delays, 0L)
+
+  calls <- 0L
   response <- .httr2_perform(
     httr2::request("https://example.test/items"),
     max_tries = 2L,
-    max_retry_delay = 10,
+    max_retry_delay = 300,
     .sleep = function(delay) {
       delays <<- c(delays, delay)
     }
   )
 
   expect_equal(httr2::resp_status(response), 200L)
-  expect_equal(delays, 10)
+  expect_equal(delays, 300)
   expect_error(
     .httr2_perform(
       httr2::request("https://example.test/items"),

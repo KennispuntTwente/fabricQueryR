@@ -334,9 +334,12 @@
     }
 
     delay <- if (!is.null(retry_after)) {
-      min(retry_after, max_retry_delay)
+      retry_after
     } else {
-      min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
+      min(
+        max_retry_delay,
+        min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
+      )
     }
     if (!is.null(deadline)) {
       remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
@@ -347,7 +350,30 @@
           parent = last_failure
         )
       }
-      delay <- min(delay, remaining)
+      if (!is.null(retry_after) && retry_after > remaining) {
+        rlang::abort(
+          paste0(
+            "The service Retry-After interval exceeds the HTTP request ",
+            "deadline"
+          ),
+          class = "fabric_http_deadline_error",
+          retry_after = retry_after,
+          remaining = remaining
+        )
+      }
+    }
+    if (!is.null(retry_after) && retry_after > max_retry_delay) {
+      rlang::abort(
+        sprintf(
+          "The service requested a %s-second retry delay, exceeding the %s-second client limit",
+          format(retry_after, trim = TRUE),
+          format(max_retry_delay, trim = TRUE)
+        ),
+        class = "fabric_http_retry_after_error",
+        retry_after = retry_after,
+        max_retry_delay = max_retry_delay,
+        response = response
+      )
     }
     .sleep(delay)
   }
