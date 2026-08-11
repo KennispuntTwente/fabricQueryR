@@ -4,7 +4,9 @@
   "authorization",
   "clientsecret",
   "clientassertion",
+  "cookie",
   "password",
+  "setcookie",
   "token",
   "apikey",
   "sig",
@@ -15,7 +17,7 @@
 
 .httr2_secret_field_pattern <- paste0(
   "(?:access[_. -]*token|refresh[_. -]*token|authorization|",
-  "client[_. -]*(?:secret|assertion)|password|token|",
+  "client[_. -]*(?:secret|assertion)|cookie|password|set[_. -]*cookie|token|",
   "api[_. -]*key|sig(?:nature)?|",
   "shared[_. -]*access[_. -]*signature|sas[_. -]*token)"
 )

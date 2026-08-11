@@ -309,7 +309,9 @@ test_that("Fabric HTTP errors expose stable structured metadata", {
     headers = list(
       `x-ms-request-id` = "header-request-id",
       `x-ms-activity-id` = "activity-id",
-      Authorization = "Bearer header-secret"
+      Authorization = "Bearer header-secret",
+      Cookie = "session=request-cookie-secret",
+      `Set-Cookie` = "session=response-cookie-secret; Secure; HttpOnly"
     )
   )
 
@@ -326,6 +328,8 @@ test_that("Fabric HTTP errors expose stable structured metadata", {
     error$response_metadata$headers$authorization,
     "<redacted>"
   )
+  expect_identical(error$response_metadata$headers$cookie, "<redacted>")
+  expect_identical(error$response_metadata$headers$`set-cookie`, "<redacted>")
   expect_identical(error$response_metadata$body$token, "<redacted>")
 })
 
