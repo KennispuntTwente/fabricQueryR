@@ -1142,6 +1142,43 @@ test_that("batch result validates error_on_failure before refresh", {
   expect_identical(gets, 0L)
 })
 
+test_that("Livy result methods latch terminal completion times", {
+  credential <- livy_test_credential()
+  batch <- FabricLivyBatch$new(
+    response = list(id = "batch", state = "success", result = "Succeeded"),
+    url = "https://example.test/batches",
+    credential = credential,
+    verbose = FALSE
+  )
+  first_batch <- batch$result(refresh = FALSE)
+  second_batch <- batch$result(refresh = FALSE)
+  expect_s3_class(batch$completed_local, "POSIXct")
+  expect_identical(first_batch$completed_local, second_batch$completed_local)
+
+  statement <- FabricLivyStatement$new(
+    session = new.env(parent = emptyenv()),
+    response = list(
+      id = 1L,
+      state = "available",
+      output = list(status = "ok", data = list())
+    ),
+    url = "https://example.test/statements/1",
+    credential = credential,
+    verbose = FALSE
+  )
+  first_statement <- statement$result(refresh = FALSE)
+  second_statement <- statement$result(refresh = FALSE)
+  expect_s3_class(statement$completed_local, "POSIXct")
+  expect_identical(
+    first_statement$completed_local,
+    second_statement$completed_local
+  )
+  expect_identical(
+    first_statement$duration_sec,
+    second_statement$duration_sec
+  )
+})
+
 test_that("session waits stop on all documented terminal states", {
   check_terminal <- function(
     initial_state,

@@ -447,7 +447,7 @@ FabricLivyStatement <- R6::R6Class(
           identical(state, "available") ||
             state %in% .fabric_livy_statement_failure_states
         ) {
-          self$completed_local <- Sys.time()
+          self$completed_local <- self$completed_local %||% Sys.time()
           if (
             isTRUE(error_on_failure) &&
               (state %in% .fabric_livy_statement_failure_states || output_error)
@@ -486,11 +486,11 @@ FabricLivyStatement <- R6::R6Class(
       ) {
         fabric_livy_abort_statement(response)
       }
-      completed <- self$completed_local %||% Sys.time()
+      self$completed_local <- self$completed_local %||% Sys.time()
       invisible(fabric_livy_output(
         response,
         started_local = self$started_local,
-        completed_local = completed,
+        completed_local = self$completed_local,
         url = self$url
       ))
     },
