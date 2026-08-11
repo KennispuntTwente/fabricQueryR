@@ -394,6 +394,21 @@ test_that("Kusto real specials survive numeric conversion", {
   expect_identical(values[[3L]], -Inf)
 })
 
+test_that("Kusto Boolean conversion rejects malformed values", {
+  expect_identical(
+    kusto_convert_column(list(TRUE, FALSE, NULL), "bool"),
+    c(TRUE, FALSE, NA)
+  )
+  for (value in list("true", 1L, NA, c(TRUE, FALSE))) {
+    expect_error(
+      kusto_convert_column(list(value), "bool"),
+      "invalid Boolean value",
+      fixed = TRUE,
+      class = "fabric_kql_protocol_error"
+    )
+  }
+})
+
 test_that("multiple and progressive Kusto primary tables are assembled", {
   frames <- list(
     list(FrameType = "DataSetHeader", Version = "v2.0", IsProgressive = TRUE),

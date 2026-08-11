@@ -1000,7 +1000,20 @@ kusto_convert_column <- function(values, type) {
     return(vapply(
       values,
       function(value) {
-        if (is.null(value)) NA else isTRUE(value)
+        if (is.null(value)) {
+          return(NA)
+        }
+        if (
+          !is.logical(value) ||
+            length(value) != 1L ||
+            is.na(value)
+        ) {
+          rlang::abort(
+            "Kusto returned an invalid Boolean value",
+            class = "fabric_kql_protocol_error"
+          )
+        }
+        value
       },
       logical(1)
     ))
