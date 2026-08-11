@@ -32,7 +32,10 @@ because it supplies the endpoint and workspace ID.}
 variables for changing values instead of pasting values into this string.}
 
 \item{variables}{Named list of GraphQL variables. Values must be representable
-as JSON; names must match variables declared in \code{query}.}
+as JSON; names must match variables declared in \code{query}. Scalar vectors are
+encoded as JSON scalars when they have length one. Wrap a one-element
+GraphQL list in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to preserve its
+JSON array shape. Vectors with two or more elements are arrays normally.}
 
 \item{operation_name}{Optional operation name. Supply it when the document
 contains more than one named operation; otherwise leave \code{NULL}.}

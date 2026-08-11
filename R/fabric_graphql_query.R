@@ -54,7 +54,10 @@
 #' @param query One GraphQL document containing a query or mutation. Use
 #'   variables for changing values instead of pasting values into this string.
 #' @param variables Named list of GraphQL variables. Values must be representable
-#'   as JSON; names must match variables declared in `query`.
+#'   as JSON; names must match variables declared in `query`. Scalar vectors are
+#'   encoded as JSON scalars when they have length one. Wrap a one-element
+#'   GraphQL list in [I()], for example `list(ids = I("x"))`, to preserve its
+#'   JSON array shape. Vectors with two or more elements are arrays normally.
 #' @param operation_name Optional operation name. Supply it when the document
 #'   contains more than one named operation; otherwise leave `NULL`.
 #' @param workspace_id Workspace GUID. Required when `api` is a GraphQL API

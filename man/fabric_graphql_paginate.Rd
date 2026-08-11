@@ -39,7 +39,10 @@ the next opaque cursor, or \code{NULL} when pagination is complete. Use
 \code{\link[=fabric_graphql_cursor]{fabric_graphql_cursor()}} for Fabric's normal connection fields.}
 
 \item{variables}{Named list of GraphQL variables. Values must be representable
-as JSON; names must match variables declared in \code{query}.}
+as JSON; names must match variables declared in \code{query}. Scalar vectors are
+encoded as JSON scalars when they have length one. Wrap a one-element
+GraphQL list in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to preserve its
+JSON array shape. Vectors with two or more elements are arrays normally.}
 
 \item{cursor_variable}{Name of the GraphQL variable that receives the next
 cursor, commonly \code{"after"}. It must match the variable declared in \code{query}.}

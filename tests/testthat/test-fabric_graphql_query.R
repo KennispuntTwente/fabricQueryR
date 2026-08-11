@@ -326,6 +326,31 @@ test_that("empty GraphQL variables are omitted instead of encoded as an array", 
   expect_false("variables" %in% names(captured$body$data))
 })
 
+test_that("GraphQL singleton list variables can preserve their array shape", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- req
+    graphql_test_response(list(data = list(products = list())), url = req$url)
+  })
+
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = paste0(
+      "query Products($ids: [ID!]!) { ",
+      "products(filter: {id: {in: $ids}}) { id } }"
+    ),
+    variables = list(ids = I("x")),
+    token = "token"
+  )
+
+  encoded <- jsonlite::toJSON(
+    captured$body$data,
+    auto_unbox = captured$body$params$auto_unbox,
+    null = captured$body$params$null
+  )
+  expect_match(encoded, '"ids":["x"]', fixed = TRUE)
+})
+
 test_that("GraphQL cursor helper follows arbitrary connection paths", {
   cursor <- fabric_graphql_cursor(c("viewer", "products"))
   page <- structure(
