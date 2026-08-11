@@ -1467,6 +1467,31 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
     token = token
   ))
 
+  reserved_path <- paste0(test_root, "/reserved/a?b#c.txt")
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    reserved_path,
+    source = charToRaw("reserved-characters"),
+    token = token
+  )
+  expect_identical(
+    rawToChar(fabric_onelake_download(
+      manifest$workspace_id,
+      lakehouse$id,
+      reserved_path,
+      token = token
+    )),
+    "reserved-characters"
+  )
+  expect_true(fabric_onelake_delete(
+    manifest$workspace_id,
+    lakehouse$id,
+    reserved_path,
+    confirm = TRUE,
+    token = token
+  ))
+
   empty_directory_file <- paste0(test_root, "/empty-directory/file.txt")
   fabric_onelake_upload(
     manifest$workspace_id,

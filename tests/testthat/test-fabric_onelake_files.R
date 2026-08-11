@@ -29,6 +29,12 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
   expect_equal(named$workspace, "Analytics")
   expect_equal(named$item, "Curated.Lakehouse")
   expect_match(onelake_path_url(named), "caf%C3%A9%20%E6%95%B0%E6%8D%AE.csv")
+  reserved <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/a?b#c.csv"
+  )
+  expect_match(onelake_path_url(reserved), "Files/a%3Fb%23c.csv", fixed = TRUE)
   expect_equal(
     onelake_resolve_target(
       "Analytics",
@@ -44,6 +50,20 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
     "Files/nested/file.csv"
   )
   expect_equal(discovered$workspace, workspace_id)
+
+  complete_reserved <- onelake_resolve_target(paste0(
+    "https://onelake.dfs.fabric.microsoft.com/",
+    workspace_id,
+    "/",
+    item_id,
+    "/Files/a%3Fb%23c.csv"
+  ))
+  expect_equal(complete_reserved$path, "Files/a?b#c.csv")
+  expect_match(
+    onelake_path_url(complete_reserved),
+    "Files/a%3Fb%23c.csv",
+    fixed = TRUE
+  )
   expect_equal(discovered$item, item_id)
 
   private_dfs <- paste0(

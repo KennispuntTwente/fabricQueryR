@@ -668,8 +668,8 @@ onelake_normalize_path <- function(path, allow_empty = FALSE) {
   if (!all(nzchar(pieces)) || any(pieces %in% c(".", ".."))) {
     rlang::abort("path contains an empty or unsafe segment")
   }
-  if (any(grepl("[?#\r\n]", pieces))) {
-    rlang::abort("path contains a query, fragment, or line break")
+  if (any(grepl("[\r\n]", pieces))) {
+    rlang::abort("path contains a line break")
   }
   paste(pieces, collapse = "/")
 }
