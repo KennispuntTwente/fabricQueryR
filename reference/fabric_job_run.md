@@ -256,7 +256,9 @@ fabric_job_cancel(
 
   Optional callback checked between polls. Returning `TRUE` cancels the
   Fabric job and raises a `fabric_job_cancelled_by_caller` condition.
-  This is useful for an application-specific stop button.
+  This is useful for an application-specific stop button. Timeout and
+  caller-cancel conditions contain `cancel_accepted` and `cancel_error`
+  fields so a failure to stop the remote job is never hidden.
 
 ## Value
 

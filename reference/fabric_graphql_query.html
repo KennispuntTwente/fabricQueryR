@@ -86,7 +86,10 @@ variables for changing values instead of pasting values into this string.</p></d
 
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
 <dd><p>Named list of GraphQL variables. Values must be representable
-as JSON; names must match variables declared in <code>query</code>.</p></dd>
+as JSON; names must match variables declared in <code>query</code>. Scalar vectors are
+encoded as JSON scalars when they have length one. Wrap a one-element
+GraphQL list in <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code>, for example <code>list(ids = I("x"))</code>, to preserve its
+JSON array shape. Vectors with two or more elements are arrays normally.</p></dd>
 
 
 <dt id="arg-operation-name">operation_name<a class="anchor" aria-label="anchor" href="#arg-operation-name"></a></dt>

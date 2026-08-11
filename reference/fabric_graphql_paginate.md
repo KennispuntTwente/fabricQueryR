@@ -56,7 +56,11 @@ fabric_graphql_paginate(
 - variables:
 
   Named list of GraphQL variables. Values must be representable as JSON;
-  names must match variables declared in `query`.
+  names must match variables declared in `query`. Scalar vectors are
+  encoded as JSON scalars when they have length one. Wrap a one-element
+  GraphQL list in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
+  `list(ids = I("x"))`, to preserve its JSON array shape. Vectors with
+  two or more elements are arrays normally.
 
 - cursor_variable:
 

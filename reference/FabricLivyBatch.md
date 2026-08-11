@@ -228,7 +228,13 @@ Request batch cancellation.
 
 #### Usage
 
-    FabricLivyBatch$cancel()
+    FabricLivyBatch$cancel(deadline = NULL)
+
+#### Arguments
+
+- `deadline`:
+
+  Internal wall-clock deadline for the cancellation request.
 
 #### Returns
 

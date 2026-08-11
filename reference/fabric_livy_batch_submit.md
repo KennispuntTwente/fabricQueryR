@@ -213,7 +213,7 @@ batch <- fabric_livy_batch_submit(
   lakehouse,
   file = paste0(
     "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
-    "lakehouse/Files/jobs/daily.py"
+    "lakehouse.Lakehouse/Files/jobs/daily.py"
   ),
   wait = TRUE,
   cancel_on_timeout = TRUE

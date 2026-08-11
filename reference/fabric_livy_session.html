@@ -210,9 +210,9 @@ as a test emulator; the Fabric bearer token is sent to this endpoint.</p></dd>
 High concurrency is intended for automation that needs multiple isolated
 Spark statement streams at the same time; it is not necessary merely to run
 several statements sequentially.</p>
-<p>A finalizer attempts cleanup if an open object is garbage
-collected. Call <code>$close()</code> explicitly, and use <code>on.exit(session$close())</code>
-in functions, for deterministic cleanup. Delegated authentication requests
+<p>No network request is made when an open object is garbage collected. Call
+<code>$close()</code> explicitly, and use <code>on.exit(session$close())</code> in functions,
+for deterministic cleanup. Delegated authentication requests
 <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>, <code>Code.AccessFabric.All</code>, and
 <code>Code.AccessStorage.All</code>. AzureAuth client-credentials authentication uses
 <code>https://analysis.windows.net/powerbi/api/.default</code>, as documented by

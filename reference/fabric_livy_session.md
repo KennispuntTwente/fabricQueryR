@@ -175,7 +175,7 @@ process. High concurrency is intended for automation that needs multiple
 isolated Spark statement streams at the same time; it is not necessary
 merely to run several statements sequentially.
 
-A finalizer attempts cleanup if an open object is garbage collected.
+No network request is made when an open object is garbage collected.
 Call `$close()` explicitly, and use `on.exit(session$close())` in
 functions, for deterministic cleanup. Delegated authentication requests
 `Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`,

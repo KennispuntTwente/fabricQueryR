@@ -295,7 +295,9 @@ timeout expires. <code>FALSE</code> stops waiting but leaves the Fabric job runn
 <dt id="arg-cancel">cancel<a class="anchor" aria-label="anchor" href="#arg-cancel"></a></dt>
 <dd><p>Optional callback checked between polls. Returning <code>TRUE</code>
 cancels the Fabric job and raises a <code>fabric_job_cancelled_by_caller</code>
-condition. This is useful for an application-specific stop button.</p></dd>
+condition. This is useful for an application-specific stop button. Timeout
+and caller-cancel conditions contain <code>cancel_accepted</code> and <code>cancel_error</code>
+fields so a failure to stop the remote job is never hidden.</p></dd>
 
 </dl></div>
     <div class="section level2">
