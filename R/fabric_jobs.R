@@ -1501,7 +1501,11 @@ print.fabric_job_instance <- function(x, ...) {
         name
       ))
     }
-    value <- as.integer(value)
+    value <- if (value == -.Machine$integer.max - 1) {
+      as.numeric(value)
+    } else {
+      as.integer(value)
+    }
   } else if (identical(type, "Number")) {
     if (!is.numeric(value) || !is.finite(value)) {
       rlang::abort(sprintf("Number parameter `%s` must be numeric", name))

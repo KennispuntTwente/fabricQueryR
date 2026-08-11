@@ -1259,6 +1259,17 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     ),
     "whole 32-bit"
   )
+  integer_extrema <- .fabric_job_parameters(
+    list(minimum = -2147483648, maximum = 2147483647),
+    c(minimum = "Integer", maximum = "Integer")
+  )
+  expect_identical(integer_extrema[[1L]]$value, -2147483648)
+  expect_identical(integer_extrema[[2L]]$value, 2147483647L)
+  expect_match(
+    jsonlite::toJSON(integer_extrema, auto_unbox = TRUE),
+    '"value":-2147483648',
+    fixed = TRUE
+  )
   for (type in c("Integer", "Number", "Text", "Boolean", "Guid")) {
     expect_error(
       .fabric_job_parameters(
