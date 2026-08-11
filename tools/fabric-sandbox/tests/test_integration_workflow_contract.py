@@ -79,6 +79,19 @@ def test_live_workflow_gates_package_changes_at_the_test_revision():
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
 
 
+def test_live_workflow_skips_protected_teardown_for_fork_pull_requests():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+
+    teardown = workflow.split("\n  teardown:", maxsplit=1)[1]
+    assert "if: always() && needs.provision.result != 'skipped'" in teardown
+    assert teardown.index("if: always()") < teardown.index(
+        "environment: fabric-integration"
+    )
+
+
 def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     repository_root = Path(__file__).parents[3]
     integration = (

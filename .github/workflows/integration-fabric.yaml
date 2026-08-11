@@ -323,7 +323,7 @@ jobs:
     needs:
       - provision
       - integration
-    if: always()
+    if: always() && needs.provision.result != 'skipped'
     runs-on: ubuntu-latest
     environment: fabric-integration
     timeout-minutes: 30
