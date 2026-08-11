@@ -54,7 +54,14 @@ fabric_test_order_delta_rows <- function(value, feature) {
     length(key) == 1L,
     label = paste(feature, "has one stable id, row_id, or event_id column")
   )
-  value[order(value[[key]], na.last = TRUE), , drop = FALSE]
+  key_values <- value[[key]]
+  integer_text <- is.character(key_values) && all(
+    is.na(key_values) | grepl("^[+-]?[0-9]+$", key_values)
+  )
+  if (integer_text) {
+    key_values <- bit64::as.integer64(key_values)
+  }
+  value[order(key_values, na.last = TRUE), , drop = FALSE]
 }
 
 fabric_test_canonicalize_delta_maps <- function(value) {
@@ -421,6 +428,20 @@ test_that("Delta oracle differences are bounded for large tables", {
 
   expect_lte(length(differences), 10L)
   expect_lt(nchar(paste(differences, collapse = "\n")), 5000L)
+})
+
+test_that("Delta row ordering treats exact integer text numerically", {
+  value <- data.frame(
+    id = c("1001", "9007199254740993", "2", "1"),
+    label = letters[1:4]
+  )
+
+  ordered <- fabric_test_order_delta_rows(value, "exact integer fixture")
+
+  expect_identical(
+    ordered$id,
+    c("1", "2", "1001", "9007199254740993")
+  )
 })
 
 test_that("deep Arrow comparison preserves row order and binary values", {
