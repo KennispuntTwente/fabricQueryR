@@ -926,18 +926,19 @@ test_that("remaining supported Fabric Delta fixtures cover edge cases", {
   expect_identical(runtime$spark_version, manifest$runtime$spark_version)
   expect_identical(runtime$delta_version, manifest$runtime$delta_version)
 
-  void <- as.data.frame(fabric_test_read_arrow_table(
+  void_arrow <- fabric_test_read_arrow_table(
     manifest,
     lakehouse,
     tables$void
-  ))
+  )
+  expect_equal(void_arrow$GetColumnByName("details")$null_count, 0L)
+  void <- as.data.frame(void_arrow)
   void <- void[order(void$id), ]
   expect_named(void, c("id", "always_null", "details"))
   expect_identical(as.character(void$id), as.character(0:2))
   expect_true(all(is.na(void$always_null)))
   expect_identical(void$details$value, 0:2)
   expect_true(all(is.na(void$details$pending)))
-  expect_false(anyNA(void$details))
 
   binary <- fabric_test_read_delta(
     manifest,
