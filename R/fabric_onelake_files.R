@@ -541,6 +541,19 @@ onelake_parse_uri <- function(uri) {
     rlang::abort("OneLake paths must use HTTPS, ABFS, or ABFSS")
   }
   onelake_validate_host(parsed$hostname)
+  if (
+    scheme == "https" &&
+      (nzchar(parsed$username %||% "") || nzchar(parsed$password %||% ""))
+  ) {
+    rlang::abort("A OneLake HTTPS path must not include user information")
+  }
+  if (scheme != "https" && nzchar(parsed$password %||% "")) {
+    rlang::abort("An ABFS path must not include a password")
+  }
+  default_port <- if (scheme == "abfs") "80" else "443"
+  if (!is.null(parsed$port) && !identical(parsed$port, default_port)) {
+    rlang::abort("A OneLake path must use its default port")
+  }
   if (!is.null(parsed$query) || !is.null(parsed$fragment)) {
     rlang::abort(
       "A OneLake path must not contain a query string or fragment"

@@ -64,6 +64,26 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
     "Files/a%3Fb%23c.csv",
     fixed = TRUE
   )
+  expect_error(
+    onelake_resolve_target(paste0(
+      "https://user@onelake.dfs.fabric.microsoft.com/",
+      workspace_id,
+      "/",
+      item_id
+    )),
+    "must not include user information",
+    fixed = TRUE
+  )
+  expect_error(
+    onelake_resolve_target(paste0(
+      "https://onelake.dfs.fabric.microsoft.com:444/",
+      workspace_id,
+      "/",
+      item_id
+    )),
+    "default port",
+    fixed = TRUE
+  )
   expect_equal(discovered$item, item_id)
 
   private_dfs <- paste0(
