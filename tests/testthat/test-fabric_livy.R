@@ -1230,13 +1230,12 @@ test_that("Livy handles print concise summaries without credentials", {
     verbose = FALSE
   )
 
-  session_text <- capture.output(session_return <- print(session))
-  statement_text <- capture.output(statement_return <- print(statement))
-  batch_text <- capture.output(batch_return <- print(batch))
-
-  expect_identical(session_return, session)
-  expect_identical(statement_return, statement)
-  expect_identical(batch_return, batch)
+  capture_invisible_print <- function(value) {
+    capture.output(expect_invisible(print(value)))
+  }
+  session_text <- capture_invisible_print(session)
+  statement_text <- capture_invisible_print(statement)
+  batch_text <- capture_invisible_print(batch)
   expect_match(paste(session_text, collapse = "\n"), "state: idle")
   expect_match(paste(statement_text, collapse = "\n"), "id: 7")
   expect_match(paste(batch_text, collapse = "\n"), "cancel requested: FALSE")
