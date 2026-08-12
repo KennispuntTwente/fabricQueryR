@@ -146,6 +146,24 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
     "workspace must be exactly one URI path segment",
     fixed = TRUE
   )
+  for (unsafe_workspace in c(".", "..", "%2e%2e", "%252e%252e")) {
+    expect_error(
+      onelake_resolve_target(unsafe_workspace, "Curated.Lakehouse"),
+      "workspace must be exactly one URI path segment",
+      fixed = TRUE
+    )
+  }
+  for (unsafe_item in c(".", "..", "%2f", "%255c")) {
+    expect_error(
+      onelake_resolve_target(
+        "Analytics",
+        unsafe_item,
+        item_type = "Lakehouse"
+      ),
+      "item must be exactly one URI path segment",
+      fixed = TRUE
+    )
+  }
   expect_error(
     onelake_resolve_target(
       "Analytics",

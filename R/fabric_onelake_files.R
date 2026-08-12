@@ -681,7 +681,25 @@ onelake_scalar <- function(value, name, allow_empty = FALSE) {
 # workspace, item, and type inputs
 onelake_segment <- function(value, name) {
   onelake_scalar(value, name)
-  if (grepl("[/\\\\]", value)) {
+  decoded <- value
+  unsafe <- FALSE
+  # Check both supplied and decoded forms. Repeating the decode catches common
+  # double-encoded separator/dot-segment forms before an HTTP stack or proxy can
+  # normalize them into a different resource path.
+  for (index in seq_len(3L)) {
+    unsafe <- unsafe ||
+      decoded %in% c(".", "..") ||
+      grepl("[/\\\\[:cntrl:]]", decoded)
+    next_decoded <- utils::URLdecode(decoded)
+    if (identical(next_decoded, decoded)) {
+      break
+    }
+    decoded <- next_decoded
+  }
+  unsafe <- unsafe ||
+    decoded %in% c(".", "..") ||
+    grepl("[/\\\\[:cntrl:]]", decoded)
+  if (unsafe) {
     rlang::abort(paste0(name, " must be exactly one URI path segment"))
   }
   invisible(value)
