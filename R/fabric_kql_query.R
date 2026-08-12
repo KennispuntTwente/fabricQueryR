@@ -59,6 +59,9 @@
 #'   `query_weakconsistency_session_id`
 #' @param timeout Positive client-side HTTP timeout in seconds. This is separate
 #'   from the Kusto `servertimeout` request property
+#' @param retain_raw_frames Logical. Attach the complete decoded Kusto frame
+#'   response as `kusto_raw_frames`. Keep `FALSE` for normal queries to avoid
+#'   retaining a second copy of large result data
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -104,6 +107,7 @@ fabric_kql_query <- function(
   parameters = list(),
   request_properties = list(),
   timeout = 60,
+  retain_raw_frames = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -145,6 +149,12 @@ fabric_kql_query <- function(
   ) {
     rlang::abort("timeout must be one positive number of seconds")
   }
+  if (
+    !is.logical(retain_raw_frames) || length(retain_raw_frames) != 1L ||
+      is.na(retain_raw_frames)
+  ) {
+    rlang::abort("retain_raw_frames must be TRUE or FALSE")
+  }
 
   # 2 Execute and return the query -----------------------------------------------------------------
 
@@ -163,7 +173,8 @@ fabric_kql_query <- function(
     parameters = parameters,
     request_properties = request_properties,
     timeout = timeout,
-    credential = credential
+    credential = credential,
+    retain_raw_frames = retain_raw_frames
   )
 }
 
@@ -474,7 +485,8 @@ kusto_execute_query <- function(
   parameters,
   request_properties,
   timeout,
-  credential
+  credential,
+  retain_raw_frames = FALSE
 ) {
   # 1 Build request metadata -----------------------------------------------------------------------
 
@@ -536,6 +548,7 @@ kusto_execute_query <- function(
   response_headers <- httr2::resp_headers(resp)
   kusto_parse_response(
     frames,
+    retain_raw_frames = retain_raw_frames,
     metadata = list(
       client_request_id = client_request_id,
       request_id = httr2::resp_header(resp, "x-ms-request-id"),
@@ -592,7 +605,11 @@ kusto_frame_type <- function(frame) {
 
 # Validate and combine Kusto v2 `frames`. Returns primary result data with raw
 # frames, auxiliary tables, completion state, and request metadata attached
-kusto_parse_response <- function(frames, metadata = list()) {
+kusto_parse_response <- function(
+  frames,
+  metadata = list(),
+  retain_raw_frames = FALSE
+) {
   # 1 Validate the response envelope ---------------------------------------------------------------
 
   # A v2 response must start with one header and end with one completion frame
@@ -821,7 +838,7 @@ kusto_parse_response <- function(frames, metadata = list()) {
 
   result <- kusto_attach_metadata(
     result,
-    frames,
+    if (isTRUE(retain_raw_frames)) frames else NULL,
     completion,
     auxiliary_results,
     metadata

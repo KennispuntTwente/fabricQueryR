@@ -537,6 +537,7 @@ test_that("Kusto results retain auxiliary frames and correlation metadata", {
   )
   result <- kusto_parse_response(
     frames,
+    retain_raw_frames = TRUE,
     metadata = list(
       client_request_id = "client-id",
       request_id = "request-id",
@@ -557,6 +558,7 @@ test_that("Kusto results retain auxiliary frames and correlation metadata", {
   expect_identical(attr(result, "kusto_request_id"), "request-id")
   expect_identical(attr(result, "kusto_activity_id"), "activity-id")
   expect_identical(attr(result, "kusto_raw_frames"), frames)
+  expect_null(attr(kusto_parse_response(frames), "kusto_raw_frames"))
 })
 
 test_that("Kusto partial failures retain returned data and diagnostics", {
@@ -747,6 +749,17 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
       token = "token"
     ),
     "timeout",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_kql_query(
+      "https://cluster.kusto.fabric.microsoft.com",
+      query = "print 1",
+      database = "Events",
+      retain_raw_frames = NA,
+      token = "token"
+    ),
+    "retain_raw_frames must be TRUE or FALSE",
     fixed = TRUE
   )
   expect_error(
