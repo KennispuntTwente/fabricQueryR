@@ -120,7 +120,7 @@ supported buffer size
 \section{Permissions and supported tables}{
 
 Direct reads require OneLake data access; item \code{Read} permission by itself is
-not enough. The caller needs \code{ReadAll} or a suitable OneLake data-access role,
+not enough. The caller needs \code{ReadAll} or a suitable OneLake security role,
 and the tenant setting for external OneLake apps must be enabled. Callers
 restricted by row- or column-level security must use a supported Fabric
 engine instead. See the

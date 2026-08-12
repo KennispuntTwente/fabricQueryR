@@ -205,7 +205,8 @@ files below \verb{Tables/} can damage a table and is blocked by default
 \section{Permissions}{
 
 The signed-in user or application needs access through a workspace role or
-the item's \strong{Manage OneLake data access} roles. Uploading and deleting need
+the item's \strong{OneLake security roles}, configured under \strong{Manage OneLake
+security}. Uploading and deleting need
 write permission. Your Fabric administrator must also allow external apps to
 access OneLake. If a call returns HTTP 403 after sign-in succeeds, check both
 that tenant setting and the item's data permissions
