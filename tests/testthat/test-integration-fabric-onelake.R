@@ -1369,6 +1369,23 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
     ))),
     "OneLake Unicode fixture"
   )
+  disk_destination <- tempfile("fabricqueryr-onelake-", fileext = ".txt")
+  on.exit(unlink(disk_destination, force = TRUE), add = TRUE)
+  downloaded_path <- fabric_onelake_download(
+    manifest$workspace_id,
+    lakehouse$id,
+    unicode_path,
+    dest = disk_destination,
+    token = token
+  )
+  expect_identical(
+    downloaded_path,
+    normalizePath(disk_destination, winslash = "/", mustWork = TRUE)
+  )
+  expect_identical(
+    trimws(readChar(disk_destination, file.info(disk_destination)$size)),
+    "OneLake Unicode fixture"
+  )
   expect_identical(
     rawToChar(fabric_onelake_download(
       manifest$workspace_id,
