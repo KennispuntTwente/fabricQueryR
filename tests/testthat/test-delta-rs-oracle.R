@@ -13,7 +13,7 @@ fabric_test_delta_runtime_python <- function(root) {
   )
 }
 
-test_that("the production reader consumes deterministic delta-rs fixtures", {
+fabric_test_select_delta_runtime <- function() {
   oracle <- fabric_test_require_delta_oracle()
   python <- fabric_test_delta_runtime_python(oracle$root)
   expect_true(startsWith(python, paste0(oracle$root, "/.venv/")))
@@ -30,6 +30,23 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
   } else {
     Sys.setenv(RETICULATE_PYTHON = python)
   }
+  oracle
+}
+
+test_that("fabric_delta_config reports the initialized locked runtime", {
+  fabric_test_select_delta_runtime()
+
+  config <- fabric_delta_config(initialize = TRUE)
+
+  expect_true(config$initialized)
+  expect_true(all(config$available))
+  expect_identical(config$versions$deltalake, "1.6.2")
+  expect_identical(config$versions$nanoarrow, "0.8.0")
+  expect_match(config$python, "tools/fabric-sandbox/[.]venv", fixed = FALSE)
+})
+
+test_that("the production reader consumes deterministic delta-rs fixtures", {
+  oracle <- fabric_test_select_delta_runtime()
 
   directory <- tempfile("delta-rs-fixtures-")
   dir.create(directory)
