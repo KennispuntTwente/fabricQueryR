@@ -4,41 +4,41 @@ Represents one piece of code submitted to a
 [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
 Call `$wait()` and then `$result()` to retrieve its output. For the
 usual submit-and-wait workflow, use the session's `$run()` method
-instead.
+instead
 
 ## Format
 
-An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
+An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
 ## Public fields
 
 - `id`:
 
-  Numeric Livy statement ID.
+  Numeric Livy statement ID
 
 - `url`:
 
-  Statement lifecycle URL.
+  Statement lifecycle URL
 
 - `state`:
 
-  Latest statement state.
+  Latest statement state
 
 - `response`:
 
-  Latest raw service response.
+  Latest raw service response
 
 - `started_local`:
 
-  Local submission timestamp.
+  Local submission timestamp
 
 - `completed_local`:
 
-  Local completion timestamp.
+  Local completion timestamp
 
 - `verbose`:
 
-  Whether lifecycle messages are enabled.
+  Whether lifecycle messages are enabled
 
 ## Methods
 
@@ -60,7 +60,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
 
 ### `FabricLivyStatement$new()`
 
-Internal constructor used by `FabricLivySession$submit()`.
+Internal constructor used by `FabricLivySession$submit()`
 
 #### Usage
 
@@ -71,33 +71,33 @@ Internal constructor used by `FabricLivySession$submit()`.
 - `session`:
 
   Parent
-  [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
+  [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md)
 
 - `response`:
 
-  Initial statement response.
+  Initial statement response
 
 - `url`:
 
-  Statement lifecycle URL.
+  Statement lifecycle URL
 
 - `credential`:
 
-  Internal authentication credential.
+  Internal authentication credential
 
 - `verbose`:
 
-  Whether to emit lifecycle messages.
+  Whether to emit lifecycle messages
 
 #### Returns
 
-A new statement object.
+A new statement object
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyStatement$print()`
 
-Print a concise statement summary.
+Print a concise statement summary
 
 #### Usage
 
@@ -107,17 +107,17 @@ Print a concise statement summary.
 
 - `...`:
 
-  Unused.
+  Unused
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyStatement$status()`
 
-Retrieve statement state and available output.
+Retrieve statement state and available output
 
 #### Usage
 
@@ -127,21 +127,21 @@ Retrieve statement state and available output.
 
 - `refresh`:
 
-  Whether to retrieve current state from Fabric.
+  Whether to retrieve current state from Fabric
 
 - `deadline`:
 
-  Internal wall-clock deadline for the status request.
+  Internal wall-clock deadline for the status request
 
 #### Returns
 
-The raw statement response list.
+The raw statement response list
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyStatement$wait()`
 
-Wait for the statement to reach a terminal state.
+Wait for the statement to reach a terminal state
 
 #### Usage
 
@@ -155,25 +155,25 @@ Wait for the statement to reach a terminal state.
 
 - `timeout`:
 
-  Maximum wait in seconds.
+  Maximum wait in seconds
 
 - `poll_interval`:
 
-  Polling interval in seconds.
+  Polling interval in seconds
 
 - `error_on_failure`:
 
-  Raise a structured error for failed statements.
+  Raise a structured error for failed statements
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyStatement$result()`
 
-Return parsed output and timing metadata.
+Return parsed output and timing metadata
 
 #### Usage
 
@@ -183,21 +183,21 @@ Return parsed output and timing metadata.
 
 - `refresh`:
 
-  Whether to retrieve current state from Fabric.
+  Whether to retrieve current state from Fabric
 
 - `error_on_failure`:
 
-  Raise a structured error for failed statements.
+  Raise a structured error for failed statements
 
 #### Returns
 
-A `fabric_livy_statement_result` list.
+A `fabric_livy_statement_result` list
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyStatement$cancel()`
 
-Request cancellation of this statement.
+Request cancellation of this statement
 
 #### Usage
 
@@ -205,4 +205,4 @@ Request cancellation of this statement.
 
 #### Returns
 
-The raw cancellation response, invisibly.
+The raw cancellation response, invisibly

@@ -1,53 +1,53 @@
 # A Microsoft Fabric Livy session
 
 A Livy session keeps Spark running while you submit several pieces of
-code. Create one with
+code Create one with
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
 call `$wait()` once it starts, use `$run()` to execute code, and call
 `$close()` when finished. Most users do not need to call this R6 class
-directly.
+directly
 
 ## Format
 
-An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
+An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
 ## Public fields
 
 - `id`:
 
-  Fabric session or high-concurrency acquisition ID.
+  Fabric session or high-concurrency acquisition ID
 
 - `url`:
 
-  Session lifecycle URL.
+  Session lifecycle URL
 
 - `state`:
 
-  Latest service state.
+  Latest service state
 
 - `response`:
 
-  Latest raw service response.
+  Latest raw service response
 
 - `closed`:
 
-  Whether `$close()` completed.
+  Whether `$close()` completed
 
 - `high_concurrency`:
 
-  Whether this is a high-concurrency session.
+  Whether this is a high-concurrency session
 
 - `session_id`:
 
-  Underlying Livy session ID for HC sessions.
+  Underlying Livy session ID for HC sessions
 
 - `repl_id`:
 
-  Isolated REPL ID for HC sessions.
+  Isolated REPL ID for HC sessions
 
 - `verbose`:
 
-  Whether lifecycle messages are enabled.
+  Whether lifecycle messages are enabled
 
 ## Methods
 
@@ -76,7 +76,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
 ### `FabricLivySession$new()`
 
 Internal constructor used by
-[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
 
 #### Usage
 
@@ -93,38 +93,38 @@ Internal constructor used by
 
 - `livy_url`:
 
-  Livy API base or collection URL.
+  Livy API base or collection URL
 
 - `credential`:
 
-  Internal authentication credential.
+  Internal authentication credential
 
 - `payload`:
 
-  Session creation request body.
+  Session creation request body
 
 - `high_concurrency`:
 
-  Whether to acquire an HC session.
+  Whether to acquire an HC session
 
 - `verbose`:
 
-  Whether to emit lifecycle messages.
+  Whether to emit lifecycle messages
 
 - `allow_custom_endpoint`:
 
   Whether a trusted non-Fabric HTTPS endpoint may receive the Fabric
-  bearer token.
+  bearer token
 
 #### Returns
 
-A new session object.
+A new session object
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$print()`
 
-Print a concise session summary.
+Print a concise session summary
 
 #### Usage
 
@@ -134,17 +134,17 @@ Print a concise session summary.
 
 - `...`:
 
-  Unused.
+  Unused
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$status()`
 
-Return the latest session response.
+Return the latest session response
 
 #### Usage
 
@@ -154,21 +154,21 @@ Return the latest session response.
 
 - `refresh`:
 
-  Whether to retrieve current state from Fabric.
+  Whether to retrieve current state from Fabric
 
 - `deadline`:
 
-  Internal wall-clock deadline for the status request.
+  Internal wall-clock deadline for the status request
 
 #### Returns
 
-The raw session response list.
+The raw session response list
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$wait()`
 
-Wait until the session can accept statements.
+Wait until the session can accept statements
 
 #### Usage
 
@@ -178,21 +178,21 @@ Wait until the session can accept statements.
 
 - `timeout`:
 
-  Maximum wait in seconds.
+  Maximum wait in seconds
 
 - `poll_interval`:
 
-  Polling interval in seconds.
+  Polling interval in seconds
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$submit()`
 
-Submit code without waiting for completion.
+Submit code without waiting for completion
 
 #### Usage
 
@@ -206,26 +206,26 @@ Submit code without waiting for completion.
 
 - `code`:
 
-  One string of Spark code.
+  One string of Spark code
 
 - `kind`:
 
-  Statement language.
+  Statement language
 
 - `source_id`:
 
-  Optional caller-defined source identifier.
+  Optional caller-defined source identifier
 
 #### Returns
 
 A
-[FabricLivyStatement](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.md).
+[FabricLivyStatement](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.md)
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$run()`
 
-Submit code, wait, and return its parsed result.
+Submit code, wait, and return its parsed result
 
 #### Usage
 
@@ -241,33 +241,33 @@ Submit code, wait, and return its parsed result.
 
 - `code`:
 
-  One string of Spark code.
+  One string of Spark code
 
 - `kind`:
 
-  Statement language.
+  Statement language
 
 - `source_id`:
 
-  Optional caller-defined source identifier.
+  Optional caller-defined source identifier
 
 - `timeout`:
 
-  Maximum wait in seconds.
+  Maximum wait in seconds
 
 - `poll_interval`:
 
-  Polling interval in seconds.
+  Polling interval in seconds
 
 #### Returns
 
-A `fabric_livy_statement_result` list.
+A `fabric_livy_statement_result` list
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$statements()`
 
-List statements in this execution context.
+List statements in this execution context
 
 #### Usage
 
@@ -275,13 +275,13 @@ List statements in this execution context.
 
 #### Returns
 
-The raw Livy statements response.
+The raw Livy statements response
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$reset_timeout()`
 
-Reset a regular session's inactivity timeout.
+Reset a regular session's inactivity timeout
 
 #### Usage
 
@@ -289,13 +289,13 @@ Reset a regular session's inactivity timeout.
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivySession$close()`
 
-Release this session or high-concurrency context.
+Release this session or high-concurrency context
 
 #### Usage
 
@@ -303,4 +303,4 @@ Release this session or high-concurrency context.
 
 #### Returns
 
-`TRUE` when closed or `FALSE` when already closed, invisibly.
+`TRUE` when closed or `FALSE` when already closed, invisibly

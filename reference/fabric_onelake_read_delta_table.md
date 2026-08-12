@@ -3,7 +3,7 @@
 Loads a Lakehouse or compatible Warehouse table into R. By default the
 result is a tibble; you can select columns, preview a limited number of
 rows, read an earlier table version, or return an Arrow stream for
-larger results.
+larger results
 
 ## Usage
 
@@ -32,87 +32,87 @@ fabric_onelake_read_delta_table(
 
 - table_path:
 
-  Table name. Supply its schema separately when needed.
+  Table name. Supply its schema separately when needed
 
 - workspace_name:
 
   Workspace name, ID, or a record returned by
-  [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
+  [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md)
 
 - lakehouse_name:
 
   Lakehouse name, ID, or discovery record. Compatible Warehouse items
-  are also accepted.
+  are also accepted
 
 - schema:
 
-  Schema containing the table, or `NULL`. Warehouses default to `"dbo"`.
+  Schema containing the table, or `NULL`. Warehouses default to `"dbo"`
 
 - item_type:
 
   `"Lakehouse"`, `"Warehouse"`, or `NULL`. Usually inferred; specify it
-  only when using an item name without a type suffix.
+  only when using an item name without a type suffix
 
 - tenant_id:
 
-  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Microsoft Entra application/client ID. Defaults to
-  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 
 - token:
 
   Optional access token or token-provider function. Most users can leave
-  this as `NULL` and let fabricQueryR sign in.
+  this as `NULL` and let fabricQueryR sign in
 
 - auth_args:
 
   Extra sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - version:
 
-  Specific table version to read, or `NULL` for the latest.
+  Specific table version to read, or `NULL` for the latest
 
 - verbose:
 
-  Whether to show authentication and read progress.
+  Whether to show authentication and read progress
 
 - dfs_base:
 
   OneLake service address. Most users should keep the default; a
   workspace-specific address discovered from Fabric is used when
-  available.
+  available
 
 - columns:
 
-  Column names to return, or `NULL` for all columns.
+  Column names to return, or `NULL` for all columns
 
 - limit:
 
-  Maximum number of rows to return, or `NULL` for all rows.
+  Maximum number of rows to return, or `NULL` for all rows
 
 - result:
 
-  `"tibble"` (the default) or `"arrow_stream"` for batch processing.
+  `"tibble"` (the default) or `"arrow_stream"` for batch processing
 
 ## Value
 
 A tibble, or a disk-backed, lazy, single-use Arrow stream when
-`result = "arrow_stream"`.
+`result = "arrow_stream"`
 
 ## Basic use
 
 Supply the table name, workspace, and Lakehouse. Names, IDs, and
 discovery records are accepted. If the Lakehouse uses schemas, pass the
 schema name separately. The function otherwise reads the latest version
-and all columns and rows into a tibble.
+and all columns and rows into a tibble
 
 Use `columns` to keep only the fields you need, `limit` for a quick
 preview, and `version` to read an earlier version. A row limit does not
-guarantee which rows are selected.
+guarantee which rows are selected
 
 ## Large and nested results
 
@@ -120,7 +120,7 @@ For a large table, or one containing nested data, set
 `result = "arrow_stream"` to process rows in batches instead of
 collecting them all into R memory. The stream is disk-backed and can be
 read only once, so enough temporary disk space must be available for the
-selected data.
+selected data
 
 ## Column types
 
@@ -145,7 +145,7 @@ The complete mapping is:
 
 Decimal text retains its scale and digits. Some large Arrow buffer types
 are normalized for R compatibility and may fail if one value exceeds the
-supported buffer size.
+supported buffer size
 
 ## Permissions and supported tables
 
@@ -156,18 +156,17 @@ be enabled. Callers restricted by row- or column-level security must use
 a supported Fabric engine instead. See the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 and [OneLake tenant
-settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake).
+settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
 
 This function uses the Python
 [deltalake](https://pypi.org/project/deltalake/) reader through
-`reticulate`. Some newer Delta features, including Type Widening, V2
+`reticulate` Some newer Delta features, including Type Widening, V2
 Checkpoints, and Fabric Variant, are not supported by that reader. Use
-SQL or Spark (Livy) if the function reports an unsupported table
-feature.
+SQL or Spark (Livy) if the function reports an unsupported table feature
 
 Compatible Warehouse tables can also be read through their published
 Delta logs. If the reader cannot open a Warehouse table, use
-[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md).
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
 
 ## Examples
 

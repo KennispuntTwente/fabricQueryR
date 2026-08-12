@@ -4,7 +4,7 @@ Repeats
 [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
 until the API reports that no more pages are available. Because every
 GraphQL schema can store pagination information in a different place,
-`next_cursor` tells the function where to find it.
+`next_cursor` tells the function where to find it
 
 ## Usage
 
@@ -39,109 +39,109 @@ fabric_graphql_paginate(
   GraphQL endpoint, API ID, or one discovered GraphQLApi record. An item
   from
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
-  is usually easiest because it supplies the endpoint and workspace ID.
+  is usually easiest because it supplies the endpoint and workspace ID
 
 - query:
 
   One GraphQL document containing a query or mutation. Use variables for
-  changing values instead of pasting values into this string.
+  changing values instead of pasting values into this string
 
 - next_cursor:
 
   Function accepting a `fabric_graphql_result` and returning the next
   opaque cursor, or `NULL` when pagination is complete. Use
   [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
-  for Fabric's normal connection fields.
+  for Fabric's normal connection fields
 
 - variables:
 
-  Named list of values for variables declared in `query`. One-element
+  Named list of values for variables declared in `query` One-element
   values are normally sent as scalars. Wrap a one-element list variable
   in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
-  `list(ids = I("x"))`, to send it as an array.
+  `list(ids = I("x"))`, to send it as an array
 
 - cursor_variable:
 
   Name of the GraphQL variable that receives the next cursor, commonly
-  `"after"`. It must match the variable declared in `query`.
+  `"after"`. It must match the variable declared in `query`
 
 - operation_name:
 
   Optional operation name. Supply it when the document contains more
-  than one named operation; otherwise leave `NULL`.
+  than one named operation; otherwise leave `NULL`
 
 - workspace_id:
 
   Workspace GUID. Required when `api` is a GraphQL API GUID, and
-  otherwise inferred from a discovered record.
+  otherwise inferred from a discovered record
 
 - error_policy:
 
   How GraphQL-level errors are handled. `"return"` lets the caller
   inspect partial data and errors; `"warn"` also makes errors visible
   immediately; `"error"` stops and attaches the result to a
-  `fabric_graphql_error`. HTTP/authentication failures always stop.
+  `fabric_graphql_error`. HTTP/authentication failures always stop
 
 - max_pages:
 
   Positive maximum number of requests. This guards against a faulty or
-  unexpectedly large pagination loop.
+  unexpectedly large pagination loop
 
 - timeout:
 
   Maximum time in seconds for the request. The default allows Fabric's
-  own 100-second query timeout response to arrive.
+  own 100-second query timeout response to arrive
 
 - idempotent:
 
-  Logical. Permit retries after transient HTTP failures. `TRUE` is
+  Logical. Permit retries after transient HTTP failures `TRUE` is
   normally suitable for a read-only query, but not for a mutation that
-  could be applied twice.
+  could be applied twice
 
 - tenant_id:
 
-  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Microsoft Entra application/client ID. Defaults to
   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as
-  fallback.
+  fallback
 
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  fabricQueryR use its normal sign-in flow
 
 - auth_args:
 
   Additional sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - audience:
 
   OAuth audience/scope passed to the credential. `NULL` selects the
   documented scope from the authentication flow. Set this only for a
-  custom token provider or unusual identity flow.
+  custom token provider or unusual identity flow
 
 - api_base:
 
-  Fabric REST API base URL used to derive endpoints from IDs. Most users
-  should keep the default.
+  Fabric REST API base URL used to derive endpoints from IDs Most users
+  should keep the default
 
 - allow_custom_endpoint:
 
   Logical. Permit a GraphQL endpoint outside the Microsoft Fabric API
   origin. Keep `FALSE` unless the origin is trusted; credentials are
-  sent to the supplied endpoint.
+  sent to the supplied endpoint
 
 ## Value
 
 A `fabric_graphql_pages` list with `pages`, combined `errors`, and the
 final `variables`. `pages` contains one `fabric_graphql_result` per
-request and `complete` is `TRUE` when the callback reported no next
-page. Results are kept page-by-page because the requested schema shape
-can vary.
+request and `complete` is `TRUE` when the callback reported no next page
+Results are kept page-by-page because the requested schema shape can
+vary
 
 ## Examples
 

@@ -5,7 +5,7 @@ Lakehouse, or SQL Database. Use the connection with familiar DBI
 functions such as
 [`DBI::dbListTables()`](https://dbi.r-dbi.org/reference/dbListTables.html)
 and
-[`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html).
+[`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html)
 
 ## Usage
 
@@ -43,7 +43,7 @@ fabric_sql_connect(
   A Fabric SQL server name, a complete connection string copied from the
   Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot, or SQL
   Database record returned by a discovery function. A discovered record
-  is usually simplest because it also supplies the database name.
+  is usually simplest because it also supplies the database name
 
 - database:
 
@@ -51,91 +51,91 @@ fabric_sql_connect(
   found in `server`. For a bare endpoint, supply the item database shown
   with its connection string in Fabric. If omitted, Warehouse and SQL
   analytics endpoints open Fabric's `master` context, which is useful
-  for discovery but does not select the item's tables.
+  for discovery but does not select the item's tables
 
 - target_type:
 
   Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
-  prevents fabricQueryR from identifying it.
+  prevents fabricQueryR from identifying it
 
 - backend:
 
   Connection driver. Use `"odbc"` for ordinary DBI work or `"adbc"` for
-  a native Arrow path after installing its `mssql` driver.
+  a native Arrow path after installing its `mssql` driver
 
 - tenant_id:
 
-  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Microsoft Entra application/client ID. Defaults to
-  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  fabricQueryR use its normal sign-in flow
 
 - auth_args:
 
   Additional sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - odbc_driver:
 
-  ODBC driver name. ODBC Driver 18 for SQL Server is the default.
+  ODBC driver name. ODBC Driver 18 for SQL Server is the default
 
 - adbc_driver:
 
   ADBC driver name or shared-library path. The separately installed ADBC
-  Driver Foundry `mssql` driver is the default.
+  Driver Foundry `mssql` driver is the default
 
 - port:
 
   Optional TCP port. An explicit value overrides a port in `server`;
-  otherwise the standard SQL port, 1433, is used.
+  otherwise the standard SQL port, 1433, is used
 
 - encrypt:
 
   Whether the driver encrypts the connection. Keep the secure default,
-  `"yes"`, for Fabric.
+  `"yes"`, for Fabric
 
 - trust_server_certificate:
 
   Whether to accept a server certificate without validating its trust
   chain. Keep the secure default, `"no"`, unless diagnosing a controlled
-  test environment.
+  test environment
 
 - timeout:
 
   Non-negative whole-number login/connect timeout in seconds; `0` lets
-  the driver use an unlimited or driver-specific timeout.
+  the driver use an unlimited or driver-specific timeout
 
 - read_only:
 
   Whether to ask the driver for a read-only connection. This is a
-  connection hint, not a replacement for Fabric or SQL permissions.
+  connection hint, not a replacement for Fabric or SQL permissions
 
 - allow_custom_endpoint:
 
   Logical. Fabric SQL and Microsoft SQL Database hostnames are trusted
   by default. Set to `TRUE` only when deliberately sending the SQL
   access token to another hostname, such as a controlled proxy or test
-  server.
+  server
 
 - verbose:
 
-  Logical. Show authentication, retry, and connection progress.
+  Logical. Show authentication, retry, and connection progress
 
 - max_tries:
 
-  Maximum attempts after temporary Fabric SQL failures.
+  Maximum attempts after temporary Fabric SQL failures
 
 - retry_delay:
 
   Initial delay in seconds before retrying. Later retries wait
-  progressively longer, up to 60 seconds.
+  progressively longer, up to 60 seconds
 
 - ...:
 
@@ -145,7 +145,7 @@ fabric_sql_connect(
   deprecated alias for `token` and is not forwarded. For ODBC, a
   caller-supplied `attributes` named list is merged with the
   package-managed `azure_token`; that protected attribute cannot be
-  overridden.
+  overridden
 
 ## Value
 
@@ -153,7 +153,7 @@ A live `DBIConnection`. Close it with
 [`DBI::dbDisconnect()`](https://dbi.r-dbi.org/reference/dbDisconnect.html)
 when finished. For an ADBC connection with child results still
 registered, use `DBI::dbDisconnect(con, force = TRUE)` to release them
-immediately.
+immediately
 
 ## Details
 
@@ -164,15 +164,15 @@ or
 [`fabric_sql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
 You can also paste a SQL connection string from Fabric. A Lakehouse's
 SQL endpoint is read-only; use Spark or another OneLake writer to change
-Lakehouse data.
+Lakehouse data
 
 ## Choosing a backend
 
 `backend = "odbc"` is the default and works well for ordinary DBI use.
 It requires Microsoft ODBC Driver 18 or newer. Use `backend = "adbc"`
 when you want a native Arrow result path, typically for larger
-analytical results. ADBC requires the external `mssql` driver; install
-it separately with `dbc install mssql`.
+analytical results ADBC requires the external `mssql` driver; install it
+separately with `dbc install mssql`
 
 ## Connection and permissions
 
@@ -181,7 +181,7 @@ include the database. A bare server can omit `database` to open Fabric's
 `master` context. Transient connection failures are retried
 automatically. The user or application must have access through a
 workspace role or the item's **Manage permissions** settings; SQL
-permissions may further restrict data.
+permissions may further restrict data
 
 ## References
 

@@ -3,7 +3,7 @@
 Starts Spark, runs one piece of code, returns its output, and closes the
 Spark session. This is the simplest Livy helper for a one-off operation.
 For quick reads from a Lakehouse or Warehouse, SQL is often faster to
-start.
+start
 
 ## Usage
 
@@ -36,89 +36,89 @@ fabric_livy_query(
   enriched Lakehouse record from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
-  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
-  A discovered record avoids copying workspace and Lakehouse IDs.
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
+  A discovered record avoids copying workspace and Lakehouse IDs
 
 - code:
 
   One string containing the Spark code to run. Objects created in this
   temporary session are lost after the function returns, although writes
-  made to Lakehouse storage persist.
+  made to Lakehouse storage persist
 
 - kind:
 
   Statement language. Use `"sparkr"` for SparkR code, `"pyspark"` for
   Python with Spark, `"spark"` for Scala, or `"sql"` for Spark SQL. This
-  must match the syntax in `code`.
+  must match the syntax in `code`
 
 - tenant_id:
 
-  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Microsoft Entra application/client ID. Defaults to
-  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  fabricQueryR use its normal sign-in flow
 
 - auth_args:
 
   Additional sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - audience:
 
   Optional sign-in scope. Most users should leave this `NULL`; set it
-  only for a custom token provider or identity flow.
+  only for a custom token provider or identity flow
 
 - environment_id:
 
   Optional GUID of a published Fabric Environment whose libraries and
   Spark settings should be used. Leave `NULL` to use the
-  Lakehouse/workspace defaults.
+  Lakehouse/workspace defaults
 
 - conf:
 
   Optional named list of Spark configuration overrides, for example
   `list("spark.sql.shuffle.partitions" = "100")`. Most users can leave
-  this `NULL` and configure shared settings in a Fabric Environment.
+  this `NULL` and configure shared settings in a Fabric Environment
 
 - verbose:
 
-  Logical. Show session startup, execution, and cleanup progress.
+  Logical. Show session startup, execution, and cleanup progress
 
 - poll_interval:
 
   Seconds between status checks. Lower values update sooner but make
-  more API calls.
+  more API calls
 
 - timeout:
 
   Maximum seconds to wait for session readiness and, separately,
-  statement completion.
+  statement completion
 
 - allow_custom_endpoint:
 
   Logical. Keep `FALSE` to require a Microsoft Fabric API host. Set
   `TRUE` only for a trusted custom HTTPS service, such as a test
-  emulator; the Fabric bearer token is sent to this endpoint.
+  emulator; the Fabric bearer token is sent to this endpoint
 
 - ...:
 
   Compatibility arguments. The former named `access_token` argument is
   accepted here as a deprecated alias for `token`; all other arguments
-  are rejected.
+  are rejected
 
 ## Value
 
 Invisibly, a `fabric_livy_statement_result` list. The most useful
 component is `output$parsed`: a tibble for tabular output, an R object
 for JSON, or a character vector for text. The result also keeps status,
-timing, submitted code, errors, and the original response.
+timing, submitted code, errors, and the original response
 
 ## Before you run code
 
@@ -128,18 +128,18 @@ copy the session-job connection string. For several statements that
 reuse variables and Spark state, use
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
 To run a complete Python, Scala/Java, or R application file, use
-[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
 
 The signed-in identity needs Lakehouse read and execute access,
 permission for code to access Fabric and storage, and an appropriate
-workspace role.
+workspace role
 
 Spark long and decimal columns are returned as character values when
 needed to preserve them exactly. Dates and timestamps with a time zone
 use R temporal classes; timestamps without a time zone remain wall-clock
-text. Fabric's SQL JSON output represents non-finite floating-point
+text Fabric's SQL JSON output represents non-finite floating-point
 values as `null`, so those values are returned as typed missing values.
-Binary and nested values use list-columns.
+Binary and nested values use list-columns
 
 ## See also
 

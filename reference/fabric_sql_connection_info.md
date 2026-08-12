@@ -4,7 +4,7 @@ Shows the server, database, port, and item type that fabricQueryR will
 use for a Fabric SQL connection. Most users can pass a discovered item
 directly to
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-and do not need to call this helper.
+and do not need to call this helper
 
 ## Usage
 
@@ -25,7 +25,7 @@ fabric_sql_connection_info(
   A Fabric SQL server name, a complete connection string copied from the
   Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot, or SQL
   Database record returned by a discovery function. A discovered record
-  is usually simplest because it also supplies the database name.
+  is usually simplest because it also supplies the database name
 
 - database:
 
@@ -33,20 +33,20 @@ fabric_sql_connection_info(
   found in `server`. For a bare endpoint, supply the item database shown
   with its connection string in Fabric. If omitted, Warehouse and SQL
   analytics endpoints open Fabric's `master` context, which is useful
-  for discovery but does not select the item's tables.
+  for discovery but does not select the item's tables
 
 - target_type:
 
   Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
-  prevents fabricQueryR from identifying it.
+  prevents fabricQueryR from identifying it
 
 - port:
 
   Optional TCP port. An explicit value overrides a port in `server`;
-  otherwise the standard SQL port, 1433, is used.
+  otherwise the standard SQL port, 1433, is used
 
 ## Value
 
 A `fabric_sql_connection_info` list with `server`, `database`, `port`,
 `target_type`, and `source` (whether the input was text or a discovery
-record). No connection is opened.
+record). No connection is opened

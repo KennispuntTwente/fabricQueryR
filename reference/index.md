@@ -103,6 +103,10 @@ Run, monitor, wait for, and cancel Fabric item jobs
   [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   : Run and monitor Microsoft Fabric item jobs
+- [`print(`*`<fabric_job>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job.md)
+  : Print a submitted Fabric job
+- [`print(`*`<fabric_job_instance>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_instance.md)
+  : Print Fabric job status
 
 ## Package
 

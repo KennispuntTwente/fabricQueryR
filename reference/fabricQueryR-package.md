@@ -4,7 +4,7 @@ fabricQueryR helps you find and work with Microsoft Fabric data from R.
 Start by discovering the workspaces and items available to you, then
 pass those results directly to the package's query, file, Spark, and job
 functions. In most workflows, you do not need to copy IDs or connection
-details by hand.
+details by hand
 
 ## Where to start
 
@@ -14,12 +14,12 @@ details by hand.
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
-  to find data.
+  to find data
 
 - Use
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   for T-SQL against a Warehouse, SQL Database, or Lakehouse SQL
-  analytics endpoint.
+  analytics endpoint
 
 - Use
   [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
@@ -27,14 +27,14 @@ details by hand.
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   for Eventhouse/KQL data, and
   [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
-  for an API for GraphQL item.
+  for an API for GraphQL item
 
 - Use
   [fabric_onelake_files](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   for ordinary files,
   [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   for Delta tables, and the Livy helpers when Spark processing is
-  required.
+  required
 
 - Use
   [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
@@ -42,12 +42,12 @@ details by hand.
   [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
   and
   [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
-  to control supported on-demand item jobs.
+  to control supported on-demand item jobs
 
 - See
   [`vignette("authentication", package = "fabricQueryR")`](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md)
   for interactive and unattended authentication setup, required token
-  audiences, and Fabric permissions.
+  audiences, and Fabric permissions
 
 ## References
 

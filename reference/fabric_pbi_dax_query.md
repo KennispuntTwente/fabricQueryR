@@ -3,7 +3,7 @@
 Runs a DAX query against a published semantic model and returns the
 result as a tibble. A semantic model is the report-ready data behind
 Power BI reports, including tables, relationships, measures, and
-business calculations.
+business calculations
 
 ## Usage
 
@@ -39,58 +39,58 @@ fabric_pbi_dax_query(
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),
   or a Power BI connection string. A character connection string can be,
   for example,
-  `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
+  `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`
   It may contain `Data Source=` and `Initial Catalog=` parts, or a bare
   `powerbi://...` source plus a `Dataset=`, `Catalog=`, or
-  `Initial Catalog=` key. Omit it when `dataset_id` is supplied.
+  `Initial Catalog=` key. Omit it when `dataset_id` is supplied
 
 - dax:
 
   One DAX query, normally beginning with `EVALUATE`. DAX table
-  expressions determine which rows and columns are returned.
+  expressions determine which rows and columns are returned
 
 - workspace_id:
 
   Optional shared-workspace GUID. Use with `dataset_id` to avoid
   name-based discovery. For a model in My Workspace, omit this and set
-  `my_workspace = TRUE` explicitly.
+  `my_workspace = TRUE` explicitly
 
 - dataset_id:
 
   Optional semantic model/dataset GUID. When supplied, no
-  connection-string name lookup is performed.
+  connection-string name lookup is performed
 
 - my_workspace:
 
   Whether `dataset_id` belongs to the signed-in user's My Workspace.
-  Leave `FALSE` for shared workspaces.
+  Leave `FALSE` for shared workspaces
 
 - tenant_id:
 
-  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Microsoft Entra application/client ID. Defaults to
-  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  fabricQueryR use its normal sign-in flow
 
 - auth_args:
 
   Additional sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - include_nulls:
 
   Logical. With `TRUE`, Power BI includes properties whose value is
   blank/null. With `FALSE`, those properties can be absent from a
-  returned row; retaining `TRUE` usually gives a more consistent tibble.
+  returned row; retaining `TRUE` usually gives a more consistent tibble
   Used only by `api = "json"`; Arrow has a schema and always represents
-  nulls explicitly.
+  nulls explicitly
 
 - api_base:
 
@@ -98,30 +98,30 @@ fabric_pbi_dax_query(
   `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial
   cloud; override it only for a test service that implements the same
   endpoint and authentication contract. Sovereign Microsoft clouds are
-  not currently supported by this helper.
+  not currently supported by this helper
 
 - allow_custom_endpoint:
 
   Logical. Set to `TRUE` only when `api_base` is a non-Microsoft HTTPS
-  origin that you trust to receive a Power BI token.
+  origin that you trust to receive a Power BI token
 
 - impersonated_user:
 
   Optional user principal name, such as `"analyst@example.com"`, sent as
   `impersonatedUserName` for supported JSON row-level-security scenarios
-  or as `effectiveUsername` for Arrow. Leave `NULL` for the normal
-  identity context.
+  or as `effectiveUsername` for Arrow Leave `NULL` for the normal
+  identity context
 
 - api:
 
   Response format provided by Power BI. Use `"json"` for ordinary
-  queries or `"arrow"` for richer types and multiple result tables.
+  queries or `"arrow"` for richer types and multiple result tables
 
 - result:
 
   Return a `"tibble"`, or with `api = "arrow"`, a single-use
   `"arrow_stream"` for batch processing without first collecting all
-  rows in R memory.
+  rows in R memory
 
 - arrow_options:
 
@@ -130,15 +130,15 @@ fabric_pbi_dax_query(
   `effectiveUsername`, `executionMetrics`, `memoryLimit`,
   `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`.
   The required `query` property is supplied from `dax`. Used only by
-  `api = "arrow"`.
+  `api = "arrow"`
 
 ## Value
 
 A tibble for one result table. Multiple Arrow result tables are returned
-as a `fabric_pbi_dax_rowsets` list of tibbles or Arrow streams. Power BI
+as a `fabric_pbi_dax_rowsets` list of tibbles or Arrow streams Power BI
 column names are preserved. Empty JSON results have no column metadata
 and therefore return a zero-row, zero-column tibble. Partial or
-truncated results raise an error.
+truncated results raise an error
 
 ## Choosing a model
 
@@ -147,33 +147,33 @@ The easiest input is an item from
 You can instead supply workspace and dataset IDs, or a Power BI
 connection string copied from the semantic model settings. IDs are the
 most reliable choice for scheduled code. For a model in My Workspace,
-supply `dataset_id` and set `my_workspace = TRUE`.
+supply `dataset_id` and set `my_workspace = TRUE`
 
 ## Choosing a response format
 
 Keep `api = "json"` for ordinary queries and broad compatibility. It
 returns one result table and is available to Pro, PPU, and
-capacity-backed models. Results are limited by Power BI; fabricQueryR
+capacity-backed models Results are limited by Power BI; fabricQueryR
 raises an error instead of silently returning a partial result. Very
 large whole numbers are returned as character values so they are not
-rounded.
+rounded
 
 Use `api = "arrow"` when exact semantic-model types matter, when a query
 has several `EVALUATE` statements, or when you want an Arrow stream. It
 requires the optional arrow package, a model on supported modern
 infrastructure, and Premium or Fabric capacity. Multiple result tables
-are returned in statement order as a `fabric_pbi_dax_rowsets` list.
+are returned in statement order as a `fabric_pbi_dax_rowsets` list
 
 ## Permissions and tenant settings
 
 The signed-in identity needs Read and Build permission on the semantic
-model. Your Power BI administrator must enable **Dataset Execute Queries
+model Your Power BI administrator must enable **Dataset Execute Queries
 REST API**; service principals also need the relevant service-principal
-tenant setting. The APIs use the Power BI scope and require
+tenant setting The APIs use the Power BI scope and require
 `Dataset.Read.All` (or `Dataset.ReadWrite.All`). Name lookup also
-requires workspace read access. Row-level security, SSO, user
+requires workspace read access Row-level security, SSO, user
 impersonation, and the Arrow endpoint have additional Power BI
-restrictions; see the linked Microsoft documentation.
+restrictions; see the linked Microsoft documentation
 
 ## References
 

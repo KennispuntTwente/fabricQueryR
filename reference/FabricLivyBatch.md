@@ -1,48 +1,48 @@
 # A Microsoft Fabric Livy batch job
 
 Represents a Spark application submitted with
-[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
 Use `$wait()` to wait for completion, `$result()` or `$logs()` to
 inspect the outcome, and `$cancel()` to request cancellation. Most users
-do not need to call this R6 class directly.
+do not need to call this R6 class directly
 
 ## Format
 
-An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
+An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
 ## Public fields
 
 - `id`:
 
-  Fabric batch ID.
+  Fabric batch ID
 
 - `url`:
 
-  Batch lifecycle URL.
+  Batch lifecycle URL
 
 - `state`:
 
-  Latest batch state.
+  Latest batch state
 
 - `response`:
 
-  Latest raw service response.
+  Latest raw service response
 
 - `cancel_requested`:
 
-  Whether `$cancel()` was called successfully.
+  Whether `$cancel()` was called successfully
 
 - `submitted_local`:
 
-  Local submission timestamp.
+  Local submission timestamp
 
 - `completed_local`:
 
-  Local completion timestamp.
+  Local completion timestamp
 
 - `verbose`:
 
-  Whether lifecycle messages are enabled.
+  Whether lifecycle messages are enabled
 
 ## Methods
 
@@ -67,7 +67,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator.
 ### `FabricLivyBatch$new()`
 
 Internal constructor used by
-[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
 
 #### Usage
 
@@ -77,29 +77,29 @@ Internal constructor used by
 
 - `response`:
 
-  Initial batch response.
+  Initial batch response
 
 - `url`:
 
-  Batch collection URL.
+  Batch collection URL
 
 - `credential`:
 
-  Internal authentication credential.
+  Internal authentication credential
 
 - `verbose`:
 
-  Whether to emit lifecycle messages.
+  Whether to emit lifecycle messages
 
 #### Returns
 
-A new batch object.
+A new batch object
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyBatch$print()`
 
-Print a concise batch summary.
+Print a concise batch summary
 
 #### Usage
 
@@ -109,17 +109,17 @@ Print a concise batch summary.
 
 - `...`:
 
-  Unused.
+  Unused
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyBatch$status()`
 
-Retrieve current batch metadata.
+Retrieve current batch metadata
 
 #### Usage
 
@@ -129,21 +129,21 @@ Retrieve current batch metadata.
 
 - `refresh`:
 
-  Whether to retrieve current state from Fabric.
+  Whether to retrieve current state from Fabric
 
 - `deadline`:
 
-  Internal wall-clock deadline for the status request.
+  Internal wall-clock deadline for the status request
 
 #### Returns
 
-The raw batch response list.
+The raw batch response list
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyBatch$wait()`
 
-Wait for the batch to reach a terminal state.
+Wait for the batch to reach a terminal state
 
 #### Usage
 
@@ -158,29 +158,29 @@ Wait for the batch to reach a terminal state.
 
 - `timeout`:
 
-  Maximum wait in seconds.
+  Maximum wait in seconds
 
 - `poll_interval`:
 
-  Polling interval in seconds.
+  Polling interval in seconds
 
 - `error_on_failure`:
 
-  Raise a structured error for a failed batch.
+  Raise a structured error for a failed batch
 
 - `cancel_on_timeout`:
 
-  Request cancellation before raising a timeout.
+  Request cancellation before raising a timeout
 
 #### Returns
 
-`self`, invisibly.
+`self`, invisibly
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyBatch$logs()`
 
-Return available Spark driver log lines.
+Return available Spark driver log lines
 
 #### Usage
 
@@ -190,17 +190,17 @@ Return available Spark driver log lines.
 
 - `refresh`:
 
-  Whether to retrieve current state from Fabric.
+  Whether to retrieve current state from Fabric
 
 #### Returns
 
-A character vector.
+A character vector
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyBatch$result()`
 
-Return structured batch metadata and logs.
+Return structured batch metadata and logs
 
 #### Usage
 
@@ -210,21 +210,21 @@ Return structured batch metadata and logs.
 
 - `refresh`:
 
-  Whether to retrieve current state from Fabric.
+  Whether to retrieve current state from Fabric
 
 - `error_on_failure`:
 
-  Raise a structured error for a failed batch.
+  Raise a structured error for a failed batch
 
 #### Returns
 
-A `fabric_livy_batch_result` list.
+A `fabric_livy_batch_result` list
 
 ------------------------------------------------------------------------
 
 ### `FabricLivyBatch$cancel()`
 
-Request batch cancellation.
+Request batch cancellation
 
 #### Usage
 
@@ -234,8 +234,8 @@ Request batch cancellation.
 
 - `deadline`:
 
-  Internal wall-clock deadline for the cancellation request.
+  Internal wall-clock deadline for the cancellation request
 
 #### Returns
 
-`TRUE`, invisibly, after Fabric accepts the request.
+`TRUE`, invisibly, after Fabric accepts the request

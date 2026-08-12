@@ -1,20 +1,20 @@
 # Work with files in Microsoft Fabric OneLake
 
 List, inspect, download, upload, and delete ordinary files stored in
-OneLake. These helpers are intended for files such as CSV, JSON, images,
-and model artifacts in a Fabric item's `Files/` area.
+OneLake These helpers are intended for files such as CSV, JSON, images,
+and model artifacts in a Fabric item's `Files/` area
 
 - `fabric_onelake_list()` lists paths and follows all continuation
-  tokens.
+  tokens
 
-- `fabric_onelake_metadata()` returns file or directory properties.
+- `fabric_onelake_metadata()` returns file or directory properties
 
 - `fabric_onelake_download()` reads a file into memory or streams it to
-  disk.
+  disk
 
-- `fabric_onelake_upload()` creates or replaces a file.
+- `fabric_onelake_upload()` creates or replaces a file
 
-- `fabric_onelake_delete()` explicitly deletes a file or directory.
+- `fabric_onelake_delete()` explicitly deletes a file or directory
 
 ## Usage
 
@@ -109,131 +109,130 @@ fabric_onelake_delete(
 
   Workspace name, ID, record from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
-  or a complete OneLake HTTPS/ABFSS path.
+  or a complete OneLake HTTPS/ABFSS path
 
 - item:
 
   Item name, GUID, or discovered Fabric item. Use `NULL` when
   `workspace` is a complete OneLake path. An item from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
-  is the least ambiguous input.
+  is the least ambiguous input
 
 - path:
 
   Path relative to the item, usually beginning with `Files/` or
   `Tables/`, for example `"Files/incoming/data.csv"`. Use forward
-  slashes. A complete OneLake path already contains this value.
+  slashes A complete OneLake path already contains this value
 
 - recursive:
 
   For listing, whether to include all descendants. For deletion, whether
-  a non-empty directory may be removed.
+  a non-empty directory may be removed
 
 - page_size:
 
   Maximum paths requested from OneLake per API call, from 1 to 5000.
-  Smaller values reduce each response size but require more requests.
+  Smaller values reduce each response size but require more requests
 
 - begin_from:
 
   Optional path at which to begin a listing. Use this to resume a long,
-  alphabetically ordered scan.
+  alphabetically ordered scan
 
 - item_type:
 
   Optional Fabric item type appended to an item name unless that name
-  already ends in the same suffix, for example `"Lakehouse"`. Usually
+  already ends in the same suffix, for example `"Lakehouse"` Usually
   unnecessary for a discovered item or a name such as
-  `"Sales.Lakehouse"`.
+  `"Sales.Lakehouse"`
 
 - tenant_id:
 
-  Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Entra application ID. Defaults to `FABRICQUERYR_CLIENT_ID`, then the
-  Azure CLI application ID.
+  Azure CLI application ID
 
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  fabricQueryR use its normal sign-in flow
 
 - auth_args:
 
   Additional sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - dfs_base:
 
   OneLake service address. Most users should keep the default; a
   workspace-specific address discovered from Fabric is used when
-  available.
+  available
 
 - dest:
 
   Optional local destination. When `NULL`, download returns a raw vector
   held in R memory. Supply a path to stream large files to disk. A
-  destination download is staged before it replaces an existing file.
+  destination download is staged before it replaces an existing file
 
 - range:
 
   Optional inclusive zero-based byte range. Supply one value for all
-  bytes from that offset onward, or two values for `start` through
-  `end`. Leave `NULL` to download the entire file.
+  bytes from that offset onward, or two values for `start` through `end`
+  Leave `NULL` to download the entire file
 
 - overwrite:
 
-  Whether an existing local or OneLake file may be replaced. Existing
-  files are protected by default.
+  Whether an existing local or OneLake file may be replaced Existing
+  files are protected by default
 
 - if_match:
 
   Optional file version (`etag`) returned by
   `fabric_onelake_metadata()`. The operation proceeds only if the file
-  still has that version.
+  still has that version
 
 - source:
 
   Local file path or raw vector to upload. A path is streamed; a raw
-  vector is already held in memory.
+  vector is already held in memory
 
 - content_type:
 
   Optional MIME type stored with an uploaded file, for example
-  `"text/csv"`.
+  `"text/csv"`
 
 - create_parents:
 
   Logical. Create missing parent directories below the Fabric-managed
-  first-level folder. Keep `TRUE` for normal uploads.
+  first-level folder. Keep `TRUE` for normal uploads
 
 - allow_managed_tables:
 
-  Whether to allow direct changes below `Tables/`. Keep `FALSE` for
-  normal use: changing Delta files directly can corrupt a managed table.
+  Whether to allow direct changes below `Tables/` Keep `FALSE` for
+  normal use: changing Delta files directly can corrupt a managed table
 
 - chunk_size:
 
   Upload chunk size in bytes. The default suits most files; larger
-  values make fewer requests but use more memory.
+  values make fewer requests but use more memory
 
 - confirm:
 
   Safety switch that must be explicitly set to `TRUE` before deletion is
-  attempted.
+  attempted
 
 ## Value
 
 `fabric_onelake_list()` returns one row per path, including its
 item-relative `path`, file `name`, `is_directory`, `content_length`,
-`etag`, and modification/permission fields. `fabric_onelake_metadata()`
+`etag`, and modification/permission fields `fabric_onelake_metadata()`
 and `fabric_onelake_upload()` return a one-row tibble with the resolved
-path and available HTTP metadata. `fabric_onelake_download()` returns a
+path and available HTTP metadata `fabric_onelake_download()` returns a
 raw vector when `dest = NULL`, or invisibly returns the destination path
-after writing to disk. `fabric_onelake_delete()` invisibly returns
-`TRUE`.
+after writing to disk `fabric_onelake_delete()` invisibly returns `TRUE`
 
 ## Choosing a target
 
@@ -241,13 +240,13 @@ The easiest inputs are a workspace plus an item returned by
 [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
 You can also use names, IDs, or a complete OneLake HTTPS/ABFSS path.
 When using an item name, include its type suffix, such as
-`"Sales.Lakehouse"`, or supply `item_type`.
+`"Sales.Lakehouse"`, or supply `item_type`
 
 A Lakehouse's `Tables/` area is managed as Delta tables. Use
 [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
 to read those tables, and use SQL, Spark, or another Delta-aware tool to
 change them. Uploading or deleting individual files below `Tables/` can
-damage a table and is blocked by default.
+damage a table and is blocked by default
 
 ## Permissions
 
@@ -256,7 +255,7 @@ or the item's **Manage OneLake data access** roles. Uploading and
 deleting need write permission. Your Fabric administrator must also
 allow external apps to access OneLake. If a call returns HTTP 403 after
 sign-in succeeds, check both that tenant setting and the item's data
-permissions.
+permissions
 
 ## Safe file replacement
 
@@ -264,7 +263,7 @@ Existing files are protected unless `overwrite = TRUE`. Uploads and
 downloads are staged before replacing their destination, so an
 interrupted transfer does not normally leave a partial file. Use
 `if_match` when a file should be replaced only if it has not changed
-since you inspected it.
+since you inspected it
 
 ## References
 

@@ -3,7 +3,7 @@
 Starts Spark compute that can run several statements while keeping
 variables and Spark state between calls. Use
 [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
-instead for a single, self-contained operation.
+instead for a single, self-contained operation
 
 ## Usage
 
@@ -48,130 +48,130 @@ fabric_livy_session(
   enriched Lakehouse record from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
-  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
   Copy the session-job URL from **Lakehouse settings \> Livy endpoint**,
-  or use a discovered record to avoid handling IDs manually.
+  or use a discovered record to avoid handling IDs manually
 
 - high_concurrency:
 
   Whether to let Fabric share Spark compute between several isolated
   workloads. Keep `FALSE` for a typical sequence of calls in one R
-  process. This Fabric capability is currently in preview.
+  process. This Fabric capability is currently in preview
 
 - session_tag:
 
   Optional high-concurrency packing hint. Related requests with the same
   tag may share an underlying Livy session while keeping separate REPL
-  state. Each call still returns a distinct HC session.
+  state. Each call still returns a distinct HC session
 
 - name:
 
-  Optional readable session name shown in service metadata.
+  Optional readable session name shown in service metadata
 
 - tags:
 
-  Optional named list of string labels for monitoring.
+  Optional named list of string labels for monitoring
 
 - conf:
 
   Optional named list of Spark settings. Prefer a published Fabric
-  Environment for configuration shared by several jobs.
+  Environment for configuration shared by several jobs
 
 - environment_id:
 
   Optional GUID of a published Fabric Environment whose libraries and
-  Spark settings should be used.
+  Spark settings should be used
 
 - archives:
 
-  Optional character vector of archive URIs made available to Spark.
+  Optional character vector of archive URIs made available to Spark
 
 - driver_memory, executor_memory:
 
   Optional Spark memory values such as `"4g"`. Leave `NULL` to use
-  Fabric defaults.
+  Fabric defaults
 
 - driver_cores, executor_cores, num_executors:
 
   Optional Spark resource counts. Larger values consume more capacity;
-  leave `NULL` unless the workload has been sized deliberately.
+  leave `NULL` unless the workload has been sized deliberately
 
 - artifact_name:
 
   Optional Lakehouse/artifact label used for a high-concurrency job in
-  the Fabric Monitoring hub.
+  the Fabric Monitoring hub
 
 - file:
 
-  Optional application file URI for a high-concurrency request.
+  Optional application file URI for a high-concurrency request
 
 - class_name:
 
-  Optional Java/Scala main class for `file`.
+  Optional Java/Scala main class for `file`
 
 - args:
 
-  Optional character vector of application arguments.
+  Optional character vector of application arguments
 
 - jars, files, py_files:
 
-  Optional character vectors of dependency URIs supplied to Spark.
+  Optional character vectors of dependency URIs supplied to Spark
 
 - tenant_id:
 
-  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+  Microsoft Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`
 
 - client_id:
 
   Microsoft Entra application/client ID. Defaults to
-  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  fabricQueryR use its normal sign-in flow
 
 - auth_args:
 
   Additional sign-in options passed to
-  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
+  [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
 - audience:
 
   Optional sign-in scope. Most users should leave this `NULL`; set it
-  only for a custom token provider or identity flow.
+  only for a custom token provider or identity flow
 
 - verbose:
 
-  Logical. Show session lifecycle messages.
+  Logical. Show session lifecycle messages
 
 - allow_custom_endpoint:
 
   Logical. Keep `FALSE` to require a Microsoft Fabric API host. Set
   `TRUE` only for a trusted custom HTTPS service, such as a test
-  emulator; the Fabric bearer token is sent to this endpoint.
+  emulator; the Fabric bearer token is sent to this endpoint
 
 ## Value
 
 A newly created
 [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
 It may still be starting; call `$wait()` before `$submit()`/`$run()`,
-and `$close()` when finished.
+and `$close()` when finished
 
 ## Choosing a session type
 
 Use a standard session for a typical sequence in one R process. High
 concurrency is for applications that run several independent Spark
 workloads at the same time; it is not needed for several sequential
-statements.
+statements
 
 ## Cleanup and permissions
 
 No network request is made when an open object is garbage collected.
 Call `$close()` explicitly, and use `on.exit(session$close())` inside
-functions. The signed-in identity needs Lakehouse read and execute
+functions The signed-in identity needs Lakehouse read and execute
 access, permission for code to access Fabric and storage, and an
-appropriate workspace role.
+appropriate workspace role
 
 ## See also
 

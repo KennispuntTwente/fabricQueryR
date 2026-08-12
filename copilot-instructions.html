@@ -69,6 +69,42 @@ uv --directory tools/fabric-sandbox run fabric-sandbox discover</code></pre>
 </ul><p>When changing a public function, review its whole help topic for readability; do not append new implementation notes to an already dense introduction.</p>
 </div>
 <div class="section level2">
+<h2 id="r-code-organization-and-maintainability">R code organization and maintainability<a class="anchor" aria-label="anchor" href="#r-code-organization-and-maintainability"></a></h2>
+<p>Apply these rules to every file in <code>R/</code>. Treat them as part of the definition of done for new code and for refactors that touch an existing function.</p>
+<div class="section level3">
+<h3 id="order-code-from-public-workflows-to-implementation-details">Order code from public workflows to implementation details<a class="anchor" aria-label="anchor" href="#order-code-from-public-workflows-to-implementation-details"></a></h3>
+<ul><li>Put exported functions and the file’s main entry points near the top, after any constants or package-level documentation they need.</li>
+<li>When a file has several public functions, keep the normal user workflow first. Put closely related S3 methods or R6 classes after their public constructors.</li>
+<li>Place internal orchestration helpers after the public API, then increasingly smaller, more specialized parsing, conversion, validation, and formatting helpers toward the bottom.</li>
+<li>Review the entire file after adding or moving a function; do not leave a main entry point below its low-level helpers.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="make-long-functions-readable-as-numbered-steps">Make long functions readable as numbered steps<a class="anchor" aria-label="anchor" href="#make-long-functions-readable-as-numbered-steps"></a></h3>
+<ul><li>Split long functions, especially public functions and complex orchestration helpers, into numbered sections that describe the workflow in plain language.</li>
+<li>Format a top-level section as <code># 1 Section title</code> followed by enough <code>-</code> characters to make the line exactly 100 columns. Use <code>## 1.1 Section title</code> for a subsection and <code>### 1.1.1 Section title</code> for deeper nesting, with the same 100-column rule.</li>
+<li>Leave exactly two empty lines between the end of one section and the next section heading.</li>
+<li>Every section heading must be followed by one empty line, a short beginner-friendly explanation, and another empty line before its first R statement. Explain both what the section does and why that step is needed.</li>
+<li>In longer or more complicated sections, add concise inline comments before non-obvious branches, safety checks, protocol workarounds, or conversions. Explain what happens and why; avoid restating individual lines of code.</li>
+<li>Do not end R comment lines with a full stop. This applies to section explanations, inline comments, helper descriptions, and roxygen2 lines. Question marks, code punctuation, URLs, and punctuation required by an R expression are exceptions.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="use-whitespace-and-comments-to-show-code-structure">Use whitespace and comments to show code structure<a class="anchor" aria-label="anchor" href="#use-whitespace-and-comments-to-show-code-structure"></a></h3>
+<ul><li>Group adjacent statements that perform one small piece of work, and place one empty line before the code moves to a different validation, transformation, request phase, branch purpose, or return decision.</li>
+<li>Do not leave long runs of unrelated statements visually glued together. Use whitespace at complete expression boundaries; never split a single call or condition merely to add space.</li>
+<li>Add short inline guide comments to long snippets that do not warrant numbered subsections. Comments should introduce a meaningful group of statements or explain a non-obvious decision, not narrate each line.</li>
+<li>Keep related setup assignments together. Excessive one-line groups are as distracting as too little whitespace, so use blank lines to show real changes in purpose rather than after every statement.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="keep-helpers-useful-and-documented">Keep helpers useful and documented<a class="anchor" aria-label="anchor" href="#keep-helpers-useful-and-documented"></a></h3>
+<ul><li>Do not create a thin internal wrapper that merely renames one call, filters a list once, or forwards arguments and is used in only a few places. Put that expression at the call site unless the helper enforces a repeated safety rule, provides a deliberate test seam, or removes substantial duplicated logic.</li>
+<li>When touching a helper, inspect its call sites. Inline and remove helpers that no longer earn their indirection, and remove dead helpers rather than leaving unused compatibility code.</li>
+<li>Look for duplicated validation, request construction, parsing, and conversion logic. Reuse an existing substantive helper when it improves clarity; do not introduce abstraction solely to reduce a line count.</li>
+<li>Remove obsolete branches, repeated work, unnecessary temporary objects, and code made unreachable by the final design. Verify removals with repository search and tests.</li>
+<li>Give every internal function a short beginner-friendly description immediately above it. State what its inputs mean, what it returns (or that it raises), why it exists, and which workflow uses it. Prefer internal roxygen2 with <code>@param</code>, <code>@return</code>, <code>@keywords internal</code>, and <code>@noRd</code> for substantive helpers; a concise ordinary comment is acceptable for a very small local helper or explicit test seam.</li>
+<li>Keep internal documentation practical and brief. Avoid unexplained protocol jargon and implementation trivia that does not help a new maintainer follow the code.</li>
+</ul></div>
+</div>
+<div class="section level2">
 <h2 id="newsmd">NEWS.md<a class="anchor" aria-label="anchor" href="#newsmd"></a></h2>
 <p>Treat the current development section as release notes for users, not as a development log. Its comparison point is the latest git-tagged release.</p>
 <ul><li>Before editing NEWS, inspect the net change from the latest release tag to <code>HEAD</code> (for example with <code>git diff &lt;tag&gt;..HEAD</code> and <code>git log &lt;tag&gt;..HEAD</code>).</li>
