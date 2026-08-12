@@ -296,6 +296,19 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
+test_that("HTTP retry counts reject lossy and nonscalar values", {
+  request <- httr2::request("https://example.test/items")
+  invalid <- list(0, 1.5, c(1, 2), NA_real_, Inf, "2")
+
+  for (value in invalid) {
+    expect_error(
+      .httr2_perform(request, max_tries = value),
+      "max_tries must be one whole number",
+      fixed = TRUE
+    )
+  }
+})
+
 test_that("HTTP retries honor Fabric isRetriable decisions", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

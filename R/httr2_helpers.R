@@ -43,10 +43,17 @@
 
   # Reject impossible limits before requesting a token or touching the network
 
-  max_tries <- as.integer(max_tries)
-  if (is.na(max_tries) || max_tries < 1L) {
-    rlang::abort("max_tries must be at least 1")
+  if (
+    !is.numeric(max_tries) || length(max_tries) != 1L ||
+      is.na(max_tries) || !is.finite(max_tries) ||
+      max_tries < 1 || max_tries > .Machine$integer.max ||
+      max_tries != floor(max_tries)
+  ) {
+    rlang::abort(
+      "max_tries must be one whole number between 1 and .Machine$integer.max"
+    )
   }
+  max_tries <- as.integer(max_tries)
 
   if (
     !is.null(request_timeout) &&
