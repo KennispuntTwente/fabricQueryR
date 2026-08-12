@@ -212,6 +212,32 @@ fabric_test_azure_auth_config <- function() {
   )
 }
 
+fabric_test_delegated_auth_config <- function() {
+  config <- getOption("fabricQueryR.integration_auth_config")
+  delegated <- is.list(config) &&
+    is.list(config$auth_args) &&
+    !identical(config$auth_args$auth_type, "client_credentials") &&
+    is.null(config$auth_args$password) &&
+    is.null(config$auth_args$certificate)
+  if (!delegated) {
+    testthat::skip(
+      paste(
+        "Delegated identity coverage is opt-in; run through",
+        "tools/fabric-sandbox/local-integration.R with interactive sign-in"
+      )
+    )
+  }
+  config
+}
+
+fabric_test_optional_environment <- function(variable, purpose) {
+  value <- Sys.getenv(variable)
+  if (!nzchar(value)) {
+    testthat::skip(paste(purpose, "is opt-in; set", variable, "to enable it"))
+  }
+  value
+}
+
 fabric_test_require_package <- function(package) {
   fabric_test_skip_or_fail(
     !requireNamespace(package, quietly = TRUE),

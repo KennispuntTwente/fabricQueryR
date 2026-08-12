@@ -217,3 +217,21 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
     "(?i)(Power BI|DAX|query)"
   )
 })
+
+test_that("delegated DAX queries can target My Workspace", {
+  fabric_test_delegated_auth_config()
+  dataset_id <- fabric_test_optional_environment(
+    "FABRIC_TEST_PERSONAL_DATASET_ID",
+    "My Workspace DAX coverage"
+  )
+
+  result <- fabric_pbi_dax_query(
+    dataset_id = dataset_id,
+    my_workspace = TRUE,
+    dax = 'EVALUATE ROW("fabricQueryR", 1)',
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+  )
+
+  expect_s3_class(result, "tbl_df")
+  expect_identical(as.numeric(result[["[fabricQueryR]"]]), 1)
+})

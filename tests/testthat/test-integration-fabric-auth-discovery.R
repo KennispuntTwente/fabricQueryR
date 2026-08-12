@@ -168,3 +168,34 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestKQLDatabase$query_service_uri
   )
 })
+
+test_that("the default AzureAuth flow works with a delegated identity", {
+  auth <- fabric_test_delegated_auth_config()
+  manifest <- fabric_test_manifest()
+
+  workspaces <- fabric_workspaces(
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
+  )
+
+  expect_true(manifest$workspace_id %in% purrr::map_chr(workspaces, "id"))
+})
+
+test_that("a valid least-privilege identity returns a typed 403", {
+  limited_token <- fabric_test_optional_environment(
+    "FABRIC_TEST_LIMITED_API_TOKEN",
+    "Least-privilege Fabric API coverage"
+  )
+  denied_workspace <- fabric_test_optional_environment(
+    "FABRIC_TEST_DENIED_WORKSPACE_ID",
+    "Least-privilege Fabric API coverage"
+  )
+
+  error <- expect_error(
+    fabric_items(denied_workspace, token = limited_token),
+    class = "fabric_http_error"
+  )
+  expect_identical(error$status, 403L)
+  expect_null(error$response_metadata$body$token)
+})
