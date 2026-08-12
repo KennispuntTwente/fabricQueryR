@@ -150,7 +150,8 @@ fabric_kql_query <- function(
     rlang::abort("timeout must be one positive number of seconds")
   }
   if (
-    !is.logical(retain_raw_frames) || length(retain_raw_frames) != 1L ||
+    !is.logical(retain_raw_frames) ||
+      length(retain_raw_frames) != 1L ||
       is.na(retain_raw_frames)
   ) {
     rlang::abort("retain_raw_frames must be TRUE or FALSE")

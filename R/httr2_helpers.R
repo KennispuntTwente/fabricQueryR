@@ -44,9 +44,12 @@
   # Reject impossible limits before requesting a token or touching the network
 
   if (
-    !is.numeric(max_tries) || length(max_tries) != 1L ||
-      is.na(max_tries) || !is.finite(max_tries) ||
-      max_tries < 1 || max_tries > .Machine$integer.max ||
+    !is.numeric(max_tries) ||
+      length(max_tries) != 1L ||
+      is.na(max_tries) ||
+      !is.finite(max_tries) ||
+      max_tries < 1 ||
+      max_tries > .Machine$integer.max ||
       max_tries != floor(max_tries)
   ) {
     rlang::abort(

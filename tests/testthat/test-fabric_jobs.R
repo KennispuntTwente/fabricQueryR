@@ -1501,7 +1501,10 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     "Spark"
   ))
   expect_error(
-    .fabric_job_validate_notebook_compute(list(driverCores = "banana"), "Spark"),
+    .fabric_job_validate_notebook_compute(
+      list(driverCores = "banana"),
+      "Spark"
+    ),
     "Spark driverCores must be one of"
   )
   expect_error(

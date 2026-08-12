@@ -696,8 +696,10 @@ graphql_resolve_endpoint <- function(
 
     if (!is.null(workspace_id) && !is.null(record_workspace_id)) {
       if (
-        !is.character(workspace_id) || length(workspace_id) != 1L ||
-          is.na(workspace_id) || !fabric_is_guid(workspace_id)
+        !is.character(workspace_id) ||
+          length(workspace_id) != 1L ||
+          is.na(workspace_id) ||
+          !fabric_is_guid(workspace_id)
       ) {
         rlang::abort("workspace_id must be a GUID")
       }

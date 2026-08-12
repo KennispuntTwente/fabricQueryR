@@ -1515,7 +1515,9 @@ print.fabric_job_instance <- function(x, ...) {
       value <- configuration[[name]]
       allowed_memory <- c("28g", "56g", "112g", "224g", "400g")
       if (
-        !is.character(value) || length(value) != 1L || is.na(value) ||
+        !is.character(value) ||
+          length(value) != 1L ||
+          is.na(value) ||
           !value %in% allowed_memory
       ) {
         rlang::abort(paste0(
@@ -1529,8 +1531,12 @@ print.fabric_job_instance <- function(x, ...) {
     if ("numExecutors" %in% names(configuration)) {
       value <- configuration$numExecutors
       if (
-        !is.numeric(value) || length(value) != 1L || is.na(value) ||
-          !is.finite(value) || value < 1 || value != floor(value) ||
+        !is.numeric(value) ||
+          length(value) != 1L ||
+          is.na(value) ||
+          !is.finite(value) ||
+          value < 1 ||
+          value != floor(value) ||
           value > .Machine$integer.max
       ) {
         rlang::abort("Spark numExecutors must be one positive whole number")
@@ -1572,8 +1578,10 @@ print.fabric_job_instance <- function(x, ...) {
         .fabric_job_nonempty(pool$name, "instancePool$name")
       }
       if (
-        is.null(pool$type) || !is.character(pool$type) ||
-          length(pool$type) != 1L || is.na(pool$type) ||
+        is.null(pool$type) ||
+          !is.character(pool$type) ||
+          length(pool$type) != 1L ||
+          is.na(pool$type) ||
           !tolower(pool$type) %in% c("workspace", "capacity")
       ) {
         rlang::abort("`instancePool$type` must be Workspace or Capacity")
@@ -2241,8 +2249,12 @@ print.fabric_job_instance <- function(x, ...) {
 # Validate an integer against a documented Fabric enumeration.
 .fabric_job_enum_integer <- function(value, allowed, name) {
   if (
-    !is.numeric(value) || length(value) != 1L || is.na(value) ||
-      !is.finite(value) || value != floor(value) || !value %in% allowed
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !is.finite(value) ||
+      value != floor(value) ||
+      !value %in% allowed
   ) {
     rlang::abort(paste0(
       name,
@@ -2265,7 +2277,9 @@ print.fabric_job_instance <- function(x, ...) {
 # Validate a non-empty vector of ABFSS URIs.
 .fabric_job_abfss_vector <- function(value, name) {
   if (
-    !is.character(value) || !length(value) || anyNA(value) ||
+    !is.character(value) ||
+      !length(value) ||
+      anyNA(value) ||
       !all(nzchar(value))
   ) {
     rlang::abort(paste0(name, " must be a non-empty character vector"))

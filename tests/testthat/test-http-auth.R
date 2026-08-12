@@ -446,7 +446,10 @@ test_that("streamed downloads retry transport errors using the same path", {
   )
 
   expect_identical(paths, rep(destination, 2L))
-  expect_identical(readBin(destination, "raw", n = 20L), charToRaw("downloaded"))
+  expect_identical(
+    readBin(destination, "raw", n = 20L),
+    charToRaw("downloaded")
+  )
 })
 
 test_that("transport backoff respects the overall HTTP deadline", {
@@ -473,7 +476,11 @@ test_that("transport backoff respects the overall HTTP deadline", {
     ),
     class = "fabric_http_deadline_error"
   )
-  expect_match(conditionMessage(error$parent), "DNS lookup failed", fixed = TRUE)
+  expect_match(
+    conditionMessage(error$parent),
+    "DNS lookup failed",
+    fixed = TRUE
+  )
   expect_identical(calls, 1L)
 })
 
