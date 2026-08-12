@@ -35,402 +35,225 @@
 
 <div id="fabricqueryr-roadmap" class="section level1">
 
-<p>This roadmap is based on the current <code>fabricQueryR</code> implementation and the Microsoft Fabric documentation reviewed in July 2026. Priorities favor testable correctness and shared infrastructure before expanding the public API.</p>
+<p>This roadmap contains only future work. It is based on the current <code>fabricQueryR</code> implementation and Microsoft Fabric documentation reviewed in August 2026.</p>
 <div class="section level2">
 <h2 id="guiding-principles">Guiding principles<a class="anchor" aria-label="anchor" href="#guiding-principles"></a></h2>
-<ul><li>Exercise every supported connection path against real Microsoft Fabric, while keeping fast offline tests available on every pull request.</li>
-<li>Reuse Microsoft-supported APIs and clients instead of maintaining partial implementations of protocols such as Delta Lake.</li>
-<li>Keep authentication, retries, pagination, and long-running operation handling behind shared internal interfaces.</li>
-<li>Accept item IDs and endpoints directly in automation, while offering discovery helpers for interactive use.</li>
-<li>Treat preview Fabric APIs as optional and clearly mark their lifecycle status in the package documentation.</li>
-<li>Add new exported functions only with unit tests, real integration coverage, and documented identity/scope requirements.</li>
+<ul><li>Prioritize workflows that are specifically valuable to R users rather than wrapping every Fabric REST endpoint.</li>
+<li>Reuse Microsoft-supported APIs and clients instead of implementing storage or table protocols partially.</li>
+<li>Keep authentication, retries, pagination, and long-running-operation handling behind shared internal interfaces.</li>
+<li>Accept item IDs and endpoints directly in automation while offering discovery helpers for interactive use.</li>
+<li>Treat preview Fabric APIs as optional, isolated, and clearly labeled.</li>
+<li>Add public functions only with offline tests, live Fabric coverage, documented identity requirements, and explicit service limitations.</li>
+<li>Keep deployment and broad item-definition management with Fabric CLI, fabric-cicd, Terraform, and Git integration unless an R-specific workflow clearly benefits from package support.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="priority-0-real-fabric-integration-test-environment">Priority 0: Real Fabric integration-test environment<a class="anchor" aria-label="anchor" href="#priority-0-real-fabric-integration-test-environment"></a></h2>
-<p><strong>Status (July 2026): implemented.</strong> The sandbox is provisioned with Terraform, deploys source-controlled items with <code>fabric-cicd</code>, seeds deterministic fixtures, runs a required weekly live suite, always attempts Terraform teardown, and has a scheduled stale-workspace janitor for canceled runners.</p>
+<h2 id="maintenance-notebook-status-route-migration">Maintenance: Notebook status-route migration<a class="anchor" aria-label="anchor" href="#maintenance-notebook-status-route-migration"></a></h2>
+<p>Microsoft has announced that the beta notebook API used to retrieve richer workload-specific job status will be deprecated on <strong>April 1, 2028</strong>. Submission already uses the release contract; only the enriched status lookup still calls the beta route before falling back to Core Job Scheduler status.</p>
+<ul><li>By the second quarter of 2027, recheck the Notebook and Core Job Scheduler contracts and add the replacement status response to the live fixture suite.</li>
+<li>By the fourth quarter of 2027, make the supported stable route primary and retain the beta lookup only as a compatibility fallback if still required.</li>
+<li>Remove all <code>beta=true</code> status requests before April 1, 2028 while keeping failure and exit-value reconciliation covered by integration tests.</li>
+</ul></div>
+<div class="section level2">
+<h2 id="priority-0-complete-typed-discovery-for-executable-items">Priority 0: Complete typed discovery for executable items<a class="anchor" aria-label="anchor" href="#priority-0-complete-typed-discovery-for-executable-items"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
 <h3 id="objective">Objective<a class="anchor" aria-label="anchor" href="#objective"></a></h3>
-<p>Build a reproducible sandbox that deploys real Fabric items, seeds deterministic test data, runs the R integration suite, and removes the sandbox even when a test fails. This is the first deliverable because every later roadmap item depends on being able to verify behavior against the service rather than mocks alone.</p>
-</div>
-<div class="section level3">
-<h3 id="recommended-architecture">Recommended architecture<a class="anchor" aria-label="anchor" href="#recommended-architecture"></a></h3>
-<p>Use a layered deployment rather than expecting one tool to own the full lifecycle:</p>
-<ol style="list-style-type: decimal"><li>
-<strong>Capacity:</strong> reuse a persistent, dedicated Azure Fabric test capacity. Pass its ID to the workflow as configuration. Do not create and destroy capacity for each test run: capacity is an Azure resource, is comparatively slow and costly to provision, and the Fabric Terraform provider does not support trial capacities.</li>
-<li>
-<strong>Workspace lifecycle and access:</strong> use the official <a href="https://registry.terraform.io/providers/microsoft/fabric/latest/docs" class="external-link">Microsoft Fabric Terraform provider</a> to create an ephemeral workspace on that capacity and grant the CI service principal the required workspace role. Both <code>fabric_workspace</code> and <code>fabric_workspace_role_assignment</code> support service-principal authentication. Export the workspace ID and OneLake endpoints as Terraform outputs.</li>
-<li>
-<strong>Item deployment:</strong> use <a href="https://microsoft.github.io/fabric-cicd/" class="external-link"><code>fabric-cicd</code></a> to publish source-controlled Fabric item definitions into the workspace. It is the item deployment layer, not the capacity or workspace lifecycle layer. Pass the Terraform workspace ID to <code>FabricWorkspace</code>, explicitly provide an Azure <code>TokenCredential</code>, and use <code>parameter.yml</code> dynamic values such as <code>$workspace.$id</code> and <code>$items.Lakehouse.&lt;name&gt;.$id</code> for environment-specific references.</li>
-<li>
-<strong>Fixture upload:</strong> use the <a href="https://microsoft.github.io/fabric-cli/" class="external-link">Microsoft Fabric CLI</a> or the OneLake ADLS Gen2 API to upload small CSV and Parquet fixtures into the lakehouse <code>Files</code> area. Fabric CLI supports local-to-OneLake copies and federated service-principal authentication.</li>
-<li>
-<strong>Data seeding:</strong> use the <a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table" class="external-link">Lakehouse Load Table API</a> for simple CSV/Parquet-to-Delta fixtures. Deploy and run a small Fabric notebook for states that require Spark, including partitioned tables, Delta checkpoints, schema evolution, column mapping, and deletion vectors. The load API is preview, so the notebook is also the fallback if that API changes.</li>
-<li>
-<strong>Endpoint discovery:</strong> after provisioning completes, query Fabric item properties and wait for generated resources such as the lakehouse SQL analytics endpoint to report a successful provisioning state. Generate a temporary test manifest containing workspace/item IDs, SQL endpoints, and KQL query URIs. Do not commit generated IDs.</li>
-<li>
-<strong>Tests:</strong> run the R integration suite against the manifest, capturing Fabric request/activity IDs in failures. Tests must create uniquely named mutable data or restore known state so reruns are deterministic.</li>
-<li>
-<strong>Teardown:</strong> run <code>terraform destroy</code> in an unconditional workflow step. Add a scheduled janitor that removes expired workspaces with the repository prefix in case a runner is canceled before teardown.</li>
-</ol><p>The Fabric CLI can also create and remove workspaces, and the Fabric REST API directly supports workspace create, capacity assignment, and delete. Keep those as an emergency cleanup path. Terraform is preferred for the normal lifecycle because it records ownership and models workspace role assignments declaratively.</p>
-</div>
-<div class="section level3">
-<h3 id="proposed-repository-layout">Proposed repository layout<a class="anchor" aria-label="anchor" href="#proposed-repository-layout"></a></h3>
-<pre class="text"><code>.github/workflows/
-  integration-fabric.yaml
-infra/fabric/
-  terraform/
-    main.tf
-    providers.tf
-    variables.tf
-    outputs.tf
-  workspace/
-    TestLakehouse.Lakehouse/
-    SeedFixtures.Notebook/
-    TestWarehouse.Warehouse/
-    TestSemanticModel.SemanticModel/
-    TestEventhouse.Eventhouse/
-    TestKQLDatabase.KQLDatabase/
-    TestGraphQL.GraphQLApi/
-    TestPipeline.DataPipeline/
-    TestSparkJob.SparkJobDefinition/
-    parameter.yml
-  fixtures/
-    basic.csv
-    partitioned/
-tools/fabric-sandbox/
-  pyproject.toml
-  .python-version
-  uv.lock
-  src/fabricqueryr_sandbox/
-    deploy.py
-    seed.py
-    discover.py
-    cleanup.py
-tests/testthat/
-  helper-fabric-integration.R
-  test-integration-fabric-*.R</code></pre>
-<p>The exact Fabric item directories should be produced from definitions exported by Fabric source control and kept separate from Terraform state.</p>
-</div>
-<div class="section level3">
-<h3 id="python-and-uv">Python and <code>uv</code>
-<a class="anchor" aria-label="anchor" href="#python-and-uv"></a></h3>
-<p>Create <code>tools/fabric-sandbox</code> as a small Python project managed by <a href="https://docs.astral.sh/uv/guides/projects/" class="external-link"><code>uv</code></a>:</p>
-<ul><li>Declare <code>fabric-cicd</code>, <code>azure-identity</code>, and any Fabric CLI/API helper dependency in <code>pyproject.toml</code>.</li>
-<li>Pin a supported Python version in <code>.python-version</code>.</li>
-<li>Generate and commit the cross-platform <code>uv.lock</code>; do not edit it manually.</li>
-<li>Use <code>uv sync --locked</code> in CI so dependency drift fails the build.</li>
-<li>Expose narrow commands for deploy, seed, discover, and cleanup, and run them with <code>uv run</code>.</li>
-<li>Keep credentials and environment-specific IDs out of <code>pyproject.toml</code>, <code>parameter.yml</code>, and the lockfile.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="identity-and-tenant-prerequisites">Identity and tenant prerequisites<a class="anchor" aria-label="anchor" href="#identity-and-tenant-prerequisites"></a></h3>
-<p>Prefer a Microsoft Entra application with a service principal and GitHub Actions <a href="https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure" class="external-link">OpenID Connect</a>. The workflow needs <code>id-token: write</code> and <code>contents: read</code>, and should use a protected GitHub environment for integration-test access. Store only non-secret identifiers such as tenant ID, client ID, subscription ID, capacity ID, and principal object ID in GitHub configuration; use no long-lived client secret.</p>
-<p>The tenant/capacity administrator must:</p>
-<ul><li>Enable the tenant setting that allows service principals to use Fabric APIs.</li>
-<li>Enable service-principal creation of workspaces, connections, and deployment pipelines if workspace creation is delegated to CI.</li>
-<li>Grant the service principal permission to create workspaces and assign the chosen test capacity, normally through an appropriate capacity Contributor/Admin role.</li>
-<li>Ensure the identity receives the workspace role needed by deployment and tests.</li>
-<li>Grant API permissions/scopes required by each tested surface. In particular, verify Power BI semantic-model service-principal access separately because identity support is not uniform across every Fabric workload.</li>
-</ul><p>Use <code>AzureCliCredential</code> locally after <code>az login</code>. In GitHub Actions, use <code>azure/login</code> with OIDC and then the same explicit <code>AzureCliCredential</code>, or pass a workload-identity <code>TokenCredential</code> directly. If a required item still does not support service principals, mark that test with a capability gate and run it in a separate delegated-user validation job until Microsoft adds support; do not store a user password in CI.</p>
-</div>
-<div class="section level3">
-<h3 id="fixture-matrix">Fixture matrix<a class="anchor" aria-label="anchor" href="#fixture-matrix"></a></h3>
-<p>Start with small fixtures that deliberately cover behavior rather than volume:</p>
-<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>Surface</th>
-<th>Fabric item/state</th>
-<th>Minimum assertions</th>
-</tr></thead><tbody><tr><td>SQL</td>
-<td>Lakehouse SQL endpoint, Warehouse, SQL Database</td>
-<td>Token login, endpoint normalization, query results, parameters, nulls, and clear failures</td>
-</tr><tr><td>OneLake files</td>
-<td>Nested CSV/Parquet files with duplicate basenames</td>
-<td>Correct paths, listing/pagination, upload/download, and lazy access</td>
-</tr><tr><td>Delta</td>
-<td>Basic, partitioned, checkpointed, schema-evolved, column-mapped, deletion-vector, and row-tracking tables</td>
-<td>Correct complete logical rows/schema or an explicit unsupported-feature error</td>
-</tr><tr><td>DAX</td>
-<td>Small semantic model with deterministic measures</td>
-<td>Table shape, qualified columns, nulls, API errors, and limit/truncation detection</td>
-</tr><tr><td>Livy</td>
-<td>Lakehouse and seed notebook/session</td>
-<td>Session lifecycle, statement success/failure, cleanup, and batch execution</td>
-</tr><tr><td>Discovery</td>
-<td>More than one page where practical and deliberately ambiguous names</td>
-<td>Complete pagination, stable ID lookup, and ambiguity errors</td>
-</tr><tr><td>Reliability</td>
-<td>Controlled stubs plus selected live calls</td>
-<td>
-<code>Retry-After</code>, transient failures, long-running operations, and request IDs</td>
-</tr><tr><td>KQL</td>
-<td>Eventhouse and KQL database</td>
-<td>Query schema/types, multiple tables, and service errors</td>
-</tr><tr><td>GraphQL</td>
-<td>GraphQL API backed by seeded data</td>
-<td>Variables, pagination, GraphQL errors, and authentication failures</td>
-</tr><tr><td>Jobs</td>
-<td>Notebook, data pipeline, and Spark job definition</td>
-<td>Successful workload routes plus notebook failure, timeout, and cancellation</td>
-</tr></tbody></table><p>Keep most retry/throttling cases as deterministic HTTP-stub tests; inducing real throttling in a shared capacity is slow and disruptive.</p>
-</div>
-<div class="section level3">
-<h3 id="test-tiers-and-ci-policy">Test tiers and CI policy<a class="anchor" aria-label="anchor" href="#test-tiers-and-ci-policy"></a></h3>
-<ol style="list-style-type: decimal"><li>
-<strong>Unit and contract tests:</strong> run on every push and pull request without Fabric credentials. Use <code>testthat</code>, mocked HTTP responses, recorded response shapes without tokens or tenant data, and static fixture files.</li>
-<li>
-<strong>Fabric compatibility suite:</strong> run weekly, by manual dispatch, and before releases. Provision all supported items and cover happy paths, protocol edge cases, and failure behavior for each package surface.</li>
-<li>
-<strong>External pull requests:</strong> never expose the OIDC-enabled environment directly. Run only offline tests until a maintainer approves code in a trusted context.</li>
-</ol><p>Use a concurrency group so only an appropriate number of sandbox jobs target the test capacity at once. Give every workspace a unique, recognizable name such as <code>fabricqueryr-ci-&lt;run-id&gt;-&lt;attempt&gt;</code> plus a creation timestamp or expiry tag in its description.</p>
-</div>
-<div class="section level3">
-<h3 id="initial-deliverables">Initial deliverables<a class="anchor" aria-label="anchor" href="#initial-deliverables"></a></h3>
-<ul class="task-list"><li><label><input type="checkbox" checked>Expand unit and contract coverage across all exported package surfaces and their HTTP helpers.</label></li>
-<li><label><input type="checkbox" checked>Add Terraform for an ephemeral capacity-bound workspace and CI role assignment, with remote or per-run isolated state.</label></li>
-<li><label><input type="checkbox" checked>Add the <code>uv</code> project and commit <code>uv.lock</code>.</label></li>
-<li><label><input type="checkbox" checked>Add source-controlled provisioning for the Lakehouse, notebook, Warehouse, SQL Database, and semantic model using Terraform, <code>fabric-cicd</code>, and the supported Power BI API according to lifecycle ownership.</label></li>
-<li><label><input type="checkbox" checked>Add deterministic fixture upload, seeding, readiness polling, and manifest generation.</label></li>
-<li><label><input type="checkbox" checked>Add integration-test helpers that skip with a precise reason when no manifest is available, but fail when a required provisioned workload is absent.</label></li>
-<li><label><input type="checkbox" checked>Add an OIDC-based GitHub Actions smoke workflow.</label></li>
-<li><label><input type="checkbox" checked>Schedule the full compatibility workflow after the stale-workspace janitor is available.</label></li>
-<li><label><input type="checkbox" checked>Add unconditional Terraform teardown to the integration workflow.</label></li>
-<li><label><input type="checkbox" checked>Add a scheduled stale-workspace janitor for canceled runners.</label></li>
-<li><label><input type="checkbox" checked>Document one-command local deploy, test, and destroy workflows.</label></li>
-</ul></div>
-<div class="section level3">
-<h3 id="acceptance-criteria">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria"></a></h3>
-<ul><li>A new authorized contributor can create the sandbox from a clean checkout using documented commands and no manually created workspace items.</li>
-<li>Two consecutive deployments converge without unintended changes.</li>
-<li>The current SQL, DAX, OneLake, and Livy APIs each have at least one real-service success test and one deterministic failure-path test.</li>
-<li>Failed tests still trigger workspace deletion, and the janitor handles abandoned workspaces.</li>
-<li>Logs and uploaded artifacts contain no tokens, client secrets, or tenant data beyond explicitly approved test identifiers.</li>
-<li>Offline tests remain runnable on CRAN and by external contributors without Fabric credentials.</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="priority-1-make-delta-table-reads-protocol-correct">Priority 1: Make Delta table reads protocol-correct<a class="anchor" aria-label="anchor" href="#priority-1-make-delta-table-reads-protocol-correct"></a></h2>
-<p><strong>Status (August 2026): implemented for the package-tested reader contract.</strong> The reader streams transaction-log and Parquet data from OneLake through delta-rs, supports classic checkpoints and version selection, preserves native Arrow values, and rejects unsupported reader features before returning data. Tibble collection is intentionally limited to common scalar columns. The locked runtime explicitly rejects V2 checkpoints, Type Widening, and Fabric’s VariantShreddingPreview rather than returning a plausible but incorrect result. Deletion-vector snapshots are also rejected instead of being reimplemented in R-side query logic. Support for column mapping, row-tracking logical rows, and shallow-clone reads is specific to the exact pinned runtime and live package matrix; it is not a claim that Microsoft supports those features in delta-rs generally. Spark-only hidden row-tracking metadata is not part of the reader contract.</p>
-<div class="section level3">
-<h3 id="problem">Problem<a class="anchor" aria-label="anchor" href="#problem"></a></h3>
-<p>The original implementation replayed only JSON transaction-log files and staged data by basename, which was unsafe for checkpoints, newer Delta features, and duplicate partition filenames.</p>
+<p>Make executable and newly supported Fabric items as easy to discover as Lakehouses, Warehouses, semantic models, and notebooks.</p>
 </div>
 <div class="section level3">
 <h3 id="direction">Direction<a class="anchor" aria-label="anchor" href="#direction"></a></h3>
-<ul><li>Track delta-rs and Fabric interoperability changes against the locked runtime before expanding the supported feature set.</li>
-<li>Keep the remote delta-rs path free of local staging and basename rewriting.</li>
-<li>Test checkpoint and protocol behavior through public Delta APIs rather than replaying transaction-log actions in R.</li>
-<li>Inspect protocol versions and table features before reading; reject unsupported deletion vectors, column mapping, or other features explicitly rather than returning plausible but wrong rows.</li>
-<li>Add <code>version</code>/timestamp time-travel options where the selected backend supports them.</li>
-<li>Offer lazy Arrow/DuckDB-style results and projection/filter options so reading a table does not always collect it fully into memory.</li>
-<li>Keep raw OneLake file access separate from Delta transaction-log semantics.</li>
+<ul><li>Add <code>fabric_data_pipelines()</code>, <code>fabric_spark_job_definitions()</code>, <code>fabric_environments()</code>, and <code>fabric_user_data_functions()</code> as typed wrappers over <code><a href="reference/fabric_items.html">fabric_items()</a></code>.</li>
+<li>Add <code>fabric_reports()</code> and <code>fabric_variable_libraries()</code> only when a downstream package workflow needs those records.</li>
+<li>Extend workload-specific detail enrichment only when it adds a connection, execution, or query target consumed by fabricQueryR.</li>
+<li>Preserve folder recursion, private-link routing, authentication, and detail-error behavior from the existing discovery functions.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-1">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-1"></a></h3>
-<ul><li>The integration fixture matrix for basic, partitioned, V1/V2 checkpointed, schema-evolved, name/ID column-mapped, deletion-vector, type-widened, row-tracking, shallow-clone, nested/exact-numeric, Variant, and Warehouse-export tables passes, or unsupported features fail before data is returned.</li>
-<li>Duplicate Parquet basenames in different partitions are handled correctly.</li>
-<li>Existing simple-table behavior remains compatible.</li>
+<h3 id="acceptance-criteria">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria"></a></h3>
+<ul><li>Every item type accepted by a public execution function has a typed discovery helper and an end-to-end example.</li>
+<li>Typed helpers are strict filters over generic discovery and tolerate additional fields returned by Fabric.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-2-validate-complete-dax-responses">Priority 2: Validate complete DAX responses<a class="anchor" aria-label="anchor" href="#priority-2-validate-complete-dax-responses"></a></h2>
-<p><strong>Status (July 2026): implemented.</strong> All documented error levels and unsupported response multiplicity are validated, direct IDs avoid name lookup, pagination and ambiguity are handled, and current Execute Queries limits and tenant prerequisites are documented.</p>
+<h2 id="priority-1-add-job-history-and-schedule-management">Priority 1: Add job history and schedule management<a class="anchor" aria-label="anchor" href="#priority-1-add-job-history-and-schedule-management"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
-<h3 id="problem-1">Problem<a class="anchor" aria-label="anchor" href="#problem-1"></a></h3>
-<p>The Power BI Execute Queries API can return HTTP 200 while embedding query or table errors in the JSON body, including partial-result/truncation conditions. The original parser read only the first result/table rows and could silently present incomplete data as success.</p>
+<h3 id="objective-1">Objective<a class="anchor" aria-label="anchor" href="#objective-1"></a></h3>
+<p>Let R users inspect previous runs and automate recurring jobs for supported Fabric items.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-1">Direction<a class="anchor" aria-label="anchor" href="#direction-1"></a></h3>
-<ul><li>Inspect top-level, result, and table error payloads before constructing a tibble.</li>
-<li>Detect documented row/value/size limit failures and return an actionable error; never silently accept truncated data.</li>
-<li>Define behavior for multiple queries, results, and tables, either returning a structured result or rejecting unsupported multiplicity explicitly.</li>
-<li>Add direct <code>workspace_id</code> and <code>dataset_id</code> arguments so automation avoids name-based lookups.</li>
-<li>Support caller-provided tokens/credentials and documented impersonated-user payloads where permitted.</li>
-<li>Preserve qualified column names predictably and document null/type conversion.</li>
-<li>Make name lookup paginated and fail on ambiguous case-insensitive matches instead of selecting the first item.</li>
+<ul><li>Add <code>fabric_job_instances()</code> with pagination and normalized <code>fabric_job_instance</code> records compatible with <code><a href="reference/fabric_job_run.html">fabric_job_status()</a></code>.</li>
+<li>Add <code>fabric_job_schedules()</code>, <code>fabric_job_schedule_create()</code>, <code>fabric_job_schedule_update()</code>, and <code>fabric_job_schedule_delete()</code>.</li>
+<li>Represent cron/minute, daily, weekly, and monthly schedules with validated R inputs and a documented escape hatch for future schedule types.</li>
+<li>Handle Windows time-zone identifiers, UTC boundaries, disabled and auto-disabled schedules, and workload-specific <code>executionData</code> explicitly.</li>
+<li>Require explicit confirmation for deletion and never infer destructive replacement during conflict handling.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-2">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-2"></a></h3>
-<ul><li>Contract tests cover HTTP errors, nested DAX errors, multiple tables, empty results, nulls, and limit/truncation payloads.</li>
-<li>Live tests verify a deterministic semantic model by both IDs and names.</li>
+<h3 id="acceptance-criteria-1">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-1"></a></h3>
+<ul><li>Live tests cover paginated history and create/list/update/disable/delete for at least daily and weekly schedules.</li>
+<li>Tests cover daylight-saving boundaries without relying on the runner’s local time zone.</li>
+<li>Unknown future schedule and invocation types remain inspectable.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-3-unify-authentication-and-resilient-http-behavior">Priority 3: Unify authentication and resilient HTTP behavior<a class="anchor" aria-label="anchor" href="#priority-3-unify-authentication-and-resilient-http-behavior"></a></h2>
+<h2 id="priority-2-generalize-fabric-long-running-operations">Priority 2: Generalize Fabric long-running operations<a class="anchor" aria-label="anchor" href="#priority-2-generalize-fabric-long-running-operations"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
-<h3 id="problem-2">Problem<a class="anchor" aria-label="anchor" href="#problem-2"></a></h3>
-<p>Each connection path obtains tokens and performs requests independently. Shared helpers currently improve error text but do not provide service-aware retries, pagination, token refresh, or Fabric long-running operation handling.</p>
+<h3 id="objective-2">Objective<a class="anchor" aria-label="anchor" href="#objective-2"></a></h3>
+<p>Implement the common Fabric asynchronous-operation protocol once before adding more APIs that return <code>Location</code>, <code>x-ms-operation-id</code>, and <code>Retry-After</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-2">Direction<a class="anchor" aria-label="anchor" href="#direction-2"></a></h3>
-<ul><li>Introduce one internal credential abstraction that can obtain tokens for Fabric, Power BI, SQL Database, OneLake/Storage, and Kusto audiences.</li>
-<li>Retain interactive <code>AzureAuth</code> behavior, but allow noninteractive service principals, managed identities, Azure CLI credentials, pre-acquired tokens, and refresh callbacks without forcing one global credential choice.</li>
-<li>Centralize request execution with bounded exponential backoff and jitter for <code>429</code>, <code>Retry-After</code>, retriable <code>408</code>, and selected transient <code>5xx</code> responses.</li>
-<li>Retry only idempotent operations by default; require an idempotency decision for POST requests.</li>
-<li>Add reusable continuation-token/<code>continuationUri</code> pagination and Fabric long-running operation polling with timeout/cancel support.</li>
-<li>Include request IDs, activity IDs, endpoint, status, and a redacted body preview in errors. Never log authorization headers or connection tokens.</li>
-<li>Document the audience and minimum permissions for every exported function.</li>
+<ul><li>Add an internal operation handle plus shared status, wait, and result helpers.</li>
+<li>Export <code>fabric_operation_status()</code>, <code>fabric_operation_wait()</code>, and <code>fabric_operation_result()</code> only if users need to retain or resume handles.</li>
+<li>Accept both service-provided locations and operation IDs, honor retry delays, and distinguish state responses from result responses.</li>
+<li>Preserve progress, timestamps, request/activity IDs, and structured errors.</li>
+<li>Keep Job Scheduler instances and Livy sessions/batches as separate lifecycle types because they do not use this protocol.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-3">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-3"></a></h3>
-<ul><li>Every REST-based function uses the shared request/authentication layer.</li>
-<li>Deterministic tests cover refresh, pagination, <code>Retry-After</code>, timeout, LRO failure, and redaction.</li>
-<li>Existing interactive examples continue to work.</li>
+<h3 id="acceptance-criteria-2">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-2"></a></h3>
+<ul><li>Immediate <code>200</code>/<code>201</code> and asynchronous <code>202</code> completion share one stable caller-facing result contract.</li>
+<li>Running, succeeded, failed, timed-out, malformed, and empty-result paths are covered offline and through at least one live Fabric operation.</li>
+<li>Polling never automatically repeats a non-idempotent initiating request.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-4-add-fabric-workspace-and-item-discovery">Priority 4: Add Fabric workspace and item discovery<a class="anchor" aria-label="anchor" href="#priority-4-add-fabric-workspace-and-item-discovery"></a></h2>
+<h2 id="priority-3-add-lakehouse-table-discovery-and-loading">Priority 3: Add Lakehouse table discovery and loading<a class="anchor" aria-label="anchor" href="#priority-3-add-lakehouse-table-discovery-and-loading"></a></h2>
+<p><strong>Status (August 2026): proposed, preview-dependent.</strong> Microsoft currently marks the Lakehouse List Tables and Load Table APIs as preview.</p>
 <div class="section level3">
-<h3 id="objective-1">Objective<a class="anchor" aria-label="anchor" href="#objective-1"></a></h3>
-<p>Make IDs and endpoints easy to discover without coupling every query function to fragile display-name resolution.</p>
+<h3 id="objective-3">Objective<a class="anchor" aria-label="anchor" href="#objective-3"></a></h3>
+<p>Move a local R data frame or staged CSV or Parquet file into a managed Lakehouse Delta table without requiring users to author a Fabric notebook.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-3">Direction<a class="anchor" aria-label="anchor" href="#direction-3"></a></h3>
-<ul><li>Add functions such as <code><a href="reference/fabric_workspaces.html">fabric_workspaces()</a></code>, <code><a href="reference/fabric_items.html">fabric_items()</a></code>, and <code><a href="reference/fabric_item.html">fabric_item()</a></code> over the Fabric Core REST APIs.</li>
-<li>Support item-type filtering and complete pagination.</li>
-<li>Add typed convenience discovery for lakehouses, Warehouses, SQL Databases, semantic models, Eventhouses/KQL databases, notebooks, and GraphQL APIs.</li>
-<li>Return IDs plus workload properties such as SQL connection strings, SQL endpoint IDs, OneLake paths, and KQL query service URIs when available.</li>
-<li>Require exact or unique name matches and provide useful ambiguity errors.</li>
-<li>Accept discovered objects in downstream functions where doing so simplifies use, while continuing to accept plain IDs/endpoints.</li>
+<ul><li>Add <code>fabric_lakehouse_tables()</code> with pagination, table type, format, location, and schema metadata.</li>
+<li>Add <code>fabric_lakehouse_load_table()</code> for an existing OneLake <code>Files/</code> path, supporting file/folder inputs, CSV options, Parquet, recursion, append, and overwrite.</li>
+<li>Add <code>fabric_lakehouse_write_table()</code> as a higher-level workflow: serialize an R data frame to Parquet, upload it to a unique staging path, start and wait for the load operation, and clean up after confirmed success.</li>
+<li>Make staging retention configurable after failure so users can diagnose or resume a load. Never modify managed <code>Tables/</code> files directly.</li>
+<li>Use <code>arrow</code> for Parquet serialization and document R-to-Fabric mappings for 64-bit integers, decimals, dates, timestamps, nested columns, and unsupported types.</li>
+<li>Prefer the supported load API or Spark over a custom Delta transaction writer.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-4">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-4"></a></h3>
-<ul><li>Paginated and ambiguous discovery is covered offline and in the sandbox.</li>
-<li>Users can go from workspace name to a valid SQL, OneLake, DAX, Livy, or KQL target without copying identifiers from the Fabric portal.</li>
+<h3 id="acceptance-criteria-3">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-3"></a></h3>
+<ul><li>Live tests cover pagination, CSV and Parquet, append and overwrite, schemas, and Unicode names.</li>
+<li>A data-frame round trip preserves documented names, nulls, types, and row counts when verified through SQL and the Delta reader.</li>
+<li>Failures never expose a partial destination and report any retained staging path needed for recovery.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-5-strengthen-sql-connectivity">Priority 5: Strengthen SQL connectivity<a class="anchor" aria-label="anchor" href="#priority-5-strengthen-sql-connectivity"></a></h2>
+<h2 id="priority-4-manage-semantic-model-refreshes">Priority 4: Manage semantic-model refreshes<a class="anchor" aria-label="anchor" href="#priority-4-manage-semantic-model-refreshes"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
-<h3 id="problem-3">Problem<a class="anchor" aria-label="anchor" href="#problem-3"></a></h3>
-<p>The SQL helper works for basic Fabric endpoints but defaults the database to <code>"Lakehouse"</code>, normalizes only simple server strings, and does not expose safe parameterized query execution.</p>
+<h3 id="objective-4">Objective<a class="anchor" aria-label="anchor" href="#objective-4"></a></h3>
+<p>Complete workflows that update source data by allowing R users to refresh and diagnose the semantic model serving that data.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-4">Direction<a class="anchor" aria-label="anchor" href="#direction-4"></a></h3>
-<ul><li>Treat Fabric Warehouse, lakehouse SQL analytics endpoints, and Fabric SQL Database as explicit supported target types.</li>
-<li>Parse complete Fabric connection strings, including server and database/catalog, while still accepting a bare endpoint.</li>
-<li>Change the default database to <code>NULL</code> and require/discover a catalog where the target needs one.</li>
-<li>Set Fabric-appropriate ODBC options, including disabling Multiple Active Result Sets where required by SQL Database guidance.</li>
-<li>Add parameterized query support through DBI rather than interpolating values.</li>
-<li>Expose timeout and read-only options and distinguish authentication, endpoint, database, and SQL execution errors.</li>
-<li>Consider a lower-level connection-info object from discovery to avoid duplicating endpoint parsing.</li>
+<ul><li>Add <code>fabric_pbi_refresh()</code>, <code>fabric_pbi_refresh_history()</code>, <code>fabric_pbi_refresh_status()</code>, <code>fabric_pbi_refresh_wait()</code>, and <code>fabric_pbi_refresh_cancel()</code> over the Power BI dataset APIs.</li>
+<li>Accept the same discovered model records, workspace/dataset IDs, authentication inputs, and My Workspace behavior as <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>.</li>
+<li>Support ordinary and enhanced refresh payloads, including selected tables or partitions, commit mode, retry count, and timeout.</li>
+<li>Normalize attempts, engine errors, timestamps, and links to Fabric refresh details.</li>
+<li>Keep Power BI refresh scheduling distinct from generic Fabric job schedules where their contracts and limits differ.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-5">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-5"></a></h3>
-<ul><li>Real tests cover Warehouse, lakehouse SQL endpoint, and SQL Database when the tenant/capacity supports each item.</li>
-<li>Full portal connection strings and bare server names normalize to the same target.</li>
-<li>Parameter binding is tested with strings, dates, nulls, and values containing SQL metacharacters.</li>
+<h3 id="acceptance-criteria-4">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-4"></a></h3>
+<ul><li>Live tests trigger a deterministic refresh and observe completion, history, and execution details.</li>
+<li>Failed, canceled, warning, queued, retry-attempt, and timeout states remain distinguishable.</li>
+<li>Documentation explains capacity limits, service-principal restrictions, Direct Lake behavior, and when refresh is unnecessary.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-6-add-eventhousekql-querying">Priority 6: Add Eventhouse/KQL querying<a class="anchor" aria-label="anchor" href="#priority-6-add-eventhousekql-querying"></a></h2>
+<h2 id="priority-5-invoke-fabric-user-data-functions">Priority 5: Invoke Fabric User Data Functions<a class="anchor" aria-label="anchor" href="#priority-5-invoke-fabric-user-data-functions"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
-<h3 id="objective-2">Objective<a class="anchor" aria-label="anchor" href="#objective-2"></a></h3>
-<p>Add a first-class route to Fabric Real-Time Intelligence, which is a meaningful connection surface not represented by the current package.</p>
+<h3 id="objective-5">Objective<a class="anchor" aria-label="anchor" href="#objective-5"></a></h3>
+<p>Allow R applications to invoke published Fabric business logic with the same authentication, endpoint validation, retry, and error behavior as other package interfaces.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-5">Direction<a class="anchor" aria-label="anchor" href="#direction-5"></a></h3>
-<ul><li>Add <code><a href="reference/fabric_kql_query.html">fabric_kql_query()</a></code> using the Kusto query REST endpoint and the <code>https://api.kusto.windows.net</code> token resource.</li>
-<li>Accept cluster/query-service URI and database directly, with optional discovery from Eventhouse and KQL database items.</li>
-<li>Parse Kusto response tables and type metadata into stable R objects; define how multiple result tables are returned.</li>
-<li>Support query parameters and request properties without string interpolation.</li>
-<li>Reuse shared authentication, retries, diagnostics, and timeout handling.</li>
-<li>Defer ingestion/admin commands until the query API and permission model are stable and tested.</li>
+<ul><li>Add <code>fabric_function_invoke()</code> accepting a trusted public function URL and a named R object serialized as JSON.</li>
+<li>Add typed item discovery but require an explicit function URL while the item API cannot provide enough information to derive it safely.</li>
+<li>Return function name, invocation ID, status, output, and structured errors in an inspectable <code>fabric_function_result</code>.</li>
+<li>Retry only when the caller explicitly marks an invocation idempotent because a function can have arbitrary side effects.</li>
+<li>Keep definition, publication, and deployment workflows out of initial scope.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-6">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-6"></a></h3>
-<ul><li>A seeded Eventhouse/KQL database can be queried in CI with correct R types.</li>
-<li>Multi-table responses, service errors, timeout, and parameterization have tests.</li>
+<h3 id="acceptance-criteria-5">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-5"></a></h3>
+<ul><li>Tests cover scalar and structured inputs/outputs, invalid arguments, disabled public access, user errors, timeouts, oversized responses, and redaction.</li>
+<li>Permission and trusted-host requirements are documented, and bearer tokens never appear in results or conditions.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-7-expand-livy-beyond-one-shot-statements">Priority 7: Expand Livy beyond one-shot statements<a class="anchor" aria-label="anchor" href="#priority-7-expand-livy-beyond-one-shot-statements"></a></h2>
+<h2 id="priority-6-manage-onelake-shortcuts">Priority 6: Manage OneLake shortcuts<a class="anchor" aria-label="anchor" href="#priority-6-manage-onelake-shortcuts"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
-<h3 id="problem-4">Problem<a class="anchor" aria-label="anchor" href="#problem-4"></a></h3>
-<p>The package already contains internal session create/wait/statement/close helpers, but only exports a one-shot query workflow. Fabric also supports batch jobs and high-concurrency session patterns.</p>
+<h3 id="objective-6">Objective<a class="anchor" aria-label="anchor" href="#objective-6"></a></h3>
+<p>Expose shortcut lifecycle operations without confusing shortcut definitions with the files visible through them.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-6">Direction<a class="anchor" aria-label="anchor" href="#direction-6"></a></h3>
-<ul><li>Export a small session API for create, submit statement, inspect status/output, and close, using a class with guaranteed cleanup.</li>
-<li>Add batch submission, status, logs/output, cancel, and timeout handling.</li>
-<li>Support documented session scopes and high-concurrency session behavior where available.</li>
-<li>Add configurable Spark/session settings and lakehouse attachment without exposing raw request assembly for common cases.</li>
-<li>Separate statement output parsing from lifecycle control, preserving structured Spark errors and logs.</li>
-<li>Make cleanup robust when user code errors or R is interrupted.</li>
+<ul><li>Add <code>fabric_onelake_shortcuts()</code>, <code>fabric_onelake_shortcut()</code>, <code>fabric_onelake_shortcut_create()</code>, and <code>fabric_onelake_shortcut_delete()</code>.</li>
+<li>Make OneLake-to-OneLake targets ergonomic first. Support external targets through validated constructors that reference existing Fabric connection IDs rather than accepting external credentials.</li>
+<li>Support pagination, conflict policies, transforms, bulk creation where useful, and cache reset.</li>
+<li>Make clear that deleting a shortcut does not delete destination data.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-7">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-7"></a></h3>
-<ul><li>Integration tests cover multiple statements in one session, statement failure, batch success/failure/cancel, and session cleanup.</li>
-<li>The existing <code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code> remains as a convenience wrapper over the new session implementation.</li>
+<h3 id="acceptance-criteria-6">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-6"></a></h3>
+<ul><li>Live tests create, inspect, list, and delete a cross-item OneLake shortcut and confirm that destination data survives deletion.</li>
+<li>Conflict policies, encoded paths, inaccessible targets, and unknown future target types behave deterministically.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-8-add-fabric-api-for-graphql">Priority 8: Add Fabric API for GraphQL<a class="anchor" aria-label="anchor" href="#priority-8-add-fabric-api-for-graphql"></a></h2>
-<p><strong>Status (July 2026): implemented.</strong> The current Microsoft documentation now confirms service-principal execution in addition to delegated user execution. Delegated applications require the Power BI <code>GraphQLApi.Execute.All</code> scope; service principals use a Fabric API token and Fabric API/workspace permissions, with data-source access also required for SSO-backed APIs.</p>
+<h2 id="priority-7-improve-graphql-schema-and-tidy-result-ergonomics">Priority 7: Improve GraphQL schema and tidy-result ergonomics<a class="anchor" aria-label="anchor" href="#priority-7-improve-graphql-schema-and-tidy-result-ergonomics"></a></h2>
+<p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
-<h3 id="objective-3">Objective<a class="anchor" aria-label="anchor" href="#objective-3"></a></h3>
-<p>Offer GraphQL as a user-configured application API over Fabric data after the shared authentication and discovery layers are in place.</p>
+<h3 id="objective-7">Objective<a class="anchor" aria-label="anchor" href="#objective-7"></a></h3>
+<p>Make Fabric GraphQL APIs easier to explore and convert into analysis-ready tibbles without assuming a universal schema shape.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-7">Direction<a class="anchor" aria-label="anchor" href="#direction-7"></a></h3>
-<ul><li>Add <code><a href="reference/fabric_graphql_query.html">fabric_graphql_query()</a></code> accepting API endpoint/ID, query document, variables, and operation name.</li>
-<li>Parse GraphQL <code>data</code> and <code>errors</code> independently because valid HTTP responses can contain partial data and GraphQL errors.</li>
-<li>Provide optional cursor pagination helpers without assuming one schema shape.</li>
-<li>Discover GraphQL API items and endpoints through Fabric APIs.</li>
-<li>Clearly document the delegated <code>GraphQLApi.Execute.All</code> scope and the distinct service-principal token/permission flow confirmed by current documentation.</li>
+<ul><li>Add <code>fabric_graphql_schema()</code> using standard introspection, with an actionable error when introspection is disabled.</li>
+<li>Add <code>fabric_graphql_collect()</code> or <code>fabric_graphql_rows()</code> with an explicit field path for combining row objects across pages.</li>
+<li>Preserve nested objects as list-columns and retain exact large-integer handling instead of flattening or coercing silently.</li>
+<li>Continue to use <code><a href="reference/fabric_graphql_cursor.html">fabric_graphql_cursor()</a></code> for arbitrary cursor extraction.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-8">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-8"></a></h3>
-<ul><li>Tests cover variables, partial data/errors, nulls, pagination, and authentication failures against a deterministic sandbox schema.</li>
-<li>Delegated and service-principal authentication requirements are visible in function documentation.</li>
+<h3 id="acceptance-criteria-7">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-7"></a></h3>
+<ul><li>Tests cover nested paths, empty pages, evolving columns, list-columns, partial errors, large integers, and introspection-disabled APIs.</li>
+<li>Collection reports whether pagination completed and never returns an apparently complete tibble after reaching a page or service limit.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-9-general-onelake-file-access">Priority 9: General OneLake file access<a class="anchor" aria-label="anchor" href="#priority-9-general-onelake-file-access"></a></h2>
-<p><strong>Status (July 2026): implemented.</strong> The package uses the ADLS Gen2-compatible OneLake DFS API with Storage-audience authentication. Fabric-managed item and first-level folders remain protected; mutable operations apply only beneath those roots, and deletion requires an explicit confirmation flag.</p>
+<h2 id="priority-8-add-tracked-eventhouse-ingestion">Priority 8: Add tracked Eventhouse ingestion<a class="anchor" aria-label="anchor" href="#priority-8-add-tracked-eventhouse-ingestion"></a></h2>
+<p><strong>Status (August 2026): proposed, preview-dependent.</strong> The Kusto queued-ingestion REST API is currently preview.</p>
 <div class="section level3">
-<h3 id="objective-4">Objective<a class="anchor" aria-label="anchor" href="#objective-4"></a></h3>
-<p>Expose OneLake as a general file system independently of the higher-level Delta reader.</p>
+<h3 id="objective-8">Objective<a class="anchor" aria-label="anchor" href="#objective-8"></a></h3>
+<p>Let batch-oriented R workflows submit files or staged OneLake data to an existing Eventhouse table and monitor the outcome.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-8">Direction<a class="anchor" aria-label="anchor" href="#direction-8"></a></h3>
-<ul><li>Add list, metadata, download, upload, and delete helpers over the ADLS Gen2/Blob compatible APIs.</li>
-<li>Support workspace/item IDs and OneLake paths, with discovery-based convenience.</li>
-<li>Preserve hierarchy, pagination, ETags, ranges, and overwrite semantics.</li>
-<li>Allow streaming or Arrow-based reads for common formats without forcing local staging where the selected backend supports remote access.</li>
-<li>Keep destructive operations explicit and off by default in convenience helpers.</li>
+<ul><li>Add <code>fabric_kql_ingest()</code> and <code>fabric_kql_ingestion_status()</code> for tracked queued ingestion.</li>
+<li>Support existing blob or OneLake sources first. Add data-frame convenience only through a staged, documented format with bounded memory use.</li>
+<li>Validate format, mapping, tags, size, source IDs, batch limits, and target database/table before submission.</li>
+<li>Document at-least-once semantics and expose source IDs for idempotent designs.</li>
+<li>Keep general Kusto administration and production use of <code>.ingest</code> commands out of the primary API.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-9">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-9"></a></h3>
-<ul><li>Nested paths, duplicate basenames, pagination, ranged reads, overwrite conflicts, and Unicode file names are covered by tests.</li>
-<li>Delta-table APIs consume this shared transport where appropriate without leaking file-system details into snapshot semantics.</li>
+<h3 id="acceptance-criteria-8">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-8"></a></h3>
+<ul><li>Live tests ingest a tagged fixture, wait on its operation ID, and verify rows with <code><a href="reference/fabric_kql_query.html">fabric_kql_query()</a></code>.</li>
+<li>Duplicate submission, mapping and permission failure, partial batch failure, timeout, and throttling are observable and actionable.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-10-optional-item-job-execution">Priority 10: Optional item-job execution<a class="anchor" aria-label="anchor" href="#priority-10-optional-item-job-execution"></a></h2>
-<p><strong>Status (July 2026): implemented.</strong> On-demand notebook jobs use the current workload release endpoint, pipelines and other job types use the Core Job Scheduler API, and all routes return the same inspectable job handle. Polling honors Fabric’s service-provided delay and represents every documented terminal state explicitly.</p>
-<div class="section level3">
-<h3 id="objective-5">Objective<a class="anchor" aria-label="anchor" href="#objective-5"></a></h3>
-<p>Provide a focused common interface for invoking and monitoring Fabric item jobs, useful for notebooks, pipelines, Spark job definitions, and test-data setup.</p>
-</div>
-<div class="section level3">
-<h3 id="direction-9">Direction<a class="anchor" aria-label="anchor" href="#direction-9"></a></h3>
-<ul><li>Add <code><a href="reference/fabric_job_run.html">fabric_job_run()</a></code>, <code><a href="reference/fabric_job_run.html">fabric_job_status()</a></code>, <code><a href="reference/fabric_job_run.html">fabric_job_cancel()</a></code>, and a wait helper over the Fabric Job Scheduler APIs.</li>
-<li>Return structured job IDs, status, timestamps, failure reasons, and activity IDs.</li>
-<li>Reuse shared LRO/retry behavior and support caller-controlled polling intervals and timeouts.</li>
-<li>Keep workload-specific execution payloads typed or validated rather than exposing an unbounded JSON passthrough as the primary API.</li>
-<li>Add schedule management only after on-demand execution is stable.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="acceptance-criteria-10">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-10"></a></h3>
-<ul><li>Sandbox tests run the fixture notebook/pipeline through the same public job API.</li>
-<li>Completed, failed, canceled, timed-out, and deduplicated states are handled explicitly.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="notebook-status-route-migration">Notebook status-route migration<a class="anchor" aria-label="anchor" href="#notebook-status-route-migration"></a></h3>
-<p>Microsoft has announced that the beta notebook API used to retrieve the richer workload-specific job status will be deprecated on <strong>April 1, 2028</strong>. The submission route already uses the release contract with <code>beta=false</code>; only the enriched status lookup still calls the beta route before falling back to Core Job Scheduler status.</p>
-<ul><li>By the second quarter of 2027, recheck the Notebook and Core Job Scheduler contracts and add the replacement status response to the live fixture suite.</li>
-<li>By the fourth quarter of 2027, make the supported stable route primary and retain the beta lookup only as a compatibility fallback if it is still needed.</li>
-<li>Remove all <code>beta=true</code> status requests in a release before April 1, 2028, and keep the current failure/exit-value reconciliation covered by integration tests during the migration.</li>
-</ul></div>
+<h2 id="documentation-program">Documentation program<a class="anchor" aria-label="anchor" href="#documentation-program"></a></h2>
+<p>Interface selection is now a user-facing feature. Add task-oriented vignettes alongside new public functions:</p>
+<ul><li>Choosing among SQL, Delta, DAX, KQL, GraphQL, OneLake files, and Spark.</li>
+<li>Loading an R data frame into a Lakehouse and validating the round trip.</li>
+<li>Updating source data, refreshing a semantic model, and checking history.</li>
+<li>Running SparkR locally through Livy versus using SparkR or <code>sparklyr</code> inside a Fabric notebook or Spark job definition.</li>
+<li>Production authentication, private links, schedules, and failure monitoring.</li>
+<li>Large and nested results with Arrow streams and list-columns.</li>
+</ul><p>Each new feature should include a minimal README example, a task-oriented vignette where several functions form one workflow, preview/stability labels, identity and scope requirements, service limits, cleanup behavior, and examples using discovered records instead of copied IDs where possible.</p>
 </div>
 <div class="section level2">
 <h2 id="delivery-sequence">Delivery sequence<a class="anchor" aria-label="anchor" href="#delivery-sequence"></a></h2>
@@ -438,50 +261,44 @@ tests/testthat/
 <th>Scope</th>
 <th>Release gate</th>
 </tr></thead><tbody><tr><td>M0</td>
-<td>Integration sandbox, expanded unit tests, CI identity, cleanup</td>
-<td>All current exports have offline and live smoke coverage</td>
+<td>Typed executable-item discovery plus job history and schedules</td>
+<td>Every executable item is discoverable; history and schedule lifecycle pass live tests</td>
 </tr><tr><td>M1</td>
-<td>Delta correctness and DAX response validation</td>
-<td>No known silent incorrect/truncated result paths</td>
+<td>Generic Fabric LRO support plus Lakehouse table list/load</td>
+<td>Shared operation contract passes; preview table APIs are isolated and labeled</td>
 </tr><tr><td>M2</td>
-<td>Shared auth/HTTP plus discovery</td>
-<td>Existing REST clients migrated; retry/pagination/LRO contracts pass</td>
+<td>R data-frame-to-Lakehouse workflow plus semantic-model refresh</td>
+<td>End-to-end load/read/refresh validation preserves documented types and states</td>
 </tr><tr><td>M3</td>
-<td>SQL improvements and KQL querying</td>
-<td>Live coverage for supported SQL target types and Eventhouse</td>
+<td>User Data Function invocation and OneLake shortcuts</td>
+<td>External invocation and shortcut lifecycle are authenticated, safe, and live-tested</td>
 </tr><tr><td>M4</td>
-<td>Livy sessions/batches and GraphQL</td>
-<td>Lifecycle, partial-error, and identity constraints tested</td>
-</tr><tr><td>M5</td>
-<td>General OneLake access and item jobs</td>
-<td>Shared storage/job APIs stable and documented</td>
-</tr></tbody></table><p>The live fixture set now covers SQL, DAX, OneLake/Delta, Livy, KQL, GraphQL, discovery, and notebook/pipeline/Spark job execution. New public surfaces should extend the same fixture and required-CI contract before release.</p>
+<td>GraphQL ergonomics and tracked Eventhouse ingestion</td>
+<td>Tidy collection is complete/error-aware; preview ingestion has tracked round-trip coverage</td>
+</tr></tbody></table><p>Each milestone must extend the offline unit suite and live Fabric fixture contract before its public functions are released. Preview-dependent features must remain isolated and explicitly labeled so changes in preview APIs do not destabilize mature package surfaces.</p>
 </div>
 <div class="section level2">
 <h2 id="documentation-references">Documentation references<a class="anchor" aria-label="anchor" href="#documentation-references"></a></h2>
 <ul><li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/" class="external-link">Fabric REST API overview</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/create-workspace" class="external-link">Workspace create API</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/assign-to-capacity" class="external-link">Workspace capacity assignment</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/pagination" class="external-link">Fabric REST pagination</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/throttling" class="external-link">Fabric throttling</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/long-running-operation" class="external-link">Fabric long-running operations</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">Fabric identity support</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/item-management-overview" class="external-link">Fabric item management support</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/" class="external-link">Fabric Job Scheduler API</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook" class="external-link">Run an on-demand notebook</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api" class="external-link">Notebook public API</a></li>
-<li><a href="https://registry.terraform.io/providers/microsoft/fabric/latest/docs" class="external-link">Microsoft Fabric Terraform provider</a></li>
-<li><a href="https://microsoft.github.io/fabric-cicd/" class="external-link"><code>fabric-cicd</code> documentation</a></li>
-<li><a href="https://microsoft.github.io/fabric-cli/" class="external-link">Microsoft Fabric CLI</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-api" class="external-link">Manage a lakehouse with REST</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api" class="external-link">OneLake access APIs</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/connectivity" class="external-link">Connect to Fabric data warehousing</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/database/sql/connect" class="external-link">Connect to SQL Database in Fabric</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries" class="external-link">Power BI Execute Queries</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview" class="external-link">Fabric Livy API overview</a></li>
-<li><a href="https://learn.microsoft.com/en-us/kusto/api/rest/request" class="external-link">Kusto REST query API</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-overview" class="external-link">Fabric API for GraphQL</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler" class="external-link">Fabric Job Scheduler API</a></li>
-<li><a href="https://docs.astral.sh/uv/guides/projects/" class="external-link"><code>uv</code> project management</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/list-item-job-instances" class="external-link">List Fabric item job instances</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/list-item-schedules" class="external-link">List Fabric item schedules</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/create-item-schedule" class="external-link">Create a Fabric item schedule</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables" class="external-link">List Lakehouse tables</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table" class="external-link">Load a Lakehouse table</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/" class="external-link">Power BI dataset APIs</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview" class="external-link">Fabric User Data Functions overview</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">Invoke User Data Functions externally</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/" class="external-link">OneLake Shortcuts API</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export" class="external-link">Fabric GraphQL introspection and schema export</a></li>
+<li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion REST API</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr" class="external-link">Use SparkR in Fabric</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link">Use sparklyr in Fabric</a></li>
 </ul></div>
 </div>
 
