@@ -1641,6 +1641,10 @@ print.fabric_job_instance <- function(x, ...) {
     .fabric_job_nonempty(execution_data[[name]], name)
   }
 
+  if (!is.null(execution_data$executableFile)) {
+    .fabric_job_abfss(execution_data$executableFile, "executableFile")
+  }
+
   if (
     !is.null(execution_data$additionalLibraryUris) &&
       (!is.character(execution_data$additionalLibraryUris) ||
@@ -1650,6 +1654,12 @@ print.fabric_job_instance <- function(x, ...) {
   ) {
     rlang::abort(
       "`additionalLibraryUris` must be a non-empty character vector"
+    )
+  }
+  if (!is.null(execution_data$additionalLibraryUris)) {
+    .fabric_job_abfss_vector(
+      execution_data$additionalLibraryUris,
+      "additionalLibraryUris"
     )
   }
 

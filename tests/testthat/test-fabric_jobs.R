@@ -1405,6 +1405,21 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     "Unsupported SparkJobDefinition"
   )
   expect_error(
+    .fabric_job_validate_spark_definition(
+      list(executableFile = "https://example.test/job.py")
+    ),
+    "executableFile must be an abfss:// URI",
+    fixed = TRUE
+  )
+  expect_error(
+    .fabric_job_validate_spark_definition(
+      list(additionalLibraryUris = "https://example.test/library.jar")
+    ),
+    "additionalLibraryUris must be an abfss:// URI",
+    fixed = TRUE
+  )
+  expect_silent(.fabric_job_validate_spark_definition(list()))
+  expect_error(
     .fabric_job_validate_notebook_compute(
       list(unbounded = "payload"),
       "Spark"
