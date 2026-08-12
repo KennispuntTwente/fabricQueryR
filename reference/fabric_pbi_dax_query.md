@@ -160,20 +160,25 @@ rounded
 
 Use `api = "arrow"` when exact semantic-model types matter, when a query
 has several `EVALUATE` statements, or when you want an Arrow stream. It
-requires the optional arrow package, a model on supported modern
-infrastructure, and Premium or Fabric capacity. Multiple result tables
-are returned in statement order as a `fabric_pbi_dax_rowsets` list
+requires the optional arrow package and a model on Premium or Fabric
+capacity. The Power BI administrator must enable both **Dataset Execute
+Queries REST API** under Developer settings and **Allow XMLA endpoints
+and Analyze in Excel with on-premises semantic models** under
+Integration settings. Multiple result tables are returned in statement
+order as a `fabric_pbi_dax_rowsets` list
 
 ## Permissions and tenant settings
 
 The signed-in identity needs Read and Build permission on the semantic
 model Your Power BI administrator must enable **Dataset Execute Queries
 REST API**; service principals also need the relevant service-principal
-tenant setting The APIs use the Power BI scope and require
-`Dataset.Read.All` (or `Dataset.ReadWrite.All`). Name lookup also
-requires workspace read access Row-level security, SSO, user
-impersonation, and the Arrow endpoint have additional Power BI
-restrictions; see the linked Microsoft documentation
+tenant setting. The Arrow endpoint has the additional XMLA tenant
+setting and capacity prerequisites described above The APIs use the
+Power BI scope and require `Dataset.Read.All` (or
+`Dataset.ReadWrite.All`). Name lookup also requires workspace read
+access Row-level security, SSO, user impersonation, and the Arrow
+endpoint have additional Power BI restrictions; see the linked Microsoft
+documentation
 
 ## References
 

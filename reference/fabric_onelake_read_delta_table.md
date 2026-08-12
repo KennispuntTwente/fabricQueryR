@@ -151,9 +151,9 @@ supported buffer size
 
 Direct reads require OneLake data access; item `Read` permission by
 itself is not enough. The caller needs `ReadAll` or a suitable OneLake
-data-access role, and the tenant setting for external OneLake apps must
-be enabled. Callers restricted by row- or column-level security must use
-a supported Fabric engine instead. See the [Fabric permission
+security role, and the tenant setting for external OneLake apps must be
+enabled. Callers restricted by row- or column-level security must use a
+supported Fabric engine instead. See the [Fabric permission
 model](https://learn.microsoft.com/en-us/fabric/security/permission-model)
 and [OneLake tenant
 settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)

@@ -14,6 +14,7 @@ fabric_kql_query(
   parameters = list(),
   request_properties = list(),
   timeout = 60,
+  retain_raw_frames = FALSE,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -62,6 +63,12 @@ fabric_kql_query(
 
   Positive client-side HTTP timeout in seconds. This is separate from
   the Kusto `servertimeout` request property
+
+- retain_raw_frames:
+
+  Logical. Attach the complete decoded Kusto frame response as
+  `kusto_raw_frames`. Keep `FALSE` for normal queries to avoid retaining
+  a second copy of large result data
 
 - tenant_id:
 

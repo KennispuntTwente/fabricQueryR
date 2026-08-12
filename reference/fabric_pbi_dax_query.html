@@ -199,9 +199,12 @@ silently returning a partial result. Very large whole numbers are returned as
 character values so they are not rounded</p>
 <p>Use <code>api = "arrow"</code> when exact semantic-model types matter, when a query has
 several <code>EVALUATE</code> statements, or when you want an Arrow stream. It requires
-the optional <span class="pkg">arrow</span> package, a model on supported modern infrastructure,
-and Premium or Fabric capacity. Multiple result tables are returned in
-statement order as a <code>fabric_pbi_dax_rowsets</code> list</p>
+the optional <span class="pkg">arrow</span> package and a model on Premium or Fabric capacity.
+The Power BI administrator must enable both <strong>Dataset Execute Queries REST
+API</strong> under Developer settings and <strong>Allow XMLA endpoints and Analyze in
+Excel with on-premises semantic models</strong> under Integration settings.
+Multiple result tables are returned in statement order as a
+<code>fabric_pbi_dax_rowsets</code> list</p>
     </div>
     <div class="section level2">
     <h2 id="permissions-and-tenant-settings">Permissions and tenant settings<a class="anchor" aria-label="anchor" href="#permissions-and-tenant-settings"></a></h2>
@@ -209,7 +212,9 @@ statement order as a <code>fabric_pbi_dax_rowsets</code> list</p>
 
 <p>The signed-in identity needs Read and Build permission on the semantic model
 Your Power BI administrator must enable <strong>Dataset Execute Queries REST API</strong>;
-service principals also need the relevant service-principal tenant setting
+service principals also need the relevant service-principal tenant setting.
+The Arrow endpoint has the additional XMLA tenant setting and capacity
+prerequisites described above
 The APIs use the Power BI scope and require <code>Dataset.Read.All</code> (or
 <code>Dataset.ReadWrite.All</code>). Name lookup also requires workspace read access
 Row-level security, SSO, user impersonation, and the Arrow endpoint have

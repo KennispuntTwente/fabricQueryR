@@ -150,7 +150,7 @@
 <span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">arrow_stream</span><span class="op">)</span></span></code></pre></div>
-<p>The signed-in account needs access to the workspace or Read and Build permissions on the semantic model.</p>
+<p>The signed-in account needs access to the workspace or Read and Build permissions on the semantic model. The Arrow endpoint additionally requires Premium or Fabric capacity and both the <strong>Dataset Execute Queries REST API</strong> developer setting and <strong>Allow XMLA endpoints and Analyze in Excel with on-premises semantic models</strong> integration setting to be enabled by a Power BI administrator.</p>
 </div>
 <div class="section level3">
 <h3 id="id_3-run-spark-code-through-livy">3. Run Spark code through Livy<a class="anchor" aria-label="anchor" href="#id_3-run-spark-code-through-livy"></a>

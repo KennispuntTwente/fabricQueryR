@@ -67,6 +67,27 @@ interpreter, module availability, and installed package versions when
 initialized</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu">fabric_delta_config</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">config</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"initialized"</span>, <span class="st">"requirements"</span>, <span class="st">"available"</span><span class="op">)</span><span class="op">]</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $initialized</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $requirements</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $requirements$python_version</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "&gt;=3.10"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $requirements$packages</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "numpy"            "deltalake==1.6.2" "nanoarrow==0.8.0"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $available</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> deltalake nanoarrow </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        NA        NA </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

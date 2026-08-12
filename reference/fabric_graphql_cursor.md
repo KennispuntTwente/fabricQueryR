@@ -35,3 +35,18 @@ A function suitable for `next_cursor` in
 [`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md).
 For each page it returns the cursor when `has_next` is true, otherwise
 `NULL`
+
+## Examples
+
+``` r
+next_cursor <- fabric_graphql_cursor("products")
+page <- structure(
+  list(data = list(products = list(
+    hasNextPage = TRUE,
+    endCursor = "opaque-cursor"
+  ))),
+  class = c("fabric_graphql_result", "list")
+)
+next_cursor(page)
+#> [1] "opaque-cursor"
+```

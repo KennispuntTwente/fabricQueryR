@@ -591,10 +591,13 @@ Queries REST API</strong> tenant setting. A user needs semantic-model
 Read and Build permissions. Service principals additionally need the
 Power BI service-principal tenant setting. For
 <code>api = "json"</code>, service principals cannot query models with
-RLS or SSO enabled. The <code>api = "arrow"</code> endpoint has a
-different effective-identity contract: <code>effectiveUsername</code> is
-user-only, while a service principal may use <code>roles</code> when it
-is a workspace admin. See <a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group" class="external-link">JSON
+RLS or SSO enabled. The <code>api = "arrow"</code> endpoint additionally
+requires Premium or Fabric capacity and the <strong>Allow XMLA endpoints
+and Analyze in Excel with on-premises semantic models</strong>
+integration setting. It also has a different effective-identity
+contract: <code>effectiveUsername</code> is user-only, while a service
+principal may use <code>roles</code> when it is a workspace admin. See
+<a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group" class="external-link">JSON
 Execute Queries</a> and the endpoint-specific notes in
 <code><a href="../reference/fabric_pbi_dax_query.html">?fabric_pbi_dax_query</a></code>.</li>
 <li>

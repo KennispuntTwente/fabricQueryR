@@ -50,3 +50,25 @@ fabric_sql_connection_info(
 A `fabric_sql_connection_info` list with `server`, `database`, `port`,
 `target_type`, and `source` (whether the input was text or a discovery
 record). No connection is opened
+
+## Examples
+
+``` r
+info <- fabric_sql_connection_info(
+  "sample.datawarehouse.fabric.microsoft.com",
+  database = "Sales"
+)
+info[c("server", "database", "port", "target_type")]
+#> $server
+#> [1] "sample.datawarehouse.fabric.microsoft.com"
+#> 
+#> $database
+#> [1] "Sales"
+#> 
+#> $port
+#> [1] 1433
+#> 
+#> $target_type
+#> [1] "sql_analytics_endpoint"
+#> 
+```

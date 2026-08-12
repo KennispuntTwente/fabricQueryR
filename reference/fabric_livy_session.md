@@ -56,7 +56,7 @@ fabric_livy_session(
 
   Whether to let Fabric share Spark compute between several isolated
   workloads. Keep `FALSE` for a typical sequence of calls in one R
-  process. This Fabric capability is currently in preview
+  process
 
 - session_tag:
 

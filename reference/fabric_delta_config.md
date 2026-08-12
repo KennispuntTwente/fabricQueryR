@@ -22,3 +22,25 @@ fabric_delta_config(initialize = FALSE)
 A list describing initialization state, requirements, the selected
 interpreter, module availability, and installed package versions when
 initialized
+
+## Examples
+
+``` r
+config <- fabric_delta_config()
+config[c("initialized", "requirements", "available")]
+#> $initialized
+#> [1] FALSE
+#> 
+#> $requirements
+#> $requirements$python_version
+#> [1] ">=3.10"
+#> 
+#> $requirements$packages
+#> [1] "numpy"            "deltalake==1.6.2" "nanoarrow==0.8.0"
+#> 
+#> 
+#> $available
+#> deltalake nanoarrow 
+#>        NA        NA 
+#> 
+```

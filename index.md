@@ -135,7 +135,11 @@ reader <- arrow::as_record_batch_reader(arrow_stream)
 ```
 
 The signed-in account needs access to the workspace or Read and Build
-permissions on the semantic model.
+permissions on the semantic model. The Arrow endpoint additionally
+requires Premium or Fabric capacity and both the **Dataset Execute
+Queries REST API** developer setting and **Allow XMLA endpoints and
+Analyze in Excel with on-premises semantic models** integration setting
+to be enabled by a Power BI administrator.
 
 ### 3. Run Spark code through Livy
 

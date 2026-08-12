@@ -253,7 +253,9 @@ A `session_tag` lets related notebook runs share Spark compute, but
 Fabric may report a failed statement as a completed shared session with
 no exit value Omit the tag when job status must reliably signal notebook
 failure. Otherwise, have the notebook report its outcome with
-`mssparkutils.notebook.exit()`
+`notebookutils.notebook.exit()`. The former `mssparkutils` namespace
+remains backward compatible but Microsoft recommends migrating because
+it will be retired
 
 ## Permissions and status handling
 

@@ -30,8 +30,7 @@
   on-demand Notebook, pipeline, and Spark job definition runs.
 
 - Expanded Livy support with reusable Spark sessions, including
-  high-concurrency sessions (a Fabric preview), and standalone batch
-  applications.
+  high-concurrency sessions and standalone batch applications.
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   remains available for one-shot execution.
 
