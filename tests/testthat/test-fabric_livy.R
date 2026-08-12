@@ -1205,6 +1205,48 @@ test_that("Livy result methods latch terminal completion times", {
   )
 })
 
+test_that("Livy handles print concise summaries without credentials", {
+  local_mocked_bindings(
+    fabric_livy_json = function(...) list(id = "session", state = "idle")
+  )
+  credential <- fabric_credential(token = "never-print-this-token")
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "never-print-this-token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+  statement <- FabricLivyStatement$new(
+    session = session,
+    response = list(id = 7L, state = "waiting"),
+    url = "https://example.test/livy/sessions/session/statements/7",
+    credential = credential,
+    verbose = FALSE
+  )
+  batch <- FabricLivyBatch$new(
+    response = list(id = "batch", state = "running"),
+    url = "https://example.test/livy/batches",
+    credential = credential,
+    verbose = FALSE
+  )
+
+  session_text <- capture.output(session_return <- print(session))
+  statement_text <- capture.output(statement_return <- print(statement))
+  batch_text <- capture.output(batch_return <- print(batch))
+
+  expect_identical(session_return, session)
+  expect_identical(statement_return, statement)
+  expect_identical(batch_return, batch)
+  expect_match(paste(session_text, collapse = "\n"), "state: idle")
+  expect_match(paste(statement_text, collapse = "\n"), "id: 7")
+  expect_match(paste(batch_text, collapse = "\n"), "cancel requested: FALSE")
+  expect_false(any(grepl(
+    "never-print-this-token",
+    c(session_text, statement_text, batch_text),
+    fixed = TRUE
+  )))
+})
+
 test_that("session waits stop on all documented terminal states", {
   check_terminal <- function(
     initial_state,
