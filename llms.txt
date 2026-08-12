@@ -217,15 +217,6 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-This direct reader intentionally stops on Delta features unsupported by
-its pinned `deltalake` runtime, including type widening, V2 checkpoints,
-and Variant. Deletion-vector tables are supported by the pinned reader.
-Query unsupported tables through
-[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-or Spark through the Livy helpers instead. See Microsoft’s [runtime
-compatibility
-guidance](https://learn.microsoft.com/en-us/fabric/data-engineering/fabric-notebook-selection-guide).
-
 ### 5. Work with OneLake files
 
 List, inspect, download, upload, or delete files in OneLake. Paths in a
