@@ -1326,7 +1326,7 @@ test_that("seeded Fabric Warehouse Delta exports remain readable", {
     result <- result[order(result$id), , drop = FALSE]
     expected_result <- expected[[fixture]]
 
-    expect_s3_class(result, "tbl_df", label = table)
+    expect_s3_class(result, "tbl_df")
     expect_identical(as.numeric(result$id), expected_result$id, label = table)
     expect_identical(
       as.character(result$name),
