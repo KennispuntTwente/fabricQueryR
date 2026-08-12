@@ -422,6 +422,8 @@ test_that("HTTP retries never shorten service Retry-After values", {
   expect_length(delays, 0L)
   expect_equal(error$retry_after, 300)
   expect_equal(error$max_retry_delay, 120)
+  expect_false("response" %in% names(error))
+  expect_identical(error$response_metadata$status, 429L)
 
   calls <- 0L
   delays <- numeric()
@@ -589,13 +591,16 @@ test_that("secret redaction consumes complete quoted and nested values", {
 
   object <- list(
     password = 'comma, quote " and newline\nsecret',
-    nested = list(TOKEN = "another secret", message = "safe")
+    nested = list(
+      TOKEN = "another secret",
+      message = "Bearer embedded-message-secret"
+    )
   )
   expect_equal(
     .httr2_redact_object(object),
     list(
       password = "<redacted>",
-      nested = list(TOKEN = "<redacted>", message = "safe")
+      nested = list(TOKEN = "<redacted>", message = "Bearer <redacted>")
     )
   )
 

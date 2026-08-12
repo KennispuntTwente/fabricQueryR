@@ -947,6 +947,20 @@ test_that("SQL failures have actionable condition classes", {
   ))
   expect_match(conditionMessage(error), "password=<redacted>", fixed = TRUE)
 
+  parent_secret <- "odbc-parent-sentinel-secret"
+  parent_error <- tryCatch(
+    fabric_sql_connection_error(
+      simpleError(paste("Bearer", parent_secret)),
+      secrets = parent_secret
+    ),
+    error = identity
+  )
+  expect_false(grepl(
+    parent_secret,
+    conditionMessage(parent_error$parent),
+    fixed = TRUE
+  ))
+
   local_mocked_bindings(
     fabric_sql_connect = function(...) structure(list(), class = "connection"),
     .fabric_sql_db_get_query = function(...) rlang::abort("syntax error"),

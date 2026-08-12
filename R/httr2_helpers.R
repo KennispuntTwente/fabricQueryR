@@ -250,7 +250,7 @@
         class = "fabric_http_retry_after_error",
         retry_after = retry_after,
         max_retry_delay = max_retry_delay,
-        response = response
+        response_metadata = .httr2_response_metadata(response)
       )
     }
 
@@ -547,6 +547,40 @@
   )
 }
 
+# Build a bounded, credential-free response summary suitable for attaching to
+# conditions. The authenticated httr2 request object is intentionally omitted.
+.httr2_response_metadata <- function(resp) {
+  payload <- try(
+    httr2::resp_body_json(
+      resp,
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
+    ),
+    silent = TRUE
+  )
+  if (inherits(payload, "try-error") || !is.list(payload)) {
+    payload <- NULL
+  } else {
+    payload <- .httr2_redact_object(payload)
+  }
+  headers <- httr2::resp_headers(resp)
+  redacted_headers <- lapply(names(headers), function(name) {
+    if (.httr2_is_secret_field(name)) {
+      "<redacted>"
+    } else {
+      .httr2_redact(as.character(headers[[name]]))
+    }
+  })
+  names(redacted_headers) <- tolower(names(headers))
+  list(
+    endpoint = .httr2_redact(resp$url %||% resp$request$url),
+    status = httr2::resp_status(resp),
+    content_type = httr2::resp_content_type(resp),
+    headers = redacted_headers,
+    body = payload
+  )
+}
+
 # Parse the Retry-After header in `resp` as seconds from `now`. Returns a
 # non-negative number or `NULL` when the header is absent or invalid
 .httr2_retry_after <- function(resp, now = Sys.time()) {
@@ -580,7 +614,7 @@
 # object suitable for response metadata attached to errors
 .httr2_redact_object <- function(value) {
   if (!is.list(value)) {
-    return(value)
+    return(if (is.character(value)) .httr2_redact(value) else value)
   }
   value_names <- names(value)
   for (index in seq_along(value)) {

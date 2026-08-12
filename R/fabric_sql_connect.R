@@ -1460,7 +1460,9 @@ fabric_sql_connection_error <- function(error, secrets = NULL) {
   rlang::abort(
     paste0("Fabric SQL connection failed: ", message),
     class = c(class, "fabric_sql_connection_error"),
-    parent = if (is.null(secrets)) error else simpleError(message)
+    # Driver conditions can retain call arguments and backend-specific state.
+    # Keep only the already-redacted message in the public condition chain.
+    parent = simpleError(message)
   )
 }
 

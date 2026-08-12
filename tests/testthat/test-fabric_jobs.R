@@ -575,7 +575,7 @@ test_that("job handles honor explicit tenant and client authentication", {
   job <- job_test_handle(item_type = "DataPipeline")
 
   fabric_job_status(job)
-  expect_identical(captured_credential, job$credential)
+  expect_identical(captured_credential, .fabric_job_credential(job))
 
   fabric_job_status(
     job,
@@ -591,6 +591,30 @@ test_that("job handles honor explicit tenant and client authentication", {
   expect_identical(
     get("client_id", envir = provider_environment),
     "other-client"
+  )
+})
+
+test_that("job handles do not serialize their stored bearer credential", {
+  secret <- "sentinel-job-bearer-secret"
+  reference <- .fabric_job_credential_reference(
+    fabric_credential(token = secret)
+  )
+  job <- job_test_handle(item_type = "DataPipeline")
+  job$credential <- reference$reference
+  job$.credential_key <- reference$key
+
+  expect_identical(
+    fabric_get_token(.fabric_job_credential(job), "audience"),
+    secret
+  )
+  serialized <- serialize(job, NULL, ascii = TRUE)
+  expect_false(grepl(secret, rawToChar(serialized), fixed = TRUE))
+
+  restored <- unserialize(serialized)
+  expect_error(
+    .fabric_job_credential(restored),
+    "no longer has an in-process credential",
+    class = "fabric_job_credential_error"
   )
 })
 

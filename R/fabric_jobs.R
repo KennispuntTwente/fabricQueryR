@@ -236,6 +236,7 @@ fabric_job_run <- function(
   } else {
     submitted_at + result$retry_after
   }
+  credential_reference <- .fabric_job_credential_reference(credential)
   structure(
     list(
       id = instance_id,
@@ -250,7 +251,8 @@ fabric_job_run <- function(
       api_base = base,
       allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
-      credential = credential
+      credential = credential_reference$reference,
+      .credential_key = credential_reference$key
     ),
     class = "fabric_job"
   )
@@ -1889,10 +1891,14 @@ print.fabric_job_instance <- function(x, ...) {
         auth_args = auth_args
       )
     } else {
-      job$credential
+      .fabric_job_credential(job)
     }
     handle <- job
-    handle$credential <- credential
+    if (override_auth) {
+      credential_reference <- .fabric_job_credential_reference(credential)
+      handle$credential <- credential_reference$reference
+      handle$.credential_key <- credential_reference$key
+    }
     context <- unclass(handle)
     context$job <- handle
     context$credential <- credential
@@ -1934,6 +1940,7 @@ print.fabric_job_instance <- function(x, ...) {
   )
   base <- target$api_base
   route <- .fabric_job_route(target$item_type, job_type)
+  credential_reference <- .fabric_job_credential_reference(credential)
   handle <- structure(
     list(
       id = id,
@@ -1944,7 +1951,8 @@ print.fabric_job_instance <- function(x, ...) {
       api_base = base,
       allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
-      credential = credential
+      credential = credential_reference$reference,
+      .credential_key = credential_reference$key
     ),
     class = "fabric_job"
   )
@@ -1957,6 +1965,41 @@ print.fabric_job_instance <- function(x, ...) {
   context$job <- handle
   context$credential <- credential
   context
+}
+
+# Store a credential behind a weak reference. The key keeps the credential
+# available for the lifetime of the in-process job handle, while R serialization
+# deliberately does not persist the weak-reference value containing secrets.
+.fabric_job_credential_reference <- function(credential) {
+  key <- new.env(parent = emptyenv())
+  list(
+    reference = rlang::new_weakref(key, credential),
+    key = key
+  )
+}
+
+# Resolve an in-process job credential. Direct credentials remain accepted for
+# internally constructed handles and objects created by older package versions.
+.fabric_job_credential <- function(job) {
+  stored <- job$credential
+  if (inherits(stored, "fabric_credential")) {
+    return(stored)
+  }
+  credential <- if (rlang::is_weakref(stored)) {
+    rlang::wref_value(stored)
+  } else {
+    NULL
+  }
+  if (is.null(credential)) {
+    rlang::abort(
+      paste0(
+        "This Fabric job handle no longer has an in-process credential; ",
+        "supply `token`, `tenant_id`, or other authentication arguments"
+      ),
+      class = c("fabric_job_credential_error", "fabric_job_error")
+    )
+  }
+  credential
 }
 
 # Convert a decoded status `body` and request `context` into a stable job
