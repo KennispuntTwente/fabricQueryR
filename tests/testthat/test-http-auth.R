@@ -309,6 +309,133 @@ test_that("HTTP retry counts reject lossy and nonscalar values", {
   }
 })
 
+test_that("idempotent HTTP requests retry transport errors", {
+  calls <- 0L
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      calls <<- calls + 1L
+      if (calls == 1L) {
+        stop(simpleError("connection reset"))
+      }
+      json_response(url = req$url)
+    },
+    .package = "httr2"
+  )
+
+  response <- .httr2_perform(
+    httr2::request("https://example.test/items"),
+    max_tries = 2L,
+    .sleep = function(...) NULL,
+    .runif = function(...) 1
+  )
+
+  expect_identical(httr2::resp_status(response), 200L)
+  expect_identical(calls, 2L)
+})
+
+test_that("non-idempotent HTTP requests propagate the first transport error", {
+  calls <- 0L
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      calls <<- calls + 1L
+      stop(simpleError("socket closed"))
+    },
+    .package = "httr2"
+  )
+
+  error <- expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items") |>
+        httr2::req_method("POST"),
+      max_tries = 3L,
+      .sleep = function(...) rlang::abort("unexpected retry")
+    ),
+    "socket closed",
+    fixed = TRUE
+  )
+  expect_s3_class(error, "simpleError")
+  expect_identical(calls, 1L)
+})
+
+test_that("HTTP retries propagate the final transport error", {
+  calls <- 0L
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      calls <<- calls + 1L
+      stop(simpleError(paste("transport attempt", calls)))
+    },
+    .package = "httr2"
+  )
+
+  expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      max_tries = 2L,
+      .sleep = function(...) NULL
+    ),
+    "transport attempt 2",
+    fixed = TRUE
+  )
+  expect_identical(calls, 2L)
+})
+
+test_that("streamed downloads retry transport errors using the same path", {
+  calls <- 0L
+  paths <- character()
+  destination <- tempfile("fabricqueryr-http-download-")
+  on.exit(unlink(destination, force = TRUE), add = TRUE)
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      calls <<- calls + 1L
+      paths <<- c(paths, path)
+      if (calls == 1L) {
+        stop(simpleError("TLS read failed"))
+      }
+      writeBin(charToRaw("downloaded"), path)
+      json_response(url = req$url)
+    },
+    .package = "httr2"
+  )
+
+  .httr2_perform(
+    httr2::request("https://example.test/file"),
+    download_path = destination,
+    max_tries = 2L,
+    .sleep = function(...) NULL
+  )
+
+  expect_identical(paths, rep(destination, 2L))
+  expect_identical(readBin(destination, "raw", n = 20L), charToRaw("downloaded"))
+})
+
+test_that("transport backoff respects the overall HTTP deadline", {
+  calls <- 0L
+  now <- as.POSIXct("2026-01-01", tz = "UTC")
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      calls <<- calls + 1L
+      stop(simpleError("DNS lookup failed"))
+    },
+    .package = "httr2"
+  )
+
+  error <- expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      max_tries = 3L,
+      deadline = now + 0.25,
+      .now = function() now,
+      .sleep = function(delay) {
+        now <<- now + delay
+      },
+      .runif = function(...) 1
+    ),
+    class = "fabric_http_deadline_error"
+  )
+  expect_match(conditionMessage(error$parent), "DNS lookup failed", fixed = TRUE)
+  expect_identical(calls, 1L)
+})
+
 test_that("HTTP retries honor Fabric isRetriable decisions", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {
