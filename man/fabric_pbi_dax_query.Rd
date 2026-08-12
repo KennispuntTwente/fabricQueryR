@@ -123,16 +123,21 @@ character values so they are not rounded
 
 Use \code{api = "arrow"} when exact semantic-model types matter, when a query has
 several \code{EVALUATE} statements, or when you want an Arrow stream. It requires
-the optional \pkg{arrow} package, a model on supported modern infrastructure,
-and Premium or Fabric capacity. Multiple result tables are returned in
-statement order as a \code{fabric_pbi_dax_rowsets} list
+the optional \pkg{arrow} package and a model on Premium or Fabric capacity.
+The Power BI administrator must enable both \strong{Dataset Execute Queries REST
+API} under Developer settings and \strong{Allow XMLA endpoints and Analyze in
+Excel with on-premises semantic models} under Integration settings.
+Multiple result tables are returned in statement order as a
+\code{fabric_pbi_dax_rowsets} list
 }
 
 \section{Permissions and tenant settings}{
 
 The signed-in identity needs Read and Build permission on the semantic model
 Your Power BI administrator must enable \strong{Dataset Execute Queries REST API};
-service principals also need the relevant service-principal tenant setting
+service principals also need the relevant service-principal tenant setting.
+The Arrow endpoint has the additional XMLA tenant setting and capacity
+prerequisites described above
 The APIs use the Power BI scope and require \code{Dataset.Read.All} (or
 \code{Dataset.ReadWrite.All}). Name lookup also requires workspace read access
 Row-level security, SSO, user impersonation, and the Arrow endpoint have

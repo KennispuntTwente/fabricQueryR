@@ -441,9 +441,11 @@ The main workload considerations are:
   setting. A user needs semantic-model Read and Build permissions. Service
   principals additionally need the Power BI service-principal tenant setting.
   For `api = "json"`, service principals cannot query models with RLS or SSO
-  enabled. The `api = "arrow"` endpoint has a different effective-identity
-  contract: `effectiveUsername` is user-only, while a service principal may use
-  `roles` when it is a workspace admin. See
+  enabled. The `api = "arrow"` endpoint additionally requires Premium or Fabric
+  capacity and the **Allow XMLA endpoints and Analyze in Excel with on-premises
+  semantic models** integration setting. It also has a different
+  effective-identity contract: `effectiveUsername` is user-only, while a
+  service principal may use `roles` when it is a workspace admin. See
   [JSON Execute Queries](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
   and the endpoint-specific notes in `?fabric_pbi_dax_query`.
 - **GraphQL.** Grant **Run Queries and Mutations** (Execute) on the GraphQL API
