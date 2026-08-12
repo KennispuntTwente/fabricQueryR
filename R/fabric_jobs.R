@@ -1466,6 +1466,119 @@ print.fabric_job_instance <- function(x, ...) {
     )
   }
 
+  # Validate shared scalar and mount-point fields before compute-specific ones.
+  if ("name" %in% names(configuration)) {
+    .fabric_job_nonempty(configuration$name, "computeConfiguration$name")
+  }
+  if ("mountPoints" %in% names(configuration)) {
+    mount_points <- configuration$mountPoints
+    if (!is.list(mount_points) || !length(mount_points)) {
+      rlang::abort("`mountPoints` must be a non-empty list of mount records")
+    }
+    for (mount in mount_points) {
+      .fabric_job_named_list(mount, "mount point")
+      if (!setequal(names(mount), c("source", "mountPointPath"))) {
+        rlang::abort(
+          "Every mount point must contain only source and mountPointPath"
+        )
+      }
+      .fabric_job_abfss(mount$source, "mount point source")
+      .fabric_job_nonempty(mount$mountPointPath, "mountPointPath")
+    }
+  }
+
+  if (identical(compute, "Jupyter") && "numCores" %in% names(configuration)) {
+    .fabric_job_enum_integer(
+      configuration$numCores,
+      c(2L, 4L, 8L, 16L, 32L, 64L),
+      "Jupyter numCores"
+    )
+  }
+
+  if (identical(compute, "Spark")) {
+    for (name in intersect(
+      c("driverCores", "executorCores"),
+      names(configuration)
+    )) {
+      .fabric_job_enum_integer(
+        configuration[[name]],
+        c(4L, 8L, 16L, 32L, 64L),
+        paste0("Spark ", name)
+      )
+    }
+    for (name in intersect(
+      c("driverMemory", "executorMemory"),
+      names(configuration)
+    )) {
+      value <- configuration[[name]]
+      allowed_memory <- c("28g", "56g", "112g", "224g", "400g")
+      if (
+        !is.character(value) || length(value) != 1L || is.na(value) ||
+          !value %in% allowed_memory
+      ) {
+        rlang::abort(paste0(
+          "Spark ",
+          name,
+          " must be one of ",
+          paste(allowed_memory, collapse = ", ")
+        ))
+      }
+    }
+    if ("numExecutors" %in% names(configuration)) {
+      value <- configuration$numExecutors
+      if (
+        !is.numeric(value) || length(value) != 1L || is.na(value) ||
+          !is.finite(value) || value < 1 || value != floor(value) ||
+          value > .Machine$integer.max
+      ) {
+        rlang::abort("Spark numExecutors must be one positive whole number")
+      }
+    }
+    for (name in intersect(
+      c("jars", "pyFiles", "files", "archives"),
+      names(configuration)
+    )) {
+      .fabric_job_abfss_vector(configuration[[name]], paste0("Spark ", name))
+    }
+    if ("sparkProperties" %in% names(configuration)) {
+      properties <- configuration$sparkProperties
+      if (!is.list(properties) || !length(properties)) {
+        rlang::abort("`sparkProperties` must be a non-empty list")
+      }
+      for (property in properties) {
+        .fabric_job_named_list(property, "Spark property")
+        if (!setequal(names(property), c("key", "value"))) {
+          rlang::abort("Every Spark property must contain only key and value")
+        }
+        .fabric_job_nonempty(property$key, "Spark property key")
+        .fabric_job_nonempty(property$value, "Spark property value")
+      }
+    }
+    if ("instancePool" %in% names(configuration)) {
+      pool <- configuration$instancePool
+      .fabric_job_named_list(pool, "instancePool")
+      if (length(setdiff(names(pool), c("id", "name", "type")))) {
+        rlang::abort("`instancePool` only supports id, name, and type")
+      }
+      if (is.null(pool$id) && is.null(pool$name)) {
+        rlang::abort("`instancePool` needs an id or name")
+      }
+      if (!is.null(pool$id)) {
+        .fabric_job_guid(pool$id, "instancePool$id")
+      }
+      if (!is.null(pool$name)) {
+        .fabric_job_nonempty(pool$name, "instancePool$name")
+      }
+      if (
+        is.null(pool$type) || !is.character(pool$type) ||
+          length(pool$type) != 1L || is.na(pool$type) ||
+          !tolower(pool$type) %in% c("workspace", "capacity")
+      ) {
+        rlang::abort("`instancePool$type` must be Workspace or Capacity")
+      }
+    }
+  }
+
   # 3 Validate high-concurrency options ------------------------------------------------------------
 
   # Check high-concurrency options now so later code can rely on safe input
@@ -1985,6 +2098,7 @@ print.fabric_job_instance <- function(x, ...) {
   if (inherits(stored, "fabric_credential")) {
     return(stored)
   }
+
   credential <- if (rlang::is_weakref(stored)) {
     rlang::wref_value(stored)
   } else {
@@ -2110,6 +2224,44 @@ print.fabric_job_instance <- function(x, ...) {
     rlang::abort(sprintf("`%s` must be a named list", name))
   }
   invisible(TRUE)
+}
+
+# Validate an integer against a documented Fabric enumeration.
+.fabric_job_enum_integer <- function(value, allowed, name) {
+  if (
+    !is.numeric(value) || length(value) != 1L || is.na(value) ||
+      !is.finite(value) || value != floor(value) || !value %in% allowed
+  ) {
+    rlang::abort(paste0(
+      name,
+      " must be one of ",
+      paste(allowed, collapse = ", ")
+    ))
+  }
+  invisible(value)
+}
+
+# Validate one ABFSS URI used by Fabric Spark execution settings.
+.fabric_job_abfss <- function(value, name) {
+  .fabric_job_nonempty(value, name)
+  if (!grepl("^abfss://[^/]+/.+", value, ignore.case = TRUE)) {
+    rlang::abort(paste0(name, " must be an abfss:// URI"))
+  }
+  invisible(value)
+}
+
+# Validate a non-empty vector of ABFSS URIs.
+.fabric_job_abfss_vector <- function(value, name) {
+  if (
+    !is.character(value) || !length(value) || anyNA(value) ||
+      !all(nzchar(value))
+  ) {
+    rlang::abort(paste0(name, " must be a non-empty character vector"))
+  }
+  for (entry in value) {
+    .fabric_job_abfss(entry, name)
+  }
+  invisible(value)
 }
 
 # Check `value` as one non-empty string identified by `name`. Returns invisibly

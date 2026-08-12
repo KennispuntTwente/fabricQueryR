@@ -1445,6 +1445,69 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
       "Spark"
     )
   )
+  expect_silent(.fabric_job_validate_notebook_compute(
+    list(
+      name = "validated-session",
+      driverMemory = "28g",
+      driverCores = 4L,
+      executorMemory = "56g",
+      executorCores = 8L,
+      numExecutors = 2L,
+      jars = "abfss://container@account/path/library.jar",
+      sparkProperties = list(list(key = "spark.key", value = "value")),
+      instancePool = list(name = "pool", type = "Workspace"),
+      mountPoints = list(list(
+        source = "abfss://container@account/path",
+        mountPointPath = "/mnt/data"
+      ))
+    ),
+    "Spark"
+  ))
+  expect_error(
+    .fabric_job_validate_notebook_compute(list(driverCores = "banana"), "Spark"),
+    "Spark driverCores must be one of"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(list(driverMemory = "30g"), "Spark"),
+    "Spark driverMemory must be one of"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(list(numExecutors = 0), "Spark"),
+    "positive whole number"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(
+      list(jars = "https://example.test/library.jar"),
+      "Spark"
+    ),
+    "abfss:// URI",
+    fixed = TRUE
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(
+      list(mountPoints = list(list(source = "abfss://account/path"))),
+      "Spark"
+    ),
+    "source and mountPointPath"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(
+      list(sparkProperties = list(list(key = "spark.key"))),
+      "Spark"
+    ),
+    "key and value"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(
+      list(instancePool = list(type = "Workspace")),
+      "Spark"
+    ),
+    "needs an id or name"
+  )
+  expect_error(
+    .fabric_job_validate_notebook_compute(list(numCores = -1), "Jupyter"),
+    "Jupyter numCores must be one of"
+  )
   for (invalid_tag in list(
     "",
     NA_character_,
