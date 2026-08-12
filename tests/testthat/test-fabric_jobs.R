@@ -1420,6 +1420,28 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
   )
   expect_silent(.fabric_job_validate_spark_definition(list()))
   expect_error(
+    .fabric_job_validate_item_reference(
+      list(
+        referenceType = "ById",
+        itemId = "not-a-guid",
+        workspaceId = "22222222-2222-2222-2222-222222222222"
+      ),
+      "defaultLakehouse"
+    ),
+    "itemId.*canonical GUID format"
+  )
+  expect_error(
+    .fabric_job_validate_item_reference(
+      list(
+        referenceType = "ById",
+        itemId = "11111111-1111-1111-1111-111111111111",
+        workspaceId = "not-a-guid"
+      ),
+      "attachedEnvironment"
+    ),
+    "workspaceId.*canonical GUID format"
+  )
+  expect_error(
     .fabric_job_validate_notebook_compute(
       list(unbounded = "payload"),
       "Spark"

@@ -1689,8 +1689,8 @@ print.fabric_job_instance <- function(x, ...) {
   if (!identical(reference$referenceType, "ById")) {
     rlang::abort(sprintf("`%s$referenceType` must be \"ById\"", name))
   }
-  .fabric_job_nonempty(reference$itemId, paste0(name, "$itemId"))
-  .fabric_job_nonempty(
+  .fabric_job_guid(reference$itemId, paste0(name, "$itemId"))
+  .fabric_job_guid(
     reference$workspaceId,
     paste0(name, "$workspaceId")
   )
