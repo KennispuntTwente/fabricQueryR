@@ -43,7 +43,7 @@ use a discovered record to avoid handling IDs manually}
 
 \item{high_concurrency}{Whether to let Fabric share Spark compute between
 several isolated workloads. Keep \code{FALSE} for a typical sequence of calls in
-one R process. This Fabric capability is currently in preview}
+one R process}
 
 \item{session_tag}{Optional high-concurrency packing hint. Related requests
 with the same tag may share an underlying Livy session while keeping

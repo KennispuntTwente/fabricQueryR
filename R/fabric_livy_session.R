@@ -10,7 +10,7 @@
 #'   use a discovered record to avoid handling IDs manually
 #' @param high_concurrency Whether to let Fabric share Spark compute between
 #'   several isolated workloads. Keep `FALSE` for a typical sequence of calls in
-#'   one R process. This Fabric capability is currently in preview
+#'   one R process
 #' @param session_tag Optional high-concurrency packing hint. Related requests
 #'   with the same tag may share an underlying Livy session while keeping
 #'   separate REPL state. Each call still returns a distinct HC session
