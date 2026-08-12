@@ -727,7 +727,21 @@ fabric_sql_validate_query_statement <- function(sql) {
   } else {
     character()
   }
-  write_capable <- "INTO" %in% select_tokens
+  # Semicolons are optional for most T-SQL statements, so checking only for a
+  # second terminator does not establish that this is one statement. Reject
+  # top-level tokens that can begin a second statement or turn the batch into a
+  # state-changing/control-flow operation. Quoted identifiers, comments, string
+  # literals, and tokens inside parentheses have already been excluded by the
+  # tokenizer.
+  non_query_tokens <- c(
+    "ALTER", "BACKUP", "BEGIN", "BREAK", "BULK", "CHECKPOINT", "CLOSE",
+    "COMMIT", "CREATE", "DBCC", "DEALLOCATE", "DECLARE", "DELETE", "DENY",
+    "DISABLE", "DROP", "ENABLE", "EXEC", "EXECUTE", "GRANT", "INSERT",
+    "KILL", "MERGE", "OPEN", "PRINT", "RAISERROR", "RECONFIGURE",
+    "RESTORE", "RETURN", "REVERT", "ROLLBACK", "SAVE", "SET", "SHUTDOWN",
+    "THROW", "TRANSACTION", "TRUNCATE", "UPDATE", "USE", "WAITFOR", "WHILE"
+  )
+  write_capable <- any(c("INTO", non_query_tokens) %in% select_tokens)
   valid <- valid_start && !write_capable
   if (!valid) {
     fabric_sql_statement_error()
