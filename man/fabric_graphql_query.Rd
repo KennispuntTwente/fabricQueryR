@@ -26,67 +26,67 @@ fabric_graphql_query(
 \arguments{
 \item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
 item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
-because it supplies the endpoint and workspace ID.}
+because it supplies the endpoint and workspace ID}
 
 \item{query}{One GraphQL document containing a query or mutation. Use
-variables for changing values instead of pasting values into this string.}
+variables for changing values instead of pasting values into this string}
 
-\item{variables}{Named list of values for variables declared in \code{query}.
+\item{variables}{Named list of values for variables declared in \code{query}
 One-element values are normally sent as scalars. Wrap a one-element list
-variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array.}
+variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array}
 
 \item{operation_name}{Optional operation name. Supply it when the document
-contains more than one named operation; otherwise leave \code{NULL}.}
+contains more than one named operation; otherwise leave \code{NULL}}
 
 \item{workspace_id}{Workspace GUID. Required when \code{api} is a GraphQL API
-GUID, and otherwise inferred from a discovered record.}
+GUID, and otherwise inferred from a discovered record}
 
 \item{error_policy}{How GraphQL-level errors are handled. \code{"return"}
 lets the caller inspect partial data and errors; \code{"warn"} also makes errors
 visible immediately; \code{"error"} stops and attaches the result to a
-\code{fabric_graphql_error}. HTTP/authentication failures always stop.}
+\code{fabric_graphql_error}. HTTP/authentication failures always stop}
 
 \item{timeout}{Maximum time in seconds for the request. The default allows
-Fabric's own 100-second query timeout response to arrive.}
+Fabric's own 100-second query timeout response to arrive}
 
-\item{idempotent}{Logical. Permit retries after transient HTTP failures.
+\item{idempotent}{Logical. Permit retries after transient HTTP failures
 \code{TRUE} is normally suitable for a read-only query, but not for a mutation
-that could be applied twice.}
+that could be applied twice}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
+\code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
 selects the documented scope from the authentication flow. Set this only
-for a custom token provider or unusual identity flow.}
+for a custom token provider or unusual identity flow}
 
-\item{api_base}{Fabric REST API base URL used to derive endpoints from IDs.
-Most users should keep the default.}
+\item{api_base}{Fabric REST API base URL used to derive endpoints from IDs
+Most users should keep the default}
 
 \item{allow_custom_endpoint}{Logical. Permit a GraphQL endpoint outside the
 Microsoft Fabric API origin. Keep \code{FALSE} unless the origin is trusted;
-credentials are sent to the supplied endpoint.}
+credentials are sent to the supplied endpoint}
 }
 \value{
 A \code{fabric_graphql_result} list with \code{data}, \code{errors}, \code{extensions},
 and \code{response} (the complete parsed response). \code{data} follows the nested
 shape requested in the GraphQL document and is usually a combination of
 named lists and vectors, not a tibble. Because GraphQL can return partial
-data, inspect \code{errors} even when \code{data} is present.
+data, inspect \code{errors} even when \code{data} is present
 }
 \description{
 Sends a GraphQL query or mutation to an \strong{API for GraphQL} item and returns
 the result as a nested R list. Use this when a Fabric API already exposes the
-Lakehouse, Warehouse, or SQL Database data you need.
+Lakehouse, Warehouse, or SQL Database data you need
 }
 \section{Before you query}{
 
@@ -94,14 +94,14 @@ Before using this function, create an \strong{API for GraphQL} item in a Fabric
 workspace, connect its data source, and choose which tables, fields, queries,
 and mutations the API exposes. Fabric's built-in GraphQL editor and schema
 explorer are the easiest places to design and test a document before copying
-it to R.
+it to R
 
 Mutation availability depends on the configured source. Fabric Warehouse and
 SQL Database sources can expose supported mutations, while Lakehouse and
-mirrored SQL analytics endpoint sources are read-only and expose queries only.
+mirrored SQL analytics endpoint sources are read-only and expose queries only
 
 The easiest input is an item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}}. You can instead
-supply the API's endpoint, or its ID together with \code{workspace_id}.
+supply the API's endpoint, or its ID together with \code{workspace_id}
 }
 
 \section{Permissions and authentication}{
@@ -112,27 +112,27 @@ the API. Service principals are also supported by Fabric: request a Fabric
 API token with \code{auth_args} or pass one through \code{token}, enable service
 principals for Fabric APIs in the tenant, and grant the principal API
 Execute access or a suitable workspace role. With SSO connectivity, the
-caller also needs the required access to the underlying data source.
-Saved-credential APIs use the configured connection instead.
+caller also needs the required access to the underlying data source
+Saved-credential APIs use the configured connection instead
 
 Most users can leave \code{audience = NULL}; fabricQueryR chooses the documented
-scope for the sign-in flow. Set it only for a custom identity provider.
+scope for the sign-in flow. Set it only for a custom identity provider
 }
 
 \section{Retries and service limits}{
 
 GraphQL POST requests are not retried by default because a document can
 contain mutations. Set \code{idempotent = TRUE} only when the operation is safe
-to repeat.
+to repeat
 
 Fabric returns at most 100 items by default and permits at most 100,000 items
 across pagination. Each response is limited to 64 MB, each request to 100
 seconds, and query nesting to 10 levels. Use smaller pages and filtered query
-partitions when a result could approach these service limits.
+partitions when a result could approach these service limits
 
 Large integers outside R's exact numeric range are returned as
 character values so identifiers and other large integer fields are not
-rounded.
+rounded
 }
 
 \examples{

@@ -7,16 +7,16 @@
 fabric_delta_config(initialize = FALSE)
 }
 \arguments{
-\item{initialize}{Whether to initialize Python.}
+\item{initialize}{Whether to initialize Python}
 }
 \value{
 A list describing initialization state, requirements, the selected
 interpreter, module availability, and installed package versions when
-initialized.
+initialized
 }
 \description{
-Shows whether the optional Python tools used for direct Delta reads are ready.
+Shows whether the optional Python tools used for direct Delta reads are ready
 By default this does not start Python. Set \code{initialize = TRUE} to prepare the
 environment and report installed versions; packages may be downloaded the
-first time.
+first time
 }

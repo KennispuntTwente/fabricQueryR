@@ -7,12 +7,12 @@
 \method{print}{fabric_job}(x, ...)
 }
 \arguments{
-\item{x}{A \code{fabric_job} handle returned by \code{\link[=fabric_job_run]{fabric_job_run()}}.}
+\item{x}{A \code{fabric_job} handle returned by \code{\link[=fabric_job_run]{fabric_job_run()}}}
 
-\item{...}{Reserved for the print method.}
+\item{...}{Reserved for the print method}
 }
 \value{
-\code{x}, invisibly.
+\code{x}, invisibly
 }
 \description{
 Print a submitted Fabric job

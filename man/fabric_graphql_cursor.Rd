@@ -9,20 +9,20 @@ fabric_graphql_cursor(path, has_next = "hasNextPage", end_cursor = "endCursor")
 \arguments{
 \item{path}{Character path from the result's \code{data} field to a connection
 object, for example \code{"products"} or \code{c("viewer", "products")}. This is the
-parent object that contains the pagination fields, not the \code{items} field.}
+parent object that contains the pagination fields, not the \code{items} field}
 
 \item{has_next}{Name of the logical connection field indicating another
-page. Fabric commonly uses \code{"hasNextPage"}.}
+page. Fabric commonly uses \code{"hasNextPage"}}
 
-\item{end_cursor}{Name of the connection field containing the opaque cursor.
-Fabric commonly uses \code{"endCursor"}.}
+\item{end_cursor}{Name of the connection field containing the opaque cursor
+Fabric commonly uses \code{"endCursor"}}
 }
 \value{
 A function suitable for \code{next_cursor} in
 \code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}}. For each page it returns the cursor when
-\code{has_next} is true, otherwise \code{NULL}.
+\code{has_next} is true, otherwise \code{NULL}
 }
 \description{
 Creates the \code{next_cursor} function used by \code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}} for the
-common \code{hasNextPage} and \code{endCursor} pagination fields.
+common \code{hasNextPage} and \code{endCursor} pagination fields
 }

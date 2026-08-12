@@ -80,6 +80,8 @@ reference:
       - fabric_job_status
       - fabric_job_wait
       - fabric_job_cancel
+      - print.fabric_job
+      - print.fabric_job_instance
 
   - title: Package
     desc: Package overview

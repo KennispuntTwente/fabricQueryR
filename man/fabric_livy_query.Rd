@@ -25,66 +25,66 @@ fabric_livy_query(
 }
 \arguments{
 \item{livy_url}{A Livy connection URL copied from the Lakehouse settings, or
-an enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.
-A discovered record avoids copying workspace and Lakehouse IDs.}
+an enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}
+A discovered record avoids copying workspace and Lakehouse IDs}
 
 \item{code}{One string containing the Spark code to run. Objects created in
 this temporary session are lost after the function returns, although
-writes made to Lakehouse storage persist.}
+writes made to Lakehouse storage persist}
 
 \item{kind}{Statement language. Use \code{"sparkr"} for SparkR code, \code{"pyspark"}
 for Python with Spark, \code{"spark"} for Scala, or \code{"sql"} for Spark SQL. This
-must match the syntax in \code{code}.}
+must match the syntax in \code{code}}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{audience}{Optional sign-in scope. Most users should leave this \code{NULL};
-set it only for a custom token provider or identity flow.}
+set it only for a custom token provider or identity flow}
 
 \item{environment_id}{Optional GUID of a published Fabric Environment whose
 libraries and Spark settings should be used. Leave \code{NULL} to use the
-Lakehouse/workspace defaults.}
+Lakehouse/workspace defaults}
 
 \item{conf}{Optional named list of Spark configuration overrides, for example
 \code{list("spark.sql.shuffle.partitions" = "100")}. Most users can leave this
-\code{NULL} and configure shared settings in a Fabric Environment.}
+\code{NULL} and configure shared settings in a Fabric Environment}
 
-\item{verbose}{Logical. Show session startup, execution, and cleanup progress.}
+\item{verbose}{Logical. Show session startup, execution, and cleanup progress}
 
 \item{poll_interval}{Seconds between status checks. Lower values update
-sooner but make more API calls.}
+sooner but make more API calls}
 
 \item{timeout}{Maximum seconds to wait for session readiness and, separately,
-statement completion.}
+statement completion}
 
 \item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
 Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
-as a test emulator; the Fabric bearer token is sent to this endpoint.}
+as a test emulator; the Fabric bearer token is sent to this endpoint}
 
 \item{...}{Compatibility arguments. The former named \code{access_token}
 argument is accepted here as a deprecated alias for \code{token}; all other
-arguments are rejected.}
+arguments are rejected}
 }
 \value{
 Invisibly, a \code{fabric_livy_statement_result} list. The most useful
 component is \code{output$parsed}: a tibble for tabular output, an R object for
 JSON, or a character vector for text. The result also keeps status, timing,
-submitted code, errors, and the original response.
+submitted code, errors, and the original response
 }
 \description{
 Starts Spark, runs one piece of code, returns its output, and closes the Spark
 session. This is the simplest Livy helper for a one-off operation. For quick
-reads from a Lakehouse or Warehouse, SQL is often faster to start.
+reads from a Lakehouse or Warehouse, SQL is often faster to start
 }
 \section{Before you run code}{
 
@@ -93,17 +93,17 @@ the Fabric portal, open the Lakehouse settings, find \strong{Livy endpoint}, and
 copy the session-job connection string. For several statements that reuse
 variables and Spark state, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}. To run a complete
 Python, Scala/Java, or R application file, use
-\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
+\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
 
 The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role.
+code to access Fabric and storage, and an appropriate workspace role
 
 Spark long and decimal columns are returned as character values when needed
 to preserve them exactly. Dates and timestamps with a time zone use R
-temporal classes; timestamps without a time zone remain wall-clock text.
+temporal classes; timestamps without a time zone remain wall-clock text
 Fabric's SQL JSON output represents non-finite floating-point values as
 \code{null}, so those values are returned as typed missing values. Binary and
-nested values use list-columns.
+nested values use list-columns
 }
 
 \examples{

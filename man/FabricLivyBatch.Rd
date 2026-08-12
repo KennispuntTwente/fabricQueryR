@@ -4,32 +4,32 @@
 \alias{FabricLivyBatch}
 \title{A Microsoft Fabric Livy batch job}
 \format{
-An \link[R6:R6Class]{R6::R6Class} generator.
+An \link[R6:R6Class]{R6::R6Class} generator
 }
 \description{
-Represents a Spark application submitted with \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
+Represents a Spark application submitted with \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
 Use \verb{$wait()} to wait for completion, \verb{$result()} or \verb{$logs()} to inspect the
 outcome, and \verb{$cancel()} to request cancellation. Most users do not need to
-call this R6 class directly.
+call this R6 class directly
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
-    \item{\code{id}}{Fabric batch ID.}
+    \item{\code{id}}{Fabric batch ID}
 
-    \item{\code{url}}{Batch lifecycle URL.}
+    \item{\code{url}}{Batch lifecycle URL}
 
-    \item{\code{state}}{Latest batch state.}
+    \item{\code{state}}{Latest batch state}
 
-    \item{\code{response}}{Latest raw service response.}
+    \item{\code{response}}{Latest raw service response}
 
-    \item{\code{cancel_requested}}{Whether \verb{$cancel()} was called successfully.}
+    \item{\code{cancel_requested}}{Whether \verb{$cancel()} was called successfully}
 
-    \item{\code{submitted_local}}{Local submission timestamp.}
+    \item{\code{submitted_local}}{Local submission timestamp}
 
-    \item{\code{completed_local}}{Local completion timestamp.}
+    \item{\code{completed_local}}{Local completion timestamp}
 
-    \item{\code{verbose}}{Whether lifecycle messages are enabled.}
+    \item{\code{verbose}}{Whether lifecycle messages are enabled}
   }
   \if{html}{\out{</div>}}
 }
@@ -50,7 +50,7 @@ call this R6 class directly.
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-initialize}{}}}
 \subsection{\code{FabricLivyBatch$new()}}{
   Internal constructor used by
-\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.
+\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$new(response, url, credential, verbose = TRUE)}
@@ -59,15 +59,15 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{response}}{Initial batch response.}
-      \item{\code{url}}{Batch collection URL.}
-      \item{\code{credential}}{Internal authentication credential.}
-      \item{\code{verbose}}{Whether to emit lifecycle messages.}
+      \item{\code{response}}{Initial batch response}
+      \item{\code{url}}{Batch collection URL}
+      \item{\code{credential}}{Internal authentication credential}
+      \item{\code{verbose}}{Whether to emit lifecycle messages}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A new batch object.
+    A new batch object
   }
 }
 
@@ -75,7 +75,7 @@ call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivyBatch-print"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-print}{}}}
 \subsection{\code{FabricLivyBatch$print()}}{
-  Print a concise batch summary.
+  Print a concise batch summary
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$print(...)}
@@ -84,12 +84,12 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{...}}{Unused.}
+      \item{\code{...}}{Unused}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -97,7 +97,7 @@ call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivyBatch-status"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-status}{}}}
 \subsection{\code{FabricLivyBatch$status()}}{
-  Retrieve current batch metadata.
+  Retrieve current batch metadata
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$status(refresh = TRUE, deadline = NULL)}
@@ -106,13 +106,13 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
-      \item{\code{deadline}}{Internal wall-clock deadline for the status request.}
+      \item{\code{refresh}}{Whether to retrieve current state from Fabric}
+      \item{\code{deadline}}{Internal wall-clock deadline for the status request}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The raw batch response list.
+    The raw batch response list
   }
 }
 
@@ -120,7 +120,7 @@ call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivyBatch-wait"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-wait}{}}}
 \subsection{\code{FabricLivyBatch$wait()}}{
-  Wait for the batch to reach a terminal state.
+  Wait for the batch to reach a terminal state
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$wait(
@@ -134,15 +134,15 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{timeout}}{Maximum wait in seconds.}
-      \item{\code{poll_interval}}{Polling interval in seconds.}
-      \item{\code{error_on_failure}}{Raise a structured error for a failed batch.}
-      \item{\code{cancel_on_timeout}}{Request cancellation before raising a timeout.}
+      \item{\code{timeout}}{Maximum wait in seconds}
+      \item{\code{poll_interval}}{Polling interval in seconds}
+      \item{\code{error_on_failure}}{Raise a structured error for a failed batch}
+      \item{\code{cancel_on_timeout}}{Request cancellation before raising a timeout}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -150,7 +150,7 @@ call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivyBatch-logs"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-logs}{}}}
 \subsection{\code{FabricLivyBatch$logs()}}{
-  Return available Spark driver log lines.
+  Return available Spark driver log lines
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$logs(refresh = TRUE)}
@@ -159,12 +159,12 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
+      \item{\code{refresh}}{Whether to retrieve current state from Fabric}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A character vector.
+    A character vector
   }
 }
 
@@ -172,7 +172,7 @@ call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivyBatch-result"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-result}{}}}
 \subsection{\code{FabricLivyBatch$result()}}{
-  Return structured batch metadata and logs.
+  Return structured batch metadata and logs
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$result(refresh = TRUE, error_on_failure = TRUE)}
@@ -181,13 +181,13 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
-      \item{\code{error_on_failure}}{Raise a structured error for a failed batch.}
+      \item{\code{refresh}}{Whether to retrieve current state from Fabric}
+      \item{\code{error_on_failure}}{Raise a structured error for a failed batch}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A \code{fabric_livy_batch_result} list.
+    A \code{fabric_livy_batch_result} list
   }
 }
 
@@ -195,7 +195,7 @@ call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivyBatch-cancel"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyBatch-cancel}{}}}
 \subsection{\code{FabricLivyBatch$cancel()}}{
-  Request batch cancellation.
+  Request batch cancellation
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyBatch$cancel(deadline = NULL)}
@@ -204,12 +204,12 @@ call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{deadline}}{Internal wall-clock deadline for the cancellation request.}
+      \item{\code{deadline}}{Internal wall-clock deadline for the cancellation request}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{TRUE}, invisibly, after Fabric accepts the request.
+    \code{TRUE}, invisibly, after Fabric accepts the request
   }
 }
 

@@ -2,21 +2,21 @@
 #'
 #' Sends a GraphQL query or mutation to an **API for GraphQL** item and returns
 #' the result as a nested R list. Use this when a Fabric API already exposes the
-#' Lakehouse, Warehouse, or SQL Database data you need.
+#' Lakehouse, Warehouse, or SQL Database data you need
 #'
 #' @section Before you query:
 #' Before using this function, create an **API for GraphQL** item in a Fabric
 #' workspace, connect its data source, and choose which tables, fields, queries,
 #' and mutations the API exposes. Fabric's built-in GraphQL editor and schema
 #' explorer are the easiest places to design and test a document before copying
-#' it to R.
+#' it to R
 #'
 #' Mutation availability depends on the configured source. Fabric Warehouse and
 #' SQL Database sources can expose supported mutations, while Lakehouse and
-#' mirrored SQL analytics endpoint sources are read-only and expose queries only.
+#' mirrored SQL analytics endpoint sources are read-only and expose queries only
 #'
 #' The easiest input is an item from [fabric_graphql_apis()]. You can instead
-#' supply the API's endpoint, or its ID together with `workspace_id`.
+#' supply the API's endpoint, or its ID together with `workspace_id`
 #'
 #' @section Permissions and authentication:
 #' Interactive authentication requires the Power BI delegated scope
@@ -25,69 +25,69 @@
 #' API token with `auth_args` or pass one through `token`, enable service
 #' principals for Fabric APIs in the tenant, and grant the principal API
 #' Execute access or a suitable workspace role. With SSO connectivity, the
-#' caller also needs the required access to the underlying data source.
-#' Saved-credential APIs use the configured connection instead.
+#' caller also needs the required access to the underlying data source
+#' Saved-credential APIs use the configured connection instead
 #'
 #' Most users can leave `audience = NULL`; fabricQueryR chooses the documented
-#' scope for the sign-in flow. Set it only for a custom identity provider.
+#' scope for the sign-in flow. Set it only for a custom identity provider
 #'
 #' @section Retries and service limits:
 #' GraphQL POST requests are not retried by default because a document can
 #' contain mutations. Set `idempotent = TRUE` only when the operation is safe
-#' to repeat.
+#' to repeat
 #'
 #' Fabric returns at most 100 items by default and permits at most 100,000 items
 #' across pagination. Each response is limited to 64 MB, each request to 100
 #' seconds, and query nesting to 10 levels. Use smaller pages and filtered query
-#' partitions when a result could approach these service limits.
+#' partitions when a result could approach these service limits
 #'
 #' Large integers outside R's exact numeric range are returned as
 #' character values so identifiers and other large integer fields are not
-#' rounded.
+#' rounded
 #'
 #' @param api GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
 #'   item from [fabric_graphql_apis()] is usually easiest
-#'   because it supplies the endpoint and workspace ID.
+#'   because it supplies the endpoint and workspace ID
 #' @param query One GraphQL document containing a query or mutation. Use
-#'   variables for changing values instead of pasting values into this string.
-#' @param variables Named list of values for variables declared in `query`.
+#'   variables for changing values instead of pasting values into this string
+#' @param variables Named list of values for variables declared in `query`
 #'   One-element values are normally sent as scalars. Wrap a one-element list
-#'   variable in [I()], for example `list(ids = I("x"))`, to send it as an array.
+#'   variable in [I()], for example `list(ids = I("x"))`, to send it as an array
 #' @param operation_name Optional operation name. Supply it when the document
-#'   contains more than one named operation; otherwise leave `NULL`.
+#'   contains more than one named operation; otherwise leave `NULL`
 #' @param workspace_id Workspace GUID. Required when `api` is a GraphQL API
-#'   GUID, and otherwise inferred from a discovered record.
+#'   GUID, and otherwise inferred from a discovered record
 #' @param error_policy How GraphQL-level errors are handled. `"return"`
 #'   lets the caller inspect partial data and errors; `"warn"` also makes errors
 #'   visible immediately; `"error"` stops and attaches the result to a
-#'   `fabric_graphql_error`. HTTP/authentication failures always stop.
+#'   `fabric_graphql_error`. HTTP/authentication failures always stop
 #' @param timeout Maximum time in seconds for the request. The default allows
-#'   Fabric's own 100-second query timeout response to arrive.
-#' @param idempotent Logical. Permit retries after transient HTTP failures.
+#'   Fabric's own 100-second query timeout response to arrive
+#' @param idempotent Logical. Permit retries after transient HTTP failures
 #'   `TRUE` is normally suitable for a read-only query, but not for a mutation
-#'   that could be applied twice.
+#'   that could be applied twice
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
+#'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback.
+#'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
+#'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
+#'   [AzureAuth::get_azure_token()]
 #' @param audience OAuth audience/scope passed to the credential. `NULL`
 #'   selects the documented scope from the authentication flow. Set this only
-#'   for a custom token provider or unusual identity flow.
-#' @param api_base Fabric REST API base URL used to derive endpoints from IDs.
-#'   Most users should keep the default.
+#'   for a custom token provider or unusual identity flow
+#' @param api_base Fabric REST API base URL used to derive endpoints from IDs
+#'   Most users should keep the default
 #' @param allow_custom_endpoint Logical. Permit a GraphQL endpoint outside the
 #'   Microsoft Fabric API origin. Keep `FALSE` unless the origin is trusted;
-#'   credentials are sent to the supplied endpoint.
+#'   credentials are sent to the supplied endpoint
 #'
 #' @return A `fabric_graphql_result` list with `data`, `errors`, `extensions`,
 #'   and `response` (the complete parsed response). `data` follows the nested
 #'   shape requested in the GraphQL document and is usually a combination of
 #'   named lists and vectors, not a tibble. Because GraphQL can return partial
-#'   data, inspect `errors` even when `data` is present.
+#'   data, inspect `errors` even when `data` is present
 #' @references
 #' [Fabric API for GraphQL editor](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-editor)
 #'
@@ -140,7 +140,8 @@ fabric_graphql_query <- function(
   # 1 Prepare the request --------------------------------------------------------------------------
 
   # Validate caller-controlled values once and keep the resolved endpoint and
-  # credential together for the request.
+  # credential together for the request
+
   variables <- graphql_validate_variables(variables)
   context <- graphql_request_context(
     api = api,
@@ -161,6 +162,8 @@ fabric_graphql_query <- function(
 
   # 2 Execute and return the query -----------------------------------------------------------------
 
+  # Execute and return the query only after the request inputs are ready
+
   graphql_execute_context(context, variables)
 }
 
@@ -168,21 +171,21 @@ fabric_graphql_query <- function(
 #'
 #' Repeats [fabric_graphql_query()] until the API reports that no more pages are
 #' available. Because every GraphQL schema can store pagination information in
-#' a different place, `next_cursor` tells the function where to find it.
+#' a different place, `next_cursor` tells the function where to find it
 #'
 #' @param next_cursor Function accepting a `fabric_graphql_result` and returning
 #'   the next opaque cursor, or `NULL` when pagination is complete. Use
-#'   [fabric_graphql_cursor()] for Fabric's normal connection fields.
+#'   [fabric_graphql_cursor()] for Fabric's normal connection fields
 #' @param cursor_variable Name of the GraphQL variable that receives the next
-#'   cursor, commonly `"after"`. It must match the variable declared in `query`.
+#'   cursor, commonly `"after"`. It must match the variable declared in `query`
 #' @param max_pages Positive maximum number of requests. This guards against a
-#'   faulty or unexpectedly large pagination loop.
+#'   faulty or unexpectedly large pagination loop
 #' @inheritParams fabric_graphql_query
 #'
 #' @return A `fabric_graphql_pages` list with `pages`, combined `errors`, and
 #'   the final `variables`. `pages` contains one `fabric_graphql_result` per
-#'   request and `complete` is `TRUE` when the callback reported no next page.
-#'   Results are kept page-by-page because the requested schema shape can vary.
+#'   request and `complete` is `TRUE` when the callback reported no next page
+#'   Results are kept page-by-page because the requested schema shape can vary
 #' @export
 #'
 #' @examples
@@ -227,7 +230,8 @@ fabric_graphql_paginate <- function(
 ) {
   # 1 Validate pagination inputs -------------------------------------------------------------------
 
-  # The callback controls when paging ends, while `max_pages` is a safety cap.
+  # The callback controls when paging ends, while `max_pages` is a safety cap
+
   if (!is.function(next_cursor)) {
     rlang::abort("next_cursor must be a function")
   }
@@ -235,6 +239,7 @@ fabric_graphql_paginate <- function(
     cursor_variable,
     "cursor_variable"
   )
+
   if (
     !is.numeric(max_pages) ||
       length(max_pages) != 1L ||
@@ -251,7 +256,8 @@ fabric_graphql_paginate <- function(
 
   # 2 Prepare shared request state -----------------------------------------------------------------
 
-  # Resolve authentication and the endpoint once, then reuse them for pages.
+  # Resolve authentication and the endpoint once, then reuse them for pages
+
   context <- graphql_request_context(
     api = api,
     query = query,
@@ -274,7 +280,8 @@ fabric_graphql_paginate <- function(
   # 3 Read pages -----------------------------------------------------------------------------------
 
   # Feed each opaque cursor back through the named GraphQL variable and reject
-  # repeated cursors before they can create an endless loop.
+  # repeated cursors before they can create an endless loop
+
   for (page_number in seq_len(as.integer(max_pages))) {
     result <- graphql_execute_context(context, variables)
     pages[[page_number]] <- result
@@ -294,6 +301,8 @@ fabric_graphql_paginate <- function(
 
   # 4 Report an incomplete result ------------------------------------------------------------------
 
+  # Turn the final state into clear output for the caller
+
   structure(
     list(
       message = sprintf(
@@ -311,19 +320,19 @@ fabric_graphql_paginate <- function(
 #' Locate pagination information in a GraphQL result
 #'
 #' Creates the `next_cursor` function used by [fabric_graphql_paginate()] for the
-#' common `hasNextPage` and `endCursor` pagination fields.
+#' common `hasNextPage` and `endCursor` pagination fields
 #'
 #' @param path Character path from the result's `data` field to a connection
 #'   object, for example `"products"` or `c("viewer", "products")`. This is the
-#'   parent object that contains the pagination fields, not the `items` field.
+#'   parent object that contains the pagination fields, not the `items` field
 #' @param has_next Name of the logical connection field indicating another
-#'   page. Fabric commonly uses `"hasNextPage"`.
-#' @param end_cursor Name of the connection field containing the opaque cursor.
-#'   Fabric commonly uses `"endCursor"`.
+#'   page. Fabric commonly uses `"hasNextPage"`
+#' @param end_cursor Name of the connection field containing the opaque cursor
+#'   Fabric commonly uses `"endCursor"`
 #'
 #' @return A function suitable for `next_cursor` in
 #'   [fabric_graphql_paginate()]. For each page it returns the cursor when
-#'   `has_next` is true, otherwise `NULL`.
+#'   `has_next` is true, otherwise `NULL`
 #' @export
 fabric_graphql_cursor <- function(
   path,
@@ -332,7 +341,8 @@ fabric_graphql_cursor <- function(
 ) {
   # 1 Validate field names -------------------------------------------------------------------------
 
-  # Capture valid field names now so the returned callback stays simple.
+  # Capture valid field names now so the returned callback stays simple
+
   if (
     !is.character(path) || !length(path) || anyNA(path) || !all(nzchar(path))
   ) {
@@ -343,12 +353,17 @@ fabric_graphql_cursor <- function(
 
   # 2 Build the cursor callback --------------------------------------------------------------------
 
+  # Build the cursor callback from the validated values required by the next step
+
   function(result) {
+    # Cursor extraction only works on results produced by this package
     if (!inherits(result, "fabric_graphql_result")) {
       rlang::abort(
         "The cursor extractor requires a fabric_graphql_result"
       )
     }
+
+    # Follow the configured field path to the connection object
     connection <- graphql_at_path(result$data, path)
     if (is.null(connection)) {
       rlang::abort(
@@ -358,6 +373,8 @@ fabric_graphql_cursor <- function(
         )
       )
     }
+
+    # The service must return one unambiguous continuation flag
     more <- connection[[has_next]]
     if (!is.logical(more) || length(more) != 1L || is.na(more)) {
       rlang::abort(
@@ -367,6 +384,8 @@ fabric_graphql_cursor <- function(
         )
       )
     }
+
+    # A missing next page needs no cursor value
     if (!more) {
       return(NULL)
     }
@@ -378,7 +397,7 @@ fabric_graphql_cursor <- function(
 }
 
 # Validate shared GraphQL request inputs and resolve service state. Returns a
-# reusable context used by single-page and paged public entry points.
+# reusable context used by single-page and paged public entry points
 graphql_request_context <- function(
   api,
   query,
@@ -397,7 +416,8 @@ graphql_request_context <- function(
 ) {
   # 1 Validate query settings ----------------------------------------------------------------------
 
-  # Report input problems before constructing credentials or endpoints.
+  # Report input problems before constructing credentials or endpoints
+
   graphql_required_string(query, "query")
   if (!is.null(operation_name)) {
     operation_name <- graphql_required_string(operation_name, "operation_name")
@@ -416,6 +436,8 @@ graphql_request_context <- function(
   )
 
   # 2 Resolve endpoint and authentication ----------------------------------------------------------
+
+  # Resolve endpoint and authentication once so later steps use one consistent value
 
   endpoint <- graphql_resolve_endpoint(
     api,
@@ -437,6 +459,8 @@ graphql_request_context <- function(
 
   # 3 Return reusable request state ----------------------------------------------------------------
 
+  # Return reusable request state in the stable form expected by the caller
+
   list(
     endpoint = endpoint,
     query = query,
@@ -450,7 +474,7 @@ graphql_request_context <- function(
 }
 
 # Execute one page from `context` with `variables`. Returns a parsed GraphQL
-# result and keeps pagination from duplicating request argument plumbing.
+# result and keeps pagination from duplicating request argument plumbing
 graphql_execute_context <- function(context, variables) {
   graphql_execute(
     context$endpoint,
@@ -466,11 +490,12 @@ graphql_execute_context <- function(context, variables) {
 }
 
 # Choose the explicit or flow-appropriate token `audience`. Returns one scope
-# string used while the GraphQL request context is built.
+# string used while the GraphQL request context is built
 graphql_resolve_audience <- function(audience, token, auth_args) {
   if (!is.null(audience)) {
     return(graphql_required_string(audience, "audience"))
   }
+
   if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
     .fabric_audience$fabric
   } else {
@@ -479,7 +504,7 @@ graphql_resolve_audience <- function(audience, token, auth_args) {
 }
 
 # Send one GraphQL request and parse its response. Returns a
-# `fabric_graphql_result` for the public query and pagination functions.
+# `fabric_graphql_result` for the public query and pagination functions
 graphql_execute <- function(
   endpoint,
   query,
@@ -495,6 +520,7 @@ graphql_execute <- function(
   if (length(variables)) {
     body$variables <- variables
   }
+
   if (!is.null(operation_name)) {
     body$operationName <- operation_name
   }
@@ -514,7 +540,7 @@ graphql_execute <- function(
 }
 
 # Validate a decoded GraphQL `response` and apply `error_policy`. Returns a
-# stable result object used by both public query entry points.
+# stable result object used by both public query entry points
 graphql_parse_response <- function(
   response,
   error_policy = c("return", "warn", "error")
@@ -522,7 +548,8 @@ graphql_parse_response <- function(
   # 1 Validate the response shape ------------------------------------------------------------------
 
   # GraphQL may return data, errors, or both, but neither means the response is
-  # not a valid GraphQL result.
+  # not a valid GraphQL result
+
   error_policy <- match.arg(error_policy)
   if (!is.list(response) || is.null(names(response))) {
     rlang::abort(
@@ -551,6 +578,8 @@ graphql_parse_response <- function(
 
   # 2 Build the result -----------------------------------------------------------------------------
 
+  # Build the result from the validated values required by the next step
+
   result <- structure(
     list(
       data = if (has_data) response$data else NULL,
@@ -562,6 +591,8 @@ graphql_parse_response <- function(
   )
 
   # 3 Apply the requested error policy -------------------------------------------------------------
+
+  # Apply the requested error policy before the result is returned
 
   if (length(errors)) {
     message <- graphql_error_message(errors)
@@ -579,7 +610,7 @@ graphql_parse_response <- function(
 }
 
 # Turn GraphQL `errors` into one readable message. Returns text used for warning
-# and error policies without discarding path or service-code context.
+# and error policies without discarding path or service-code context
 graphql_error_message <- function(errors) {
   messages <- vapply(
     errors,
@@ -604,7 +635,7 @@ graphql_error_message <- function(errors) {
 }
 
 # Combine page results, final `variables`, and completion state. Returns the
-# stable pagination object exposed by `fabric_graphql_paginate()`.
+# stable pagination object exposed by `fabric_graphql_paginate()`
 graphql_pages_result <- function(pages, variables, complete) {
   errors <- unlist(
     lapply(pages, function(page) page$errors),
@@ -621,8 +652,8 @@ graphql_pages_result <- function(pages, variables, complete) {
   )
 }
 
-# Resolve a discovery record, GUID pair, or URL into a GraphQL endpoint.
-# Returns a validated HTTPS URL for the request context.
+# Resolve a discovery record, GUID pair, or URL into a GraphQL endpoint
+# Returns a validated HTTPS URL for the request context
 graphql_resolve_endpoint <- function(
   api,
   workspace_id = NULL,
@@ -631,7 +662,8 @@ graphql_resolve_endpoint <- function(
 ) {
   # 1 Read a discovery record ----------------------------------------------------------------------
 
-  # Prefer the ready-to-use endpoint supplied by item discovery.
+  # Prefer the ready-to-use endpoint supplied by item discovery
+
   graphql_validate_logical(allow_custom_endpoint, "allow_custom_endpoint")
   record <- fabric_as_record(api)
   if (!is.null(record)) {
@@ -646,6 +678,7 @@ graphql_resolve_endpoint <- function(
       "graphql_endpoint",
       "graphQLEndpoint"
     )
+
     if (!is.null(endpoint)) {
       return(graphql_validate_endpoint(endpoint, allow_custom_endpoint))
     }
@@ -655,6 +688,8 @@ graphql_resolve_endpoint <- function(
   }
 
   # 2 Build an endpoint from IDs -------------------------------------------------------------------
+
+  # Build an endpoint from IDs from the validated values required by the next step
 
   if (
     is.character(api) &&
@@ -680,16 +715,19 @@ graphql_resolve_endpoint <- function(
       api,
       "/graphql"
     )
+
     return(graphql_validate_endpoint(endpoint, allow_custom_endpoint))
   }
 
   # 3 Validate a direct endpoint -------------------------------------------------------------------
 
+  # Check a direct endpoint now so later code can rely on safe input
+
   graphql_validate_endpoint(api, allow_custom_endpoint)
 }
 
 # Validate `endpoint` and its trust boundary. Returns a normalized HTTPS URL so
-# GraphQL credentials are never sent to an accidental origin.
+# GraphQL credentials are never sent to an accidental origin
 graphql_validate_endpoint <- function(endpoint, allow_custom_endpoint = FALSE) {
   graphql_validate_logical(allow_custom_endpoint, "allow_custom_endpoint")
   endpoint <- graphql_required_string(endpoint, "api")
@@ -708,6 +746,7 @@ graphql_validate_endpoint <- function(endpoint, allow_custom_endpoint = FALSE) {
   ) {
     rlang::abort("api must be a valid HTTPS GraphQL endpoint")
   }
+
   if (
     !fabric_host_matches(parsed$hostname, "api.fabric.microsoft.com") &&
       !allow_custom_endpoint
@@ -721,7 +760,7 @@ graphql_validate_endpoint <- function(endpoint, allow_custom_endpoint = FALSE) {
 }
 
 # Check that `value` is one non-missing logical. Returns invisibly for GraphQL
-# public and endpoint option validation.
+# public and endpoint option validation
 graphql_validate_logical <- function(value, name) {
   if (
     !is.logical(value) ||
@@ -734,11 +773,12 @@ graphql_validate_logical <- function(value, name) {
 }
 
 # Check GraphQL `variables` as a uniquely named list. Returns the same list for
-# single-page and pagination requests.
+# single-page and pagination requests
 graphql_validate_variables <- function(variables) {
   if (!is.list(variables)) {
     rlang::abort("variables must be a list")
   }
+
   if (
     length(variables) &&
       (is.null(names(variables)) ||
@@ -754,7 +794,7 @@ graphql_validate_variables <- function(variables) {
 }
 
 # Check `value` as one non-empty string named by `name`. Returns the original
-# string for GraphQL validators and resolvers.
+# string for GraphQL validators and resolvers
 graphql_required_string <- function(value, name) {
   if (
     !is.character(value) ||
@@ -770,7 +810,7 @@ graphql_required_string <- function(value, name) {
 }
 
 # Apply type and value predicates to one scalar `value`. Returns invisibly and
-# centralizes simple GraphQL option checks with a caller-friendly `message`.
+# centralizes simple GraphQL option checks with a caller-friendly `message`
 graphql_validate_scalar <- function(
   value,
   type_predicate,
@@ -789,7 +829,7 @@ graphql_validate_scalar <- function(
 }
 
 # Follow field names in `path` through nested `value`. Returns the located value
-# or `NULL` for the cursor callback to report clearly.
+# or `NULL` for the cursor callback to report clearly
 graphql_at_path <- function(value, path) {
   for (field in path) {
     if (!is.list(value) || is.null(value[[field]])) {

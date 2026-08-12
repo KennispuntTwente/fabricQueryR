@@ -94,11 +94,31 @@ done for new code and for refactors that touch an existing function.
   same 100-column rule.
 - Leave exactly two empty lines between the end of one section and the next
   section heading.
-- Add a short beginner-friendly comment below a heading when the purpose or
-  reason for that step is not already obvious from the heading.
+- Every section heading must be followed by one empty line, a short
+  beginner-friendly explanation, and another empty line before its first R
+  statement. Explain both what the section does and why that step is needed.
 - In longer or more complicated sections, add concise inline comments before
   non-obvious branches, safety checks, protocol workarounds, or conversions.
   Explain what happens and why; avoid restating individual lines of code.
+- Do not end R comment lines with a full stop. This applies to section
+  explanations, inline comments, helper descriptions, and roxygen2 lines.
+  Question marks, code punctuation, URLs, and punctuation required by an R
+  expression are exceptions.
+
+### Use whitespace and comments to show code structure
+
+- Group adjacent statements that perform one small piece of work, and place one
+  empty line before the code moves to a different validation, transformation,
+  request phase, branch purpose, or return decision.
+- Do not leave long runs of unrelated statements visually glued together. Use
+  whitespace at complete expression boundaries; never split a single call or
+  condition merely to add space.
+- Add short inline guide comments to long snippets that do not warrant numbered
+  subsections. Comments should introduce a meaningful group of statements or
+  explain a non-obvious decision, not narrate each line.
+- Keep related setup assignments together. Excessive one-line groups are as
+  distracting as too little whitespace, so use blank lines to show real changes
+  in purpose rather than after every statement.
 
 ### Keep helpers useful and documented
 

@@ -9,26 +9,26 @@
 fabricQueryR helps you find and work with Microsoft Fabric data from R. Start
 by discovering the workspaces and items available to you, then pass those
 results directly to the package's query, file, Spark, and job functions. In
-most workflows, you do not need to copy IDs or connection details by hand.
+most workflows, you do not need to copy IDs or connection details by hand
 }
 \section{Where to start}{
 
 \itemize{
 \item Use \code{\link[=fabric_workspaces]{fabric_workspaces()}} and the typed discovery helpers, such as
-\code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}, to find data.
+\code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}, to find data
 \item Use \code{\link[=fabric_sql_query]{fabric_sql_query()}} for T-SQL against a Warehouse, SQL Database, or
-Lakehouse SQL analytics endpoint.
+Lakehouse SQL analytics endpoint
 \item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
 \code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data, and
-\code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item.
+\code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item
 \item Use \link{fabric_onelake_files} for ordinary files,
 \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} for Delta tables, and the Livy helpers
-when Spark processing is required.
+when Spark processing is required
 \item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and
-\code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs.
+\code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive
 and unattended authentication setup, required token audiences, and Fabric
-permissions.
+permissions
 }
 }
 

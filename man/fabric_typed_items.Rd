@@ -34,25 +34,25 @@ fabric_graphql_apis(workspace, detail = TRUE, ...)
 \arguments{
 \item{workspace}{Workspace name, ID, or record returned by
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
-avoids an extra lookup.}
+avoids an extra lookup}
 
 \item{detail}{Whether to retrieve connection details as well as names and
 IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers use \code{TRUE} by default.}
+typed discovery helpers use \code{TRUE} by default}
 
-\item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}.
-Do not supply \code{type}; each helper sets that value.}
+\item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}
+Do not supply \code{type}; each helper sets that value}
 }
 \value{
 A list with one \code{fabric_item} object per matching item. Each object
 contains common item metadata and applicable connection fields. See
-\code{\link[=fabric_items]{fabric_items()}} for details.
+\code{\link[=fabric_items]{fabric_items()}} for details
 }
 \description{
 These shortcuts find one kind of Fabric item. By default, they also retrieve
 the connection details needed by the matching query functions, so their
 results can usually be passed straight to the next fabricQueryR call. Set
-\code{detail = FALSE} when you only need names and IDs.
+\code{detail = FALSE} when you only need names and IDs
 }
 \section{Choosing a helper}{
 
@@ -60,16 +60,16 @@ results can usually be passed straight to the next fabricQueryR call. Set
 \item \code{fabric_lakehouses()}, \code{fabric_warehouses()}, and
 \code{fabric_warehouse_snapshots()} find data stores that can be queried through
 \code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses can also be accessed through OneLake and
-Livy.
-\item \code{fabric_sql_databases()} finds transactional Fabric SQL databases.
+Livy
+\item \code{fabric_sql_databases()} finds transactional Fabric SQL databases
 \item \code{fabric_semantic_models()} finds the business models queried with DAX via
-\code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}.
+\code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}
 \item \code{fabric_eventhouses()} and \code{fabric_kql_databases()} find real-time data
-stores queried with \code{\link[=fabric_kql_query]{fabric_kql_query()}}.
+stores queried with \code{\link[=fabric_kql_query]{fabric_kql_query()}}
 \item \code{fabric_notebooks()} finds notebooks that can be run with
-\code{\link[=fabric_job_run]{fabric_job_run()}}.
+\code{\link[=fabric_job_run]{fabric_job_run()}}
 \item \code{fabric_graphql_apis()} finds APIs configured in Fabric for use with
-\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}.
+\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}
 }
 }
 

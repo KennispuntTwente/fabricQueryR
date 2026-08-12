@@ -2,35 +2,35 @@
 
 #' Discover Microsoft Fabric workspaces
 #'
-#' Returns the Fabric workspaces available to the signed-in user or application.
+#' Returns the Fabric workspaces available to the signed-in user or application
 #' Use the result to choose a workspace for [fabric_items()] or one of the typed
-#' discovery helpers.
+#' discovery helpers
 #'
 #' @param roles Optional workspace roles to include, such as `"Viewer"`,
 #'   `"Contributor"`, `"Member"`, or `"Admin"`. Leave `NULL` to return every
-#'   visible workspace.
+#'   visible workspace
 #' @param prefer_workspace_endpoints Whether to request workspace-specific
 #'   endpoints. Keep `FALSE` unless your organization uses workspace-level
-#'   private links.
+#'   private links
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
+#'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
+#'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
+#'   [AzureAuth::get_azure_token()]
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
-#'   different Fabric cloud or a test service.
+#'   different Fabric cloud or a test service
 #' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
-#'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token.
+#'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token
 #'
 #' @return A list with one workspace record per visible workspace. Each record
 #'   includes its ID and display name, together with other details returned by
-#'   Fabric.
+#'   Fabric
 #' @details
 #' The caller needs permission to read Fabric workspaces. Discovery uses the
-#' Fabric API and requires `Workspace.Read.All` or `Workspace.ReadWrite.All`.
+#' Fabric API and requires `Workspace.Read.All` or `Workspace.ReadWrite.All`
 #' @references
 #' [List workspaces REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
 #'
@@ -51,7 +51,8 @@ fabric_workspaces <- function(
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
-  # Check filtering options before signing in or sending a request.
+  # Check filtering options before signing in or sending a request
+
   if (
     !is.null(roles) &&
       (!is.character(roles) ||
@@ -61,6 +62,7 @@ fabric_workspaces <- function(
   ) {
     rlang::abort("roles must contain one or more non-empty strings")
   }
+
   if (
     !is.logical(prefer_workspace_endpoints) ||
       length(prefer_workspace_endpoints) != 1L ||
@@ -71,7 +73,8 @@ fabric_workspaces <- function(
 
   # 2 Request visible workspaces -------------------------------------------------------------------
 
-  # Use one shared credential for every page returned by Fabric.
+  # Use one shared credential for every page returned by Fabric
+
   base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -98,7 +101,8 @@ fabric_workspaces <- function(
 
   # 3 Return discovery records ---------------------------------------------------------------------
 
-  # Add a small class while keeping every field returned by Fabric.
+  # Add a small class while keeping every field returned by Fabric
+
   fabric_workspace_list(records)
 }
 
@@ -106,45 +110,45 @@ fabric_workspaces <- function(
 #'
 #' Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
 #' items stored in a workspace. Set `detail = TRUE` when you want records that
-#' can be passed directly to query or connection functions.
+#' can be passed directly to query or connection functions
 #'
 #' @param workspace Workspace name, ID, or record returned by
 #'   [fabric_workspaces()]. A name is convenient for interactive use; a record
-#'   avoids an extra lookup.
+#'   avoids an extra lookup
 #' @param type Optional Fabric API item type, for example `"Lakehouse"`,
 #'   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
-#'   Fabric, so use the API spelling. Leave `NULL` to list all item types.
+#'   Fabric, so use the API spelling. Leave `NULL` to list all item types
 #' @param detail Whether to retrieve connection details as well as names and
 #'   IDs. This takes more requests and may require additional permissions. The
-#'   typed discovery helpers use `TRUE` by default.
-#' @param detail_errors What to do if some connection details cannot be read.
+#'   typed discovery helpers use `TRUE` by default
+#' @param detail_errors What to do if some connection details cannot be read
 #'   `"record"` returns the available information and stores an error message
-#'   with the affected item; `"abort"` stops the call.
+#'   with the affected item; `"abort"` stops the call
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
-#'   `FALSE` lists only items at the workspace root.
+#'   `FALSE` lists only items at the workspace root
 #' @param personal_workspace_tenant_id Optional Microsoft Entra tenant ID used
-#'   to build the XMLA endpoint for a Personal workspace.
+#'   to build the XMLA endpoint for a Personal workspace
 #' @param personal_workspace_owner Optional owner UPN or Entra object ID used
 #'   to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
 #'   workspace API does not return either personal-workspace identifier, so
 #'   supply this together with `personal_workspace_tenant_id` when a
-#'   `dax_connection_string` is needed for a semantic model in My Workspace.
+#'   `dax_connection_string` is needed for a semantic model in My Workspace
 #' @inheritParams fabric_workspaces
 #' @param api_base Fabric REST API base URL. When `workspace` is a record
 #'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
-#'   `api_base` is supplied explicitly.
+#'   `api_base` is supplied explicitly
 #'
 #' @return A list with one item record per match. Every record includes common
 #'   fields such as `id`, `displayName`, `type`, and `workspaceId`. With
 #'   `detail = TRUE`, records also include the connection details needed by the
-#'   matching fabricQueryR functions when Fabric makes them available.
+#'   matching fabricQueryR functions when Fabric makes them available
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
 #' sufficient for the core list operation). Workload enrichment additionally
 #' requires `Item.Read.All`/`Item.ReadWrite.All` or the corresponding
-#' workload-specific read scope and access to the item.
+#' workload-specific read scope and access to the item
 #' Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
-#' require both `personal_workspace_tenant_id` and `personal_workspace_owner`.
+#' require both `personal_workspace_tenant_id` and `personal_workspace_owner`
 #'
 #' @references
 #' [List items REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
@@ -173,7 +177,8 @@ fabric_items <- function(
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
-  # Reject invalid filters before resolving a workspace or making API calls.
+  # Reject invalid filters before resolving a workspace or making API calls
+
   api_base_supplied <- !missing(api_base)
   if (
     !is.null(type) &&
@@ -184,6 +189,7 @@ fabric_items <- function(
   ) {
     rlang::abort("type must be one non-empty string")
   }
+
   if (!is.logical(detail) || length(detail) != 1L || is.na(detail)) {
     rlang::abort("detail must be TRUE or FALSE")
   }
@@ -198,7 +204,8 @@ fabric_items <- function(
 
   # 2 Resolve authentication and workspace ---------------------------------------------------------
 
-  # A discovered workspace record can provide a workspace-specific API base.
+  # A discovered workspace record can provide a workspace-specific API base
+
   base <- fabric_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -217,7 +224,8 @@ fabric_items <- function(
   # 3 List matching items --------------------------------------------------------------------------
 
   # Fabric may return several pages; the shared collection helper follows all
-  # continuation links before enrichment starts.
+  # continuation links before enrichment starts
+
   req <- httr2::request(
     paste0(base, "/workspaces/", ws$id, "/items")
   )
@@ -235,7 +243,8 @@ fabric_items <- function(
   # 4 Add connection details -----------------------------------------------------------------------
 
   # Enrich each record independently so one unavailable detail endpoint does
-  # not discard the other items unless the caller requested strict errors.
+  # not discard the other items unless the caller requested strict errors
+
   records <- lapply(records, function(record) {
     record <- fabric_add_workspace_context(
       record,
@@ -244,6 +253,8 @@ fabric_items <- function(
       personal_workspace_owner
     )
     record <- fabric_add_workspace_endpoints(record, ws)
+
+    # Detailed enrichment can fail per item without losing the base record
     if (isTRUE(detail)) {
       tryCatch(
         fabric_enrich_item(
@@ -265,6 +276,8 @@ fabric_items <- function(
       fabric_add_derived_targets(record, base)
     }
   })
+
+  # Summarize partial enrichment without discarding usable records
   failed <- sum(vapply(
     records,
     function(record) !is.null(record$detail_error),
@@ -283,29 +296,31 @@ fabric_items <- function(
 
   # 5 Return discovery records ---------------------------------------------------------------------
 
+  # Return discovery records in the stable form expected by the caller
+
   fabric_item_list(records)
 }
 
 #' Discover one Microsoft Fabric item
 #'
-#' Finds one item and returns the connection details needed by fabricQueryR.
+#' Finds one item and returns the connection details needed by fabricQueryR
 #' Use this when you know the item's name or ID and do not need to list every
-#' item in the workspace.
+#' item in the workspace
 #'
 #' @param item Item GUID, exact display name, or an item record returned
 #'   by a discovery function. A display name must identify exactly one item of
 #'   the requested `type`; use a GUID or discovered record when names are
-#'   duplicated.
+#'   duplicated
 #' @inheritParams fabric_items
 #'
 #' @return One `fabric_item` record containing the item's name, ID, type,
-#'   workspace, and any connection details that Fabric makes available.
+#'   workspace, and any connection details that Fabric makes available
 #' @details
 #' The caller needs access to the workspace for the core item lookup. This
 #' singular helper always performs workload-specific enrichment as well, which
 #' additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the applicable
 #' workload-specific read scope and access to the item. Use
-#' [fabric_items()] with `detail = FALSE` when only core item metadata is needed.
+#' [fabric_items()] with `detail = FALSE` when only core item metadata is needed
 #' @export
 fabric_item <- function(
   workspace,
@@ -325,7 +340,8 @@ fabric_item <- function(
 ) {
   # 1 Resolve authentication and workspace ---------------------------------------------------------
 
-  # Establish the workspace first because both item lookup routes need its ID.
+  # Establish the workspace first because both item lookup routes need its ID
+
   api_base_supplied <- !missing(api_base)
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
@@ -349,7 +365,8 @@ fabric_item <- function(
   # 2 Find the requested item ----------------------------------------------------------------------
 
   # Reuse a supplied discovery record, look up GUIDs directly, and use a
-  # paged name search only when the caller supplied a display name.
+  # paged name search only when the caller supplied a display name
+
   supplied <- fabric_as_record(item)
   if (!is.null(supplied)) {
     record <- supplied
@@ -359,6 +376,7 @@ fabric_item <- function(
     ) {
       rlang::abort("item must be one non-empty string or a discovered item")
     }
+
     if (fabric_is_guid(item)) {
       record <- .httr2_json(
         httr2::request(
@@ -384,7 +402,8 @@ fabric_item <- function(
 
   # 3 Validate and enrich the result ---------------------------------------------------------------
 
-  # Add workspace context before deriving service-specific connection targets.
+  # Add workspace context before deriving service-specific connection targets
+
   fabric_validate_item_workspace(record, ws$id)
   record <- fabric_add_workspace_context(
     record,
@@ -413,29 +432,29 @@ fabric_item <- function(
 #' These shortcuts find one kind of Fabric item. By default, they also retrieve
 #' the connection details needed by the matching query functions, so their
 #' results can usually be passed straight to the next fabricQueryR call. Set
-#' `detail = FALSE` when you only need names and IDs.
+#' `detail = FALSE` when you only need names and IDs
 #'
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`, and
 #'   `fabric_warehouse_snapshots()` find data stores that can be queried through
 #'   [fabric_sql_query()]; Lakehouses can also be accessed through OneLake and
-#'   Livy.
-#' - `fabric_sql_databases()` finds transactional Fabric SQL databases.
+#'   Livy
+#' - `fabric_sql_databases()` finds transactional Fabric SQL databases
 #' - `fabric_semantic_models()` finds the business models queried with DAX via
-#'   [fabric_pbi_dax_query()].
+#'   [fabric_pbi_dax_query()]
 #' - `fabric_eventhouses()` and `fabric_kql_databases()` find real-time data
-#'   stores queried with [fabric_kql_query()].
+#'   stores queried with [fabric_kql_query()]
 #' - `fabric_notebooks()` finds notebooks that can be run with
-#'   [fabric_job_run()].
+#'   [fabric_job_run()]
 #' - `fabric_graphql_apis()` finds APIs configured in Fabric for use with
-#'   [fabric_graphql_query()].
+#'   [fabric_graphql_query()]
 #'
 #' @inheritParams fabric_items
-#' @param ... Authentication and API arguments forwarded to [fabric_items()].
-#'   Do not supply `type`; each helper sets that value.
+#' @param ... Authentication and API arguments forwarded to [fabric_items()]
+#'   Do not supply `type`; each helper sets that value
 #' @return A list with one `fabric_item` object per matching item. Each object
 #'   contains common item metadata and applicable connection fields. See
-#'   [fabric_items()] for details.
+#'   [fabric_items()] for details
 #' @name fabric_typed_items
 NULL
 
@@ -494,7 +513,7 @@ fabric_graphql_apis <- function(workspace, detail = TRUE, ...) {
 }
 
 # Add workspace-specific API and OneLake endpoints to `record`. Returns the
-# updated item record for the discovery functions.
+# updated item record for the discovery functions
 fabric_add_workspace_endpoints <- function(record, workspace) {
   record$workspaceApiEndpoint <- record$workspaceApiEndpoint %||%
     fabric_record_value(workspace$raw, "apiEndpoint", "api_endpoint")
@@ -509,7 +528,7 @@ fabric_add_workspace_endpoints <- function(record, workspace) {
 }
 
 # Check that optional `value` is one non-empty string. Returns invisibly and is
-# used for personal-workspace identity fields.
+# used for personal-workspace identity fields
 fabric_discovery_optional_string <- function(value, name) {
   if (
     !is.null(value) &&
@@ -523,8 +542,8 @@ fabric_discovery_optional_string <- function(value, name) {
   invisible(value)
 }
 
-# Check the optional personal-workspace `tenant_id` and `owner` as a pair.
-# Returns invisibly for the item discovery entry points.
+# Check the optional personal-workspace `tenant_id` and `owner` as a pair
+# Returns invisibly for the item discovery entry points
 fabric_validate_personal_workspace_identity <- function(tenant_id, owner) {
   fabric_discovery_optional_string(
     tenant_id,
@@ -540,8 +559,8 @@ fabric_validate_personal_workspace_identity <- function(tenant_id, owner) {
   invisible(TRUE)
 }
 
-# Add workspace IDs, names, and personal-workspace identity to `record`.
-# Returns the updated item record before endpoint enrichment.
+# Add workspace IDs, names, and personal-workspace identity to `record`
+# Returns the updated item record before endpoint enrichment
 fabric_add_workspace_context <- function(
   record,
   workspace,
@@ -575,13 +594,14 @@ fabric_add_workspace_context <- function(
 }
 
 # Check that `item` belongs to `workspace_id`. Returns invisibly and prevents a
-# supplied discovery record from being used with the wrong workspace.
+# supplied discovery record from being used with the wrong workspace
 fabric_validate_item_workspace <- function(item, workspace_id) {
   item_workspace <- fabric_record_value(
     item,
     "workspaceId",
     "workspace_id"
   )
+
   if (
     !is.null(item_workspace) &&
       !identical(
@@ -597,11 +617,12 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
 }
 
 # Normalize and validate `api_base`. Returns a trusted Fabric v1 base URL used
-# by all discovery requests.
+# by all discovery requests
 fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
   # 1 Parse the endpoint ---------------------------------------------------------------------------
 
-  # Only a complete HTTPS URL can safely receive an access token.
+  # Only a complete HTTPS URL can safely receive an access token
+
   if (
     !is.logical(allow_custom_endpoint) ||
       length(allow_custom_endpoint) != 1L ||
@@ -609,6 +630,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
   ) {
     rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
   }
+
   if (
     !is.character(api_base) ||
       length(api_base) != 1L ||
@@ -617,6 +639,8 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
   ) {
     rlang::abort("api_base must be one non-empty string")
   }
+
+  # Parse the URL once, then inspect every part of its origin
   endpoint <- sub("/+$", "", trimws(api_base))
   parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
   path <- if (inherits(parsed, "try-error")) "" else parsed$path %||% ""
@@ -635,6 +659,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     path %in% c("", "/v1") &&
     length(parsed$query %||% list()) == 0L &&
     !nzchar(parsed$fragment %||% "")
+
   if (!clean_origin) {
     rlang::abort(
       paste0(
@@ -644,6 +669,8 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
       class = "fabric_api_endpoint_error"
     )
   }
+
+  # Custom hosts require an explicit trust decision from the caller
   if (
     !fabric_host_matches(host, "api.fabric.microsoft.com") &&
       !isTRUE(allow_custom_endpoint)
@@ -660,11 +687,13 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
 
   # 2 Normalize the API version --------------------------------------------------------------------
 
+  # Normalize the API version so later branches do not repeat the same conversion
+
   if (identical(tolower(path), "/v1")) endpoint else paste0(endpoint, "/v1")
 }
 
 # Test whether `value` is one GUID string. Returns a logical value used to
-# choose direct-ID lookups instead of name searches.
+# choose direct-ID lookups instead of name searches
 fabric_is_guid <- function(value) {
   grepl(
     "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -674,16 +703,18 @@ fabric_is_guid <- function(value) {
 }
 
 # Convert a discovered object or plain named list into a record. Returns `NULL`
-# for ordinary text inputs so public functions can follow their text path.
+# for ordinary text inputs so public functions can follow their text path
 fabric_as_record <- function(value) {
   if (inherits(value, "data.frame")) {
     if (nrow(value) != 1L) {
       rlang::abort("A discovered object must contain exactly one row")
     }
+
     return(lapply(value, function(column) {
       if (is.list(column)) column[[1L]] else column[[1L]]
     }))
   }
+
   if (is.list(value) && !is.null(value$id)) {
     return(value)
   }
@@ -691,7 +722,7 @@ fabric_as_record <- function(value) {
 }
 
 # Read the first present field named in `...` from `record`. Returns that value
-# or `NULL`, allowing helpers to accept API and R-style field names.
+# or `NULL`, allowing helpers to accept API and R-style field names
 fabric_record_value <- function(record, ...) {
   keys <- c(...)
   for (key in keys) {
@@ -699,6 +730,7 @@ fabric_record_value <- function(record, ...) {
     if (is.list(value) && length(value) == 1L && is.atomic(value[[1L]])) {
       value <- value[[1L]]
     }
+
     if (!is.null(value) && length(value) == 1L && !is.na(value)) {
       return(value)
     }
@@ -714,7 +746,7 @@ fabric_record_value <- function(record, ...) {
 }
 
 # Choose a trusted workspace API endpoint from `record`, falling back to the
-# caller's base URL. Returns a normalized v1 URL for workspace requests.
+# caller's base URL. Returns a normalized v1 URL for workspace requests
 fabric_workspace_api_base <- function(record, fallback) {
   endpoint <- fabric_record_value(
     record,
@@ -722,6 +754,7 @@ fabric_workspace_api_base <- function(record, fallback) {
     "api_endpoint",
     "workspaceApiEndpoint"
   )
+
   if (is.null(endpoint)) {
     return(fallback)
   }
@@ -734,6 +767,7 @@ fabric_workspace_api_base <- function(record, fallback) {
   } else {
     tolower(parsed$hostname %||% "")
   }
+
   if (
     inherits(parsed, "try-error") ||
       !identical(tolower(parsed$scheme %||% ""), "https") ||
@@ -752,11 +786,12 @@ fabric_workspace_api_base <- function(record, fallback) {
       )
     )
   }
+
   if (identical(tolower(path), "/v1")) endpoint else paste0(endpoint, "/v1")
 }
 
 # Check whether `hostname` equals or is below `suffix`. Returns one logical
-# value used by endpoint trust checks throughout the package.
+# value used by endpoint trust checks throughout the package
 fabric_host_matches <- function(hostname, suffix) {
   hostname <- tolower(hostname %||% "")
   suffix <- tolower(suffix)
@@ -764,7 +799,7 @@ fabric_host_matches <- function(hostname, suffix) {
 }
 
 # Resolve a workspace record, GUID, or exact name. Returns a normalized
-# workspace context used by item discovery and job operations.
+# workspace context used by item discovery and job operations
 fabric_resolve_workspace <- function(
   workspace,
   credential,
@@ -773,7 +808,8 @@ fabric_resolve_workspace <- function(
 ) {
   # 1 Reuse a supplied record ----------------------------------------------------------------------
 
-  # A discovered record may already contain a workspace-specific API endpoint.
+  # A discovered record may already contain a workspace-specific API endpoint
+
   supplied <- fabric_as_record(workspace)
   if (!is.null(supplied)) {
     return(list(
@@ -792,7 +828,8 @@ fabric_resolve_workspace <- function(
 
   # 2 Resolve text input ---------------------------------------------------------------------------
 
-  # GUIDs can be used directly; display names require a paged workspace list.
+  # GUIDs can be used directly; display names require a paged workspace list
+
   if (
     !is.character(workspace) ||
       length(workspace) != 1L ||
@@ -803,6 +840,7 @@ fabric_resolve_workspace <- function(
       "workspace must be one non-empty string or a discovered workspace"
     )
   }
+
   if (fabric_is_guid(workspace)) {
     record <- .httr2_json(
       httr2::request(paste0(api_base, "/workspaces/", workspace)),
@@ -821,6 +859,8 @@ fabric_resolve_workspace <- function(
 
   # 3 Build workspace context ----------------------------------------------------------------------
 
+  # Build workspace context from the validated values required by the next step
+
   list(
     id = record$id,
     displayName = record$displayName,
@@ -834,7 +874,7 @@ fabric_resolve_workspace <- function(
 }
 
 # Find exactly one record in `records` with display name `name`. Returns that
-# record or explains missing/duplicate names to discovery callers.
+# record or explains missing/duplicate names to discovery callers
 fabric_unique_name <- function(records, name, kind) {
   names <- vapply(
     records,
@@ -845,11 +885,13 @@ fabric_unique_name <- function(records, name, kind) {
   if (!length(matches)) {
     matches <- which(tolower(names) == tolower(name))
   }
+
   if (!length(matches)) {
     rlang::abort(
       sprintf("%s '%s' was not found", tools::toTitleCase(kind), name)
     )
   }
+
   if (length(matches) > 1L) {
     rlang::abort(
       sprintf(
@@ -864,7 +906,7 @@ fabric_unique_name <- function(records, name, kind) {
 }
 
 # Map a Fabric item `type` to its workload detail route. Returns the route name
-# or `NULL` when that item type has no supported detail endpoint.
+# or `NULL` when that item type has no supported detail endpoint
 fabric_item_route <- function(type) {
   routes <- c(
     lakehouse = "lakehouses",
@@ -885,16 +927,22 @@ fabric_item_route <- function(type) {
 }
 
 # Fetch workload details for `record` and derive its query targets. Returns an
-# enriched discovery record used by `fabric_item()` and `fabric_items()`.
+# enriched discovery record used by `fabric_item()` and `fabric_items()`
 fabric_enrich_item <- function(
   record,
   credential,
   api_base,
   private_sql_errors = c("abort", "record")
 ) {
+  # 1 Fetch workload details -----------------------------------------------------------------------
+
+  # Enrich supported item types with their workload-specific API record
+
   private_sql_errors <- match.arg(private_sql_errors)
   route <- fabric_item_route(record$type %||% "")
+
   if (!is.null(route)) {
+    # Workload detail endpoints add fields missing from the collection result
     detail <- .httr2_json(
       httr2::request(
         paste0(
@@ -911,9 +959,13 @@ fabric_enrich_item <- function(
       credential = credential,
       audience = .fabric_audience$fabric
     )
+
+    # Preserve workspace context when service details replace record fields
     workspace_name <- record$workspaceDisplayName
     record <- utils::modifyList(record, detail)
     record$workspaceDisplayName <- workspace_name
+
+    # Private SQL lookup may be recorded per item instead of stopping the list
     record <- tryCatch(
       fabric_enrich_private_sql_target(record, credential, api_base),
       error = function(error) {
@@ -927,15 +979,21 @@ fabric_enrich_item <- function(
       }
     )
   }
+
+  # 2 Add derived targets --------------------------------------------------------------------------
+
+  # Finish with the connection fields shared by all discovery workflows
+
   fabric_add_derived_targets(record, api_base)
 }
 
 # Read private-link SQL details for `record`. Returns the record with a private
-# endpoint when a workspace-specific API base requires one.
+# endpoint when a workspace-specific API base requires one
 fabric_enrich_private_sql_target <- function(record, credential, api_base) {
   # 1 Check whether private details are needed -----------------------------------------------------
 
-  # Public API origins already return their normal SQL connection details.
+  # Public API origins already return their normal SQL connection details
+
   parsed <- try(httr2::url_parse(api_base), silent = TRUE)
   host <- if (inherits(parsed, "try-error")) {
     ""
@@ -961,11 +1019,14 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
     route <- "sqlEndpoints"
     item_id <- record$properties$sqlEndpointProperties$id
   }
+
   if (is.null(route) || is.null(item_id)) {
     return(record)
   }
 
   # 2 Request the private SQL endpoint -------------------------------------------------------------
+
+  # Request the private SQL endpoint only when the workspace route requires it
 
   req <- httr2::request(paste0(
     api_base,
@@ -998,6 +1059,8 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
 
   # 3 Add the private connection target ------------------------------------------------------------
 
+  # Add the private connection target while the source context is still available
+
   if (identical(type, "warehouse")) {
     record$properties$connectionString <- connection_string
   } else {
@@ -1007,19 +1070,23 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
   record
 }
 
-# Derive convenient SQL, DAX, KQL, GraphQL, and OneLake targets from `record`.
-# Returns the record used directly by the package's query functions.
+# Derive convenient SQL, DAX, KQL, GraphQL, and OneLake targets from `record`
+# Returns the record used directly by the package's query functions
 fabric_add_derived_targets <- function(record, api_base) {
   # 1 Add shared item context ----------------------------------------------------------------------
 
-  # Keep the API properties intact while adding stable, R-friendly field names.
+  # Keep the API properties intact while adding stable, R-friendly field names
+
   properties <- record$properties %||% list()
   type <- tolower(record$type %||% "")
   record$properties <- properties
 
   # 2 Add workload-specific targets ----------------------------------------------------------------
 
+  # Add workload-specific targets while the source context is still available
+
   if (type == "lakehouse") {
+    # Lakehouses expose OneLake paths, a SQL endpoint, and a Livy endpoint
     sql <- properties$sqlEndpointProperties %||% list()
     record$default_schema <- properties$defaultSchema
     record$one_lake_tables_path <- properties$oneLakeTablesPath
@@ -1037,20 +1104,25 @@ fabric_add_derived_targets <- function(record, api_base) {
       "/livyapi/versions/2023-12-01/sessions"
     )
   } else if (type %in% c("warehouse", "warehousesnapshot")) {
+    # Warehouses use their display name as the SQL database
     record$sql_server <- properties$connectionString
     record$sql_database <- record$displayName
   } else if (type == "sqldatabase") {
+    # SQL databases publish server and database names separately
     record$sql_connection_string <- properties$connectionString
     record$sql_server <- properties$serverFqdn
     record$sql_database <- properties$databaseName
   } else if (type == "semanticmodel") {
+    # Semantic models need an XMLA-style server plus the model catalog name
     workspace_name <- record$workspaceDisplayName
     if (!is.null(workspace_name) && !is.na(workspace_name)) {
       workspace_type <- tolower(record$workspaceType %||% "")
       personal <- workspace_type %in% c("personal", "personalgroup")
+
       server <- if (personal) {
         tenant_id <- record$workspaceTenantId
         owner <- record$workspaceOwner
+
         if (is.null(tenant_id) || is.null(owner)) {
           NULL
         } else {
@@ -1067,6 +1139,7 @@ fabric_add_derived_targets <- function(record, api_base) {
           utils::URLencode(workspace_name, reserved = TRUE)
         )
       }
+
       if (!is.null(server)) {
         record$dax_connection_string <- paste0(
           "Data Source=",
@@ -1078,9 +1151,11 @@ fabric_add_derived_targets <- function(record, api_base) {
       }
     }
   } else if (type %in% c("eventhouse", "kqldatabase")) {
+    # KQL workloads publish query and ingestion endpoints
     record$query_service_uri <- properties$queryServiceUri
     record$ingestion_service_uri <- properties$ingestionServiceUri
   } else if (type == "graphqlapi") {
+    # GraphQL items use the standard Fabric API route
     record$graphql_endpoint <- paste0(
       api_base,
       "/workspaces/",
@@ -1093,11 +1168,13 @@ fabric_add_derived_targets <- function(record, api_base) {
 
   # 3 Return the enriched record -------------------------------------------------------------------
 
+  # Return the enriched record in the stable form expected by the caller
+
   record
 }
 
 # Give each workspace API record its package class. Returns a list used by
-# `fabric_workspaces()` while preserving all original fields.
+# `fabric_workspaces()` while preserving all original fields
 fabric_workspace_list <- function(records) {
   lapply(records, function(record) {
     structure(record, class = c("fabric_workspace", "list"))
@@ -1105,7 +1182,7 @@ fabric_workspace_list <- function(records) {
 }
 
 # Give each item API record its package class. Returns a list used by all item
-# discovery entry points while preserving all original fields.
+# discovery entry points while preserving all original fields
 fabric_item_list <- function(records) {
   lapply(records, function(record) {
     structure(record, class = c("fabric_item", "list"))

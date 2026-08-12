@@ -4,29 +4,29 @@
 \alias{FabricLivyStatement}
 \title{A statement submitted to a Fabric Livy session}
 \format{
-An \link[R6:R6Class]{R6::R6Class} generator.
+An \link[R6:R6Class]{R6::R6Class} generator
 }
 \description{
 Represents one piece of code submitted to a \link{FabricLivySession}. Call
 \verb{$wait()} and then \verb{$result()} to retrieve its output. For the usual
-submit-and-wait workflow, use the session's \verb{$run()} method instead.
+submit-and-wait workflow, use the session's \verb{$run()} method instead
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
-    \item{\code{id}}{Numeric Livy statement ID.}
+    \item{\code{id}}{Numeric Livy statement ID}
 
-    \item{\code{url}}{Statement lifecycle URL.}
+    \item{\code{url}}{Statement lifecycle URL}
 
-    \item{\code{state}}{Latest statement state.}
+    \item{\code{state}}{Latest statement state}
 
-    \item{\code{response}}{Latest raw service response.}
+    \item{\code{response}}{Latest raw service response}
 
-    \item{\code{started_local}}{Local submission timestamp.}
+    \item{\code{started_local}}{Local submission timestamp}
 
-    \item{\code{completed_local}}{Local completion timestamp.}
+    \item{\code{completed_local}}{Local completion timestamp}
 
-    \item{\code{verbose}}{Whether lifecycle messages are enabled.}
+    \item{\code{verbose}}{Whether lifecycle messages are enabled}
   }
   \if{html}{\out{</div>}}
 }
@@ -46,7 +46,7 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
 \if{latex}{\out{\hypertarget{method-FabricLivyStatement-initialize}{}}}
 \subsection{\code{FabricLivyStatement$new()}}{
   Internal constructor used by
-\code{FabricLivySession$submit()}.
+\code{FabricLivySession$submit()}
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyStatement$new(session, response, url, credential, verbose = TRUE)}
@@ -55,16 +55,16 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{session}}{Parent \link{FabricLivySession}.}
-      \item{\code{response}}{Initial statement response.}
-      \item{\code{url}}{Statement lifecycle URL.}
-      \item{\code{credential}}{Internal authentication credential.}
-      \item{\code{verbose}}{Whether to emit lifecycle messages.}
+      \item{\code{session}}{Parent \link{FabricLivySession}}
+      \item{\code{response}}{Initial statement response}
+      \item{\code{url}}{Statement lifecycle URL}
+      \item{\code{credential}}{Internal authentication credential}
+      \item{\code{verbose}}{Whether to emit lifecycle messages}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A new statement object.
+    A new statement object
   }
 }
 
@@ -72,7 +72,7 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
 \if{html}{\out{<a id="method-FabricLivyStatement-print"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyStatement-print}{}}}
 \subsection{\code{FabricLivyStatement$print()}}{
-  Print a concise statement summary.
+  Print a concise statement summary
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyStatement$print(...)}
@@ -81,12 +81,12 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{...}}{Unused.}
+      \item{\code{...}}{Unused}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -94,7 +94,7 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
 \if{html}{\out{<a id="method-FabricLivyStatement-status"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyStatement-status}{}}}
 \subsection{\code{FabricLivyStatement$status()}}{
-  Retrieve statement state and available output.
+  Retrieve statement state and available output
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyStatement$status(refresh = TRUE, deadline = NULL)}
@@ -103,13 +103,13 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
-      \item{\code{deadline}}{Internal wall-clock deadline for the status request.}
+      \item{\code{refresh}}{Whether to retrieve current state from Fabric}
+      \item{\code{deadline}}{Internal wall-clock deadline for the status request}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The raw statement response list.
+    The raw statement response list
   }
 }
 
@@ -117,7 +117,7 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
 \if{html}{\out{<a id="method-FabricLivyStatement-wait"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyStatement-wait}{}}}
 \subsection{\code{FabricLivyStatement$wait()}}{
-  Wait for the statement to reach a terminal state.
+  Wait for the statement to reach a terminal state
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyStatement$wait(
@@ -130,14 +130,14 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{timeout}}{Maximum wait in seconds.}
-      \item{\code{poll_interval}}{Polling interval in seconds.}
-      \item{\code{error_on_failure}}{Raise a structured error for failed statements.}
+      \item{\code{timeout}}{Maximum wait in seconds}
+      \item{\code{poll_interval}}{Polling interval in seconds}
+      \item{\code{error_on_failure}}{Raise a structured error for failed statements}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -145,7 +145,7 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
 \if{html}{\out{<a id="method-FabricLivyStatement-result"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyStatement-result}{}}}
 \subsection{\code{FabricLivyStatement$result()}}{
-  Return parsed output and timing metadata.
+  Return parsed output and timing metadata
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyStatement$result(refresh = TRUE, error_on_failure = TRUE)}
@@ -154,13 +154,13 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
-      \item{\code{error_on_failure}}{Raise a structured error for failed statements.}
+      \item{\code{refresh}}{Whether to retrieve current state from Fabric}
+      \item{\code{error_on_failure}}{Raise a structured error for failed statements}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A \code{fabric_livy_statement_result} list.
+    A \code{fabric_livy_statement_result} list
   }
 }
 
@@ -168,14 +168,14 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead.
 \if{html}{\out{<a id="method-FabricLivyStatement-cancel"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivyStatement-cancel}{}}}
 \subsection{\code{FabricLivyStatement$cancel()}}{
-  Request cancellation of this statement.
+  Request cancellation of this statement
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivyStatement$cancel()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The raw cancellation response, invisibly.
+    The raw cancellation response, invisibly
   }
 }
 

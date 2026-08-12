@@ -37,93 +37,93 @@ fabric_livy_session(
 }
 \arguments{
 \item{livy_url}{A copied session or batch connection URL, Livy API base URL,
-or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}.
+or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}
 Copy the session-job URL from \strong{Lakehouse settings > Livy endpoint}, or
-use a discovered record to avoid handling IDs manually.}
+use a discovered record to avoid handling IDs manually}
 
 \item{high_concurrency}{Whether to let Fabric share Spark compute between
 several isolated workloads. Keep \code{FALSE} for a typical sequence of calls in
-one R process. This Fabric capability is currently in preview.}
+one R process. This Fabric capability is currently in preview}
 
 \item{session_tag}{Optional high-concurrency packing hint. Related requests
 with the same tag may share an underlying Livy session while keeping
-separate REPL state. Each call still returns a distinct HC session.}
+separate REPL state. Each call still returns a distinct HC session}
 
-\item{name}{Optional readable session name shown in service metadata.}
+\item{name}{Optional readable session name shown in service metadata}
 
-\item{tags}{Optional named list of string labels for monitoring.}
+\item{tags}{Optional named list of string labels for monitoring}
 
 \item{conf}{Optional named list of Spark settings. Prefer a published Fabric
-Environment for configuration shared by several jobs.}
+Environment for configuration shared by several jobs}
 
 \item{environment_id}{Optional GUID of a published Fabric Environment whose
-libraries and Spark settings should be used.}
+libraries and Spark settings should be used}
 
 \item{archives}{Optional character vector of archive URIs made available to
-Spark.}
+Spark}
 
 \item{driver_memory, executor_memory}{Optional Spark memory values such as
-\code{"4g"}. Leave \code{NULL} to use Fabric defaults.}
+\code{"4g"}. Leave \code{NULL} to use Fabric defaults}
 
 \item{driver_cores, executor_cores, num_executors}{Optional Spark resource
 counts. Larger values consume more capacity; leave \code{NULL} unless the
-workload has been sized deliberately.}
+workload has been sized deliberately}
 
 \item{artifact_name}{Optional Lakehouse/artifact label used for a
-high-concurrency job in the Fabric Monitoring hub.}
+high-concurrency job in the Fabric Monitoring hub}
 
-\item{file}{Optional application file URI for a high-concurrency request.}
+\item{file}{Optional application file URI for a high-concurrency request}
 
-\item{class_name}{Optional Java/Scala main class for \code{file}.}
+\item{class_name}{Optional Java/Scala main class for \code{file}}
 
-\item{args}{Optional character vector of application arguments.}
+\item{args}{Optional character vector of application arguments}
 
 \item{jars, files, py_files}{Optional character vectors of dependency URIs
-supplied to Spark.}
+supplied to Spark}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{audience}{Optional sign-in scope. Most users should leave this \code{NULL};
-set it only for a custom token provider or identity flow.}
+set it only for a custom token provider or identity flow}
 
-\item{verbose}{Logical. Show session lifecycle messages.}
+\item{verbose}{Logical. Show session lifecycle messages}
 
 \item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
 Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
-as a test emulator; the Fabric bearer token is sent to this endpoint.}
+as a test emulator; the Fabric bearer token is sent to this endpoint}
 }
 \value{
 A newly created \link{FabricLivySession}. It may still be starting; call
-\verb{$wait()} before \verb{$submit()}/\verb{$run()}, and \verb{$close()} when finished.
+\verb{$wait()} before \verb{$submit()}/\verb{$run()}, and \verb{$close()} when finished
 }
 \description{
 Starts Spark compute that can run several statements while keeping variables
 and Spark state between calls. Use \code{\link[=fabric_livy_query]{fabric_livy_query()}} instead for a single,
-self-contained operation.
+self-contained operation
 }
 \section{Choosing a session type}{
 
 Use a standard session for a typical sequence in one R process. High
 concurrency is for applications that run several independent Spark workloads
-at the same time; it is not needed for several sequential statements.
+at the same time; it is not needed for several sequential statements
 }
 
 \section{Cleanup and permissions}{
 
 No network request is made when an open object is garbage collected. Call
-\verb{$close()} explicitly, and use \code{on.exit(session$close())} inside functions.
+\verb{$close()} explicitly, and use \code{on.exit(session$close())} inside functions
 The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role.
+code to access Fabric and storage, and an appropriate workspace role
 }
 
 \examples{

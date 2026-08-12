@@ -23,7 +23,7 @@
 )
 
 # Perform authenticated `req` with bounded service-aware retries. Returns an
-# httr2 response or raises the final safe, typed error for all service helpers.
+# httr2 response or raises the final safe, typed error for all service helpers
 .httr2_perform <- function(
   req,
   credential = NULL,
@@ -41,11 +41,13 @@
 ) {
   # 1 Validate retry settings ----------------------------------------------------------------------
 
-  # Reject impossible limits before requesting a token or touching the network.
+  # Reject impossible limits before requesting a token or touching the network
+
   max_tries <- as.integer(max_tries)
   if (is.na(max_tries) || max_tries < 1L) {
     rlang::abort("max_tries must be at least 1")
   }
+
   if (
     !is.null(request_timeout) &&
       (length(request_timeout) != 1L ||
@@ -56,6 +58,7 @@
   ) {
     rlang::abort("request_timeout must be NULL or one positive number")
   }
+
   if (
     length(max_retry_delay) != 1L ||
       is.na(max_retry_delay) ||
@@ -65,6 +68,7 @@
   ) {
     rlang::abort("max_retry_delay must be one non-negative number")
   }
+
   if (
     !is.null(deadline) &&
       (!inherits(deadline, "POSIXt") ||
@@ -75,6 +79,8 @@
   }
 
   # 2 Prepare retry state --------------------------------------------------------------------------
+
+  # Prepare retry state once for reuse in the remaining work
 
   can_retry <- if (is.null(idempotent)) {
     method <- toupper(req$method %||% "GET")
@@ -89,13 +95,16 @@
   # 3 Perform request attempts ---------------------------------------------------------------------
 
   # Rebuild authentication and timeout settings for every attempt so refreshed
-  # tokens and shrinking deadlines take effect.
+  # tokens and shrinking deadlines take effect
+
   for (attempt in seq_len(max_tries)) {
+    # Stop before starting work that cannot finish inside the caller's deadline
     remaining <- if (is.null(deadline)) {
       Inf
     } else {
       as.numeric(difftime(deadline, .now(), units = "secs"))
     }
+
     if (remaining <= 0) {
       rlang::abort(
         "The HTTP request deadline was exhausted",
@@ -103,8 +112,11 @@
         parent = last_failure
       )
     }
+
     retry_after <- NULL
     attempt_req <- req
+
+    # Read a fresh token when authentication is managed by a credential
     if (!is.null(credential)) {
       token <- fabric_get_token(
         credential,
@@ -117,11 +129,14 @@
       )
       force_refresh <- FALSE
     }
+
+    # Authentication may take time, so calculate the usable timeout again
     remaining <- if (is.null(deadline)) {
       Inf
     } else {
       as.numeric(difftime(deadline, .now(), units = "secs"))
     }
+
     if (remaining <= 0) {
       rlang::abort(
         "The HTTP request deadline was exhausted",
@@ -129,18 +144,23 @@
         parent = last_failure
       )
     }
+
     timeout_limits <- c(request_timeout, remaining)
     if (!is.null(req$options$timeout_ms)) {
       timeout_limits <- c(timeout_limits, req$options$timeout_ms / 1000)
     }
+
     timeout_limits <- timeout_limits[is.finite(timeout_limits)]
     if (length(timeout_limits)) {
       attempt_req <- httr2::req_timeout(attempt_req, min(timeout_limits))
     }
+
+    # Keep HTTP error responses available so retry policy can inspect them
     attempt_req <- httr2::req_error(
       attempt_req,
       is_error = function(resp) FALSE
     )
+
     response <- tryCatch(
       if (is.null(download_path)) {
         httr2::req_perform(attempt_req)
@@ -149,6 +169,8 @@
       },
       error = function(error) error
     )
+
+    # Network errors and HTTP errors use different retry decisions
     if (inherits(response, "error")) {
       last_failure <- response
       if (!can_retry || attempt == max_tries) {
@@ -159,6 +181,8 @@
       if (status < 400L || status %in% accepted_status) {
         return(response)
       }
+
+      # A refreshable credential gets one chance to replace a rejected token
       if (
         status == 401L &&
           !is.null(credential) &&
@@ -170,17 +194,20 @@
         force_refresh <- TRUE
         next
       }
+
       transient <- status %in% c(408L, 429L, 500L, 502L, 503L, 504L)
       if (!can_retry || !transient || attempt == max_tries) {
         .httr2_stop_http(response)
       }
+
       retry_after <- .httr2_retry_after(response, now = .now())
     }
 
     ## 3.1 Choose a retry delay --------------------------------------------------------------------
 
     # Prefer the service's Retry-After value; otherwise use bounded exponential
-    # backoff with jitter to avoid synchronized retries.
+    # backoff with jitter to avoid synchronized retries
+
     delay <- if (!is.null(retry_after)) {
       retry_after
     } else {
@@ -189,6 +216,7 @@
         min(30, 0.5 * (2^(attempt - 1L))) * .runif(1L, 0.5, 1.5)
       )
     }
+
     if (!is.null(deadline)) {
       remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
       if (remaining <= 0) {
@@ -198,6 +226,7 @@
           parent = last_failure
         )
       }
+
       if (!is.null(retry_after) && retry_after > remaining) {
         rlang::abort(
           paste0(
@@ -210,6 +239,7 @@
         )
       }
     }
+
     if (!is.null(retry_after) && retry_after > max_retry_delay) {
       rlang::abort(
         sprintf(
@@ -226,13 +256,15 @@
 
     ## 3.2 Wait before retrying --------------------------------------------------------------------
 
+    # Pause for the chosen delay before building the next request attempt
+
     .sleep(delay)
   }
   rlang::cnd_signal(last_failure)
 }
 
-# Perform `req` with shared authentication/retry behavior and decode JSON.
-# Returns an R object for service helpers that expect a response body.
+# Perform `req` with shared authentication/retry behavior and decode JSON
+# Returns an R object for service helpers that expect a response body
 .httr2_json <- function(
   req,
   simplifyVector = TRUE,
@@ -257,7 +289,7 @@
 }
 
 # Read a complete REST collection from `url`. Returns all values after following
-# next links, continuation tokens, or supported offset pagination.
+# next links, continuation tokens, or supported offset pagination
 .httr2_collection <- function(
   url,
   credential,
@@ -269,6 +301,8 @@
 ) {
   # 1 Prepare pagination state ---------------------------------------------------------------------
 
+  # Prepare pagination state once for reuse in the remaining work
+
   values <- list()
   next_url <- url
   continuation_token <- NULL
@@ -278,7 +312,8 @@
 
   # 2 Read pages -----------------------------------------------------------------------------------
 
-  # Build each next request from trusted state and stop on a repeated URL.
+  # Build each next request from trusted state and stop on a repeated URL
+
   repeat {
     req <- httr2::request(next_url)
     if (!is.null(continuation_token)) {
@@ -325,6 +360,7 @@
       offset_pagination <- FALSE
       next
     }
+
     if (
       isTRUE(offset_pagination) &&
         length(page_values) == as.integer(page_size)
@@ -337,18 +373,20 @@
 
   # 3 Return collected values ----------------------------------------------------------------------
 
+  # Return collected values in the stable form expected by the caller
+
   values
 }
 
 # Check whether `name` identifies a secret field. Returns one logical value used
-# while redacting headers and structured response bodies.
+# while redacting headers and structured response bodies
 .httr2_is_secret_field <- function(name) {
   normalized <- gsub("[^[:alnum:]]", "", tolower(name))
   normalized %in% .httr2_secret_fields
 }
 
 # Remove bearer tokens and named secrets from `text`. Returns safe text for
-# errors, logs, and metadata exposed by shared HTTP helpers.
+# errors, logs, and metadata exposed by shared HTTP helpers
 .httr2_redact <- function(text) {
   text <- gsub(
     "(?i)(bearer\\s+)[A-Za-z0-9._~+/-]+",
@@ -371,9 +409,9 @@
 }
 
 # Read a bounded, redacted body preview from `resp`. Returns text included in a
-# helpful HTTP error without exposing credentials or unlimited response data.
+# helpful HTTP error without exposing credentials or unlimited response data
 .httr2_body_preview <- function(resp, max_chars = 8000L) {
-  # Read the response as text without raising; returns empty text on failure.
+  # Read the response as text without raising; returns empty text on failure
   safe_string <- function() {
     out <- try(httr2::resp_body_string(resp), silent = TRUE)
     if (inherits(out, "try-error") || is.null(out) || is.na(out)) "" else out
@@ -396,6 +434,7 @@
       },
       silent = TRUE
     )
+
     if (inherits(out, "try-error")) safe_string() else out
   } else {
     safe_string()
@@ -412,12 +451,13 @@
 }
 
 # Compose a helpful error from `resp` with safe endpoint, status, request IDs,
-# headers, and body. This function raises a typed condition and does not return.
+# headers, and body. This function raises a typed condition and does not return
 .httr2_stop_http <- function(resp, prefix = "HTTP request failed") {
   # 1 Read response context ------------------------------------------------------------------------
 
   # Collect identifiers and body content before building the condition, while
-  # redacting both plain text and structured data.
+  # redacting both plain text and structured data
+
   status <- httr2::resp_status(resp)
   reason <- httr2::resp_status_desc(resp)
   rid <- httr2::resp_header(resp, "x-ms-request-id") %||%
@@ -426,6 +466,8 @@
     httr2::resp_header(resp, "activity-id")
   endpoint <- .httr2_redact(resp$url %||% resp$request$url)
   body <- .httr2_body_preview(resp)
+
+  # Decode structured errors when possible but keep text-only responses valid
   payload <- try(
     httr2::resp_body_json(
       resp,
@@ -434,6 +476,7 @@
     ),
     silent = TRUE
   )
+
   if (inherits(payload, "try-error") || !is.list(payload)) {
     payload <- NULL
   }
@@ -442,12 +485,16 @@
   } else {
     .httr2_redact_object(payload)
   }
+
+  # Fabric may place error details at the top level or inside `error`
   nested_error <- if (is.list(payload$error)) payload$error else list()
   error_code <- payload$errorCode %||% nested_error$code %||% NULL
   is_retriable <- payload$isRetriable %||%
     nested_error$isRetriable %||%
     NULL
   rid <- rid %||% payload$requestId %||% nested_error$requestId %||% NULL
+
+  # Redact sensitive response headers before attaching them to the condition
   headers <- httr2::resp_headers(resp)
   redacted_headers <- lapply(names(headers), function(name) {
     if (.httr2_is_secret_field(name)) {
@@ -459,6 +506,8 @@
   names(redacted_headers) <- tolower(names(headers))
 
   # 2 Build a safe error message -------------------------------------------------------------------
+
+  # Build a safe error message from the validated values required by the next step
 
   hdr <- paste0(prefix, ": HTTP ", status, " ", reason, ".")
   mid <- paste(
@@ -475,6 +524,8 @@
   )
 
   # 3 Raise the typed HTTP condition ---------------------------------------------------------------
+
+  # Turn the final state into clear output for the caller
 
   rlang::abort(
     msg,
@@ -497,7 +548,7 @@
 }
 
 # Parse the Retry-After header in `resp` as seconds from `now`. Returns a
-# non-negative number or `NULL` when the header is absent or invalid.
+# non-negative number or `NULL` when the header is absent or invalid
 .httr2_retry_after <- function(resp, now = Sys.time()) {
   value <- httr2::resp_header(resp, "retry-after")
   if (is.null(value) || !nzchar(value)) {
@@ -526,7 +577,7 @@
 }
 
 # Recursively redact secret-named fields in structured `value`. Returns a safe
-# object suitable for response metadata attached to errors.
+# object suitable for response metadata attached to errors
 .httr2_redact_object <- function(value) {
   if (!is.list(value)) {
     return(value)
@@ -547,12 +598,12 @@
 }
 
 # Resolve `next_link` relative to `current_url` and enforce `origin_url`'s
-# origin. Returns a safe continuation URL used by collection readers.
+# origin. Returns a safe continuation URL used by collection readers
 .httr2_continuation_url <- function(origin_url, current_url, next_link) {
   candidate <- httr2::url_modify_relative(current_url, next_link)
   origin <- httr2::url_parse(origin_url)
   next_url <- httr2::url_parse(candidate)
-  # Return explicit or scheme-default port text for same-origin comparison.
+  # Return explicit or scheme-default port text for same-origin comparison
   normalized_port <- function(parsed) {
     as.character(
       parsed$port %||%
@@ -582,7 +633,7 @@
 }
 
 # Check page count and repeated URLs before a paged request. Returns updated
-# `seen_urls` so malformed pagination cannot loop forever.
+# `seen_urls` so malformed pagination cannot loop forever
 .httr2_pagination_guard <- function(
   url,
   seen_urls,
@@ -595,6 +646,7 @@
       as.integer(max_pages)
     ))
   }
+
   if (url %in% seen_urls) {
     rlang::abort(
       "The service returned a repeated pagination URL or continuation token"

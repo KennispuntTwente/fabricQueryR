@@ -24,65 +24,65 @@ fabric_onelake_read_delta_table(
 )
 }
 \arguments{
-\item{table_path}{Table name. Supply its schema separately when needed.}
+\item{table_path}{Table name. Supply its schema separately when needed}
 
 \item{workspace_name}{Workspace name, ID, or a record returned by
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}.}
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}}
 
 \item{lakehouse_name}{Lakehouse name, ID, or discovery record. Compatible
-Warehouse items are also accepted.}
+Warehouse items are also accepted}
 
 \item{schema}{Schema containing the table, or \code{NULL}. Warehouses default to
-\code{"dbo"}.}
+\code{"dbo"}}
 
 \item{item_type}{\code{"Lakehouse"}, \code{"Warehouse"}, or \code{NULL}. Usually inferred;
-specify it only when using an item name without a type suffix.}
+specify it only when using an item name without a type suffix}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Most users can
-leave this as \code{NULL} and let fabricQueryR sign in.}
+leave this as \code{NULL} and let fabricQueryR sign in}
 
 \item{auth_args}{Extra sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
-\item{version}{Specific table version to read, or \code{NULL} for the latest.}
+\item{version}{Specific table version to read, or \code{NULL} for the latest}
 
-\item{verbose}{Whether to show authentication and read progress.}
+\item{verbose}{Whether to show authentication and read progress}
 
 \item{dfs_base}{OneLake service address. Most users should keep the default;
-a workspace-specific address discovered from Fabric is used when available.}
+a workspace-specific address discovered from Fabric is used when available}
 
-\item{columns}{Column names to return, or \code{NULL} for all columns.}
+\item{columns}{Column names to return, or \code{NULL} for all columns}
 
-\item{limit}{Maximum number of rows to return, or \code{NULL} for all rows.}
+\item{limit}{Maximum number of rows to return, or \code{NULL} for all rows}
 
 \item{result}{\code{"tibble"} (the default) or \code{"arrow_stream"} for batch
-processing.}
+processing}
 }
 \value{
 A tibble, or a disk-backed, lazy, single-use Arrow stream when
-\code{result = "arrow_stream"}.
+\code{result = "arrow_stream"}
 }
 \description{
 Loads a Lakehouse or compatible Warehouse table into R. By default the result
 is a tibble; you can select columns, preview a limited number of rows, read an
-earlier table version, or return an Arrow stream for larger results.
+earlier table version, or return an Arrow stream for larger results
 }
 \section{Basic use}{
 
 Supply the table name, workspace, and Lakehouse. Names, IDs, and discovery
 records are accepted. If the Lakehouse uses schemas, pass the schema name
 separately. The function otherwise reads the latest version and all columns
-and rows into a tibble.
+and rows into a tibble
 
 Use \code{columns} to keep only the fields you need, \code{limit} for a quick preview,
 and \code{version} to read an earlier version. A row limit does not guarantee
-which rows are selected.
+which rows are selected
 }
 
 \section{Large and nested results}{
@@ -90,7 +90,7 @@ which rows are selected.
 For a large table, or one containing nested data, set
 \code{result = "arrow_stream"} to process rows in batches instead of collecting
 them all into R memory. The stream is disk-backed and can be read only once,
-so enough temporary disk space must be available for the selected data.
+so enough temporary disk space must be available for the selected data
 }
 
 \section{Column types}{
@@ -114,7 +114,7 @@ tibble. Nested columns require an Arrow stream. The complete mapping is:\tabular
 
 Decimal text retains its scale and digits. Some large Arrow buffer types are
 normalized for R compatibility and may fail if one value exceeds the
-supported buffer size.
+supported buffer size
 }
 
 \section{Permissions and supported tables}{
@@ -125,16 +125,16 @@ and the tenant setting for external OneLake apps must be enabled. Callers
 restricted by row- or column-level security must use a supported Fabric
 engine instead. See the
 \href{https://learn.microsoft.com/en-us/fabric/security/permission-model}{Fabric permission model}
-and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}.
+and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}
 
 This function uses the Python
-\href{https://pypi.org/project/deltalake/}{deltalake} reader through \code{reticulate}.
+\href{https://pypi.org/project/deltalake/}{deltalake} reader through \code{reticulate}
 Some newer Delta features, including Type Widening, V2 Checkpoints, and
 Fabric Variant, are not supported by that reader. Use SQL or Spark (Livy) if
-the function reports an unsupported table feature.
+the function reports an unsupported table feature
 
 Compatible Warehouse tables can also be read through their published Delta
-logs. If the reader cannot open a Warehouse table, use \code{\link[=fabric_sql_query]{fabric_sql_query()}}.
+logs. If the reader cannot open a Warehouse table, use \code{\link[=fabric_sql_query]{fabric_sql_query()}}
 }
 
 \examples{

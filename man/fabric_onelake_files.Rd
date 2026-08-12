@@ -94,99 +94,99 @@ fabric_onelake_delete(
 }
 \arguments{
 \item{workspace}{Workspace name, ID, record from \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or a
-complete OneLake HTTPS/ABFSS path.}
+complete OneLake HTTPS/ABFSS path}
 
 \item{item}{Item name, GUID, or discovered Fabric item. Use \code{NULL} when
 \code{workspace} is a complete OneLake path. An item from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} is
-the least ambiguous input.}
+the least ambiguous input}
 
 \item{path}{Path relative to the item, usually beginning with \verb{Files/} or
-\verb{Tables/}, for example \code{"Files/incoming/data.csv"}. Use forward slashes.
-A complete OneLake path already contains this value.}
+\verb{Tables/}, for example \code{"Files/incoming/data.csv"}. Use forward slashes
+A complete OneLake path already contains this value}
 
 \item{recursive}{For listing, whether to include all descendants. For
-deletion, whether a non-empty directory may be removed.}
+deletion, whether a non-empty directory may be removed}
 
 \item{page_size}{Maximum paths requested from OneLake per API call, from 1 to
-5000. Smaller values reduce each response size but require more requests.}
+5000. Smaller values reduce each response size but require more requests}
 
 \item{begin_from}{Optional path at which to begin a listing. Use this to
-resume a long, alphabetically ordered scan.}
+resume a long, alphabetically ordered scan}
 
 \item{item_type}{Optional Fabric item type appended to an item name unless
-that name already ends in the same suffix, for example \code{"Lakehouse"}.
+that name already ends in the same suffix, for example \code{"Lakehouse"}
 Usually unnecessary for a discovered item or a name such as
-\code{"Sales.Lakehouse"}.}
+\code{"Sales.Lakehouse"}}
 
 \item{tenant_id}{Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Entra application ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{dfs_base}{OneLake service address. Most users should keep the default;
-a workspace-specific address discovered from Fabric is used when available.}
+a workspace-specific address discovered from Fabric is used when available}
 
 \item{dest}{Optional local destination. When \code{NULL}, download returns a raw
 vector held in R memory. Supply a path to stream large files to disk. A
-destination download is staged before it replaces an existing file.}
+destination download is staged before it replaces an existing file}
 
 \item{range}{Optional inclusive zero-based byte range. Supply one value for
-all bytes from that offset onward, or two values for \code{start} through \code{end}.
-Leave \code{NULL} to download the entire file.}
+all bytes from that offset onward, or two values for \code{start} through \code{end}
+Leave \code{NULL} to download the entire file}
 
-\item{overwrite}{Whether an existing local or OneLake file may be replaced.
-Existing files are protected by default.}
+\item{overwrite}{Whether an existing local or OneLake file may be replaced
+Existing files are protected by default}
 
 \item{if_match}{Optional file version (\code{etag}) returned by
 \code{\link[=fabric_onelake_metadata]{fabric_onelake_metadata()}}. The operation proceeds only if the file still
-has that version.}
+has that version}
 
 \item{source}{Local file path or raw vector to upload. A path is streamed;
-a raw vector is already held in memory.}
+a raw vector is already held in memory}
 
 \item{content_type}{Optional MIME type stored with an uploaded file, for
-example \code{"text/csv"}.}
+example \code{"text/csv"}}
 
 \item{create_parents}{Logical. Create missing parent directories below the
-Fabric-managed first-level folder. Keep \code{TRUE} for normal uploads.}
+Fabric-managed first-level folder. Keep \code{TRUE} for normal uploads}
 
-\item{allow_managed_tables}{Whether to allow direct changes below \verb{Tables/}.
+\item{allow_managed_tables}{Whether to allow direct changes below \verb{Tables/}
 Keep \code{FALSE} for normal use: changing Delta files directly can corrupt a
-managed table.}
+managed table}
 
 \item{chunk_size}{Upload chunk size in bytes. The default suits most files;
-larger values make fewer requests but use more memory.}
+larger values make fewer requests but use more memory}
 
 \item{confirm}{Safety switch that must be explicitly set to \code{TRUE} before
-deletion is attempted.}
+deletion is attempted}
 }
 \value{
 \code{fabric_onelake_list()} returns one row per path, including its
 item-relative \code{path}, file \code{name}, \code{is_directory}, \code{content_length},
-\code{etag}, and modification/permission fields.
+\code{etag}, and modification/permission fields
 \code{fabric_onelake_metadata()} and \code{fabric_onelake_upload()} return a one-row
-tibble with the resolved path and available HTTP metadata.
+tibble with the resolved path and available HTTP metadata
 \code{fabric_onelake_download()} returns a raw vector when \code{dest = NULL}, or
-invisibly returns the destination path after writing to disk.
-\code{fabric_onelake_delete()} invisibly returns \code{TRUE}.
+invisibly returns the destination path after writing to disk
+\code{fabric_onelake_delete()} invisibly returns \code{TRUE}
 }
 \description{
-List, inspect, download, upload, and delete ordinary files stored in OneLake.
+List, inspect, download, upload, and delete ordinary files stored in OneLake
 These helpers are intended for files such as CSV, JSON, images, and model
-artifacts in a Fabric item's \verb{Files/} area.
+artifacts in a Fabric item's \verb{Files/} area
 \itemize{
-\item \code{fabric_onelake_list()} lists paths and follows all continuation tokens.
-\item \code{fabric_onelake_metadata()} returns file or directory properties.
-\item \code{fabric_onelake_download()} reads a file into memory or streams it to disk.
-\item \code{fabric_onelake_upload()} creates or replaces a file.
-\item \code{fabric_onelake_delete()} explicitly deletes a file or directory.
+\item \code{fabric_onelake_list()} lists paths and follows all continuation tokens
+\item \code{fabric_onelake_metadata()} returns file or directory properties
+\item \code{fabric_onelake_download()} reads a file into memory or streams it to disk
+\item \code{fabric_onelake_upload()} creates or replaces a file
+\item \code{fabric_onelake_delete()} explicitly deletes a file or directory
 }
 }
 \section{Choosing a target}{
@@ -194,12 +194,12 @@ artifacts in a Fabric item's \verb{Files/} area.
 The easiest inputs are a workspace plus an item returned by
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. You can also use names, IDs, or a complete OneLake
 HTTPS/ABFSS path. When using an item name, include its type suffix, such as
-\code{"Sales.Lakehouse"}, or supply \code{item_type}.
+\code{"Sales.Lakehouse"}, or supply \code{item_type}
 
 A Lakehouse's \verb{Tables/} area is managed as Delta tables. Use
 \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read those tables, and use SQL, Spark,
 or another Delta-aware tool to change them. Uploading or deleting individual
-files below \verb{Tables/} can damage a table and is blocked by default.
+files below \verb{Tables/} can damage a table and is blocked by default
 }
 
 \section{Permissions}{
@@ -208,7 +208,7 @@ The signed-in user or application needs access through a workspace role or
 the item's \strong{Manage OneLake data access} roles. Uploading and deleting need
 write permission. Your Fabric administrator must also allow external apps to
 access OneLake. If a call returns HTTP 403 after sign-in succeeds, check both
-that tenant setting and the item's data permissions.
+that tenant setting and the item's data permissions
 }
 
 \section{Safe file replacement}{
@@ -216,7 +216,7 @@ that tenant setting and the item's data permissions.
 Existing files are protected unless \code{overwrite = TRUE}. Uploads and downloads
 are staged before replacing their destination, so an interrupted transfer
 does not normally leave a partial file. Use \code{if_match} when a file should be
-replaced only if it has not changed since you inspected it.
+replaced only if it has not changed since you inspected it
 }
 
 \examples{

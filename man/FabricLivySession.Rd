@@ -4,34 +4,34 @@
 \alias{FabricLivySession}
 \title{A Microsoft Fabric Livy session}
 \format{
-An \link[R6:R6Class]{R6::R6Class} generator.
+An \link[R6:R6Class]{R6::R6Class} generator
 }
 \description{
-A Livy session keeps Spark running while you submit several pieces of code.
+A Livy session keeps Spark running while you submit several pieces of code
 Create one with \code{\link[=fabric_livy_session]{fabric_livy_session()}}, call \verb{$wait()} once it starts, use
 \verb{$run()} to execute code, and call \verb{$close()} when finished. Most users do
-not need to call this R6 class directly.
+not need to call this R6 class directly
 }
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
-    \item{\code{id}}{Fabric session or high-concurrency acquisition ID.}
+    \item{\code{id}}{Fabric session or high-concurrency acquisition ID}
 
-    \item{\code{url}}{Session lifecycle URL.}
+    \item{\code{url}}{Session lifecycle URL}
 
-    \item{\code{state}}{Latest service state.}
+    \item{\code{state}}{Latest service state}
 
-    \item{\code{response}}{Latest raw service response.}
+    \item{\code{response}}{Latest raw service response}
 
-    \item{\code{closed}}{Whether \verb{$close()} completed.}
+    \item{\code{closed}}{Whether \verb{$close()} completed}
 
-    \item{\code{high_concurrency}}{Whether this is a high-concurrency session.}
+    \item{\code{high_concurrency}}{Whether this is a high-concurrency session}
 
-    \item{\code{session_id}}{Underlying Livy session ID for HC sessions.}
+    \item{\code{session_id}}{Underlying Livy session ID for HC sessions}
 
-    \item{\code{repl_id}}{Isolated REPL ID for HC sessions.}
+    \item{\code{repl_id}}{Isolated REPL ID for HC sessions}
 
-    \item{\code{verbose}}{Whether lifecycle messages are enabled.}
+    \item{\code{verbose}}{Whether lifecycle messages are enabled}
   }
   \if{html}{\out{</div>}}
 }
@@ -53,7 +53,7 @@ not need to call this R6 class directly.
 \if{html}{\out{<a id="method-FabricLivySession-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-initialize}{}}}
 \subsection{\code{FabricLivySession$new()}}{
-  Internal constructor used by \code{\link[=fabric_livy_session]{fabric_livy_session()}}.
+  Internal constructor used by \code{\link[=fabric_livy_session]{fabric_livy_session()}}
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$new(
@@ -69,18 +69,18 @@ not need to call this R6 class directly.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{livy_url}}{Livy API base or collection URL.}
-      \item{\code{credential}}{Internal authentication credential.}
-      \item{\code{payload}}{Session creation request body.}
-      \item{\code{high_concurrency}}{Whether to acquire an HC session.}
-      \item{\code{verbose}}{Whether to emit lifecycle messages.}
+      \item{\code{livy_url}}{Livy API base or collection URL}
+      \item{\code{credential}}{Internal authentication credential}
+      \item{\code{payload}}{Session creation request body}
+      \item{\code{high_concurrency}}{Whether to acquire an HC session}
+      \item{\code{verbose}}{Whether to emit lifecycle messages}
       \item{\code{allow_custom_endpoint}}{Whether a trusted non-Fabric HTTPS endpoint
-may receive the Fabric bearer token.}
+may receive the Fabric bearer token}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A new session object.
+    A new session object
   }
 }
 
@@ -88,7 +88,7 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-print"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-print}{}}}
 \subsection{\code{FabricLivySession$print()}}{
-  Print a concise session summary.
+  Print a concise session summary
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$print(...)}
@@ -97,12 +97,12 @@ may receive the Fabric bearer token.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{...}}{Unused.}
+      \item{\code{...}}{Unused}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -110,7 +110,7 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-status"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-status}{}}}
 \subsection{\code{FabricLivySession$status()}}{
-  Return the latest session response.
+  Return the latest session response
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$status(refresh = TRUE, deadline = NULL)}
@@ -119,13 +119,13 @@ may receive the Fabric bearer token.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{refresh}}{Whether to retrieve current state from Fabric.}
-      \item{\code{deadline}}{Internal wall-clock deadline for the status request.}
+      \item{\code{refresh}}{Whether to retrieve current state from Fabric}
+      \item{\code{deadline}}{Internal wall-clock deadline for the status request}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The raw session response list.
+    The raw session response list
   }
 }
 
@@ -133,7 +133,7 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-wait"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-wait}{}}}
 \subsection{\code{FabricLivySession$wait()}}{
-  Wait until the session can accept statements.
+  Wait until the session can accept statements
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$wait(timeout = 600, poll_interval = 3)}
@@ -142,13 +142,13 @@ may receive the Fabric bearer token.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{timeout}}{Maximum wait in seconds.}
-      \item{\code{poll_interval}}{Polling interval in seconds.}
+      \item{\code{timeout}}{Maximum wait in seconds}
+      \item{\code{poll_interval}}{Polling interval in seconds}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -156,7 +156,7 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-submit"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-submit}{}}}
 \subsection{\code{FabricLivySession$submit()}}{
-  Submit code without waiting for completion.
+  Submit code without waiting for completion
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$submit(
@@ -169,14 +169,14 @@ may receive the Fabric bearer token.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{code}}{One string of Spark code.}
-      \item{\code{kind}}{Statement language.}
-      \item{\code{source_id}}{Optional caller-defined source identifier.}
+      \item{\code{code}}{One string of Spark code}
+      \item{\code{kind}}{Statement language}
+      \item{\code{source_id}}{Optional caller-defined source identifier}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A \link{FabricLivyStatement}.
+    A \link{FabricLivyStatement}
   }
 }
 
@@ -184,7 +184,7 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-run"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-run}{}}}
 \subsection{\code{FabricLivySession$run()}}{
-  Submit code, wait, and return its parsed result.
+  Submit code, wait, and return its parsed result
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$run(
@@ -199,16 +199,16 @@ may receive the Fabric bearer token.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{code}}{One string of Spark code.}
-      \item{\code{kind}}{Statement language.}
-      \item{\code{source_id}}{Optional caller-defined source identifier.}
-      \item{\code{timeout}}{Maximum wait in seconds.}
-      \item{\code{poll_interval}}{Polling interval in seconds.}
+      \item{\code{code}}{One string of Spark code}
+      \item{\code{kind}}{Statement language}
+      \item{\code{source_id}}{Optional caller-defined source identifier}
+      \item{\code{timeout}}{Maximum wait in seconds}
+      \item{\code{poll_interval}}{Polling interval in seconds}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A \code{fabric_livy_statement_result} list.
+    A \code{fabric_livy_statement_result} list
   }
 }
 
@@ -216,14 +216,14 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-statements"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-statements}{}}}
 \subsection{\code{FabricLivySession$statements()}}{
-  List statements in this execution context.
+  List statements in this execution context
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$statements()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The raw Livy statements response.
+    The raw Livy statements response
   }
 }
 
@@ -231,14 +231,14 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-reset_timeout"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-reset_timeout}{}}}
 \subsection{\code{FabricLivySession$reset_timeout()}}{
-  Reset a regular session's inactivity timeout.
+  Reset a regular session's inactivity timeout
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$reset_timeout()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{self}, invisibly.
+    \code{self}, invisibly
   }
 }
 
@@ -246,14 +246,14 @@ may receive the Fabric bearer token.}
 \if{html}{\out{<a id="method-FabricLivySession-close"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-close}{}}}
 \subsection{\code{FabricLivySession$close()}}{
-  Release this session or high-concurrency context.
+  Release this session or high-concurrency context
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricLivySession$close()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{TRUE} when closed or \code{FALSE} when already closed, invisibly.
+    \code{TRUE} when closed or \code{FALSE} when already closed, invisibly
   }
 }
 

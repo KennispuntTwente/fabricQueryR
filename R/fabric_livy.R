@@ -2,66 +2,66 @@
 #'
 #' Starts Spark, runs one piece of code, returns its output, and closes the Spark
 #' session. This is the simplest Livy helper for a one-off operation. For quick
-#' reads from a Lakehouse or Warehouse, SQL is often faster to start.
+#' reads from a Lakehouse or Warehouse, SQL is often faster to start
 #'
 #' @param livy_url A Livy connection URL copied from the Lakehouse settings, or
-#'   an enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
-#'   A discovered record avoids copying workspace and Lakehouse IDs.
+#'   an enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()]
+#'   A discovered record avoids copying workspace and Lakehouse IDs
 #' @param code One string containing the Spark code to run. Objects created in
 #'   this temporary session are lost after the function returns, although
-#'   writes made to Lakehouse storage persist.
+#'   writes made to Lakehouse storage persist
 #' @param kind Statement language. Use `"sparkr"` for SparkR code, `"pyspark"`
 #'   for Python with Spark, `"spark"` for Scala, or `"sql"` for Spark SQL. This
-#'   must match the syntax in `code`.
+#'   must match the syntax in `code`
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
+#'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
+#'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
+#'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow.
+#'   set it only for a custom token provider or identity flow
 #' @param environment_id Optional GUID of a published Fabric Environment whose
 #'   libraries and Spark settings should be used. Leave `NULL` to use the
-#'   Lakehouse/workspace defaults.
+#'   Lakehouse/workspace defaults
 #' @param conf Optional named list of Spark configuration overrides, for example
 #'   `list("spark.sql.shuffle.partitions" = "100")`. Most users can leave this
-#'   `NULL` and configure shared settings in a Fabric Environment.
-#' @param verbose Logical. Show session startup, execution, and cleanup progress.
+#'   `NULL` and configure shared settings in a Fabric Environment
+#' @param verbose Logical. Show session startup, execution, and cleanup progress
 #' @param poll_interval Seconds between status checks. Lower values update
-#'   sooner but make more API calls.
+#'   sooner but make more API calls
 #' @param timeout Maximum seconds to wait for session readiness and, separately,
-#'   statement completion.
+#'   statement completion
 #' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
 #'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
-#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint
 #' @param ... Compatibility arguments. The former named `access_token`
 #'   argument is accepted here as a deprecated alias for `token`; all other
-#'   arguments are rejected.
+#'   arguments are rejected
 #'
 #' @return Invisibly, a `fabric_livy_statement_result` list. The most useful
 #'   component is `output$parsed`: a tibble for tabular output, an R object for
 #'   JSON, or a character vector for text. The result also keeps status, timing,
-#'   submitted code, errors, and the original response.
+#'   submitted code, errors, and the original response
 #' @section Before you run code:
 #' Fabric needs a workspace on supported capacity and a Lakehouse. In
 #' the Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and
 #' copy the session-job connection string. For several statements that reuse
 #' variables and Spark state, use [fabric_livy_session()]. To run a complete
 #' Python, Scala/Java, or R application file, use
-#' [fabric_livy_batch_submit()].
+#' [fabric_livy_batch_submit()]
 #'
 #' The signed-in identity needs Lakehouse read and execute access, permission for
-#' code to access Fabric and storage, and an appropriate workspace role.
+#' code to access Fabric and storage, and an appropriate workspace role
 #'
 #' Spark long and decimal columns are returned as character values when needed
 #' to preserve them exactly. Dates and timestamps with a time zone use R
-#' temporal classes; timestamps without a time zone remain wall-clock text.
+#' temporal classes; timestamps without a time zone remain wall-clock text
 #' Fabric's SQL JSON output represents non-finite floating-point values as
 #' `null`, so those values are returned as typed missing values. Binary and
-#' nested values use list-columns.
+#' nested values use list-columns
 #'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
@@ -91,7 +91,8 @@ fabric_livy_query <- function(
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
-  # Check the request before starting a Spark session, which can take time.
+  # Check the request before starting a Spark session, which can take time
+
   kind <- match.arg(kind)
   fabric_livy_check_flag(verbose, "verbose")
   fabric_livy_check_number(poll_interval, "poll_interval")
@@ -114,7 +115,8 @@ fabric_livy_query <- function(
   # 2 Start a temporary session --------------------------------------------------------------------
 
   # Always register cleanup immediately so errors during startup or execution
-  # do not leave an avoidable Spark session running.
+  # do not leave an avoidable Spark session running
+
   session <- fabric_livy_session(
     livy_url = livy_url,
     tenant_id = tenant_id,
@@ -130,6 +132,8 @@ fabric_livy_query <- function(
   on.exit(try(session$close(), silent = TRUE), add = TRUE)
 
   # 3 Run the statement ----------------------------------------------------------------------------
+
+  # Run the statement only after its target and options are ready
 
   session$wait(
     poll_interval = poll_interval,
@@ -172,7 +176,7 @@ fabric_livy_query <- function(
 )
 
 # Resolve a Lakehouse record or copied `livy_url`. Returns a validated session
-# collection URL used by every public Livy entry point.
+# collection URL used by every public Livy entry point
 fabric_livy_resolve_url <- function(
   livy_url,
   allow_custom_endpoint = FALSE
@@ -195,7 +199,7 @@ fabric_livy_resolve_url <- function(
 }
 
 # Validate `livy_url` and its trust boundary. Returns a normalized HTTPS URL so
-# credentials are sent only to a Microsoft or explicitly trusted endpoint.
+# credentials are sent only to a Microsoft or explicitly trusted endpoint
 fabric_livy_validate_endpoint <- function(
   url,
   allow_custom_endpoint = FALSE
@@ -223,6 +227,7 @@ fabric_livy_validate_endpoint <- function(
       "livy_url must not contain userinfo, a query string, or a fragment"
     )
   }
+
   if (
     fabric_host &&
       !is.null(parsed$port) &&
@@ -232,6 +237,7 @@ fabric_livy_validate_endpoint <- function(
       "Microsoft Fabric livy_url may use only the HTTPS default port"
     )
   }
+
   if (!fabric_host && !isTRUE(allow_custom_endpoint)) {
     rlang::abort(paste0(
       "livy_url is not a Microsoft Fabric API host; set ",
@@ -242,11 +248,12 @@ fabric_livy_validate_endpoint <- function(
 }
 
 # Check `value` as one non-empty string, optionally allowing `NULL`. Returns
-# invisibly for shared Livy argument validation.
+# invisibly for shared Livy argument validation
 fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
   if (is.null(value) && isTRUE(allow_null)) {
     return(invisible(value))
   }
+
   if (
     !is.character(value) ||
       length(value) != 1L ||
@@ -259,7 +266,7 @@ fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
 }
 
 # Check numeric `value` against `minimum`. Returns invisibly for Livy timeout,
-# polling, and resource settings.
+# polling, and resource settings
 fabric_livy_check_number <- function(value, name, minimum = 0) {
   if (
     length(value) != 1L ||
@@ -278,7 +285,7 @@ fabric_livy_check_number <- function(value, name, minimum = 0) {
 }
 
 # Check `value` as one whole number at least `minimum`. Returns invisibly for
-# Spark core and executor counts.
+# Spark core and executor counts
 fabric_livy_check_integer <- function(value, name, minimum = 1L) {
   if (
     length(value) != 1L ||
@@ -301,7 +308,7 @@ fabric_livy_check_integer <- function(value, name, minimum = 1L) {
 }
 
 # Check `value` as one non-missing logical. Returns invisibly for Livy switches
-# used by public functions and R6 methods.
+# used by public functions and R6 methods
 fabric_livy_check_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
     rlang::abort(cli::format_inline("{name} must be TRUE or FALSE"))
@@ -310,7 +317,7 @@ fabric_livy_check_flag <- function(value, name) {
 }
 
 # Check optional `value` as one non-empty string. Returns invisibly for optional
-# Livy request fields.
+# Livy request fields
 fabric_livy_check_optional_string <- function(value, name) {
   if (!is.null(value)) {
     fabric_livy_check_string(value, name)
@@ -319,7 +326,7 @@ fabric_livy_check_optional_string <- function(value, name) {
 }
 
 # Check optional `value` as a character vector. Returns invisibly for Spark file,
-# archive, argument, and library lists.
+# archive, argument, and library lists
 fabric_livy_check_string_vector <- function(
   value,
   name,
@@ -332,6 +339,7 @@ fabric_livy_check_string_vector <- function(
   if (valid && !isTRUE(allow_empty_strings)) {
     valid <- all(nzchar(trimws(value)))
   }
+
   if (!valid) {
     rlang::abort(cli::format_inline(
       "{name} must be a character vector without missing{if (!allow_empty_strings) ' or empty' else ''} values"
@@ -341,7 +349,7 @@ fabric_livy_check_string_vector <- function(
 }
 
 # Validate `value` as a uniquely named list. Returns `NULL` or the same list for
-# Spark configuration and tag payloads.
+# Spark configuration and tag payloads
 fabric_livy_normalize_named_list <- function(value, name) {
   if (is.null(value) || !length(value)) {
     return(NULL)
@@ -365,7 +373,7 @@ fabric_livy_normalize_named_list <- function(value, name) {
 }
 
 # Validate shared session and batch resource fields. Returns invisibly before a
-# Livy payload is constructed.
+# Livy payload is constructed
 fabric_livy_validate_session_fields <- function(
   name = NULL,
   archives = NULL,
@@ -382,9 +390,11 @@ fabric_livy_validate_session_fields <- function(
   if (!is.null(driver_cores)) {
     fabric_livy_check_integer(driver_cores, "driver_cores")
   }
+
   if (!is.null(executor_cores)) {
     fabric_livy_check_integer(executor_cores, "executor_cores")
   }
+
   if (!is.null(num_executors)) {
     fabric_livy_check_integer(num_executors, "num_executors")
   }
@@ -392,7 +402,7 @@ fabric_livy_validate_session_fields <- function(
 }
 
 # Combine Spark `conf` with an optional Fabric `environment_id`. Returns a named
-# configuration list or `NULL` for session and batch requests.
+# configuration list or `NULL` for session and batch requests
 fabric_livy_conf <- function(conf = NULL, environment_id = NULL) {
   conf <- fabric_livy_normalize_named_list(conf, "conf")
   if (!is.null(environment_id)) {
@@ -407,12 +417,13 @@ fabric_livy_conf <- function(conf = NULL, environment_id = NULL) {
 }
 
 # Encode a Livy `payload` as JSON while preserving empty arrays. Returns raw JSON
-# used by the shared request sender.
+# used by the shared request sender
 fabric_livy_json_payload <- function(payload) {
   array_fields <- intersect(
     names(payload),
     c("args", "jars", "files", "pyFiles", "archives")
   )
+
   for (field in array_fields) {
     payload[[field]] <- I(payload[[field]])
   }
@@ -420,7 +431,7 @@ fabric_livy_json_payload <- function(payload) {
 }
 
 # Build a Livy credential and remember its chosen audience. Returns the internal
-# credential stored by Livy session, statement, and batch objects.
+# credential stored by Livy session, statement, and batch objects
 fabric_livy_credential <- function(
   tenant_id,
   client_id,
@@ -441,14 +452,16 @@ fabric_livy_credential <- function(
 }
 
 # Choose the explicit or flow-appropriate Livy token audience. Returns one or
-# more scopes used when creating the internal credential.
+# more scopes used when creating the internal credential
 fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
   if (is.null(audience)) {
     if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
       return(.fabric_audience$power_bi)
     }
+
     return(.fabric_audience$livy_delegated)
   }
+
   if (
     !is.character(audience) ||
       !length(audience) ||
@@ -464,6 +477,7 @@ fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
       "audience must be a non-empty character vector without duplicates"
     )
   }
+
   if (
     is.null(token) &&
       fabric_uses_client_credentials(auth_args) &&
@@ -477,7 +491,7 @@ fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
 }
 
 # Send one Livy request and decode its JSON response. Returns a named list used
-# by all Livy object lifecycle methods.
+# by all Livy object lifecycle methods
 fabric_livy_json <- function(
   method,
   url,
@@ -506,13 +520,13 @@ fabric_livy_json <- function(
 }
 
 # Calculate seconds remaining until `deadline`. Returns a non-negative number
-# used to keep all polling and HTTP work inside the caller's timeout.
+# used to keep all polling and HTTP work inside the caller's timeout
 fabric_livy_remaining <- function(deadline) {
   max(0, as.numeric(difftime(deadline, Sys.time(), units = "secs")))
 }
 
 # Sleep for at most `poll_interval` within `deadline`. Returns the remaining
-# seconds invisibly and is shared by session, statement, and batch polling.
+# seconds invisibly and is shared by session, statement, and batch polling
 fabric_livy_poll_sleep <- function(
   deadline,
   poll_interval,
@@ -527,7 +541,7 @@ fabric_livy_poll_sleep <- function(
 }
 
 # Raise a typed timeout condition with the latest `response`. This function does
-# not return and is shared by every Livy polling loop.
+# not return and is shared by every Livy polling loop
 fabric_livy_abort_timeout <- function(
   kind,
   handle,
@@ -555,7 +569,7 @@ fabric_livy_abort_timeout <- function(
 }
 
 # Send a Livy request that needs no response body. Returns invisibly after shared
-# authentication, retry, and timeout behavior succeeds.
+# authentication, retry, and timeout behavior succeeds
 fabric_livy_ok <- function(
   method,
   url,
@@ -584,8 +598,8 @@ fabric_livy_ok <- function(
   invisible(TRUE)
 }
 
-# Normalize a copied session or batch URL to the requested collection endpoint.
-# Returns a trusted URL used by the session and batch entry points.
+# Normalize a copied session or batch URL to the requested collection endpoint
+# Returns a trusted URL used by the session and batch entry points
 fabric_livy_endpoint <- function(
   url,
   type = c("sessions", "batches", "highConcurrencySessions"),
@@ -596,6 +610,7 @@ fabric_livy_endpoint <- function(
   collection_pattern <- paste0(
     "(?i)/(sessions|batches|highConcurrencySessions)$"
   )
+
   if (grepl(collection_pattern, value, perl = TRUE)) {
     sub(collection_pattern, paste0("/", type), value, perl = TRUE)
   } else {
@@ -604,13 +619,13 @@ fabric_livy_endpoint <- function(
 }
 
 # Read a normalized state from a Livy `response`. Returns lower-case text used
-# by every polling and error helper.
+# by every polling and error helper
 fabric_livy_state <- function(response) {
   tolower(response$state %||% "")
 }
 
 # Extract readable error details from a Livy `response`. Returns service text or
-# `fallback` for the typed statement, session, and batch errors.
+# `fallback` for the typed statement, session, and batch errors
 fabric_livy_error_text <- function(response, fallback) {
   output <- response$output %||% list()
   data <- output$data %||% list()
@@ -636,7 +651,7 @@ fabric_livy_error_text <- function(response, fallback) {
 }
 
 # Raise a typed statement error from `response`. This function does not return
-# and preserves the statement output and traceback for callers.
+# and preserves the statement output and traceback for callers
 fabric_livy_abort_statement <- function(response) {
   state <- response$state %||% "unknown"
   rlang::abort(
@@ -652,7 +667,7 @@ fabric_livy_abort_statement <- function(response) {
 }
 
 # Raise a typed session error from `response`. This function does not return and
-# attaches the raw session response.
+# attaches the raw session response
 fabric_livy_abort_session <- function(response) {
   state <- response$state %||% "unknown"
   rlang::abort(
@@ -666,7 +681,7 @@ fabric_livy_abort_session <- function(response) {
 }
 
 # Raise a typed batch error from `response`. This function does not return and
-# attaches logs and service error information.
+# attaches logs and service error information
 fabric_livy_abort_batch <- function(response) {
   state <- response$state %||% "unknown"
   rlang::abort(
@@ -682,7 +697,7 @@ fabric_livy_abort_batch <- function(response) {
 }
 
 # Convert a completed statement `response` into a stable result. Returns parsed
-# output plus raw data, timing, and statement identity.
+# output plus raw data, timing, and statement identity
 fabric_livy_output <- function(response, started_local, completed_local, url) {
   out <- response$output %||% list()
   data <- out$data %||% list()
@@ -717,15 +732,17 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 }
 
 # Detect and parse common Livy output shapes in `data`. Returns a tibble, decoded
-# JSON object, character output, or `NULL`.
+# JSON object, character output, or `NULL`
 fabric_livy_parse_output_data <- function(data) {
   table_mime <- "application/vnd.livy.table.v1+json"
   if (!is.null(data[[table_mime]])) {
     return(fabric_livy_parse_table(data[[table_mime]]))
   }
+
   if (!is.null(data[["application/json"]])) {
     return(fabric_livy_parse_json(data[["application/json"]]))
   }
+
   if (!is.null(data[["text/plain"]])) {
     return(as.character(data[["text/plain"]]))
   }
@@ -742,7 +759,7 @@ fabric_livy_parse_output_data <- function(data) {
 }
 
 # Decode one JSON `value` when possible. Returns an R object or `NULL` so output
-# parsing can try other supported formats.
+# parsing can try other supported formats
 fabric_livy_parse_json <- function(value) {
   table <- fabric_livy_parse_sql_json(value)
   if (!is.null(table)) {
@@ -756,14 +773,16 @@ fabric_livy_parse_json <- function(value) {
     ),
     silent = TRUE
   )
+
   if (inherits(obj, "try-error")) {
     return(NULL)
   }
+
   if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
 }
 
 # Decode Spark SQL's schema-and-data JSON `value`. Returns a typed tibble or
-# `NULL` when the value is not this output format.
+# `NULL` when the value is not this output format
 fabric_livy_parse_sql_json <- function(value) {
   if (is.character(value) && length(value) == 1L) {
     value <- try(
@@ -775,6 +794,7 @@ fabric_livy_parse_sql_json <- function(value) {
       silent = TRUE
     )
   }
+
   if (
     inherits(value, "try-error") ||
       !is.list(value) ||
@@ -801,9 +821,11 @@ fabric_livy_parse_sql_json <- function(value) {
 }
 
 # Convert a Livy table object into a tibble. Returns typed columns plus the Spark
-# schema as an attribute.
+# schema as an attribute
 fabric_livy_parse_table <- function(value) {
   # 1 Read table schema and rows -------------------------------------------------------------------
+
+  # Read table schema and rows once so later checks use a consistent view
 
   if (is.character(value) && length(value) == 1L) {
     value <- try(
@@ -815,13 +837,14 @@ fabric_livy_parse_table <- function(value) {
       silent = TRUE
     )
   }
-  # Raise a table protocol error with beginner-readable `detail`; never returns.
+  # Raise a table protocol error with beginner-readable `detail`; never returns
   malformed <- function(detail) {
     rlang::abort(
       paste0("Livy returned malformed table output: ", detail),
       class = "fabric_livy_protocol_error"
     )
   }
+
   if (inherits(value, "try-error") || !is.list(value)) {
     malformed("the MIME value must be a JSON object")
   }
@@ -846,6 +869,7 @@ fabric_livy_parse_table <- function(value) {
     },
     character(1)
   )
+
   if (anyDuplicated(column_names)) {
     malformed("header names must be unique")
   }
@@ -855,11 +879,14 @@ fabric_livy_parse_table <- function(value) {
     function(row) is.list(row) && length(row) == column_count,
     logical(1)
   )
+
   if (!all(valid_rows)) {
     malformed("every row width must match the headers")
   }
 
   # 2 Convert each Spark column --------------------------------------------------------------------
+
+  # Convert each column with its declared Spark type before building the tibble
 
   columns <- lapply(seq_len(column_count), function(column) {
     values <- lapply(rows, function(row) row[[column]])
@@ -869,17 +896,20 @@ fabric_livy_parse_table <- function(value) {
 
   # 3 Return the typed table -----------------------------------------------------------------------
 
+  # Return the typed table in the stable form expected by the caller
+
   out <- tibble::as_tibble(stats::setNames(columns, column_names))
   attr(out, "spark_schema") <- headers
   out
 }
 
 # Normalize one Spark `type` spelling. Returns a base type name used to choose an
-# R column converter.
+# R column converter
 fabric_livy_spark_type <- function(type) {
   if (is.list(type)) {
     type <- type$type %||% type$name
   }
+
   if (!is.character(type) || length(type) != 1L || is.na(type)) {
     return(NULL)
   }
@@ -889,7 +919,7 @@ fabric_livy_spark_type <- function(type) {
 }
 
 # Convert nullable scalar `values` to character. Returns a safe intermediate
-# vector for the more specific Spark type converters.
+# vector for the more specific Spark type converters
 fabric_livy_atomic_text <- function(values) {
   vapply(
     values,
@@ -899,7 +929,7 @@ fabric_livy_atomic_text <- function(values) {
 }
 
 # Raise a typed protocol error naming invalid Spark `kind`. This function does
-# not return and keeps conversion failures consistent.
+# not return and keeps conversion failures consistent
 fabric_livy_invalid_type <- function(kind) {
   rlang::abort(
     paste0("Livy returned an invalid value for declared Spark type ", kind),
@@ -908,9 +938,11 @@ fabric_livy_invalid_type <- function(kind) {
 }
 
 # Convert nullable Spark `values` using declared `type`. Returns one atomic
-# vector or list-column for a parsed Livy table.
+# vector or list-column for a parsed Livy table
 fabric_livy_convert_column <- function(values, type) {
   # 1 Normalize the declared Spark type ------------------------------------------------------------
+
+  # Normalize the declared Spark type so later branches do not repeat the same conversion
 
   kind <- fabric_livy_spark_type(type)
   if (is.null(kind)) {
@@ -919,41 +951,55 @@ fabric_livy_convert_column <- function(values, type) {
 
   # 2 Convert scalar values ------------------------------------------------------------------------
 
+  # Convert scalar values to stable R vectors while preserving missing values
+
   if (kind %in% c("string", "char", "varchar", "decimal", "bigint", "long")) {
     return(fabric_livy_atomic_text(values))
   }
+
+  # Numeric Spark types must convert without silently losing invalid values
   if (kind %in% c("byte", "short", "integer", "int")) {
     text <- fabric_livy_atomic_text(values)
     out <- suppressWarnings(as.integer(text))
     if (any(!is.na(text) & is.na(out))) {
       fabric_livy_invalid_type(kind)
     }
+
     return(out)
   }
+
   if (kind %in% c("float", "double")) {
     text <- fabric_livy_atomic_text(values)
     out <- suppressWarnings(as.numeric(text))
     if (any(!is.na(text) & is.na(out) & !is.nan(out))) {
       fabric_livy_invalid_type(kind)
     }
+
     return(out)
   }
+
+  # Logical and calendar types use strict service text formats
   if (kind %in% c("boolean", "bool")) {
     text <- tolower(fabric_livy_atomic_text(values))
     invalid <- !is.na(text) & !text %in% c("true", "false")
     if (any(invalid)) {
       fabric_livy_invalid_type(kind)
     }
+
     return(ifelse(is.na(text), NA, text == "true"))
   }
+
   if (identical(kind, "date")) {
     text <- fabric_livy_atomic_text(values)
     out <- as.Date(text, format = "%Y-%m-%d")
     if (any(!is.na(text) & is.na(out))) {
       fabric_livy_invalid_type(kind)
     }
+
     return(out)
   }
+
+  # Timestamp values with no timezone remain text to preserve their meaning
   if (identical(kind, "timestamp_ntz")) {
     text <- fabric_livy_atomic_text(values)
     return(sub(
@@ -962,6 +1008,8 @@ fabric_livy_convert_column <- function(values, type) {
       text
     ))
   }
+
+  # Zoned timestamps become UTC instants after trying known Spark formats
   if (identical(kind, "timestamp")) {
     text <- fabric_livy_atomic_text(values)
     parsed <- vapply(
@@ -975,6 +1023,7 @@ fabric_livy_convert_column <- function(values, type) {
           "%Y-%m-%dT%H:%M:%OS%z",
           "%Y-%m-%d %H:%M:%OS"
         )
+
         for (format in formats) {
           candidate <- suppressWarnings(as.POSIXct(
             value,
@@ -987,16 +1036,21 @@ fabric_livy_convert_column <- function(values, type) {
       },
       numeric(1)
     )
+
     if (any(!is.na(text) & is.na(parsed))) {
       fabric_livy_invalid_type(kind)
     }
+
     return(as.POSIXct(parsed, origin = "1970-01-01", tz = "UTC"))
   }
+
+  # Binary values may already be raw or may arrive as base64 text
   if (identical(kind, "binary")) {
     return(lapply(values, function(value) {
       if (is.null(value)) {
         return(NULL)
       }
+
       if (is.raw(value)) {
         return(value)
       }
@@ -1007,13 +1061,14 @@ fabric_livy_convert_column <- function(values, type) {
       decoded
     }))
   }
+
   # Arrays, maps, structs, intervals, variants, and future Spark types retain
-  # their decoded JSON values as a stable list-column.
+  # their decoded JSON values as a stable list-column
   values
 }
 
 # Simplify uniformly typed scalar `values` when safe. Returns an atomic vector or
-# retains a list-column for mixed, nested, or large values.
+# retains a list-column for mixed, nested, or large values
 fabric_livy_simplify_column <- function(values) {
   present <- Filter(Negate(is.null), values)
   scalar_atomic <- length(present) &&

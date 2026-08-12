@@ -84,126 +84,126 @@ fabric_job_cancel(
 \arguments{
 \item{item}{Item GUID, exact display name, or an item record returned
 by a discovery function. A discovered record is recommended because it
-already includes the item type and workspace ID.}
+already includes the item type and workspace ID}
 
-\item{workspace}{Workspace GUID, exact display name, or a workspace record.
-Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
+\item{workspace}{Workspace GUID, exact display name, or a workspace record
+Omit it when \code{item} is a discovered record containing \code{workspaceId}}
 
 \item{job_type}{Fabric job type. fabricQueryR knows the usual values for
 notebooks, \code{"Pipeline"} for data pipelines, and \code{"SparkJob"} for Spark job
-definitions, so normally omit this unless running another item type.}
+definitions, so normally omit this unless running another item type}
 
 \item{item_type}{Optional Fabric item type when \code{item} is a GUID. A discovered
 item supplies this automatically. Examples are \code{"Notebook"},
-\code{"DataPipeline"}, and \code{"SparkJobDefinition"}.}
+\code{"DataPipeline"}, and \code{"SparkJobDefinition"}}
 
 \item{parameters}{A named list of values to pass to the job, such as
 \code{list(run_date = as.Date("2026-01-31"), full_load = FALSE)}, infers types
 from R and is appropriate for most runs. Names must match the parameters
 configured in Fabric. Advanced callers can instead supply records with
-\code{name}, \code{value}, and \code{type}.}
+\code{name}, \code{value}, and \code{type}}
 
 \item{parameter_types}{Optional named character vector overriding inferred
 parameter types. Supported values are \code{VariableReference}, \code{Integer},
 \code{Number}, \code{Text}, \code{Boolean}, \code{DateTime}, \code{Guid}, and \code{Automatic}. Use this
-only when R's inferred type is not the type expected in Fabric.}
+only when R's inferred type is not the type expected in Fabric}
 
 \item{execution_data}{Optional advanced job settings in the format documented
 for the Fabric item type. Use the simpler arguments below for common
-notebook settings.}
+notebook settings}
 
 \item{default_lakehouse}{Optional Lakehouse GUID or discovered record used to
 set the notebook's default Lakehouse for this run. This changes the run
-context, not the notebook's saved default.}
+context, not the notebook's saved default}
 
 \item{default_lakehouse_workspace}{Optional workspace GUID or discovered
-record for \code{default_lakehouse}; defaults to the job workspace.}
+record for \code{default_lakehouse}; defaults to the job workspace}
 
 \item{compute}{Notebook compute kind: \code{"Spark"}, \code{"Jupyter"}, or
 \code{"DataWarehouse"}. Use \code{"Spark"} (the default) for Spark notebooks,
 \code{"Jupyter"} for a Jupyter runtime, and \code{"DataWarehouse"} for a notebook
-attached to Warehouse compute. It must match what the notebook code needs.}
+attached to Warehouse compute. It must match what the notebook code needs}
 
 \item{session_tag}{Optional tag that enables Spark high-concurrency mode, so
 related notebook runs may reuse compute. See Details for its effect on
-failure reporting.}
+failure reporting}
 
 \item{tenant_id}{Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Entra application ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.
+to let fabricQueryR use its normal sign-in flow
 A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
-\code{client_id}, \code{token}, or non-empty \code{auth_args} is supplied explicitly.}
+\code{client_id}, \code{token}, or non-empty \code{auth_args} is supplied explicitly}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied}
 
-\item{api_base}{Fabric REST API base URL. Most users should keep the default.
+\item{api_base}{Fabric REST API base URL. Most users should keep the default
 A discovered workspace-specific endpoint is used unless this argument is
-supplied explicitly.}
+supplied explicitly}
 
 \item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
+a non-Microsoft HTTPS origin that you trust to receive a Fabric token}
 
 \item{job}{A \code{fabric_job} returned by \code{\link[=fabric_job_run]{fabric_job_run()}}, or a job instance
 GUID. When a GUID is supplied, also provide \code{workspace}, \code{item}, and
 enough type information to reconstruct the status URL. The handle is
-simpler because it already stores that context.}
+simpler because it already stores that context}
 
 \item{job_instance_id}{Alternative argument for a job instance GUID. Do not
-supply it together with a \code{fabric_job} handle.}
+supply it together with a \code{fabric_job} handle}
 
 \item{respect_retry_after}{Whether to wait for Fabric's recommended first
-status-check time. Keep \code{TRUE} for normal use.}
+status-check time. Keep \code{TRUE} for normal use}
 
-\item{.sleep, .now}{Internal hooks for deterministic tests.}
+\item{.sleep, .now}{Internal hooks for deterministic tests}
 
 \item{poll_interval}{Minimum seconds between status checks. \code{NULL} follows
-Fabric's recommendation, with a two-second fallback.}
+Fabric's recommendation, with a two-second fallback}
 
 \item{timeout}{Maximum seconds to wait before raising a
-\code{fabric_job_timeout}.}
+\code{fabric_job_timeout}}
 
 \item{error_on_failure}{Whether failed, cancelled, or deduplicated jobs raise
-typed errors. Set to \code{FALSE} to inspect those terminal results directly.}
+typed errors. Set to \code{FALSE} to inspect those terminal results directly}
 
 \item{cancel_on_timeout}{Ask Fabric to cancel the job when the client-side
-timeout expires. \code{FALSE} stops waiting but leaves the Fabric job running.}
+timeout expires. \code{FALSE} stops waiting but leaves the Fabric job running}
 
 \item{cancel}{Optional function checked between status updates. If it returns
 \code{TRUE}, fabricQueryR requests cancellation. This can support an application's
-stop button.}
+stop button}
 }
 \value{
 \code{fabric_job_run()} returns a \code{fabric_job} handle for use with the
-other job functions.
+other job functions
 \code{fabric_job_status()} and \code{fabric_job_wait()} return a
 \code{fabric_job_instance} record with status, times, failure information, and a
 notebook exit value when available. \code{fabric_job_cancel()} invisibly returns
-\code{TRUE} after Fabric accepts or confirms the cancellation.
+\code{TRUE} after Fabric accepts or confirms the cancellation
 }
 \description{
 Start a Notebook, data pipeline, Spark job definition, or another supported
 Fabric item from R. The related functions check its progress, wait for it to
-finish, or request cancellation. Use Fabric's scheduler for recurring runs.
+finish, or request cancellation. Use Fabric's scheduler for recurring runs
 }
 \section{Typical workflow}{
 
 Start a job with \code{fabric_job_run()}, then pass the returned handle to
 \code{fabric_job_wait()}. The handle keeps the workspace, item, job type, and
-sign-in context, so later calls do not need those details again.
+sign-in context, so later calls do not need those details again
 }
 
 \section{High-concurrency notebooks}{
 
 A \code{session_tag} lets related notebook runs share Spark compute, but Fabric may
-report a failed statement as a completed shared session with no exit value.
+report a failed statement as a completed shared session with no exit value
 Omit the tag when job status must reliably signal notebook failure. Otherwise,
-have the notebook report its outcome with \code{mssparkutils.notebook.exit()}.
+have the notebook report its outcome with \code{mssparkutils.notebook.exit()}
 }
 
 \section{Permissions and status handling}{
@@ -211,7 +211,7 @@ have the notebook report its outcome with \code{mssparkutils.notebook.exit()}.
 Running and cancelling need an item execute permission. Checking or waiting
 also needs an item read permission. fabricQueryR reconciles notebook status
 information from Fabric before returning it and stops with a typed error if
-Fabric reports an unfamiliar state instead of waiting indefinitely.
+Fabric reports an unfamiliar state instead of waiting indefinitely
 }
 
 \examples{

@@ -4,94 +4,94 @@
 #' @description
 #' Runs a DAX query against a published semantic model and returns the result as
 #' a tibble. A semantic model is the report-ready data behind Power BI reports,
-#' including tables, relationships, measures, and business calculations.
+#' including tables, relationships, measures, and business calculations
 #'
 #' @section Choosing a model:
 #' The easiest input is an item from [fabric_semantic_models()]. You can instead
 #' supply workspace and dataset IDs, or a Power BI connection string copied from
 #' the semantic model settings. IDs are the most reliable choice for scheduled
 #' code. For a model in My Workspace, supply `dataset_id` and set
-#' `my_workspace = TRUE`.
+#' `my_workspace = TRUE`
 #'
 #' @section Choosing a response format:
 #' Keep `api = "json"` for ordinary queries and broad compatibility. It returns
-#' one result table and is available to Pro, PPU, and capacity-backed models.
+#' one result table and is available to Pro, PPU, and capacity-backed models
 #' Results are limited by Power BI; fabricQueryR raises an error instead of
 #' silently returning a partial result. Very large whole numbers are returned as
-#' character values so they are not rounded.
+#' character values so they are not rounded
 #'
 #' Use `api = "arrow"` when exact semantic-model types matter, when a query has
 #' several `EVALUATE` statements, or when you want an Arrow stream. It requires
 #' the optional \pkg{arrow} package, a model on supported modern infrastructure,
 #' and Premium or Fabric capacity. Multiple result tables are returned in
-#' statement order as a `fabric_pbi_dax_rowsets` list.
+#' statement order as a `fabric_pbi_dax_rowsets` list
 #'
 #' @section Permissions and tenant settings:
-#' The signed-in identity needs Read and Build permission on the semantic model.
+#' The signed-in identity needs Read and Build permission on the semantic model
 #' Your Power BI administrator must enable **Dataset Execute Queries REST API**;
-#' service principals also need the relevant service-principal tenant setting.
+#' service principals also need the relevant service-principal tenant setting
 #' The APIs use the Power BI scope and require `Dataset.Read.All` (or
-#' `Dataset.ReadWrite.All`). Name lookup also requires workspace read access.
+#' `Dataset.ReadWrite.All`). Name lookup also requires workspace read access
 #' Row-level security, SSO, user impersonation, and the Arrow endpoint have
-#' additional Power BI restrictions; see the linked Microsoft documentation.
+#' additional Power BI restrictions; see the linked Microsoft documentation
 #'
 #' @param connstr Optional semantic model record from
 #'   [fabric_semantic_models()] or [fabric_item()], or a Power BI connection
 #'   string. A character connection string can be, for example,
-#'   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`.
+#'   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`
 #'   It may contain `Data Source=` and `Initial Catalog=` parts, or a bare
 #'   `powerbi://...` source plus a `Dataset=`, `Catalog=`, or
-#'   `Initial Catalog=` key. Omit it when `dataset_id` is supplied.
+#'   `Initial Catalog=` key. Omit it when `dataset_id` is supplied
 #' @param workspace_id Optional shared-workspace GUID. Use with `dataset_id` to
 #'   avoid name-based discovery. For a model in My Workspace, omit this and set
-#'   `my_workspace = TRUE` explicitly.
+#'   `my_workspace = TRUE` explicitly
 #' @param dataset_id Optional semantic model/dataset GUID. When supplied, no
-#'   connection-string name lookup is performed.
+#'   connection-string name lookup is performed
 #' @param my_workspace Whether `dataset_id` belongs to the signed-in user's My
-#'   Workspace. Leave `FALSE` for shared workspaces.
+#'   Workspace. Leave `FALSE` for shared workspaces
 #' @param dax One DAX query, normally beginning with `EVALUATE`. DAX table
-#'   expressions determine which rows and columns are returned.
+#'   expressions determine which rows and columns are returned
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
+#'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param include_nulls Logical. With `TRUE`, Power BI includes properties whose
 #'   value is blank/null. With `FALSE`, those properties can be absent from a
-#'   returned row; retaining `TRUE` usually gives a more consistent tibble.
+#'   returned row; retaining `TRUE` usually gives a more consistent tibble
 #'   Used only by `api = "json"`; Arrow has a schema and always represents
-#'   nulls explicitly.
+#'   nulls explicitly
 #' @param api_base Power BI REST API base URL. The default
 #'   `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial cloud;
 #'   override it only for a test service that implements the same endpoint and
 #'   authentication contract. Sovereign Microsoft clouds are not currently
-#'   supported by this helper.
+#'   supported by this helper
 #' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
-#'   a non-Microsoft HTTPS origin that you trust to receive a Power BI token.
+#'   a non-Microsoft HTTPS origin that you trust to receive a Power BI token
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
+#'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
+#'   [AzureAuth::get_azure_token()]
 #' @param impersonated_user Optional user principal name, such as
 #'   `"analyst@example.com"`, sent as `impersonatedUserName` for supported
-#'   JSON row-level-security scenarios or as `effectiveUsername` for Arrow.
-#'   Leave `NULL` for the normal identity context.
+#'   JSON row-level-security scenarios or as `effectiveUsername` for Arrow
+#'   Leave `NULL` for the normal identity context
 #' @param api Response format provided by Power BI. Use `"json"` for ordinary
-#'   queries or `"arrow"` for richer types and multiple result tables.
+#'   queries or `"arrow"` for richer types and multiple result tables
 #' @param result Return a `"tibble"`, or with `api = "arrow"`, a single-use
 #'   `"arrow_stream"` for batch processing without first collecting all rows in
-#'   R memory.
+#'   R memory
 #' @param arrow_options Named list of optional `executeDaxQueries` request
 #'   properties. Supported names are `applicationContext`, `culture`,
 #'   `customData`, `effectiveUsername`, `executionMetrics`, `memoryLimit`,
 #'   `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`. The
 #'   required `query` property is supplied from `dax`. Used only by
-#'   `api = "arrow"`.
+#'   `api = "arrow"`
 #'
 #' @return A tibble for one result table. Multiple Arrow result tables are
-#'   returned as a `fabric_pbi_dax_rowsets` list of tibbles or Arrow streams.
+#'   returned as a `fabric_pbi_dax_rowsets` list of tibbles or Arrow streams
 #'   Power BI column names are preserved. Empty JSON results have no column
 #'   metadata and therefore return a zero-row, zero-column tibble. Partial or
-#'   truncated results raise an error.
+#'   truncated results raise an error
 #' @references
 #' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
 #'
@@ -147,13 +147,17 @@ fabric_pbi_dax_query <- function(
   # 1 Validate query and target inputs -------------------------------------------------------------
 
   # Normalize the requested transport first, then resolve IDs from discovery
-  # records or a copied connection string without allowing conflicting targets.
+  # records or a copied connection string without allowing conflicting targets
+
   api <- match.arg(api)
   result <- match.arg(result)
   api_base <- pbi_api_base(api_base, allow_custom_endpoint)
+
+  # Check the query and simple flags before resolving a semantic model
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
     rlang::abort("dax must be one non-empty string")
   }
+
   if (
     !is.logical(include_nulls) ||
       length(include_nulls) != 1L ||
@@ -161,6 +165,8 @@ fabric_pbi_dax_query <- function(
   ) {
     rlang::abort("include_nulls must be TRUE or FALSE")
   }
+
+  # Discovery records may safely supply IDs and a connection string together
   discovered <- fabric_as_record(connstr)
   if (!is.null(discovered)) {
     if (
@@ -173,13 +179,17 @@ fabric_pbi_dax_query <- function(
         "connstr discovery record must be a SemanticModel item"
       )
     }
+
     discovered_workspace_id <- fabric_record_value(discovered, "workspaceId")
     discovered_dataset_id <- fabric_record_value(discovered, "id")
+
     pbi_validate_optional_guid(
       discovered_workspace_id,
       "discovered workspaceId"
     )
     pbi_validate_optional_guid(discovered_dataset_id, "discovered dataset id")
+
+    # Explicit IDs must agree with any values carried by discovery
     pbi_reject_conflicting_id(
       workspace_id,
       discovered_workspace_id,
@@ -192,6 +202,7 @@ fabric_pbi_dax_query <- function(
       "dataset_id",
       "the discovered SemanticModel id"
     )
+
     workspace_id <- workspace_id %||% discovered_workspace_id
     dataset_id <- dataset_id %||% discovered_dataset_id
     connstr <- if (is.null(dataset_id)) {
@@ -200,6 +211,8 @@ fabric_pbi_dax_query <- function(
       NULL
     }
   }
+
+  # Copied connection strings and explicit selectors are alternative inputs
   if (
     !is.null(connstr) &&
       (!is.character(connstr) ||
@@ -209,8 +222,10 @@ fabric_pbi_dax_query <- function(
   ) {
     rlang::abort("connstr must be one non-empty string")
   }
+
   pbi_validate_optional_guid(workspace_id, "workspace_id")
   pbi_validate_optional_guid(dataset_id, "dataset_id")
+
   if (
     !is.logical(my_workspace) ||
       length(my_workspace) != 1L ||
@@ -218,9 +233,11 @@ fabric_pbi_dax_query <- function(
   ) {
     rlang::abort("my_workspace must be TRUE or FALSE")
   }
+
   if (!is.null(workspace_id) && isTRUE(my_workspace)) {
     rlang::abort("Supply workspace_id or set my_workspace = TRUE, not both")
   }
+
   if (
     is.null(discovered) &&
       !is.null(connstr) &&
@@ -234,11 +251,14 @@ fabric_pbi_dax_query <- function(
       class = "fabric_pbi_target_conflict"
     )
   }
+
   if (is.null(dataset_id) && is.null(connstr)) {
     rlang::abort(
       "Supply either connstr or dataset_id"
     )
   }
+
+  # Validate optional execution settings after the target is unambiguous
   if (
     !is.null(impersonated_user) &&
       (!is.character(impersonated_user) ||
@@ -248,18 +268,23 @@ fabric_pbi_dax_query <- function(
   ) {
     rlang::abort("impersonated_user must be one non-empty string")
   }
+
   arrow_options <- pbi_validate_arrow_options(arrow_options)
+
   if (identical(api, "json") && length(arrow_options)) {
     rlang::abort("arrow_options can only be used with api = \"arrow\"")
   }
+
   if (identical(api, "json") && !identical(result, "tibble")) {
     rlang::abort("result = \"arrow_stream\" requires api = \"arrow\"")
   }
+
   if (!is.null(dataset_id) && is.null(workspace_id) && !isTRUE(my_workspace)) {
     rlang::abort(
       "dataset_id requires workspace_id or explicit my_workspace = TRUE"
     )
   }
+
   if (
     identical(api, "arrow") &&
       !is.null(impersonated_user) &&
@@ -269,6 +294,8 @@ fabric_pbi_dax_query <- function(
       "Supply effective identity through either impersonated_user or arrow_options, not both"
     )
   }
+
+  # Check optional packages only when the selected result path needs them
   if (identical(api, "arrow")) {
     packages <- "arrow"
     if (identical(result, "arrow_stream")) {
@@ -282,7 +309,8 @@ fabric_pbi_dax_query <- function(
 
   # 2 Resolve authentication and IDs ---------------------------------------------------------------
 
-  # Name-based connection strings need API lookups; explicit IDs skip them.
+  # Name-based connection strings need API lookups; explicit IDs skip them
+
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -305,7 +333,8 @@ fabric_pbi_dax_query <- function(
   # 3 Execute through the selected transport -------------------------------------------------------
 
   # JSON returns a tibble directly. Arrow can return either a tibble or a
-  # single-use stream for large results.
+  # single-use stream for large results
+
   if (identical(api, "json")) {
     return(pbi_execute_dax(
       credential = credential,
@@ -317,6 +346,7 @@ fabric_pbi_dax_query <- function(
       impersonated_user = impersonated_user
     ))
   }
+
   if (!is.null(impersonated_user)) {
     arrow_options$effectiveUsername <- impersonated_user
   }
@@ -332,9 +362,11 @@ fabric_pbi_dax_query <- function(
 }
 
 # Validate and normalize the Power BI `api_base`. Returns a trusted myorg URL
-# before any Power BI token is sent.
+# before any Power BI token is sent
 pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
   # 1 Validate the endpoint ------------------------------------------------------------------------
+
+  # Check the endpoint now so later code can rely on safe input
 
   if (
     !is.logical(allow_custom_endpoint) ||
@@ -343,6 +375,7 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
   ) {
     rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
   }
+
   if (
     !is.character(api_base) ||
       length(api_base) != 1L ||
@@ -351,6 +384,8 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
   ) {
     rlang::abort("api_base must be one non-empty string")
   }
+
+  # Parse the URL once, then inspect every part of its origin
   endpoint <- sub("/+$", "", trimws(api_base))
   parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
   path <- if (inherits(parsed, "try-error")) "" else parsed$path %||% ""
@@ -369,12 +404,15 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     identical(tolower(path), "/v1.0/myorg") &&
     length(parsed$query %||% list()) == 0L &&
     !nzchar(parsed$fragment %||% "")
+
   if (!clean_origin) {
     rlang::abort(
       "api_base must be an HTTPS origin ending in /v1.0/myorg",
       class = "fabric_pbi_endpoint_error"
     )
   }
+
+  # Custom hosts require an explicit trust decision from the caller
   if (
     !fabric_host_matches(host, "api.powerbi.com") &&
       !isTRUE(allow_custom_endpoint)
@@ -391,15 +429,18 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
 
   # 2 Return the normalized API base ---------------------------------------------------------------
 
+  # Return the normalized API base in the stable form expected by the caller
+
   endpoint
 }
 
 # Validate optional `value` as a GUID identified by `name`. Returns invisibly for
-# semantic-model target resolution.
+# semantic-model target resolution
 pbi_validate_optional_guid <- function(value, name) {
   if (is.null(value)) {
     return(invisible(value))
   }
+
   if (
     !is.character(value) ||
       length(value) != 1L ||
@@ -413,15 +454,16 @@ pbi_validate_optional_guid <- function(value, name) {
 
 #' Parse a Power BI connection string (XMLA) into components
 #'
-#' @param conn Character; a Power BI connection string.
-#' @return A list with elements `server`, `workspace`, and `dataset`.
+#' @param conn Character; a Power BI connection string
+#' @return A list with elements `server`, `workspace`, and `dataset`
 #' @keywords internal
 #' @noRd
-# Uses `conn`, and returns parsed server/workspace/dataset fields for name lookup.
+# Uses `conn`, and returns parsed server/workspace/dataset fields for name lookup
 pbi_parse_connstr <- function(conn) {
   # 1 Split and validate fields --------------------------------------------------------------------
 
-  # Reuse the shared parser so quoted names may contain semicolons safely.
+  # Reuse the shared parser so quoted names may contain semicolons safely
+
   if (!is.character(conn) || length(conn) != 1L || is.na(conn)) {
     rlang::abort("conn must be one string")
   }
@@ -435,9 +477,11 @@ pbi_parse_connstr <- function(conn) {
     toks[grepl("(?i)^Data Source=", toks)],
     perl = TRUE
   )
+
   if (length(ds) == 0) {
     ds <- toks[grepl("(?i)^powerbi://", toks)]
   }
+
   if (length(ds) != 1) {
     rlang::abort(
       "Could not find a unique Data Source in connection string"
@@ -481,6 +525,7 @@ pbi_parse_connstr <- function(conn) {
     fabric_unquote_connection_value,
     character(1)
   )
+
   if (length(catv) != 1L || !nzchar(catv[[1L]])) {
     rlang::abort(
       paste0(
@@ -497,6 +542,7 @@ pbi_parse_connstr <- function(conn) {
   } else {
     utils::URLdecode(shared[[3L]])
   }
+
   if (!nzchar(workspace_name)) {
     rlang::abort(
       "Power BI Data Source does not contain a workspace name"
@@ -504,6 +550,8 @@ pbi_parse_connstr <- function(conn) {
   }
 
   # 2 Return the resolved target names -------------------------------------------------------------
+
+  # Return the resolved target names in the stable form expected by the caller
 
   list(
     server = ds,
@@ -517,13 +565,13 @@ pbi_parse_connstr <- function(conn) {
 
 #' Resolve workspace & dataset GUIDs using the Power BI REST API
 #'
-#' @param connstr Connection string used to infer workspace & dataset names.
-#' @param credential Internal audience-aware credential.
-#' @param api_base API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg".
-#' @return A list with `group_id`, `dataset_id`, `workspace`, and `dataset`.
+#' @param connstr Connection string used to infer workspace & dataset names
+#' @param credential Internal audience-aware credential
+#' @param api_base API base URL. Defaults to "https://api.powerbi.com/v1.0/myorg"
+#' @return A list with `group_id`, `dataset_id`, `workspace`, and `dataset`
 #' @keywords internal
 #' @noRd
-# Uses connection-string names plus `credential`; returns resolved Power BI IDs.
+# Uses connection-string names plus `credential`; returns resolved Power BI IDs
 pbi_resolve_ids_from_connstr <- function(
   connstr,
   credential,
@@ -565,17 +613,17 @@ pbi_resolve_ids_from_connstr <- function(
 
 #' Execute a DAX query against a dataset
 #'
-#' @param credential Internal audience-aware credential.
-#' @param dataset_id Dataset GUID.
-#' @param dax DAX query.
-#' @param group_id Optional workspace (group) GUID. If supplied, the request is made to the group-scoped endpoint.
-#' @param include_nulls Logical; whether to include NULLs in response serialization.
-#' @param api_base API base URL.
-#' @param impersonated_user Optional impersonated user principal name.
-#' @return A tibble.
+#' @param credential Internal audience-aware credential
+#' @param dataset_id Dataset GUID
+#' @param dax DAX query
+#' @param group_id Optional workspace (group) GUID. If supplied, the request is made to the group-scoped endpoint
+#' @param include_nulls Logical; whether to include NULLs in response serialization
+#' @param api_base API base URL
+#' @param impersonated_user Optional impersonated user principal name
+#' @return A tibble
 #' @keywords internal
 #' @noRd
-# Uses IDs, query text, and `credential`; returns the parsed JSON result tibble.
+# Uses IDs, query text, and `credential`; returns the parsed JSON result tibble
 pbi_execute_dax <- function(
   credential,
   dataset_id,
@@ -600,6 +648,7 @@ pbi_execute_dax <- function(
     queries = list(list(query = dax)),
     serializerSettings = list(includeNulls = include_nulls)
   )
+
   if (!is.null(impersonated_user)) {
     body$impersonatedUserName <- impersonated_user
   }
@@ -621,13 +670,16 @@ pbi_execute_dax <- function(
 #' Validate optional Execute DAX Queries Arrow request properties
 #' @keywords internal
 #' @noRd
-# Uses `options`; returns a validated list for the Arrow Execute Queries request.
+# Uses `options`; returns a validated list for the Arrow Execute Queries request
 pbi_validate_arrow_options <- function(options) {
   # 1 Validate option names ------------------------------------------------------------------------
+
+  # Check option names now so later code can rely on safe input
 
   if (!is.list(options) || is.data.frame(options)) {
     rlang::abort("arrow_options must be a named list")
   }
+
   if (!length(options)) {
     return(list())
   }
@@ -663,6 +715,8 @@ pbi_validate_arrow_options <- function(options) {
 
   # 2 Validate option values -----------------------------------------------------------------------
 
+  # Check option values now so later code can rely on safe input
+
   string_options <- intersect(
     names(options),
     c(
@@ -672,6 +726,8 @@ pbi_validate_arrow_options <- function(options) {
       "effectiveUsername"
     )
   )
+
+  # Text options must contain one useful value
   for (name in string_options) {
     value <- options[[name]]
     if (
@@ -687,10 +743,13 @@ pbi_validate_arrow_options <- function(options) {
       ))
     }
   }
+
   integer_options <- intersect(
     names(options),
     c("memoryLimit", "queryTimeout", "resultSetRowCountLimit")
   )
+
+  # Limits and timeouts use positive whole numbers
   for (name in integer_options) {
     value <- options[[name]]
     if (
@@ -708,6 +767,8 @@ pbi_validate_arrow_options <- function(options) {
       ))
     }
   }
+
+  # Roles are sent as a non-empty list of names
   if ("roles" %in% names(options)) {
     roles <- options$roles
     if (
@@ -721,10 +782,13 @@ pbi_validate_arrow_options <- function(options) {
       )
     }
   }
+
   logical_options <- intersect(
     names(options),
     c("executionMetrics", "schemaOnly")
   )
+
+  # Feature switches must be explicit TRUE or FALSE values
   for (name in logical_options) {
     value <- options[[name]]
     if (
@@ -739,13 +803,14 @@ pbi_validate_arrow_options <- function(options) {
       ))
     }
   }
+
   options
 }
 
 #' Execute a DAX query through the Arrow IPC endpoint
 #' @keywords internal
 #' @noRd
-# Uses IDs, query text, options, and `credential`; returns an Arrow result shape.
+# Uses IDs, query text, options, and `credential`; returns an Arrow result shape
 pbi_execute_dax_arrow <- function(
   credential,
   dataset_id,
@@ -758,8 +823,11 @@ pbi_execute_dax_arrow <- function(
   # 1 Validate and open the payload ----------------------------------------------------------------
 
   # A large response may be staged in a file; smaller responses arrive as raw
-  # bytes. Both are consumed through Arrow's seekable buffer interface.
+  # bytes. Both are consumed through Arrow's seekable buffer interface
+
   result <- match.arg(result)
+
+  # Workspace models and My Workspace models use different service routes
   path <- if (is.null(group_id)) {
     sprintf("%s/datasets/%s/executeDaxQueries", api_base, dataset_id)
   } else {
@@ -770,6 +838,8 @@ pbi_execute_dax_arrow <- function(
       dataset_id
     )
   }
+
+  # Preserve roles as a JSON array even when only one role is supplied
   body <- c(list(query = dax), options)
   if (!is.null(body$roles)) {
     body$roles <- I(body$roles)
@@ -779,6 +849,8 @@ pbi_execute_dax_arrow <- function(
       Accept = "application/vnd.apache.arrow.stream"
     ) |>
     httr2::req_body_json(body)
+
+  # Stage the response so large Arrow streams do not need a second raw copy
   payload <- tempfile("fabricqueryr-dax-", fileext = ".arrow")
   keep_payload <- FALSE
   on.exit(
@@ -789,6 +861,7 @@ pbi_execute_dax_arrow <- function(
     },
     add = TRUE
   )
+
   .httr2_perform(
     req,
     credential = credential,
@@ -796,19 +869,22 @@ pbi_execute_dax_arrow <- function(
     idempotent = TRUE,
     download_path = payload
   )
+
+  # Lazy streams take ownership of the staged file through cleanup metadata
   value <- pbi_parse_dax_arrow_response(
     payload,
     result = result,
     cleanup_path = identical(result, "arrow_stream")
   )
   keep_payload <- identical(result, "arrow_stream")
+
   value
 }
 
 #' Parse concatenated Execute DAX Queries Arrow IPC streams
 #' @keywords internal
 #' @noRd
-# Uses raw or staged `payload`; returns rowset tibbles or retained Arrow streams.
+# Uses raw or staged `payload`; returns rowset tibbles or retained Arrow streams
 pbi_parse_dax_arrow_response <- function(
   payload,
   result = c("tibble", "arrow_stream"),
@@ -817,7 +893,8 @@ pbi_parse_dax_arrow_response <- function(
   # 1 Validate and open the response ---------------------------------------------------------------
 
   # Accept either downloaded bytes or a staged file, then open one Arrow reader
-  # that the remaining sections can consume safely.
+  # that the remaining sections can consume safely
+
   result <- match.arg(result)
   path_payload <- is.character(payload) &&
     length(payload) == 1L &&
@@ -826,6 +903,7 @@ pbi_parse_dax_arrow_response <- function(
   if ((!is.raw(payload) && !path_payload) || !length(payload)) {
     rlang::abort("Power BI returned an empty Arrow DAX response")
   }
+
   if (path_payload && file.info(payload)$size == 0) {
     rlang::abort("Power BI returned an empty Arrow DAX response")
   }
@@ -834,6 +912,7 @@ pbi_parse_dax_arrow_response <- function(
   } else {
     arrow::BufferReader$create(payload)
   }
+
   if (path_payload) {
     on.exit(buffer$close(), add = TRUE)
   }
@@ -841,11 +920,14 @@ pbi_parse_dax_arrow_response <- function(
 
   # 2 Read concatenated Arrow streams --------------------------------------------------------------
 
-  # Power BI may concatenate data, error, and execution-metrics streams.
+  # Power BI may concatenate data, error, and execution-metrics streams
+
   data_tables <- list()
   data_positions <- numeric()
   metrics_tables <- list()
+
   while (buffer$tell() < size) {
+    # Remember each stream boundary so lazy results can reopen it later
     position <- buffer$tell()
     reader <- tryCatch(
       arrow::RecordBatchStreamReader$create(buffer),
@@ -856,6 +938,8 @@ pbi_parse_dax_arrow_response <- function(
         )
       }
     )
+
+    # Schema metadata tells data, service errors, and metrics apart
     schema <- reader$schema
     metadata <- schema$metadata %||% list()
     is_error <- identical(
@@ -866,6 +950,8 @@ pbi_parse_dax_arrow_response <- function(
       tolower(metadata[["IsExecMetrics"]] %||% "false"),
       "true"
     )
+
+    # Error and metrics streams must be read now even for lazy output
     materialize <- !identical(result, "arrow_stream") || is_error || is_metrics
     table <- if (materialize) {
       value <- tryCatch(
@@ -881,7 +967,7 @@ pbi_parse_dax_arrow_response <- function(
     } else {
       tryCatch(
         while (!is.null(reader$read_next_batch())) {
-          # Validate and advance one bounded record batch at a time.
+          # Validate and advance one bounded record batch at a time
         },
         error = function(error) {
           rlang::abort(
@@ -892,15 +978,21 @@ pbi_parse_dax_arrow_response <- function(
       )
       NULL
     }
+
+    # Service error streams become typed R errors immediately
     if (is_error) {
       pbi_abort_dax_arrow_error(metadata, table)
     }
+
+    # Keep metrics separate from the caller's rowsets
     if (is_metrics) {
       metrics_tables[[length(metrics_tables) + 1L]] <- table
     } else {
       data_tables[length(data_tables) + 1L] <- list(table)
       data_positions <- c(data_positions, position)
     }
+
+    # A reader that did not advance would otherwise create an endless loop
     if (buffer$tell() <= position) {
       rlang::abort("Power BI returned a non-advancing Arrow DAX stream")
     }
@@ -908,9 +1000,12 @@ pbi_parse_dax_arrow_response <- function(
 
   # 3 Validate returned rowsets --------------------------------------------------------------------
 
+  # Check returned rowsets now so later code can rely on safe input
+
   if (!length(data_tables)) {
     rlang::abort("Power BI returned no Arrow DAX data rowset")
   }
+
   if (length(metrics_tables) > 1L) {
     rlang::abort(sprintf(
       "Power BI returned %d Arrow DAX execution-metrics rowsets; at most one is supported",
@@ -926,7 +1021,8 @@ pbi_parse_dax_arrow_response <- function(
   # 4 Build the requested R result -----------------------------------------------------------------
 
   # Stream results retain their buffers through a finalizer; tibble results are
-  # materialized immediately.
+  # materialized immediately
+
   if (identical(result, "arrow_stream")) {
     resource <- new.env(parent = emptyenv())
     resource$buffers <- vector("list", length(data_positions))
@@ -938,6 +1034,7 @@ pbi_parse_dax_arrow_response <- function(
         for (stream_buffer in environment$buffers) {
           try(stream_buffer$close(), silent = TRUE)
         }
+
         if (!is.null(environment$path)) {
           unlink(environment$path, force = TRUE)
         }
@@ -968,6 +1065,7 @@ pbi_parse_dax_arrow_response <- function(
   } else {
     structure(rowsets, class = c("fabric_pbi_dax_rowsets", "list"))
   }
+
   if (!is.null(metrics)) {
     attr(value, "execution_metrics") <- metrics
   }
@@ -977,7 +1075,7 @@ pbi_parse_dax_arrow_response <- function(
 #' Decode dictionary columns before exposing Arrow DAX results to R
 #' @keywords internal
 #' @noRd
-# Uses an Arrow `table`; returns the table with dictionary columns decoded.
+# Uses an Arrow `table`; returns the table with dictionary columns decoded
 pbi_decode_dax_arrow_dictionaries <- function(table) {
   fields <- table$schema$fields
   dictionary <- vapply(
@@ -985,6 +1083,7 @@ pbi_decode_dax_arrow_dictionaries <- function(table) {
     function(field) inherits(field$type, "DictionaryType"),
     logical(1)
   )
+
   if (!any(dictionary)) {
     return(table)
   }
@@ -1006,7 +1105,7 @@ pbi_decode_dax_arrow_dictionaries <- function(table) {
 #' Raise an actionable HTTP 200 Arrow error-rowset response
 #' @keywords internal
 #' @noRd
-# Uses response `metadata` and error `table`; raises a typed service error.
+# Uses response `metadata` and error `table`; raises a typed service error
 pbi_abort_dax_arrow_error <- function(metadata, table) {
   fields <- tryCatch(
     as.data.frame(table),
@@ -1032,6 +1131,7 @@ pbi_abort_dax_arrow_error <- function(metadata, table) {
     c(summary, row_detail)[nzchar(c(summary, row_detail))],
     collapse = ": "
   )
+
   if (!nzchar(detail)) {
     detail <- "unknown Arrow error rowset"
   }
@@ -1042,11 +1142,11 @@ pbi_abort_dax_arrow_error <- function(metadata, table) {
 }
 
 #' Validate and parse an Execute Queries response
-#' @param out Parsed JSON response.
-#' @return A tibble.
+#' @param out Parsed JSON response
+#' @return A tibble
 #' @keywords internal
 #' @noRd
-# Uses decoded JSON `out`; returns a normalized DAX result tibble.
+# Uses decoded JSON `out`; returns a normalized DAX result tibble
 pbi_parse_dax_response <- function(out) {
   pbi_check_dax_error(out$error, "response")
 
@@ -1054,12 +1154,14 @@ pbi_parse_dax_response <- function(out) {
   if (is.null(results) || length(results) == 0L) {
     return(tibble::tibble())
   }
+
   for (result in results) {
     pbi_check_dax_error(result$error, "query result")
     for (table in result$tables %||% list()) {
       pbi_check_dax_error(table$error, "table result")
     }
   }
+
   if (length(results) != 1L) {
     rlang::abort(
       sprintf(
@@ -1073,6 +1175,7 @@ pbi_parse_dax_response <- function(out) {
   if (is.null(tables) || length(tables) == 0L) {
     return(tibble::tibble())
   }
+
   if (length(tables) != 1L) {
     rlang::abort(
       sprintf(
@@ -1089,13 +1192,13 @@ pbi_parse_dax_response <- function(out) {
 
   # bigint_as_char preserves large Whole Numbers as strings. Promote smaller
   # numeric values in the same column before binding so a valid mixed-size
-  # integer column remains exact and does not fail dplyr's type negotiation.
+  # integer column remains exact and does not fail dplyr's type negotiation
   rows <- pbi_normalize_dax_integer_columns(rows)
   dplyr::bind_rows(rows)
 }
 
 # Reject different explicit and discovered IDs for one target field. Returns
-# invisibly when the values agree or either side is absent.
+# invisibly when the values agree or either side is absent
 pbi_reject_conflicting_id <- function(
   explicit,
   discovered,
@@ -1116,7 +1219,7 @@ pbi_reject_conflicting_id <- function(
 }
 
 # Normalize JSON integer columns in `rows` without losing values. Returns rows
-# with safe base integer or bit64 representations before tibble binding.
+# with safe base integer or bit64 representations before tibble binding
 pbi_normalize_dax_integer_columns <- function(rows) {
   column_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
   for (column_name in column_names) {
@@ -1149,7 +1252,7 @@ pbi_normalize_dax_integer_columns <- function(rows) {
 #' Raise an actionable embedded Execute Queries error
 #' @keywords internal
 #' @noRd
-# Uses one embedded `error` and nesting `level`; returns invisibly or raises.
+# Uses one embedded `error` and nesting `level`; returns invisibly or raises
 pbi_check_dax_error <- function(error, level) {
   if (is.null(error) || !length(error)) {
     return(invisible())
@@ -1176,6 +1279,7 @@ pbi_check_dax_error <- function(error, level) {
     detail,
     ignore.case = TRUE
   )
+
   if (is_partial) {
     rlang::abort(
       paste0(
@@ -1194,13 +1298,13 @@ pbi_check_dax_error <- function(error, level) {
 
 #' Get a workspace (group) GUID by its name
 #'
-#' @param credential Internal audience-aware credential.
-#' @param workspace_name Character; workspace display name (case-insensitive).
-#' @param api_base API base URL.
-#' @return Group GUID as a string.
+#' @param credential Internal audience-aware credential
+#' @param workspace_name Character; workspace display name (case-insensitive)
+#' @param api_base API base URL
+#' @return Group GUID as a string
 #' @keywords internal
 #' @noRd
-# Uses an exact workspace name and `credential`; returns its group GUID.
+# Uses an exact workspace name and `credential`; returns its group GUID
 pbi_get_group_id_by_name <- function(
   credential,
   workspace_name,
@@ -1220,6 +1324,7 @@ pbi_get_group_id_by_name <- function(
   if (length(hits) == 0) {
     rlang::abort(sprintf("Workspace '%s' not found", workspace_name))
   }
+
   if (length(hits) > 1L) {
     rlang::abort(
       sprintf(
@@ -1234,14 +1339,14 @@ pbi_get_group_id_by_name <- function(
 
 #' Get a dataset GUID by its name in a workspace
 #'
-#' @param credential Internal audience-aware credential.
-#' @param group_id Workspace (group) GUID.
-#' @param dataset_name Dataset display name (case-insensitive).
-#' @param api_base API base URL.
-#' @return Dataset GUID as a string.
+#' @param credential Internal audience-aware credential
+#' @param group_id Workspace (group) GUID
+#' @param dataset_name Dataset display name (case-insensitive)
+#' @param api_base API base URL
+#' @return Dataset GUID as a string
 #' @keywords internal
 #' @noRd
-# Uses an exact dataset name and `credential`; returns its dataset GUID.
+# Uses an exact dataset name and `credential`; returns its dataset GUID
 pbi_get_dataset_id_by_name <- function(
   credential,
   group_id,
@@ -1262,6 +1367,7 @@ pbi_get_dataset_id_by_name <- function(
   if (length(hits) == 0) {
     rlang::abort(sprintf("Dataset '%s' not found in workspace", dataset_name))
   }
+
   if (length(hits) > 1L) {
     rlang::abort(
       sprintf(
@@ -1275,14 +1381,14 @@ pbi_get_dataset_id_by_name <- function(
 }
 
 #' Read a complete Power BI collection
-#' @param url Initial collection URL.
-#' @param credential Internal audience-aware credential.
-#' @param offset_pagination Whether to use documented `$top`/`$skip` paging.
-#' @param page_size Page size for offset pagination.
-#' @return A list containing every returned value.
+#' @param url Initial collection URL
+#' @param credential Internal audience-aware credential
+#' @param offset_pagination Whether to use documented `$top`/`$skip` paging
+#' @param page_size Page size for offset pagination
+#' @return A list containing every returned value
 #' @keywords internal
 #' @noRd
-# Uses a paged collection URL and `credential`; returns every response value.
+# Uses a paged collection URL and `credential`; returns every response value
 pbi_get_collection <- function(
   url,
   credential,

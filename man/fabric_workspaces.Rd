@@ -19,43 +19,43 @@ fabric_workspaces(
 \arguments{
 \item{roles}{Optional workspace roles to include, such as \code{"Viewer"},
 \code{"Contributor"}, \code{"Member"}, or \code{"Admin"}. Leave \code{NULL} to return every
-visible workspace.}
+visible workspace}
 
 \item{prefer_workspace_endpoints}{Whether to request workspace-specific
 endpoints. Keep \code{FALSE} unless your organization uses workspace-level
-private links.}
+private links}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
-different Fabric cloud or a test service.}
+different Fabric cloud or a test service}
 
 \item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
+a non-Microsoft HTTPS origin that you trust to receive a Fabric token}
 }
 \value{
 A list with one workspace record per visible workspace. Each record
 includes its ID and display name, together with other details returned by
-Fabric.
+Fabric
 }
 \description{
-Returns the Fabric workspaces available to the signed-in user or application.
+Returns the Fabric workspaces available to the signed-in user or application
 Use the result to choose a workspace for \code{\link[=fabric_items]{fabric_items()}} or one of the typed
-discovery helpers.
+discovery helpers
 }
 \details{
 The caller needs permission to read Fabric workspaces. Discovery uses the
-Fabric API and requires \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}.
+Fabric API and requires \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces}{List workspaces REST API}

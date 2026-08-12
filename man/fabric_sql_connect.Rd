@@ -33,95 +33,95 @@ fabric_sql_connect(
 \item{server}{A Fabric SQL server name, a complete connection string copied
 from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
 or SQL Database record returned by a discovery function. A discovered
-record is usually simplest because it also supplies the database name.}
+record is usually simplest because it also supplies the database name}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database
 shown with its connection string in Fabric. If omitted, Warehouse and SQL
 analytics endpoints open Fabric's \code{master} context, which is useful for
-discovery but does not select the item's tables.}
+discovery but does not select the item's tables}
 
 \item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
-hostname prevents fabricQueryR from identifying it.}
+hostname prevents fabricQueryR from identifying it}
 
 \item{backend}{Connection driver. Use \code{"odbc"} for ordinary DBI work or
-\code{"adbc"} for a native Arrow path after installing its \code{mssql} driver.}
+\code{"adbc"} for a native Arrow path after installing its \code{mssql} driver}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
-default.}
+default}
 
 \item{adbc_driver}{ADBC driver name or shared-library path. The separately
-installed ADBC Driver Foundry \code{mssql} driver is the default.}
+installed ADBC Driver Foundry \code{mssql} driver is the default}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
-\code{server}; otherwise the standard SQL port, 1433, is used.}
+\code{server}; otherwise the standard SQL port, 1433, is used}
 
 \item{encrypt}{Whether the driver encrypts the connection. Keep the secure
-default, \code{"yes"}, for Fabric.}
+default, \code{"yes"}, for Fabric}
 
 \item{trust_server_certificate}{Whether to accept a server certificate
 without validating its trust chain. Keep the secure default, \code{"no"},
-unless diagnosing a controlled test environment.}
+unless diagnosing a controlled test environment}
 
 \item{timeout}{Non-negative whole-number login/connect timeout in seconds;
-\code{0} lets the driver use an unlimited or driver-specific timeout.}
+\code{0} lets the driver use an unlimited or driver-specific timeout}
 
 \item{read_only}{Whether to ask the driver for a read-only connection. This
-is a connection hint, not a replacement for Fabric or SQL permissions.}
+is a connection hint, not a replacement for Fabric or SQL permissions}
 
 \item{allow_custom_endpoint}{Logical. Fabric SQL and Microsoft SQL Database
 hostnames are trusted by default. Set to \code{TRUE} only when deliberately
 sending the SQL access token to another hostname, such as a controlled
-proxy or test server.}
+proxy or test server}
 
-\item{verbose}{Logical. Show authentication, retry, and connection progress.}
+\item{verbose}{Logical. Show authentication, retry, and connection progress}
 
-\item{max_tries}{Maximum attempts after temporary Fabric SQL failures.}
+\item{max_tries}{Maximum attempts after temporary Fabric SQL failures}
 
 \item{retry_delay}{Initial delay in seconds before retrying. Later retries
-wait progressively longer, up to 60 seconds.}
+wait progressively longer, up to 60 seconds}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded. For ODBC, a caller-supplied \code{attributes}
 named list is merged with the package-managed \code{azure_token}; that protected
-attribute cannot be overridden.}
+attribute cannot be overridden}
 }
 \value{
 A live \code{DBIConnection}. Close it with \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}} when
 finished. For an ADBC connection with child results still registered,
-use \code{DBI::dbDisconnect(con, force = TRUE)} to release them immediately.
+use \code{DBI::dbDisconnect(con, force = TRUE)} to release them immediately
 }
 \description{
 Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot, Lakehouse,
 or SQL Database. Use the connection with familiar DBI functions such as
-\code{\link[DBI:dbListTables]{DBI::dbListTables()}} and \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}.
+\code{\link[DBI:dbListTables]{DBI::dbListTables()}} and \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}
 }
 \details{
 The easiest input is an item returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}},
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}, or \code{\link[=fabric_sql_databases]{fabric_sql_databases()}}. You can also paste a SQL
 connection string from Fabric. A Lakehouse's SQL endpoint is read-only; use
-Spark or another OneLake writer to change Lakehouse data.
+Spark or another OneLake writer to change Lakehouse data
 }
 \section{Choosing a backend}{
 
 \code{backend = "odbc"} is the default and works well for ordinary DBI use. It
 requires Microsoft ODBC Driver 18 or newer. Use \code{backend = "adbc"} when you
-want a native Arrow result path, typically for larger analytical results.
+want a native Arrow result path, typically for larger analytical results
 ADBC requires the external \code{mssql} driver; install it separately with
-\verb{dbc install mssql}.
+\verb{dbc install mssql}
 }
 
 \section{Connection and permissions}{
@@ -130,7 +130,7 @@ Discovery records and complete portal connection strings normally include
 the database. A bare server can omit \code{database} to open Fabric's \code{master}
 context. Transient connection failures are retried automatically. The user
 or application must have access through a workspace role or the item's
-\strong{Manage permissions} settings; SQL permissions may further restrict data.
+\strong{Manage permissions} settings; SQL permissions may further restrict data
 }
 
 \examples{

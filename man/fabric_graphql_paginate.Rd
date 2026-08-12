@@ -29,76 +29,76 @@ fabric_graphql_paginate(
 \arguments{
 \item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
 item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
-because it supplies the endpoint and workspace ID.}
+because it supplies the endpoint and workspace ID}
 
 \item{query}{One GraphQL document containing a query or mutation. Use
-variables for changing values instead of pasting values into this string.}
+variables for changing values instead of pasting values into this string}
 
 \item{next_cursor}{Function accepting a \code{fabric_graphql_result} and returning
 the next opaque cursor, or \code{NULL} when pagination is complete. Use
-\code{\link[=fabric_graphql_cursor]{fabric_graphql_cursor()}} for Fabric's normal connection fields.}
+\code{\link[=fabric_graphql_cursor]{fabric_graphql_cursor()}} for Fabric's normal connection fields}
 
-\item{variables}{Named list of values for variables declared in \code{query}.
+\item{variables}{Named list of values for variables declared in \code{query}
 One-element values are normally sent as scalars. Wrap a one-element list
-variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array.}
+variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array}
 
 \item{cursor_variable}{Name of the GraphQL variable that receives the next
-cursor, commonly \code{"after"}. It must match the variable declared in \code{query}.}
+cursor, commonly \code{"after"}. It must match the variable declared in \code{query}}
 
 \item{operation_name}{Optional operation name. Supply it when the document
-contains more than one named operation; otherwise leave \code{NULL}.}
+contains more than one named operation; otherwise leave \code{NULL}}
 
 \item{workspace_id}{Workspace GUID. Required when \code{api} is a GraphQL API
-GUID, and otherwise inferred from a discovered record.}
+GUID, and otherwise inferred from a discovered record}
 
 \item{error_policy}{How GraphQL-level errors are handled. \code{"return"}
 lets the caller inspect partial data and errors; \code{"warn"} also makes errors
 visible immediately; \code{"error"} stops and attaches the result to a
-\code{fabric_graphql_error}. HTTP/authentication failures always stop.}
+\code{fabric_graphql_error}. HTTP/authentication failures always stop}
 
 \item{max_pages}{Positive maximum number of requests. This guards against a
-faulty or unexpectedly large pagination loop.}
+faulty or unexpectedly large pagination loop}
 
 \item{timeout}{Maximum time in seconds for the request. The default allows
-Fabric's own 100-second query timeout response to arrive.}
+Fabric's own 100-second query timeout response to arrive}
 
-\item{idempotent}{Logical. Permit retries after transient HTTP failures.
+\item{idempotent}{Logical. Permit retries after transient HTTP failures
 \code{TRUE} is normally suitable for a read-only query, but not for a mutation
-that could be applied twice.}
+that could be applied twice}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
+\code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
 selects the documented scope from the authentication flow. Set this only
-for a custom token provider or unusual identity flow.}
+for a custom token provider or unusual identity flow}
 
-\item{api_base}{Fabric REST API base URL used to derive endpoints from IDs.
-Most users should keep the default.}
+\item{api_base}{Fabric REST API base URL used to derive endpoints from IDs
+Most users should keep the default}
 
 \item{allow_custom_endpoint}{Logical. Permit a GraphQL endpoint outside the
 Microsoft Fabric API origin. Keep \code{FALSE} unless the origin is trusted;
-credentials are sent to the supplied endpoint.}
+credentials are sent to the supplied endpoint}
 }
 \value{
 A \code{fabric_graphql_pages} list with \code{pages}, combined \code{errors}, and
 the final \code{variables}. \code{pages} contains one \code{fabric_graphql_result} per
-request and \code{complete} is \code{TRUE} when the callback reported no next page.
-Results are kept page-by-page because the requested schema shape can vary.
+request and \code{complete} is \code{TRUE} when the callback reported no next page
+Results are kept page-by-page because the requested schema shape can vary
 }
 \description{
 Repeats \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} until the API reports that no more pages are
 available. Because every GraphQL schema can store pagination information in
-a different place, \code{next_cursor} tells the function where to find it.
+a different place, \code{next_cursor} tells the function where to find it
 }
 \examples{
 \dontrun{

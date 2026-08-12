@@ -16,27 +16,27 @@ fabric_sql_connection_info(
 \item{server}{A Fabric SQL server name, a complete connection string copied
 from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
 or SQL Database record returned by a discovery function. A discovered
-record is usually simplest because it also supplies the database name.}
+record is usually simplest because it also supplies the database name}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database
 shown with its connection string in Fabric. If omitted, Warehouse and SQL
 analytics endpoints open Fabric's \code{master} context, which is useful for
-discovery but does not select the item's tables.}
+discovery but does not select the item's tables}
 
 \item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
-hostname prevents fabricQueryR from identifying it.}
+hostname prevents fabricQueryR from identifying it}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
-\code{server}; otherwise the standard SQL port, 1433, is used.}
+\code{server}; otherwise the standard SQL port, 1433, is used}
 }
 \value{
 A \code{fabric_sql_connection_info} list with \code{server}, \code{database},
 \code{port}, \code{target_type}, and \code{source} (whether the input was text or a
-discovery record). No connection is opened.
+discovery record). No connection is opened
 }
 \description{
 Shows the server, database, port, and item type that fabricQueryR will use for
 a Fabric SQL connection. Most users can pass a discovered item directly to
-\code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this helper.
+\code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this helper
 }

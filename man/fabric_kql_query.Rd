@@ -24,73 +24,73 @@ fabric_kql_query(
 KQLDatabase record returned by \code{\link[=fabric_eventhouses]{fabric_eventhouses()}},
 \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, or \code{\link[=fabric_item]{fabric_item()}}. A KQLDatabase record also
 supplies \code{database}. Despite the argument name, use Fabric's \strong{Query URI}
-here.}
+here}
 
 \item{query}{One non-empty, read-only KQL query, for example
-\code{"Events | where Severity == 'Error' | take 100"}.}
+\code{"Events | where Severity == 'Error' | take 100"}}
 
 \item{database}{KQL database display name. Supply it with a copied Query URI
-or an Eventhouse record; omit it when \code{cluster} is a KQLDatabase record.}
+or an Eventhouse record; omit it when \code{cluster} is a KQLDatabase record}
 
 \item{parameters}{Named list of values declared with
-\verb{declare query_parameters(...)} in \code{query}.}
+\verb{declare query_parameters(...)} in \code{query}}
 
 \item{request_properties}{Named list of Kusto client request options, such as
 \code{servertimeout = "2m"} or \code{notruncation = TRUE}. Most users can leave this
 empty; these are server-side Kusto controls, not query parameters. Fabric
 does not support \code{queryconsistency} or
-\code{query_weakconsistency_session_id}.}
+\code{query_weakconsistency_session_id}}
 
 \item{timeout}{Positive client-side HTTP timeout in seconds. This is separate
-from the Kusto \code{servertimeout} request property.}
+from the Kusto \code{servertimeout} request property}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
+\code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{allow_custom_endpoint}{Logical. Permit a non-Microsoft Kusto HTTPS
 origin. Keep \code{FALSE} unless the endpoint is trusted; credentials are sent
-to the supplied origin.}
+to the supplied origin}
 }
 \value{
 A typed tibble for one primary result, a \code{fabric_kql_tables} list for
 multiple primary results (one named element per table), or an empty tibble
-when there is no primary result. See Details for the KQL-to-R type mapping.
+when there is no primary result. See Details for the KQL-to-R type mapping
 }
 \description{
 Runs a read-only query against a KQL database and returns the result as a
 tibble. KQL databases are commonly used for event, log, telemetry, and
-time-series data in a Fabric Eventhouse.
+time-series data in a Fabric Eventhouse
 }
 \section{Basic use}{
 
 The easiest input is an item from \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, which already
 contains the database name and its \strong{Query URI}. If you copy a URI from
 Fabric, choose \strong{Query URI}, not \strong{Ingestion URI}. This function reads
-existing data; it does not load data or run management commands.
+existing data; it does not load data or run management commands
 
 Put changing values in \code{parameters} and declare them in KQL with
 \verb{declare query_parameters(...)}. The values are sent separately from the
 query text, which is safer and easier to quote correctly than using
 \code{paste()}. Scalar R values become KQL scalar values; vectors and lists become
-\code{dynamic} arrays or objects.
+\code{dynamic} arrays or objects
 }
 
 \section{Advanced request options}{
 
 \code{request_properties} controls server behavior such as timeouts and result
-truncation. Most users can leave it empty.
+truncation. Most users can leave it empty
 Microsoft Fabric does not support the \code{queryconsistency} or
 \code{query_weakconsistency_session_id} request properties. Do not include either
-name in \code{request_properties}, even though Azure Data Explorer supports them.
+name in \code{request_properties}, even though Azure Data Explorer supports them
 }
 
 \section{Result types}{
@@ -102,17 +102,17 @@ become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, an
 returned as character with a warning so the value remains exact. \code{dynamic}
 columns are list-columns, and GUIDs, strings, and \code{decimal} values are
 character vectors. Keeping decimal values in their original lexical form
-avoids the silent precision loss that conversion to an R double can cause.
+avoids the silent precision loss that conversion to an R double can cause
 
 A query with several result tables returns a named \code{fabric_kql_tables} list;
 a query with no result table returns an empty tibble. Service metadata is
-retained in \verb{kusto_*} attributes for troubleshooting.
+retained in \verb{kusto_*} attributes for troubleshooting
 }
 
 \section{Permissions}{
 
 The caller needs database access through a Fabric workspace role, Eventhouse
-sharing, or KQL database sharing. Authentication uses the Kusto query service.
+sharing, or KQL database sharing. Authentication uses the Kusto query service
 }
 
 \examples{

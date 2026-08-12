@@ -23,17 +23,17 @@
 
 #' Create an internal audience-aware credential
 #'
-#' @param tenant_id Entra tenant ID.
-#' @param client_id Entra application ID.
+#' @param tenant_id Entra tenant ID
+#' @param client_id Entra application ID
 #' @param token Optional token supplied as an `AzureAuth::AzureToken` object, a
 #'   bearer-token string, or a token-provider function. `NULL` delegates token
-#'   acquisition, cache reuse, and interactive login to `AzureAuth`.
+#'   acquisition, cache reuse, and interactive login to `AzureAuth`
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()]. The package supplies `resource`, `tenant`,
-#'   `app`, and `version`.
-#' @return An internal `fabric_credential` object.
+#'   `app`, and `version`
+#' @return An internal `fabric_credential` object
 #' @details Public API functions use this object so authentication, refresh,
-#'   and token validation behave consistently for every Fabric service.
+#'   and token validation behave consistently for every Fabric service
 #' @keywords internal
 #' @noRd
 fabric_credential <- function(
@@ -44,7 +44,8 @@ fabric_credential <- function(
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
-  # Extra AzureAuth settings only apply when this package performs sign-in.
+  # Extra AzureAuth settings only apply when this package performs sign-in
+
   fabric_validate_auth_args(auth_args)
   if (!is.null(token) && length(auth_args)) {
     rlang::abort(
@@ -54,11 +55,15 @@ fabric_credential <- function(
 
   # 2 Adapt a supplied token -----------------------------------------------------------------------
 
-  # Turn each supported token form into the same small provider interface.
+  # Turn each supported token form into the same small provider interface
+
   if (!is.null(token)) {
+    # AzureAuth objects already provide refresh behavior
     if (AzureAuth::is_azure_token(token)) {
       return(fabric_azure_token_credential(token))
     }
+
+    # Static strings are validated once and returned unchanged
     if (is.character(token)) {
       fabric_validate_bearer_token(token, "token")
       return(structure(
@@ -70,6 +75,7 @@ fabric_credential <- function(
         class = "fabric_credential"
       ))
     } else if (is.function(token)) {
+      # Callbacks are adapted to the package's audience-aware interface
       return(structure(
         list(
           provider = function(audience, force_refresh = FALSE) {
@@ -85,6 +91,7 @@ fabric_credential <- function(
         class = "fabric_credential"
       ))
     } else if (inherits(token, "fabric_credential")) {
+      # Internal credentials can pass through without another adapter
       return(token)
     } else {
       rlang::abort(
@@ -98,7 +105,8 @@ fabric_credential <- function(
 
   # 3 Validate automatic sign-in settings ----------------------------------------------------------
 
-  # Tenant and application IDs are required only when no token was supplied.
+  # Tenant and application IDs are required only when no token was supplied
+
   if (
     !is.character(tenant_id) ||
       length(tenant_id) != 1L ||
@@ -110,6 +118,7 @@ fabric_credential <- function(
       class = "fabric_auth_validation_error"
     )
   }
+
   if (
     !is.character(client_id) ||
       length(client_id) != 1L ||
@@ -124,9 +133,10 @@ fabric_credential <- function(
 
   # 4 Build a cached token provider ----------------------------------------------------------------
 
-  # Keep one AzureAuth token per audience, then refresh it only when needed.
+  # Keep one AzureAuth token per audience, then refresh it only when needed
+
   cache <- new.env(parent = emptyenv())
-  # Acquire or refresh a token for `audience`; returns one bearer-token string.
+  # Acquire or refresh a token for `audience`; returns one bearer-token string
   provider <- function(audience, force_refresh = FALSE) {
     key <- gsub(
       "[^A-Za-z0-9]",
@@ -163,13 +173,13 @@ fabric_credential <- function(
 #' Consume the legacy static-token argument from dots
 #'
 #' `access_token` was the public argument name used by `fabric_livy_query()`,
-#' `fabric_sql_connect()`, and `fabric_sql_query()` through version 0.2.1.
-#' Accept its named form through `...` without restoring it to public formals.
+#' `fabric_sql_connect()`, and `fabric_sql_query()` through version 0.2.1
+#' Accept its named form through `...` without restoring it to public formals
 #'
-#' @param token A token supplied through the current public argument.
-#' @param dots Extra arguments that may contain the old `access_token` name.
-#' @param caller Public function name used in any error message.
-#' @return A list containing the chosen token and the remaining extra arguments.
+#' @param token A token supplied through the current public argument
+#' @param dots Extra arguments that may contain the old `access_token` name
+#' @param caller Public function name used in any error message
+#' @return A list containing the chosen token and the remaining extra arguments
 #' @keywords internal
 #' @noRd
 fabric_resolve_token_alias <- function(
@@ -178,7 +188,7 @@ fabric_resolve_token_alias <- function(
   caller
 ) {
   # Separate the old argument from the other extra arguments so callers can
-  # handle backward compatibility in one consistent place.
+  # handle backward compatibility in one consistent place
   dot_names <- names(dots)
   if (is.null(dot_names)) {
     dot_names <- rep("", length(dots))
@@ -194,6 +204,7 @@ fabric_resolve_token_alias <- function(
   } else {
     NULL
   }
+
   if (!is.null(token) && !is.null(access_token)) {
     rlang::abort(
       paste0(
@@ -203,6 +214,7 @@ fabric_resolve_token_alias <- function(
       )
     )
   }
+
   if (length(positions)) {
     dots <- dots[-positions]
   }
@@ -211,18 +223,20 @@ fabric_resolve_token_alias <- function(
 
 #' Validate AzureAuth passthrough arguments
 #'
-#' @param auth_args Named list passed on to AzureAuth.
-#' @return `auth_args`, invisibly, after checking names and reserved settings.
-#' @details Called by `fabric_credential()` before any automatic sign-in.
+#' @param auth_args Named list passed on to AzureAuth
+#' @return `auth_args`, invisibly, after checking names and reserved settings
+#' @details Called by `fabric_credential()` before any automatic sign-in
 #' @keywords internal
 #' @noRd
 fabric_validate_auth_args <- function(auth_args) {
   if (!is.list(auth_args)) {
     rlang::abort("auth_args must be a named list")
   }
+
   if (!length(auth_args)) {
     return(invisible(auth_args))
   }
+
   if (
     is.null(names(auth_args)) ||
       anyNA(names(auth_args)) ||
@@ -230,6 +244,7 @@ fabric_validate_auth_args <- function(auth_args) {
   ) {
     rlang::abort("auth_args must be a fully named list")
   }
+
   if (anyDuplicated(names(auth_args))) {
     rlang::abort("auth_args names must be unique")
   }
@@ -237,6 +252,7 @@ fabric_validate_auth_args <- function(auth_args) {
     names(auth_args),
     c("resource", "tenant", "app", "version")
   )
+
   if (length(reserved)) {
     rlang::abort(paste0(
       "auth_args cannot override ",
@@ -257,11 +273,11 @@ fabric_validate_auth_args <- function(auth_args) {
 
 #' Choose Azure v2 scopes for an AzureAuth flow
 #'
-#' @param audience Service scopes requested by the calling API function.
-#' @param auth_args Named AzureAuth settings that identify the sign-in flow.
-#' @return The scopes AzureAuth should request.
+#' @param audience Service scopes requested by the calling API function
+#' @param auth_args Named AzureAuth settings that identify the sign-in flow
+#' @return The scopes AzureAuth should request
 #' @details Interactive flows need `offline_access`; application-only flows do
-#'   not. `fabric_credential()` uses this distinction when acquiring a token.
+#'   not. `fabric_credential()` uses this distinction when acquiring a token
 #' @keywords internal
 #' @noRd
 fabric_azure_scopes <- function(audience, auth_args) {
@@ -274,9 +290,9 @@ fabric_azure_scopes <- function(audience, auth_args) {
 
 #' Detect an AzureAuth client-credentials flow
 #'
-#' @param auth_args Named AzureAuth settings.
-#' @return `TRUE` for an application-only sign-in, otherwise `FALSE`.
-#' @details Used when choosing both token scopes and the GraphQL audience.
+#' @param auth_args Named AzureAuth settings
+#' @return `TRUE` for an application-only sign-in, otherwise `FALSE`
+#' @details Used when choosing both token scopes and the GraphQL audience
 #' @keywords internal
 #' @noRd
 fabric_uses_client_credentials <- function(auth_args) {
@@ -290,13 +306,13 @@ fabric_uses_client_credentials <- function(auth_args) {
 
 #' Adapt a refreshable AzureAuth token
 #'
-#' @param token An `AzureAuth::AzureToken` object.
-#' @return An internal credential that refreshes and reads `token` on demand.
-#' @details `fabric_credential()` uses this for caller-supplied AzureAuth tokens.
+#' @param token An `AzureAuth::AzureToken` object
+#' @return An internal credential that refreshes and reads `token` on demand
+#' @details `fabric_credential()` uses this for caller-supplied AzureAuth tokens
 #' @keywords internal
 #' @noRd
 fabric_azure_token_credential <- function(token) {
-  # Refresh the supplied Azure token when requested; returns its bearer token.
+  # Refresh the supplied Azure token when requested; returns its bearer token
   provider <- function(audience, force_refresh = FALSE) {
     if (
       isTRUE(force_refresh) ||
@@ -314,9 +330,9 @@ fabric_azure_token_credential <- function(token) {
 
 #' Extract and validate a bearer token from an AzureAuth token
 #'
-#' @param token Value expected to be an `AzureAuth::AzureToken` object.
-#' @return One validated bearer-token string.
-#' @details Used by both forms of AzureAuth-backed internal credentials.
+#' @param token Value expected to be an `AzureAuth::AzureToken` object
+#' @return One validated bearer-token string
+#' @details Used by both forms of AzureAuth-backed internal credentials
 #' @keywords internal
 #' @noRd
 fabric_extract_azure_token <- function(token) {
@@ -330,10 +346,10 @@ fabric_extract_azure_token <- function(token) {
 
 #' Validate a bearer-token string
 #'
-#' @param token Value expected to contain one bearer token.
-#' @param label Friendly input name used in an error message.
-#' @return `token`, invisibly, after validation.
-#' @details Called before any supplied or acquired token is sent in a request.
+#' @param token Value expected to contain one bearer token
+#' @param label Friendly input name used in an error message
+#' @return `token`, invisibly, after validation
+#' @details Called before any supplied or acquired token is sent in a request
 #' @keywords internal
 #' @noRd
 fabric_validate_bearer_token <- function(token, label) {
@@ -350,13 +366,13 @@ fabric_validate_bearer_token <- function(token, label) {
 
 #' Invoke token callbacks with their supported arguments
 #'
-#' @param provider User-supplied token function.
-#' @param audience Service audience requested by the current API call.
+#' @param provider User-supplied token function
+#' @param audience Service audience requested by the current API call
 #' @param force_refresh Whether the caller is retrying after authentication
-#'   failed.
-#' @return One validated bearer-token string.
+#'   failed
+#' @return One validated bearer-token string
 #' @details `fabric_credential()` uses this adapter so callbacks may accept
-#'   zero, one, or both supported arguments.
+#'   zero, one, or both supported arguments
 #' @keywords internal
 #' @noRd
 fabric_call_token_provider <- function(provider, audience, force_refresh) {
@@ -370,17 +386,21 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
     if ("audience" %in% args) {
       supplied$audience <- audience
     }
+
     if ("force_refresh" %in% args) {
       supplied$force_refresh <- force_refresh
     }
+
     if (!length(supplied) && length(args)) {
       supplied[[args[[1L]]]] <- audience
     }
     token <- do.call(provider, supplied)
   }
+
   if (is.list(token)) {
     token <- token$access_token %||% token$token
   }
+
   if (
     !is.character(token) ||
       length(token) != 1L ||
@@ -396,12 +416,12 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
 
 #' Obtain a bearer token from an internal credential
 #'
-#' @param credential Internal credential created by `fabric_credential()`.
-#' @param audience Service audience needed for the current request.
-#' @param force_refresh Whether to request a fresh token.
-#' @return One bearer-token string.
+#' @param credential Internal credential created by `fabric_credential()`
+#' @param audience Service audience needed for the current request
+#' @param force_refresh Whether to request a fresh token
+#' @return One bearer-token string
 #' @details Shared HTTP and service helpers call this immediately before a
-#'   request, keeping raw tokens out of their stored state.
+#'   request, keeping raw tokens out of their stored state
 #' @keywords internal
 #' @noRd
 fabric_get_token <- function(credential, audience, force_refresh = FALSE) {

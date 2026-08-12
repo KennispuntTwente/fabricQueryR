@@ -24,69 +24,69 @@ fabric_items(
 \arguments{
 \item{workspace}{Workspace name, ID, or record returned by
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
-avoids an extra lookup.}
+avoids an extra lookup}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
 \code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
-Fabric, so use the API spelling. Leave \code{NULL} to list all item types.}
+Fabric, so use the API spelling. Leave \code{NULL} to list all item types}
 
 \item{detail}{Whether to retrieve connection details as well as names and
 IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers use \code{TRUE} by default.}
+typed discovery helpers use \code{TRUE} by default}
 
-\item{detail_errors}{What to do if some connection details cannot be read.
+\item{detail_errors}{What to do if some connection details cannot be read
 \code{"record"} returns the available information and stores an error message
-with the affected item; \code{"abort"} stops the call.}
+with the affected item; \code{"abort"} stops the call}
 
 \item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
-\code{FALSE} lists only items at the workspace root.}
+\code{FALSE} lists only items at the workspace root}
 
 \item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
-to build the XMLA endpoint for a Personal workspace.}
+to build the XMLA endpoint for a Personal workspace}
 
 \item{personal_workspace_owner}{Optional owner UPN or Entra object ID used
 to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
 workspace API does not return either personal-workspace identifier, so
 supply this together with \code{personal_workspace_tenant_id} when a
-\code{dax_connection_string} is needed for a semantic model in My Workspace.}
+\code{dax_connection_string} is needed for a semantic model in My Workspace}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
-\code{api_base} is supplied explicitly.}
+\code{api_base} is supplied explicitly}
 
 \item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
+a non-Microsoft HTTPS origin that you trust to receive a Fabric token}
 }
 \value{
 A list with one item record per match. Every record includes common
 fields such as \code{id}, \code{displayName}, \code{type}, and \code{workspaceId}. With
 \code{detail = TRUE}, records also include the connection details needed by the
-matching fabricQueryR functions when Fabric makes them available.
+matching fabricQueryR functions when Fabric makes them available
 }
 \description{
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
 items stored in a workspace. Set \code{detail = TRUE} when you want records that
-can be passed directly to query or connection functions.
+can be passed directly to query or connection functions
 }
 \details{
 The caller needs at least access to the workspace (the Viewer role is
 sufficient for the core list operation). Workload enrichment additionally
 requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the corresponding
-workload-specific read scope and access to the item.
+workload-specific read scope and access to the item
 Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
-require both \code{personal_workspace_tenant_id} and \code{personal_workspace_owner}.
+require both \code{personal_workspace_tenant_id} and \code{personal_workspace_owner}
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items}{List items REST API}

@@ -37,102 +37,102 @@ fabric_sql_query(
 \item{server}{A Fabric SQL server name, a complete connection string copied
 from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
 or SQL Database record returned by a discovery function. A discovered
-record is usually simplest because it also supplies the database name.}
+record is usually simplest because it also supplies the database name}
 
 \item{sql}{One result-producing T-SQL \code{SELECT} statement, optionally beginning
 with a common-table-expression \code{WITH} clause. For DDL or DML, open a
 connection with \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and call \code{\link[DBI:dbExecute]{DBI::dbExecute()}}. A
 Lakehouse SQL analytics endpoint is read-only and does not support
-\code{INSERT}, \code{UPDATE}, or \code{DELETE}.}
+\code{INSERT}, \code{UPDATE}, or \code{DELETE}}
 
 \item{params}{Optional list of values for \verb{?} placeholders in \code{sql}. Values
 are sent separately from the SQL text, which is safer and easier to quote
-correctly than building a query with \code{paste()}.}
+correctly than building a query with \code{paste()}}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"} when a large result should be processed without first
 collecting it into an R data frame. The native Arrow path uses the ADBC
-backend.}
+backend}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database
 shown with its connection string in Fabric. If omitted, Warehouse and SQL
 analytics endpoints open Fabric's \code{master} context, which is useful for
-discovery but does not select the item's tables.}
+discovery but does not select the item's tables}
 
 \item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
-hostname prevents fabricQueryR from identifying it.}
+hostname prevents fabricQueryR from identifying it}
 
 \item{backend}{Connection driver. Use \code{"odbc"} for ordinary DBI work or
-\code{"adbc"} for a native Arrow path after installing its \code{mssql} driver.}
+\code{"adbc"} for a native Arrow path after installing its \code{mssql} driver}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{odbc_driver}{ODBC driver name. ODBC Driver 18 for SQL Server is the
-default.}
+default}
 
 \item{adbc_driver}{ADBC driver name or shared-library path. The separately
-installed ADBC Driver Foundry \code{mssql} driver is the default.}
+installed ADBC Driver Foundry \code{mssql} driver is the default}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
-\code{server}; otherwise the standard SQL port, 1433, is used.}
+\code{server}; otherwise the standard SQL port, 1433, is used}
 
 \item{encrypt}{Whether the driver encrypts the connection. Keep the secure
-default, \code{"yes"}, for Fabric.}
+default, \code{"yes"}, for Fabric}
 
 \item{trust_server_certificate}{Whether to accept a server certificate
 without validating its trust chain. Keep the secure default, \code{"no"},
-unless diagnosing a controlled test environment.}
+unless diagnosing a controlled test environment}
 
 \item{timeout}{Non-negative whole-number login/connect timeout in seconds;
-\code{0} lets the driver use an unlimited or driver-specific timeout.}
+\code{0} lets the driver use an unlimited or driver-specific timeout}
 
 \item{read_only}{Whether to ask the driver for a read-only connection. This
-is a connection hint, not a replacement for Fabric or SQL permissions.}
+is a connection hint, not a replacement for Fabric or SQL permissions}
 
 \item{allow_custom_endpoint}{Logical. Fabric SQL and Microsoft SQL Database
 hostnames are trusted by default. Set to \code{TRUE} only when deliberately
 sending the SQL access token to another hostname, such as a controlled
-proxy or test server.}
+proxy or test server}
 
-\item{verbose}{Logical. Show authentication, retry, and connection progress.}
+\item{verbose}{Logical. Show authentication, retry, and connection progress}
 
-\item{max_tries}{Maximum attempts after temporary Fabric SQL failures.}
+\item{max_tries}{Maximum attempts after temporary Fabric SQL failures}
 
 \item{retry_delay}{Initial delay in seconds before retrying. Later retries
-wait progressively longer, up to 60 seconds.}
+wait progressively longer, up to 60 seconds}
 
 \item{idempotent}{Logical. Set to \code{TRUE} only if running the entire statement
 a second time has no unwanted effect (usually a plain \code{SELECT}). This
 permits a retry when it is unclear whether Fabric executed the first
-attempt.}
+attempt}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded. For ODBC, a caller-supplied \code{attributes}
 named list is merged with the package-managed \code{azure_token}; that protected
-attribute cannot be overridden.}
+attribute cannot be overridden}
 }
 \value{
 With \code{result = "tibble"}, a tibble containing the returned rows and
 driver-converted column types. With \code{result = "arrow_stream"}, a single-use
-\code{nanoarrow_array_stream} that can be consumed by Arrow-compatible tools.
+\code{nanoarrow_array_stream} that can be consumed by Arrow-compatible tools
 }
 \description{
 Runs one SQL query and returns its rows, opening and closing the connection
 automatically. Use \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} instead when several operations
 should share a connection. Supply changing values through \code{params} rather
-than pasting them into the SQL text.
+than pasting them into the SQL text
 }
 \examples{
 \dontrun{

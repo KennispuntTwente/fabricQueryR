@@ -3,73 +3,73 @@
 #' Runs a complete Python, R, or Java/Scala Spark application stored in OneLake
 #' or ADLS. Use this for repeatable scripts and unattended processing; use
 #' [fabric_livy_session()] when several interactive statements should share
-#' variables and Spark state.
+#' variables and Spark state
 #'
 #' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
 #'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
-#'   endpoint**, or use an item from [fabric_lakehouses()].
+#'   endpoint**, or use an item from [fabric_lakehouses()]
 #' @param file ABFS/ABFSS URI of the main Python, R, or Java/Scala application
 #'   file. After uploading a script under a Lakehouse's `Files/` area, its
-#'   **Properties** dialog can copy this path.
-#' @param name Optional readable job name shown in Fabric monitoring.
+#'   **Properties** dialog can copy this path
+#' @param name Optional readable job name shown in Fabric monitoring
 #' @param class_name Main class for a Java/Scala application; leave `NULL` for
-#'   Python or R scripts.
+#'   Python or R scripts
 #' @param args Optional character vector of command-line arguments passed to the
-#'   application.
-#' @param jars Optional JAR dependency URIs.
-#' @param files Optional supporting-file URIs copied to the job.
+#'   application
+#' @param jars Optional JAR dependency URIs
+#' @param files Optional supporting-file URIs copied to the job
 #' @param py_files Optional Python dependency URIs, such as `.py` or `.zip`
-#'   files.
-#' @param archives Optional archive URIs that Spark should unpack.
+#'   files
+#' @param archives Optional archive URIs that Spark should unpack
 #' @param conf Optional named list of Spark settings or application-specific
-#'   values.
+#'   values
 #' @param environment_id Optional GUID of a published Fabric Environment whose
-#'   libraries and Spark settings should be used.
+#'   libraries and Spark settings should be used
 #' @param target_lakehouse_id Optional Lakehouse GUID made available as
 #'   `spark.targetLakehouse`. Use this when the application needs an explicit
-#'   default Lakehouse context.
-#' @param tags Optional named list of string labels for monitoring.
+#'   default Lakehouse context
+#' @param tags Optional named list of string labels for monitoring
 #' @param driver_memory,executor_memory Optional Spark memory values such as
-#'   `"4g"`. Leave `NULL` to use Fabric defaults.
+#'   `"4g"`. Leave `NULL` to use Fabric defaults
 #' @param driver_cores,executor_cores,num_executors Optional Spark resource
 #'   counts. Larger values consume more capacity; leave `NULL` unless the
-#'   workload has been sized deliberately.
+#'   workload has been sized deliberately
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
+#'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
+#'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
+#'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow.
-#' @param verbose Logical. Show submission and lifecycle messages.
+#'   set it only for a custom token provider or identity flow
+#' @param verbose Logical. Show submission and lifecycle messages
 #' @param wait Logical. `FALSE` returns immediately so other R work can
 #'   continue; `TRUE` waits for a terminal state before returning the same
-#'   object.
-#' @param timeout Maximum seconds to wait when `wait = TRUE`.
-#' @param poll_interval Seconds between status checks when waiting.
+#'   object
+#' @param timeout Maximum seconds to wait when `wait = TRUE`
+#' @param poll_interval Seconds between status checks when waiting
 #' @param cancel_on_timeout Logical. When waiting at submission time, request
 #'   cancellation if the local timeout expires. Defaults to `TRUE`, so a timed
 #'   out call does not normally leave Spark compute running unattended. The
 #'   structured timeout condition always contains the submitted object in its
-#'   `batch` field, including when cancellation fails or is disabled.
+#'   `batch` field, including when cancellation fails or is disabled
 #' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
 #'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
-#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint
 #'
 #' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
 #'   `$result()` for structured metadata and logs, and call `$wait()` later when
-#'   submitting with `wait = FALSE`.
+#'   submitting with `wait = FALSE`
 #' @section Before you submit:
 #' Fabric needs a workspace on supported capacity and a Lakehouse. The
 #' application file must already be accessible through an ABFS/ABFSS URI; this
 #' function does not upload a local script. Use [fabric_onelake_upload()] first
-#' when needed.
+#' when needed
 #'
 #' The signed-in identity needs Lakehouse read and execute access, permission for
-#' code to access Fabric and storage, and an appropriate workspace role.
+#' code to access Fabric and storage, and an appropriate workspace role
 #'
 #' @seealso
 #' [Microsoft Fabric batch jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)
@@ -128,7 +128,8 @@ fabric_livy_batch_submit <- function(
   # 1 Validate batch options -----------------------------------------------------------------------
 
   # Validate all local settings before submitting an application that cannot be
-  # changed after Fabric accepts it.
+  # changed after Fabric accepts it
+
   fabric_livy_check_string(file, "file")
   fabric_livy_check_flag(wait, "wait")
   fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
@@ -160,7 +161,8 @@ fabric_livy_batch_submit <- function(
 
   # 2 Build the batch request ----------------------------------------------------------------------
 
-  # Omit unset settings so the Fabric environment can provide its defaults.
+  # Omit unset settings so the Fabric environment can provide its defaults
+
   payload <- Filter(
     Negate(is.null),
     list(
@@ -181,6 +183,8 @@ fabric_livy_batch_submit <- function(
       numExecutors = num_executors
     )
   )
+
+  # Resolve authentication separately from the service route
   credential <- fabric_livy_credential(
     tenant_id,
     client_id,
@@ -188,6 +192,7 @@ fabric_livy_batch_submit <- function(
     auth_args,
     audience
   )
+
   collection <- fabric_livy_endpoint(
     fabric_livy_resolve_url(
       livy_url,
@@ -198,6 +203,8 @@ fabric_livy_batch_submit <- function(
   )
 
   # 3 Submit the application -----------------------------------------------------------------------
+
+  # Submit the application only after authentication and payload fields are ready
 
   inform(verbose, "Submitting Fabric Livy batch")
   response <- fabric_livy_json(
@@ -216,6 +223,8 @@ fabric_livy_batch_submit <- function(
 
   # 4 Optionally wait for completion ---------------------------------------------------------------
 
+  # Wait here only when the caller requested a completed batch
+
   if (isTRUE(wait)) {
     batch$wait(
       timeout = timeout,
@@ -230,20 +239,20 @@ fabric_livy_batch_submit <- function(
 
 #' A Microsoft Fabric Livy batch job
 #'
-#' Represents a Spark application submitted with [fabric_livy_batch_submit()].
+#' Represents a Spark application submitted with [fabric_livy_batch_submit()]
 #' Use `$wait()` to wait for completion, `$result()` or `$logs()` to inspect the
 #' outcome, and `$cancel()` to request cancellation. Most users do not need to
-#' call this R6 class directly.
+#' call this R6 class directly
 #'
-#' @field id Fabric batch ID.
-#' @field url Batch lifecycle URL.
-#' @field state Latest batch state.
-#' @field response Latest raw service response.
-#' @field cancel_requested Whether `$cancel()` was called successfully.
-#' @field submitted_local Local submission timestamp.
-#' @field completed_local Local completion timestamp.
-#' @field verbose Whether lifecycle messages are enabled.
-#' @format An [R6::R6Class] generator.
+#' @field id Fabric batch ID
+#' @field url Batch lifecycle URL
+#' @field state Latest batch state
+#' @field response Latest raw service response
+#' @field cancel_requested Whether `$cancel()` was called successfully
+#' @field submitted_local Local submission timestamp
+#' @field completed_local Local completion timestamp
+#' @field verbose Whether lifecycle messages are enabled
+#' @format An [R6::R6Class] generator
 #' @export
 FabricLivyBatch <- R6::R6Class(
   classname = "FabricLivyBatch",
@@ -258,12 +267,12 @@ FabricLivyBatch <- R6::R6Class(
     verbose = TRUE,
 
     #' @description Internal constructor used by
-    #' [fabric_livy_batch_submit()].
-    #' @param response Initial batch response.
-    #' @param url Batch collection URL.
-    #' @param credential Internal authentication credential.
-    #' @param verbose Whether to emit lifecycle messages.
-    #' @returns A new batch object.
+    #' [fabric_livy_batch_submit()]
+    #' @param response Initial batch response
+    #' @param url Batch collection URL
+    #' @param credential Internal authentication credential
+    #' @param verbose Whether to emit lifecycle messages
+    #' @returns A new batch object
     initialize = function(response, url, credential, verbose = TRUE) {
       self$id <- as.character(response$id %||% "")
       fabric_livy_check_string(self$id, "Livy batch response id")
@@ -276,9 +285,9 @@ FabricLivyBatch <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Print a concise batch summary.
-    #' @param ... Unused.
-    #' @returns `self`, invisibly.
+    #' @description Print a concise batch summary
+    #' @param ... Unused
+    #' @returns `self`, invisibly
     print = function(...) {
       cat("<Fabric Livy batch>\n")
       cat("  id: ", self$id, "\n", sep = "")
@@ -287,10 +296,10 @@ FabricLivyBatch <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Retrieve current batch metadata.
-    #' @param refresh Whether to retrieve current state from Fabric.
-    #' @param deadline Internal wall-clock deadline for the status request.
-    #' @returns The raw batch response list.
+    #' @description Retrieve current batch metadata
+    #' @param refresh Whether to retrieve current state from Fabric
+    #' @param deadline Internal wall-clock deadline for the status request
+    #' @returns The raw batch response list
     status = function(refresh = TRUE, deadline = NULL) {
       fabric_livy_check_flag(refresh, "refresh")
       if (isTRUE(refresh)) {
@@ -305,12 +314,12 @@ FabricLivyBatch <- R6::R6Class(
       self$response
     },
 
-    #' @description Wait for the batch to reach a terminal state.
-    #' @param timeout Maximum wait in seconds.
-    #' @param poll_interval Polling interval in seconds.
-    #' @param error_on_failure Raise a structured error for a failed batch.
-    #' @param cancel_on_timeout Request cancellation before raising a timeout.
-    #' @returns `self`, invisibly.
+    #' @description Wait for the batch to reach a terminal state
+    #' @param timeout Maximum wait in seconds
+    #' @param poll_interval Polling interval in seconds
+    #' @param error_on_failure Raise a structured error for a failed batch
+    #' @param cancel_on_timeout Request cancellation before raising a timeout
+    #' @returns `self`, invisibly
     wait = function(
       timeout = 1200,
       poll_interval = 5,
@@ -349,26 +358,29 @@ FabricLivyBatch <- R6::R6Class(
           if (failed && isTRUE(error_on_failure)) {
             fabric_livy_abort_batch(response)
           }
+
           return(invisible(self))
         }
         fabric_livy_poll_sleep(deadline, poll_interval)
       }
     },
 
-    #' @description Return available Spark driver log lines.
-    #' @param refresh Whether to retrieve current state from Fabric.
-    #' @returns A character vector.
+    #' @description Return available Spark driver log lines
+    #' @param refresh Whether to retrieve current state from Fabric
+    #' @returns A character vector
     logs = function(refresh = TRUE) {
       response <- self$status(refresh = refresh)
       as.character(response$log %||% character())
     },
 
-    #' @description Return structured batch metadata and logs.
-    #' @param refresh Whether to retrieve current state from Fabric.
-    #' @param error_on_failure Raise a structured error for a failed batch.
-    #' @returns A `fabric_livy_batch_result` list.
+    #' @description Return structured batch metadata and logs
+    #' @param refresh Whether to retrieve current state from Fabric
+    #' @param error_on_failure Raise a structured error for a failed batch
+    #' @returns A `fabric_livy_batch_result` list
     result = function(refresh = TRUE, error_on_failure = TRUE) {
       # 1 Read and classify current status ---------------------------------------------------------
+
+      # Read and classify current status once so later checks use a consistent view
 
       fabric_livy_check_flag(error_on_failure, "error_on_failure")
       response <- self$status(refresh = refresh)
@@ -390,6 +402,8 @@ FabricLivyBatch <- R6::R6Class(
 
       # 2 Raise an optional failure error ----------------------------------------------------------
 
+      # Turn the final state into clear output for the caller
+
       if (
         isTRUE(error_on_failure) &&
           (state %in%
@@ -407,6 +421,8 @@ FabricLivyBatch <- R6::R6Class(
       }
 
       # 3 Return structured batch details ----------------------------------------------------------
+
+      # Return structured batch details in the stable form expected by the caller
 
       structure(
         list(
@@ -426,9 +442,9 @@ FabricLivyBatch <- R6::R6Class(
       )
     },
 
-    #' @description Request batch cancellation.
-    #' @param deadline Internal wall-clock deadline for the cancellation request.
-    #' @returns `TRUE`, invisibly, after Fabric accepts the request.
+    #' @description Request batch cancellation
+    #' @param deadline Internal wall-clock deadline for the cancellation request
+    #' @returns `TRUE`, invisibly, after Fabric accepts the request
     cancel = function(deadline = NULL) {
       fabric_livy_ok(
         "DELETE",
@@ -445,8 +461,8 @@ FabricLivyBatch <- R6::R6Class(
   private = list(
     credential = NULL,
 
-    # Handle a wait deadline, optionally asking Fabric to cancel the batch.
-    # It receives the deadline and cancel flag, then always raises a timeout.
+    # Handle a wait deadline, optionally asking Fabric to cancel the batch
+    # It receives the deadline and cancel flag, then always raises a timeout
     abort_timeout = function(deadline, cancel_on_timeout) {
       cancellation <- if (isTRUE(cancel_on_timeout)) {
         tryCatch(

@@ -22,58 +22,58 @@ fabric_item(
 \arguments{
 \item{workspace}{Workspace name, ID, or record returned by
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
-avoids an extra lookup.}
+avoids an extra lookup}
 
 \item{item}{Item GUID, exact display name, or an item record returned
 by a discovery function. A display name must identify exactly one item of
 the requested \code{type}; use a GUID or discovered record when names are
-duplicated.}
+duplicated}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
 \code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
-Fabric, so use the API spelling. Leave \code{NULL} to list all item types.}
+Fabric, so use the API spelling. Leave \code{NULL} to list all item types}
 
 \item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
-to build the XMLA endpoint for a Personal workspace.}
+to build the XMLA endpoint for a Personal workspace}
 
 \item{personal_workspace_owner}{Optional owner UPN or Entra object ID used
 to build the XMLA endpoint for a Personal workspace. Microsoft Fabric's
 workspace API does not return either personal-workspace identifier, so
 supply this together with \code{personal_workspace_tenant_id} when a
-\code{dax_connection_string} is needed for a semantic model in My Workspace.}
+\code{dax_connection_string} is needed for a semantic model in My Workspace}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
-\code{FABRICQUERYR_TENANT_ID}.}
+\code{FABRICQUERYR_TENANT_ID}}
 
 \item{client_id}{Microsoft Entra application/client ID. Defaults to
-\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID.}
+\code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
-\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
+\code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
 \item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
-\code{api_base} is supplied explicitly.}
+\code{api_base} is supplied explicitly}
 
 \item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token.}
+a non-Microsoft HTTPS origin that you trust to receive a Fabric token}
 }
 \value{
 One \code{fabric_item} record containing the item's name, ID, type,
-workspace, and any connection details that Fabric makes available.
+workspace, and any connection details that Fabric makes available
 }
 \description{
-Finds one item and returns the connection details needed by fabricQueryR.
+Finds one item and returns the connection details needed by fabricQueryR
 Use this when you know the item's name or ID and do not need to list every
-item in the workspace.
+item in the workspace
 }
 \details{
 The caller needs access to the workspace for the core item lookup. This
 singular helper always performs workload-specific enrichment as well, which
 additionally requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the applicable
 workload-specific read scope and access to the item. Use
-\code{\link[=fabric_items]{fabric_items()}} with \code{detail = FALSE} when only core item metadata is needed.
+\code{\link[=fabric_items]{fabric_items()}} with \code{detail = FALSE} when only core item metadata is needed
 }

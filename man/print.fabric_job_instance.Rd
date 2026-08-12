@@ -8,12 +8,12 @@
 }
 \arguments{
 \item{x}{A \code{fabric_job_instance} returned by \code{\link[=fabric_job_status]{fabric_job_status()}} or
-\code{\link[=fabric_job_wait]{fabric_job_wait()}}.}
+\code{\link[=fabric_job_wait]{fabric_job_wait()}}}
 
-\item{...}{Reserved for the print method.}
+\item{...}{Reserved for the print method}
 }
 \value{
-\code{x}, invisibly.
+\code{x}, invisibly
 }
 \description{
 Print Fabric job status
