@@ -296,6 +296,45 @@ test_that("HTTP retries honor Retry-After and bounded backoff", {
   expect_equal(delays, c(2, 1))
 })
 
+test_that("HTTP retries honor Fabric isRetriable decisions", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    if (calls == 1L) {
+      json_response(400L, body = list(isRetriable = TRUE))
+    } else {
+      json_response()
+    }
+  })
+  response <- .httr2_perform(
+    httr2::request("https://example.test/items"),
+    max_tries = 2L,
+    .sleep = function(...) NULL,
+    .runif = function(...) 1
+  )
+  expect_identical(httr2::resp_status(response), 200L)
+  expect_identical(calls, 2L)
+
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(
+      503L,
+      body = list(error = list(isRetriable = FALSE))
+    )
+  })
+  error <- expect_error(
+    .httr2_perform(
+      httr2::request("https://example.test/items"),
+      max_tries = 3L,
+      .sleep = function(...) rlang::abort("unexpected retry")
+    ),
+    class = "fabric_http_error"
+  )
+  expect_false(error$isRetriable)
+  expect_identical(calls, 1L)
+})
+
 test_that("Fabric HTTP errors expose stable structured metadata", {
   response <- json_response(
     status = 400L,

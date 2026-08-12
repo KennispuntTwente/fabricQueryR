@@ -195,7 +195,12 @@
         next
       }
 
-      transient <- status %in% c(408L, 429L, 500L, 502L, 503L, 504L)
+      service_retriable <- .httr2_response_is_retriable(response)
+      transient <- if (is.null(service_retriable)) {
+        status %in% c(408L, 429L, 500L, 502L, 503L, 504L)
+      } else {
+        service_retriable
+      }
       if (!can_retry || !transient || attempt == max_tries) {
         .httr2_stop_http(response)
       }
@@ -607,6 +612,25 @@
     NULL
   } else {
     max(0, as.numeric(difftime(when, now, units = "secs")))
+  }
+}
+
+# Read Fabric's explicit retry decision from a structured error response.
+# Returns NULL when the service did not provide a valid logical value.
+.httr2_response_is_retriable <- function(resp) {
+  payload <- try(
+    httr2::resp_body_json(resp, simplifyVector = FALSE),
+    silent = TRUE
+  )
+  if (inherits(payload, "try-error") || !is.list(payload)) {
+    return(NULL)
+  }
+  nested <- if (is.list(payload$error)) payload$error else list()
+  value <- payload$isRetriable %||% nested$isRetriable
+  if (is.logical(value) && length(value) == 1L && !is.na(value)) {
+    value
+  } else {
+    NULL
   }
 }
 
