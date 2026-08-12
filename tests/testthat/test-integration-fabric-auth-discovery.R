@@ -39,6 +39,14 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   )[[1L]]
   expect_equal(workspace$displayName, manifest$workspace_name)
 
+  admin_workspaces <- fabric_workspaces(
+    roles = "Admin",
+    prefer_workspace_endpoints = TRUE,
+    token = token
+  )
+  admin_workspace_ids <- purrr::map_chr(admin_workspaces, "id")
+  expect_true(manifest$workspace_id %in% admin_workspace_ids)
+
   find_item <- function(items, id) {
     matches <- purrr::keep(items, ~ identical(.x$id, id))
     expect_equal(length(matches), 1L, info = id)
