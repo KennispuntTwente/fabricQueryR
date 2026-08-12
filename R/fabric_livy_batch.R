@@ -465,9 +465,15 @@ FabricLivyBatch <- R6::R6Class(
     # It receives the deadline and cancel flag, then always raises a timeout
     abort_timeout = function(deadline, cancel_on_timeout) {
       cancellation <- if (isTRUE(cancel_on_timeout)) {
+        # The wait deadline is necessarily exhausted here. Give the best-effort
+        # cleanup request its own short budget so the DELETE can actually leave
+        # the process without allowing cleanup to block indefinitely.
+        cleanup_timeout <- getOption("fabricqueryr.livy.cleanup_timeout", 30)
+        fabric_livy_check_number(cleanup_timeout, "Livy cleanup timeout")
+        cleanup_deadline <- Sys.time() + cleanup_timeout
         tryCatch(
           {
-            self$cancel(deadline = deadline)
+            self$cancel(deadline = cleanup_deadline)
             list(accepted = TRUE, error = NULL)
           },
           error = function(error) list(accepted = FALSE, error = error)

@@ -841,17 +841,19 @@ test_that("batch timeout can request cancellation", {
   expect_true(cancelled)
   expect_true(batch$cancel_requested)
   expect_s3_class(cancel_deadline, "POSIXct")
+  expect_gt(cancel_deadline, Sys.time())
   expect_true(error$cancel_accepted)
   expect_null(error$cancel_error)
 })
 
-test_that("batch timeout retains a bounded cancellation failure", {
+test_that("batch timeout retains a bounded cleanup cancellation failure", {
   local_mocked_bindings(
     fabric_livy_json = function(...) {
       list(id = "slow-batch", state = "running")
     },
     fabric_livy_ok = function(..., deadline = NULL) {
       expect_s3_class(deadline, "POSIXct")
+      expect_gt(deadline, Sys.time())
       rlang::abort("cancellation deadline exhausted")
     }
   )
