@@ -203,7 +203,9 @@ sign-in context, so later calls do not need those details again
 A \code{session_tag} lets related notebook runs share Spark compute, but Fabric may
 report a failed statement as a completed shared session with no exit value
 Omit the tag when job status must reliably signal notebook failure. Otherwise,
-have the notebook report its outcome with \code{mssparkutils.notebook.exit()}
+have the notebook report its outcome with \code{notebookutils.notebook.exit()}.
+The former \code{mssparkutils} namespace remains backward compatible but Microsoft
+recommends migrating because it will be retired
 }
 
 \section{Permissions and status handling}{
