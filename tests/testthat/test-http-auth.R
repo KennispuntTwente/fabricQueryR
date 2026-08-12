@@ -13,18 +13,21 @@ json_response <- function(
   )
 }
 
-fake_azure_token <- function(access_token = "azure-token") {
+fake_azure_token <- function(access_token = "azure-token", valid = TRUE) {
   class <- R6::R6Class(
     "FabricQueryRFakeAzureToken",
     inherit = AzureAuth::AzureToken,
     public = list(
       refreshes = 0L,
+      valid = NULL,
       initialize = function() {
         self$credentials <- list(access_token = access_token)
+        self$valid <- valid
       },
-      validate = function() TRUE,
+      validate = function() self$valid,
       refresh = function() {
         self$refreshes <- self$refreshes + 1L
+        self$valid <- TRUE
         self$credentials$access_token <- paste0(
           access_token,
           "-refreshed"
@@ -105,6 +108,44 @@ test_that("token NULL delegates acquisition and caching to AzureAuth", {
   expect_equal(calls[[1L]]$version, 2)
   expect_equal(calls[[1L]]$auth_type, "device_code")
   expect_true(calls[[1L]]$use_cache)
+})
+
+test_that("automatic AzureAuth credentials refresh invalid and forced tokens", {
+  acquired <- fake_azure_token()
+  acquisitions <- 0L
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      acquisitions <<- acquisitions + 1L
+      acquired
+    },
+    .package = "AzureAuth"
+  )
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(auth_type = "device_code", use_cache = TRUE)
+  )
+
+  expect_identical(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "azure-token"
+  )
+  acquired$valid <- FALSE
+  expect_identical(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "azure-token-refreshed"
+  )
+  expect_identical(acquired$refreshes, 1L)
+  expect_identical(
+    fabric_get_token(
+      credential,
+      .fabric_audience$fabric,
+      force_refresh = TRUE
+    ),
+    "azure-token-refreshed"
+  )
+  expect_identical(acquired$refreshes, 2L)
+  expect_identical(acquisitions, 1L)
 })
 
 test_that("client credentials omit offline_access", {
