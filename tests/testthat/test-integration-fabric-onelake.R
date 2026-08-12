@@ -1298,32 +1298,37 @@ test_that("Fabric Variant tables fail before exposing physical fields", {
   }
 })
 
-test_that("Fabric Warehouse exports read or fail with actionable errors", {
+test_that("seeded Fabric Warehouse Delta exports remain readable", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()
   warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
 
-  for (table in unlist(warehouse$tables, use.names = FALSE)) {
-    result <- tryCatch(
-      fabric_test_read_delta(
-        manifest,
-        warehouse,
-        table,
-        schema = "dbo"
-      ),
-      error = identity
+  expected <- list(
+    types = data.frame(
+      id = c(1, 2, 3),
+      name = c("alpha", "beta", "gamma")
+    ),
+    mutations = data.frame(
+      id = c(2, 3, 4),
+      name = c("beta-updated", "gamma", "alpha-replacement")
     )
-    if (inherits(result, "error")) {
-      expect_s3_class(
-        result,
-        "fabric_delta_unsupported_feature_error"
-      )
-      expect_gt(length(result$delta_features), 0L)
-      expect_match(conditionMessage(result), "Fabric SQL or PySpark")
-    } else {
-      expect_s3_class(result, "tbl_df")
-      expect_gt(ncol(result), 0L, label = table)
-    }
+  )
+  expect_setequal(names(warehouse$tables), names(expected))
+
+  for (fixture in names(expected)) {
+    table <- warehouse$tables[[fixture]]
+    result <- fabric_test_read_delta(
+      manifest,
+      warehouse,
+      table,
+      schema = "dbo"
+    )
+    result <- result[order(result$id), , drop = FALSE]
+    expected_result <- expected[[fixture]]
+
+    expect_s3_class(result, "tbl_df", label = table)
+    expect_identical(as.numeric(result$id), expected_result$id, label = table)
+    expect_identical(as.character(result$name), expected_result$name, label = table)
   }
 })
 
