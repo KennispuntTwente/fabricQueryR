@@ -26,3 +26,14 @@ A function suitable for \code{next_cursor} in
 Creates the \code{next_cursor} function used by \code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}} for the
 common \code{hasNextPage} and \code{endCursor} pagination fields
 }
+\examples{
+next_cursor <- fabric_graphql_cursor("products")
+page <- structure(
+  list(data = list(products = list(
+    hasNextPage = TRUE,
+    endCursor = "opaque-cursor"
+  ))),
+  class = c("fabric_graphql_result", "list")
+)
+next_cursor(page)
+}

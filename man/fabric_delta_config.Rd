@@ -20,3 +20,7 @@ By default this does not start Python. Set \code{initialize = TRUE} to prepare t
 environment and report installed versions; packages may be downloaded the
 first time
 }
+\examples{
+config <- fabric_delta_config()
+config[c("initialized", "requirements", "available")]
+}

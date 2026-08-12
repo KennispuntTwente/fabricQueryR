@@ -257,6 +257,9 @@ fabric_onelake_read_delta_table <- function(
 #' @return A list describing initialization state, requirements, the selected
 #'   interpreter, module availability, and installed package versions when
 #'   initialized
+#' @examples
+#' config <- fabric_delta_config()
+#' config[c("initialized", "requirements", "available")]
 #' @export
 fabric_delta_config <- function(initialize = FALSE) {
   # 1 Discover the Python runtime ------------------------------------------------------------------

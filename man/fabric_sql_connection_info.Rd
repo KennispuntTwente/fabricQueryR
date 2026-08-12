@@ -40,3 +40,10 @@ Shows the server, database, port, and item type that fabricQueryR will use for
 a Fabric SQL connection. Most users can pass a discovered item directly to
 \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this helper
 }
+\examples{
+info <- fabric_sql_connection_info(
+  "sample.datawarehouse.fabric.microsoft.com",
+  database = "Sales"
+)
+info[c("server", "database", "port", "target_type")]
+}
