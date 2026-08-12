@@ -61,11 +61,27 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
       list(
         id = api_id,
         type = "GraphQLApi",
+        workspaceId = workspace_id,
         graphql_endpoint = "https://custom.test/graphql/"
       ),
+      workspace_id = toupper(workspace_id),
       allow_custom_endpoint = TRUE
     ),
     "https://custom.test/graphql"
+  )
+  expect_error(
+    graphql_resolve_endpoint(
+      list(
+        id = api_id,
+        type = "GraphQLApi",
+        workspaceId = workspace_id,
+        graphql_endpoint = "https://custom.test/graphql/"
+      ),
+      workspace_id = "00000000-0000-0000-0000-000000000000",
+      allow_custom_endpoint = TRUE
+    ),
+    "conflicts with the api discovery record workspaceId",
+    fixed = TRUE
   )
   expect_error(
     graphql_resolve_endpoint(api_id),

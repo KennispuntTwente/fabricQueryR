@@ -678,12 +678,39 @@ graphql_resolve_endpoint <- function(
       "graphql_endpoint",
       "graphQLEndpoint"
     )
+    record_workspace_id <- fabric_record_value(
+      record,
+      "workspaceId",
+      "workspace_id"
+    )
+
+    if (!is.null(workspace_id) && !is.null(record_workspace_id)) {
+      if (
+        !is.character(workspace_id) || length(workspace_id) != 1L ||
+          is.na(workspace_id) || !fabric_is_guid(workspace_id)
+      ) {
+        rlang::abort("workspace_id must be a GUID")
+      }
+      if (
+        !is.character(record_workspace_id) ||
+          length(record_workspace_id) != 1L ||
+          is.na(record_workspace_id) ||
+          !fabric_is_guid(record_workspace_id)
+      ) {
+        rlang::abort("api discovery record workspaceId must be a GUID")
+      }
+      if (!identical(tolower(workspace_id), tolower(record_workspace_id))) {
+        rlang::abort(
+          "workspace_id conflicts with the api discovery record workspaceId"
+        )
+      }
+    }
 
     if (!is.null(endpoint)) {
       return(graphql_validate_endpoint(endpoint, allow_custom_endpoint))
     }
     workspace_id <- workspace_id %||%
-      fabric_record_value(record, "workspaceId", "workspace_id")
+      record_workspace_id
     api <- fabric_record_value(record, "id")
   }
 
