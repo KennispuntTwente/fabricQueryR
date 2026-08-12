@@ -1,5 +1,10 @@
-# Split a semicolon-delimited connection string without breaking quoted values
+# Split `value` into fields while preserving quoted semicolons. Returns the
+# fields used by the SQL and Power BI connection-string parsers.
 fabric_split_connection_string <- function(value) {
+  # 1 Prepare parser state -------------------------------------------------------------------------
+
+  # Read one character at a time because semicolons inside quotes are data,
+  # while semicolons outside quotes separate fields.
   characters <- strsplit(value, "", fixed = TRUE)[[1L]]
   tokens <- character()
   current <- character()
@@ -9,6 +14,9 @@ fabric_split_connection_string <- function(value) {
   can_open_value <- TRUE
   index <- 1L
 
+  # 2 Read fields ----------------------------------------------------------------------------------
+
+  # Track quoted and braced values until their matching closing character.
   while (index <= length(characters)) {
     char <- characters[[index]]
     if (isTRUE(braced)) {
@@ -62,6 +70,9 @@ fabric_split_connection_string <- function(value) {
     index <- index + 1L
   }
 
+  # 3 Return complete fields -----------------------------------------------------------------------
+
+  # An unfinished quote would make later key/value parsing ambiguous.
   if (!is.null(quote) || isTRUE(braced)) {
     rlang::abort(
       "Connection string contains an unterminated quoted or braced value"
@@ -70,6 +81,8 @@ fabric_split_connection_string <- function(value) {
   c(tokens, paste0(current, collapse = ""))
 }
 
+# Remove ODBC brace or quote escaping from `value`. Returns plain text for the
+# SQL and Power BI connection-string parsers.
 fabric_unquote_connection_value <- function(value) {
   value <- trimws(value)
   size <- nchar(value)
@@ -89,7 +102,8 @@ fabric_unquote_connection_value <- function(value) {
   value
 }
 
-# Encode a connection-string value using ODBC brace quoting
+# Encode one string with ODBC brace quoting. Returns safe connection-string
+# text used when fabricQueryR builds a connection string.
 fabric_quote_connection_value <- function(value) {
   if (
     !is.character(value) ||

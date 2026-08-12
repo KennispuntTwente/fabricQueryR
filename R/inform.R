@@ -1,3 +1,5 @@
+# Show `msg` through cli when `verbose` is enabled. Returns invisibly and is
+# used by long-running public functions for optional progress messages.
 inform <- function(
   verbose,
   msg,
@@ -8,7 +10,8 @@ inform <- function(
   }
   type <- match.arg(type)
 
-  # Evaluate { } in the caller of `inform()`
+  # Evaluate `{}` expressions where `inform()` was called so message values
+  # such as `{item_name}` refer to the public function's local variables.
   .envir <- rlang::caller_env()
 
   switch(

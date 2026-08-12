@@ -137,6 +137,10 @@ fabric_onelake_read_delta_table <- function(
   limit = NULL,
   result = c("tibble", "arrow_stream")
 ) {
+  # 1 Resolve and validate the Delta table ---------------------------------------------------------
+
+  # Normalize discovery records, names, version, projection, and result type
+  # before initializing Python or acquiring a storage token.
   dfs_base_supplied <- !missing(dfs_base)
   result <- rlang::arg_match(result, .fabric_delta_result_types)
   resolved <- fabric_delta_resolve_public_target(
@@ -163,6 +167,8 @@ fabric_onelake_read_delta_table <- function(
     rlang::abort("verbose must be TRUE or FALSE")
   }
 
+  # 2 Prepare authenticated table access -----------------------------------------------------------
+
   if (is.null(token)) {
     inform(verbose, "Authenticating with {.pkg AzureAuth} (MSAL v2)")
   }
@@ -175,7 +181,12 @@ fabric_onelake_read_delta_table <- function(
   table_uri <- fabric_delta_target_uri(resolved$target)
   inform(verbose, "Opening Delta table {.path {resolved$table_dir}}")
 
+  # 3 Read with one authentication retry -----------------------------------------------------------
+
+  # A refreshable token gets one forced refresh when the runtime reports an
+  # authentication-shaped failure; other failures are never repeated blindly.
   last_bearer_token <- NULL
+  # Read once with an optional forced token refresh; returns value and token.
   read_once <- function(force_refresh = FALSE) {
     bearer_token <- fabric_get_token(
       credential,
@@ -213,6 +224,8 @@ fabric_onelake_read_delta_table <- function(
     )
   }
 
+  # 4 Report and return the result -----------------------------------------------------------------
+
   if (identical(result, "tibble")) {
     inform(
       verbose,
@@ -238,6 +251,10 @@ fabric_onelake_read_delta_table <- function(
 #'   initialized.
 #' @export
 fabric_delta_config <- function(initialize = FALSE) {
+  # 1 Discover the Python runtime ------------------------------------------------------------------
+
+  # Avoid initialization by default so an inspection call never downloads or
+  # starts Python unexpectedly.
   if (
     !is.logical(initialize) ||
       length(initialize) != 1L ||
@@ -258,6 +275,8 @@ fabric_delta_config <- function(initialize = FALSE) {
   }
   initialized <- reticulate::py_available(initialize = FALSE)
 
+  # 2 Inspect required modules ---------------------------------------------------------------------
+
   available <- c(deltalake = NA, nanoarrow = NA)
   versions <- NULL
   if (initialized) {
@@ -276,6 +295,8 @@ fabric_delta_config <- function(initialize = FALSE) {
       )
     }
   }
+
+  # 3 Return runtime configuration -----------------------------------------------------------------
 
   list(
     initialized = initialized,
@@ -297,6 +318,7 @@ fabric_delta_config <- function(initialize = FALSE) {
 #' Resolve and validate the public Fabric table arguments
 #' @keywords internal
 #' @noRd
+# Uses the public table-location fields; returns a normalized OneLake target.
 fabric_delta_resolve_public_target <- function(
   table_path,
   workspace_name,
@@ -305,6 +327,9 @@ fabric_delta_resolve_public_target <- function(
   dfs_base,
   item_type = NULL
 ) {
+  # 1 Resolve discovery records and item type ------------------------------------------------------
+
+  # Records may provide IDs, default schema, item type, and private DFS endpoint.
   workspace_target <- workspace_name
   workspace_record <- fabric_as_record(workspace_name)
   if (!is.null(workspace_record)) {
@@ -386,6 +411,8 @@ fabric_delta_resolve_public_target <- function(
     schema <- "dbo"
   }
 
+  # 2 Validate table path fields -------------------------------------------------------------------
+
   fabric_delta_validate_non_empty(table_path, "table_path")
   if (grepl("[/\\\\]", table_path)) {
     rlang::abort(
@@ -409,6 +436,8 @@ fabric_delta_resolve_public_target <- function(
     }
   }
 
+  # 3 Build and return the OneLake target ----------------------------------------------------------
+
   table_name <- table_path
   table_dir <- if (is.null(schema)) {
     paste("Tables", table_name, sep = "/")
@@ -428,6 +457,7 @@ fabric_delta_resolve_public_target <- function(
 #' Validate one public string argument
 #' @keywords internal
 #' @noRd
+# Uses `value`, its friendly `name`, and error `suffix`; returns invisibly.
 fabric_delta_validate_non_empty <- function(value, name, suffix = "") {
   if (
     !is.character(value) ||
@@ -447,6 +477,7 @@ fabric_delta_validate_non_empty <- function(value, name, suffix = "") {
 #' Validate an exactly representable non-negative whole number
 #' @keywords internal
 #' @noRd
+# Uses optional numeric `value` and bounds; returns a validated number or `NULL`.
 fabric_delta_validate_whole_number <- function(
   value,
   name,
@@ -477,6 +508,7 @@ fabric_delta_validate_whole_number <- function(
 #' Validate a logical Delta projection
 #' @keywords internal
 #' @noRd
+# Uses optional `columns`; returns invisibly after projection validation.
 fabric_delta_validate_columns <- function(columns) {
   if (
     !is.null(columns) &&
@@ -496,6 +528,7 @@ fabric_delta_validate_columns <- function(columns) {
 #' Convert a resolved OneLake target into a delta-rs ABFSS URI
 #' @keywords internal
 #' @noRd
+# Uses a resolved OneLake `target`; returns the ABFSS URI passed to delta-rs.
 fabric_delta_target_uri <- function(target) {
   host <- httr2::url_parse(target$dfs_base)$hostname
   if (is.null(host) || !nzchar(host)) {
@@ -534,6 +567,7 @@ fabric_delta_target_uri <- function(target) {
 #' Read a Delta URI through the Python runtime
 #' @keywords internal
 #' @noRd
+# Uses a Delta URI, token, query options, and result type; returns table data.
 fabric_delta_read_uri <- function(
   table_uri,
   bearer_token = NULL,
@@ -558,6 +592,7 @@ fabric_delta_read_uri <- function(
 #' Open a delta-rs Arrow query
 #' @keywords internal
 #' @noRd
+# Uses a Delta URI, token, and query settings; returns a Python Arrow reader.
 fabric_delta_python_reader <- function(
   table_uri,
   bearer_token = NULL,
@@ -597,6 +632,7 @@ fabric_delta_python_reader <- function(
 #' Reject known unsupported Delta reader features before planning a query
 #' @keywords internal
 #' @noRd
+# Uses a delta-rs `protocol`; returns supported reader features or raises.
 fabric_delta_check_protocol <- function(protocol) {
   features <- reticulate::py_to_r(protocol$reader_features)
   features <- if (is.null(features)) character() else as.character(features)
@@ -632,6 +668,7 @@ fabric_delta_check_protocol <- function(protocol) {
 #' Configure DataFusion for protocol-sensitive Delta scans
 #' @keywords internal
 #' @noRd
+# Uses a DataFusion `builder` and Delta `features`; returns configured builder.
 fabric_delta_configure_query <- function(builder, features) {
   normalized <- gsub("[^a-z0-9]", "", tolower(features))
   if (!"deletionvectors" %in% normalized) {
@@ -652,6 +689,7 @@ fabric_delta_configure_query <- function(builder, features) {
 #' Render one exact R whole number for Python
 #' @keywords internal
 #' @noRd
+# Uses exact whole-number `value`; returns non-scientific text for Python.
 fabric_delta_whole_number_text <- function(value) {
   formatC(value, format = "f", digits = 0L)
 }
@@ -659,6 +697,7 @@ fabric_delta_whole_number_text <- function(value) {
 #' Build a safe DataFusion projection query
 #' @keywords internal
 #' @noRd
+# Uses optional `columns` and `limit`; returns a safe DataFusion SELECT string.
 fabric_delta_query <- function(columns = NULL, limit = NULL) {
   projection <- if (is.null(columns)) {
     "*"
@@ -683,6 +722,7 @@ fabric_delta_query <- function(columns = NULL, limit = NULL) {
 #' Quote one DataFusion identifier
 #' @keywords internal
 #' @noRd
+# Uses one identifier `value`; returns its safely quoted DataFusion spelling.
 fabric_delta_quote_identifier <- function(value) {
   paste0('"', gsub('"', '""', value, fixed = TRUE), '"')
 }
@@ -690,6 +730,7 @@ fabric_delta_quote_identifier <- function(value) {
 #' Convert a Python Arrow reader into an R nanoarrow stream
 #' @keywords internal
 #' @noRd
+# Uses a Python Arrow `reader`; returns an R nanoarrow stream for result handling.
 fabric_delta_reader_stream <- function(reader, collect = FALSE) {
   source_schema <- nanoarrow::as_nanoarrow_schema(reader$schema)
   target_schema <- fabric_delta_normalize_schema(
@@ -714,7 +755,12 @@ fabric_delta_reader_stream <- function(reader, collect = FALSE) {
 #' Stage an authenticated stream in a local Arrow IPC file
 #' @keywords internal
 #' @noRd
+# Uses authenticated Arrow `stream`; returns a disk-backed stream safe after call.
 fabric_delta_spool_stream <- function(stream) {
+  # 1 Write an authenticated local snapshot --------------------------------------------------------
+
+  # Materialize while the token-backed Python reader is alive, but keep the R
+  # result lazy and disk-backed for the caller.
   snapshot_version <- attr(
     stream,
     "fabric_delta_snapshot_version",
@@ -732,6 +778,9 @@ fabric_delta_spool_stream <- function(stream) {
   )
 
   nanoarrow::write_nanoarrow(stream, path)
+
+  # 2 Open a lazy local stream ---------------------------------------------------------------------
+
   connection <- file(path, open = "rb")
   local_stream <- tryCatch(
     nanoarrow::read_nanoarrow(connection, lazy = TRUE),
@@ -757,6 +806,9 @@ fabric_delta_spool_stream <- function(stream) {
       stop(error)
     }
   )
+
+  # 3 Attach cleanup metadata and return -----------------------------------------------------------
+
   attr(local_stream, "fabric_delta_spool_path") <- path
   if (!is.null(snapshot_version)) {
     attr(local_stream, "fabric_delta_snapshot_version") <- snapshot_version
@@ -768,6 +820,7 @@ fabric_delta_spool_stream <- function(stream) {
 #' Detect timestamp-without-time-zone Arrow formats
 #' @keywords internal
 #' @noRd
+# Uses an Arrow `format`; returns whether it is a timestamp without time zone.
 fabric_delta_is_timestamp_ntz_format <- function(format) {
   grepl("^ts[smnu]:$", format)
 }
@@ -775,6 +828,7 @@ fabric_delta_is_timestamp_ntz_format <- function(format) {
 #' Normalize Arrow types emitted by DataFusion
 #' @keywords internal
 #' @noRd
+# Uses an Arrow `schema`; returns a normalized schema for streaming or collect.
 fabric_delta_normalize_schema <- function(schema, collect = FALSE) {
   children <- lapply(
     schema$children,
@@ -825,6 +879,7 @@ fabric_delta_normalize_schema <- function(schema, collect = FALSE) {
 #' Reject columns that need a package-specific recursive R representation
 #' @keywords internal
 #' @noRd
+# Uses an Arrow `schema`; returns invisibly or rejects unsupported nested collect.
 fabric_delta_validate_collect_schema <- function(schema) {
   unsupported <- vapply(
     schema$children,
@@ -869,6 +924,7 @@ fabric_delta_validate_collect_schema <- function(schema) {
 #' Collect common Delta scalar types through nanoarrow
 #' @keywords internal
 #' @noRd
+# Uses a Python Arrow `reader`; returns a tibble for supported scalar columns.
 fabric_delta_collect_reader <- function(reader) {
   stream <- fabric_delta_reader_stream(reader, collect = TRUE)
   source_schema <- attr(
@@ -888,6 +944,7 @@ fabric_delta_collect_reader <- function(reader) {
 #' Detect an authentication-shaped delta-rs error
 #' @keywords internal
 #' @noRd
+# Uses one runtime `error`; returns whether refreshing credentials may help.
 fabric_delta_is_authentication_error <- function(error) {
   grepl(
     paste0(
@@ -903,6 +960,7 @@ fabric_delta_is_authentication_error <- function(error) {
 #' Extract required Delta reader features from a delta-rs protocol error
 #' @keywords internal
 #' @noRd
+# Uses runtime `message`; returns named unsupported Delta reader features.
 fabric_delta_unsupported_features <- function(message) {
   match <- regexec(
     "unsupported table features required:[[:space:]]*\\[([^]]+)\\]",
@@ -921,7 +979,12 @@ fabric_delta_unsupported_features <- function(message) {
 #' Redact and translate a Python runtime error
 #' @keywords internal
 #' @noRd
+# Uses `error` and optional token; raises a redacted, typed public condition.
 fabric_delta_abort_python <- function(error, bearer_token = NULL) {
+  # 1 Redact and classify the runtime error --------------------------------------------------------
+
+  # Tokens may appear in lower-level Python messages, so redact explicit and
+  # token-shaped text before attaching it to a public condition.
   if (inherits(error, "fabric_delta_error")) {
     stop(error)
   }
@@ -980,6 +1043,9 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
       classes
     )
   }
+
+  # 2 Build actionable guidance --------------------------------------------------------------------
+
   bullets <- c(
     "Unable to read the Delta table through Python delta-rs.",
     "x" = message
@@ -1037,6 +1103,9 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
       )
     )
   }
+
+  # 3 Raise the typed Delta error ------------------------------------------------------------------
+
   rlang::abort(
     bullets,
     class = unique(classes),

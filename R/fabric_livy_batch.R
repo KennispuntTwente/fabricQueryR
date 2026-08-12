@@ -1,4 +1,232 @@
-# Livy batch R6 object ------------------------------------------------------
+#' Submit a Microsoft Fabric Livy batch job
+#'
+#' Runs a complete Python, R, or Java/Scala Spark application stored in OneLake
+#' or ADLS. Use this for repeatable scripts and unattended processing; use
+#' [fabric_livy_session()] when several interactive statements should share
+#' variables and Spark state.
+#'
+#' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
+#'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
+#'   endpoint**, or use an item from [fabric_lakehouses()].
+#' @param file ABFS/ABFSS URI of the main Python, R, or Java/Scala application
+#'   file. After uploading a script under a Lakehouse's `Files/` area, its
+#'   **Properties** dialog can copy this path.
+#' @param name Optional readable job name shown in Fabric monitoring.
+#' @param class_name Main class for a Java/Scala application; leave `NULL` for
+#'   Python or R scripts.
+#' @param args Optional character vector of command-line arguments passed to the
+#'   application.
+#' @param jars Optional JAR dependency URIs.
+#' @param files Optional supporting-file URIs copied to the job.
+#' @param py_files Optional Python dependency URIs, such as `.py` or `.zip`
+#'   files.
+#' @param archives Optional archive URIs that Spark should unpack.
+#' @param conf Optional named list of Spark settings or application-specific
+#'   values.
+#' @param environment_id Optional GUID of a published Fabric Environment whose
+#'   libraries and Spark settings should be used.
+#' @param target_lakehouse_id Optional Lakehouse GUID made available as
+#'   `spark.targetLakehouse`. Use this when the application needs an explicit
+#'   default Lakehouse context.
+#' @param tags Optional named list of string labels for monitoring.
+#' @param driver_memory,executor_memory Optional Spark memory values such as
+#'   `"4g"`. Leave `NULL` to use Fabric defaults.
+#' @param driver_cores,executor_cores,num_executors Optional Spark resource
+#'   counts. Larger values consume more capacity; leave `NULL` unless the
+#'   workload has been sized deliberately.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Microsoft Entra application/client ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
+#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
+#'   set it only for a custom token provider or identity flow.
+#' @param verbose Logical. Show submission and lifecycle messages.
+#' @param wait Logical. `FALSE` returns immediately so other R work can
+#'   continue; `TRUE` waits for a terminal state before returning the same
+#'   object.
+#' @param timeout Maximum seconds to wait when `wait = TRUE`.
+#' @param poll_interval Seconds between status checks when waiting.
+#' @param cancel_on_timeout Logical. When waiting at submission time, request
+#'   cancellation if the local timeout expires. Defaults to `TRUE`, so a timed
+#'   out call does not normally leave Spark compute running unattended. The
+#'   structured timeout condition always contains the submitted object in its
+#'   `batch` field, including when cancellation fails or is disabled.
+#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
+#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
+#'
+#' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
+#'   `$result()` for structured metadata and logs, and call `$wait()` later when
+#'   submitting with `wait = FALSE`.
+#' @section Before you submit:
+#' Fabric needs a workspace on supported capacity and a Lakehouse. The
+#' application file must already be accessible through an ABFS/ABFSS URI; this
+#' function does not upload a local script. Use [fabric_onelake_upload()] first
+#' when needed.
+#'
+#' The signed-in identity needs Lakehouse read and execute access, permission for
+#' code to access Fabric and storage, and an appropriate workspace role.
+#'
+#' @seealso
+#' [Microsoft Fabric batch jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)
+#'
+#' @examples
+#' \dontrun{
+#' lakehouse <- fabric_lakehouses("Analytics workspace")[[1]]
+#'
+#' batch <- fabric_livy_batch_submit(
+#'   lakehouse,
+#'   file = paste0(
+#'     "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
+#'     "lakehouse.Lakehouse/Files/jobs/daily.py"
+#'   ),
+#'   wait = TRUE,
+#'   cancel_on_timeout = TRUE
+#' )
+#' batch$result()
+#' }
+#'
+#' @export
+fabric_livy_batch_submit <- function(
+  livy_url,
+  file,
+  name = NULL,
+  class_name = NULL,
+  args = NULL,
+  jars = NULL,
+  files = NULL,
+  py_files = NULL,
+  archives = NULL,
+  conf = NULL,
+  environment_id = NULL,
+  target_lakehouse_id = NULL,
+  tags = NULL,
+  driver_memory = NULL,
+  driver_cores = NULL,
+  executor_memory = NULL,
+  executor_cores = NULL,
+  num_executors = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  audience = NULL,
+  verbose = TRUE,
+  wait = FALSE,
+  timeout = 1200,
+  poll_interval = 5,
+  cancel_on_timeout = TRUE,
+  allow_custom_endpoint = FALSE
+) {
+  # 1 Validate batch options -----------------------------------------------------------------------
+
+  # Validate all local settings before submitting an application that cannot be
+  # changed after Fabric accepts it.
+  fabric_livy_check_string(file, "file")
+  fabric_livy_check_flag(wait, "wait")
+  fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
+  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  fabric_livy_check_flag(verbose, "verbose")
+  fabric_livy_check_number(timeout, "timeout")
+  fabric_livy_check_number(poll_interval, "poll_interval")
+  fabric_livy_validate_session_fields(
+    name = name,
+    archives = archives,
+    driver_memory = driver_memory,
+    driver_cores = driver_cores,
+    executor_memory = executor_memory,
+    executor_cores = executor_cores,
+    num_executors = num_executors
+  )
+  fabric_livy_check_optional_string(class_name, "class_name")
+  fabric_livy_check_string_vector(args, "args", allow_empty_strings = TRUE)
+  fabric_livy_check_string_vector(jars, "jars")
+  fabric_livy_check_string_vector(files, "files")
+  fabric_livy_check_string_vector(py_files, "py_files")
+  tags <- fabric_livy_normalize_named_list(tags, "tags")
+  conf <- fabric_livy_conf(conf, environment_id)
+  if (!is.null(target_lakehouse_id)) {
+    fabric_livy_check_string(target_lakehouse_id, "target_lakehouse_id")
+    conf <- conf %||% list()
+    conf[["spark.targetLakehouse"]] <- target_lakehouse_id
+  }
+
+  # 2 Build the batch request ----------------------------------------------------------------------
+
+  # Omit unset settings so the Fabric environment can provide its defaults.
+  payload <- Filter(
+    Negate(is.null),
+    list(
+      file = file,
+      name = name,
+      className = class_name,
+      args = args,
+      jars = jars,
+      files = files,
+      pyFiles = py_files,
+      archives = archives,
+      conf = conf,
+      tags = tags,
+      driverMemory = driver_memory,
+      driverCores = driver_cores,
+      executorMemory = executor_memory,
+      executorCores = executor_cores,
+      numExecutors = num_executors
+    )
+  )
+  credential <- fabric_livy_credential(
+    tenant_id,
+    client_id,
+    token,
+    auth_args,
+    audience
+  )
+  collection <- fabric_livy_endpoint(
+    fabric_livy_resolve_url(
+      livy_url,
+      allow_custom_endpoint = allow_custom_endpoint
+    ),
+    "batches",
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+
+  # 3 Submit the application -----------------------------------------------------------------------
+
+  inform(verbose, "Submitting Fabric Livy batch")
+  response <- fabric_livy_json(
+    "POST",
+    collection,
+    credential,
+    payload = payload,
+    idempotent = FALSE
+  )
+  batch <- FabricLivyBatch$new(
+    response = response,
+    url = collection,
+    credential = credential,
+    verbose = verbose
+  )
+
+  # 4 Optionally wait for completion ---------------------------------------------------------------
+
+  if (isTRUE(wait)) {
+    batch$wait(
+      timeout = timeout,
+      poll_interval = poll_interval,
+      cancel_on_timeout = cancel_on_timeout
+    )
+  }
+  batch
+}
+
+# Livy batch R6 object -----------------------------------------------------------------------------
 
 #' A Microsoft Fabric Livy batch job
 #'
@@ -140,6 +368,8 @@ FabricLivyBatch <- R6::R6Class(
     #' @param error_on_failure Raise a structured error for a failed batch.
     #' @returns A `fabric_livy_batch_result` list.
     result = function(refresh = TRUE, error_on_failure = TRUE) {
+      # 1 Read and classify current status ---------------------------------------------------------
+
       fabric_livy_check_flag(error_on_failure, "error_on_failure")
       response <- self$status(refresh = refresh)
       state <- fabric_livy_state(response)
@@ -157,6 +387,9 @@ FabricLivyBatch <- R6::R6Class(
       if (terminal) {
         self$completed_local <- self$completed_local %||% Sys.time()
       }
+
+      # 2 Raise an optional failure error ----------------------------------------------------------
+
       if (
         isTRUE(error_on_failure) &&
           (state %in%
@@ -172,6 +405,9 @@ FabricLivyBatch <- R6::R6Class(
       ) {
         fabric_livy_abort_batch(response)
       }
+
+      # 3 Return structured batch details ----------------------------------------------------------
+
       structure(
         list(
           id = response$id,
@@ -209,6 +445,8 @@ FabricLivyBatch <- R6::R6Class(
   private = list(
     credential = NULL,
 
+    # Handle a wait deadline, optionally asking Fabric to cancel the batch.
+    # It receives the deadline and cancel flag, then always raises a timeout.
     abort_timeout = function(deadline, cancel_on_timeout) {
       cancellation <- if (isTRUE(cancel_on_timeout)) {
         tryCatch(
@@ -232,214 +470,3 @@ FabricLivyBatch <- R6::R6Class(
   ),
   cloneable = FALSE
 )
-
-#' Submit a Microsoft Fabric Livy batch job
-#'
-#' Runs a complete Python, R, or Java/Scala Spark application stored in OneLake
-#' or ADLS. Use this for repeatable scripts and unattended processing; use
-#' [fabric_livy_session()] when several interactive statements should share
-#' variables and Spark state.
-#'
-#' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
-#'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
-#'   endpoint**, or use an item from [fabric_lakehouses()].
-#' @param file ABFS/ABFSS URI of the main Python, R, or Java/Scala application
-#'   file. After uploading a script under a Lakehouse's `Files/` area, its
-#'   **Properties** dialog can copy this path.
-#' @param name Optional readable job name shown in Fabric monitoring.
-#' @param class_name Main class for a Java/Scala application; leave `NULL` for
-#'   Python or R scripts.
-#' @param args Optional character vector of command-line arguments passed to the
-#'   application.
-#' @param jars Optional JAR dependency URIs.
-#' @param files Optional supporting-file URIs copied to the job.
-#' @param py_files Optional Python dependency URIs, such as `.py` or `.zip`
-#'   files.
-#' @param archives Optional archive URIs that Spark should unpack.
-#' @param conf Optional named list of Spark settings or application-specific
-#'   values.
-#' @param environment_id Optional GUID of a published Fabric Environment whose
-#'   libraries and Spark settings should be used.
-#' @param target_lakehouse_id Optional Lakehouse GUID made available as
-#'   `spark.targetLakehouse`. Use this when the application needs an explicit
-#'   default Lakehouse context.
-#' @param tags Optional named list of string labels for monitoring.
-#' @param driver_memory,executor_memory Optional Spark memory values such as
-#'   `"4g"`. Leave `NULL` to use Fabric defaults.
-#' @param driver_cores,executor_cores,num_executors Optional Spark resource
-#'   counts. Larger values consume more capacity; leave `NULL` unless the
-#'   workload has been sized deliberately.
-#' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
-#' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
-#' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
-#' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
-#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow.
-#' @param verbose Logical. Show submission and lifecycle messages.
-#' @param wait Logical. `FALSE` returns immediately so other R work can
-#'   continue; `TRUE` waits for a terminal state before returning the same
-#'   object.
-#' @param timeout Maximum seconds to wait when `wait = TRUE`.
-#' @param poll_interval Seconds between status checks when waiting.
-#' @param cancel_on_timeout Logical. When waiting at submission time, request
-#'   cancellation if the local timeout expires. Defaults to `TRUE`, so a timed
-#'   out call does not normally leave Spark compute running unattended. The
-#'   structured timeout condition always contains the submitted object in its
-#'   `batch` field, including when cancellation fails or is disabled.
-#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
-#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
-#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
-#'
-#' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
-#'   `$result()` for structured metadata and logs, and call `$wait()` later when
-#'   submitting with `wait = FALSE`.
-#' @section Before you submit:
-#' Fabric needs a workspace on supported capacity and a Lakehouse. The
-#' application file must already be accessible through an ABFS/ABFSS URI; this
-#' function does not upload a local script. Use [fabric_onelake_upload()] first
-#' when needed.
-#'
-#' The signed-in identity needs Lakehouse read and execute access, permission for
-#' code to access Fabric and storage, and an appropriate workspace role.
-#'
-#' @seealso
-#' [Microsoft Fabric batch jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)
-#'
-#' @examples
-#' \dontrun{
-#' lakehouse <- fabric_lakehouses("Analytics workspace")[[1]]
-#'
-#' batch <- fabric_livy_batch_submit(
-#'   lakehouse,
-#'   file = paste0(
-#'     "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
-#'     "lakehouse.Lakehouse/Files/jobs/daily.py"
-#'   ),
-#'   wait = TRUE,
-#'   cancel_on_timeout = TRUE
-#' )
-#' batch$result()
-#' }
-#'
-#' @export
-fabric_livy_batch_submit <- function(
-  livy_url,
-  file,
-  name = NULL,
-  class_name = NULL,
-  args = NULL,
-  jars = NULL,
-  files = NULL,
-  py_files = NULL,
-  archives = NULL,
-  conf = NULL,
-  environment_id = NULL,
-  target_lakehouse_id = NULL,
-  tags = NULL,
-  driver_memory = NULL,
-  driver_cores = NULL,
-  executor_memory = NULL,
-  executor_cores = NULL,
-  num_executors = NULL,
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv(
-    "FABRICQUERYR_CLIENT_ID",
-    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
-  ),
-  token = NULL,
-  auth_args = list(),
-  audience = NULL,
-  verbose = TRUE,
-  wait = FALSE,
-  timeout = 1200,
-  poll_interval = 5,
-  cancel_on_timeout = TRUE,
-  allow_custom_endpoint = FALSE
-) {
-  fabric_livy_check_string(file, "file")
-  fabric_livy_check_flag(wait, "wait")
-  fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
-  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
-  fabric_livy_check_flag(verbose, "verbose")
-  fabric_livy_check_number(timeout, "timeout")
-  fabric_livy_check_number(poll_interval, "poll_interval")
-  fabric_livy_validate_session_fields(
-    name = name,
-    archives = archives,
-    driver_memory = driver_memory,
-    driver_cores = driver_cores,
-    executor_memory = executor_memory,
-    executor_cores = executor_cores,
-    num_executors = num_executors
-  )
-  fabric_livy_check_optional_string(class_name, "class_name")
-  fabric_livy_check_string_vector(args, "args", allow_empty_strings = TRUE)
-  fabric_livy_check_string_vector(jars, "jars")
-  fabric_livy_check_string_vector(files, "files")
-  fabric_livy_check_string_vector(py_files, "py_files")
-  tags <- fabric_livy_normalize_named_list(tags, "tags")
-  conf <- fabric_livy_conf(conf, environment_id)
-  if (!is.null(target_lakehouse_id)) {
-    fabric_livy_check_string(target_lakehouse_id, "target_lakehouse_id")
-    conf <- conf %||% list()
-    conf[["spark.targetLakehouse"]] <- target_lakehouse_id
-  }
-  payload <- fabric_livy_payload(
-    file = file,
-    name = name,
-    className = class_name,
-    args = args,
-    jars = jars,
-    files = files,
-    pyFiles = py_files,
-    archives = archives,
-    conf = conf,
-    tags = tags,
-    driverMemory = driver_memory,
-    driverCores = driver_cores,
-    executorMemory = executor_memory,
-    executorCores = executor_cores,
-    numExecutors = num_executors
-  )
-  credential <- fabric_livy_credential(
-    tenant_id,
-    client_id,
-    token,
-    auth_args,
-    audience
-  )
-  collection <- fabric_livy_endpoint(
-    fabric_livy_resolve_url(
-      livy_url,
-      allow_custom_endpoint = allow_custom_endpoint
-    ),
-    "batches",
-    allow_custom_endpoint = allow_custom_endpoint
-  )
-  inform(verbose, "Submitting Fabric Livy batch")
-  response <- fabric_livy_json(
-    "POST",
-    collection,
-    credential,
-    payload = payload,
-    idempotent = FALSE
-  )
-  batch <- FabricLivyBatch$new(
-    response = response,
-    url = collection,
-    credential = credential,
-    verbose = verbose
-  )
-  if (isTRUE(wait)) {
-    batch$wait(
-      timeout = timeout,
-      poll_interval = poll_interval,
-      cancel_on_timeout = cancel_on_timeout
-    )
-  }
-  batch
-}

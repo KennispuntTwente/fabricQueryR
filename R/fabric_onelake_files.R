@@ -287,6 +287,10 @@ fabric_onelake_upload <- function(
     8 * 1024^2
   )
 ) {
+  # 1 Resolve and validate the target --------------------------------------------------------------
+
+  # Managed Tables paths are protected by default because direct file changes
+  # can bypass the Delta transaction protocol.
   dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
@@ -306,6 +310,9 @@ fabric_onelake_upload <- function(
   if (!is.null(if_match) && !isTRUE(overwrite)) {
     rlang::abort("if_match requires overwrite = TRUE")
   }
+
+  # 2 Upload and return metadata -------------------------------------------------------------------
+
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -344,6 +351,8 @@ fabric_onelake_delete <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   allow_managed_tables = FALSE
 ) {
+  # 1 Resolve and validate the target --------------------------------------------------------------
+
   dfs_base_supplied <- !missing(dfs_base)
   target <- onelake_resolve_target(
     workspace,
@@ -357,11 +366,17 @@ fabric_onelake_delete <- function(
     "delete",
     allow_managed_tables = allow_managed_tables
   )
+
+  # 2 Require explicit deletion confirmation -------------------------------------------------------
+
   if (!isTRUE(confirm)) {
     rlang::abort(
       "Deletion is disabled by default; set confirm = TRUE explicitly"
     )
   }
+
+  # 3 Delete the target ----------------------------------------------------------------------------
+
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -376,6 +391,8 @@ fabric_onelake_delete <- function(
   )
 }
 
+# Resolve IDs, names, discovery records, or a full URI into one OneLake target.
+# Returns normalized workspace, item, path, and trusted DFS base fields.
 onelake_resolve_target <- function(
   workspace,
   item = NULL,
@@ -383,6 +400,8 @@ onelake_resolve_target <- function(
   item_type = NULL,
   dfs_base = NULL
 ) {
+  # 1 Parse a complete OneLake URI -----------------------------------------------------------------
+
   if (
     is.character(workspace) &&
       length(workspace) == 1L &&
@@ -401,6 +420,9 @@ onelake_resolve_target <- function(
     return(onelake_parse_uri(workspace))
   }
 
+  # 2 Resolve workspace and item values ------------------------------------------------------------
+
+  # Discovery records may carry IDs and a workspace-specific DFS endpoint.
   workspace_record <- fabric_as_record(workspace)
   item_record <- fabric_as_record(item)
   workspace_value <- if (is.null(workspace_record)) {
@@ -433,6 +455,8 @@ onelake_resolve_target <- function(
   onelake_segment(workspace_value, "workspace")
   onelake_segment(item_value, "item")
   onelake_scalar(path, "path", allow_empty = TRUE)
+
+  # 3 Validate the name or GUID form ---------------------------------------------------------------
 
   workspace_guid <- fabric_is_guid(workspace_value)
   item_guid <- fabric_is_guid(item_value)
@@ -470,6 +494,8 @@ onelake_resolve_target <- function(
     }
   }
 
+  # 4 Build the normalized target ------------------------------------------------------------------
+
   if (is.null(dfs_base)) {
     dfs_base <- onelake_record_dfs_endpoint(workspace_record) %||%
       onelake_record_dfs_endpoint(item_record) %||%
@@ -487,6 +513,8 @@ onelake_resolve_target <- function(
   )
 }
 
+# Read a workspace-specific DFS endpoint from `record`. Returns URL text or
+# `NULL` so target resolution can fall back to the public OneLake endpoint.
 onelake_record_dfs_endpoint <- function(record) {
   if (is.null(record)) {
     return(NULL)
@@ -511,7 +539,11 @@ onelake_record_dfs_endpoint <- function(record) {
   }
 }
 
+# Parse and validate a full HTTPS, ABFS, or ABFSS OneLake `uri`. Returns a
+# normalized target used by every file operation.
 onelake_parse_uri <- function(uri) {
+  # 1 Validate URI structure -----------------------------------------------------------------------
+
   parsed <- httr2::url_parse(uri)
   scheme <- tolower(parsed$scheme %||% "")
   if (!scheme %in% c("https", "abfs", "abfss")) {
@@ -536,6 +568,8 @@ onelake_parse_uri <- function(uri) {
       "A OneLake path must not contain a query string or fragment"
     )
   }
+
+  # 2 Read workspace, item, and path ---------------------------------------------------------------
 
   if (scheme == "https") {
     pieces <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
@@ -570,6 +604,9 @@ onelake_parse_uri <- function(uri) {
       "A name-based OneLake item must include its type suffix"
     )
   }
+
+  # 3 Return the normalized target -----------------------------------------------------------------
+
   structure(
     list(
       dfs_base = paste0("https://", parsed$hostname),
@@ -581,6 +618,8 @@ onelake_parse_uri <- function(uri) {
   )
 }
 
+# Check `value` as one string identified by `name`, optionally empty. Returns
+# invisibly for shared OneLake argument validation.
 onelake_scalar <- function(value, name, allow_empty = FALSE) {
   if (
     !is.character(value) ||
@@ -598,6 +637,8 @@ onelake_scalar <- function(value, name, allow_empty = FALSE) {
   invisible(value)
 }
 
+# Check `value` as one safe URI path segment. Returns invisibly for OneLake
+# workspace, item, and type inputs.
 onelake_segment <- function(value, name) {
   onelake_scalar(value, name)
   if (grepl("[/\\\\]", value)) {
@@ -606,6 +647,8 @@ onelake_segment <- function(value, name) {
   invisible(value)
 }
 
+# Validate a OneLake DFS `endpoint` and its trust boundary. Returns invisibly
+# before storage credentials can be sent there.
 onelake_validate_endpoint <- function(endpoint) {
   onelake_scalar(endpoint, "dfs_base")
   parsed <- httr2::url_parse(endpoint)
@@ -634,6 +677,8 @@ onelake_validate_endpoint <- function(endpoint) {
   invisible(endpoint)
 }
 
+# Check `host` against Microsoft Fabric OneLake domains. Returns normalized host
+# text or raises before any authenticated storage request.
 onelake_validate_host <- function(host) {
   host <- tolower(host %||% "")
   valid <- grepl("(^|\\.)dfs\\.fabric\\.microsoft\\.com$", host) ||
@@ -644,6 +689,8 @@ onelake_validate_host <- function(host) {
   invisible(host)
 }
 
+# Normalize separators in `path` and reject unsafe segments. Returns a relative
+# OneLake path used to build request URLs.
 onelake_normalize_path <- function(path, allow_empty = FALSE) {
   onelake_scalar(path, "path", allow_empty = allow_empty)
   path <- gsub("\\\\", "/", path)
@@ -664,6 +711,8 @@ onelake_normalize_path <- function(path, allow_empty = FALSE) {
   paste(pieces, collapse = "/")
 }
 
+# Require `target` to point below the item root for `operation`. Returns the
+# target invisibly before file-specific work begins.
 onelake_require_file_path <- function(target, operation) {
   if (!nzchar(target$path)) {
     rlang::abort(
@@ -673,6 +722,8 @@ onelake_require_file_path <- function(target, operation) {
   invisible(target)
 }
 
+# Check whether `target` is safe to change for `operation`. Returns invisibly and
+# guards managed top-level folders unless explicitly allowed.
 onelake_require_mutable_path <- function(
   target,
   operation,
@@ -707,6 +758,8 @@ onelake_require_mutable_path <- function(
   invisible(target)
 }
 
+# URL-encode every segment supplied through `...`. Returns path text without
+# allowing separators inside a segment to bypass validation.
 onelake_encode_path <- function(...) {
   values <- unlist(list(...), use.names = FALSE)
   pieces <- unlist(strsplit(values, "/", fixed = TRUE), use.names = FALSE)
@@ -722,6 +775,8 @@ onelake_encode_path <- function(...) {
   )
 }
 
+# Build the full DFS URL for `target`. Returns encoded HTTPS text used by all
+# OneLake requests.
 onelake_path_url <- function(target) {
   values <- c(target$workspace, target$item)
   prefix <- paste0(target$dfs_base, "/", onelake_encode_path(values))
@@ -732,10 +787,8 @@ onelake_path_url <- function(target) {
   paste0(prefix, "/", encoded_path)
 }
 
-onelake_workspace_url <- function(target) {
-  paste0(target$dfs_base, "/", onelake_encode_path(target$workspace))
-}
-
+# Build an Azure storage request from `url`, `method`, and `headers`. Returns an
+# httr2 request with the shared API version applied.
 onelake_request <- function(url, method = "GET", headers = list()) {
   req <- httr2::request(url) |>
     httr2::req_method(method) |>
@@ -746,6 +799,8 @@ onelake_request <- function(url, method = "GET", headers = list()) {
   req
 }
 
+# Normalize an ETag `value` for If-Match. Returns quoted header text or `*` for
+# conditional download, upload, and delete operations.
 onelake_if_match <- function(value) {
   if (is.null(value)) {
     return(NULL)
@@ -761,6 +816,8 @@ onelake_if_match <- function(value) {
   }
 }
 
+# Read all directory entries under `target`. Returns a tibble after following
+# OneLake continuation tokens with bounded pagination.
 onelake_list_target <- function(
   target,
   credential,
@@ -768,6 +825,8 @@ onelake_list_target <- function(
   page_size = 5000L,
   begin_from = NULL
 ) {
+  # 1 Validate list options ------------------------------------------------------------------------
+
   if (
     !is.logical(recursive) ||
       length(recursive) != 1L ||
@@ -797,11 +856,21 @@ onelake_list_target <- function(
     collapse = "/"
   )
   continuation <- NULL
+
+  # 2 Read directory pages -------------------------------------------------------------------------
+
+  # OneLake returns a continuation header for large listings; add the decoded
+  # marker to each next request and guard against repeated URLs.
   records <- list()
   page_number <- 0L
   seen_urls <- character()
   repeat {
-    req <- onelake_request(onelake_workspace_url(target))
+    workspace_url <- paste0(
+      target$dfs_base,
+      "/",
+      onelake_encode_path(target$workspace)
+    )
+    req <- onelake_request(workspace_url)
     query <- list(
       req,
       resource = "filesystem",
@@ -832,9 +901,14 @@ onelake_list_target <- function(
     continuation <- httr2::resp_header(response, "x-ms-continuation")
     if (is.null(continuation) || !nzchar(continuation)) break
   }
+
+  # 3 Return a relative-path tibble ----------------------------------------------------------------
+
   onelake_list_tibble(records, target)
 }
 
+# Convert OneLake list `records` into paths relative to `target`. Returns a
+# stable tibble used by `fabric_onelake_list()`.
 onelake_list_tibble <- function(records, target) {
   empty <- tibble::tibble(
     path = character(),
@@ -879,6 +953,8 @@ onelake_list_tibble <- function(records, target) {
   tibble::as_tibble(do.call(rbind, rows))
 }
 
+# Interpret a OneLake directory `value` supplied as logical or text. Returns one
+# logical value for list and metadata results.
 onelake_directory_flag <- function(value) {
   if (isTRUE(value)) {
     return(TRUE)
@@ -889,6 +965,8 @@ onelake_directory_flag <- function(value) {
     identical(tolower(value), "true")
 }
 
+# Send a HEAD request for `target`. Returns a metadata tibble, or the accepted
+# error response used when checking whether parent folders exist.
 onelake_metadata_target <- function(
   target,
   credential,
@@ -906,11 +984,14 @@ onelake_metadata_target <- function(
   onelake_response_metadata(response, target)
 }
 
+# Convert storage headers from `response` into a metadata tibble for `target`.
+# Returns the stable shape shared by metadata, upload, and related operations.
 onelake_response_metadata <- function(
   response,
   target,
   content_length = NULL
 ) {
+  # Read header `name` from this response; returns text or `NULL` below.
   header <- function(name) httr2::resp_header(response, name)
   length_value <- content_length %||% header("content-length")
   tibble::tibble(
@@ -929,6 +1010,8 @@ onelake_response_metadata <- function(
   )
 }
 
+# Validate optional byte `range` offsets. Returns a Range header string or
+# `NULL` for a complete download.
 onelake_validate_range <- function(range) {
   if (is.null(range)) {
     return(NULL)
@@ -958,6 +1041,8 @@ onelake_validate_range <- function(range) {
   )
 }
 
+# Download `target` into memory or atomically to `dest`. Returns raw bytes or the
+# normalized destination path after validating range and overwrite behavior.
 onelake_download_target <- function(
   target,
   credential,
@@ -966,6 +1051,8 @@ onelake_download_target <- function(
   overwrite = FALSE,
   if_match = NULL
 ) {
+  # 1 Build the download request -------------------------------------------------------------------
+
   range_header <- onelake_validate_range(range)
   headers <- list()
   if (!is.null(range_header)) {
@@ -975,6 +1062,8 @@ onelake_download_target <- function(
     headers[["If-Match"]] <- onelake_if_match(if_match)
   }
   req <- onelake_request(onelake_path_url(target), headers = headers)
+
+  # 2 Return an in-memory download -----------------------------------------------------------------
 
   if (is.null(dest)) {
     response <- .httr2_perform(
@@ -987,6 +1076,10 @@ onelake_download_target <- function(
     }
     return(httr2::resp_body_raw(response))
   }
+
+  # 3 Stage and commit a file download -------------------------------------------------------------
+
+  # Download beside the destination so the final rename remains on one volume.
   onelake_scalar(dest, "dest")
   if (
     !is.logical(overwrite) ||
@@ -1014,7 +1107,12 @@ onelake_download_target <- function(
   invisible(normalizePath(dest, winslash = "/", mustWork = TRUE))
 }
 
+# Commit staged `temporary` content to `dest`, preserving an existing file when
+# replacement fails. Returns invisibly after a safe local handoff.
 onelake_commit_download <- function(temporary, dest, overwrite) {
+  # 1 Recheck the destination ----------------------------------------------------------------------
+
+  # State can change while the remote file downloads, so validate it again.
   if (dir.exists(dest)) {
     rlang::abort("Destination is a directory; supply a file path")
   }
@@ -1036,6 +1134,8 @@ onelake_commit_download <- function(temporary, dest, overwrite) {
     }
     rlang::abort("Could not commit the downloaded file")
   }
+
+  # 2 Protect and replace an existing file ---------------------------------------------------------
 
   backup <- tempfile(".fabricqueryr-backup-", tmpdir = dirname(dest))
   if (!.onelake_file_rename(dest, backup)) {
@@ -1067,7 +1167,11 @@ onelake_commit_download <- function(temporary, dest, overwrite) {
   )
 }
 
+# Commit a staged download only when `dest` is still absent. Returns invisibly
+# after linking or exclusive-copying the file without overwriting a race winner.
 onelake_commit_new_download <- function(temporary, dest) {
+  # 1 Try an atomic hard link ----------------------------------------------------------------------
+
   if (.onelake_file_link(temporary, dest)) {
     unlink(temporary, force = TRUE)
     return(invisible(TRUE))
@@ -1079,6 +1183,9 @@ onelake_commit_new_download <- function(temporary, dest) {
     rlang::abort("Destination already exists; set overwrite = TRUE")
   }
 
+  # 2 Fall back to exclusive copy ------------------------------------------------------------------
+
+  # Exclusive creation keeps overwrite = FALSE safe even across filesystems.
   destination <- tryCatch(
     file(dest, open = "wxb"),
     error = identity
@@ -1118,14 +1225,20 @@ onelake_commit_new_download <- function(temporary, dest) {
   invisible(TRUE)
 }
 
+# Rename local `from` to `to`. Returns the base-R result and remains a small test
+# seam for race and rollback behavior in atomic downloads.
 .onelake_file_rename <- function(from, to) {
   file.rename(from, to)
 }
 
+# Hard-link local `from` to absent `to`. Returns the base-R result and remains a
+# test seam for the no-overwrite download path.
 .onelake_file_link <- function(from, to) {
   file.link(from, to)
 }
 
+# Normalize raw bytes or a local file `source`. Returns its kind, value, and size
+# for chunked upload processing.
 onelake_upload_source <- function(source) {
   if (is.raw(source)) {
     return(list(kind = "raw", value = source, size = length(source)))
@@ -1143,6 +1256,8 @@ onelake_upload_source <- function(source) {
   list(kind = "file", value = source, size = as.numeric(size))
 }
 
+# Create missing parent directories for `target`. Returns invisibly and is used
+# before uploads when `create_parents` is enabled.
 onelake_create_parents <- function(target, credential) {
   pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
   if (length(pieces) <= 2L) {
@@ -1176,6 +1291,8 @@ onelake_create_parents <- function(target, credential) {
   invisible(TRUE)
 }
 
+# Stage, append, flush, and atomically rename an upload to `target`. Returns a
+# metadata tibble only after the destination commit succeeds.
 onelake_upload_target <- function(
   target,
   credential,
@@ -1186,6 +1303,8 @@ onelake_upload_target <- function(
   content_type,
   create_parents
 ) {
+  # 1 Validate source and upload settings ----------------------------------------------------------
+
   upload <- onelake_upload_source(source)
   chunk_size <- onelake_upload_chunk_size(chunk_size)
   if (!is.null(content_type)) {
@@ -1202,6 +1321,9 @@ onelake_upload_target <- function(
     onelake_create_parents(target, credential)
   }
 
+  # 2 Create a unique staging file -----------------------------------------------------------------
+
+  # Upload away from the destination so partial content is never exposed there.
   temporary <- onelake_upload_temporary_target(target)
   committed <- FALSE
   temporary_may_exist <- FALSE
@@ -1240,6 +1362,8 @@ onelake_upload_target <- function(
     idempotent = FALSE
   )
 
+  # 3 Append all source chunks ---------------------------------------------------------------------
+
   onelake_upload_chunks(upload, chunk_size, function(bytes, position) {
     append <- onelake_request(onelake_path_url(temporary), "PATCH") |>
       httr2::req_url_query(
@@ -1254,6 +1378,8 @@ onelake_upload_target <- function(
       idempotent = FALSE
     )
   })
+
+  # 4 Flush the staging file -----------------------------------------------------------------------
 
   flush_headers <- list()
   if (!is.null(content_type)) {
@@ -1277,8 +1403,18 @@ onelake_upload_target <- function(
     idempotent = FALSE
   )
 
+  # 5 Commit the upload ----------------------------------------------------------------------------
+
+  # Rename is the first operation that exposes the complete file at its target.
   rename_headers <- list(
-    `x-ms-rename-source` = onelake_rename_source(temporary)
+    `x-ms-rename-source` = paste0(
+      "/",
+      onelake_encode_path(c(
+        temporary$workspace,
+        temporary$item,
+        temporary$path
+      ))
+    )
   )
   if (!is.null(content_type)) {
     rename_headers[["x-ms-content-type"]] <- content_type
@@ -1306,6 +1442,8 @@ onelake_upload_target <- function(
   onelake_response_metadata(response, target, content_length = upload$size)
 }
 
+# Validate upload chunk-size `value`. Returns bytes as a number within OneLake's
+# supported client limit.
 onelake_upload_chunk_size <- function(value) {
   if (
     length(value) != 1L ||
@@ -1323,6 +1461,8 @@ onelake_upload_chunk_size <- function(value) {
   as.numeric(value)
 }
 
+# Read `upload` in `chunk_size` pieces and call `callback` with bytes and offset.
+# Returns invisibly after raw or file input is fully consumed.
 onelake_upload_chunks <- function(upload, chunk_size, callback) {
   if (upload$size == 0) {
     return(invisible(TRUE))
@@ -1355,6 +1495,8 @@ onelake_upload_chunks <- function(upload, chunk_size, callback) {
   invisible(TRUE)
 }
 
+# Create a unique staging target beside `target`. Returns a copied OneLake target
+# used for failure-safe upload cleanup.
 onelake_upload_temporary_target <- function(target) {
   temporary <- target
   parent <- dirname(target$path)
@@ -1366,13 +1508,8 @@ onelake_upload_temporary_target <- function(target) {
   temporary
 }
 
-onelake_rename_source <- function(target) {
-  paste0(
-    "/",
-    onelake_encode_path(c(target$workspace, target$item, target$path))
-  )
-}
-
+# Delete a file or directory `target`, following recursive continuation pages.
+# Returns invisibly after all accepted delete requests complete.
 onelake_delete_target <- function(
   target,
   credential,
@@ -1380,6 +1517,8 @@ onelake_delete_target <- function(
   if_match = NULL,
   is_directory = NULL
 ) {
+  # 1 Validate the target type and options ---------------------------------------------------------
+
   if (
     !is.logical(recursive) ||
       length(recursive) != 1L ||
@@ -1402,6 +1541,11 @@ onelake_delete_target <- function(
   if (!is.null(if_match)) {
     headers[["If-Match"]] <- onelake_if_match(if_match)
   }
+
+  # 2 Delete every continuation page ---------------------------------------------------------------
+
+  # Recursive OneLake deletion can require several requests; reject repeated
+  # request URLs so a malformed continuation cannot loop forever.
   continuation <- NULL
   page_number <- 0L
   seen_urls <- character()

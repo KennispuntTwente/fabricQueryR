@@ -1,4 +1,220 @@
-# Livy session and statement R6 objects ------------------------------------
+#' Create a Microsoft Fabric Livy session
+#'
+#' Starts Spark compute that can run several statements while keeping variables
+#' and Spark state between calls. Use [fabric_livy_query()] instead for a single,
+#' self-contained operation.
+#'
+#' @param livy_url A copied session or batch connection URL, Livy API base URL,
+#'   or enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
+#'   Copy the session-job URL from **Lakehouse settings > Livy endpoint**, or
+#'   use a discovered record to avoid handling IDs manually.
+#' @param high_concurrency Whether to let Fabric share Spark compute between
+#'   several isolated workloads. Keep `FALSE` for a typical sequence of calls in
+#'   one R process. This Fabric capability is currently in preview.
+#' @param session_tag Optional high-concurrency packing hint. Related requests
+#'   with the same tag may share an underlying Livy session while keeping
+#'   separate REPL state. Each call still returns a distinct HC session.
+#' @param name Optional readable session name shown in service metadata.
+#' @param tags Optional named list of string labels for monitoring.
+#' @param conf Optional named list of Spark settings. Prefer a published Fabric
+#'   Environment for configuration shared by several jobs.
+#' @param environment_id Optional GUID of a published Fabric Environment whose
+#'   libraries and Spark settings should be used.
+#' @param archives Optional character vector of archive URIs made available to
+#'   Spark.
+#' @param driver_memory,executor_memory Optional Spark memory values such as
+#'   `"4g"`. Leave `NULL` to use Fabric defaults.
+#' @param driver_cores,executor_cores,num_executors Optional Spark resource
+#'   counts. Larger values consume more capacity; leave `NULL` unless the
+#'   workload has been sized deliberately.
+#' @param artifact_name Optional Lakehouse/artifact label used for a
+#'   high-concurrency job in the Fabric Monitoring hub.
+#' @param file Optional application file URI for a high-concurrency request.
+#' @param class_name Optional Java/Scala main class for `file`.
+#' @param args Optional character vector of application arguments.
+#' @param jars,files,py_files Optional character vectors of dependency URIs
+#'   supplied to Spark.
+#' @param tenant_id Microsoft Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Microsoft Entra application/client ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Optional access token or token-provider function. Leave `NULL`
+#'   to let fabricQueryR use its normal sign-in flow.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
+#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
+#'   set it only for a custom token provider or identity flow.
+#' @param verbose Logical. Show session lifecycle messages.
+#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
+#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
+#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
+#'
+#' @return A newly created [FabricLivySession]. It may still be starting; call
+#'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished.
+#' @section Choosing a session type:
+#' Use a standard session for a typical sequence in one R process. High
+#' concurrency is for applications that run several independent Spark workloads
+#' at the same time; it is not needed for several sequential statements.
+#'
+#' @section Cleanup and permissions:
+#' No network request is made when an open object is garbage collected. Call
+#' `$close()` explicitly, and use `on.exit(session$close())` inside functions.
+#' The signed-in identity needs Lakehouse read and execute access, permission for
+#' code to access Fabric and storage, and an appropriate workspace role.
+#'
+#' @seealso
+#' [Microsoft session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
+#' [high-concurrency Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy)
+#'
+#' @examples
+#' \dontrun{
+#' run_shared_state <- function(lakehouse) {
+#'   session <- fabric_livy_session(lakehouse)
+#'   on.exit(session$close(), add = TRUE)
+#'   session$wait()
+#'   session$run("shared_value = 40", kind = "pyspark")
+#'   session$run("print(shared_value + 2)", kind = "pyspark")
+#' }
+#'
+#' run_high_concurrency <- function(lakehouse) {
+#'   session <- fabric_livy_session(
+#'     lakehouse,
+#'     high_concurrency = TRUE,
+#'     session_tag = "report-workers"
+#'   )
+#'   on.exit(session$close(), add = TRUE)
+#'   session$wait()
+#'   session$run("SELECT current_timestamp()", kind = "sql")
+#' }
+#' }
+#'
+#' @export
+fabric_livy_session <- function(
+  livy_url,
+  high_concurrency = FALSE,
+  session_tag = NULL,
+  name = NULL,
+  tags = NULL,
+  conf = NULL,
+  environment_id = NULL,
+  archives = NULL,
+  driver_memory = NULL,
+  driver_cores = NULL,
+  executor_memory = NULL,
+  executor_cores = NULL,
+  num_executors = NULL,
+  artifact_name = NULL,
+  file = NULL,
+  class_name = NULL,
+  args = NULL,
+  jars = NULL,
+  files = NULL,
+  py_files = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  audience = NULL,
+  verbose = TRUE,
+  allow_custom_endpoint = FALSE
+) {
+  # 1 Validate session options ---------------------------------------------------------------------
+
+  # High-concurrency-only fields are checked together so the error explains the
+  # whole unsupported group instead of failing later in Fabric.
+  fabric_livy_check_flag(high_concurrency, "high_concurrency")
+  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
+  fabric_livy_validate_session_fields(
+    name = name,
+    archives = archives,
+    driver_memory = driver_memory,
+    driver_cores = driver_cores,
+    executor_memory = executor_memory,
+    executor_cores = executor_cores,
+    num_executors = num_executors
+  )
+  fabric_livy_check_optional_string(session_tag, "session_tag")
+  fabric_livy_check_optional_string(artifact_name, "artifact_name")
+  fabric_livy_check_optional_string(file, "file")
+  fabric_livy_check_optional_string(class_name, "class_name")
+  fabric_livy_check_string_vector(args, "args", allow_empty_strings = TRUE)
+  fabric_livy_check_string_vector(jars, "jars")
+  fabric_livy_check_string_vector(files, "files")
+  fabric_livy_check_string_vector(py_files, "py_files")
+  if (!is.null(session_tag) && !isTRUE(high_concurrency)) {
+    rlang::abort(
+      "session_tag is only available for high-concurrency sessions"
+    )
+  }
+  hc_values <- list(
+    artifact_name,
+    file,
+    class_name,
+    args,
+    jars,
+    files,
+    py_files
+  )
+  if (!high_concurrency && !all(vapply(hc_values, is.null, logical(1)))) {
+    rlang::abort(paste0(
+      "artifact_name, file, class_name, args, jars, files, and py_files ",
+      "are only available for high-concurrency sessions"
+    ))
+  }
+
+  # 2 Build the session request --------------------------------------------------------------------
+
+  # Drop unset options so Fabric can apply its own defaults.
+  tags <- fabric_livy_normalize_named_list(tags, "tags")
+  payload <- Filter(
+    Negate(is.null),
+    list(
+      name = name,
+      archives = archives,
+      conf = fabric_livy_conf(conf, environment_id),
+      tags = tags,
+      driverMemory = driver_memory,
+      driverCores = driver_cores,
+      executorMemory = executor_memory,
+      executorCores = executor_cores,
+      numExecutors = num_executors,
+      sessionTag = session_tag,
+      artifactName = artifact_name,
+      file = file,
+      className = class_name,
+      args = args,
+      jars = jars,
+      files = files,
+      pyFiles = py_files
+    )
+  )
+
+  # 3 Create and return the session ----------------------------------------------------------------
+
+  credential <- fabric_livy_credential(
+    tenant_id,
+    client_id,
+    token,
+    auth_args,
+    audience
+  )
+  FabricLivySession$new(
+    livy_url = fabric_livy_resolve_url(
+      livy_url,
+      allow_custom_endpoint = allow_custom_endpoint
+    ),
+    credential = credential,
+    payload = payload,
+    high_concurrency = high_concurrency,
+    verbose = verbose,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+}
+
+# Livy session and statement R6 objects ------------------------------------------------------------
 
 #' A Microsoft Fabric Livy session
 #'
@@ -200,10 +416,13 @@ FabricLivySession <- R6::R6Class(
         "POST",
         endpoint,
         private$credential,
-        payload = fabric_livy_payload(
-          code = code,
-          kind = kind,
-          sourceId = source_id
+        payload = Filter(
+          Negate(is.null),
+          list(
+            code = code,
+            kind = kind,
+            sourceId = source_id
+          )
         ),
         idempotent = FALSE
       )
@@ -296,12 +515,16 @@ FabricLivySession <- R6::R6Class(
     credential = NULL,
     collection_url = NULL,
 
+    # Check that the session is still usable before a public method sends a
+    # request. It takes no input and either returns quietly or raises an error.
     assert_open = function() {
       if (isTRUE(self$closed)) {
         rlang::abort("The Livy session is closed")
       }
     },
 
+    # Copy fields from one Livy response onto the session and return that
+    # response invisibly. Status-changing public methods use this after a call.
     update = function(response) {
       self$response <- response
       self$state <- response$state %||% self$state
@@ -310,6 +533,8 @@ FabricLivySession <- R6::R6Class(
       invisible(response)
     },
 
+    # Build and return the statement collection URL for this session. Submit
+    # and statement-list methods use it for normal and shared sessions.
     statement_collection = function() {
       if (!self$high_concurrency) {
         return(paste0(self$url, "/statements"))
@@ -512,205 +737,3 @@ FabricLivyStatement <- R6::R6Class(
   ),
   cloneable = FALSE
 )
-
-#' Create a Microsoft Fabric Livy session
-#'
-#' Starts Spark compute that can run several statements while keeping variables
-#' and Spark state between calls. Use [fabric_livy_query()] instead for a single,
-#' self-contained operation.
-#'
-#' @param livy_url A copied session or batch connection URL, Livy API base URL,
-#'   or enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()].
-#'   Copy the session-job URL from **Lakehouse settings > Livy endpoint**, or
-#'   use a discovered record to avoid handling IDs manually.
-#' @param high_concurrency Whether to let Fabric share Spark compute between
-#'   several isolated workloads. Keep `FALSE` for a typical sequence of calls in
-#'   one R process. This Fabric capability is currently in preview.
-#' @param session_tag Optional high-concurrency packing hint. Related requests
-#'   with the same tag may share an underlying Livy session while keeping
-#'   separate REPL state. Each call still returns a distinct HC session.
-#' @param name Optional readable session name shown in service metadata.
-#' @param tags Optional named list of string labels for monitoring.
-#' @param conf Optional named list of Spark settings. Prefer a published Fabric
-#'   Environment for configuration shared by several jobs.
-#' @param environment_id Optional GUID of a published Fabric Environment whose
-#'   libraries and Spark settings should be used.
-#' @param archives Optional character vector of archive URIs made available to
-#'   Spark.
-#' @param driver_memory,executor_memory Optional Spark memory values such as
-#'   `"4g"`. Leave `NULL` to use Fabric defaults.
-#' @param driver_cores,executor_cores,num_executors Optional Spark resource
-#'   counts. Larger values consume more capacity; leave `NULL` unless the
-#'   workload has been sized deliberately.
-#' @param artifact_name Optional Lakehouse/artifact label used for a
-#'   high-concurrency job in the Fabric Monitoring hub.
-#' @param file Optional application file URI for a high-concurrency request.
-#' @param class_name Optional Java/Scala main class for `file`.
-#' @param args Optional character vector of application arguments.
-#' @param jars,files,py_files Optional character vectors of dependency URIs
-#'   supplied to Spark.
-#' @param tenant_id Microsoft Entra tenant ID. Defaults to
-#'   `FABRICQUERYR_TENANT_ID`.
-#' @param client_id Microsoft Entra application/client ID. Defaults to
-#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
-#' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
-#' @param auth_args Additional sign-in options passed to
-#'   [AzureAuth::get_azure_token()].
-#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow.
-#' @param verbose Logical. Show session lifecycle messages.
-#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
-#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
-#'   as a test emulator; the Fabric bearer token is sent to this endpoint.
-#'
-#' @return A newly created [FabricLivySession]. It may still be starting; call
-#'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished.
-#' @section Choosing a session type:
-#' Use a standard session for a typical sequence in one R process. High
-#' concurrency is for applications that run several independent Spark workloads
-#' at the same time; it is not needed for several sequential statements.
-#'
-#' @section Cleanup and permissions:
-#' No network request is made when an open object is garbage collected. Call
-#' `$close()` explicitly, and use `on.exit(session$close())` inside functions.
-#' The signed-in identity needs Lakehouse read and execute access, permission for
-#' code to access Fabric and storage, and an appropriate workspace role.
-#'
-#' @seealso
-#' [Microsoft session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
-#' [high-concurrency Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy)
-#'
-#' @examples
-#' \dontrun{
-#' run_shared_state <- function(lakehouse) {
-#'   session <- fabric_livy_session(lakehouse)
-#'   on.exit(session$close(), add = TRUE)
-#'   session$wait()
-#'   session$run("shared_value = 40", kind = "pyspark")
-#'   session$run("print(shared_value + 2)", kind = "pyspark")
-#' }
-#'
-#' run_high_concurrency <- function(lakehouse) {
-#'   session <- fabric_livy_session(
-#'     lakehouse,
-#'     high_concurrency = TRUE,
-#'     session_tag = "report-workers"
-#'   )
-#'   on.exit(session$close(), add = TRUE)
-#'   session$wait()
-#'   session$run("SELECT current_timestamp()", kind = "sql")
-#' }
-#' }
-#'
-#' @export
-fabric_livy_session <- function(
-  livy_url,
-  high_concurrency = FALSE,
-  session_tag = NULL,
-  name = NULL,
-  tags = NULL,
-  conf = NULL,
-  environment_id = NULL,
-  archives = NULL,
-  driver_memory = NULL,
-  driver_cores = NULL,
-  executor_memory = NULL,
-  executor_cores = NULL,
-  num_executors = NULL,
-  artifact_name = NULL,
-  file = NULL,
-  class_name = NULL,
-  args = NULL,
-  jars = NULL,
-  files = NULL,
-  py_files = NULL,
-  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  client_id = Sys.getenv(
-    "FABRICQUERYR_CLIENT_ID",
-    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
-  ),
-  token = NULL,
-  auth_args = list(),
-  audience = NULL,
-  verbose = TRUE,
-  allow_custom_endpoint = FALSE
-) {
-  fabric_livy_check_flag(high_concurrency, "high_concurrency")
-  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
-  fabric_livy_validate_session_fields(
-    name = name,
-    archives = archives,
-    driver_memory = driver_memory,
-    driver_cores = driver_cores,
-    executor_memory = executor_memory,
-    executor_cores = executor_cores,
-    num_executors = num_executors
-  )
-  fabric_livy_check_optional_string(session_tag, "session_tag")
-  fabric_livy_check_optional_string(artifact_name, "artifact_name")
-  fabric_livy_check_optional_string(file, "file")
-  fabric_livy_check_optional_string(class_name, "class_name")
-  fabric_livy_check_string_vector(args, "args", allow_empty_strings = TRUE)
-  fabric_livy_check_string_vector(jars, "jars")
-  fabric_livy_check_string_vector(files, "files")
-  fabric_livy_check_string_vector(py_files, "py_files")
-  if (!is.null(session_tag) && !isTRUE(high_concurrency)) {
-    rlang::abort(
-      "session_tag is only available for high-concurrency sessions"
-    )
-  }
-  hc_values <- list(
-    artifact_name,
-    file,
-    class_name,
-    args,
-    jars,
-    files,
-    py_files
-  )
-  if (!high_concurrency && !all(vapply(hc_values, is.null, logical(1)))) {
-    rlang::abort(paste0(
-      "artifact_name, file, class_name, args, jars, files, and py_files ",
-      "are only available for high-concurrency sessions"
-    ))
-  }
-  tags <- fabric_livy_normalize_named_list(tags, "tags")
-  payload <- fabric_livy_payload(
-    name = name,
-    archives = archives,
-    conf = fabric_livy_conf(conf, environment_id),
-    tags = tags,
-    driverMemory = driver_memory,
-    driverCores = driver_cores,
-    executorMemory = executor_memory,
-    executorCores = executor_cores,
-    numExecutors = num_executors,
-    sessionTag = session_tag,
-    artifactName = artifact_name,
-    file = file,
-    className = class_name,
-    args = args,
-    jars = jars,
-    files = files,
-    pyFiles = py_files
-  )
-  credential <- fabric_livy_credential(
-    tenant_id,
-    client_id,
-    token,
-    auth_args,
-    audience
-  )
-  FabricLivySession$new(
-    livy_url = fabric_livy_resolve_url(
-      livy_url,
-      allow_custom_endpoint = allow_custom_endpoint
-    ),
-    credential = credential,
-    payload = payload,
-    high_concurrency = high_concurrency,
-    verbose = verbose,
-    allow_custom_endpoint = allow_custom_endpoint
-  )
-}

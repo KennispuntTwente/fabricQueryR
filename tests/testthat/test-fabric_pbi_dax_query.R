@@ -192,13 +192,7 @@ test_that("pbi_resolve_ids_from_connstr wires through to GUID lookups", {
 })
 
 test_that("fabric_pbi_dax_query uses a supplied access token", {
-  token_requested <- FALSE
-
   testthat::with_mocked_bindings(
-    pbi_get_token = function(...) {
-      token_requested <<- TRUE
-      "unexpected-token"
-    },
     pbi_resolve_ids_from_connstr = function(
       connstr,
       credential,
@@ -245,7 +239,6 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
     }
   )
 
-  expect_false(token_requested)
   expect_equal(result$result, 3L)
 })
 

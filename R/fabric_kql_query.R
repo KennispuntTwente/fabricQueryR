@@ -113,6 +113,9 @@ fabric_kql_query <- function(
   auth_args = list(),
   allow_custom_endpoint = FALSE
 ) {
+  # 1 Validate and normalize inputs ----------------------------------------------------------------
+
+  # Resolve the endpoint and encode R parameter values before authenticating.
   if (
     !is.character(query) ||
       length(query) != 1L ||
@@ -142,6 +145,8 @@ fabric_kql_query <- function(
     rlang::abort("timeout must be one positive number of seconds")
   }
 
+  # 2 Execute and return the query -----------------------------------------------------------------
+
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -159,11 +164,16 @@ fabric_kql_query <- function(
   )
 }
 
+# Resolve a discovery record or service URL plus `database`. Returns a trusted
+# v2 query endpoint and database name for `fabric_kql_query()`.
 kusto_resolve_target <- function(
   cluster,
   database = NULL,
   allow_custom_endpoint = FALSE
 ) {
+  # 1 Read and validate target inputs --------------------------------------------------------------
+
+  # A discovered KQL database supplies both its query URL and display name.
   if (
     !is.logical(allow_custom_endpoint) ||
       length(allow_custom_endpoint) != 1L ||
@@ -209,6 +219,8 @@ kusto_resolve_target <- function(
     )
   }
 
+  # 2 Validate the endpoint trust boundary ---------------------------------------------------------
+
   cluster <- sub("/+$", "", trimws(cluster))
   parsed <- try(httr2::url_parse(cluster), silent = TRUE)
   if (
@@ -251,6 +263,9 @@ kusto_resolve_target <- function(
       "cluster URI must be a service root or a Kusto REST query endpoint"
     )
   }
+
+  # 3 Normalize the REST route ---------------------------------------------------------------------
+
   url <- if (grepl("/v2/rest/query$", cluster, ignore.case = TRUE)) {
     cluster
   } else if (grepl("/v1/rest/query$", cluster, ignore.case = TRUE)) {
@@ -261,6 +276,8 @@ kusto_resolve_target <- function(
   list(url = url, database = trimws(database))
 }
 
+# Validate `value` as a uniquely named list identified by `name`. Returns a list
+# used for KQL parameters and request properties.
 kusto_named_list <- function(value, name) {
   if (is.null(value)) {
     return(list())
@@ -282,6 +299,8 @@ kusto_named_list <- function(value, name) {
   value
 }
 
+# Reject Fabric-incompatible `request_properties`. Returns invisibly before the
+# remaining properties are encoded into the Kusto request.
 kusto_validate_request_properties <- function(request_properties) {
   unsupported <- c(
     "queryconsistency",
@@ -298,6 +317,8 @@ kusto_validate_request_properties <- function(request_properties) {
   invisible(request_properties)
 }
 
+# Validate parameter names and encode their values. Returns a named list of KQL
+# literal text placed in Kusto request properties.
 kusto_encode_parameters <- function(parameters) {
   parameters <- kusto_named_list(parameters, "parameters")
   if (
@@ -309,7 +330,11 @@ kusto_encode_parameters <- function(parameters) {
   lapply(parameters, kusto_encode_parameter)
 }
 
+# Convert one supported R `value` into a KQL literal. Returns text used in the
+# request's parameter map without interpolating values into query source.
 kusto_encode_parameter <- function(value) {
+  # 1 Handle special and missing values ------------------------------------------------------------
+
   if (is.numeric(value) && length(value) == 1L && is.nan(value)) {
     return("real(nan)")
   }
@@ -333,6 +358,9 @@ kusto_encode_parameter <- function(value) {
       "Date, time, difftime, and integer64 KQL parameters must be scalar"
     )
   }
+
+  # 2 Encode typed scalar values -------------------------------------------------------------------
+
   if (inherits(value, "POSIXt")) {
     return(paste0(
       "datetime(",
@@ -373,6 +401,9 @@ kusto_encode_parameter <- function(value) {
     }
     return(as.character(value))
   }
+
+  # 3 Encode vector and object values --------------------------------------------------------------
+
   json <- jsonlite::toJSON(
     value,
     auto_unbox = TRUE,
@@ -382,6 +413,8 @@ kusto_encode_parameter <- function(value) {
   paste0("dynamic(", json, ")")
 }
 
+# Return a unique Kusto client request ID without inputs. The request sender uses
+# the closure's counter to distinguish queries created in the same process.
 .kusto_next_request_id <- local({
   counter <- 0L
   function() {
@@ -397,6 +430,8 @@ kusto_encode_parameter <- function(value) {
   }
 })
 
+# Build and send one Kusto request, then parse its frames. Returns a tibble or
+# table list used directly by `fabric_kql_query()`.
 kusto_execute_query <- function(
   url,
   database,
@@ -406,6 +441,9 @@ kusto_execute_query <- function(
   timeout,
   credential
 ) {
+  # 1 Build request metadata -----------------------------------------------------------------------
+
+  # A unique client request ID makes service-side troubleshooting possible.
   client_request_id <- .kusto_next_request_id()
   properties <- list(ClientRequestId = client_request_id)
   if (length(request_properties)) {
@@ -420,6 +458,9 @@ kusto_execute_query <- function(
     digits = 22,
     null = "null"
   ))
+
+  # 2 Send the query -------------------------------------------------------------------------------
+
   req <- httr2::request(url) |>
     httr2::req_headers(
       Accept = "application/json",
@@ -443,6 +484,9 @@ kusto_execute_query <- function(
     audience = .fabric_audience$kusto,
     idempotent = TRUE
   )
+
+  # 3 Parse and return response frames -------------------------------------------------------------
+
   frames <- httr2::resp_body_json(
     resp,
     simplifyVector = FALSE,
@@ -461,6 +505,8 @@ kusto_execute_query <- function(
   )
 }
 
+# Identify one Kusto response `frame`. Returns its explicit or inferred type so
+# the response parser can validate frame order and contents.
 kusto_frame_type <- function(frame) {
   type <- frame$FrameType
   if (!is.null(type)) {
@@ -496,7 +542,12 @@ kusto_frame_type <- function(frame) {
   "Unknown"
 }
 
+# Validate and combine Kusto v2 `frames`. Returns primary result data with raw
+# frames, auxiliary tables, completion state, and request metadata attached.
 kusto_parse_response <- function(frames, metadata = list()) {
+  # 1 Validate the response envelope ---------------------------------------------------------------
+
+  # A v2 response must start with one header and end with one completion frame.
   if (!is.list(frames) || !length(frames)) {
     rlang::abort("Kusto returned a malformed v2 response")
   }
@@ -527,6 +578,10 @@ kusto_parse_response <- function(frames, metadata = list()) {
   }
   kusto_require_flag(header, "IsProgressive", "DataSetHeader")
 
+  # 2 Combine table frames -------------------------------------------------------------------------
+
+  # Progressive responses split schema, rows, progress, and completion across
+  # several frames; rebuild each table in arrival order.
   tables <- list()
   table_order <- character()
   progressive_tables <- character()
@@ -642,6 +697,9 @@ kusto_parse_response <- function(frames, metadata = list()) {
   }
   completion <- frames[[length(frames)]]
 
+  # 3 Convert result tables ------------------------------------------------------------------------
+
+  # Keep primary results as return data and auxiliary tables as metadata.
   table_order <- unique(table_order)
   ordered_tables <- tables[table_order]
   is_primary <- vapply(
@@ -678,6 +736,9 @@ kusto_parse_response <- function(frames, metadata = list()) {
   } else {
     structure(results, class = c("fabric_kql_tables", "list"))
   }
+
+  # 4 Attach metadata and check completion ---------------------------------------------------------
+
   result <- kusto_attach_metadata(
     result,
     frames,
@@ -689,6 +750,8 @@ kusto_parse_response <- function(frames, metadata = list()) {
   result
 }
 
+# Attach request, completion, raw-frame, and auxiliary-table metadata to
+# `result`. Returns the same result shape for the public query function.
 kusto_attach_metadata <- function(
   result,
   frames,
@@ -708,6 +771,8 @@ kusto_attach_metadata <- function(
   result
 }
 
+# Raise a protocol error with beginner-readable `detail`. This function does
+# not return and is shared by all Kusto frame validators.
 kusto_abort_malformed <- function(detail) {
   rlang::abort(
     paste0("Kusto returned a malformed v2 response: ", detail),
@@ -715,6 +780,8 @@ kusto_abort_malformed <- function(detail) {
   )
 }
 
+# Read one required string `field` from `frame`. Returns the string or reports a
+# malformed frame with its `type`.
 kusto_require_string <- function(frame, field, type) {
   value <- frame[[field]]
   if (
@@ -728,6 +795,8 @@ kusto_require_string <- function(frame, field, type) {
   value
 }
 
+# Read one required logical `field` from `frame`. Returns the flag or reports a
+# malformed frame with its `type`.
 kusto_require_flag <- function(frame, field, type) {
   value <- frame[[field]]
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
@@ -736,6 +805,8 @@ kusto_require_flag <- function(frame, field, type) {
   value
 }
 
+# Read one non-negative integer `field` from `frame`. Returns an R integer used
+# for table IDs, row counts, and field counts.
 kusto_require_count <- function(frame, field, type) {
   value <- frame[[field]]
   if (
@@ -752,6 +823,8 @@ kusto_require_count <- function(frame, field, type) {
   as.integer(value)
 }
 
+# Validate the schema and optional rows in a table `frame`. Returns invisibly
+# before the response parser stores that frame.
 kusto_validate_table_frame <- function(frame, type, require_rows) {
   kusto_require_count(frame, "TableId", type)
   kusto_require_string(frame, "TableKind", type)
@@ -776,6 +849,8 @@ kusto_validate_table_frame <- function(frame, type, require_rows) {
   invisible(TRUE)
 }
 
+# Check every row against `field_count`. Returns invisibly and prevents shifted
+# or truncated Kusto columns from reaching conversion.
 kusto_validate_rows <- function(rows, field_count, type) {
   for (row in rows) {
     if (!is.list(row) || length(row) != field_count) {
@@ -789,6 +864,8 @@ kusto_validate_rows <- function(rows, field_count, type) {
   invisible(TRUE)
 }
 
+# Resolve the target table for a progressive `frame`. Returns its key after
+# checking that the table exists and is not already complete.
 kusto_progressive_table_key <- function(frame, type, tables, completed) {
   table_id <- kusto_require_count(frame, "TableId", type)
   key <- as.character(table_id)
@@ -801,6 +878,8 @@ kusto_progressive_table_key <- function(frame, type, tables, completed) {
   key
 }
 
+# Check the final completion frame and raise typed partial-result errors.
+# Returns invisibly only when the query completed successfully.
 kusto_check_completion <- function(
   completion,
   partial_data = NULL,
@@ -843,6 +922,8 @@ kusto_check_completion <- function(
   )
 }
 
+# Convert one validated Kusto `table` into a tibble. Returns typed columns plus
+# schema, table-name, and table-ID attributes.
 kusto_parse_table <- function(table) {
   columns <- table$Columns %||% list()
   rows <- table$Rows %||% list()
@@ -870,6 +951,8 @@ kusto_parse_table <- function(table) {
   out
 }
 
+# Convert nullable `values` to character. Returns an atomic vector used directly
+# or as safe input to stricter Kusto type parsers.
 kusto_character_column <- function(values) {
   vapply(
     values,
@@ -880,6 +963,8 @@ kusto_character_column <- function(values) {
   )
 }
 
+# Convert Kusto numeric `values`, including infinity spellings. Returns a double
+# vector or raises a protocol error for invalid declared values.
 kusto_numeric_column <- function(values) {
   text <- kusto_character_column(values)
   special <- c(
@@ -903,6 +988,8 @@ kusto_numeric_column <- function(values) {
   out
 }
 
+# Convert Kusto integer `values` for `type`. Returns integer/integer64 values,
+# or character when R's missing-value sentinel would hide a boundary value.
 kusto_integer_column <- function(values, type) {
   text <- kusto_character_column(values)
   minimum <- if (identical(type, "int")) {
@@ -938,6 +1025,8 @@ kusto_integer_column <- function(values, type) {
   parsed
 }
 
+# Parse nullable Kusto datetime `values`. Returns a UTC POSIXct vector used in
+# result tibbles.
 kusto_datetime_column <- function(values) {
   text <- kusto_character_column(values)
   clean <- sub("Z$", "", text, ignore.case = TRUE)
@@ -952,6 +1041,8 @@ kusto_datetime_column <- function(values) {
   out
 }
 
+# Parse one Kusto timespan `value`. Returns seconds for construction of an R
+# `difftime` result column.
 kusto_timespan_seconds <- function(value) {
   if (is.na(value)) {
     return(NA_real_)
@@ -974,6 +1065,8 @@ kusto_timespan_seconds <- function(value) {
       as.numeric(parts[[6L]]))
 }
 
+# Decode one dynamic JSON `value` when possible. Returns structured R data, the
+# original scalar, or `NULL` for a Kusto null.
 kusto_dynamic_value <- function(value) {
   if (is.null(value)) {
     return(NULL)
@@ -988,7 +1081,11 @@ kusto_dynamic_value <- function(value) {
   if (inherits(parsed, "try-error")) value else parsed
 }
 
+# Dispatch nullable `values` to the parser for declared Kusto `type`. Returns
+# one R vector or list-column for `kusto_parse_table()`.
 kusto_convert_column <- function(values, type) {
+  # 1 Convert scalar service types -----------------------------------------------------------------
+
   if (type %in% c("string", "guid", "uuid", "uniqueid")) {
     return(kusto_character_column(values))
   }
@@ -1038,6 +1135,9 @@ kusto_convert_column <- function(values, type) {
     )
     return(as.difftime(seconds, units = "secs"))
   }
+
+  # 2 Convert structured values or fall back to text -----------------------------------------------
+
   if (type == "dynamic") {
     return(lapply(values, kusto_dynamic_value))
   }

@@ -1,5 +1,7 @@
 .delta_python <- new.env(parent = emptyenv())
 
+# Register the optional Python Delta dependencies when the package loads.
+# Inputs are standard R package-load names; the function has no return value.
 .onLoad <- function(libname, pkgname) {
   reticulate::py_require(
     packages = c(

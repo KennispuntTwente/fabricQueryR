@@ -67,6 +67,64 @@ token audiences, or internal response formats.
 When changing a public function, review its whole help topic for readability;
 do not append new implementation notes to an already dense introduction.
 
+## R code organization and maintainability
+
+Apply these rules to every file in `R/`. Treat them as part of the definition of
+done for new code and for refactors that touch an existing function.
+
+### Order code from public workflows to implementation details
+
+- Put exported functions and the file's main entry points near the top, after
+  any constants or package-level documentation they need.
+- When a file has several public functions, keep the normal user workflow first.
+  Put closely related S3 methods or R6 classes after their public constructors.
+- Place internal orchestration helpers after the public API, then increasingly
+  smaller, more specialized parsing, conversion, validation, and formatting
+  helpers toward the bottom.
+- Review the entire file after adding or moving a function; do not leave a main
+  entry point below its low-level helpers.
+
+### Make long functions readable as numbered steps
+
+- Split long functions, especially public functions and complex orchestration
+  helpers, into numbered sections that describe the workflow in plain language.
+- Format a top-level section as `# 1 Section title ` followed by enough `-`
+  characters to make the line exactly 100 columns. Use `## 1.1 Section title`
+  for a subsection and `### 1.1.1 Section title` for deeper nesting, with the
+  same 100-column rule.
+- Leave exactly two empty lines between the end of one section and the next
+  section heading.
+- Add a short beginner-friendly comment below a heading when the purpose or
+  reason for that step is not already obvious from the heading.
+- In longer or more complicated sections, add concise inline comments before
+  non-obvious branches, safety checks, protocol workarounds, or conversions.
+  Explain what happens and why; avoid restating individual lines of code.
+
+### Keep helpers useful and documented
+
+- Do not create a thin internal wrapper that merely renames one call, filters a
+  list once, or forwards arguments and is used in only a few places. Put that
+  expression at the call site unless the helper enforces a repeated safety rule,
+  provides a deliberate test seam, or removes substantial duplicated logic.
+- When touching a helper, inspect its call sites. Inline and remove helpers that
+  no longer earn their indirection, and remove dead helpers rather than leaving
+  unused compatibility code.
+- Look for duplicated validation, request construction, parsing, and conversion
+  logic. Reuse an existing substantive helper when it improves clarity; do not
+  introduce abstraction solely to reduce a line count.
+- Remove obsolete branches, repeated work, unnecessary temporary objects, and
+  code made unreachable by the final design. Verify removals with repository
+  search and tests.
+- Give every internal function a short beginner-friendly description immediately
+  above it. State what its inputs mean, what it returns (or that it raises), why
+  it exists, and which workflow uses it. Prefer internal roxygen2 with `@param`,
+  `@return`, `@keywords internal`, and `@noRd` for substantive helpers; a concise
+  ordinary comment is acceptable for a very small local helper or explicit test
+  seam.
+- Keep internal documentation practical and brief. Avoid unexplained protocol
+  jargon and implementation trivia that does not help a new maintainer follow
+  the code.
+
 ## NEWS.md
 
 Treat the current development section as release notes for users, not as a

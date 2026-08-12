@@ -141,6 +141,10 @@ fabric_job_run <- function(
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE
 ) {
+  # 1 Resolve authentication and job target --------------------------------------------------------
+
+  # Discovery records can provide both item identity and workspace-specific
+  # endpoints, avoiding repeated caller arguments.
   api_base_supplied <- !missing(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -159,6 +163,10 @@ fabric_job_run <- function(
   )
   base <- target$api_base
   route <- .fabric_job_route(target$item_type, job_type)
+
+  # 2 Build the execution payload ------------------------------------------------------------------
+
+  # Normalize workload-specific execution settings before submitting the job.
   execution_data <- .fabric_job_execution_data(
     target = target,
     route = route,
@@ -184,6 +192,9 @@ fabric_job_run <- function(
   if (!length(payload)) {
     payload <- NULL
   }
+
+  # 3 Submit the job -------------------------------------------------------------------------------
+
   url <- .fabric_job_run_url(base, target, route)
   result <- .fabric_job_request(
     "POST",
@@ -200,7 +211,8 @@ fabric_job_run <- function(
       class = "fabric_job_protocol_error"
     )
   }
-  instance_id <- .fabric_job_id_from_location(location)
+  location_path <- sub("[?#].*$", "", location)
+  instance_id <- sub(".*/", "", sub("/+$", "", location_path))
   if (!fabric_is_guid(instance_id)) {
     rlang::abort(
       "Fabric returned a Location header without a valid job instance ID",
@@ -208,6 +220,10 @@ fabric_job_run <- function(
     )
   }
 
+  # 4 Return a reusable job handle -----------------------------------------------------------------
+
+  # Store resolved context so status, wait, and cancel calls need only this
+  # handle and do not have to reconstruct authentication or routing details.
   submitted_at <- Sys.time()
   next_poll_at <- if (is.null(result$retry_after)) {
     submitted_at
@@ -264,6 +280,10 @@ fabric_job_status <- function(
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
+  # 1 Respect the service's first polling time -----------------------------------------------------
+
+  # Waiting here avoids an immediate status call that Fabric already asked the
+  # client to postpone.
   if (
     !is.logical(respect_retry_after) ||
       length(respect_retry_after) != 1L ||
@@ -287,6 +307,9 @@ fabric_job_status <- function(
       }
     }
   }
+
+  # 2 Resolve the job context ----------------------------------------------------------------------
+
   api_base_supplied <- !missing(api_base)
   override_auth <- !missing(tenant_id) ||
     !missing(client_id) ||
@@ -308,6 +331,9 @@ fabric_job_status <- function(
     use_workspace_endpoint = !api_base_supplied,
     override_auth = override_auth
   )
+
+  # 3 Read and return status -----------------------------------------------------------------------
+
   .fabric_job_get_status(context, allow_not_found = FALSE)
 }
 
@@ -344,6 +370,9 @@ fabric_job_wait <- function(
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
+  # 1 Validate polling options ---------------------------------------------------------------------
+
+  # Validate before starting the clock so caller mistakes never consume timeout.
   override_auth <- !missing(tenant_id) ||
     !missing(client_id) ||
     !is.null(token) ||
@@ -377,6 +406,8 @@ fabric_job_wait <- function(
     rlang::abort("`cancel` must be a function or NULL")
   }
 
+  # 2 Prepare the job context ----------------------------------------------------------------------
+
   context <- .fabric_job_context(
     job = job,
     tenant_id = tenant_id,
@@ -390,6 +421,11 @@ fabric_job_wait <- function(
   started <- .now()
   last <- NULL
   retry_after <- job$retry_after
+
+  # 3 Poll until the job finishes ------------------------------------------------------------------
+
+  # Each pass checks caller cancellation and timeout before sleeping or making
+  # another request.
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
       cancellation <- .fabric_job_cancel_outcome(context$job)
@@ -475,16 +511,6 @@ fabric_job_wait <- function(
   }
 }
 
-.fabric_job_cancel_outcome <- function(job) {
-  tryCatch(
-    {
-      fabric_job_cancel(job)
-      list(accepted = TRUE, error = NULL)
-    },
-    error = function(error) list(accepted = FALSE, error = error)
-  )
-}
-
 #' @rdname fabric_job_run
 #' @export
 fabric_job_cancel <- function(
@@ -504,6 +530,9 @@ fabric_job_cancel <- function(
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE
 ) {
+  # 1 Resolve the job context ----------------------------------------------------------------------
+
+  # A job handle already contains most context; raw IDs are normalized here too.
   api_base_supplied <- !missing(api_base)
   override_auth <- !missing(tenant_id) ||
     !missing(client_id) ||
@@ -535,6 +564,11 @@ fabric_job_cancel <- function(
     context$id,
     "/cancel"
   )
+
+  # 2 Request cancellation -------------------------------------------------------------------------
+
+  # Some non-success replies are ambiguous, so retain their response for the
+  # status check below instead of raising immediately.
   result <- tryCatch(
     .fabric_job_request(
       "POST",
@@ -550,6 +584,8 @@ fabric_job_cancel <- function(
   if (!inherits(result, "error") && result$status_code < 400L) {
     return(invisible(TRUE))
   }
+
+  # 3 Resolve ambiguous outcomes -------------------------------------------------------------------
 
   error_code <- if (inherits(result, "error")) {
     NULL
@@ -571,6 +607,8 @@ fabric_job_cancel <- function(
     }
   }
 
+  # 4 Return or report the outcome -----------------------------------------------------------------
+
   if (inherits(result, "error")) {
     rlang::cnd_signal(result)
   }
@@ -578,6 +616,11 @@ fabric_job_cancel <- function(
   invisible(TRUE)
 }
 
+#' Print a submitted Fabric job
+#'
+#' @param x A `fabric_job` handle returned by [fabric_job_run()].
+#' @param ... Reserved for the print method.
+#' @return `x`, invisibly.
 #' @export
 print.fabric_job <- function(x, ...) {
   cat(
@@ -601,6 +644,12 @@ print.fabric_job <- function(x, ...) {
   invisible(x)
 }
 
+#' Print Fabric job status
+#'
+#' @param x A `fabric_job_instance` returned by [fabric_job_status()] or
+#'   [fabric_job_wait()].
+#' @param ... Reserved for the print method.
+#' @return `x`, invisibly.
 #' @export
 print.fabric_job_instance <- function(x, ...) {
   cat(
@@ -621,6 +670,20 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(x)
 }
 
+# Try to cancel `job` without replacing the caller's original error. Returns
+# acceptance and error fields used by cancellation and timeout conditions.
+.fabric_job_cancel_outcome <- function(job) {
+  tryCatch(
+    {
+      fabric_job_cancel(job)
+      list(accepted = TRUE, error = NULL)
+    },
+    error = function(error) list(accepted = FALSE, error = error)
+  )
+}
+
+# Send one job request from `method`, `url`, and optional `body`. Returns the
+# response, decoded body, and retry hint used by all public job operations.
 .fabric_job_request <- function(
   method,
   url,
@@ -668,6 +731,8 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Preserve lists that represent JSON arrays while cleaning `value`. Returns a
+# JSON-ready object used before job request bodies are encoded.
 .fabric_job_preserve_json_arrays <- function(value, field = NULL) {
   array_fields <- c(
     "parameters",
@@ -696,6 +761,8 @@ print.fabric_job_instance <- function(x, ...) {
   value
 }
 
+# Read a service error code from decoded `body`. Returns text or `NULL` so
+# cancellation can distinguish an already-finished job.
 .fabric_job_error_code <- function(body) {
   code <- body$errorCode %||% body$error$code %||% body$code
   if (is.character(code) && length(code) == 1L && nzchar(code)) {
@@ -705,6 +772,8 @@ print.fabric_job_instance <- function(x, ...) {
   }
 }
 
+# Turn a rejected cancellation `result` into a typed condition. This function
+# does not return and attaches `job` for caller troubleshooting.
 .fabric_job_abort_cancel <- function(result, job) {
   error_code <- .fabric_job_error_code(result$body) %||% "unknown"
   rlang::abort(
@@ -722,6 +791,8 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Resolve item and workspace inputs into one job target. Returns IDs, item type,
+# and API base used by job submission and raw-ID status operations.
 .fabric_job_target <- function(
   item,
   workspace,
@@ -730,6 +801,9 @@ print.fabric_job_instance <- function(x, ...) {
   api_base,
   use_workspace_endpoint = TRUE
 ) {
+  # 1 Read supplied discovery records --------------------------------------------------------------
+
+  # Records can carry workspace identity and a private API endpoint together.
   item_record <- fabric_as_record(item)
   workspace_record <- fabric_as_record(workspace)
   item_workspace_id <- fabric_record_value(
@@ -742,6 +816,9 @@ print.fabric_job_instance <- function(x, ...) {
   } else {
     api_base
   }
+
+  # 2 Resolve the workspace ------------------------------------------------------------------------
+
   if (!is.null(workspace)) {
     if (
       is.null(workspace_record) &&
@@ -771,6 +848,8 @@ print.fabric_job_instance <- function(x, ...) {
   }
   .fabric_job_nonempty(workspace_id, "workspace ID")
   .fabric_job_guid(workspace_id, "workspace ID")
+
+  # 3 Resolve the item -----------------------------------------------------------------------------
 
   if (!is.null(item_record)) {
     item_id <- fabric_record_value(item_record, "id")
@@ -802,6 +881,9 @@ print.fabric_job_instance <- function(x, ...) {
   if (!is.null(resolved_type)) {
     .fabric_job_nonempty(resolved_type, "item_type")
   }
+
+  # 4 Return the normalized target -----------------------------------------------------------------
+
   list(
     workspace_id = workspace_id,
     item_id = item_id,
@@ -810,6 +892,8 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Map `item_type` and optional `job_type` to the matching Fabric route. Returns
+# normalized route details used to construct request URLs and payloads.
 .fabric_job_route <- function(item_type, job_type) {
   normalized <- gsub(
     "[^a-z0-9]",
@@ -856,6 +940,8 @@ print.fabric_job_instance <- function(x, ...) {
   list(route = "core", job_type = expected)
 }
 
+# Build a submission URL from `api_base`, `target`, and `route`. Returns one URL
+# for `fabric_job_run()` after every path segment has been validated.
 .fabric_job_run_url <- function(api_base, target, route) {
   prefix <- paste0(api_base, "/workspaces/", target$workspace_id)
   switch(
@@ -883,6 +969,8 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Build the workload-specific status URL from `context`. Returns one URL used by
+# the primary status request.
 .fabric_job_status_url <- function(context) {
   if (identical(context$route, "notebook")) {
     paste0(
@@ -908,6 +996,8 @@ print.fabric_job_instance <- function(x, ...) {
   }
 }
 
+# Build the core fallback status URL from `context`. Returns one URL used when a
+# workload route has not made a new job visible yet.
 .fabric_job_core_status_url <- function(context) {
   paste0(
     context$api_base,
@@ -920,7 +1010,12 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Read and reconcile job status from the workload and core APIs. Returns one
+# normalized job instance for public status and wait operations.
 .fabric_job_get_status <- function(context, allow_not_found) {
+  # 1 Read workload status -------------------------------------------------------------------------
+
+  # Notebook status may briefly be unavailable from its workload route.
   url <- .fabric_job_status_url(context)
   notebook <- identical(context$route, "notebook")
   result <- .fabric_job_request(
@@ -945,6 +1040,9 @@ print.fabric_job_instance <- function(x, ...) {
       accepted_status = if (isTRUE(allow_not_found)) 404L else integer()
     )
   }
+
+  # 2 Represent a not-yet-visible job --------------------------------------------------------------
+
   if (identical(result$status_code, 404L)) {
     error_code <- .fabric_job_error_code(result$body)
     if (!is.null(error_code)) {
@@ -967,6 +1065,9 @@ print.fabric_job_instance <- function(x, ...) {
       visible = FALSE
     ))
   }
+
+  # 3 Normalize and reconcile status ---------------------------------------------------------------
+
   instance <- .fabric_job_instance(
     result$body,
     context,
@@ -1001,6 +1102,8 @@ print.fabric_job_instance <- function(x, ...) {
   instance
 }
 
+# Validate and combine workload execution inputs. Returns a JSON-ready
+# `executionData` object used when submitting notebook or Spark jobs.
 .fabric_job_execution_data <- function(
   target,
   route,
@@ -1010,6 +1113,9 @@ print.fabric_job_instance <- function(x, ...) {
   compute,
   session_tag
 ) {
+  # 1 Reject conflicting input forms ---------------------------------------------------------------
+
+  # Explicit execution data cannot be mixed with notebook convenience fields.
   if (
     !is.null(execution_data) &&
       any(vapply(
@@ -1027,6 +1133,9 @@ print.fabric_job_instance <- function(x, ...) {
       "Supply either `execution_data` or the notebook convenience arguments"
     )
   }
+
+  # 2 Handle non-notebook jobs ---------------------------------------------------------------------
+
   if (!identical(route$route, "notebook")) {
     if (
       any(vapply(
@@ -1054,6 +1163,8 @@ print.fabric_job_instance <- function(x, ...) {
     }
     return(execution_data)
   }
+
+  # 3 Build notebook convenience data --------------------------------------------------------------
 
   if (
     !is.null(default_lakehouse_workspace) &&
@@ -1115,7 +1226,7 @@ print.fabric_job_instance <- function(x, ...) {
       )
     }
     if (!is.null(session_tag)) {
-      .fabric_job_validate_session_tag(session_tag, "session_tag")
+      .fabric_job_nonempty(session_tag, "session_tag")
       configuration$highConcurrencyModeOptions <- list(
         enabled = TRUE,
         sessionTag = session_tag
@@ -1126,6 +1237,9 @@ print.fabric_job_instance <- function(x, ...) {
       execution_data$computeConfiguration <- configuration
     }
   }
+
+  # 4 Validate notebook execution data -------------------------------------------------------------
+
   .fabric_job_named_list(execution_data, "execution_data")
   allowed <- c("compute", "computeConfiguration")
   unknown <- setdiff(names(execution_data), allowed)
@@ -1176,7 +1290,11 @@ print.fabric_job_instance <- function(x, ...) {
   execution_data
 }
 
+# Validate notebook `configuration` and `compute` options. Returns invisibly
+# after guarding mutually exclusive or unsupported combinations.
 .fabric_job_validate_notebook_compute <- function(configuration, compute) {
+  # 1 Choose fields supported by this compute type -------------------------------------------------
+
   common <- c(
     "name",
     "mountPoints",
@@ -1213,6 +1331,9 @@ print.fabric_job_instance <- function(x, ...) {
       paste(unknown, collapse = ", ")
     ))
   }
+
+  # 2 Validate nested item references --------------------------------------------------------------
+
   for (name in intersect(
     c("defaultLakehouse", "attachedEnvironment"),
     names(configuration)
@@ -1222,6 +1343,9 @@ print.fabric_job_instance <- function(x, ...) {
       paste0("computeConfiguration$", name)
     )
   }
+
+  # 3 Validate high-concurrency options ------------------------------------------------------------
+
   if ("highConcurrencyModeOptions" %in% names(configuration)) {
     options <- configuration$highConcurrencyModeOptions
     .fabric_job_named_list(options, "highConcurrencyModeOptions")
@@ -1242,7 +1366,7 @@ print.fabric_job_instance <- function(x, ...) {
       rlang::abort("`highConcurrencyModeOptions$enabled` must be logical")
     }
     if (!is.null(options$sessionTag)) {
-      .fabric_job_validate_session_tag(
+      .fabric_job_nonempty(
         options$sessionTag,
         "highConcurrencyModeOptions$sessionTag"
       )
@@ -1251,11 +1375,8 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
-.fabric_job_validate_session_tag <- function(value, name) {
-  .fabric_job_nonempty(value, name)
-  invisible(TRUE)
-}
-
+# Validate required Spark job definition fields in `execution_data`. Returns
+# invisibly before a Spark job is submitted.
 .fabric_job_validate_spark_definition <- function(execution_data) {
   allowed <- c(
     "executableFile",
@@ -1298,6 +1419,8 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
+# Validate an item-reference object such as a default lakehouse. Returns
+# invisibly before the reference is added to notebook execution data.
 .fabric_job_validate_item_reference <- function(reference, name) {
   .fabric_job_named_list(reference, name)
   required <- c("referenceType", "itemId", "workspaceId")
@@ -1323,7 +1446,12 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
+# Normalize named parameter values and optional types. Returns a list of Fabric
+# parameter records used by supported job routes.
 .fabric_job_parameters <- function(parameters, parameter_types = NULL) {
+  # 1 Identify the accepted input form -------------------------------------------------------------
+
+  # Callers may supply ready records or a simpler named list of scalar values.
   if (is.null(parameters)) {
     if (!is.null(parameter_types) && length(parameter_types)) {
       rlang::abort("`parameter_types` requires `parameters`")
@@ -1347,6 +1475,8 @@ print.fabric_job_instance <- function(x, ...) {
       "`parameter_types` cannot be combined with parameter records"
     )
   }
+
+  # 2 Normalize every parameter --------------------------------------------------------------------
 
   if (record_form) {
     records <- lapply(parameters, function(record) {
@@ -1407,6 +1537,9 @@ print.fabric_job_instance <- function(x, ...) {
       parameters
     )
   }
+
+  # 3 Check the final record set -------------------------------------------------------------------
+
   record_names <- vapply(records, `[[`, character(1), "name")
   if (anyDuplicated(tolower(record_names))) {
     rlang::abort(
@@ -1416,7 +1549,11 @@ print.fabric_job_instance <- function(x, ...) {
   unname(records)
 }
 
+# Convert one named `value` and optional `type` into a Fabric parameter record.
+# Returns JSON-ready name, value, and type fields for job submission.
 .fabric_job_parameter <- function(name, value, type) {
+  # 1 Validate the name and type -------------------------------------------------------------------
+
   .fabric_job_nonempty(name, "parameter name")
   if (nchar(name) > 256L) {
     rlang::abort("Fabric parameter names cannot exceed 256 characters")
@@ -1433,6 +1570,9 @@ print.fabric_job_instance <- function(x, ...) {
     ))
   }
   type <- .fabric_job_parameter_types[[type_index]]
+
+  # 2 Validate the scalar value --------------------------------------------------------------------
+
   value_length <- if (inherits(value, "POSIXlt")) {
     length(as.POSIXct(value))
   } else {
@@ -1458,6 +1598,9 @@ print.fabric_job_instance <- function(x, ...) {
       name
     ))
   }
+
+  # 3 Convert the value for JSON -------------------------------------------------------------------
+
   if (date_time_value) {
     if (inherits(value, c("POSIXct", "POSIXlt"))) {
       value <- format(
@@ -1523,9 +1666,14 @@ print.fabric_job_instance <- function(x, ...) {
       ))
     }
   }
+
+  # 4 Return the parameter record ------------------------------------------------------------------
+
   list(name = name, value = value, type = type)
 }
 
+# Infer Fabric's parameter type from one R `value`. Returns a type name when the
+# caller did not supply `parameter_types`.
 .fabric_job_infer_parameter_type <- function(value) {
   if (inherits(value, c("POSIXt", "Date"))) {
     "DateTime"
@@ -1545,6 +1693,8 @@ print.fabric_job_instance <- function(x, ...) {
   }
 }
 
+# Reconstruct a complete job context from a handle or raw IDs. Returns resolved
+# authentication, routing, and identity used by status, wait, and cancellation.
 .fabric_job_context <- function(
   job,
   workspace = NULL,
@@ -1561,6 +1711,9 @@ print.fabric_job_instance <- function(x, ...) {
   use_workspace_endpoint = TRUE,
   override_auth = !is.null(token) || length(auth_args) > 0L
 ) {
+  # 1 Reuse a submitted job handle -----------------------------------------------------------------
+
+  # Handles already carry resolved IDs, route, endpoint, and usually credential.
   if (inherits(job, "fabric_job")) {
     if (!is.null(job_instance_id)) {
       rlang::abort(
@@ -1590,6 +1743,8 @@ print.fabric_job_instance <- function(x, ...) {
     context$allow_custom_endpoint <- custom_endpoint
     return(context)
   }
+
+  # 2 Reconstruct context from raw IDs -------------------------------------------------------------
 
   id <- job_instance_id %||% job
   .fabric_job_nonempty(id, "job instance ID")
@@ -1630,12 +1785,17 @@ print.fabric_job_instance <- function(x, ...) {
     ),
     class = "fabric_job"
   )
+
+  # 3 Return the shared context --------------------------------------------------------------------
+
   context <- unclass(handle)
   context$job <- handle
   context$credential <- credential
   context
 }
 
+# Convert a decoded status `body` and request `context` into a stable job
+# instance. Returns the object exposed by status and wait calls.
 .fabric_job_instance <- function(body, context, retry_after, visible) {
   status <- body$status %||% "Unknown"
   if (tolower(status) == "canceled") {
@@ -1673,6 +1833,8 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Raise a typed condition for a failed terminal `instance`. This function does
+# not return and attaches both the status object and original `job` handle.
 .fabric_job_abort_terminal <- function(instance, job) {
   status <- tolower(instance$status)
   class <- switch(
@@ -1702,6 +1864,8 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
+# Flatten nested failure `value` into readable text. Returns one string used in
+# terminal job errors.
 .fabric_job_failure_text <- function(value) {
   if (is.null(value)) {
     return("")
@@ -1710,6 +1874,8 @@ print.fabric_job_instance <- function(x, ...) {
   paste(unique(as.character(values)), collapse = ": ")
 }
 
+# Parse one Fabric timestamp `value`. Returns a UTC date-time or `NA` for missing
+# input while preserving fractional-second timestamps.
 .fabric_job_time <- function(value) {
   if (is.null(value) || !length(value) || is.na(value[[1L]])) {
     return(NULL)
@@ -1725,11 +1891,8 @@ print.fabric_job_instance <- function(x, ...) {
   as.POSIXct(text, format = format, tz = "UTC")
 }
 
-.fabric_job_id_from_location <- function(location) {
-  path <- sub("[?#].*$", "", location)
-  sub(".*/", "", sub("/+$", "", path))
-}
-
+# Check `value` as a fully named list identified by `name`. Returns the same list
+# for execution-data and parameter normalization.
 .fabric_job_named_list <- function(value, name) {
   if (
     !is.list(value) ||
@@ -1741,6 +1904,8 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
+# Check `value` as one non-empty string identified by `name`. Returns invisibly
+# for shared job target and execution-data validation.
 .fabric_job_nonempty <- function(value, name) {
   if (
     !is.character(value) ||
@@ -1753,6 +1918,8 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
+# Check `value` as a safe URL path segment. Returns invisibly before job route
+# text is inserted into a request URL.
 .fabric_job_path_segment <- function(value, name) {
   .fabric_job_nonempty(value, name)
   if (!grepl("^[A-Za-z0-9._-]+$", value)) {
@@ -1764,6 +1931,8 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
+# Check `value` as one GUID identified by `name`. Returns invisibly for job and
+# item identity validation.
 .fabric_job_guid <- function(value, name) {
   .fabric_job_nonempty(value, name)
   if (!fabric_is_guid(value)) {
@@ -1775,6 +1944,8 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
+# Check numeric `value` against `minimum`. Returns invisibly for polling and
+# compute options that must contain one finite number.
 .fabric_job_scalar_number <- function(value, name, minimum) {
   if (
     !is.numeric(value) ||

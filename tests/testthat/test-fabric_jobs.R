@@ -1428,12 +1428,12 @@ test_that("job payload validation rejects ambiguous and unsafe input", {
     42
   )) {
     expect_error(
-      .fabric_job_validate_session_tag(invalid_tag, "session_tag"),
+      .fabric_job_nonempty(invalid_tag, "session_tag"),
       "non-empty string"
     )
   }
   expect_silent(
-    .fabric_job_validate_session_tag("team A / run-1.0", "session_tag")
+    .fabric_job_nonempty("team A / run-1.0", "session_tag")
   )
 })
 
