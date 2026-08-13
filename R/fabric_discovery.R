@@ -446,8 +446,24 @@ fabric_item <- function(
 #'   stores queried with [fabric_kql_query()]
 #' - `fabric_notebooks()` finds notebooks that can be run with
 #'   [fabric_job_run()]
+#' - `fabric_data_pipelines()` and `fabric_spark_job_definitions()` find the
+#'   other executable items supported by [fabric_job_run()]
+#' - `fabric_environments()` finds reusable Spark runtime configurations
+#' - `fabric_user_data_functions()` finds serverless Python function items
 #' - `fabric_graphql_apis()` finds APIs configured in Fabric for use with
 #'   [fabric_graphql_query()]
+#'
+#' @section Filtering and returned fields:
+#' Each helper requests its exact Fabric item type and verifies that every
+#' returned record has that type. The records otherwise keep all fields
+#' returned by Fabric, including fields added by the service in the future
+#'
+#' Folder recursion, workspace-specific private-link routing, authentication,
+#' and `detail_errors` have the same behavior as in [fabric_items()]. The four
+#' new helpers do not currently make workload-specific detail requests. Their
+#' core records contain the IDs and type needed by [fabric_job_run()] where
+#' applicable, and fabricQueryR does not yet consume an additional target from
+#' Environment or User Data Function details
 #'
 #' @inheritParams fabric_items
 #' @param ... Authentication and API arguments forwarded to [fabric_items()]
@@ -455,61 +471,123 @@ fabric_item <- function(
 #' @return A list with one `fabric_item` object per matching item. Each object
 #'   contains common item metadata and applicable connection fields. See
 #'   [fabric_items()] for details
+#' @references
+#' [List items REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
+#'
+#' [List data pipelines](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/list-data-pipelines)
+#'
+#' [List Spark job definitions](https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/list-spark-job-definitions)
+#'
+#' [List environments](https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments)
+#'
+#' [List User Data Functions](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions)
+#' @examples
+#' \dontrun{
+#' workspace <- fabric_workspaces()[[1]]
+#'
+#' # Discover and run each executable item type
+#' notebook <- fabric_notebooks(workspace)[[1]]
+#' pipeline <- fabric_data_pipelines(workspace)[[1]]
+#' spark_job <- fabric_spark_job_definitions(workspace)[[1]]
+#'
+#' fabric_job_wait(fabric_job_run(notebook), timeout = 900)
+#' fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
+#' fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
+#'
+#' # Discover related Spark and serverless-function items
+#' environments <- fabric_environments(workspace)
+#' functions <- fabric_user_data_functions(workspace)
+#' }
 #' @name fabric_typed_items
 NULL
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_lakehouses <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "Lakehouse", detail = detail, ...)
+  fabric_typed_item_list(workspace, "Lakehouse", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_warehouses <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "Warehouse", detail = detail, ...)
+  fabric_typed_item_list(workspace, "Warehouse", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_warehouse_snapshots <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "WarehouseSnapshot", detail = detail, ...)
+  fabric_typed_item_list(workspace, "WarehouseSnapshot", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_sql_databases <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "SQLDatabase", detail = detail, ...)
+  fabric_typed_item_list(workspace, "SQLDatabase", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_semantic_models <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "SemanticModel", detail = detail, ...)
+  fabric_typed_item_list(workspace, "SemanticModel", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_eventhouses <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "Eventhouse", detail = detail, ...)
+  fabric_typed_item_list(workspace, "Eventhouse", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_kql_databases <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "KQLDatabase", detail = detail, ...)
+  fabric_typed_item_list(workspace, "KQLDatabase", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_notebooks <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "Notebook", detail = detail, ...)
+  fabric_typed_item_list(workspace, "Notebook", detail, ...)
+}
+
+#' @rdname fabric_typed_items
+#' @export
+fabric_data_pipelines <- function(workspace, detail = TRUE, ...) {
+  fabric_typed_item_list(workspace, "DataPipeline", detail, ...)
+}
+
+#' @rdname fabric_typed_items
+#' @export
+fabric_spark_job_definitions <- function(workspace, detail = TRUE, ...) {
+  fabric_typed_item_list(workspace, "SparkJobDefinition", detail, ...)
+}
+
+#' @rdname fabric_typed_items
+#' @export
+fabric_environments <- function(workspace, detail = TRUE, ...) {
+  fabric_typed_item_list(workspace, "Environment", detail, ...)
+}
+
+#' @rdname fabric_typed_items
+#' @export
+fabric_user_data_functions <- function(workspace, detail = TRUE, ...) {
+  fabric_typed_item_list(workspace, "UserDataFunction", detail, ...)
 }
 
 #' @rdname fabric_typed_items
 #' @export
 fabric_graphql_apis <- function(workspace, detail = TRUE, ...) {
-  fabric_items(workspace, type = "GraphQLApi", detail = detail, ...)
+  fabric_typed_item_list(workspace, "GraphQLApi", detail, ...)
+}
+
+# Request one Fabric item type and discard any mismatched service records
+# Returns the original item objects so new service fields remain available
+fabric_typed_item_list <- function(workspace, type, detail, ...) {
+  items <- fabric_items(workspace, type = type, detail = detail, ...)
+  items[vapply(
+    items,
+    function(item) identical(fabric_record_value(item, "type"), type),
+    logical(1)
+  )]
 }
 
 # Add workspace-specific API and OneLake endpoints to `record`. Returns the

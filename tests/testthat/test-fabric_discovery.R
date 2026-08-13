@@ -732,10 +732,12 @@ test_that("typed convenience helpers forward their workload types", {
   calls <- list()
   local_mocked_bindings(
     fabric_items = function(workspace, type, detail, ...) {
+      forwarded <- list(...)
       calls[[length(calls) + 1L]] <<- list(
         workspace = workspace,
         type = type,
-        detail = detail
+        detail = detail,
+        forwarded = forwarded
       )
       list()
     }
@@ -749,6 +751,10 @@ test_that("typed convenience helpers forward their workload types", {
     fabric_eventhouses = "Eventhouse",
     fabric_kql_databases = "KQLDatabase",
     fabric_notebooks = "Notebook",
+    fabric_data_pipelines = "DataPipeline",
+    fabric_spark_job_definitions = "SparkJobDefinition",
+    fabric_environments = "Environment",
+    fabric_user_data_functions = "UserDataFunction",
     fabric_graphql_apis = "GraphQLApi"
   )
   for (name in names(helpers)) {
@@ -762,8 +768,51 @@ test_that("typed convenience helpers forward their workload types", {
   expect_true(all(
     vapply(calls, `[[`, character(1), "workspace") == "Workspace"
   ))
-  fabric_lakehouses("Workspace", detail = FALSE, token = "token")
+  fabric_lakehouses(
+    "Workspace",
+    detail = FALSE,
+    recursive = FALSE,
+    detail_errors = "abort",
+    token = "token"
+  )
   expect_false(calls[[length(calls)]]$detail)
+  expect_false(calls[[length(calls)]]$forwarded$recursive)
+  expect_identical(calls[[length(calls)]]$forwarded$detail_errors, "abort")
+  expect_identical(calls[[length(calls)]]$forwarded$token, "token")
+})
+
+test_that("typed helpers strictly filter records and preserve future fields", {
+  local_mocked_bindings(
+    fabric_items = function(workspace, type, detail, ...) {
+      fabric_item_list(list(
+        list(
+          id = "pipeline-id",
+          displayName = "Daily load",
+          type = "DataPipeline",
+          futureServiceField = list(enabled = TRUE, version = 2L)
+        ),
+        list(
+          id = "notebook-id",
+          displayName = "Unexpected notebook",
+          type = "Notebook"
+        ),
+        list(
+          id = "missing-type-id",
+          displayName = "Incomplete item"
+        )
+      ))
+    }
+  )
+
+  pipelines <- fabric_data_pipelines("Workspace", token = "token")
+
+  expect_length(pipelines, 1L)
+  expect_s3_class(pipelines[[1L]], "fabric_item")
+  expect_identical(pipelines[[1L]]$type, "DataPipeline")
+  expect_identical(
+    pipelines[[1L]]$futureServiceField,
+    list(enabled = TRUE, version = 2L)
+  )
 })
 
 test_that("empty discovery results retain their public types", {

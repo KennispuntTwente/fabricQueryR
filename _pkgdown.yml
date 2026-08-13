@@ -22,6 +22,10 @@ reference:
       - fabric_eventhouses
       - fabric_kql_databases
       - fabric_notebooks
+      - fabric_data_pipelines
+      - fabric_spark_job_definitions
+      - fabric_environments
+      - fabric_user_data_functions
       - fabric_graphql_apis
 
   - title: SQL connectivity

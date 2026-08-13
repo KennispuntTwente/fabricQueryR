@@ -66,6 +66,10 @@ semantic_model <- fabric_semantic_models(workspace) |> first()
 kql_database <- fabric_kql_databases(workspace) |> first()
 graphql_api <- fabric_graphql_apis(workspace) |> first()
 notebook <- fabric_notebooks(workspace) |> first()
+pipeline <- fabric_data_pipelines(workspace) |> first()
+spark_job <- fabric_spark_job_definitions(workspace) |> first()
+environments <- fabric_environments(workspace)
+user_data_functions <- fabric_user_data_functions(workspace)
 ```
 
 In the next sections, you can see how to use these items to query data, run Spark code, and more.

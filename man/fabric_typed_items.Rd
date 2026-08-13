@@ -10,6 +10,10 @@
 \alias{fabric_eventhouses}
 \alias{fabric_kql_databases}
 \alias{fabric_notebooks}
+\alias{fabric_data_pipelines}
+\alias{fabric_spark_job_definitions}
+\alias{fabric_environments}
+\alias{fabric_user_data_functions}
 \alias{fabric_graphql_apis}
 \title{Typed Microsoft Fabric item discovery}
 \usage{
@@ -28,6 +32,14 @@ fabric_eventhouses(workspace, detail = TRUE, ...)
 fabric_kql_databases(workspace, detail = TRUE, ...)
 
 fabric_notebooks(workspace, detail = TRUE, ...)
+
+fabric_data_pipelines(workspace, detail = TRUE, ...)
+
+fabric_spark_job_definitions(workspace, detail = TRUE, ...)
+
+fabric_environments(workspace, detail = TRUE, ...)
+
+fabric_user_data_functions(workspace, detail = TRUE, ...)
 
 fabric_graphql_apis(workspace, detail = TRUE, ...)
 }
@@ -68,8 +80,55 @@ Livy
 stores queried with \code{\link[=fabric_kql_query]{fabric_kql_query()}}
 \item \code{fabric_notebooks()} finds notebooks that can be run with
 \code{\link[=fabric_job_run]{fabric_job_run()}}
+\item \code{fabric_data_pipelines()} and \code{fabric_spark_job_definitions()} find the
+other executable items supported by \code{\link[=fabric_job_run]{fabric_job_run()}}
+\item \code{fabric_environments()} finds reusable Spark runtime configurations
+\item \code{fabric_user_data_functions()} finds serverless Python function items
 \item \code{fabric_graphql_apis()} finds APIs configured in Fabric for use with
 \code{\link[=fabric_graphql_query]{fabric_graphql_query()}}
 }
 }
 
+\section{Filtering and returned fields}{
+
+Each helper requests its exact Fabric item type and verifies that every
+returned record has that type. The records otherwise keep all fields
+returned by Fabric, including fields added by the service in the future
+
+Folder recursion, workspace-specific private-link routing, authentication,
+and \code{detail_errors} have the same behavior as in \code{\link[=fabric_items]{fabric_items()}}. The four
+new helpers do not currently make workload-specific detail requests. Their
+core records contain the IDs and type needed by \code{\link[=fabric_job_run]{fabric_job_run()}} where
+applicable, and fabricQueryR does not yet consume an additional target from
+Environment or User Data Function details
+}
+
+\examples{
+\dontrun{
+workspace <- fabric_workspaces()[[1]]
+
+# Discover and run each executable item type
+notebook <- fabric_notebooks(workspace)[[1]]
+pipeline <- fabric_data_pipelines(workspace)[[1]]
+spark_job <- fabric_spark_job_definitions(workspace)[[1]]
+
+fabric_job_wait(fabric_job_run(notebook), timeout = 900)
+fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
+fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
+
+# Discover related Spark and serverless-function items
+environments <- fabric_environments(workspace)
+functions <- fabric_user_data_functions(workspace)
+}
+}
+\references{
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items}{List items REST API}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/list-data-pipelines}{List data pipelines}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/list-spark-job-definitions}{List Spark job definitions}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments}{List environments}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions}{List User Data Functions}
+}

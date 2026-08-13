@@ -146,6 +146,24 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_true(manifest$items$SeedFixtures$id %in% notebook_ids)
   expect_true(manifest$items$JobFixtures$id %in% notebook_ids)
 
+  pipelines <- fabric_data_pipelines(workspace, token = token)
+  pipeline <- find_item(pipelines, manifest$items$TestPipeline$id)
+  expect_identical(pipeline$type, "DataPipeline")
+
+  spark_jobs <- fabric_spark_job_definitions(workspace, token = token)
+  spark_job <- find_item(spark_jobs, manifest$items$TestSparkJob$id)
+  expect_identical(spark_job$type, "SparkJobDefinition")
+
+  environments <- fabric_environments(workspace, token = token)
+  expect_true(all(
+    purrr::map_chr(environments, "type") == "Environment"
+  ))
+
+  functions <- fabric_user_data_functions(workspace, token = token)
+  expect_true(all(
+    purrr::map_chr(functions, "type") == "UserDataFunction"
+  ))
+
   graphql_apis <- fabric_graphql_apis(workspace, token = token)
   expect_true(
     manifest$items$TestGraphQL$id %in% purrr::map_chr(graphql_apis, "id")

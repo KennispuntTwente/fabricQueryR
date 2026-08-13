@@ -1,8 +1,8 @@
 # fabricQueryR roadmap
 
-This roadmap contains only future work. It is based on the current
-`fabricQueryR` implementation and Microsoft Fabric documentation reviewed in
-August 2026.
+This roadmap tracks planned work and recently completed priorities. It is based
+on the current `fabricQueryR` implementation and Microsoft Fabric documentation
+reviewed in August 2026.
 
 ## Guiding principles
 
@@ -37,7 +37,7 @@ the beta route before falling back to Core Job Scheduler status.
 
 ## Priority 0: Complete typed discovery for executable items
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -55,6 +55,16 @@ Lakehouses, Warehouses, semantic models, and notebooks.
   execution, or query target consumed by fabricQueryR.
 - Preserve folder recursion, private-link routing, authentication, and
   detail-error behavior from the existing discovery functions.
+
+### Implementation
+
+- Added `fabric_data_pipelines()`, `fabric_spark_job_definitions()`,
+  `fabric_environments()`, and `fabric_user_data_functions()` over the Core
+  Items API's documented type filter.
+- Added a client-side type check shared by every typed helper while preserving
+  all other service fields for forward compatibility.
+- Added offline contract tests, live Fabric coverage, job-ready examples, and
+  package-site documentation for all four helpers.
 
 ### Acceptance criteria
 
