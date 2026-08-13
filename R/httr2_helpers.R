@@ -563,7 +563,7 @@
 }
 
 # Build a bounded, credential-free response summary suitable for attaching to
-# conditions. The authenticated httr2 request object is intentionally omitted.
+# conditions. The authenticated httr2 request object is intentionally omitted
 .httr2_response_metadata <- function(resp) {
   payload <- try(
     httr2::resp_body_json(
@@ -625,8 +625,8 @@
   }
 }
 
-# Read Fabric's explicit retry decision from a structured error response.
-# Returns NULL when the service did not provide a valid logical value.
+# Read Fabric's explicit retry decision from a structured error response
+# Returns NULL when the service did not provide a valid logical value
 .httr2_response_is_retriable <- function(resp) {
   payload <- try(
     httr2::resp_body_json(resp, simplifyVector = FALSE),
@@ -656,11 +656,13 @@
       !is.na(value_names[[index]]) &&
       nzchar(value_names[[index]]) &&
       .httr2_is_secret_field(value_names[[index]])
-    value[[index]] <- if (secret) {
-      "<redacted>"
-    } else {
-      .httr2_redact_object(value[[index]])
-    }
+    value[index] <- list(
+      if (secret) {
+        "<redacted>"
+      } else {
+        .httr2_redact_object(value[[index]])
+      }
+    )
   }
   value
 }

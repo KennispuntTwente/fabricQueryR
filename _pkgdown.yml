@@ -94,6 +94,13 @@ reference:
       - print.fabric_job_instance
       - print.fabric_job_schedule
 
+  - title: Long-running operations
+    desc: Resume, monitor, and retrieve Fabric Core asynchronous operations
+    contents:
+      - fabric_operation_status
+      - fabric_operation_wait
+      - fabric_operation_result
+
   - title: Package
     desc: Package overview
     contents:

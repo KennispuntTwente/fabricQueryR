@@ -19,6 +19,11 @@
 * Added `fabric_job_*()` functions to run, monitor, wait for, and cancel
   on-demand Notebook, pipeline, and Spark job definition runs.
 
+* Added `fabric_operation_status()`, `fabric_operation_wait()`, and
+  `fabric_operation_result()` for resumable Fabric long-running operations.
+  Immediate and asynchronous operations share one result shape, including JSON,
+  binary, and empty results.
+
 * Expanded Livy support with reusable Spark sessions, including
   high-concurrency sessions and standalone batch
   applications.

@@ -21,7 +21,8 @@ Description:
     APIs over Fabric data; and execute 'Spark' code via the 'Livy API'.
     Item jobs can be submitted, monitored, waited on, and cancelled, and their
     run history and recurring schedules can be managed through the Fabric Job
-    Scheduler APIs.
+    Scheduler APIs. Fabric Core long-running operations can be resumed,
+    monitored, and retrieved through a shared result contract.
 License: MIT + file LICENSE
 Suggests: 
     adbcdrivermanager,

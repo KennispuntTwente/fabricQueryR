@@ -187,6 +187,120 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   )
 })
 
+test_that("Fabric long-running operations complete a live Warehouse creation", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  credential <- fabric_credential(token = token)
+  display_name <- paste0(
+    "fabricqueryr_operation_",
+    Sys.getpid(),
+    "_",
+    format(Sys.time(), "%Y%m%d%H%M%S", tz = "UTC")
+  )
+  item_id <- NULL
+  cleaned <- FALSE
+
+  cleanup <- function(strict = FALSE) {
+    if (isTRUE(cleaned)) {
+      return(invisible(TRUE))
+    }
+    ids <- item_id
+    if (is.null(ids)) {
+      items <- try(
+        fabric_items(manifest$workspace_id, token = token),
+        silent = TRUE
+      )
+      if (!inherits(items, "try-error")) {
+        matches <- Filter(
+          function(item) identical(item$displayName, display_name),
+          items
+        )
+        ids <- vapply(matches, `[[`, character(1), "id")
+      }
+    }
+    outcomes <- lapply(ids, function(id) {
+      request <- httr2::request(paste0(
+        .fabric_api_base,
+        "/workspaces/",
+        manifest$workspace_id,
+        "/items/",
+        id
+      )) |>
+        httr2::req_url_query(hardDelete = "true") |>
+        httr2::req_method("DELETE")
+      try(
+        .httr2_perform(
+          request,
+          credential = credential,
+          audience = .fabric_audience$fabric,
+          idempotent = TRUE,
+          accepted_status = 404L
+        ),
+        silent = TRUE
+      )
+    })
+    failures <- vapply(outcomes, inherits, logical(1), "try-error")
+    if (isTRUE(strict) && any(failures)) {
+      rlang::cnd_signal(attr(outcomes[[which(failures)[[1L]]]], "condition"))
+    }
+    cleaned <<- !any(failures)
+    invisible(TRUE)
+  }
+  on.exit(cleanup(strict = FALSE), add = TRUE)
+
+  request <- httr2::request(paste0(
+    .fabric_api_base,
+    "/workspaces/",
+    manifest$workspace_id,
+    "/items"
+  )) |>
+    httr2::req_method("POST") |>
+    httr2::req_body_json(
+      list(
+        displayName = display_name,
+        type = "Warehouse",
+        description = "Temporary fabricQueryR long-running-operation test",
+        creationPayload = list(
+          collationType = "Latin1_General_100_CI_AS_KS_WS_SC_UTF8"
+        )
+      ),
+      auto_unbox = TRUE
+    )
+  operation <- .fabric_operation_submit(request, credential)
+
+  expect_s3_class(operation, "fabric_operation")
+  expect_false(
+    operation$immediate,
+    info = "Live Warehouse creation must exercise Fabric's documented 202 path"
+  )
+  expect_true(fabric_is_guid(operation$id))
+  expect_true(is.numeric(operation$retry_after))
+
+  initial_state <- fabric_operation_status(operation)
+  expect_s3_class(initial_state, "fabric_operation_state")
+  expect_true(initial_state$status %in% c("NotStarted", "Running", "Succeeded"))
+  expect_true(
+    is.null(initial_state$percent_complete) ||
+      initial_state$percent_complete >= 0
+  )
+
+  result <- fabric_operation_result(
+    initial_state,
+    timeout = 900
+  )
+  item_id <- result$value$id
+
+  expect_s3_class(result, "fabric_operation_result")
+  expect_false(result$empty)
+  expect_true(fabric_is_guid(item_id))
+  expect_identical(result$value$displayName, display_name)
+  expect_identical(result$value$type, "Warehouse")
+  expect_identical(result$value$workspaceId, manifest$workspace_id)
+
+  cleanup(strict = TRUE)
+  expect_true(cleaned)
+})
+
 test_that("the default AzureAuth flow works with a delegated identity", {
   auth <- fabric_test_delegated_auth_config()
   manifest <- fabric_test_manifest()
