@@ -27,7 +27,10 @@
   [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md).
 
 - Added `fabric_job_*()` functions to run, monitor, wait for, and cancel
-  on-demand Notebook, pipeline, and Spark job definition runs.
+  on-demand Notebook, pipeline, and Spark job definition runs. Job
+  Scheduler support now also includes paginated run history and create,
+  list, update, disable, and confirmed-delete workflows for Cron, daily,
+  weekly, and monthly schedules.
 
 - Expanded Livy support with reusable Spark sessions, including
   high-concurrency sessions and standalone batch applications.

@@ -100,17 +100,28 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
 
 ## Item jobs
 
-Run, monitor, wait for, and cancel Fabric item jobs
+Run, monitor, schedule, and inspect Fabric item jobs
 
 - [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   : Run and monitor Microsoft Fabric item jobs
+- [`fabric_job_instances()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_instances.md)
+  : Inspect Microsoft Fabric job history
+- [`fabric_job_schedule_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedule_config.md)
+  : Build a Microsoft Fabric job schedule configuration
+- [`fabric_job_schedules()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  [`fabric_job_schedule_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  [`fabric_job_schedule_update()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  [`fabric_job_schedule_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  : Manage Microsoft Fabric item schedules
 - [`print(`*`<fabric_job>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job.md)
   : Print a submitted Fabric job
 - [`print(`*`<fabric_job_instance>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_instance.md)
   : Print Fabric job status
+- [`print(`*`<fabric_job_schedule>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_schedule.md)
+  : Print a Fabric job schedule
 
 ## Package
 

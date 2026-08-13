@@ -289,7 +289,8 @@ graphql_result$errors
 ### 8. Run and monitor Fabric jobs
 
 Start a notebook, data pipeline, or Spark job definition, then wait for
-completion or inspect/cancel it from R.
+completion or inspect/cancel it from R. You can also inspect earlier
+runs and manage recurring schedules.
 
 ``` r
 
@@ -302,6 +303,25 @@ job <- fabric_job_run(
 result <- fabric_job_wait(job, timeout = 900)
 result$status
 result$exit_value
+
+history <- fabric_job_instances(notebook)
+
+weekly <- fabric_job_schedule_config(
+  "Weekly",
+  start_time = "2026-10-01T00:00:00Z",
+  end_time = "2027-10-01T00:00:00Z",
+  time_zone = "W. Europe Standard Time",
+  times = "07:30",
+  weekdays = c("Monday", "Thursday")
+)
+schedule <- fabric_job_schedule_create(notebook, weekly)
+
+# Fabric's PATCH contract needs the complete configuration; omitted fields are
+# read and preserved automatically when making a partial update from R.
+fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
+
+# Destructive removal always requires explicit confirmation.
+fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
 ## Background

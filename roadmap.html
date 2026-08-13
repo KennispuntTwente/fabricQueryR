@@ -81,18 +81,25 @@
 </div>
 <div class="section level2">
 <h2 id="priority-1-add-job-history-and-schedule-management">Priority 1: Add job history and schedule management<a class="anchor" aria-label="anchor" href="#priority-1-add-job-history-and-schedule-management"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
+<p><strong>Status (August 2026): completed in the development version.</strong></p>
 <div class="section level3">
 <h3 id="objective-1">Objective<a class="anchor" aria-label="anchor" href="#objective-1"></a></h3>
 <p>Let R users inspect previous runs and automate recurring jobs for supported Fabric items.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-1">Direction<a class="anchor" aria-label="anchor" href="#direction-1"></a></h3>
-<ul><li>Add <code>fabric_job_instances()</code> with pagination and normalized <code>fabric_job_instance</code> records compatible with <code><a href="reference/fabric_job_run.html">fabric_job_status()</a></code>.</li>
-<li>Add <code>fabric_job_schedules()</code>, <code>fabric_job_schedule_create()</code>, <code>fabric_job_schedule_update()</code>, and <code>fabric_job_schedule_delete()</code>.</li>
+<ul><li>Add <code><a href="reference/fabric_job_instances.html">fabric_job_instances()</a></code> with pagination and normalized <code>fabric_job_instance</code> records compatible with <code><a href="reference/fabric_job_run.html">fabric_job_status()</a></code>.</li>
+<li>Add <code><a href="reference/fabric_job_schedules.html">fabric_job_schedules()</a></code>, <code><a href="reference/fabric_job_schedules.html">fabric_job_schedule_create()</a></code>, <code><a href="reference/fabric_job_schedules.html">fabric_job_schedule_update()</a></code>, and <code><a href="reference/fabric_job_schedules.html">fabric_job_schedule_delete()</a></code>.</li>
 <li>Represent cron/minute, daily, weekly, and monthly schedules with validated R inputs and a documented escape hatch for future schedule types.</li>
 <li>Handle Windows time-zone identifiers, UTC boundaries, disabled and auto-disabled schedules, and workload-specific <code>executionData</code> explicitly.</li>
 <li>Require explicit confirmation for deletion and never infer destructive replacement during conflict handling.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-1">Implementation<a class="anchor" aria-label="anchor" href="#implementation-1"></a></h3>
+<ul><li>Added paginated <code><a href="reference/fabric_job_instances.html">fabric_job_instances()</a></code> results that use the existing <code>fabric_job_instance</code> contract and can be refreshed, waited on, or cancelled.</li>
+<li>Added validated Cron/minute, daily, weekly, and monthly configuration helpers plus list, create, partial-update/disable, and confirmed-delete operations.</li>
+<li>Normalized UTC schedule boundaries independently of the R process time zone, retained Windows time-zone identifiers for recurrence, and preserved workload-specific execution data and unknown future service fields.</li>
+<li>Added offline HTTP/validation coverage, daylight-saving boundary tests, and a live Fabric lifecycle for history and daily and weekly schedules.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-1">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-1"></a></h3>

@@ -289,7 +289,8 @@ graphql_result$errors
 ### 8. Run and monitor Fabric jobs
 
 Start a notebook, data pipeline, or Spark job definition, then wait for
-completion or inspect/cancel it from R.
+completion or inspect/cancel it from R. You can also inspect earlier
+runs and manage recurring schedules.
 
 ``` r
 
@@ -302,6 +303,25 @@ job <- fabric_job_run(
 result <- fabric_job_wait(job, timeout = 900)
 result$status
 result$exit_value
+
+history <- fabric_job_instances(notebook)
+
+weekly <- fabric_job_schedule_config(
+  "Weekly",
+  start_time = "2026-10-01T00:00:00Z",
+  end_time = "2027-10-01T00:00:00Z",
+  time_zone = "W. Europe Standard Time",
+  times = "07:30",
+  weekdays = c("Monday", "Thursday")
+)
+schedule <- fabric_job_schedule_create(notebook, weekly)
+
+# Fabric's PATCH contract needs the complete configuration; omitted fields are
+# read and preserved automatically when making a partial update from R.
+fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
+
+# Destructive removal always requires explicit confirmation.
+fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
 ## Background
@@ -424,17 +444,28 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
 
 ## Item jobs
 
-Run, monitor, wait for, and cancel Fabric item jobs
+Run, monitor, schedule, and inspect Fabric item jobs
 
 - [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   : Run and monitor Microsoft Fabric item jobs
+- [`fabric_job_instances()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_instances.md)
+  : Inspect Microsoft Fabric job history
+- [`fabric_job_schedule_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedule_config.md)
+  : Build a Microsoft Fabric job schedule configuration
+- [`fabric_job_schedules()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  [`fabric_job_schedule_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  [`fabric_job_schedule_update()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  [`fabric_job_schedule_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  : Manage Microsoft Fabric item schedules
 - [`print(`*`<fabric_job>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job.md)
   : Print a submitted Fabric job
 - [`print(`*`<fabric_job_instance>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_instance.md)
   : Print Fabric job status
+- [`print(`*`<fabric_job_schedule>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_schedule.md)
+  : Print a Fabric job schedule
 
 ## Package
 
@@ -450,3 +481,8 @@ Package overview
 
 - [Get started with Microsoft Fabric
   authentication](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):
+
+### Job automation
+
+- [Automate and inspect Microsoft Fabric
+  jobs](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.md):
