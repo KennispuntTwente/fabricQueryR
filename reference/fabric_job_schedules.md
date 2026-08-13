@@ -89,10 +89,12 @@ fabric_job_schedule_delete(
 
 - job_type:
 
-  Schedule job type. Defaults to `"DefaultJob"`, the value in the Core
-  Job Scheduler examples. Supply a workload-specific value when its
-  schedule documentation requires one. Schedule job types are
-  independent of the route used to run that workload on demand.
+  Schedule job type. Data pipelines default to `"Pipeline"`, the
+  workload job type required by Fabric. Other item types default to
+  `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
+  explicit value for another workload-specific schedule job type. When
+  passing a pipeline GUID instead of a discovered item, also supply
+  `item_type = "DataPipeline"` or `job_type = "Pipeline"`.
 
 - item_type:
 
@@ -189,6 +191,9 @@ returns an explicit marker. The complete response stays available in
 
 [Fabric Job Scheduler REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+
+[Fabric Data Pipeline REST API
+capabilities](https://learn.microsoft.com/en-us/fabric/data-factory/pipeline-rest-api-capabilities)
 
 [Fabric job scheduler
 behavior](https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler)
