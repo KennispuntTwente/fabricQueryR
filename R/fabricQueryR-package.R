@@ -14,8 +14,9 @@
 #'   [fabric_kql_query()] for Eventhouse/KQL data, and
 #'   [fabric_graphql_query()] for an API for GraphQL item
 #' - Use [fabric_onelake_files] for ordinary files,
-#'   [fabric_onelake_read_delta_table()] for Delta tables, and the Livy helpers
-#'   when Spark processing is required
+#'   [fabric_lakehouse_tables()] to discover or load managed Delta tables,
+#'   [fabric_onelake_read_delta_table()] to read them, and the Livy helpers when
+#'   Spark processing is required
 #' - Use [fabric_job_run()], [fabric_job_status()], [fabric_job_wait()], and
 #'   [fabric_job_cancel()] to control supported on-demand item jobs
 #' - See `vignette("authentication", package = "fabricQueryR")` for interactive

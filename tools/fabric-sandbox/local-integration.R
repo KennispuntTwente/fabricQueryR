@@ -410,7 +410,7 @@ fabric_local_test_audiences <- function(filter) {
     Kusto = "https://api.kusto.windows.net/.default"
   )
   if (grepl("onelake", filter, ignore.case = TRUE)) {
-    return(all[c("Fabric", "OneLake")])
+    return(all[c("Fabric", "SQL", "OneLake")])
   }
   all
 }
@@ -536,7 +536,8 @@ fabric_local_run <- function(command, args, label) {
 
 fabric_local_require_dependencies <- function(
   install_adbc_driver,
-  require_sql = TRUE
+  require_sql = TRUE,
+  require_odbc = require_sql
 ) {
   packages <- c(
     "devtools",
@@ -545,8 +546,11 @@ fabric_local_require_dependencies <- function(
     "arrow",
     "reticulate"
   )
+  if (isTRUE(require_odbc)) {
+    packages <- c(packages, "DBI", "odbc")
+  }
   if (isTRUE(require_sql)) {
-    packages <- c(packages, "DBI", "odbc", "adbi", "adbcdrivermanager")
+    packages <- c(packages, "adbi", "adbcdrivermanager")
   }
   missing <- packages[
     !vapply(packages, requireNamespace, logical(1), quietly = TRUE)
@@ -561,7 +565,7 @@ fabric_local_require_dependencies <- function(
     )
   }
 
-  if (!isTRUE(require_sql)) {
+  if (!isTRUE(require_odbc)) {
     return(invisible(TRUE))
   }
 
@@ -574,6 +578,10 @@ fabric_local_require_dependencies <- function(
       "Microsoft ODBC Driver 18 for SQL Server is required.",
       call. = FALSE
     )
+  }
+
+  if (!isTRUE(require_sql)) {
+    return(invisible(TRUE))
   }
 
   adbc <- try(
@@ -658,7 +666,8 @@ run_fabric_integration_tests <- function(
   on.exit(setwd(old_directory), add = TRUE)
   fabric_local_require_dependencies(
     install_adbc_driver,
-    require_sql = !grepl("onelake", filter, ignore.case = TRUE)
+    require_sql = !grepl("onelake", filter, ignore.case = TRUE),
+    require_odbc = TRUE
   )
 
   uv <- Sys.which("uv")

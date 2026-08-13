@@ -17,11 +17,24 @@ def test_live_suite_is_split_into_feature_files():
     repository_root = Path(__file__).parents[3]
     test_directory = repository_root / "tests/testthat"
     files = sorted(test_directory.glob("test-integration-fabric-*.R"))
-    groups = {
+    files_by_group = {
+        group: [
+            path
+            for path in files
+            if path.stem.removeprefix("test-integration-fabric-") == group
+            or path.stem.removeprefix("test-integration-fabric-").startswith(
+                f"{group}-"
+            )
+        ]
+        for group in INTEGRATION_GROUPS
+    }
+    unmatched = {
         path.stem.removeprefix("test-integration-fabric-") for path in files
+        if not any(path in grouped for grouped in files_by_group.values())
     }
 
-    assert groups == INTEGRATION_GROUPS
+    assert all(files_by_group.values())
+    assert unmatched == set()
     assert not (test_directory / "test-integration-fabric.R").exists()
     assert all("test_that(" in path.read_text() for path in files)
     assert all(

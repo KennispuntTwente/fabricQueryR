@@ -192,7 +192,7 @@ jobs:
             filter: integration-fabric-onelake
             lane: preview
             runtime: "2.0"
-            odbc: false
+            odbc: true
             adbc: false
           - label: SQL
             filter: integration-fabric-sql

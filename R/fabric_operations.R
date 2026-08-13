@@ -42,6 +42,11 @@
 #' the future remain inspectable, but `fabric_operation_wait()` stops with a
 #' typed error instead of polling an unfamiliar value indefinitely
 #'
+#' Some workload APIs, including Lakehouse table loading, expose completion in
+#' their state response and do not provide a separate `/result` resource. For
+#' those operations, `fabric_operation_result()` returns the terminal state
+#' payload as its `value`
+#'
 #' A failed operation raises `fabric_operation_failed` by default. A timeout
 #' raises `fabric_operation_timeout`; neither condition repeats the request that
 #' originally started the operation
@@ -298,6 +303,21 @@ fabric_operation_result <- function(
 
   # The result body may be JSON, binary, or empty; all three become the same
   # stable result envelope used for an immediate 200 or 201 response
+
+  if (is.null(state$operation$result_url)) {
+    return(.fabric_operation_result_object(
+      list(
+        value = state$raw,
+        content_type = "application/json",
+        empty = FALSE,
+        status_code = 200L,
+        request_id = state$request_id,
+        activity_id = state$activity_id,
+        completed_at = state$last_updated_time %||% .now()
+      ),
+      state$operation
+    ))
+  }
 
   response <- .httr2_perform(
     httr2::request(state$operation$result_url),
@@ -628,7 +648,31 @@ fabric_operation_result <- function(
 # Convert a decoded state response into the public operation-state record
 # Returns progress, timestamps, identifiers, structured failure, and raw fields
 .fabric_operation_state <- function(body, operation, response, retry_after) {
-  status <- body$status
+  status <- body$status %||% body$Status
+  if (is.null(operation$result_url) && is.numeric(status)) {
+    numeric_status <- c(
+      "1" = "NotStarted",
+      "2" = "Running",
+      "3" = "Succeeded",
+      "4" = "Failed"
+    )
+    status_key <- if (
+      length(status) == 1L &&
+        !is.na(status) &&
+        is.finite(status) &&
+        status == floor(status)
+    ) {
+      as.character(as.integer(status))
+    } else {
+      ""
+    }
+    status_index <- match(status_key, names(numeric_status))
+    status <- if (is.na(status_index)) {
+      NULL
+    } else {
+      unname(numeric_status[[status_index]])
+    }
+  }
   if (
     !is.character(status) ||
       length(status) != 1L ||
@@ -642,7 +686,7 @@ fabric_operation_result <- function(
     )
   }
 
-  progress <- body$percentComplete
+  progress <- body$percentComplete %||% body$PercentComplete
   if (
     !is.null(progress) &&
       (!is.numeric(progress) ||
@@ -660,24 +704,33 @@ fabric_operation_result <- function(
   }
 
   safe_body <- .httr2_redact_object(body)
-  error <- if (is.list(safe_body$error)) safe_body$error else NULL
+  safe_error <- safe_body$error %||% safe_body$Error
+  error <- if (is.list(safe_error)) safe_error else NULL
   request_id <- httr2::resp_header(response, "x-ms-request-id") %||%
     httr2::resp_header(response, "request-id") %||%
     error$requestId
   activity_id <- httr2::resp_header(response, "x-ms-activity-id") %||%
     httr2::resp_header(response, "activity-id")
+  created_time <- body$createdTimeUtc %||% body$CreatedTimeUtc
+  updated_time <- body$lastUpdatedTimeUtc %||% body$LastUpdatedTimeUtc
+  if (is.null(operation$result_url)) {
+    if (identical(created_time, "")) {
+      created_time <- NULL
+    }
+    if (identical(updated_time, "")) updated_time <- NULL
+  }
   structure(
     list(
       id = operation$id,
       status = status,
       percent_complete = progress,
       created_time = .fabric_operation_time(
-        body$createdTimeUtc,
+        created_time,
         "createdTimeUtc",
         operation
       ),
       last_updated_time = .fabric_operation_time(
-        body$lastUpdatedTimeUtc,
+        updated_time,
         "lastUpdatedTimeUtc",
         operation
       ),
@@ -855,7 +908,9 @@ fabric_operation_result <- function(
   } else {
     default_status
   }
-  result_url <- if (!is.null(parsed) && isTRUE(parsed$is_result)) {
+  result_url <- if (!is.null(parsed) && identical(parsed$kind, "state_only")) {
+    NULL
+  } else if (!is.null(parsed) && isTRUE(parsed$is_result)) {
     parsed$url
   } else {
     paste0(sub("/+$", "", status_url), "/result")
@@ -893,24 +948,45 @@ fabric_operation_result <- function(
     identical(tolower(parsed$scheme %||% ""), tolower(base$scheme %||% "")) &&
     identical(tolower(host), tolower(base$hostname %||% "")) &&
     identical(parsed$port %||% "", base$port %||% "")
-  route <- if (inherits(parsed, "try-error")) {
+  guid <- "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+  core_route <- if (inherits(parsed, "try-error")) {
+    NULL
+  } else {
+    regexec(
+      paste0("^/(?:v1/)?operations/(", guid, ")(/result)?/?$"),
+      parsed$path %||% "",
+      ignore.case = TRUE
+    )
+  }
+  core_match <- if (is.null(core_route)) {
+    character()
+  } else {
+    regmatches(parsed$path, core_route)[[1L]]
+  }
+  lakehouse_route <- if (inherits(parsed, "try-error")) {
     NULL
   } else {
     regexec(
       paste0(
-        "^/(?:v1/)?operations/",
-        "([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
-        "(/result)?/?$"
+        "^/(?:v1/)?workspaces/",
+        guid,
+        "/lakehouses/",
+        guid,
+        "/operations/(",
+        guid,
+        ")/?$"
       ),
       parsed$path %||% "",
       ignore.case = TRUE
     )
   }
-  match <- if (is.null(route)) {
+  lakehouse_match <- if (is.null(lakehouse_route)) {
     character()
   } else {
-    regmatches(parsed$path, route)[[1L]]
+    regmatches(parsed$path, lakehouse_route)[[1L]]
   }
+  match <- if (length(core_match) >= 2L) core_match else lakehouse_match
+  kind <- if (length(core_match) >= 2L) "core" else "state_only"
   valid <- !inherits(parsed, "try-error") &&
     identical(tolower(parsed$scheme %||% ""), "https") &&
     nzchar(host) &&
@@ -929,7 +1005,10 @@ fabric_operation_result <- function(
   list(
     url = candidate,
     id = match[[2L]],
-    is_result = length(match) >= 3L && nzchar(match[[3L]])
+    is_result = identical(kind, "core") &&
+      length(match) >= 3L &&
+      nzchar(match[[3L]]),
+    kind = kind
   )
 }
 

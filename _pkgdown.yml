@@ -9,6 +9,9 @@ articles:
   - title: Job automation
     contents:
       - job-automation
+  - title: Lakehouse table loading
+    contents:
+      - lakehouse-table-loading
 
 reference:
   - title: Discovery
@@ -53,8 +56,11 @@ reference:
       - fabric_onelake_delete
 
   - title: Delta tables
-    desc: Resolve and read supported Delta Lake snapshots from OneLake
+    desc: Discover, load, and read Delta Lake tables in OneLake
     contents:
+      - fabric_lakehouse_tables
+      - fabric_lakehouse_load_table
+      - fabric_lakehouse_write_table
       - fabric_onelake_read_delta_table
       - fabric_delta_config
 

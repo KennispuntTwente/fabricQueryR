@@ -1,0 +1,1312 @@
+.fabric_onelake_table_base <- "https://onelake.table.fabric.microsoft.com/delta"
+
+#' Discover and load Microsoft Fabric Lakehouse tables
+#'
+#' @description
+#' Use Fabric's table APIs to inspect Delta tables, load staged CSV or Parquet
+#' files, or write an R data frame through a failure-aware staging workflow.
+#'
+#' - `fabric_lakehouse_tables()` combines Fabric's paginated List Tables API
+#'   with the read-only OneLake Delta table API. The first supplies managed or
+#'   external type, format, and location; the second supplies schemas and,
+#'   with `detail = TRUE`, column metadata.
+#' - `fabric_lakehouse_load_table()` starts the preview Fabric Load Table API
+#'   for a file or folder that already exists below the Lakehouse `Files/`
+#'   area. It returns a handle accepted by [fabric_operation_status()].
+#' - `fabric_lakehouse_write_table()` serializes a data frame to Parquet,
+#'   uploads it to a unique `Files/` staging path, waits for the Delta load, and
+#'   removes the staged file after confirmed success by default.
+#'
+#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse record
+#'   returned by [fabric_lakehouses()]. A discovered record is recommended
+#'   because it includes the workspace and default schema.
+#' @param workspace Workspace GUID, exact display name, or discovered workspace.
+#'   Omit it when `lakehouse` is a record containing `workspaceId`.
+#' @param schema Optional Lakehouse schema. When omitted from
+#'   `fabric_lakehouse_tables()`, every schema is listed. For loading, a
+#'   discovered schema-enabled Lakehouse supplies its documented default
+#'   schema; otherwise provide the destination schema explicitly.
+#' @param detail Whether table discovery should retrieve per-table column
+#'   metadata. Set to `FALSE` to make only schema and table-list requests.
+#' @param page_size Optional maximum records requested per table API page, from
+#'   1 to the Fabric List Tables maximum of 100. All continuation values are
+#'   followed regardless of this value.
+#' @param table Destination Delta table name. Fabric's Load Table API permits
+#'   1 to 256 ASCII letters, numbers, and underscores and requires at least one
+#'   letter or underscore.
+#' @param path Existing item-relative OneLake source path beginning with
+#'   `Files/`, for example `"Files/incoming/orders.parquet"`.
+#' @param path_type Whether `path` names one `"File"` or a `"Folder"`.
+#' @param format Source format, `"Parquet"` or `"Csv"`. For a file, `NULL`
+#'   infers the format from its extension. A folder should specify the format.
+#' @param mode Load mode, `"Overwrite"` or `"Append"`. Overwrite and append
+#'   behavior is performed by Fabric's managed Delta load, never by changing
+#'   files below `Tables/` directly.
+#' @param recursive Whether a folder load should include descendant folders.
+#' @param header Whether the first CSV row contains column names.
+#' @param delimiter CSV delimiter of 1 to 8 non-whitespace characters. Fabric
+#'   does not allow parentheses, brackets, braces, or quotes in a delimiter.
+#' @param file_extension Optional extension used to filter a folder load,
+#'   without a leading dot.
+#' @param data A data frame, tibble, or Arrow Table/RecordBatch to serialize as
+#'   Parquet. The optional `arrow` package is required.
+#' @param staging_root Item-relative directory below `Files/` used for unique
+#'   staging files.
+#' @param cleanup Whether to delete the staged Parquet file after Fabric
+#'   confirms a successful load.
+#' @param keep_staging_on_failure Whether to retain a completely uploaded
+#'   staging file when the load fails. The raised condition includes
+#'   `staging_path` and `staging_retained` fields.
+#' @param compression Parquet compression passed to [arrow::write_parquet()].
+#' @param poll_interval Minimum seconds between load-operation status requests.
+#'   `NULL` follows Fabric's `Retry-After` hint with the shared fallback.
+#' @param timeout Maximum total seconds to wait for a data-frame load.
+#' @param tenant_id Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Entra application ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Optional access token or audience-aware token-provider function.
+#'   Table discovery needs both Fabric- and Storage-audience tokens; staging
+#'   needs Storage and loading needs Fabric.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#' @param api_base Fabric REST API base URL. Most users should keep the default.
+#' @param table_api_base OneLake Delta table API base URL. Most users should
+#'   keep the default.
+#' @param dfs_base OneLake DFS service address used for the staging upload.
+#'   A workspace-specific endpoint from a discovered record is preferred when
+#'   this argument is not supplied.
+#' @param allow_custom_endpoint Logical. Set to `TRUE` only when a supplied API
+#'   base is a non-Microsoft HTTPS endpoint that you trust to receive a token.
+#'
+#' @section Preview status and permissions:
+#' Microsoft marks Fabric's List Tables and Load Table routes as preview or
+#' beta and does not recommend them for production use. Loading requires write
+#' access to the Lakehouse and the `Lakehouse.ReadWrite.All` delegated scope.
+#' Discovery requires `Lakehouse.Read.All` or `Lakehouse.ReadWrite.All` for the
+#' Fabric list plus table read permission for OneLake metadata.
+#'
+#' Fabric currently rejects List Tables for some schema-enabled Lakehouses. In
+#' that documented-endpoint/service mismatch, discovery still returns OneLake
+#' schema, format, location, and column metadata; `type` can be missing because
+#' OneLake currently returns a null table type for those records.
+#'
+#' Service principals and managed identities are supported by the Load Table
+#' API. Tenant and item permissions still determine whether those identities
+#' can use OneLake and the Lakehouse.
+#'
+#' @section Data types and names:
+#' Arrow determines the Parquet schema before Fabric infers the destination
+#' Delta schema. Ordinary R logical, integer, double, character, `Date`,
+#' `POSIXct`, and `bit64::integer64` columns map to their corresponding Parquet
+#' logical types. Factors are written as strings. List columns are passed to
+#' Arrow as nested data and can fail if their values do not have one consistent
+#' Arrow type. R complex and `difftime` columns are rejected.
+#'
+#' R has no native fixed-precision decimal vector. Supply an Arrow Table with a
+#' decimal field when decimal precision and scale must be explicit. Fabric's
+#' Load to Tables flow does not accept a caller-defined destination schema, so
+#' use Spark or another schema-controlled writer when inference is unsuitable.
+#'
+#' To preserve names exactly, `fabric_lakehouse_write_table()` requires unique
+#' column names containing only Unicode letters, numbers, and underscores, up
+#' to Fabric's documented 128-character limit.
+#'
+#' @section Failure and cleanup behavior:
+#' The high-level writer uploads one complete Parquet file atomically to a
+#' unique path and starts the managed load only after that upload succeeds. A
+#' successful load is a committed Delta operation. On failure, the destination
+#' is left to Fabric's transactional load behavior and fabricQueryR never edits
+#' `Tables/` files.
+#'
+#' Retained staging paths are included in `fabric_lakehouse_write_error`
+#' conditions so the source can be inspected or passed to
+#' `fabric_lakehouse_load_table()` again. Cleanup failures after a successful
+#' load produce a warning and return `staging_retained = TRUE`; they do not make
+#' a committed table load appear to have failed.
+#'
+#' @return `fabric_lakehouse_tables()` returns a tibble with table `name`,
+#'   `schema`, `full_name`, `type`, `format`, `location`, timestamps, list-column
+#'   `columns`, `schema_metadata`, the unmodified OneLake `raw` record, and the
+#'   matching unmodified Fabric `fabric_raw` record. Unknown future metadata
+#'   remains available in those raw list columns.
+#'
+#'   `fabric_lakehouse_load_table()` returns a reusable `fabric_operation`.
+#'   Pass it to [fabric_operation_status()], [fabric_operation_wait()], or
+#'   [fabric_operation_result()].
+#'
+#'   `fabric_lakehouse_write_table()` returns a
+#'   `fabric_lakehouse_write_result` containing the destination, row count,
+#'   terminal operation state, staging path, and whether staging was retained.
+#'
+#' @references
+#' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+#'
+#' [Getting started with OneLake Delta table APIs](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-get-started)
+#'
+#' [List Lakehouse tables](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables)
+#'
+#' [Load a Lakehouse table](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table)
+#'
+#' [Load a schema Lakehouse table (beta)](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-schema-table%28beta%29)
+#'
+#' [Load to Delta Lake tables](https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables)
+#'
+#' @examples
+#' \dontrun{
+#' lakehouse <- fabric_lakehouses("Analytics")[[1L]]
+#'
+#' tables <- fabric_lakehouse_tables(lakehouse)
+#'
+#' operation <- fabric_lakehouse_load_table(
+#'   lakehouse,
+#'   table = "orders",
+#'   path = "Files/incoming/orders.csv",
+#'   format = "Csv",
+#'   header = TRUE,
+#'   delimiter = ","
+#' )
+#' fabric_operation_wait(operation, timeout = 900)
+#'
+#' result <- fabric_lakehouse_write_table(
+#'   lakehouse,
+#'   table = "orders_from_r",
+#'   data = data.frame(id = 1:3, amount = c(10.5, NA, 30))
+#' )
+#' result$operation_status$status
+#' }
+#' @name fabric_lakehouse_tables
+NULL
+
+#' @rdname fabric_lakehouse_tables
+#' @export
+fabric_lakehouse_tables <- function(
+  lakehouse,
+  workspace = NULL,
+  schema = NULL,
+  detail = TRUE,
+  page_size = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base,
+  table_api_base = .fabric_onelake_table_base,
+  allow_custom_endpoint = FALSE
+) {
+  # 1 Validate options and resolve the Lakehouse --------------------------------------------------
+
+  .fabric_operation_logical(detail, "detail")
+  .fabric_lakehouse_page_size(page_size)
+  if (!is.null(schema)) {
+    .fabric_lakehouse_nonempty(schema, "schema")
+  }
+
+  api_base_supplied <- !missing(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  table_base <- .fabric_lakehouse_table_api_base(
+    table_api_base,
+    allow_custom_endpoint
+  )
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  target <- .fabric_lakehouse_target(
+    lakehouse,
+    workspace,
+    credential,
+    base,
+    use_workspace_endpoint = !api_base_supplied
+  )
+
+  # 2 Read Fabric's paginated inventory for authoritative type and location ----------------------
+
+  fabric_records <- tryCatch(
+    .fabric_lakehouse_fabric_table_pages(
+      target,
+      credential,
+      page_size
+    ),
+    fabric_http_error = function(error) {
+      if (
+        identical(
+          error$error_code,
+          "UnsupportedOperationForSchemasEnabledLakehouse"
+        )
+      ) {
+        return(list())
+      }
+      stop(error)
+    }
+  )
+
+  # 3 List schemas, then every OneLake metadata page ---------------------------------------------
+
+  catalog_url <- paste0(
+    table_base,
+    "/",
+    onelake_encode_path(target$workspace_id, target$lakehouse_id),
+    "/api/2.1/unity-catalog"
+  )
+  schema_records <- if (is.null(schema)) {
+    .fabric_lakehouse_table_pages(
+      paste0(catalog_url, "/schemas"),
+      field = "schemas",
+      query = list(catalog_name = target$lakehouse_id),
+      credential = credential,
+      page_size = page_size
+    )
+  } else {
+    list(list(name = schema))
+  }
+  schema_names <- vapply(
+    schema_records,
+    function(record) {
+      value <- record$name
+      if (
+        !is.character(value) ||
+          length(value) != 1L ||
+          is.na(value) ||
+          !nzchar(value)
+      ) {
+        rlang::abort(
+          "OneLake returned schema metadata without one non-empty name",
+          class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
+        )
+      }
+      value
+    },
+    character(1)
+  )
+
+  rows <- list()
+  for (schema_index in seq_along(schema_names)) {
+    schema_name <- schema_names[[schema_index]]
+    records <- .fabric_lakehouse_table_pages(
+      paste0(catalog_url, "/tables"),
+      field = "tables",
+      query = list(
+        catalog_name = target$lakehouse_id,
+        schema_name = schema_name
+      ),
+      credential = credential,
+      page_size = page_size
+    )
+
+    for (record in records) {
+      table_name <- record$name
+      if (
+        !is.character(table_name) ||
+          length(table_name) != 1L ||
+          is.na(table_name) ||
+          !nzchar(table_name)
+      ) {
+        rlang::abort(
+          "OneLake returned table metadata without one non-empty name",
+          class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
+        )
+      }
+      table_schema <- record$schema_name %||% schema_name
+      full_name <- paste(
+        target$lakehouse_id,
+        table_schema,
+        table_name,
+        sep = "."
+      )
+      if (isTRUE(detail)) {
+        detail_url <- paste0(
+          catalog_url,
+          "/tables/",
+          utils::URLencode(full_name, reserved = TRUE)
+        )
+        detail_record <- .httr2_json(
+          httr2::req_url_query(
+            httr2::request(detail_url),
+            catalog_name = target$lakehouse_id,
+            schema_name = table_schema
+          ),
+          simplifyVector = FALSE,
+          credential = credential,
+          audience = .fabric_audience$storage
+        )
+        record <- utils::modifyList(record, detail_record)
+      }
+      rows[[length(rows) + 1L]] <- .fabric_lakehouse_table_row(
+        record,
+        schema_name = table_schema,
+        schema_record = schema_records[[schema_index]],
+        fabric_record = .fabric_lakehouse_match_fabric_table(
+          record,
+          table_schema,
+          fabric_records
+        )
+      )
+    }
+  }
+
+  .fabric_lakehouse_table_tibble(rows)
+}
+
+# Follow Fabric List Tables continuation URIs/tokens. This source is the only
+# documented table inventory that promises Managed/External type metadata.
+.fabric_lakehouse_fabric_table_pages <- function(
+  target,
+  credential,
+  page_size
+) {
+  request <- httr2::request(paste0(
+    target$api_base,
+    "/workspaces/",
+    target$workspace_id,
+    "/lakehouses/",
+    target$lakehouse_id,
+    "/tables"
+  ))
+  if (!is.null(page_size)) {
+    request <- httr2::req_url_query(request, maxResults = as.integer(page_size))
+  }
+  .httr2_collection(
+    request$url,
+    credential = credential,
+    audience = .fabric_audience$fabric,
+    value_key = "data"
+  )
+}
+
+#' @rdname fabric_lakehouse_tables
+#' @export
+fabric_lakehouse_load_table <- function(
+  lakehouse,
+  table,
+  path,
+  workspace = NULL,
+  schema = NULL,
+  path_type = c("File", "Folder"),
+  format = NULL,
+  mode = c("Overwrite", "Append"),
+  recursive = FALSE,
+  header = TRUE,
+  delimiter = ",",
+  file_extension = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
+) {
+  # 1 Resolve the destination and authentication --------------------------------------------------
+
+  api_base_supplied <- !missing(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  target <- .fabric_lakehouse_target(
+    lakehouse,
+    workspace,
+    credential,
+    base,
+    use_workspace_endpoint = !api_base_supplied
+  )
+  schema <- schema %||% target$default_schema
+
+  # 2 Validate and submit one non-idempotent load -------------------------------------------------
+
+  settings <- .fabric_lakehouse_load_settings(
+    table = table,
+    path = path,
+    schema = schema,
+    path_type = path_type,
+    format = format,
+    mode = mode,
+    recursive = recursive,
+    header = header,
+    delimiter = delimiter,
+    file_extension = file_extension
+  )
+  .fabric_lakehouse_load_submit(
+    target,
+    settings,
+    credential,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+}
+
+#' @rdname fabric_lakehouse_tables
+#' @export
+fabric_lakehouse_write_table <- function(
+  lakehouse,
+  table,
+  data,
+  workspace = NULL,
+  schema = NULL,
+  mode = c("Overwrite", "Append"),
+  staging_root = "Files/fabricqueryr-staging",
+  cleanup = TRUE,
+  keep_staging_on_failure = TRUE,
+  compression = "snappy",
+  poll_interval = NULL,
+  timeout = 900,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base,
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_custom_endpoint = FALSE
+) {
+  # 1 Validate local inputs before authentication or network I/O ---------------------------------
+
+  .fabric_operation_logical(cleanup, "cleanup")
+  .fabric_operation_logical(keep_staging_on_failure, "keep_staging_on_failure")
+  .fabric_operation_poll_interval(poll_interval)
+  .fabric_operation_timeout(timeout)
+  if (!requireNamespace("arrow", quietly = TRUE)) {
+    rlang::abort(
+      "fabric_lakehouse_write_table() requires the optional arrow package",
+      class = c("fabric_lakehouse_arrow_error", "fabric_lakehouse_error")
+    )
+  }
+  prepared <- .fabric_lakehouse_prepare_data(data)
+  .fabric_lakehouse_column_names(prepared$names)
+  .fabric_lakehouse_nonempty(compression, "compression")
+  staging_root <- .fabric_lakehouse_files_path(staging_root, "staging_root")
+
+  # Validate table and mode using the same contract as direct file loading
+  settings <- .fabric_lakehouse_load_settings(
+    table = table,
+    path = paste0(staging_root, "/placeholder.parquet"),
+    schema = schema,
+    path_type = "File",
+    format = "Parquet",
+    mode = mode,
+    recursive = FALSE,
+    header = TRUE,
+    delimiter = ",",
+    file_extension = NULL
+  )
+
+  # 2 Serialize to a temporary Parquet file -------------------------------------------------------
+
+  parquet <- tempfile("fabricqueryr-table-", fileext = ".parquet")
+  on.exit(unlink(parquet, force = TRUE), add = TRUE)
+  tryCatch(
+    arrow::write_parquet(
+      prepared$value,
+      sink = parquet,
+      compression = compression
+    ),
+    error = function(error) {
+      rlang::abort(
+        "Could not serialize `data` to Parquet with Arrow",
+        class = c("fabric_lakehouse_arrow_error", "fabric_lakehouse_error"),
+        parent = error
+      )
+    }
+  )
+
+  # 3 Resolve Fabric and OneLake targets with one audience-aware credential ----------------------
+
+  api_base_supplied <- !missing(api_base)
+  dfs_base_supplied <- !missing(dfs_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  target <- .fabric_lakehouse_target(
+    lakehouse,
+    workspace,
+    credential,
+    base,
+    use_workspace_endpoint = !api_base_supplied
+  )
+  settings$schema <- settings$schema %||% target$default_schema
+  if (!is.null(settings$schema)) {
+    .fabric_lakehouse_schema_name(settings$schema)
+  }
+  staging_path <- paste(
+    staging_root,
+    .fabric_lakehouse_staging_id(),
+    paste0(settings$table, ".parquet"),
+    sep = "/"
+  )
+  settings$path <- staging_path
+  storage_target <- onelake_resolve_target(
+    target$workspace_record %||% target$workspace_id,
+    target$lakehouse_record %||% target$lakehouse_id,
+    staging_path,
+    dfs_base = if (dfs_base_supplied) dfs_base else NULL
+  )
+
+  # 4 Upload the complete staged file -------------------------------------------------------------
+
+  onelake_upload_target(
+    storage_target,
+    credential,
+    source = parquet,
+    overwrite = FALSE,
+    if_match = NULL,
+    chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2),
+    content_type = "application/vnd.apache.parquet",
+    create_parents = TRUE
+  )
+
+  # 5 Start and wait for the managed Delta load --------------------------------------------------
+
+  operation <- tryCatch(
+    .fabric_lakehouse_load_submit(
+      target,
+      settings,
+      credential,
+      allow_custom_endpoint = allow_custom_endpoint
+    ),
+    error = function(error) {
+      .fabric_lakehouse_write_abort(
+        error,
+        storage_target,
+        credential,
+        staging_path,
+        keep_staging_on_failure
+      )
+    }
+  )
+  state <- tryCatch(
+    fabric_operation_wait(
+      operation,
+      poll_interval = poll_interval,
+      timeout = timeout
+    ),
+    error = function(error) {
+      .fabric_lakehouse_write_abort(
+        error,
+        storage_target,
+        credential,
+        staging_path,
+        keep_staging_on_failure
+      )
+    }
+  )
+
+  # 6 Clean only after confirmed success ----------------------------------------------------------
+
+  staging_retained <- TRUE
+  if (isTRUE(cleanup)) {
+    removed <- .fabric_lakehouse_remove_staging(storage_target, credential)
+    staging_retained <- !removed
+    if (!removed) {
+      rlang::warn(paste0(
+        "The table load succeeded, but staging cleanup failed; retained ",
+        staging_path
+      ))
+    }
+  }
+  structure(
+    list(
+      workspace_id = target$workspace_id,
+      lakehouse_id = target$lakehouse_id,
+      schema = settings$schema,
+      table = settings$table,
+      mode = settings$mode,
+      rows = prepared$rows,
+      staging_path = staging_path,
+      staging_retained = staging_retained,
+      operation_status = state,
+      operation = state$operation
+    ),
+    class = "fabric_lakehouse_write_result"
+  )
+}
+
+# Resolve one Lakehouse record/name/ID into the IDs and endpoints used by all
+# table APIs. Returns the original records as well for OneLake private routing.
+.fabric_lakehouse_target <- function(
+  lakehouse,
+  workspace,
+  credential,
+  api_base,
+  use_workspace_endpoint
+) {
+  lakehouse_record <- fabric_as_record(lakehouse)
+  workspace_record <- fabric_as_record(workspace)
+  record_type <- fabric_record_value(lakehouse_record %||% list(), "type")
+  if (!is.null(record_type) && !identical(tolower(record_type), "lakehouse")) {
+    rlang::abort(
+      paste0("`lakehouse` has type '", record_type, "', not 'Lakehouse'"),
+      class = c("fabric_lakehouse_validation_error", "fabric_lakehouse_error")
+    )
+  }
+  target <- .fabric_job_target(
+    item = lakehouse,
+    workspace = workspace,
+    item_type = "Lakehouse",
+    credential = credential,
+    api_base = api_base,
+    use_workspace_endpoint = use_workspace_endpoint
+  )
+  list(
+    workspace_id = target$workspace_id,
+    lakehouse_id = target$item_id,
+    api_base = target$api_base,
+    default_schema = fabric_record_value(
+      lakehouse_record %||% list(),
+      "defaultSchema",
+      "default_schema"
+    ),
+    lakehouse_record = lakehouse_record,
+    workspace_record = workspace_record
+  )
+}
+
+# Validate and normalize the dedicated OneLake Delta metadata endpoint.
+.fabric_lakehouse_table_api_base <- function(value, allow_custom_endpoint) {
+  .fabric_operation_logical(allow_custom_endpoint, "allow_custom_endpoint")
+  .fabric_lakehouse_nonempty(value, "table_api_base")
+  endpoint <- sub("/+$", "", trimws(value))
+  parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
+  path <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    sub("/+$", "", parsed$path %||% "")
+  }
+  host <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    tolower(parsed$hostname %||% "")
+  }
+  clean <- !inherits(parsed, "try-error") &&
+    identical(tolower(parsed$scheme %||% ""), "https") &&
+    nzchar(host) &&
+    !nzchar(parsed$username %||% "") &&
+    !nzchar(parsed$password %||% "") &&
+    (parsed$port %||% "") %in% c("", "443") &&
+    path %in% c("", "/delta") &&
+    length(parsed$query %||% list()) == 0L &&
+    !nzchar(parsed$fragment %||% "")
+  if (!clean) {
+    rlang::abort(
+      "table_api_base must be an HTTPS origin with an optional /delta path",
+      class = c("fabric_lakehouse_endpoint_error", "fabric_lakehouse_error")
+    )
+  }
+  if (
+    !identical(host, "onelake.table.fabric.microsoft.com") &&
+      !isTRUE(allow_custom_endpoint)
+  ) {
+    rlang::abort(
+      paste0(
+        "Refusing to send a Storage token to untrusted table_api_base '",
+        value,
+        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
+      ),
+      class = c("fabric_lakehouse_endpoint_error", "fabric_lakehouse_error")
+    )
+  }
+  if (identical(tolower(path), "/delta")) {
+    endpoint
+  } else {
+    paste0(endpoint, "/delta")
+  }
+}
+
+# Follow Unity Catalog-compatible page tokens for a schema or table collection.
+.fabric_lakehouse_table_pages <- function(
+  url,
+  field,
+  query,
+  credential,
+  page_size
+) {
+  records <- list()
+  page_token <- NULL
+  page <- 0L
+  seen_urls <- character()
+  repeat {
+    request_query <- c(
+      list(httr2::request(url)),
+      query,
+      list(
+        max_results = page_size,
+        page_token = page_token
+      )
+    )
+    request_query <- request_query[!vapply(request_query, is.null, logical(1))]
+    request <- do.call(httr2::req_url_query, request_query)
+    page <- page + 1L
+    seen_urls <- .httr2_pagination_guard(request$url, seen_urls, page)
+    body <- .httr2_json(
+      request,
+      simplifyVector = FALSE,
+      credential = credential,
+      audience = .fabric_audience$storage
+    )
+    values <- body[[field]] %||% list()
+    if (!is.list(values)) {
+      rlang::abort(
+        paste0("OneLake returned an invalid `", field, "` collection"),
+        class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
+      )
+    }
+    records <- c(records, values)
+    page_token <- body$next_page_token %||% body$nextPageToken
+    if (is.null(page_token)) {
+      break
+    }
+    if (
+      !is.character(page_token) || length(page_token) != 1L || is.na(page_token)
+    ) {
+      rlang::abort(
+        "OneLake returned an invalid next_page_token",
+        class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
+      )
+    }
+    if (!nzchar(page_token)) break
+  }
+  records
+}
+
+# Build the normalized row while preserving columns and all unknown raw fields.
+.fabric_lakehouse_table_row <- function(
+  record,
+  schema_name,
+  schema_record,
+  fabric_record
+) {
+  resolved_schema <- record$schema_name %||% schema_name
+  list(
+    name = as.character(record$name),
+    schema = as.character(resolved_schema),
+    full_name = as.character(
+      record$full_name %||%
+        paste(
+          resolved_schema,
+          record$name,
+          sep = "."
+        )
+    ),
+    type = as.character(
+      fabric_record$type %||%
+        record$table_type %||%
+        record$type %||%
+        NA_character_
+    ),
+    format = as.character(
+      fabric_record$format %||%
+        record$data_source_format %||%
+        record$format %||%
+        NA_character_
+    ),
+    location = as.character(
+      fabric_record$location %||%
+        record$storage_location %||%
+        record$location %||%
+        NA_character_
+    ),
+    comment = as.character(record$comment %||% NA_character_),
+    table_id = as.character(record$table_id %||% NA_character_),
+    created_at = .fabric_lakehouse_epoch_ms(record$created_at),
+    updated_at = .fabric_lakehouse_epoch_ms(record$updated_at),
+    columns = record$columns %||% list(),
+    schema_metadata = schema_record,
+    raw = record,
+    fabric_raw = fabric_record
+  )
+}
+
+# Match inventories by their path below Tables, falling back to an unambiguous
+# table name for service responses that omit or transform a storage location.
+.fabric_lakehouse_match_fabric_table <- function(
+  record,
+  schema_name,
+  fabric_records
+) {
+  if (!length(fabric_records)) {
+    return(list())
+  }
+  record_key <- .fabric_lakehouse_table_location_key(
+    record$storage_location %||% record$location
+  )
+  if (!is.null(record_key)) {
+    keys <- vapply(
+      fabric_records,
+      function(candidate) {
+        .fabric_lakehouse_table_location_key(candidate$location) %||% ""
+      },
+      character(1)
+    )
+    matches <- which(keys == record_key)
+    if (length(matches) == 1L) return(fabric_records[[matches]])
+  }
+  expected_names <- c(
+    record$name,
+    paste(schema_name, record$name, sep = ".")
+  )
+  matches <- which(vapply(
+    fabric_records,
+    function(candidate) {
+      is.character(candidate$name) &&
+        length(candidate$name) == 1L &&
+        !is.na(candidate$name) &&
+        candidate$name %in% expected_names
+    },
+    logical(1)
+  ))
+  if (length(matches) == 1L) fabric_records[[matches]] else list()
+}
+
+.fabric_lakehouse_table_location_key <- function(value) {
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    return(NULL)
+  }
+  normalized <- sub(
+    "/+$",
+    "",
+    gsub("\\\\", "/", utils::URLdecode(value))
+  )
+  match <- regexec("/Tables/(.+)$", normalized, ignore.case = TRUE)
+  parts <- regmatches(normalized, match)[[1L]]
+  if (length(parts) < 2L || !nzchar(parts[[2L]])) NULL else parts[[2L]]
+}
+
+# Bind normalized table rows into a stable tibble, including empty list columns.
+.fabric_lakehouse_table_tibble <- function(rows) {
+  empty <- tibble::tibble(
+    name = character(),
+    schema = character(),
+    full_name = character(),
+    type = character(),
+    format = character(),
+    location = character(),
+    comment = character(),
+    table_id = character(),
+    created_at = as.POSIXct(character(), tz = "UTC"),
+    updated_at = as.POSIXct(character(), tz = "UTC"),
+    columns = list(),
+    schema_metadata = list(),
+    raw = list(),
+    fabric_raw = list()
+  )
+  if (!length(rows)) {
+    return(empty)
+  }
+  tibble::tibble(
+    name = vapply(rows, `[[`, character(1), "name"),
+    schema = vapply(rows, `[[`, character(1), "schema"),
+    full_name = vapply(rows, `[[`, character(1), "full_name"),
+    type = vapply(rows, `[[`, character(1), "type"),
+    format = vapply(rows, `[[`, character(1), "format"),
+    location = vapply(rows, `[[`, character(1), "location"),
+    comment = vapply(rows, `[[`, character(1), "comment"),
+    table_id = vapply(rows, `[[`, character(1), "table_id"),
+    created_at = as.POSIXct(
+      vapply(rows, function(row) as.numeric(row$created_at), numeric(1)),
+      origin = "1970-01-01",
+      tz = "UTC"
+    ),
+    updated_at = as.POSIXct(
+      vapply(rows, function(row) as.numeric(row$updated_at), numeric(1)),
+      origin = "1970-01-01",
+      tz = "UTC"
+    ),
+    columns = lapply(rows, `[[`, "columns"),
+    schema_metadata = lapply(rows, `[[`, "schema_metadata"),
+    raw = lapply(rows, `[[`, "raw"),
+    fabric_raw = lapply(rows, `[[`, "fabric_raw")
+  )
+}
+
+# Convert Unity Catalog epoch milliseconds to UTC POSIXct, retaining missingness.
+.fabric_lakehouse_epoch_ms <- function(value) {
+  number <- suppressWarnings(as.numeric(value %||% NA_real_))
+  if (length(number) != 1L || is.na(number) || !is.finite(number)) {
+    return(as.POSIXct(NA_real_, origin = "1970-01-01", tz = "UTC"))
+  }
+  as.POSIXct(number / 1000, origin = "1970-01-01", tz = "UTC")
+}
+
+# Validate all Load Table fields and build normalized settings for submission.
+.fabric_lakehouse_load_settings <- function(
+  table,
+  path,
+  schema,
+  path_type,
+  format,
+  mode,
+  recursive,
+  header,
+  delimiter,
+  file_extension
+) {
+  .fabric_lakehouse_table_name(table)
+  if (!is.null(schema)) {
+    .fabric_lakehouse_schema_name(schema)
+  }
+  path <- .fabric_lakehouse_files_path(path, "path")
+  path_type <- .fabric_lakehouse_choice(
+    path_type,
+    c("File", "Folder"),
+    "path_type"
+  )
+  mode <- .fabric_lakehouse_choice(mode, c("Overwrite", "Append"), "mode")
+  .fabric_operation_logical(recursive, "recursive")
+  .fabric_operation_logical(header, "header")
+  if (identical(path_type, "File") && isTRUE(recursive)) {
+    rlang::abort("recursive = TRUE requires path_type = \"Folder\"")
+  }
+  if (!is.null(file_extension)) {
+    .fabric_lakehouse_nonempty(file_extension, "file_extension")
+    file_extension <- sub("^[.]", "", file_extension)
+    if (!grepl("^[A-Za-z0-9_-]{1,16}$", file_extension)) {
+      rlang::abort(
+        "file_extension must contain 1 to 16 letters, numbers, underscores, or hyphens"
+      )
+    }
+    if (identical(path_type, "File")) {
+      rlang::abort("file_extension is only used with path_type = \"Folder\"")
+    }
+  }
+  if (is.null(format)) {
+    extension <- if (identical(path_type, "File")) {
+      tools::file_ext(path)
+    } else {
+      file_extension
+    }
+    format <- switch(
+      tolower(extension %||% ""),
+      csv = "Csv",
+      parquet = "Parquet",
+      rlang::abort(
+        "format must be supplied when it cannot be inferred as CSV or Parquet"
+      )
+    )
+  } else {
+    format <- .fabric_lakehouse_choice(format, c("Parquet", "Csv"), "format")
+  }
+  if (identical(format, "Csv")) {
+    .fabric_lakehouse_nonempty(delimiter, "delimiter")
+    invalid_delimiter <- nchar(delimiter) > 8L ||
+      grepl("[()\\[\\]{}'\"[:space:]]", delimiter, perl = TRUE)
+    if (invalid_delimiter) {
+      rlang::abort(
+        "delimiter must be 1 to 8 characters without whitespace, brackets, braces, parentheses, or quotes"
+      )
+    }
+  }
+  list(
+    table = table,
+    schema = schema,
+    path = path,
+    path_type = path_type,
+    format = format,
+    mode = mode,
+    recursive = recursive,
+    header = header,
+    delimiter = delimiter,
+    file_extension = file_extension
+  )
+}
+
+# Submit the preview load request once and attach useful destination metadata.
+.fabric_lakehouse_load_submit <- function(
+  target,
+  settings,
+  credential,
+  allow_custom_endpoint
+) {
+  base_url <- paste0(
+    target$api_base,
+    "/workspaces/",
+    target$workspace_id,
+    "/lakehouses/",
+    target$lakehouse_id
+  )
+  url <- if (is.null(settings$schema)) {
+    paste0(base_url, "/tables/", settings$table, "/load")
+  } else {
+    paste0(
+      base_url,
+      "/schemas/",
+      settings$schema,
+      "/tables/",
+      settings$table,
+      "/load"
+    )
+  }
+  request <- httr2::request(url) |>
+    httr2::req_method("POST")
+  if (!is.null(settings$schema)) {
+    request <- httr2::req_url_query(request, beta = "true")
+  }
+  payload <- Filter(
+    Negate(is.null),
+    list(
+      relativePath = settings$path,
+      pathType = settings$path_type,
+      mode = settings$mode,
+      recursive = settings$recursive,
+      fileExtension = settings$file_extension,
+      formatOptions = if (identical(settings$format, "Csv")) {
+        list(
+          format = "Csv",
+          header = settings$header,
+          delimiter = settings$delimiter
+        )
+      } else {
+        list(format = "Parquet")
+      }
+    )
+  )
+  request <- httr2::req_body_json(request, payload)
+  operation <- .fabric_operation_submit(
+    request,
+    credential,
+    api_base = target$api_base,
+    allow_custom_endpoint = allow_custom_endpoint,
+    idempotent = FALSE
+  )
+  operation$workspace_id <- target$workspace_id
+  operation$lakehouse_id <- target$lakehouse_id
+  operation$schema <- settings$schema
+  operation$table <- settings$table
+  operation$source_path <- settings$path
+  operation$mode <- settings$mode
+  operation$format <- settings$format
+  operation
+}
+
+# Validate, normalize, and count a data frame or Arrow tabular object.
+.fabric_lakehouse_prepare_data <- function(data) {
+  if (inherits(data, "data.frame")) {
+    value <- data
+    unsupported <- vapply(
+      value,
+      function(column) {
+        is.complex(column) ||
+          inherits(column, "difftime") ||
+          is.environment(column) ||
+          is.function(column) ||
+          is.language(column)
+      },
+      logical(1)
+    )
+    if (any(unsupported)) {
+      rlang::abort(paste0(
+        "Unsupported column type in: ",
+        paste(names(value)[unsupported], collapse = ", "),
+        ". Complex and difftime columns need an explicit supported conversion"
+      ))
+    }
+    value[] <- lapply(value, function(column) {
+      if (is.factor(column)) as.character(column) else column
+    })
+    return(list(value = value, names = names(value), rows = nrow(value)))
+  }
+  if (inherits(data, c("Table", "RecordBatch", "ArrowTabular"))) {
+    column_names <- try(data$ColumnNames, silent = TRUE)
+    row_count <- try(data$num_rows, silent = TRUE)
+    if (
+      inherits(column_names, "try-error") || inherits(row_count, "try-error")
+    ) {
+      rlang::abort("Could not inspect the supplied Arrow tabular object")
+    }
+    return(list(
+      value = data,
+      names = as.character(column_names),
+      rows = as.numeric(row_count)
+    ))
+  }
+  rlang::abort(
+    "data must be a data frame, tibble, Arrow Table, or Arrow RecordBatch"
+  )
+}
+
+# Require names that Fabric documents as preserving exactly during table load.
+.fabric_lakehouse_column_names <- function(value) {
+  if (!length(value)) {
+    rlang::abort("data must contain at least one column")
+  }
+  invalid <- is.na(value) |
+    !nzchar(value) |
+    nchar(value) > 128L |
+    !grepl("^[\\p{L}\\p{N}_]+$", value, perl = TRUE)
+  if (any(invalid)) {
+    rlang::abort(paste0(
+      "Column names must contain only Unicode letters, numbers, and underscores ",
+      "and be at most 128 characters; invalid: ",
+      paste(value[invalid], collapse = ", ")
+    ))
+  }
+  if (anyDuplicated(value)) {
+    rlang::abort("Column names must be unique")
+  }
+  invisible(value)
+}
+
+# Raise one actionable load error and retain or remove the source as requested.
+.fabric_lakehouse_write_abort <- function(
+  error,
+  storage_target,
+  credential,
+  staging_path,
+  keep_staging
+) {
+  retained <- TRUE
+  confirmed_failure <- inherits(error, "fabric_operation_failed") ||
+    (inherits(error, "fabric_http_error") &&
+      !is.null(error$status) &&
+      error$status >= 400L &&
+      error$status < 500L &&
+      !error$status %in% c(408L, 429L))
+  if (!isTRUE(keep_staging) && isTRUE(confirmed_failure)) {
+    retained <- !.fabric_lakehouse_remove_staging(storage_target, credential)
+  }
+  rlang::abort(
+    paste0(
+      "Fabric could not load the staged Parquet file. ",
+      if (retained) {
+        paste0("Staging was retained at '", staging_path, "'.")
+      } else {
+        "The staging file was removed."
+      }
+    ),
+    class = c("fabric_lakehouse_write_error", "fabric_lakehouse_error"),
+    parent = error,
+    staging_path = staging_path,
+    staging_retained = retained
+  )
+}
+
+# Best-effort removal used after load success or in an already-failing path.
+.fabric_lakehouse_remove_staging <- function(target, credential) {
+  isTRUE(tryCatch(
+    {
+      directory <- target
+      directory$path <- dirname(target$path)
+      onelake_delete_target(
+        directory,
+        credential,
+        recursive = TRUE,
+        is_directory = TRUE
+      )
+      TRUE
+    },
+    error = function(error) FALSE
+  ))
+}
+
+# Create a filesystem-safe, process-unique directory component without an
+# additional package dependency.
+.fabric_lakehouse_staging_id <- function() {
+  gsub("[^A-Za-z0-9_-]", "", basename(tempfile("load-")))
+}
+
+# Validate an item-relative path accepted by the Load Table API.
+.fabric_lakehouse_files_path <- function(value, name) {
+  .fabric_lakehouse_nonempty(value, name)
+  normalized <- onelake_normalize_path(value)
+  if (
+    !startsWith(tolower(normalized), "files/") ||
+      identical(tolower(normalized), "files/")
+  ) {
+    rlang::abort(paste0(
+      "`",
+      name,
+      "` must begin with Files/ and name a file or folder"
+    ))
+  }
+  normalized
+}
+
+# Validate documented Lakehouse destination identifiers.
+.fabric_lakehouse_table_name <- function(value) {
+  .fabric_lakehouse_nonempty(value, "table")
+  if (
+    nchar(value) > 256L ||
+      !grepl("^(?=.*[A-Za-z_])[A-Za-z0-9_]+$", value, perl = TRUE)
+  ) {
+    rlang::abort(
+      "table must contain 1 to 256 ASCII letters, numbers, or underscores and include a letter or underscore"
+    )
+  }
+  invisible(value)
+}
+
+.fabric_lakehouse_schema_name <- function(value) {
+  .fabric_lakehouse_nonempty(value, "schema")
+  if (nchar(value) > 128L || !grepl("^[A-Za-z0-9_]+$", value)) {
+    rlang::abort(
+      "schema must contain 1 to 128 ASCII letters, numbers, or underscores"
+    )
+  }
+  invisible(value)
+}
+
+# Match public choices case-insensitively while returning service casing.
+.fabric_lakehouse_choice <- function(value, choices, name) {
+  if (length(value) > 1L) {
+    value <- value[[1L]]
+  }
+  .fabric_lakehouse_nonempty(value, name)
+  index <- match(tolower(value), tolower(choices))
+  if (is.na(index)) {
+    rlang::abort(paste0(
+      "`",
+      name,
+      "` must be one of ",
+      paste(choices, collapse = ", ")
+    ))
+  }
+  choices[[index]]
+}
+
+.fabric_lakehouse_nonempty <- function(value, name) {
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    rlang::abort(paste0("`", name, "` must be one non-empty string"))
+  }
+  invisible(value)
+}
+
+.fabric_lakehouse_page_size <- function(value) {
+  if (is.null(value)) {
+    return(invisible(NULL))
+  }
+  if (
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !is.finite(value) ||
+      value < 1 ||
+      value != floor(value) ||
+      value > 100
+  ) {
+    rlang::abort("page_size must be NULL or one whole number from 1 to 100")
+  }
+  invisible(as.integer(value))
+}

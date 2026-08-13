@@ -22,8 +22,9 @@ Lakehouse SQL analytics endpoint
 \code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data, and
 \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item
 \item Use \link{fabric_onelake_files} for ordinary files,
-\code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} for Delta tables, and the Livy helpers
-when Spark processing is required
+\code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover or load managed Delta tables,
+\code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read them, and the Livy helpers when
+Spark processing is required
 \item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and
 \code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive

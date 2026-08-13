@@ -161,8 +161,10 @@ more APIs that return `Location`, `x-ms-operation-id`, and `Retry-After`.
 
 ## Priority 3: Add Lakehouse table discovery and loading
 
-**Status (August 2026): proposed, preview-dependent.** Microsoft currently marks
-the Lakehouse List Tables and Load Table APIs as preview.
+**Status (August 2026): completed in the development version;
+preview-dependent.** Microsoft currently marks the Lakehouse List Tables and
+Load Table APIs as preview/beta. Schema-aware details use the read-only OneLake
+Delta table API.
 
 ### Objective
 
@@ -185,6 +187,23 @@ Delta table without requiring users to author a Fabric notebook.
   64-bit integers, decimals, dates, timestamps, nested columns, and unsupported
   types.
 - Prefer the supported load API or Spark over a custom Delta transaction writer.
+
+### Implementation
+
+- Added schema-aware, paginated `fabric_lakehouse_tables()` discovery by
+  combining Fabric's authoritative table type/format/location inventory with
+  the current OneLake Delta schema and column metadata, retaining untouched
+  future fields from both services.
+- Added validated CSV and Parquet file/folder loads for schema-enabled and
+  legacy Lakehouses. Preview loads return resumable shared operation handles;
+  the operation layer now understands the documented Lakehouse-scoped numeric
+  state contract without replaying initiation or inventing a result route.
+- Added `fabric_lakehouse_write_table()` with Arrow Parquet serialization,
+  audience-aware OneLake staging, managed append/overwrite loading, confirmed-
+  success cleanup, and actionable retained paths after failure.
+- Added offline protocol, validation, type, cleanup, and recovery tests plus a
+  live CSV/Parquet, pagination, schema, Unicode, append/overwrite, Delta-reader,
+  and SQL round trip in the Fabric sandbox.
 
 ### Acceptance criteria
 
@@ -385,6 +404,8 @@ mature package surfaces.
 - [Create a Fabric item schedule](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/create-item-schedule)
 - [List Lakehouse tables](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables)
 - [Load a Lakehouse table](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table)
+- [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+- [Load to Delta Lake tables](https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables)
 - [Power BI dataset APIs](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/)
 - [Fabric User Data Functions overview](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview)
 - [Invoke User Data Functions externally](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app)
