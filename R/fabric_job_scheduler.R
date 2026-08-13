@@ -226,10 +226,12 @@ fabric_job_schedule_config <- function(
 #' in the current REST contract.
 #'
 #' @inheritParams fabric_job_instances
-#' @param job_type Schedule job type. Defaults to `"DefaultJob"`, the value in
-#'   the Core Job Scheduler examples. Supply a workload-specific value when its
-#'   schedule documentation requires one. Schedule job types are independent of
-#'   the route used to run that workload on demand.
+#' @param job_type Schedule job type. Data pipelines default to `"Pipeline"`,
+#'   the workload job type required by Fabric. Other item types default to
+#'   `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
+#'   explicit value for another workload-specific schedule job type. When
+#'   passing a pipeline GUID instead of a discovered item, also supply
+#'   `item_type = "DataPipeline"` or `job_type = "Pipeline"`.
 #' @param configuration A value returned by
 #'   [fabric_job_schedule_config()]. Advanced callers may pass a named list in
 #'   the documented Fabric `ScheduleConfig` shape. Known types are validated;
@@ -264,6 +266,8 @@ fabric_job_schedule_config <- function(
 #' an explicit marker. The complete response stays available in `raw`.
 #' @references
 #' [Fabric Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+#'
+#' [Fabric Data Pipeline REST API capabilities](https://learn.microsoft.com/en-us/fabric/data-factory/pipeline-rest-api-capabilities)
 #'
 #' [Fabric job scheduler behavior](https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler)
 #' @examples
@@ -415,8 +419,13 @@ fabric_job_schedule_update <- function(
   if (is.null(configuration) || is.null(enabled) || !execution_data_supplied) {
     current <- .fabric_job_schedule_get(context, id)
   }
-  configuration <- configuration %||% current$configuration
-  configuration <- .fabric_job_schedule_configuration(configuration)
+  # Fabric may return offset-free boundaries and list-backed JSON arrays, so
+  # preserve the trusted service shape while validating caller input strictly
+  configuration <- if (is.null(configuration)) {
+    current$configuration
+  } else {
+    .fabric_job_schedule_configuration(configuration)
+  }
   enabled <- enabled %||% current$enabled
   .fabric_schedule_flag(enabled, "enabled")
   if (!execution_data_supplied) {
@@ -555,7 +564,7 @@ print.fabric_job_schedule <- function(x, ...) {
     use_workspace_endpoint = use_workspace_endpoint
   )
   schedule_job_type <- if (isTRUE(require_job_type)) {
-    job_type %||% "DefaultJob"
+    .fabric_job_schedule_type(target$item_type, job_type)
   } else {
     job_type
   }
@@ -572,6 +581,21 @@ print.fabric_job_schedule <- function(x, ...) {
     allow_custom_endpoint = allow_custom_endpoint,
     credential = credential
   )
+}
+
+# Infer the schedule job type for workloads whose Fabric job type differs from
+# the Core Scheduler examples. Returns an explicit value unchanged
+.fabric_job_schedule_type <- function(item_type, job_type) {
+  if (!is.null(job_type)) {
+    return(job_type)
+  }
+
+  normalized <- gsub("[^a-z0-9]", "", tolower(item_type %||% ""))
+  if (normalized %in% c("datapipeline", "pipeline")) {
+    "Pipeline"
+  } else {
+    "DefaultJob"
+  }
 }
 
 .fabric_job_route_name <- function(item_type) {

@@ -80,10 +80,12 @@ the item type and workspace ID.}
 \item{workspace}{Workspace GUID, exact display name, or a workspace record.
 Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
 
-\item{job_type}{Schedule job type. Defaults to \code{"DefaultJob"}, the value in
-the Core Job Scheduler examples. Supply a workload-specific value when its
-schedule documentation requires one. Schedule job types are independent of
-the route used to run that workload on demand.}
+\item{job_type}{Schedule job type. Data pipelines default to \code{"Pipeline"},
+the workload job type required by Fabric. Other item types default to
+\code{"DefaultJob"}, as shown in the Core Job Scheduler examples. Supply an
+explicit value for another workload-specific schedule job type. When
+passing a pipeline GUID instead of a discovered item, also supply
+\code{item_type = "DataPipeline"} or \code{job_type = "Pipeline"}.}
 
 \item{item_type}{Optional Fabric item type when \code{item} is a GUID. A discovered
 item supplies this automatically.}
@@ -171,6 +173,8 @@ fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/}{Fabric Job Scheduler REST API}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-factory/pipeline-rest-api-capabilities}{Fabric Data Pipeline REST API capabilities}
 
 \href{https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler}{Fabric job scheduler behavior}
 }

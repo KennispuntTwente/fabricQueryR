@@ -345,8 +345,12 @@ test_that("unknown future schedule types use the documented escape hatch", {
 
 test_that("partial schedule updates preserve service-required fields", {
   calls <- list()
+  service_configuration <- scheduler_test_configuration("Daily")
+  service_configuration$startDateTime <- "2026-10-01T00:00:00"
+  service_configuration$endDateTime <- "2027-10-01T00:00:00"
+  service_configuration$times <- list("09:30")
   current <- scheduler_test_response(
-    configuration = scheduler_test_configuration("Daily"),
+    configuration = service_configuration,
     enabled = TRUE,
     execution_data = list(parameters = list(marker = "keep"))
   )
@@ -390,6 +394,11 @@ test_that("partial schedule updates preserve service-required fields", {
   expect_true(calls[[2L]]$idempotent)
   expect_false(calls[[2L]]$payload$enabled)
   expect_equal(calls[[2L]]$payload$configuration$type, "Daily")
+  expect_equal(
+    calls[[2L]]$payload$configuration$startDateTime,
+    "2026-10-01T00:00:00"
+  )
+  expect_equal(calls[[2L]]$payload$configuration$times, list("09:30"))
   expect_equal(
     calls[[2L]]$payload$executionData$parameters$marker,
     "keep"
@@ -481,7 +490,7 @@ test_that("schedule deletion requires confirmation and uses the exact route", {
   expect_false(call$arguments$parse_json)
 })
 
-test_that("schedule job types do not reuse workload on-demand route values", {
+test_that("DataPipeline schedules infer the workload job type", {
   urls <- character()
   local_mocked_bindings(
     .httr2_collection = function(url, ...) {
@@ -495,13 +504,44 @@ test_that("schedule job types do not reuse workload on-demand route values", {
     token = "test-token"
   )
   fabric_job_schedules(
+    scheduler_test_item("pipeline"),
+    token = "test-token"
+  )
+  fabric_job_schedules(
     scheduler_test_item("SparkJobDefinition"),
     job_type = "ScheduledSparkJob",
     token = "test-token"
   )
 
-  expect_match(urls[[1L]], "/jobs/DefaultJob/schedules$", perl = TRUE)
-  expect_match(urls[[2L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
+  expect_match(urls[[1L]], "/jobs/Pipeline/schedules$", perl = TRUE)
+  expect_match(urls[[2L]], "/jobs/Pipeline/schedules$", perl = TRUE)
+  expect_match(urls[[3L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
+})
+
+test_that("DataPipeline schedule creation uses and records Pipeline", {
+  call <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(method, url, credential, payload, ...) {
+      call <<- list(method = method, url = url)
+      list(
+        status_code = 201L,
+        body = scheduler_test_response(
+          configuration = payload$configuration,
+          enabled = payload$enabled
+        )
+      )
+    }
+  )
+
+  schedule <- fabric_job_schedule_create(
+    scheduler_test_item("DataPipeline"),
+    scheduler_test_configuration(),
+    token = "test-token"
+  )
+
+  expect_equal(call$method, "POST")
+  expect_match(call$url, "/jobs/Pipeline/schedules$", perl = TRUE)
+  expect_equal(schedule$job_type, "Pipeline")
 })
 
 test_that("schedule records retain custom job types for later operations", {
