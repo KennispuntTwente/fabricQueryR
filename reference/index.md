@@ -18,6 +18,10 @@ Find Fabric workspaces, items, and workload-specific connection details
   [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_notebooks()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_data_pipelines()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_spark_job_definitions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_environments()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   : Typed Microsoft Fabric item discovery
 

@@ -24,6 +24,14 @@ fabric_kql_databases(workspace, detail = TRUE, ...)
 
 fabric_notebooks(workspace, detail = TRUE, ...)
 
+fabric_data_pipelines(workspace, detail = TRUE, ...)
+
+fabric_spark_job_definitions(workspace, detail = TRUE, ...)
+
+fabric_environments(workspace, detail = TRUE, ...)
+
+fabric_user_data_functions(workspace, detail = TRUE, ...)
+
 fabric_graphql_apis(workspace, detail = TRUE, ...)
 ```
 
@@ -76,5 +84,66 @@ for details
 - `fabric_notebooks()` finds notebooks that can be run with
   [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
 
+- `fabric_data_pipelines()` and `fabric_spark_job_definitions()` find
+  the other executable items supported by
+  [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+
+- `fabric_environments()` finds reusable Spark runtime configurations
+
+- `fabric_user_data_functions()` finds serverless Python function items
+
 - `fabric_graphql_apis()` finds APIs configured in Fabric for use with
   [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+
+## Filtering and returned fields
+
+Each helper requests its exact Fabric item type and verifies that every
+returned record has that type. The records otherwise keep all fields
+returned by Fabric, including fields added by the service in the future
+
+Folder recursion, workspace-specific private-link routing,
+authentication, and `detail_errors` have the same behavior as in
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md).
+The four new helpers do not currently make workload-specific detail
+requests. Their core records contain the IDs and type needed by
+[`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+where applicable, and fabricQueryR does not yet consume an additional
+target from Environment or User Data Function details
+
+## References
+
+[List items REST
+API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
+
+[List data
+pipelines](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/list-data-pipelines)
+
+[List Spark job
+definitions](https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/list-spark-job-definitions)
+
+[List
+environments](https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments)
+
+[List User Data
+Functions](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions)
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+workspace <- fabric_workspaces()[[1]]
+
+# Discover and run each executable item type
+notebook <- fabric_notebooks(workspace)[[1]]
+pipeline <- fabric_data_pipelines(workspace)[[1]]
+spark_job <- fabric_spark_job_definitions(workspace)[[1]]
+
+fabric_job_wait(fabric_job_run(notebook), timeout = 900)
+fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
+fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
+
+# Discover related Spark and serverless-function items
+environments <- fabric_environments(workspace)
+functions <- fabric_user_data_functions(workspace)
+} # }
+```

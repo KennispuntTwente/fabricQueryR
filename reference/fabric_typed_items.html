@@ -65,6 +65,14 @@ results can usually be passed straight to the next fabricQueryR call. Set
 <span></span>
 <span><span class="fu">fabric_notebooks</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">fabric_data_pipelines</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">fabric_spark_job_definitions</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">fabric_environments</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">fabric_user_data_functions</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">fabric_graphql_apis</span><span class="op">(</span><span class="va">workspace</span>, detail <span class="op">=</span> <span class="cn">TRUE</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -110,10 +118,56 @@ Livy</p></li>
 stores queried with <code><a href="fabric_kql_query.html">fabric_kql_query()</a></code></p></li>
 <li><p><code>fabric_notebooks()</code> finds notebooks that can be run with
 <code><a href="fabric_job_run.html">fabric_job_run()</a></code></p></li>
+<li><p><code>fabric_data_pipelines()</code> and <code>fabric_spark_job_definitions()</code> find the
+other executable items supported by <code><a href="fabric_job_run.html">fabric_job_run()</a></code></p></li>
+<li><p><code>fabric_environments()</code> finds reusable Spark runtime configurations</p></li>
+<li><p><code>fabric_user_data_functions()</code> finds serverless Python function items</p></li>
 <li><p><code>fabric_graphql_apis()</code> finds APIs configured in Fabric for use with
 <code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code></p></li>
 </ul></div>
+    <div class="section level2">
+    <h2 id="filtering-and-returned-fields">Filtering and returned fields<a class="anchor" aria-label="anchor" href="#filtering-and-returned-fields"></a></h2>
 
+
+<p>Each helper requests its exact Fabric item type and verifies that every
+returned record has that type. The records otherwise keep all fields
+returned by Fabric, including fields added by the service in the future</p>
+<p>Folder recursion, workspace-specific private-link routing, authentication,
+and <code>detail_errors</code> have the same behavior as in <code><a href="fabric_items.html">fabric_items()</a></code>. The four
+new helpers do not currently make workload-specific detail requests. Their
+core records contain the IDs and type needed by <code><a href="fabric_job_run.html">fabric_job_run()</a></code> where
+applicable, and fabricQueryR does not yet consume an additional target from
+Environment or User Data Function details</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items" class="external-link">List items REST API</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/list-data-pipelines" class="external-link">List data pipelines</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/list-spark-job-definitions" class="external-link">List Spark job definitions</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments" class="external-link">List environments</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions" class="external-link">List User Data Functions</a></p>
+    </div>
+
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Discover and run each executable item type</span></span></span>
+<span class="r-in"><span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu">fabric_notebooks</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">pipeline</span> <span class="op">&lt;-</span> <span class="fu">fabric_data_pipelines</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">spark_job</span> <span class="op">&lt;-</span> <span class="fu">fabric_spark_job_definitions</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="fu"><a href="fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="fu"><a href="fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span><span class="va">pipeline</span><span class="op">)</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="fu"><a href="fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span><span class="va">spark_job</span><span class="op">)</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Discover related Spark and serverless-function items</span></span></span>
+<span class="r-in"><span><span class="va">environments</span> <span class="op">&lt;-</span> <span class="fu">fabric_environments</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">functions</span> <span class="op">&lt;-</span> <span class="fu">fabric_user_data_functions</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

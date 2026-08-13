@@ -1,8 +1,8 @@
 # fabricQueryR roadmap
 
-This roadmap contains only future work. It is based on the current
-`fabricQueryR` implementation and Microsoft Fabric documentation
-reviewed in August 2026.
+This roadmap tracks planned work and recently completed priorities. It
+is based on the current `fabricQueryR` implementation and Microsoft
+Fabric documentation reviewed in August 2026.
 
 ## Guiding principles
 
@@ -41,7 +41,7 @@ Scheduler status.
 
 ## Priority 0: Complete typed discovery for executable items
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -50,9 +50,13 @@ Lakehouses, Warehouses, semantic models, and notebooks.
 
 ### Direction
 
-- Add `fabric_data_pipelines()`, `fabric_spark_job_definitions()`,
-  `fabric_environments()`, and `fabric_user_data_functions()` as typed
-  wrappers over
+- Add
+  [`fabric_data_pipelines()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  [`fabric_spark_job_definitions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  [`fabric_environments()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  and
+  [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  as typed wrappers over
   [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md).
 - Add `fabric_reports()` and `fabric_variable_libraries()` only when a
   downstream package workflow needs those records.
@@ -60,6 +64,20 @@ Lakehouses, Warehouses, semantic models, and notebooks.
   connection, execution, or query target consumed by fabricQueryR.
 - Preserve folder recursion, private-link routing, authentication, and
   detail-error behavior from the existing discovery functions.
+
+### Implementation
+
+- Added
+  [`fabric_data_pipelines()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  [`fabric_spark_job_definitions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  [`fabric_environments()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+  and
+  [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  over the Core Items API’s documented type filter.
+- Added a client-side type check shared by every typed helper while
+  preserving all other service fields for forward compatibility.
+- Added offline contract tests, live Fabric coverage, job-ready
+  examples, and package-site documentation for all four helpers.
 
 ### Acceptance criteria
 

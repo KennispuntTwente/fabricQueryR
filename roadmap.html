@@ -35,7 +35,7 @@
 
 <div id="fabricqueryr-roadmap" class="section level1">
 
-<p>This roadmap contains only future work. It is based on the current <code>fabricQueryR</code> implementation and Microsoft Fabric documentation reviewed in August 2026.</p>
+<p>This roadmap tracks planned work and recently completed priorities. It is based on the current <code>fabricQueryR</code> implementation and Microsoft Fabric documentation reviewed in August 2026.</p>
 <div class="section level2">
 <h2 id="guiding-principles">Guiding principles<a class="anchor" aria-label="anchor" href="#guiding-principles"></a></h2>
 <ul><li>Prioritize workflows that are specifically valuable to R users rather than wrapping every Fabric REST endpoint.</li>
@@ -55,17 +55,23 @@
 </ul></div>
 <div class="section level2">
 <h2 id="priority-0-complete-typed-discovery-for-executable-items">Priority 0: Complete typed discovery for executable items<a class="anchor" aria-label="anchor" href="#priority-0-complete-typed-discovery-for-executable-items"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
+<p><strong>Status (August 2026): completed in the development version.</strong></p>
 <div class="section level3">
 <h3 id="objective">Objective<a class="anchor" aria-label="anchor" href="#objective"></a></h3>
 <p>Make executable and newly supported Fabric items as easy to discover as Lakehouses, Warehouses, semantic models, and notebooks.</p>
 </div>
 <div class="section level3">
 <h3 id="direction">Direction<a class="anchor" aria-label="anchor" href="#direction"></a></h3>
-<ul><li>Add <code>fabric_data_pipelines()</code>, <code>fabric_spark_job_definitions()</code>, <code>fabric_environments()</code>, and <code>fabric_user_data_functions()</code> as typed wrappers over <code><a href="reference/fabric_items.html">fabric_items()</a></code>.</li>
+<ul><li>Add <code><a href="reference/fabric_typed_items.html">fabric_data_pipelines()</a></code>, <code><a href="reference/fabric_typed_items.html">fabric_spark_job_definitions()</a></code>, <code><a href="reference/fabric_typed_items.html">fabric_environments()</a></code>, and <code><a href="reference/fabric_typed_items.html">fabric_user_data_functions()</a></code> as typed wrappers over <code><a href="reference/fabric_items.html">fabric_items()</a></code>.</li>
 <li>Add <code>fabric_reports()</code> and <code>fabric_variable_libraries()</code> only when a downstream package workflow needs those records.</li>
 <li>Extend workload-specific detail enrichment only when it adds a connection, execution, or query target consumed by fabricQueryR.</li>
 <li>Preserve folder recursion, private-link routing, authentication, and detail-error behavior from the existing discovery functions.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation">Implementation<a class="anchor" aria-label="anchor" href="#implementation"></a></h3>
+<ul><li>Added <code><a href="reference/fabric_typed_items.html">fabric_data_pipelines()</a></code>, <code><a href="reference/fabric_typed_items.html">fabric_spark_job_definitions()</a></code>, <code><a href="reference/fabric_typed_items.html">fabric_environments()</a></code>, and <code><a href="reference/fabric_typed_items.html">fabric_user_data_functions()</a></code> over the Core Items API’s documented type filter.</li>
+<li>Added a client-side type check shared by every typed helper while preserving all other service fields for forward compatibility.</li>
+<li>Added offline contract tests, live Fabric coverage, job-ready examples, and package-site documentation for all four helpers.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria"></a></h3>
