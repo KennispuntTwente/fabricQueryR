@@ -29,6 +29,15 @@
 - Added `fabric_job_*()` functions to run, monitor, wait for, and cancel
   on-demand Notebook, pipeline, and Spark job definition runs.
 
+- Added
+  [`fabric_operation_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md),
+  [`fabric_operation_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md),
+  and
+  [`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  for resumable Fabric long-running operations. Immediate and
+  asynchronous operations share one result shape, including JSON,
+  binary, and empty results.
+
 - Expanded Livy support with reusable Spark sessions, including
   high-concurrency sessions and standalone batch applications.
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)

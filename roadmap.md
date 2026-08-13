@@ -145,7 +145,7 @@ supported Fabric items.
 
 ## Priority 2: Generalize Fabric long-running operations
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -157,15 +157,35 @@ adding more APIs that return `Location`, `x-ms-operation-id`, and
 
 - Add an internal operation handle plus shared status, wait, and result
   helpers.
-- Export `fabric_operation_status()`, `fabric_operation_wait()`, and
-  `fabric_operation_result()` only if users need to retain or resume
-  handles.
+- Export
+  [`fabric_operation_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md),
+  [`fabric_operation_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md),
+  and
+  [`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  only if users need to retain or resume handles.
 - Accept both service-provided locations and operation IDs, honor retry
   delays, and distinguish state responses from result responses.
 - Preserve progress, timestamps, request/activity IDs, and structured
   errors.
 - Keep Job Scheduler instances and Livy sessions/batches as separate
   lifecycle types because they do not use this protocol.
+
+### Implementation
+
+- Added resumable `fabric_operation` handles plus public status, wait,
+  and result helpers that accept handles, operation IDs, or trusted
+  service locations.
+- Normalized immediate JSON, binary, and empty responses and
+  asynchronous operation results into one `fabric_operation_result`
+  contract while retaining progress, timestamps, retry hints,
+  request/activity IDs, and structured errors.
+- Separated state and result locations, bounded all polling by a total
+  timeout, selected the documented Power BI token audience for regional
+  operation clusters, preserved unknown future states for inspection,
+  and limited non-idempotent initiation to one transport attempt.
+- Added offline protocol coverage and a live 202 Warehouse creation
+  lifecycle with deterministic hard-delete cleanup in the Fabric
+  sandbox.
 
 ### Acceptance criteria
 

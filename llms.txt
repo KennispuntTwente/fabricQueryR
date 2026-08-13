@@ -324,6 +324,29 @@ fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
+### 9. Resume a Fabric long-running operation
+
+Some Fabric APIs return an operation ID while provisioning continues.
+Resume that work from its ID or `Location` URL, wait for success, and
+retrieve its JSON, binary, or empty result through one consistent result
+object.
+
+``` r
+
+state <- fabric_operation_status(
+  "00000000-0000-0000-0000-000000000000"
+)
+
+completed <- fabric_operation_wait(state, timeout = 900)
+result <- fabric_operation_result(completed)
+result$value
+```
+
+Package functions that start this protocol return a reusable operation
+handle. The handle keeps its in-process authentication context; a saved
+ID or location can be resumed later by supplying normal authentication
+arguments again.
+
 ## Background
 
 Microsoft Fabric brings data engineering, data warehousing, real-time
@@ -466,6 +489,15 @@ Run, monitor, schedule, and inspect Fabric item jobs
   : Print Fabric job status
 - [`print(`*`<fabric_job_schedule>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_schedule.md)
   : Print a Fabric job schedule
+
+## Long-running operations
+
+Resume, monitor, and retrieve Fabric Core asynchronous operations
+
+- [`fabric_operation_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  [`fabric_operation_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  [`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  : Monitor Microsoft Fabric long-running operations
 
 ## Package
 

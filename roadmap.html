@@ -110,7 +110,7 @@
 </div>
 <div class="section level2">
 <h2 id="priority-2-generalize-fabric-long-running-operations">Priority 2: Generalize Fabric long-running operations<a class="anchor" aria-label="anchor" href="#priority-2-generalize-fabric-long-running-operations"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
+<p><strong>Status (August 2026): completed in the development version.</strong></p>
 <div class="section level3">
 <h3 id="objective-2">Objective<a class="anchor" aria-label="anchor" href="#objective-2"></a></h3>
 <p>Implement the common Fabric asynchronous-operation protocol once before adding more APIs that return <code>Location</code>, <code>x-ms-operation-id</code>, and <code>Retry-After</code>.</p>
@@ -118,10 +118,17 @@
 <div class="section level3">
 <h3 id="direction-2">Direction<a class="anchor" aria-label="anchor" href="#direction-2"></a></h3>
 <ul><li>Add an internal operation handle plus shared status, wait, and result helpers.</li>
-<li>Export <code>fabric_operation_status()</code>, <code>fabric_operation_wait()</code>, and <code>fabric_operation_result()</code> only if users need to retain or resume handles.</li>
+<li>Export <code><a href="reference/fabric_operation_status.html">fabric_operation_status()</a></code>, <code><a href="reference/fabric_operation_status.html">fabric_operation_wait()</a></code>, and <code><a href="reference/fabric_operation_status.html">fabric_operation_result()</a></code> only if users need to retain or resume handles.</li>
 <li>Accept both service-provided locations and operation IDs, honor retry delays, and distinguish state responses from result responses.</li>
 <li>Preserve progress, timestamps, request/activity IDs, and structured errors.</li>
 <li>Keep Job Scheduler instances and Livy sessions/batches as separate lifecycle types because they do not use this protocol.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-2">Implementation<a class="anchor" aria-label="anchor" href="#implementation-2"></a></h3>
+<ul><li>Added resumable <code>fabric_operation</code> handles plus public status, wait, and result helpers that accept handles, operation IDs, or trusted service locations.</li>
+<li>Normalized immediate JSON, binary, and empty responses and asynchronous operation results into one <code>fabric_operation_result</code> contract while retaining progress, timestamps, retry hints, request/activity IDs, and structured errors.</li>
+<li>Separated state and result locations, bounded all polling by a total timeout, selected the documented Power BI token audience for regional operation clusters, preserved unknown future states for inspection, and limited non-idempotent initiation to one transport attempt.</li>
+<li>Added offline protocol coverage and a live 202 Warehouse creation lifecycle with deterministic hard-delete cleanup in the Fabric sandbox.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-2">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-2"></a></h3>

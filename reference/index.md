@@ -123,6 +123,15 @@ Run, monitor, schedule, and inspect Fabric item jobs
 - [`print(`*`<fabric_job_schedule>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_schedule.md)
   : Print a Fabric job schedule
 
+## Long-running operations
+
+Resume, monitor, and retrieve Fabric Core asynchronous operations
+
+- [`fabric_operation_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  [`fabric_operation_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  [`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  : Monitor Microsoft Fabric long-running operations
+
 ## Package
 
 Package overview

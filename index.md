@@ -324,6 +324,29 @@ fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
+### 9. Resume a Fabric long-running operation
+
+Some Fabric APIs return an operation ID while provisioning continues.
+Resume that work from its ID or `Location` URL, wait for success, and
+retrieve its JSON, binary, or empty result through one consistent result
+object.
+
+``` r
+
+state <- fabric_operation_status(
+  "00000000-0000-0000-0000-000000000000"
+)
+
+completed <- fabric_operation_wait(state, timeout = 900)
+result <- fabric_operation_result(completed)
+result$value
+```
+
+Package functions that start this protocol return a reusable operation
+handle. The handle keeps its in-process authentication context; a saved
+ID or location can be resumed later by supplying normal authentication
+arguments again.
+
 ## Background
 
 Microsoft Fabric brings data engineering, data warehousing, real-time
