@@ -19,8 +19,9 @@ Description:
     stored in 'OneLake'; execute 'Kusto Query Language' ('KQL')
     queries against 'Eventhouse' databases; call user-configured 'GraphQL'
     APIs over Fabric data; and execute 'Spark' code via the 'Livy API'.
-    On-demand item jobs can be submitted, monitored, waited on, and cancelled
-    through the Fabric Job Scheduler APIs.
+    Item jobs can be submitted, monitored, waited on, and cancelled, and their
+    run history and recurring schedules can be managed through the Fabric Job
+    Scheduler APIs.
 License: MIT + file LICENSE
 Suggests: 
     adbcdrivermanager,

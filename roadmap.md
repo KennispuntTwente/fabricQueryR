@@ -75,7 +75,7 @@ Lakehouses, Warehouses, semantic models, and notebooks.
 
 ## Priority 1: Add job history and schedule management
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -94,6 +94,18 @@ Fabric items.
   auto-disabled schedules, and workload-specific `executionData` explicitly.
 - Require explicit confirmation for deletion and never infer destructive
   replacement during conflict handling.
+
+### Implementation
+
+- Added paginated `fabric_job_instances()` results that use the existing
+  `fabric_job_instance` contract and can be refreshed, waited on, or cancelled.
+- Added validated Cron/minute, daily, weekly, and monthly configuration helpers
+  plus list, create, partial-update/disable, and confirmed-delete operations.
+- Normalized UTC schedule boundaries independently of the R process time zone,
+  retained Windows time-zone identifiers for recurrence, and preserved
+  workload-specific execution data and unknown future service fields.
+- Added offline HTTP/validation coverage, daylight-saving boundary tests, and a
+  live Fabric lifecycle for history and daily and weekly schedules.
 
 ### Acceptance criteria
 

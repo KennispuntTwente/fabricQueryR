@@ -6,6 +6,9 @@ articles:
   - title: Authentication
     contents:
       - authentication
+  - title: Job automation
+    contents:
+      - job-automation
 
 reference:
   - title: Discovery
@@ -78,14 +81,18 @@ reference:
       - FabricLivyBatch
 
   - title: Item jobs
-    desc: Run, monitor, wait for, and cancel Fabric item jobs
+    desc: Run, monitor, schedule, and inspect Fabric item jobs
     contents:
       - fabric_job_run
       - fabric_job_status
       - fabric_job_wait
       - fabric_job_cancel
+      - fabric_job_instances
+      - fabric_job_schedule_config
+      - fabric_job_schedules
       - print.fabric_job
       - print.fabric_job_instance
+      - print.fabric_job_schedule
 
   - title: Package
     desc: Package overview

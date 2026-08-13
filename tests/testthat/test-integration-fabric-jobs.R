@@ -159,3 +159,108 @@ test_that("Fabric pipeline and Spark job definition jobs complete", {
     }
   }
 })
+
+test_that("Fabric job history and daily and weekly schedules complete a lifecycle", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  fixture <- fabric_test_manifest_item(manifest, "TestPipeline")
+  item <- list(
+    id = fixture$id,
+    workspaceId = manifest$workspace_id,
+    type = fixture$type,
+    displayName = fixture$display_name
+  )
+
+  history <- fabric_job_instances(item, token = token)
+  expect_s3_class(history, "fabric_job_instance_list")
+  expect_true(length(history) >= 1L)
+  expect_true(all(vapply(
+    history,
+    inherits,
+    logical(1),
+    what = "fabric_job_instance"
+  )))
+  refreshed <- fabric_job_status(history[[1L]], respect_retry_after = FALSE)
+  expect_equal(refreshed$id, history[[1L]]$id)
+
+  start <- as.POSIXct(Sys.Date() + 2, tz = "UTC")
+  end <- start + (14 * 24 * 60 * 60)
+  created_ids <- character()
+  on.exit(
+    {
+      for (id in created_ids) {
+        try(
+          fabric_job_schedule_delete(
+            item,
+            id,
+            confirm = TRUE,
+            token = token
+          ),
+          silent = TRUE
+        )
+      }
+    },
+    add = TRUE
+  )
+
+  daily_configuration <- fabric_job_schedule_config(
+    "Daily",
+    start_time = start,
+    end_time = end,
+    time_zone = "UTC",
+    times = "03:17"
+  )
+  daily <- fabric_job_schedule_create(
+    item,
+    daily_configuration,
+    enabled = TRUE,
+    token = token
+  )
+  created_ids <- c(created_ids, daily$id)
+  expect_true(daily$enabled)
+
+  disabled <- fabric_job_schedule_update(
+    item,
+    daily,
+    enabled = FALSE,
+    token = token
+  )
+  expect_false(disabled$enabled)
+  expect_equal(disabled$state, "Disabled")
+
+  weekly_configuration <- fabric_job_schedule_config(
+    "Weekly",
+    start_time = start,
+    end_time = end,
+    time_zone = "UTC",
+    times = "04:23",
+    weekdays = c("Tuesday", "Saturday")
+  )
+  weekly <- fabric_job_schedule_create(
+    item,
+    weekly_configuration,
+    enabled = FALSE,
+    token = token
+  )
+  created_ids <- c(created_ids, weekly$id)
+  expect_false(weekly$enabled)
+
+  schedules <- fabric_job_schedules(item, token = token)
+  listed_ids <- vapply(schedules, `[[`, character(1), "id")
+  expect_true(all(c(daily$id, weekly$id) %in% listed_ids))
+
+  expect_true(fabric_job_schedule_delete(
+    item,
+    daily,
+    confirm = TRUE,
+    token = token
+  ))
+  created_ids <- setdiff(created_ids, daily$id)
+  expect_true(fabric_job_schedule_delete(
+    item,
+    weekly,
+    confirm = TRUE,
+    token = token
+  ))
+  created_ids <- setdiff(created_ids, weekly$id)
+})

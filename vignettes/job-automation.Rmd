@@ -1,0 +1,200 @@
+---
+title: "Automate and inspect Microsoft Fabric jobs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Automate and inspect Microsoft Fabric jobs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+fabricQueryR supports both on-demand and recurring item jobs through the
+Microsoft Fabric Job Scheduler APIs. This guide uses a discovered notebook so
+the workspace ID, item ID, type, and workspace-specific API endpoint travel
+together.
+
+```{r}
+library(fabricQueryR)
+
+notebook <- fabric_notebooks("Analytics workspace")[[1]]
+```
+
+The examples use the package's normal authentication flow. Reading history and
+schedules needs an item read permission. Running jobs needs item execute
+permission. Creating or updating a schedule needs item execute and read-write
+permissions; deletion needs item read-write permission. A workspace Contributor
+role or direct item Write permission is normally needed to change schedules.
+
+## Run once and inspect history
+
+Start an on-demand job and wait for its terminal state:
+
+```{r}
+job <- fabric_job_run(
+  notebook,
+  parameters = list(run_date = Sys.Date(), full_load = FALSE)
+)
+result <- fabric_job_wait(job, timeout = 900, cancel_on_timeout = TRUE)
+result$status
+```
+
+`fabric_job_instances()` follows all Fabric continuation pages. Most item types
+retain at most 100 recently completed runs, in addition to active runs.
+
+```{r}
+history <- fabric_job_instances(notebook)
+
+history[[1]]$invoke_type
+history[[1]]$status
+history[[1]]$start_time
+history[[1]]$failure_reason
+```
+
+History entries use the same `fabric_job_instance` contract as on-demand status
+results. They can be refreshed directly without copying an instance ID:
+
+```{r}
+latest <- fabric_job_status(history[[1]])
+```
+
+Fabric can add job statuses and invocation types over time. Unknown values stay
+unchanged in the normalized fields and the complete response is available in
+`raw`.
+
+## Build schedule configurations
+
+Fabric currently documents four REST configuration types. Schedule boundaries
+are absolute UTC instants. Daily, weekly, and monthly clock times are local to a
+Windows time-zone identifier, which lets Fabric apply daylight-saving rules.
+They never depend on the computer running R.
+
+Cron is Fabric's name for a minute interval, not a cron expression:
+
+```{r}
+every_30_minutes <- fabric_job_schedule_config(
+  "Cron",
+  start_time = "2026-10-01T00:00:00Z",
+  end_time = "2027-10-01T00:00:00Z",
+  time_zone = "UTC",
+  interval = 30L
+)
+```
+
+Daily and weekly schedules accept one or more `HH:MM` values. Use a Windows
+identifier such as `W. Europe Standard Time`, not an IANA identifier such as
+`Europe/Amsterdam`.
+
+```{r}
+daily <- fabric_job_schedule_config(
+  "Daily",
+  start_time = "2026-10-01T00:00:00Z",
+  end_time = "2027-10-01T00:00:00Z",
+  time_zone = "W. Europe Standard Time",
+  times = c("08:30", "17:00")
+)
+
+weekly <- fabric_job_schedule_config(
+  "Weekly",
+  start_time = "2026-10-01T00:00:00Z",
+  end_time = "2027-10-01T00:00:00Z",
+  time_zone = "W. Europe Standard Time",
+  times = "07:30",
+  weekdays = c("Monday", "Thursday")
+)
+```
+
+Monthly schedules repeat every 1 through 12 months. Select either a numbered
+day or an ordinal weekday. Fabric skips months where a numbered day is invalid.
+
+```{r}
+month_end_review <- fabric_job_schedule_config(
+  "Monthly",
+  start_time = "2026-10-01T00:00:00Z",
+  end_time = "2027-10-01T00:00:00Z",
+  time_zone = "W. Europe Standard Time",
+  times = "09:00",
+  recurrence = 1L,
+  week_index = "Fourth",
+  weekday = "Friday"
+)
+```
+
+## Create, list, update, and disable
+
+An item can currently have at most 20 schedules. Create one from a validated
+configuration, then list all of the schedules for that job type:
+
+```{r}
+schedule <- fabric_job_schedule_create(notebook, weekly, enabled = TRUE)
+schedules <- fabric_job_schedules(notebook)
+```
+
+The Fabric PATCH endpoint requires both `enabled` and the complete schedule
+configuration. For a partial R update, fabricQueryR first reads the current
+record and preserves fields that were not supplied:
+
+```{r}
+disabled <- fabric_job_schedule_update(
+  notebook,
+  schedule,
+  enabled = FALSE
+)
+
+restarted <- fabric_job_schedule_update(
+  notebook,
+  schedule,
+  enabled = TRUE
+)
+```
+
+Fabric may automatically disable a schedule after repeated failures. Updating
+it with `enabled = TRUE` restarts it. The published REST response exposes the
+`enabled` flag but does not yet guarantee a separate auto-disable reason, so
+`auto_disabled` is `NA` unless the service returns an explicit marker. Inspect
+`raw` for any newer workload-specific fields.
+
+Some job types accept static `executionData`. Its schema belongs to that
+workload, so provide the exact documented object:
+
+```{r}
+special <- fabric_job_schedule_create(
+  workload_item,
+  daily,
+  job_type = "DefaultJob",
+  execution_data = list(
+    tableName = "Sales",
+    optimizeSettings = list(vOrder = TRUE)
+  )
+)
+```
+
+Omitting `execution_data` during update, or leaving it as `NULL`, preserves the
+current value. Supply a named list to replace it.
+
+## Future schedule types and cleanup
+
+For a schedule type added after this package version, pass the documented JSON
+shape as a named list. Known types are validated; unknown types are sent without
+discarding their fields and returned in `configuration` and `raw`.
+
+```{r}
+future_configuration <- list(
+  type = "FutureScheduleType",
+  futureProperty = list(value = "documented by Fabric")
+)
+```
+
+Deletion is permanent and never inferred from a create or update conflict. It
+requires explicit confirmation:
+
+```{r}
+fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
+```
+
+Microsoft documents scheduler throttling, maximum job duration and concurrency,
+schedule expiry after prolonged user inactivity, and auto-disable behavior in
+the [Fabric job scheduler
+guide](https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler).

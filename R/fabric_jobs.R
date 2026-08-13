@@ -788,6 +788,8 @@ print.fabric_job_instance <- function(x, ...) {
 .fabric_job_preserve_json_arrays <- function(value, field = NULL) {
   array_fields <- c(
     "parameters",
+    "times",
+    "weekdays",
     "additionalLibraryUris",
     "jars",
     "pyFiles",
@@ -2006,6 +2008,21 @@ print.fabric_job_instance <- function(x, ...) {
   use_workspace_endpoint = TRUE,
   override_auth = !is.null(token) || length(auth_args) > 0L
 ) {
+  if (inherits(job, "fabric_job_instance")) {
+    if (!is.null(job_instance_id)) {
+      rlang::abort(
+        "`job_instance_id` cannot be combined with a `fabric_job_instance`"
+      )
+    }
+    if (!inherits(job$job, "fabric_job")) {
+      rlang::abort(
+        "This Fabric job instance does not contain refreshable job context",
+        class = c("fabric_job_context_error", "fabric_job_error")
+      )
+    }
+    job <- job$job
+  }
+
   # 1 Reuse a submitted job handle -----------------------------------------------------------------
 
   # Handles already carry resolved IDs, route, endpoint, and usually credential
