@@ -9,10 +9,6 @@ articles:
   - title: Job automation
     contents:
       - job-automation
-  - title: Lakehouse table loading
-    contents:
-      - lakehouse-table-loading
-
 reference:
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
