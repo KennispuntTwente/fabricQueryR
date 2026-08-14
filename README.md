@@ -314,9 +314,14 @@ dataset <- arrow::open_dataset("local-parquet-directory")
 written <- fabric_lakehouse_write_table(
   lakehouse,
   table = "orders_from_arrow",
-  data = dataset
+  data = dataset,
+  target_file_size = 512 * 1024^2
 )
 ```
+
+Large inputs are staged as bounded `part-*.parquet` files and submitted through
+Fabric's folder-load contract. `max_rows_per_file` provides an exact row-based
+boundary when compressed byte size is not predictable.
 
 The Fabric List Tables and Load Table routes are preview APIs. The higher-level
 writer uploads only to a unique `Files/` staging path and never edits managed
@@ -384,6 +389,9 @@ written <- fabric_kql_write_table(
 )
 written$status$state
 ```
+
+The writer partitions large inputs into multiple Parquet sources while staying
+within the ingestion service's advertised file-count and total-size limits.
 
 The queued-ingestion REST API is in preview. Submissions use Kusto's ingestion
 URI, accept at most 20 existing storage sources per request, and have

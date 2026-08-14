@@ -56,12 +56,17 @@
 #'   package is required.
 #' @param staging_root Item-relative directory below `Files/` used for unique
 #'   staging files.
-#' @param cleanup Whether to delete the staged Parquet file after Fabric
+#' @param cleanup Whether to delete the staged Parquet files after Fabric
 #'   confirms a successful load.
 #' @param keep_staging_on_failure Whether to retain a completely uploaded
-#'   staging file when the load fails. The raised condition includes
+#'   staging directory when the load fails. The raised condition includes
 #'   `staging_path` and `staging_retained` fields.
 #' @param compression Parquet compression passed to [arrow::write_parquet()].
+#' @param target_file_size Soft maximum bytes per staged Parquet file. A file
+#'   rotates after its current Arrow row group reaches this size.
+#' @param max_rows_per_file Optional exact maximum rows per staged file. This is
+#'   useful when row counts are a more predictable boundary than compressed
+#'   bytes.
 #' @param poll_interval Minimum seconds between load-operation status requests.
 #'   `NULL` follows Fabric's `Retry-After` hint with the shared fallback.
 #' @param timeout Maximum total seconds to wait for an R/Arrow load.
@@ -116,8 +121,8 @@
 #' to Fabric's documented 128-character limit.
 #'
 #' @section Failure and cleanup behavior:
-#' The high-level writer uploads one complete Parquet file atomically to a
-#' unique path and starts the managed load only after that upload succeeds. A
+#' The high-level writer uploads complete Parquet parts atomically to a unique
+#' folder and starts the managed folder load only after every upload succeeds. A
 #' successful load is a committed Delta operation. On failure, the destination
 #' is left to Fabric's transactional load behavior and fabricQueryR never edits
 #' `Tables/` files.
@@ -590,6 +595,8 @@ fabric_lakehouse_write_table <- function(
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
   compression = "snappy",
+  target_file_size = 512 * 1024^2,
+  max_rows_per_file = NULL,
   poll_interval = NULL,
   timeout = 900,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -617,25 +624,31 @@ fabric_lakehouse_write_table <- function(
   # Validate table and mode using the same contract as direct file loading
   settings <- .fabric_lakehouse_load_settings(
     table = table,
-    path = paste0(staging_root, "/placeholder.parquet"),
+    path = paste0(staging_root, "/placeholder"),
     schema = schema,
-    path_type = "File",
+    path_type = "Folder",
     format = "Parquet",
     mode = mode,
     recursive = FALSE,
     header = TRUE,
     delimiter = ",",
-    file_extension = NULL
+    file_extension = "parquet"
   )
 
-  # 2 Serialize to a temporary Parquet file -------------------------------------------------------
+  # 2 Serialize to bounded temporary Parquet parts ------------------------------------------------
 
-  parquet <- tempfile("fabricqueryr-table-", fileext = ".parquet")
-  on.exit(unlink(parquet, force = TRUE), add = TRUE)
-  serialized <- .fabric_parquet_write_stream(
+  parquet_directory <- tempfile("fabricqueryr-table-")
+  dir.create(parquet_directory)
+  on.exit(
+    unlink(parquet_directory, recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+  serialized <- .fabric_parquet_write_dataset(
     prepared,
-    path = parquet,
+    directory = parquet_directory,
     compression = compression,
+    target_file_size = target_file_size,
+    max_rows_per_file = max_rows_per_file,
     caller = "fabric_lakehouse_write_table()",
     error_class = c(
       "fabric_lakehouse_arrow_error",
@@ -668,28 +681,46 @@ fabric_lakehouse_write_table <- function(
   staging_path <- paste(
     staging_root,
     .fabric_lakehouse_staging_id(),
-    paste0(settings$table, ".parquet"),
     sep = "/"
   )
   settings$path <- staging_path
-  storage_target <- onelake_resolve_target(
-    target$workspace_record %||% target$workspace_id,
-    target$lakehouse_record %||% target$lakehouse_id,
-    staging_path,
-    dfs_base = if (dfs_base_supplied) dfs_base else NULL
-  )
+  storage_targets <- lapply(basename(serialized$paths), function(name) {
+    onelake_resolve_target(
+      target$workspace_record %||% target$workspace_id,
+      target$lakehouse_record %||% target$lakehouse_id,
+      paste(staging_path, name, sep = "/"),
+      dfs_base = if (dfs_base_supplied) dfs_base else NULL
+    )
+  })
+  storage_target <- storage_targets[[1L]]
 
-  # 4 Upload the complete staged file -------------------------------------------------------------
+  # 4 Upload every complete staged part -----------------------------------------------------------
 
-  onelake_upload_target(
-    storage_target,
-    credential,
-    source = parquet,
-    overwrite = FALSE,
-    if_match = NULL,
-    chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2),
-    content_type = "application/vnd.apache.parquet",
-    create_parents = TRUE
+  tryCatch(
+    for (index in seq_along(storage_targets)) {
+      onelake_upload_target(
+        storage_targets[[index]],
+        credential,
+        source = serialized$paths[[index]],
+        overwrite = FALSE,
+        if_match = NULL,
+        chunk_size = getOption(
+          "fabricqueryr.onelake.chunk_size",
+          8 * 1024^2
+        ),
+        content_type = "application/vnd.apache.parquet",
+        create_parents = TRUE
+      )
+    },
+    error = function(error) {
+      .fabric_lakehouse_write_abort(
+        error,
+        storage_target,
+        credential,
+        staging_path,
+        keep_staging_on_failure
+      )
+    }
   )
 
   # 5 Start and wait for the managed Delta load --------------------------------------------------
@@ -749,6 +780,9 @@ fabric_lakehouse_write_table <- function(
       table = settings$table,
       mode = settings$mode,
       rows = serialized$rows,
+      bytes = serialized$total_bytes,
+      file_count = serialized$file_count,
+      files = vapply(storage_targets, `[[`, character(1), "path"),
       staging_path = staging_path,
       staging_retained = staging_retained,
       operation_status = state,
@@ -1281,11 +1315,11 @@ fabric_lakehouse_write_table <- function(
   }
   rlang::abort(
     paste0(
-      "Fabric could not load the staged Parquet file. ",
+      "Fabric could not load the staged Parquet files. ",
       if (retained) {
         paste0("Staging was retained at '", staging_path, "'.")
       } else {
-        "The staging file was removed."
+        "The staging directory was removed."
       }
     ),
     class = c("fabric_lakehouse_write_error", "fabric_lakehouse_error"),

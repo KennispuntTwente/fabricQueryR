@@ -83,14 +83,17 @@
   writer <- NULL
   writer_closed <- FALSE
   output_closed <- FALSE
-  on.exit({
-    if (!is.null(writer) && !writer_closed) {
-      try(writer$Close(), silent = TRUE)
-    }
-    if (!is.null(output) && !output_closed) {
-      try(output$close(), silent = TRUE)
-    }
-  }, add = TRUE)
+  on.exit(
+    {
+      if (!is.null(writer) && !writer_closed) {
+        try(writer$Close(), silent = TRUE)
+      }
+      if (!is.null(output) && !output_closed) {
+        try(output$close(), silent = TRUE)
+      }
+    },
+    add = TRUE
+  )
 
   tryCatch(
     {
@@ -155,6 +158,213 @@
       )
     }
   )
+}
+
+# Stream prepared record batches into a directory of bounded Parquet files.
+# The byte target is soft because the active row group is completed before a
+# file rotates; max_rows_per_file provides an exact deterministic boundary.
+.fabric_parquet_write_dataset <- function(
+  prepared,
+  directory,
+  compression,
+  target_file_size,
+  max_rows_per_file = NULL,
+  max_files = 10000L,
+  caller,
+  error_class
+) {
+  .fabric_parquet_positive_whole(
+    target_file_size,
+    "target_file_size"
+  )
+  .fabric_parquet_positive_whole(
+    max_rows_per_file,
+    "max_rows_per_file",
+    allow_null = TRUE
+  )
+  .fabric_parquet_positive_whole(max_files, "max_files")
+  if (!dir.exists(directory) && !dir.create(directory, recursive = TRUE)) {
+    rlang::abort("Could not create the local Parquet staging directory")
+  }
+  if (!dir.exists(directory)) {
+    rlang::abort("Local Parquet staging path is not a directory")
+  }
+
+  output <- NULL
+  writer <- NULL
+  current_path <- NULL
+  current_rows <- 0
+  paths <- character()
+  rows_per_file <- numeric()
+  bytes_per_file <- numeric()
+  complete <- FALSE
+  on.exit(
+    {
+      if (!is.null(writer)) {
+        try(writer$Close(), silent = TRUE)
+      }
+      if (!is.null(output)) {
+        try(output$close(), silent = TRUE)
+      }
+      if (!complete) {
+        unlink(unique(c(paths, current_path)), force = TRUE)
+      }
+    },
+    add = TRUE
+  )
+
+  tryCatch(
+    {
+      properties <- arrow::ParquetWriterProperties$create(
+        column_names = prepared$names,
+        compression = compression
+      )
+      open_file <- function() {
+        file_index <- length(paths) + 1L
+        if (file_index > max_files) {
+          rlang::abort(sprintf(
+            paste0(
+              "Parquet staging requires more than the allowed %d files; ",
+              "increase target_file_size or max_rows_per_file"
+            ),
+            as.integer(max_files)
+          ))
+        }
+        current_path <<- file.path(
+          directory,
+          sprintf("part-%05d.parquet", file_index)
+        )
+        if (file.exists(current_path)) {
+          rlang::abort("Parquet staging would overwrite an existing local file")
+        }
+        output <<- arrow::FileOutputStream$create(current_path)
+        writer <<- arrow::ParquetFileWriter$create(
+          prepared$schema,
+          output,
+          properties
+        )
+        current_rows <<- 0
+      }
+      close_file <- function() {
+        writer$Close()
+        writer <<- NULL
+        output$close()
+        output <<- NULL
+        bytes <- file.info(current_path)$size
+        if (
+          length(bytes) != 1L ||
+            is.na(bytes) ||
+            !is.finite(bytes) ||
+            bytes < 0
+        ) {
+          rlang::abort("Arrow did not create a readable Parquet part")
+        }
+        paths <<- c(paths, current_path)
+        rows_per_file <<- c(rows_per_file, current_rows)
+        bytes_per_file <<- c(bytes_per_file, as.numeric(bytes))
+        current_path <<- NULL
+        current_rows <<- 0
+      }
+
+      total_rows <- 0
+      repeat {
+        batch <- prepared$reader$read_next_batch()
+        if (is.null(batch)) {
+          break
+        }
+        batch_rows <- as.numeric(batch$num_rows)
+        if (
+          length(batch_rows) != 1L ||
+            is.na(batch_rows) ||
+            !is.finite(batch_rows) ||
+            batch_rows < 0
+        ) {
+          rlang::abort("Arrow returned an invalid record-batch row count")
+        }
+        offset <- 0
+        while (offset < batch_rows) {
+          if (is.null(writer)) {
+            open_file()
+          }
+          row_limit <- if (is.null(max_rows_per_file)) {
+            Inf
+          } else {
+            max_rows_per_file - current_rows
+          }
+          take <- min(
+            batch_rows - offset,
+            row_limit,
+            65536
+          )
+          if (!is.finite(take) || take < 1) {
+            close_file()
+            next
+          }
+          piece <- batch$Slice(as.numeric(offset), as.numeric(take))
+          writer$WriteBatch(piece, chunk_size = as.integer(take))
+          current_rows <- current_rows + take
+          total_rows <- total_rows + take
+          offset <- offset + take
+          current_size <- as.numeric(output$tell())
+          rotate <- current_size >= target_file_size ||
+            (!is.null(max_rows_per_file) &&
+              current_rows >= max_rows_per_file)
+          if (rotate) {
+            close_file()
+          }
+        }
+      }
+      if (is.null(writer) && !length(paths)) {
+        open_file()
+      }
+      if (!is.null(writer)) {
+        close_file()
+      }
+      complete <- TRUE
+      list(
+        paths = paths,
+        rows = as.numeric(total_rows),
+        rows_per_file = rows_per_file,
+        bytes = bytes_per_file,
+        total_bytes = sum(bytes_per_file),
+        file_count = length(paths),
+        names = prepared$names
+      )
+    },
+    error = function(error) {
+      rlang::abort(
+        paste0("Could not serialize data to partitioned Parquet for ", caller),
+        class = unique(c(error_class, "fabric_arrow_error", "fabric_error")),
+        parent = error
+      )
+    }
+  )
+}
+
+.fabric_parquet_positive_whole <- function(
+  value,
+  name,
+  allow_null = FALSE
+) {
+  if (is.null(value) && allow_null) {
+    return(invisible(value))
+  }
+  if (
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !is.finite(value) ||
+      value < 1 ||
+      value != floor(value)
+  ) {
+    rlang::abort(paste0(
+      name,
+      " must be ",
+      if (allow_null) "NULL or " else "",
+      "one positive whole number"
+    ))
+  }
+  invisible(value)
 }
 
 # Require a usable Parquet identity-mapping schema without imposing a

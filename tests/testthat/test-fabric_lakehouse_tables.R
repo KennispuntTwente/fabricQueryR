@@ -650,7 +650,9 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
       credential,
       ...
     ) {
-      expect_equal(settings$path, "Files/staging/load-fixed/orders.parquet")
+      expect_equal(settings$path, "Files/staging/load-fixed")
+      expect_equal(settings$path_type, "Folder")
+      expect_equal(settings$file_extension, "parquet")
       expect_equal(settings$format, "Parquet")
       fake_operation
     },
@@ -688,12 +690,107 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
   expect_s3_class(result, "fabric_lakehouse_write_result")
   expect_equal(result$rows, 2L)
   expect_equal(result$schema, "dbo")
+  expect_equal(result$file_count, 1L)
   expect_false(result$staging_retained)
   expect_equal(cleanup_calls, 1L)
-  expect_equal(uploaded$target$path, result$staging_path)
+  expect_equal(
+    uploaded$target$path,
+    paste0(result$staging_path, "/part-00001.parquet")
+  )
   expect_equal(uploaded$data$kind, c("a", "b"))
   expect_equal(as.character(uploaded$data$id[[1L]]), "9007199254740993")
   expect_true(is.na(uploaded$data$café_数据[[2L]]))
+})
+
+test_that("Lakehouse writer loads bounded Parquet folders", {
+  skip_if_not_installed("arrow")
+  uploads <- list()
+  settings_seen <- NULL
+  fake_operation <- structure(
+    list(id = lakehouse_table_test_operation),
+    class = "fabric_operation"
+  )
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "multi-file",
+    onelake_upload_target = function(target, source, ...) {
+      uploads[[length(uploads) + 1L]] <<- list(
+        path = target$path,
+        data = as.data.frame(arrow::read_parquet(source))
+      )
+      tibble::tibble(path = target$path)
+    },
+    .fabric_lakehouse_load_submit = function(target, settings, ...) {
+      settings_seen <<- settings
+      fake_operation
+    },
+    fabric_operation_wait = function(operation, ...) {
+      structure(
+        list(status = "Succeeded", operation = operation),
+        class = "fabric_operation_state"
+      )
+    },
+    .fabric_lakehouse_remove_staging = function(...) TRUE
+  )
+
+  result <- fabric_lakehouse_write_table(
+    lakehouse_table_test_item(),
+    "orders",
+    data.frame(id = 1:5),
+    max_rows_per_file = 2,
+    token = "test-token"
+  )
+
+  expect_equal(result$rows, 5)
+  expect_equal(result$file_count, 3L)
+  expect_equal(length(uploads), 3L)
+  expect_equal(
+    vapply(uploads, function(x) nrow(x$data), integer(1)),
+    c(2L, 2L, 1L)
+  )
+  expect_equal(unlist(lapply(uploads, function(x) x$data$id)), 1:5)
+  expect_equal(settings_seen$path_type, "Folder")
+  expect_equal(settings_seen$path, "Files/fabricqueryr-staging/multi-file")
+  expect_equal(settings_seen$file_extension, "parquet")
+  expect_equal(result$files, vapply(uploads, `[[`, character(1), "path"))
+})
+
+test_that("partitioned Parquet staging rotates by bytes and preserves empties", {
+  skip_if_not_installed("arrow")
+  directory <- tempfile("fabricqueryr-parts-")
+  empty_directory <- tempfile("fabricqueryr-empty-parts-")
+  on.exit(
+    unlink(c(directory, empty_directory), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+  prepared <- .fabric_parquet_prepare_data(
+    data.frame(id = seq_len(70000L)),
+    "test"
+  )
+  parts <- .fabric_parquet_write_dataset(
+    prepared,
+    directory,
+    compression = "snappy",
+    target_file_size = 1,
+    caller = "test",
+    error_class = "fabric_test_error"
+  )
+  expect_equal(parts$file_count, 2L)
+  expect_equal(parts$rows, 70000)
+  expect_equal(parts$rows_per_file, c(65536, 4464))
+  expect_true(all(parts$bytes > 0))
+
+  empty <- .fabric_parquet_write_dataset(
+    .fabric_parquet_prepare_data(data.frame(id = integer()), "test"),
+    empty_directory,
+    compression = "snappy",
+    target_file_size = 1024,
+    caller = "test",
+    error_class = "fabric_test_error"
+  )
+  expect_equal(empty$file_count, 1L)
+  expect_equal(empty$rows, 0)
+  expect_equal(empty$rows_per_file, 0)
+  expect_named(as.data.frame(arrow::read_parquet(empty$paths[[1L]])), "id")
 })
 
 test_that("Lakehouse writer reports retained staging on load failure", {
@@ -727,7 +824,7 @@ test_that("Lakehouse writer reports retained staging on load failure", {
   expect_true(retained$staging_retained)
   expect_match(
     retained$staging_path,
-    "Files/fabricqueryr-staging/load-failed/orders.parquet",
+    "Files/fabricqueryr-staging/load-failed",
     fixed = TRUE
   )
   expect_equal(cleanup_calls, 0L)

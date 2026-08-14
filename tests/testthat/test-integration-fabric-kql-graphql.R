@@ -328,11 +328,13 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
     data = dataset,
     ingest_if_not_exists = paste0("arrow-", nonce),
     skip_batching = TRUE,
+    max_rows_per_file = 1,
     timeout = 600,
     token = token
   )
   expect_equal(arrow_result$status$state, "Succeeded")
   expect_equal(arrow_result$rows, 3)
+  expect_equal(arrow_result$file_count, 3L)
   expect_false(arrow_result$staging_retained)
 
   rows <- fabric_test_eventually(function() {
@@ -351,7 +353,9 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
       ),
       token = token
     )
-    if (sum(as.numeric(value$rows)) != 5L) return(NULL)
+    if (sum(as.numeric(value$rows)) != 5L) {
+      return(NULL)
+    }
     value
   })
   counts <- setNames(as.numeric(rows$rows), rows$category)

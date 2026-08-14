@@ -1648,14 +1648,14 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' The queued-ingestion REST API accepts storage blobs rather than inline R
 #' values. This function provides the higher-level one-call workflow: it reads
 #' the ingestion service's preview configuration, chooses a trusted OneLake
-#' lake folder, creates a unique `fabricqueryr-staging` path, uploads one
-#' complete Parquet file, and submits that file with `;impersonate` storage
+#' lake folder, creates a unique `fabricqueryr-staging` path, uploads bounded
+#' Parquet parts, and submits them with `;impersonate` storage
 #' authentication. `staging_folder` can override the advertised folder with a
 #' trusted OneLake `Files/` URI.
 #'
 #' The caller therefore needs Kusto Table Ingestor and Database User access,
 #' plus write/delete access to the selected OneLake folder. The Eventhouse
-#' ingestion service must be able to read that file as the caller.
+#' ingestion service must be able to read those files as the caller.
 #'
 #' @section R and Arrow inputs:
 #' Data frames and tibbles are converted through Arrow. Factors become strings;
@@ -1664,7 +1664,7 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' RecordBatchReaders are accepted, as are Arrow-compatible
 #' `nanoarrow_array_stream` objects returned by package query helpers. Lazy
 #' inputs are read one record batch at a time and written directly to a
-#' temporary Parquet file, so the complete data set is never collected into R
+#' temporary Parquet parts, so the complete data set is never collected into R
 #' memory. A supplied reader or stream is single-use and is consumed.
 #'
 #' Parquet identity mapping matches source fields to existing KQL columns by
@@ -1698,6 +1698,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param keep_staging_on_failure Retain staging after a confirmed terminal
 #'   Kusto failure. Ambiguous failures are always retained.
 #' @param compression Parquet compression supported by [arrow::write_parquet()].
+#' @param target_file_size Soft maximum bytes per staged Parquet file. The
+#'   service's advertised total-size and blob-count limits are still enforced.
+#' @param max_rows_per_file Optional exact maximum rows per staged file.
 #' @param tags,ingest_if_not_exists,skip_batching,creation_time Ingestion
 #'   properties passed to [fabric_kql_ingest()].
 #' @param timeout Positive number of seconds allowed for submission and tracked
@@ -1713,8 +1716,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param allow_custom_endpoint Permit a trusted non-Microsoft Kusto origin.
 #' @param .sleep,.now Internal deterministic polling hooks.
 #'
-#' @return A `fabric_kql_write_result` containing row/byte counts, normalized
-#'   ingestion status, tracking handle, source ID, and staging disposition.
+#' @return A `fabric_kql_write_result` containing row/byte/file counts,
+#'   normalized ingestion status, tracking handle, source IDs, and staging
+#'   disposition.
 #' @references
 #' [Queued ingestion configuration REST API (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
 #'
@@ -1754,6 +1758,8 @@ fabric_kql_write_table <- function(
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
   compression = "snappy",
+  target_file_size = 512 * 1024^2,
+  max_rows_per_file = NULL,
   tags = character(),
   ingest_if_not_exists = character(),
   skip_batching = FALSE,
@@ -1860,32 +1866,38 @@ fabric_kql_write_table <- function(
     configuration,
     override = staging_folder
   )
-  storage_target <- folder
-  storage_target$path <- paste(
+  storage_directory <- folder
+  storage_directory$path <- paste(
     folder$path,
     staging_root,
     .fabric_lakehouse_staging_id(),
-    "data.parquet",
     sep = "/"
   )
-  staging_path <- onelake_path_url(storage_target)
+  staging_path <- onelake_path_url(storage_directory)
 
-  # 3 Stream to bounded local Parquet storage and enforce the advertised limit -------------------
+  # 3 Stream to bounded local Parquet parts and enforce advertised limits -------------------------
 
-  parquet <- tempfile("fabricqueryr-kql-", fileext = ".parquet")
-  on.exit(unlink(parquet, force = TRUE), add = TRUE)
-  serialized <- .fabric_parquet_write_stream(
+  parquet_directory <- tempfile("fabricqueryr-kql-")
+  dir.create(parquet_directory)
+  on.exit(
+    unlink(parquet_directory, recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+  serialized <- .fabric_parquet_write_dataset(
     prepared,
-    path = parquet,
+    directory = parquet_directory,
     compression = compression,
+    target_file_size = target_file_size,
+    max_rows_per_file = max_rows_per_file,
+    max_files = configuration$max_blobs,
     caller = "fabric_kql_write_table()",
     error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
   )
-  if (serialized$bytes > configuration$max_data_size) {
+  if (serialized$total_bytes > configuration$max_data_size) {
     rlang::abort(
       paste0(
-        "The staged Parquet file is ",
-        format(serialized$bytes, scientific = FALSE, trim = TRUE),
+        "The staged Parquet batch is ",
+        format(serialized$total_bytes, scientific = FALSE, trim = TRUE),
         " bytes, exceeding the ingestion service limit of ",
         format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
         " bytes"
@@ -1893,20 +1905,32 @@ fabric_kql_write_table <- function(
       class = c("fabric_kql_size_error", "fabric_kql_write_error")
     )
   }
+  storage_targets <- lapply(basename(serialized$paths), function(name) {
+    target <- storage_directory
+    target$path <- paste(storage_directory$path, name, sep = "/")
+    target
+  })
+  storage_target <- storage_targets[[1L]]
+  staging_paths <- vapply(storage_targets, onelake_path_url, character(1))
 
-  # 4 Upload the complete file atomically ---------------------------------------------------------
+  # 4 Upload every complete file atomically -------------------------------------------------------
 
   tryCatch(
-    onelake_upload_target(
-      storage_target,
-      credential,
-      source = parquet,
-      overwrite = FALSE,
-      if_match = NULL,
-      chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2),
-      content_type = "application/vnd.apache.parquet",
-      create_parents = TRUE
-    ),
+    for (index in seq_along(storage_targets)) {
+      onelake_upload_target(
+        storage_targets[[index]],
+        credential,
+        source = serialized$paths[[index]],
+        overwrite = FALSE,
+        if_match = NULL,
+        chunk_size = getOption(
+          "fabricqueryr.onelake.chunk_size",
+          8 * 1024^2
+        ),
+        content_type = "application/vnd.apache.parquet",
+        create_parents = TRUE
+      )
+    },
     error = function(error) {
       rlang::abort(
         paste0(
@@ -1923,15 +1947,18 @@ fabric_kql_write_table <- function(
 
   # 5 Submit once, then wait using retry-safe status requests ------------------------------------
 
-  source_id <- kusto_ingestion_source_id()
+  source_ids <- character()
+  for (index in seq_along(staging_paths)) {
+    source_ids[[index]] <- kusto_ingestion_source_id(source_ids)
+  }
   ingestion <- tryCatch(
     fabric_kql_ingest(
       cluster,
       table = table,
-      sources = paste0(staging_path, ";impersonate"),
+      sources = paste0(staging_paths, ";impersonate"),
       database = database,
       format = "parquet",
-      source_ids = source_id,
+      source_ids = source_ids,
       raw_sizes = serialized$bytes,
       mapping = mapping,
       tags = tags,
@@ -2002,8 +2029,9 @@ fabric_kql_write_table <- function(
     serialized,
     ingestion,
     status,
-    source_id,
+    source_ids,
     staging_path,
+    staging_paths,
     staging_retained
   )
   if (!succeeded && isTRUE(error_on_failure)) {
@@ -2044,6 +2072,7 @@ print.fabric_kql_write_result <- function(x, ...) {
   cat("  target:   ", paste0(x$database, ".", x$table), "\n")
   cat("  state:    ", x$status$state, "\n")
   cat("  rows:     ", x$rows, "\n")
+  cat("  files:    ", x$file_count, "\n")
   cat("  staging:  ", if (x$staging_retained) "retained" else "removed", "\n")
   invisible(x)
 }
@@ -2057,8 +2086,12 @@ kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
     httr2::req_headers(
       Accept = "application/json",
       `x-ms-app` = "fabricQueryR",
-      `x-ms-client-version` = as.character(utils::packageVersion("fabricQueryR")),
-      `x-ms-client-request-id` = .kusto_next_ingestion_request_id("Configuration")
+      `x-ms-client-version` = as.character(utils::packageVersion(
+        "fabricQueryR"
+      )),
+      `x-ms-client-request-id` = .kusto_next_ingestion_request_id(
+        "Configuration"
+      )
     ) |>
     httr2::req_timeout(timeout)
   response <- .httr2_perform(
@@ -2135,20 +2168,24 @@ kusto_ingestion_configuration_paths <- function(value) {
       "Kusto ingestion configuration lakeFolders must be an array"
     )
   }
-  paths <- vapply(value, function(record) {
-    path <- if (is.list(record)) record$path else NULL
-    if (
-      !is.character(path) ||
-        length(path) != 1L ||
-        is.na(path) ||
-        !nzchar(path)
-    ) {
-      kusto_ingestion_protocol_error(
-        "Kusto ingestion configuration contains an invalid lake folder"
-      )
-    }
-    path
-  }, character(1))
+  paths <- vapply(
+    value,
+    function(record) {
+      path <- if (is.list(record)) record$path else NULL
+      if (
+        !is.character(path) ||
+          length(path) != 1L ||
+          is.na(path) ||
+          !nzchar(path)
+      ) {
+        kusto_ingestion_protocol_error(
+          "Kusto ingestion configuration contains an invalid lake folder"
+        )
+      }
+      path
+    },
+    character(1)
+  )
   unique(paths)
 }
 
@@ -2189,7 +2226,7 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
   )
 }
 
-# Best-effort removal of the unique directory containing one staged file.
+# Best-effort removal of the unique directory containing staged files.
 .fabric_onelake_remove_staging <- function(target, credential) {
   isTRUE(tryCatch(
     {
@@ -2230,8 +2267,9 @@ kusto_write_result <- function(
   serialized,
   ingestion,
   status,
-  source_id,
+  source_ids,
   staging_path,
+  staging_paths,
   staging_retained
 ) {
   structure(
@@ -2240,10 +2278,14 @@ kusto_write_result <- function(
       database = target$database,
       table = target$table,
       rows = serialized$rows,
-      bytes = serialized$bytes,
+      bytes = serialized$total_bytes,
+      part_bytes = serialized$bytes,
+      file_count = serialized$file_count,
       columns = serialized$names,
-      source_id = source_id,
+      source_id = source_ids[[1L]],
+      source_ids = source_ids,
       staging_path = staging_path,
+      staging_paths = staging_paths,
       staging_retained = staging_retained,
       status = status,
       ingestion = ingestion

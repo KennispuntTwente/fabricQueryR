@@ -4,11 +4,14 @@ kql_write_test_folder <- paste0(
   "22222222-2222-4222-8222-222222222222/Files/ingestion"
 )
 
-kql_write_test_configuration <- function(max_data_size = 6442450944) {
+kql_write_test_configuration <- function(
+  max_data_size = 6442450944,
+  max_blobs = 20
+) {
   list(
     lake_folders = kql_write_test_folder,
     max_data_size = max_data_size,
-    max_blobs = 20,
+    max_blobs = max_blobs,
     preferred_upload_method = "Lake",
     preferred_ingestion_method = "REST"
   )
@@ -160,13 +163,14 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   expect_s3_class(result, "fabric_kql_write_result")
   expect_equal(result$rows, 2)
   expect_equal(result$bytes, uploaded$bytes)
+  expect_equal(result$file_count, 1L)
   expect_equal(result$columns, names(value))
   expect_false(result$staging_retained)
   expect_equal(cleanup_calls, 1L)
   expect_equal(uploaded$data$label, c("a", "b"))
   expect_equal(
     uploaded$target$path,
-    "Files/ingestion/fabricqueryr-staging/write-fixed/data.parquet"
+    "Files/ingestion/fabricqueryr-staging/write-fixed/part-00001.parquet"
   )
   expect_match(submitted$sources, ";impersonate$", perl = TRUE)
   expect_equal(submitted$format, "parquet")
@@ -178,6 +182,54 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   expect_s3_class(submitted$token, "fabric_credential")
   expect_true(status_args$wait)
   expect_false(status_args$error_on_failure)
+})
+
+test_that("Eventhouse writer submits bounded Parquet batches", {
+  skip_if_not_installed("arrow")
+  uploads <- list()
+  submitted <- NULL
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "multi-file",
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration(max_blobs = 3)
+    },
+    onelake_upload_target = function(target, source, ...) {
+      uploads[[length(uploads) + 1L]] <<- list(
+        path = onelake_path_url(target),
+        bytes = file.info(source)$size,
+        data = as.data.frame(arrow::read_parquet(source))
+      )
+      tibble::tibble(path = target$path)
+    },
+    fabric_kql_ingest = function(...) {
+      submitted <<- list(...)
+      kql_write_test_ingestion()
+    },
+    fabric_kql_ingestion_status = function(...) kql_write_test_status(),
+    .fabric_onelake_remove_staging = function(...) TRUE
+  )
+
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1:5),
+    database = "Telemetry",
+    max_rows_per_file = 2,
+    token = "test-token"
+  )
+
+  expect_equal(result$file_count, 3L)
+  expect_equal(length(uploads), 3L)
+  expect_equal(
+    vapply(uploads, function(x) nrow(x$data), integer(1)),
+    c(2L, 2L, 1L)
+  )
+  expect_equal(unlist(lapply(uploads, function(x) x$data$id)), 1:5)
+  expect_equal(submitted$raw_sizes, vapply(uploads, `[[`, numeric(1), "bytes"))
+  expect_equal(submitted$sources, paste0(result$staging_paths, ";impersonate"))
+  expect_length(submitted$source_ids, 3L)
+  expect_length(unique(submitted$source_ids), 3L)
+  expect_equal(result$bytes, sum(result$part_bytes))
 })
 
 test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
@@ -244,6 +296,32 @@ test_that("Eventhouse writer enforces configured size before upload", {
       token = "test-token"
     ),
     class = "fabric_kql_size_error"
+  )
+  expect_equal(upload_calls, 0L)
+})
+
+test_that("Eventhouse writer enforces the advertised blob count", {
+  skip_if_not_installed("arrow")
+  upload_calls <- 0L
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration(max_blobs = 2)
+    },
+    onelake_upload_target = function(...) {
+      upload_calls <<- upload_calls + 1L
+    }
+  )
+  expect_error(
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1:3),
+      database = "Telemetry",
+      max_rows_per_file = 1,
+      token = "test-token"
+    ),
+    "allowed 2 files",
+    class = "fabric_kql_arrow_error"
   )
   expect_equal(upload_calls, 0L)
 })

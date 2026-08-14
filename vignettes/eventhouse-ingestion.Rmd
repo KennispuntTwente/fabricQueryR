@@ -100,11 +100,12 @@ written <- fabric_kql_write_table(
 )
 ```
 
-The dataset is scanned one record batch at a time into a temporary Parquet file
-and then uploaded in bounded chunks. It is never collected into a data frame or
-Arrow Table. A supplied RecordBatchReader is single-use and is exhausted by the
-write. The local file must fit on disk and the serialized file must remain
-within the ingestion service's advertised size limit.
+The dataset is scanned one record batch at a time into bounded temporary
+Parquet parts and then uploaded in bounded chunks. It is never collected into a
+data frame or Arrow Table. A supplied RecordBatchReader is single-use and is
+exhausted by the write. Use `target_file_size` for a soft byte boundary or
+`max_rows_per_file` for an exact row boundary. The serialized batch must remain
+within the ingestion service's advertised size and blob-count limits.
 
 The function uses the OneLake folder returned by
 `/v1/rest/ingestion/configuration`. If an administrator provides a different

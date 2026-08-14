@@ -284,13 +284,15 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
   )
   expect_true(failure$staging_retained)
   expect_match(failure$staging_path, "^Files/fabricqueryr-staging/")
-  retained <- fabric_onelake_metadata(
+  retained <- fabric_onelake_list(
     manifest$workspace_id,
     lakehouse$id,
     failure$staging_path,
+    recursive = TRUE,
     token = token
   )
-  expect_gt(retained$content_length, 0)
+  expect_equal(sum(!retained$is_directory), 1L)
+  expect_gt(sum(retained$content_length, na.rm = TRUE), 0)
 
   # A rejected append must leave the committed destination unchanged.
   destination_rows <- fabric_test_eventually(function() {
@@ -315,8 +317,10 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
     target,
     table = "fabricqueryr_recovered_load",
     path = failure$staging_path,
+    path_type = "Folder",
     format = "Parquet",
     mode = "Overwrite",
+    file_extension = "parquet",
     token = token
   )
   recovered_state <- fabric_operation_wait(recovered, timeout = 900)
@@ -341,6 +345,7 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
     manifest$workspace_id,
     lakehouse$id,
     failure$staging_path,
+    recursive = TRUE,
     confirm = TRUE,
     token = token
   ))
@@ -371,11 +376,13 @@ test_that("Lakehouse writer streams a lazy Arrow Dataset end to end", {
     table = table,
     data = arrow::open_dataset(dataset_path),
     mode = "Overwrite",
+    max_rows_per_file = 2,
     timeout = 900,
     token = token
   )
   expect_equal(result$operation_status$status, "Succeeded")
   expect_equal(result$rows, 5)
+  expect_equal(result$file_count, 3L)
   expect_false(result$staging_retained)
 
   rows <- fabric_test_eventually(function() {
@@ -387,7 +394,9 @@ test_that("Lakehouse writer streams a lazy Arrow Dataset end to end", {
       token = token,
       verbose = FALSE
     )
-    if (nrow(value) != 5L) return(NULL)
+    if (nrow(value) != 5L) {
+      return(NULL)
+    }
     value[order(value$id), ]
   })
   expect_equal(rows$id, 1:5)

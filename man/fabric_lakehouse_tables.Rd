@@ -55,6 +55,8 @@ fabric_lakehouse_write_table(
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
   compression = "snappy",
+  target_file_size = 512 * 1024^2,
+  max_rows_per_file = NULL,
   poll_interval = NULL,
   timeout = 900,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -143,14 +145,21 @@ package is required.}
 \item{staging_root}{Item-relative directory below \verb{Files/} used for unique
 staging files.}
 
-\item{cleanup}{Whether to delete the staged Parquet file after Fabric
+\item{cleanup}{Whether to delete the staged Parquet files after Fabric
 confirms a successful load.}
 
 \item{keep_staging_on_failure}{Whether to retain a completely uploaded
-staging file when the load fails. The raised condition includes
+staging directory when the load fails. The raised condition includes
 \code{staging_path} and \code{staging_retained} fields.}
 
 \item{compression}{Parquet compression passed to \code{\link[arrow:write_parquet]{arrow::write_parquet()}}.}
+
+\item{target_file_size}{Soft maximum bytes per staged Parquet file. A file
+rotates after its current Arrow row group reaches this size.}
+
+\item{max_rows_per_file}{Optional exact maximum rows per staged file. This is
+useful when row counts are a more predictable boundary than compressed
+bytes.}
 
 \item{poll_interval}{Minimum seconds between load-operation status requests.
 \code{NULL} follows Fabric's \code{Retry-After} hint with the shared fallback.}
@@ -231,8 +240,8 @@ to Fabric's documented 128-character limit.
 
 \section{Failure and cleanup behavior}{
 
-The high-level writer uploads one complete Parquet file atomically to a
-unique path and starts the managed load only after that upload succeeds. A
+The high-level writer uploads complete Parquet parts atomically to a unique
+folder and starts the managed folder load only after every upload succeeds. A
 successful load is a committed Delta operation. On failure, the destination
 is left to Fabric's transactional load behavior and fabricQueryR never edits
 \verb{Tables/} files.

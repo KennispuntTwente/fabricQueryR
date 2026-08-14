@@ -15,6 +15,8 @@ fabric_kql_write_table(
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
   compression = "snappy",
+  target_file_size = 512 * 1024^2,
+  max_rows_per_file = NULL,
   tags = character(),
   ingest_if_not_exists = character(),
   skip_batching = FALSE,
@@ -59,6 +61,11 @@ Kusto failure. Ambiguous failures are always retained.}
 
 \item{compression}{Parquet compression supported by \code{\link[arrow:write_parquet]{arrow::write_parquet()}}.}
 
+\item{target_file_size}{Soft maximum bytes per staged Parquet file. The
+service's advertised total-size and blob-count limits are still enforced.}
+
+\item{max_rows_per_file}{Optional exact maximum rows per staged file.}
+
 \item{tags, ingest_if_not_exists, skip_batching, creation_time}{Ingestion
 properties passed to \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}
 
@@ -84,8 +91,9 @@ disposition.}
 \item{.sleep, .now}{Internal deterministic polling hooks.}
 }
 \value{
-A \code{fabric_kql_write_result} containing row/byte counts, normalized
-ingestion status, tracking handle, source ID, and staging disposition.
+A \code{fabric_kql_write_result} containing row/byte/file counts,
+normalized ingestion status, tracking handle, source IDs, and staging
+disposition.
 }
 \description{
 Serializes an R or Arrow object to Parquet, uploads it to the OneLake staging
@@ -98,14 +106,14 @@ after a confirmed success.
 The queued-ingestion REST API accepts storage blobs rather than inline R
 values. This function provides the higher-level one-call workflow: it reads
 the ingestion service's preview configuration, chooses a trusted OneLake
-lake folder, creates a unique \code{fabricqueryr-staging} path, uploads one
-complete Parquet file, and submits that file with \verb{;impersonate} storage
+lake folder, creates a unique \code{fabricqueryr-staging} path, uploads bounded
+Parquet parts, and submits them with \verb{;impersonate} storage
 authentication. \code{staging_folder} can override the advertised folder with a
 trusted OneLake \verb{Files/} URI.
 
 The caller therefore needs Kusto Table Ingestor and Database User access,
 plus write/delete access to the selected OneLake folder. The Eventhouse
-ingestion service must be able to read that file as the caller.
+ingestion service must be able to read those files as the caller.
 }
 
 \section{R and Arrow inputs}{
@@ -116,7 +124,7 @@ RecordBatches, Datasets, Scanners, \code{arrow_dplyr_query} objects, and
 RecordBatchReaders are accepted, as are Arrow-compatible
 \code{nanoarrow_array_stream} objects returned by package query helpers. Lazy
 inputs are read one record batch at a time and written directly to a
-temporary Parquet file, so the complete data set is never collected into R
+temporary Parquet parts, so the complete data set is never collected into R
 memory. A supplied reader or stream is single-use and is consumed.
 
 Parquet identity mapping matches source fields to existing KQL columns by

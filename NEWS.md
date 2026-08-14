@@ -26,6 +26,11 @@
   same batch-wise Arrow serializer for larger-than-memory inputs. Both writers
   retain staging whenever a remote outcome is ambiguous.
 
+* Lakehouse and Eventhouse writers now rotate lazy Arrow input into bounded
+  Parquet parts. Lakehouse uses the documented folder-load contract; Kusto
+  batches honor the ingestion service's advertised blob-count and total-size
+  limits.
+
 * Added `fabric_lakehouse_read_table()` as the symmetric, discovery-record-aware
   counterpart to `fabric_lakehouse_write_table()`, with projected, time-travel,
   tibble, and Arrow-stream results delegated to the OneLake Delta reader.
