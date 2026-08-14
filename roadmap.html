@@ -256,18 +256,26 @@
 </div>
 <div class="section level2">
 <h2 id="priority-7-add-tracked-eventhouse-ingestion">Priority 7: Add tracked Eventhouse ingestion<a class="anchor" aria-label="anchor" href="#priority-7-add-tracked-eventhouse-ingestion"></a></h2>
-<p><strong>Status (August 2026): proposed, preview-dependent.</strong> The Kusto queued-ingestion REST API is currently preview.</p>
+<p><strong>Status (August 2026): implemented, preview-dependent.</strong> The Kusto queued-ingestion REST API is currently preview.</p>
 <div class="section level3">
 <h3 id="objective-7">Objective<a class="anchor" aria-label="anchor" href="#objective-7"></a></h3>
 <p>Let batch-oriented R workflows submit files or staged OneLake data to an existing Eventhouse table and monitor the outcome.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-7">Direction<a class="anchor" aria-label="anchor" href="#direction-7"></a></h3>
-<ul><li>Add <code>fabric_kql_ingest()</code> and <code>fabric_kql_ingestion_status()</code> for tracked queued ingestion.</li>
+<ul><li>Add <code><a href="reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> and <code><a href="reference/fabric_kql_ingest.html">fabric_kql_ingestion_status()</a></code> for tracked queued ingestion.</li>
 <li>Support existing blob or OneLake sources first. Add data-frame convenience only through a staged, documented format with bounded memory use.</li>
 <li>Validate format, mapping, tags, size, source IDs, batch limits, and target database/table before submission.</li>
 <li>Document at-least-once semantics and expose source IDs for idempotent designs.</li>
 <li>Keep general Kusto administration and production use of <code>.ingest</code> commands out of the primary API.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-7">Implementation<a class="anchor" aria-label="anchor" href="#implementation-7"></a></h3>
+<ul><li>Added <code><a href="reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> over the preview ingestion-service REST route for existing HTTPS and ABFSS blob or OneLake sources, with discovery-record support and strict ingestion-URI trust boundaries.</li>
+<li>Added client-generated or caller-supplied source GUIDs, structured source metadata, the documented ingestion formats and properties, 20-blob and 6 GB validation, predefined mappings, and automatic <code>ingest-by:</code> tags for stable <code>ingest_if_not_exists</code> keys.</li>
+<li>Kept submission non-retriable because queued ingestion is at least once and an ambiguous POST replay can duplicate data. Submission errors explicitly retain throttling and permission diagnostics; source URLs are redacted in retained handles and results.</li>
+<li>Added <code><a href="reference/fabric_kql_ingest.html">fabric_kql_ingestion_status()</a></code> for one-shot or bounded polling with retry-safe status GETs, normalized aggregate states, typed timeouts, and actionable per-source permanent/transient failure details, including partial batches.</li>
+<li>Added offline request, validation, duplicate, mapping, permission, timeout, throttling, protocol, and redaction coverage plus a live tagged OneLake CSV ingestion, wait, duplicate-prevention, and KQL query round trip.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-7">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-7"></a></h3>
@@ -329,6 +337,9 @@
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">Invoke User Data Functions externally</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export" class="external-link">Fabric GraphQL introspection and schema export</a></li>
 <li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion REST API</a></li>
+<li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-status-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion status REST API</a></li>
+<li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion configuration REST API</a></li>
+<li><a href="https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric" class="external-link">Kusto storage connection strings</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr" class="external-link">Use SparkR in Fabric</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link">Use sparklyr in Fabric</a></li>
 </ul></div>

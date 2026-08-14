@@ -79,10 +79,17 @@ Discover, load, and read Delta Lake tables in OneLake
 
 ## KQL
 
-Query Eventhouse and KQL Database data
+Query Eventhouse data and track queued ingestion from storage
 
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Run a KQL query in Microsoft Fabric
+- [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  : Submit and monitor tracked Eventhouse ingestion
+- [`print(`*`<fabric_kql_ingestion>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion.md)
+  : Print a tracked Kusto ingestion handle
+- [`print(`*`<fabric_kql_ingestion_status>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion_status.md)
+  : Print tracked Kusto ingestion status
 
 ## GraphQL
 

@@ -10,6 +10,11 @@
 - [Explore and collect Fabric GraphQL
   data](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.md):
 
+### Eventhouse ingestion
+
+- [Track Eventhouse ingestion from
+  R](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md):
+
 ### Job automation
 
 - [Automate and inspect Microsoft Fabric

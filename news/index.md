@@ -23,6 +23,15 @@
   Nested values remain list-columns and exact large integers remain
   character data.
 
+- Added preview tracked Eventhouse ingestion with
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  and
+  [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
+  Existing blob and OneLake batches are validated, submitted without
+  unsafe automatic replay, and monitored with per-source IDs,
+  partial-failure details, idempotency tags, redacted storage
+  credentials, and bounded polling.
+
 - Added
   [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
   for published Fabric User Data Functions, with trusted public-URL

@@ -441,7 +441,7 @@ analysis-ready tibbles without assuming a universal schema shape.
 
 ## Priority 7: Add tracked Eventhouse ingestion
 
-**Status (August 2026): proposed, preview-dependent.** The Kusto
+**Status (August 2026): implemented, preview-dependent.** The Kusto
 queued-ingestion REST API is currently preview.
 
 ### Objective
@@ -451,8 +451,11 @@ existing Eventhouse table and monitor the outcome.
 
 ### Direction
 
-- Add `fabric_kql_ingest()` and `fabric_kql_ingestion_status()` for
-  tracked queued ingestion.
+- Add
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  and
+  [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  for tracked queued ingestion.
 - Support existing blob or OneLake sources first. Add data-frame
   convenience only through a staged, documented format with bounded
   memory use.
@@ -462,6 +465,31 @@ existing Eventhouse table and monitor the outcome.
   designs.
 - Keep general Kusto administration and production use of `.ingest`
   commands out of the primary API.
+
+### Implementation
+
+- Added
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  over the preview ingestion-service REST route for existing HTTPS and
+  ABFSS blob or OneLake sources, with discovery-record support and
+  strict ingestion-URI trust boundaries.
+- Added client-generated or caller-supplied source GUIDs, structured
+  source metadata, the documented ingestion formats and properties,
+  20-blob and 6 GB validation, predefined mappings, and automatic
+  `ingest-by:` tags for stable `ingest_if_not_exists` keys.
+- Kept submission non-retriable because queued ingestion is at least
+  once and an ambiguous POST replay can duplicate data. Submission
+  errors explicitly retain throttling and permission diagnostics; source
+  URLs are redacted in retained handles and results.
+- Added
+  [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  for one-shot or bounded polling with retry-safe status GETs,
+  normalized aggregate states, typed timeouts, and actionable per-source
+  permanent/transient failure details, including partial batches.
+- Added offline request, validation, duplicate, mapping, permission,
+  timeout, throttling, protocol, and redaction coverage plus a live
+  tagged OneLake CSV ingestion, wait, duplicate-prevention, and KQL
+  query round trip.
 
 ### Acceptance criteria
 
@@ -549,6 +577,12 @@ so changes in preview APIs do not destabilize mature package surfaces.
   export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export)
 - [Kusto queued ingestion REST
   API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric)
+- [Kusto queued ingestion status REST
+  API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-status-http?view=microsoft-fabric)
+- [Kusto queued ingestion configuration REST
+  API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
+- [Kusto storage connection
+  strings](https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric)
 - [Use SparkR in
   Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr)
 - [Use sparklyr in

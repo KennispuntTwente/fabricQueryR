@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Query Data in Microsoft Fabric">
-<meta name="description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; list, inspect, download, upload, and delete files in OneLake (Azure Data Lake Storage Gen2); discover and read Delta Lake tables in OneLake; stage data frames or existing CSV and Parquet files into managed Lakehouse tables; start, monitor, diagnose, and cancel semantic model refreshes; invoke published Fabric User Data Functions; execute Kusto Query Language (KQL) queries against Eventhouse databases; call user-configured GraphQL APIs over Fabric data; and execute Spark code via the Livy API. Item jobs can be submitted, monitored, waited on, and cancelled, and their run history and recurring schedules can be managed through the Fabric Job Scheduler APIs. Fabric Core long-running operations can be resumed, monitored, and retrieved through a shared result contract.">
-<meta property="og:description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; list, inspect, download, upload, and delete files in OneLake (Azure Data Lake Storage Gen2); discover and read Delta Lake tables in OneLake; stage data frames or existing CSV and Parquet files into managed Lakehouse tables; start, monitor, diagnose, and cancel semantic model refreshes; invoke published Fabric User Data Functions; execute Kusto Query Language (KQL) queries against Eventhouse databases; call user-configured GraphQL APIs over Fabric data; and execute Spark code via the Livy API. Item jobs can be submitted, monitored, waited on, and cancelled, and their run history and recurring schedules can be managed through the Fabric Job Scheduler APIs. Fabric Core long-running operations can be resumed, monitored, and retrieved through a shared result contract.">
+<meta name="description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; list, inspect, download, upload, and delete files in OneLake (Azure Data Lake Storage Gen2); discover and read Delta Lake tables in OneLake; stage data frames or existing CSV and Parquet files into managed Lakehouse tables; start, monitor, diagnose, and cancel semantic model refreshes; invoke published Fabric User Data Functions; execute Kusto Query Language (KQL) queries against Eventhouse databases; submit and monitor tracked queued ingestion from blob or OneLake storage into existing Eventhouse tables; call user-configured GraphQL APIs over Fabric data; and execute Spark code via the Livy API. Item jobs can be submitted, monitored, waited on, and cancelled, and their run history and recurring schedules can be managed through the Fabric Job Scheduler APIs. Fabric Core long-running operations can be resumed, monitored, and retrieved through a shared result contract.">
+<meta property="og:description" content="Discover workspaces, items, and workload endpoints in Microsoft Fabric. Provides helpers to open parameterized DBI connections to SQL endpoints of Lakehouse, Data Warehouse, and SQL Database items; submit Data Analysis Expressions (DAX) queries to semantic model datasets in Microsoft Fabric and Power BI; list, inspect, download, upload, and delete files in OneLake (Azure Data Lake Storage Gen2); discover and read Delta Lake tables in OneLake; stage data frames or existing CSV and Parquet files into managed Lakehouse tables; start, monitor, diagnose, and cancel semantic model refreshes; invoke published Fabric User Data Functions; execute Kusto Query Language (KQL) queries against Eventhouse databases; submit and monitor tracked queued ingestion from blob or OneLake storage into existing Eventhouse tables; call user-configured GraphQL APIs over Fabric data; and execute Spark code via the Livy API. Item jobs can be submitted, monitored, waited on, and cancelled, and their run history and recurring schedules can be managed through the Fabric Job Scheduler APIs. Fabric Core long-running operations can be resumed, monitored, and retrieved through a shared result contract.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -308,12 +308,35 @@
 <span>  <span class="op">)</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>selected_type <span class="op">=</span> <span class="st">"Warning"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>Queue existing blob or OneLake files into an existing table and wait for the per-file outcome:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>  <span class="st">"https://onelake.dfs.fabric.microsoft.com/workspace-id/"</span>,</span>
+<span>  <span class="st">"lakehouse-id/Files/events/2026-08-14.csv;impersonate"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_ingest.html">fabric_kql_ingest</a></span><span class="op">(</span></span>
+<span>  <span class="va">kql_database</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
+<span>  sources <span class="op">=</span> <span class="va">source</span>,</span>
+<span>  format <span class="op">=</span> <span class="st">"csv"</span>,</span>
+<span>  mapping <span class="op">=</span> <span class="st">"EventsCsv"</span>,</span>
+<span>  ignore_first_record <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  ingest_if_not_exists <span class="op">=</span> <span class="st">"events-2026-08-14"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">ingestion_status</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span></span>
+<span>  <span class="va">ingestion</span>,</span>
+<span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  timeout <span class="op">=</span> <span class="fl">900</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The queued-ingestion REST API is in preview. Submissions use Kusto’s ingestion URI, accept at most 20 existing storage sources per request, and have at-least-once delivery semantics. The package does not automatically replay a failed submission or stage local files implicitly. See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html">tracked Eventhouse ingestion guide</a> for OneLake authentication, mappings, idempotency tags, service limits, and failure handling.</p>
 </div>
 <div class="section level3">
 <h3 id="id_9-query-a-fabric-graphql-api">9. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_9-query-a-fabric-graphql-api"></a>
 </h3>
 <p>Call an <code>API for GraphQL</code> item that has already been configured in Fabric. The result keeps the nested GraphQL data and any GraphQL-level errors separate.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">graphql_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">graphql_api</span>,</span>
 <span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -330,7 +353,7 @@
 <span><span class="va">graphql_result</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">customers</span><span class="op">$</span><span class="va">items</span></span>
 <span><span class="va">graphql_result</span><span class="op">$</span><span class="va">errors</span></span></code></pre></div>
 <p>Explore APIs whose administrators enabled runtime introspection, then collect an explicitly selected row path across cursor pages:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schema</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_schema.html">fabric_graphql_schema</a></span><span class="op">(</span><span class="va">graphql_api</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">pages</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_paginate.html">fabric_graphql_paginate</a></span><span class="op">(</span></span>
@@ -356,7 +379,7 @@
 <h3 id="id_10-invoke-a-fabric-user-data-function">10. Invoke a Fabric User Data Function<a class="anchor" aria-label="anchor" href="#id_10-invoke-a-fabric-user-data-function"></a>
 </h3>
 <p>Call published Fabric business logic through the function’s explicit public URL. Enable Public access in Run only mode and copy the URL from the function’s properties; discovery intentionally does not guess it.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">function_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -374,7 +397,7 @@
 <h3 id="id_11-run-and-monitor-fabric-jobs">11. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_11-run-and-monitor-fabric-jobs"></a>
 </h3>
 <p>Start a notebook, data pipeline, or Spark job definition, then wait for completion or inspect/cancel it from R. You can also inspect earlier runs and manage recurring schedules.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span></span>
 <span>  <span class="va">notebook</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"incremental"</span>, batch_size <span class="op">=</span> <span class="fl">100L</span><span class="op">)</span>,</span>
@@ -408,7 +431,7 @@
 <h3 id="id_12-resume-a-fabric-long-running-operation">12. Resume a Fabric long-running operation<a class="anchor" aria-label="anchor" href="#id_12-resume-a-fabric-long-running-operation"></a>
 </h3>
 <p>Some Fabric APIs return an operation ID while provisioning continues. Resume that work from its ID or <code>Location</code> URL, wait for success, and retrieve its JSON, binary, or empty result through one consistent result object.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_operation_status.html">fabric_operation_status</a></span><span class="op">(</span></span>
 <span>  <span class="st">"00000000-0000-0000-0000-000000000000"</span></span>
 <span><span class="op">)</span></span>

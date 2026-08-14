@@ -25,7 +25,9 @@ details by hand
   [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   for report-ready semantic models,
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
-  for Eventhouse/KQL data, and
+  for Eventhouse/KQL data,
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  for tracked batch ingestion, and
   [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
   for an API for GraphQL item
 

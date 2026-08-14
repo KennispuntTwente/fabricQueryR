@@ -1,0 +1,189 @@
+# Track Eventhouse ingestion from R
+
+Kusto queued ingestion is designed for batch files that already exist in
+blob storage or OneLake. fabricQueryR submits those files to an existing
+Eventhouse table, retains the operation and source IDs, and turns the
+status response into a failure-aware R record. The underlying REST
+routes are currently in preview.
+
+## Prepare the target and source
+
+Start with a discovered KQL database. Its record contains both the query
+URI used by
+[`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+and the ingestion URI used here:
+
+``` r
+
+library(fabricQueryR)
+
+database <- fabric_kql_databases("Telemetry workspace")[[1]]
+database$ingestion_service_uri
+```
+
+The destination table must already exist. For CSV, JSON, Avro, Parquet,
+and ORC workflows, create and validate a named ingestion mapping in
+Fabric before the R workflow starts. General Kusto administration is
+intentionally outside this API.
+
+The source must be a Kusto storage connection string. A OneLake file can
+use the workspace and item GUIDs and caller impersonation:
+
+``` r
+
+source <- paste0(
+  "https://onelake.dfs.fabric.microsoft.com/",
+  "00000000-0000-0000-0000-000000000001/",
+  "00000000-0000-0000-0000-000000000002/",
+  "Files/events/2026-08-14.csv;impersonate"
+)
+```
+
+The signed-in principal must be able to read that OneLake file. Other
+supported storage connection strings can carry a SAS token, a
+managed-identity suffix, or another authentication method documented by
+Kusto. Avoid writing credentialed URLs to logs. Handles and status
+results redact recognized secrets, but the submission process
+necessarily sends the complete source string to the trusted Kusto
+ingestion endpoint.
+
+Local paths and R data frames are not uploaded implicitly. Stage them in
+a bounded format first—for example with
+[`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)—and
+then submit the resulting OneLake URL. This makes memory use, file
+format, cleanup, and retry ownership explicit.
+
+## Queue a tracked batch
+
+Supply the source format and the predefined mapping. Source GUIDs are
+generated when omitted and exposed on the returned handle:
+
+``` r
+
+ingestion <- fabric_kql_ingest(
+  database,
+  table = "Events",
+  sources = source,
+  format = "csv",
+  mapping = "EventsCsv",
+  ignore_first_record = TRUE,
+  tags = "source:daily-export",
+  ingest_if_not_exists = "events-2026-08-14"
+)
+
+ingestion$id
+ingestion$sources$source_id
+ingestion$tags
+```
+
+`ingest_if_not_exists` uses stable keys without the `ingest-by:` prefix.
+The function attaches the matching extent tag automatically. A later
+ingestion with the same key is prevented when that tag already exists.
+This is the Kusto idempotency mechanism; a source GUID primarily
+identifies a blob in tracking and diagnostics.
+
+Queued ingestion still has at-least-once delivery. In particular,
+concurrent requests using the same key can race before either extent
+exists. Serialize submissions sharing a key. fabricQueryR also does not
+retry the submission POST: after a timeout, throttling response, or lost
+connection, the service might already have accepted it, so an automatic
+replay could duplicate data.
+
+The preview route accepts at most 20 blobs per request and up to 6 GB of
+uncompressed data. Structured records expose known sizes without
+parallel vectors:
+
+``` r
+
+sources <- tibble::tibble(
+  url = c(source_a, source_b),
+  source_id = c(source_a_id, source_b_id),
+  raw_size = c(120000000, 180000000)
+)
+
+ingestion <- fabric_kql_ingest(
+  database,
+  table = "Events",
+  sources = sources,
+  format = "parquet",
+  mapping = "EventsParquet"
+)
+```
+
+Keep `skip_batching = FALSE` for normal throughput. Set it only when
+lower latency is more important than Kusto’s normal batching efficiency.
+Source files are preserved by default; `delete_after_download = TRUE`
+permanently removes a successfully downloaded source and requires
+corresponding storage permission.
+
+## Wait and inspect the outcome
+
+One status snapshot is useful for a scheduler that persists operation
+IDs:
+
+``` r
+
+snapshot <- fabric_kql_ingestion_status(ingestion)
+snapshot$state
+snapshot$counts
+```
+
+For an interactive or single-process batch, poll with a client-side
+deadline:
+
+``` r
+
+result <- fabric_kql_ingestion_status(
+  ingestion,
+  wait = TRUE,
+  timeout = 900,
+  poll_interval = 2
+)
+
+result$state
+result$details
+```
+
+The deadline stops only the R waiter. A `fabric_kql_ingestion_timeout`
+condition includes the last observed status and explicitly leaves the
+service operation running. Status GETs are safe to retry and honor
+service throttling hints.
+
+A mixed batch returns `PartiallySucceeded`; completely failed and
+canceled batches have their own states. By default terminal problems
+raise a typed condition containing `last_status` and the failed-source
+details. To handle all states as data:
+
+``` r
+
+result <- fabric_kql_ingestion_status(
+  ingestion,
+  wait = TRUE,
+  error_on_failure = FALSE
+)
+
+failed <- subset(
+  result$details,
+  status %in% c("Failed", "Canceled")
+)
+failed[c("source_id", "error_code", "failure_status", "message")]
+```
+
+Retry a `Transient` source only after considering whether it might
+already have committed. A `Permanent` failure such as a missing mapping
+or malformed input requires a configuration or data fix. Query the
+destination after success:
+
+``` r
+
+loaded <- fabric_kql_query(
+  database,
+  query = "Events | where ingestion_time() > ago(1h) | take 100"
+)
+```
+
+The caller needs Table Ingestor permission on the destination and
+Database User access. Status details for nonpublic storage also require
+source storage read access. Keep the staged file until the tracked
+result is terminal and verified; then remove it with the storage
+system’s normal, explicitly authorized cleanup workflow.

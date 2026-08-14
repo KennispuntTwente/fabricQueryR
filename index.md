@@ -339,6 +339,42 @@ df_kql <- fabric_kql_query(
 )
 ```
 
+Queue existing blob or OneLake files into an existing table and wait for
+the per-file outcome:
+
+``` r
+
+source <- paste0(
+  "https://onelake.dfs.fabric.microsoft.com/workspace-id/",
+  "lakehouse-id/Files/events/2026-08-14.csv;impersonate"
+)
+
+ingestion <- fabric_kql_ingest(
+  kql_database,
+  table = "Events",
+  sources = source,
+  format = "csv",
+  mapping = "EventsCsv",
+  ignore_first_record = TRUE,
+  ingest_if_not_exists = "events-2026-08-14"
+)
+
+ingestion_status <- fabric_kql_ingestion_status(
+  ingestion,
+  wait = TRUE,
+  timeout = 900
+)
+```
+
+The queued-ingestion REST API is in preview. Submissions use Kusto’s
+ingestion URI, accept at most 20 existing storage sources per request,
+and have at-least-once delivery semantics. The package does not
+automatically replay a failed submission or stage local files
+implicitly. See the [tracked Eventhouse ingestion
+guide](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html)
+for OneLake authentication, mappings, idempotency tags, service limits,
+and failure handling.
+
 ### 9. Query a Fabric GraphQL API
 
 Call an `API for GraphQL` item that has already been configured in
