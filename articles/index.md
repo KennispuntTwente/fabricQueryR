@@ -5,6 +5,11 @@
 - [Get started with Microsoft Fabric
   authentication](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):
 
+### GraphQL
+
+- [Explore and collect Fabric GraphQL
+  data](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.md):
+
 ### Job automation
 
 - [Automate and inspect Microsoft Fabric

@@ -86,14 +86,20 @@ Query Eventhouse and KQL Database data
 
 ## GraphQL
 
-Execute GraphQL operations and traverse cursor-based pages
+Explore schemas, execute operations, and collect cursor-based pages
 
+- [`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md)
+  : Inspect a Fabric GraphQL schema
 - [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
   : Run a query against a Fabric GraphQL API
 - [`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
   : Read all pages from a Fabric GraphQL query
 - [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
   : Locate pagination information in a GraphQL result
+- [`fabric_graphql_collect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_collect.md)
+  : Collect paged GraphQL row objects into a tibble
+- [`print(`*`<fabric_graphql_rows>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_graphql_rows.md)
+  : Print collected GraphQL rows
 
 ## User Data Functions
 

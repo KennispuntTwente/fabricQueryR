@@ -15,8 +15,13 @@
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   and Fabric APIs for GraphQL with
   [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md).
-  GraphQL helpers also support variables, cursor pagination, and
-  mutations where the configured API permits them.
+  GraphQL helpers also support variables, cursor pagination, schema
+  introspection with
+  [`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md),
+  and completion-aware tidy collection with
+  [`fabric_graphql_collect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_collect.md).
+  Nested values remain list-columns and exact large integers remain
+  character data.
 
 - Added
   [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)

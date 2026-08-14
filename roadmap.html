@@ -228,17 +228,25 @@
 </div>
 <div class="section level2">
 <h2 id="priority-6-improve-graphql-schema-and-tidy-result-ergonomics">Priority 6: Improve GraphQL schema and tidy-result ergonomics<a class="anchor" aria-label="anchor" href="#priority-6-improve-graphql-schema-and-tidy-result-ergonomics"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
+<p><strong>Status (August 2026): completed in the development version.</strong></p>
 <div class="section level3">
 <h3 id="objective-6">Objective<a class="anchor" aria-label="anchor" href="#objective-6"></a></h3>
 <p>Make Fabric GraphQL APIs easier to explore and convert into analysis-ready tibbles without assuming a universal schema shape.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-6">Direction<a class="anchor" aria-label="anchor" href="#direction-6"></a></h3>
-<ul><li>Add <code>fabric_graphql_schema()</code> using standard introspection, with an actionable error when introspection is disabled.</li>
-<li>Add <code>fabric_graphql_collect()</code> or <code>fabric_graphql_rows()</code> with an explicit field path for combining row objects across pages.</li>
+<ul><li>Add <code><a href="reference/fabric_graphql_schema.html">fabric_graphql_schema()</a></code> using standard introspection, with an actionable error when introspection is disabled.</li>
+<li>Add <code><a href="reference/fabric_graphql_collect.html">fabric_graphql_collect()</a></code> or <code>fabric_graphql_rows()</code> with an explicit field path for combining row objects across pages.</li>
 <li>Preserve nested objects as list-columns and retain exact large-integer handling instead of flattening or coercing silently.</li>
 <li>Continue to use <code><a href="reference/fabric_graphql_cursor.html">fabric_graphql_cursor()</a></code> for arbitrary cursor extraction.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-6">Implementation<a class="anchor" aria-label="anchor" href="#implementation-6"></a></h3>
+<ul><li>Added <code><a href="reference/fabric_graphql_schema.html">fabric_graphql_schema()</a></code> using the standard GraphQL introspection document, preserving the complete nested type graph and returning a typed, actionable condition when Fabric’s default-disabled introspection setting prevents discovery.</li>
+<li>Added <code><a href="reference/fabric_graphql_collect.html">fabric_graphql_collect()</a></code> over verified <code>fabric_graphql_pages</code> results, requiring an explicit row path and combining evolving fields in first-seen order while retaining nested objects and arrays as list-columns.</li>
+<li>Preserved jsonlite’s exact large-integer character values, including safe character promotion when the same field contains smaller R integers, and rejected incompatible scalar schema changes instead of silently coercing.</li>
+<li>Attached page count, completion, path, and partial GraphQL errors to the returned tibble. Incomplete pagination now raises a typed condition carrying explicitly incomplete partial rows, including client page-limit scenarios.</li>
+<li>Added offline schema, type, pagination, partial-error, and malformed-shape coverage plus live Fabric introspection-setting and paged-collection tests.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-6">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-6"></a></h3>

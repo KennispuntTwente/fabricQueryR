@@ -3,6 +3,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/LICENSE-text.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/LICENSE.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/index.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html</loc></url>
@@ -17,9 +18,11 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabricQueryR-package.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_collect.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_instances.html</loc></url>
@@ -42,6 +45,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/index.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_graphql_rows.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_instance.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_schedule.html</loc></url>

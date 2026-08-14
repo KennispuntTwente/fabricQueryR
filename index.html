@@ -329,12 +329,34 @@
 <span></span>
 <span><span class="va">graphql_result</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">customers</span><span class="op">$</span><span class="va">items</span></span>
 <span><span class="va">graphql_result</span><span class="op">$</span><span class="va">errors</span></span></code></pre></div>
+<p>Explore APIs whose administrators enabled runtime introspection, then collect an explicitly selected row path across cursor pages:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">schema</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_schema.html">fabric_graphql_schema</a></span><span class="op">(</span><span class="va">graphql_api</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">pages</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_paginate.html">fabric_graphql_paginate</a></span><span class="op">(</span></span>
+<span>  <span class="va">graphql_api</span>,</span>
+<span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
+<span>    <span class="st">"query Customers($first: Int!, $after: String) {"</span>,</span>
+<span>    <span class="st">"  customers(first: $first, after: $after, orderBy: {id: ASC}) {"</span>,</span>
+<span>    <span class="st">"    items { id name region profile { segment } }"</span>,</span>
+<span>    <span class="st">"    hasNextPage endCursor"</span>,</span>
+<span>    <span class="st">"  }"</span>,</span>
+<span>    <span class="st">"}"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>first <span class="op">=</span> <span class="fl">100L</span>, after <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span>,</span>
+<span>  next_cursor <span class="op">=</span> <span class="fu"><a href="reference/fabric_graphql_cursor.html">fabric_graphql_cursor</a></span><span class="op">(</span><span class="st">"customers"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_collect.html">fabric_graphql_collect</a></span><span class="op">(</span><span class="va">pages</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"customers"</span>, <span class="st">"items"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">customers</span>, <span class="st">"complete"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">customers</span>, <span class="st">"errors"</span><span class="op">)</span></span></code></pre></div>
+<p>Nested objects remain list-columns. Fabric disables introspection by default; a workspace admin can enable it in the API settings, or export the schema from the portal without enabling runtime introspection.</p>
 </div>
 <div class="section level3">
 <h3 id="id_10-invoke-a-fabric-user-data-function">10. Invoke a Fabric User Data Function<a class="anchor" aria-label="anchor" href="#id_10-invoke-a-fabric-user-data-function"></a>
 </h3>
 <p>Call published Fabric business logic through the function’s explicit public URL. Enable Public access in Run only mode and copy the URL from the function’s properties; discovery intentionally does not guess it.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">function_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -352,7 +374,7 @@
 <h3 id="id_11-run-and-monitor-fabric-jobs">11. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_11-run-and-monitor-fabric-jobs"></a>
 </h3>
 <p>Start a notebook, data pipeline, or Spark job definition, then wait for completion or inspect/cancel it from R. You can also inspect earlier runs and manage recurring schedules.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span></span>
 <span>  <span class="va">notebook</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"incremental"</span>, batch_size <span class="op">=</span> <span class="fl">100L</span><span class="op">)</span>,</span>
@@ -386,7 +408,7 @@
 <h3 id="id_12-resume-a-fabric-long-running-operation">12. Resume a Fabric long-running operation<a class="anchor" aria-label="anchor" href="#id_12-resume-a-fabric-long-running-operation"></a>
 </h3>
 <p>Some Fabric APIs return an operation ID while provisioning continues. Resume that work from its ID or <code>Location</code> URL, wait for success, and retrieve its JSON, binary, or empty result through one consistent result object.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">state</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_operation_status.html">fabric_operation_status</a></span><span class="op">(</span></span>
 <span>  <span class="st">"00000000-0000-0000-0000-000000000000"</span></span>
 <span><span class="op">)</span></span>
