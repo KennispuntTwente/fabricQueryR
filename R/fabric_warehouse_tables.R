@@ -313,7 +313,8 @@ fabric_warehouse_write_table <- function(
       }
     )
   }
-  create_with_ctas <- isTRUE(create_if_missing) && !table_exists ||
+  create_with_ctas <- isTRUE(create_if_missing) &&
+    !table_exists ||
     identical(mode, "Overwrite") && identical(overwrite_method, "Drop")
   affected <- tryCatch(
     {
@@ -400,7 +401,8 @@ fabric_warehouse_write_table <- function(
       overwrite_method = overwrite_method,
       table_created = isTRUE(create_if_missing) && !table_exists,
       table_recreated = identical(mode, "Overwrite") &&
-        identical(overwrite_method, "Drop") && table_exists,
+        identical(overwrite_method, "Drop") &&
+        table_exists,
       rows = serialized$rows,
       bytes = serialized$total_bytes,
       file_count = serialized$file_count,

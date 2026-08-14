@@ -2258,10 +2258,14 @@ kusto_write_column_types <- function(schema, columns, column_types = NULL) {
     "timespan"
   )
   if (is.null(column_types)) {
-    return(vapply(seq_along(columns), function(index) {
-      field <- schema$field(index - 1L)
-      kusto_write_arrow_type(field$type, columns[[index]])
-    }, character(1)))
+    return(vapply(
+      seq_along(columns),
+      function(index) {
+        field <- schema$field(index - 1L)
+        kusto_write_arrow_type(field$type, columns[[index]])
+      },
+      character(1)
+    ))
   }
   if (
     !is.character(column_types) ||
@@ -2277,8 +2281,12 @@ kusto_write_column_types <- function(schema, columns, column_types = NULL) {
       class = c("fabric_kql_schema_error", "fabric_kql_write_error")
     )
   }
-  column_types <- tolower(trimws(column_types[match(columns, names(column_types))]))
-  invalid <- is.na(column_types) | !nzchar(column_types) |
+  column_types <- tolower(trimws(column_types[match(
+    columns,
+    names(column_types)
+  )]))
+  invalid <- is.na(column_types) |
+    !nzchar(column_types) |
     !column_types %in% allowed
   if (any(invalid)) {
     rlang::abort(
@@ -2320,7 +2328,9 @@ kusto_write_arrow_type <- function(type, column) {
     "timespan"
   } else if (grepl("^(string|large_string|string_view)$", arrow_type)) {
     "string"
-  } else if (grepl("^(list|large_list|fixed_size_list|struct|map)", arrow_type)) {
+  } else if (
+    grepl("^(list|large_list|fixed_size_list|struct|map)", arrow_type)
+  ) {
     "dynamic"
   } else if (grepl("^extension<.*uuid", arrow_type)) {
     "guid"
@@ -3160,17 +3170,21 @@ kusto_export_command <- function(query, destination, properties) {
   compressed <- if (isTRUE(properties$compressed)) " compressed" else ""
   values <- properties[setdiff(names(properties), c("format", "compressed"))]
   values <- values[!vapply(values, is.null, logical(1))]
-  encoded <- vapply(names(values), function(name) {
-    value <- values[[name]]
-    if (is.character(value)) {
-      value <- kusto_export_literal(value)
-    } else if (is.logical(value)) {
-      value <- if (value) "true" else "false"
-    } else {
-      value <- format(value, scientific = FALSE, trim = TRUE)
-    }
-    paste0(name, "=", value)
-  }, character(1))
+  encoded <- vapply(
+    names(values),
+    function(name) {
+      value <- values[[name]]
+      if (is.character(value)) {
+        value <- kusto_export_literal(value)
+      } else if (is.logical(value)) {
+        value <- if (value) "true" else "false"
+      } else {
+        value <- format(value, scientific = FALSE, trim = TRUE)
+      }
+      paste0(name, "=", value)
+    },
+    character(1)
+  )
   paste0(
     ".export async",
     compressed,
@@ -3332,7 +3346,14 @@ kusto_export_operation_id <- function(tables) {
 kusto_export_status <- function(tables, operation_id) {
   table <- kusto_export_table(
     tables,
-    c("OperationId", "StartedOn", "LastUpdatedOn", "Duration", "State", "Status")
+    c(
+      "OperationId",
+      "StartedOn",
+      "LastUpdatedOn",
+      "Duration",
+      "State",
+      "Status"
+    )
   )
   if (!nrow(table)) {
     return(NULL)

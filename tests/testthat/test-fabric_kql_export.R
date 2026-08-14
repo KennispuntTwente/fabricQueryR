@@ -155,10 +155,12 @@ test_that("KQL export submits once, polls, and returns authoritative details", {
   )
   expect_true(all(vapply(
     calls,
-    function(call) identical(
-      call$audience,
-      "https://api.kusto.windows.net/.default"
-    ),
+    function(call) {
+      identical(
+        call$audience,
+        "https://api.kusto.windows.net/.default"
+      )
+    },
     logical(1)
   )))
   expect_true(all(vapply(
@@ -174,7 +176,11 @@ test_that("KQL export submits once, polls, and returns authoritative details", {
   expect_match(command, "compressionType=@\"snappy\"", fixed = TRUE)
   expect_match(command, "persistDetails=true", fixed = TRUE)
   expect_match(command, "parquetRowGroupSize=50000", fixed = TRUE)
-  expect_match(command, "parquetDatetimePrecision=@\"microsecond\"", fixed = TRUE)
+  expect_match(
+    command,
+    "parquetDatetimePrecision=@\"microsecond\"",
+    fixed = TRUE
+  )
   expect_match(command, "<| Events | project id, observed_at", fixed = TRUE)
   expect_null(calls[[1L]]$request$headers[["x-ms-readonly"]])
   expect_match(

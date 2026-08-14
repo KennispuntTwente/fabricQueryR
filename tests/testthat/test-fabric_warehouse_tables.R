@@ -299,7 +299,11 @@ test_that("drop overwrite recreates the table with CTAS", {
 
   expect_equal(events[[1L]], "begin")
   expect_equal(events[[2L]], "DROP TABLE [dbo].[orders]")
-  expect_match(events[[3L]], "^CREATE TABLE \\[dbo\\]\\.\\[orders\\] AS", perl = TRUE)
+  expect_match(
+    events[[3L]],
+    "^CREATE TABLE \\[dbo\\]\\.\\[orders\\] AS",
+    perl = TRUE
+  )
   expect_equal(events[[4L]], "commit")
   expect_equal(result$overwrite_method, "Drop")
   expect_false(result$table_created)
