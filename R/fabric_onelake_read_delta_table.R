@@ -1054,15 +1054,7 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
   # token-shaped text before attaching it to a public condition
 
   if (inherits(error, "fabric_delta_error")) {
-    error_class <- setdiff(
-      class(error),
-      c("rlang_error", "error", "condition")
-    )
-    .fabric_abort(
-      "Delta table reading failed",
-      class = error_class,
-      parent = error
-    )
+    rlang::cnd_signal(error)
   }
 
   # Remove both the exact credential and any token-shaped text

@@ -569,6 +569,18 @@ test_that("Python failures are classified and bearer tokens are redacted", {
     c("TypeWidening", "V2Checkpoint")
   )
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
+
+  preflight <- tryCatch(
+    fabric_delta_check_protocol(list(reader_features = "variantType")),
+    error = identity
+  )
+  translated <- tryCatch(
+    fabric_delta_abort_python(preflight),
+    error = identity
+  )
+  expect_s3_class(translated, "fabric_delta_unsupported_feature_error")
+  expect_identical(conditionMessage(translated), conditionMessage(preflight))
+  expect_identical(translated$delta_features, "VariantType")
 })
 
 test_that("Delta protocol preflight rejects unsupported reader features", {

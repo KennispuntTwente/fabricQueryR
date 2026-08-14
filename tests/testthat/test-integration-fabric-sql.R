@@ -212,7 +212,7 @@ test_that("fabric_warehouse_read_table returns projected rows and streams", {
       verbose = FALSE
     )
     rows <- rows[order(rows$id), ]
-    expect_s3_class(rows, "tbl_df", info = backend)
+    expect_s3_class(rows, "tbl_df")
     expect_named(rows, c("id", "name", "amount"), info = backend)
     expect_equal(rows$id, 1:3, info = backend)
     expect_equal(rows$name, c("alpha", "beta", "gamma"), info = backend)
@@ -228,7 +228,7 @@ test_that("fabric_warehouse_read_table returns projected rows and streams", {
       token = token,
       verbose = FALSE
     )
-    expect_s3_class(stream, "nanoarrow_array_stream", info = backend)
+    expect_s3_class(stream, "nanoarrow_array_stream")
     streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
     expect_named(streamed, c("id", "name"), info = backend)
     expect_equal(nrow(streamed), 2L, info = backend)

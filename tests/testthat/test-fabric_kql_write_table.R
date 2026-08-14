@@ -148,6 +148,13 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
     label = factor(c("a", "b")),
     observed_on = as.Date(c("2026-08-13", "2026-08-14"))
   )
+  token <- function(audience) {
+    if (identical(audience, .fabric_audience$storage)) {
+      "storage-token"
+    } else {
+      "kusto-token"
+    }
+  }
   result <- fabric_kql_write_table(
     "https://ingest-cluster.kusto.fabric.microsoft.com",
     table = "Raw",
@@ -157,7 +164,7 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
     tags = "r-object",
     ingest_if_not_exists = "batch-1",
     skip_batching = TRUE,
-    token = "test-token"
+    token = token
   )
 
   expect_s3_class(result, "fabric_kql_write_result")
@@ -172,7 +179,7 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
     uploaded$target$path,
     "Files/ingestion/fabricqueryr-staging/write-fixed/part-00001.parquet"
   )
-  expect_match(submitted$sources, ";impersonate$", perl = TRUE)
+  expect_match(submitted$sources, ";token=storage-token$", perl = TRUE)
   expect_equal(submitted$format, "parquet")
   expect_equal(submitted$raw_sizes, uploaded$bytes)
   expect_equal(submitted$mapping, "RawParquet")

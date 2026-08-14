@@ -24,7 +24,8 @@
   Tables, Datasets, Scanners, queries, or RecordBatchReaders through temporary
   Parquet into tracked Eventhouse ingestion. The Lakehouse writer now uses the
   same batch-wise Arrow serializer for larger-than-memory inputs. Both writers
-  retain staging whenever a remote outcome is ambiguous.
+  retain staging whenever a remote outcome is ambiguous. Eventhouse staging
+  uses a storage-audience token for unattended, audience-aware credentials.
 
 * Added `fabric_kql_export()` for server-side KQL exports to discovered
   OneLake `Files/` directories or documented storage connection strings. It

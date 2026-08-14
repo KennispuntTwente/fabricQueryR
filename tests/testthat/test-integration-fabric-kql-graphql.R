@@ -199,7 +199,8 @@ test_that("tracked Eventhouse ingestion completes and prevents duplicates", {
     "fabricqueryr_ingestion_csv"
   source <- paste0(
     lakehouse$one_lake_files_path,
-    "/fixtures/basic.csv;impersonate"
+    "/fixtures/basic.csv;token=",
+    token(.fabric_audience$storage)
   )
   idempotency_key <- paste0(
     "fabricqueryr-priority7-",

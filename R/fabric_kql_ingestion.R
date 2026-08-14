@@ -1683,8 +1683,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' values. This function provides the higher-level one-call workflow: it reads
 #' the ingestion service's preview configuration, chooses a trusted OneLake
 #' lake folder, creates a unique `fabricqueryr-staging` path, uploads bounded
-#' Parquet parts, and submits them with `;impersonate` storage
-#' authentication. `staging_folder` can override the advertised folder with a
+#' Parquet parts, and submits them with a storage-audience access token when an
+#' audience-aware credential is available. Static credentials retain caller
+#' impersonation. `staging_folder` can override the advertised folder with a
 #' trusted OneLake `Files/` URI.
 #'
 #' The caller therefore needs Kusto Table Ingestor and Database User access,
@@ -2066,7 +2067,7 @@ fabric_kql_write_table <- function(
     fabric_kql_ingest(
       cluster,
       table = table,
-      sources = paste0(staging_paths, ";impersonate"),
+      sources = kusto_write_storage_sources(staging_paths, credential),
       database = database,
       format = "parquet",
       source_ids = source_ids,
@@ -2560,6 +2561,19 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
       "fabric_kql_write_error"
     )
   )
+}
+
+# Authenticate package-staged files for unattended and delegated credentials
+kusto_write_storage_sources <- function(paths, credential) {
+  suffix <- if (credential$type %in% c("AzureAuth", "callback")) {
+    paste0(
+      ";token=",
+      fabric_get_token(credential, .fabric_audience$storage)
+    )
+  } else {
+    ";impersonate"
+  }
+  paste0(paths, suffix)
 }
 
 # Best-effort removal of the unique directory containing staged files
