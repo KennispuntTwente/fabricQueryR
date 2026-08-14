@@ -444,3 +444,119 @@ test_that("provisioned SQL Database target is discoverable and connectable", {
   )
   expect_identical(results[[1L]], results[[2L]])
 })
+
+test_that("Warehouse writer loads R and lazy Arrow data through OneLake", {
+  fabric_test_require_package("DBI")
+  fabric_test_require_package("odbc")
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  warehouse_fixture <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  lakehouse_fixture <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    warehouse_fixture$id,
+    type = "Warehouse",
+    token = token
+  )
+  staging_lakehouse <- fabric_item(
+    manifest$workspace_id,
+    lakehouse_fixture$id,
+    type = "Lakehouse",
+    token = token
+  )
+  table <- "fabricqueryr_r_write"
+  table_sql <- paste0("[dbo].[", table, "]")
+  con <- fabric_sql_connect(
+    warehouse,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  connected <- TRUE
+  on.exit(
+    {
+      if (connected) {
+        try(
+          DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", table_sql)),
+          silent = TRUE
+        )
+        try(DBI::dbDisconnect(con), silent = TRUE)
+      }
+    },
+    add = TRUE
+  )
+  DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", table_sql))
+  DBI::dbExecute(
+    con,
+    paste0(
+      "CREATE TABLE ",
+      table_sql,
+      " ([id] int NOT NULL, [label] varchar(50) NULL, [amount] float NULL)"
+    )
+  )
+
+  appended <- fabric_warehouse_write_table(
+    warehouse,
+    table,
+    data.frame(
+      id = 1:3,
+      label = c("alpha", "beta", "gamma"),
+      amount = c(10.5, NA, 30)
+    ),
+    staging_lakehouse = staging_lakehouse,
+    mode = "Append",
+    max_rows_per_file = 2,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  expect_equal(appended$rows, 3)
+  expect_equal(appended$file_count, 2L)
+  expect_false(appended$staging_retained)
+  rows <- DBI::dbGetQuery(
+    con,
+    paste("SELECT id, label, amount FROM", table_sql, "ORDER BY id")
+  )
+  expect_equal(rows$id, 1:3)
+  expect_equal(rows$label, c("alpha", "beta", "gamma"))
+  expect_equal(rows$amount, c(10.5, NA, 30))
+
+  dataset_directory <- tempfile("fabricqueryr-warehouse-live-")
+  dir.create(dataset_directory)
+  on.exit(
+    unlink(dataset_directory, recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+  arrow::write_parquet(
+    data.frame(
+      id = 4:5,
+      label = c("delta", "epsilon"),
+      amount = c(40, 50)
+    ),
+    file.path(dataset_directory, "part-1.parquet")
+  )
+  overwritten <- fabric_warehouse_write_table(
+    warehouse,
+    table,
+    arrow::open_dataset(dataset_directory),
+    staging_lakehouse = staging_lakehouse,
+    mode = "Overwrite",
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  expect_equal(overwritten$rows, 2)
+  expect_false(overwritten$staging_retained)
+  replaced <- DBI::dbGetQuery(
+    con,
+    paste("SELECT id, label, amount FROM", table_sql, "ORDER BY id")
+  )
+  expect_equal(replaced$id, 4:5)
+  expect_equal(replaced$label, c("delta", "epsilon"))
+  expect_equal(replaced$amount, c(40, 50))
+
+  DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", table_sql))
+  DBI::dbDisconnect(con)
+  connected <- FALSE
+})

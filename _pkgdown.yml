@@ -12,6 +12,9 @@ articles:
   - title: Eventhouse ingestion
     contents:
       - eventhouse-ingestion
+  - title: Warehouse ingestion
+    contents:
+      - warehouse-write
   - title: Job automation
     contents:
       - job-automation
@@ -48,6 +51,7 @@ reference:
       - fabric_sql_connection_info
       - fabric_sql_connect
       - fabric_sql_query
+      - fabric_warehouse_write_table
 
   - title: Semantic models and DAX
     desc: Query and refresh Fabric and Power BI semantic models

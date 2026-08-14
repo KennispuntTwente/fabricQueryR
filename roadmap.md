@@ -424,6 +424,9 @@ alongside new public functions:
 
 - Choosing among SQL, Delta, DAX, KQL, GraphQL, OneLake files, and Spark.
 - Loading an R data frame into a Lakehouse and validating the round trip.
+- Loading an R data frame or lazy Arrow source into an existing Warehouse table
+  through documented OneLake `COPY INTO` staging and validating append and
+  transactional overwrite round trips.
 - Updating source data, refreshing a semantic model, and checking history.
 - Running SparkR locally through Livy versus using SparkR or `sparklyr` inside a
   Fabric notebook or Spark job definition.

@@ -31,6 +31,11 @@
   batches honor the ingestion service's advertised blob-count and total-size
   limits.
 
+* Added `fabric_warehouse_write_table()` to load data frames, tibbles, and lazy
+  Arrow sources into existing Warehouse tables through bounded Parquet staging
+  in a Lakehouse and the documented OneLake `COPY INTO` path. Append uses one
+  bulk statement; overwrite is transactionally truncated and reloaded.
+
 * Added `fabric_lakehouse_read_table()` as the symmetric, discovery-record-aware
   counterpart to `fabric_lakehouse_write_table()`, with projected, time-travel,
   tibble, and Arrow-stream results delegated to the OneLake Delta reader.

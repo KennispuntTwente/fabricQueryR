@@ -329,7 +329,28 @@ writer uploads only to a unique `Files/` staging path and never edits managed
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/lakehouse-table-loading.html)
 for permissions, type mappings, schema behavior, and recovery after failures.
 
-### 8. Query Eventhouse data with KQL
+### 8. Write R or Arrow data to a Warehouse
+
+Load an in-memory data frame or a larger-than-memory Arrow source into an
+existing Warehouse table. Fabric requires OneLake `COPY INTO` sources to come
+from a non-Warehouse item, so provide a Lakehouse for temporary staging:
+
+``` r
+written <- fabric_warehouse_write_table(
+  warehouse,
+  table = "orders",
+  data = orders,
+  staging_lakehouse = lakehouse,
+  mode = "Append"
+)
+```
+
+The writer creates bounded Parquet parts, maps their fields to destination
+columns by name and ordinal position, and removes staging after confirmed
+success. `mode = "Overwrite"` runs `TRUNCATE TABLE` and `COPY INTO` in one
+Fabric Warehouse transaction. The destination table must already exist.
+
+### 9. Query Eventhouse data with KQL
 
 Run a KQL query against a KQL database in an Eventhouse.
 A single result table is returned as a tibble, 
@@ -401,7 +422,7 @@ ingestion guide](https://kennispunttwente.github.io/fabricQueryR/articles/eventh
 for OneLake authentication, mappings, idempotency tags, service limits, and
 failure handling.
 
-### 9. Query a Fabric GraphQL API
+### 10. Query a Fabric GraphQL API
 
 Call an `API for GraphQL` item that has already been configured in Fabric.
 The result keeps the nested GraphQL data and any GraphQL-level errors separate.
@@ -453,7 +474,7 @@ Nested objects remain list-columns. Fabric disables introspection by default;
 a workspace admin can enable it in the API settings, or export the schema from
 the portal without enabling runtime introspection.
 
-### 10. Invoke a Fabric User Data Function
+### 11. Invoke a Fabric User Data Function
 
 Call published Fabric business logic through the function's explicit public
 URL. Enable Public access in Run only mode and copy the URL from the function's
@@ -481,7 +502,7 @@ side effects. See the [User Data Functions
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html)
 for permissions, trusted-host behavior, limits, and authentication details.
 
-### 11. Run and monitor Fabric jobs
+### 12. Run and monitor Fabric jobs
 
 Start a notebook, data pipeline, or Spark job definition, then wait for
 completion or inspect/cancel it from R. You can also inspect earlier runs and
@@ -518,7 +539,7 @@ fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
-### 12. Resume a Fabric long-running operation
+### 13. Resume a Fabric long-running operation
 
 Some Fabric APIs return an operation ID while provisioning continues. Resume
 that work from its ID or `Location` URL, wait for success, and retrieve its
