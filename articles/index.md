@@ -15,6 +15,11 @@
 - [Track Eventhouse ingestion from
   R](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md):
 
+### Warehouse ingestion
+
+- [Write R and Arrow data to Fabric
+  Warehouse](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md):
+
 ### Job automation
 
 - [Automate and inspect Microsoft Fabric

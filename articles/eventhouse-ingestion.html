@@ -140,12 +140,14 @@ returned by a package query:</p>
 <span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The dataset is scanned one record batch at a time into a temporary
-Parquet file and then uploaded in bounded chunks. It is never collected
-into a data frame or Arrow Table. A supplied RecordBatchReader is
-single-use and is exhausted by the write. The local file must fit on
-disk and the serialized file must remain within the ingestion service’s
-advertised size limit.</p>
+<p>The dataset is scanned one record batch at a time into bounded
+temporary Parquet parts and then uploaded in bounded chunks. It is never
+collected into a data frame or Arrow Table. A supplied RecordBatchReader
+is single-use and is exhausted by the write. Use
+<code>target_file_size</code> for a soft byte boundary or
+<code>max_rows_per_file</code> for an exact row boundary. The serialized
+batch must remain within the ingestion service’s advertised size and
+blob-count limits.</p>
 <p>The function uses the OneLake folder returned by
 <code>/v1/rest/ingestion/configuration</code>. If an administrator
 provides a different writable location, pass its full trusted
@@ -270,6 +272,45 @@ workflows, keep the staged file until the tracked result is terminal and
 verified. <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> applies that retention
 rule automatically and reports the full retained path whenever manual
 recovery is required.</p>
+</div>
+<div class="section level2">
+<h2 id="export-a-large-kql-result-to-onelake">Export a large KQL result to OneLake<a class="anchor" aria-label="anchor" href="#export-a-large-kql-result-to-onelake"></a>
+</h2>
+<p><code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code> is the right interface when the
+result belongs in R. When the result is too large for the client-result
+channel or should remain in Fabric, <code><a href="../reference/fabric_kql_export.html">fabric_kql_export()</a></code>
+runs Kusto’s service-side export and writes the first result set
+directly to storage:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">exported</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_export.html">fabric_kql_export</a></span><span class="op">(</span></span>
+<span>  <span class="va">database</span>,</span>
+<span>  query <span class="op">=</span> <span class="st">"Events | where observed_at &gt; ago(7d)"</span>,</span>
+<span>  destination <span class="op">=</span> <span class="va">lakehouse</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"Files/exports/events-weekly"</span>,</span>
+<span>  format <span class="op">=</span> <span class="st">"parquet"</span>,</span>
+<span>  name_prefix <span class="op">=</span> <span class="st">"events"</span>,</span>
+<span>  compression_type <span class="op">=</span> <span class="st">"snappy"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">exported</span><span class="op">$</span><span class="va">state</span></span>
+<span><span class="va">exported</span><span class="op">$</span><span class="va">records</span></span>
+<span><span class="va">exported</span><span class="op">$</span><span class="va">artifacts</span></span></code></pre></div>
+<p>A discovered item uses a OneLake GUID path with
+<code>;impersonate</code>; the principal therefore needs write access to
+the destination. A complete documented Kusto storage connection string
+can be supplied instead. Credential-bearing strings are obfuscated in
+Kusto command telemetry and redacted from returned R objects.</p>
+<p>The function always uses <code>async</code>, polls
+<code>.show operations</code>, and calls
+<code>.show operation ... details</code> only after the operation
+reports <code>Completed</code>. The submission itself is never replayed.
+Kusto documents that ordinary exports do not retry and that artifacts
+already written by a failed export remain and must be treated as
+incomplete. Timeout and failure conditions carry the operation ID and
+safe destination so the operation can be inspected before a new export
+is submitted.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

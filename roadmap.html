@@ -158,7 +158,7 @@
 <ul><li>Added schema-aware, paginated <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> discovery by combining Fabric’s authoritative table type/format/location inventory with the current OneLake Delta schema and column metadata, retaining untouched future fields from both services.</li>
 <li>Added validated CSV and Parquet file/folder loads for schema-enabled and legacy Lakehouses. Preview loads return resumable shared operation handles; the operation layer now understands the documented Lakehouse-scoped numeric state contract without replaying initiation or inventing a result route.</li>
 <li>Added <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code> with Arrow Parquet serialization, audience-aware OneLake staging, managed append/overwrite loading, confirmed- success cleanup, and actionable retained paths after failure.</li>
-<li>Extended the writer to consume Arrow Datasets, Scanners, dplyr queries, and RecordBatchReaders batch by batch, avoiding whole-data collection for inputs larger than R memory.</li>
+<li>Extended the writer to consume Arrow Datasets, Scanners, dplyr queries, and RecordBatchReaders batch by batch, rotating bounded Parquet parts into the documented folder-load contract and avoiding whole-data collection for inputs larger than R memory.</li>
 <li>Added offline protocol, validation, type, cleanup, and recovery tests plus a live CSV/Parquet, pagination, schema, Unicode, append/overwrite, Delta-reader, and SQL round trip in the Fabric sandbox.</li>
 </ul></div>
 <div class="section level3">
@@ -276,7 +276,8 @@
 <li>Added client-generated or caller-supplied source GUIDs, structured source metadata, the documented ingestion formats and properties, 20-blob and 6 GB validation, predefined mappings, and automatic <code>ingest-by:</code> tags for stable <code>ingest_if_not_exists</code> keys.</li>
 <li>Kept submission non-retriable because queued ingestion is at least once and an ambiguous POST replay can duplicate data. Submission errors explicitly retain throttling and permission diagnostics; source URLs are redacted in retained handles and results.</li>
 <li>Added <code><a href="reference/fabric_kql_ingest.html">fabric_kql_ingestion_status()</a></code> for one-shot or bounded polling with retry-safe status GETs, normalized aggregate states, typed timeouts, and actionable per-source permanent/transient failure details, including partial batches.</li>
-<li>Added <code><a href="reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> for a one-call data-frame/tibble or lazy Arrow workflow. It reads the preview ingestion configuration, streams one bounded Parquet file, uploads to the advertised trusted OneLake lake folder, waits for tracked ingestion, and retains staging after ambiguous or confirmed failures according to an explicit cleanup policy.</li>
+<li>Added <code><a href="reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> for a one-call data-frame/tibble or lazy Arrow workflow. It reads the preview ingestion configuration, streams bounded Parquet parts, uploads them to the advertised trusted OneLake lake folder, waits for tracked ingestion, and retains staging after ambiguous or confirmed failures according to an explicit cleanup policy.</li>
+<li>Added <code><a href="reference/fabric_kql_export.html">fabric_kql_export()</a></code> for the reverse large-result path. It sends one documented asynchronous <code>.export to storage</code> management command, polls <code>.show operations</code>, and retrieves artifact paths and exact record counts only after successful completion. Discovered OneLake destinations use caller impersonation, credentialed paths are redacted, and failed exports explicitly leave potentially incomplete artifacts for inspection.</li>
 <li>Added offline request, validation, duplicate, mapping, permission, timeout, throttling, protocol, Arrow streaming, cleanup, and redaction coverage plus live tagged file, R data-frame, and lazy Arrow ingestion/query round trips.</li>
 </ul></div>
 <div class="section level3">
@@ -290,6 +291,8 @@
 <p>Interface selection is now a user-facing feature. Add task-oriented vignettes alongside new public functions:</p>
 <ul><li>Choosing among SQL, Delta, DAX, KQL, GraphQL, OneLake files, and Spark.</li>
 <li>Loading an R data frame into a Lakehouse and validating the round trip.</li>
+<li>Loading an R data frame or lazy Arrow source into an existing Warehouse table through documented OneLake <code>COPY INTO</code> staging and validating append and transactional overwrite round trips.</li>
+<li>Linking Fabric and connection-backed storage locations with OneLake shortcuts and covering paginated discovery plus a guarded create/read/delete lifecycle.</li>
 <li>Updating source data, refreshing a semantic model, and checking history.</li>
 <li>Running SparkR locally through Livy versus using SparkR or <code>sparklyr</code> inside a Fabric notebook or Spark job definition.</li>
 <li>Production authentication, private links, schedules, and failure monitoring.</li>
@@ -333,6 +336,7 @@
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables" class="external-link">List Lakehouse tables</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table" class="external-link">Load a Lakehouse table</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview" class="external-link">OneLake table APIs for Delta</a></li>
+<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/" class="external-link">OneLake shortcuts REST API</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables" class="external-link">Load to Delta Lake tables</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/" class="external-link">Power BI dataset APIs</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview" class="external-link">Fabric User Data Functions overview</a></li>
@@ -342,6 +346,8 @@
 <li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-status-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion status REST API</a></li>
 <li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion configuration REST API</a></li>
 <li><a href="https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric" class="external-link">Kusto storage connection strings</a></li>
+<li><a href="https://learn.microsoft.com/en-us/kusto/management/data-export/export-data-to-storage?view=microsoft-fabric" class="external-link">Kusto export to storage</a></li>
+<li><a href="https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric" class="external-link">Show Kusto operations</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr" class="external-link">Use SparkR in Fabric</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link">Use sparklyr in Fabric</a></li>
 </ul></div>

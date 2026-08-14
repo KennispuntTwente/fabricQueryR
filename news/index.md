@@ -41,6 +41,26 @@
   writers retain staging whenever a remote outcome is ambiguous.
 
 - Added
+  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  for server-side KQL exports to discovered OneLake `Files/` directories
+  or documented storage connection strings. It submits once, tracks
+  `.show operations`, returns authoritative artifact paths and record
+  counts, and treats files from failed or timed-out exports as
+  potentially incomplete.
+
+- Lakehouse and Eventhouse writers now rotate lazy Arrow input into
+  bounded Parquet parts. Lakehouse uses the documented folder-load
+  contract; Kusto batches honor the ingestion service’s advertised
+  blob-count and total-size limits.
+
+- Added
+  [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
+  to load data frames, tibbles, and lazy Arrow sources into existing
+  Warehouse tables through bounded Parquet staging in a Lakehouse and
+  the documented OneLake `COPY INTO` path. Append uses one bulk
+  statement; overwrite is transactionally truncated and reloaded.
+
+- Added
   [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
   as the symmetric, discovery-record-aware counterpart to
   [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
@@ -61,6 +81,23 @@
   [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
   and
   [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md).
+
+- Added
+  [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)
+  and
+  [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)
+  for direct tibble or Arrow interchange with Parquet, CSV, and Arrow
+  IPC files. Larger reads return disk-backed Arrow streams and lazy
+  writes remain bounded by their current record batch.
+
+- Added
+  [`fabric_onelake_shortcuts()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md),
+  [`fabric_onelake_shortcut_get()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md),
+  [`fabric_onelake_shortcut_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md),
+  and
+  [`fabric_onelake_shortcut_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  for paginated shortcut discovery and a guarded lifecycle across
+  discovered OneLake items or documented connection-backed targets.
 
 - Added `fabric_job_*()` functions to run, monitor, wait for, and cancel
   on-demand Notebook, pipeline, and Spark job definition runs.

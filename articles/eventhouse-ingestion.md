@@ -100,12 +100,13 @@ written <- fabric_kql_write_table(
 )
 ```
 
-The dataset is scanned one record batch at a time into a temporary
-Parquet file and then uploaded in bounded chunks. It is never collected
+The dataset is scanned one record batch at a time into bounded temporary
+Parquet parts and then uploaded in bounded chunks. It is never collected
 into a data frame or Arrow Table. A supplied RecordBatchReader is
-single-use and is exhausted by the write. The local file must fit on
-disk and the serialized file must remain within the ingestion service’s
-advertised size limit.
+single-use and is exhausted by the write. Use `target_file_size` for a
+soft byte boundary or `max_rows_per_file` for an exact row boundary. The
+serialized batch must remain within the ingestion service’s advertised
+size and blob-count limits.
 
 The function uses the OneLake folder returned by
 `/v1/rest/ingestion/configuration`. If an administrator provides a
@@ -255,3 +256,45 @@ verified.
 [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
 applies that retention rule automatically and reports the full retained
 path whenever manual recovery is required.
+
+## Export a large KQL result to OneLake
+
+[`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+is the right interface when the result belongs in R. When the result is
+too large for the client-result channel or should remain in Fabric,
+[`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+runs Kusto’s service-side export and writes the first result set
+directly to storage:
+
+``` r
+
+lakehouse <- fabric_lakehouses("Telemetry workspace")[[1]]
+
+exported <- fabric_kql_export(
+  database,
+  query = "Events | where observed_at > ago(7d)",
+  destination = lakehouse,
+  path = "Files/exports/events-weekly",
+  format = "parquet",
+  name_prefix = "events",
+  compression_type = "snappy"
+)
+
+exported$state
+exported$records
+exported$artifacts
+```
+
+A discovered item uses a OneLake GUID path with `;impersonate`; the
+principal therefore needs write access to the destination. A complete
+documented Kusto storage connection string can be supplied instead.
+Credential-bearing strings are obfuscated in Kusto command telemetry and
+redacted from returned R objects.
+
+The function always uses `async`, polls `.show operations`, and calls
+`.show operation ... details` only after the operation reports
+`Completed`. The submission itself is never replayed. Kusto documents
+that ordinary exports do not retry and that artifacts already written by
+a failed export remain and must be treated as incomplete. Timeout and
+failure conditions carry the operation ID and safe destination so the
+operation can be inspected before a new export is submitted.

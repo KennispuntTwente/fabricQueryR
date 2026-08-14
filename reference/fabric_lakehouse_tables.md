@@ -71,6 +71,8 @@ fabric_lakehouse_write_table(
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
   compression = "snappy",
+  target_file_size = 512 * 1024^2,
+  max_rows_per_file = NULL,
   poll_interval = NULL,
   timeout = 900,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -210,19 +212,29 @@ fabric_lakehouse_write_table(
 
 - cleanup:
 
-  Whether to delete the staged Parquet file after Fabric confirms a
+  Whether to delete the staged Parquet files after Fabric confirms a
   successful load.
 
 - keep_staging_on_failure:
 
-  Whether to retain a completely uploaded staging file when the load
-  fails. The raised condition includes `staging_path` and
+  Whether to retain a completely uploaded staging directory when the
+  load fails. The raised condition includes `staging_path` and
   `staging_retained` fields.
 
 - compression:
 
   Parquet compression passed to
   [`arrow::write_parquet()`](https://arrow.apache.org/docs/r/reference/write_parquet.html).
+
+- target_file_size:
+
+  Soft maximum bytes per staged Parquet file. A file rotates after its
+  current Arrow row group reaches this size.
+
+- max_rows_per_file:
+
+  Optional exact maximum rows per staged file. This is useful when row
+  counts are a more predictable boundary than compressed bytes.
 
 - poll_interval:
 
@@ -301,10 +313,10 @@ underscores, up to Fabric's documented 128-character limit.
 
 ## Failure and cleanup behavior
 
-The high-level writer uploads one complete Parquet file atomically to a
-unique path and starts the managed load only after that upload succeeds.
-A successful load is a committed Delta operation. On failure, the
-destination is left to Fabric's transactional load behavior and
+The high-level writer uploads complete Parquet parts atomically to a
+unique folder and starts the managed folder load only after every upload
+succeeds. A successful load is a committed Delta operation. On failure,
+the destination is left to Fabric's transactional load behavior and
 fabricQueryR never edits `Tables/` files.
 
 Retained staging paths are included in `fabric_lakehouse_write_error`

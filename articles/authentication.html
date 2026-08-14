@@ -389,6 +389,10 @@ used by the function:</p>
 <td><code>https://api.fabric.microsoft.com/.default</code></td>
 </tr>
 <tr class="even">
+<td>OneLake shortcut Core REST APIs</td>
+<td><code>https://api.fabric.microsoft.com/.default</code></td>
+</tr>
+<tr class="odd">
 <td>Livy as a delegated user</td>
 <td>
 <code>https://api.fabric.microsoft.com/Lakehouse.Execute.All</code>,
@@ -396,31 +400,31 @@ used by the function:</p>
 <code>Code.AccessStorage.All</code>
 </td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Livy as a service principal</td>
 <td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>OneLake files and Delta tables</td>
 <td><code>https://storage.azure.com/.default</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>SQL connections</td>
 <td><code>https://database.windows.net/.default</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>DAX / Power BI Execute Queries</td>
 <td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>KQL</td>
 <td><code>https://api.kusto.windows.net/.default</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>GraphQL as a delegated user</td>
 <td><code>https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>GraphQL as a service principal</td>
 <td><code>https://api.fabric.microsoft.com/.default</code></td>
 </tr>
@@ -579,6 +583,13 @@ permission model</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/
 security overview</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security" class="external-link">OneLake
 row-level security</a>, and <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
 security best practices</a>.</li>
+<li>
+<strong>OneLake shortcuts.</strong> Listing and inspection use the
+Fabric API audience and require <code>OneLake.Read.All</code> or
+<code>OneLake.ReadWrite.All</code>; creation and deletion require
+<code>OneLake.ReadWrite.All</code>. The Core API supports users, service
+principals, and managed identities. Deleting a shortcut leaves the
+target storage untouched.</li>
 <li>
 <strong>SQL.</strong> A workspace role or item Read permission
 permits connection, while SQL <code>GRANT</code>, <code>DENY</code>, and

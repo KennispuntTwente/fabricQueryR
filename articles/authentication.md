@@ -286,6 +286,7 @@ by the function:
 | Operations | Azure AD v2 resource/scope |
 |----|----|
 | Discovery, Fabric REST, and jobs | `https://api.fabric.microsoft.com/.default` |
+| OneLake shortcut Core REST APIs | `https://api.fabric.microsoft.com/.default` |
 | Livy as a delegated user | `https://api.fabric.microsoft.com/Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and `Code.AccessStorage.All` |
 | Livy as a service principal | `https://analysis.windows.net/powerbi/api/.default` |
 | OneLake files and Delta tables | `https://storage.azure.com/.default` |
@@ -463,6 +464,11 @@ The main workload considerations are:
   security](https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security),
   and [OneLake security best
   practices](https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake).
+- **OneLake shortcuts.** Listing and inspection use the Fabric API
+  audience and require `OneLake.Read.All` or `OneLake.ReadWrite.All`;
+  creation and deletion require `OneLake.ReadWrite.All`. The Core API
+  supports users, service principals, and managed identities. Deleting a
+  shortcut leaves the target storage untouched.
 - **SQL.** A workspace role or item Read permission permits connection,
   while SQL `GRANT`, `DENY`, and database roles control granular data
   access. See [Microsoft Entra authentication in Fabric Data

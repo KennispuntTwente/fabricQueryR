@@ -9,6 +9,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/authors.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/copilot-instructions.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/index.html</loc></url>
@@ -30,6 +31,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedule_config.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.html</loc></url>
@@ -39,7 +41,9 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.html</loc></url>
@@ -47,12 +51,14 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connection_info.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/index.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_graphql_rows.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_instance.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_job_schedule.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_export_result.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion_status.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_write_result.html</loc></url>

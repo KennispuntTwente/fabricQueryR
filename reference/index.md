@@ -35,6 +35,8 @@ Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
   : Connect to a Microsoft Fabric SQL target
 - [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   : Run a parameterized query against Microsoft Fabric SQL
+- [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
+  : Write an R or Arrow object to a Fabric Warehouse table
 
 ## Semantic models and DAX
 
@@ -63,6 +65,14 @@ List, inspect, download, upload, and delete files in OneLake
   [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   : Work with files in Microsoft Fabric OneLake
+- [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)
+  [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)
+  : Read and write R or Arrow objects in OneLake Files
+- [`fabric_onelake_shortcuts()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  [`fabric_onelake_shortcut_get()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  [`fabric_onelake_shortcut_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  [`fabric_onelake_shortcut_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  : Manage OneLake shortcuts
 
 ## Delta tables
 
@@ -81,7 +91,7 @@ Discover, load, and read Delta Lake tables in OneLake
 
 ## KQL
 
-Query Eventhouse data and ingest storage, R, or Arrow sources
+Query Eventhouse data, ingest storage or R objects, and export results
 
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Run a KQL query in Microsoft Fabric
@@ -90,12 +100,16 @@ Query Eventhouse data and ingest storage, R, or Arrow sources
   : Submit and monitor tracked Eventhouse ingestion
 - [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
   : Write an R or Arrow object to an Eventhouse table
+- [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  : Export a KQL query directly to external storage
 - [`print(`*`<fabric_kql_ingestion>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion.md)
   : Print a tracked Kusto ingestion handle
 - [`print(`*`<fabric_kql_ingestion_status>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion_status.md)
   : Print tracked Kusto ingestion status
 - [`print(`*`<fabric_kql_write_result>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_write_result.md)
   : Print an Eventhouse R/Arrow write result
+- [`print(`*`<fabric_kql_export_result>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_export_result.md)
+  : Print a KQL storage export result
 
 ## GraphQL
 

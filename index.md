@@ -275,7 +275,36 @@ fabric_onelake_download(
   path = "Files/fixtures/basic.csv",
   dest = "basic.csv"
 )
+
+# Serialize an R or lazy Arrow object directly into OneLake Files
+fabric_onelake_write_file(
+  workspace,
+  lakehouse,
+  path = "Files/exports/orders.parquet",
+  data = orders
+)
+
+# Read a supported file without manually downloading and decoding it
+orders <- fabric_onelake_read_file(
+  workspace,
+  lakehouse,
+  path = "Files/exports/orders.parquet"
+)
+
+# Link another Fabric item's data without copying it
+fabric_onelake_shortcut_create(
+  lakehouse,
+  path = "Files",
+  name = "shared-orders",
+  target = source_lakehouse,
+  target_path = "Tables/orders"
+)
+shortcuts <- fabric_onelake_shortcuts(lakehouse)
 ```
+
+Shortcut creation defaults to conflict policy `"Abort"`; updates require
+the explicit `"CreateOrOverwrite"` policy. Confirmed deletion removes
+only the shortcut, never its destination data.
 
 ### 7. Discover and load Lakehouse tables
 
@@ -318,9 +347,14 @@ dataset <- arrow::open_dataset("local-parquet-directory")
 written <- fabric_lakehouse_write_table(
   lakehouse,
   table = "orders_from_arrow",
-  data = dataset
+  data = dataset,
+  target_file_size = 512 * 1024^2
 )
 ```
+
+Large inputs are staged as bounded `part-*.parquet` files and submitted
+through Fabric’s folder-load contract. `max_rows_per_file` provides an
+exact row-based boundary when compressed byte size is not predictable.
 
 The Fabric List Tables and Load Table routes are preview APIs. The
 higher-level writer uploads only to a unique `Files/` staging path and
@@ -330,7 +364,31 @@ vignette](https://kennispunttwente.github.io/fabricQueryR/articles/lakehouse-tab
 for permissions, type mappings, schema behavior, and recovery after
 failures.
 
-### 8. Query Eventhouse data with KQL
+### 8. Write R or Arrow data to a Warehouse
+
+Load an in-memory data frame or a larger-than-memory Arrow source into
+an existing Warehouse table. Fabric requires OneLake `COPY INTO` sources
+to come from a non-Warehouse item, so provide a Lakehouse for temporary
+staging:
+
+``` r
+
+written <- fabric_warehouse_write_table(
+  warehouse,
+  table = "orders",
+  data = orders,
+  staging_lakehouse = lakehouse,
+  mode = "Append"
+)
+```
+
+The writer creates bounded Parquet parts, maps their fields to
+destination columns by name and ordinal position, and removes staging
+after confirmed success. `mode = "Overwrite"` runs `TRUNCATE TABLE` and
+`COPY INTO` in one Fabric Warehouse transaction. The destination table
+must already exist.
+
+### 9. Query Eventhouse data with KQL
 
 Run a KQL query against a KQL database in an Eventhouse. A single result
 table is returned as a tibble, with Kusto data types converted to R data
@@ -395,6 +453,33 @@ written <- fabric_kql_write_table(
 written$status$state
 ```
 
+The writer partitions large inputs into multiple Parquet sources while
+staying within the ingestion service’s advertised file-count and
+total-size limits.
+
+For a large result moving in the other direction, export on the Kusto
+service directly into a OneLake `Files/` directory. This avoids
+collecting the result through R or the client-result channel:
+
+``` r
+
+exported <- fabric_kql_export(
+  kql_database,
+  query = "Events | where observed_at > ago(7d)",
+  destination = lakehouse,
+  path = "Files/exports/events-weekly",
+  format = "parquet",
+  name_prefix = "events"
+)
+exported$artifacts
+```
+
+The function waits on Kusto’s asynchronous operation and returns file
+paths only after successful completion. Kusto can leave incomplete files
+after a failed export, so the initial command is never automatically
+replayed and a failure identifies the operation and destination for
+inspection.
+
 The queued-ingestion REST API is in preview. Submissions use Kusto’s
 ingestion URI, accept at most 20 existing storage sources per request,
 and have at-least-once delivery semantics. The package does not
@@ -404,7 +489,7 @@ guide](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-inges
 for OneLake authentication, mappings, idempotency tags, service limits,
 and failure handling.
 
-### 9. Query a Fabric GraphQL API
+### 10. Query a Fabric GraphQL API
 
 Call an `API for GraphQL` item that has already been configured in
 Fabric. The result keeps the nested GraphQL data and any GraphQL-level
@@ -459,7 +544,7 @@ Nested objects remain list-columns. Fabric disables introspection by
 default; a workspace admin can enable it in the API settings, or export
 the schema from the portal without enabling runtime introspection.
 
-### 10. Invoke a Fabric User Data Function
+### 11. Invoke a Fabric User Data Function
 
 Call published Fabric business logic through the function’s explicit
 public URL. Enable Public access in Run only mode and copy the URL from
@@ -489,7 +574,7 @@ vignette](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-fun
 for permissions, trusted-host behavior, limits, and authentication
 details.
 
-### 11. Run and monitor Fabric jobs
+### 12. Run and monitor Fabric jobs
 
 Start a notebook, data pipeline, or Spark job definition, then wait for
 completion or inspect/cancel it from R. You can also inspect earlier
@@ -527,7 +612,7 @@ fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
-### 12. Resume a Fabric long-running operation
+### 13. Resume a Fabric long-running operation
 
 Some Fabric APIs return an operation ID while provisioning continues.
 Resume that work from its ID or `Location` URL, wait for success, and

@@ -252,8 +252,9 @@ notebook.
   managed append/overwrite loading, confirmed- success cleanup, and
   actionable retained paths after failure.
 - Extended the writer to consume Arrow Datasets, Scanners, dplyr
-  queries, and RecordBatchReaders batch by batch, avoiding whole-data
-  collection for inputs larger than R memory.
+  queries, and RecordBatchReaders batch by batch, rotating bounded
+  Parquet parts into the documented folder-load contract and avoiding
+  whole-data collection for inputs larger than R memory.
 - Added offline protocol, validation, type, cleanup, and recovery tests
   plus a live CSV/Parquet, pagination, schema, Unicode,
   append/overwrite, Delta-reader, and SQL round trip in the Fabric
@@ -492,10 +493,19 @@ existing Eventhouse table and monitor the outcome.
 - Added
   [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
   for a one-call data-frame/tibble or lazy Arrow workflow. It reads the
-  preview ingestion configuration, streams one bounded Parquet file,
-  uploads to the advertised trusted OneLake lake folder, waits for
+  preview ingestion configuration, streams bounded Parquet parts,
+  uploads them to the advertised trusted OneLake lake folder, waits for
   tracked ingestion, and retains staging after ambiguous or confirmed
   failures according to an explicit cleanup policy.
+- Added
+  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  for the reverse large-result path. It sends one documented
+  asynchronous `.export to storage` management command, polls
+  `.show operations`, and retrieves artifact paths and exact record
+  counts only after successful completion. Discovered OneLake
+  destinations use caller impersonation, credentialed paths are
+  redacted, and failed exports explicitly leave potentially incomplete
+  artifacts for inspection.
 - Added offline request, validation, duplicate, mapping, permission,
   timeout, throttling, protocol, Arrow streaming, cleanup, and redaction
   coverage plus live tagged file, R data-frame, and lazy Arrow
@@ -518,6 +528,12 @@ vignettes alongside new public functions:
   Spark.
 - Loading an R data frame into a Lakehouse and validating the round
   trip.
+- Loading an R data frame or lazy Arrow source into an existing
+  Warehouse table through documented OneLake `COPY INTO` staging and
+  validating append and transactional overwrite round trips.
+- Linking Fabric and connection-backed storage locations with OneLake
+  shortcuts and covering paginated discovery plus a guarded
+  create/read/delete lifecycle.
 - Updating source data, refreshing a semantic model, and checking
   history.
 - Running SparkR locally through Livy versus using SparkR or `sparklyr`
@@ -575,6 +591,8 @@ so changes in preview APIs do not destabilize mature package surfaces.
   table](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table)
 - [OneLake table APIs for
   Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+- [OneLake shortcuts REST
+  API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 - [Load to Delta Lake
   tables](https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables)
 - [Power BI dataset
@@ -593,6 +611,10 @@ so changes in preview APIs do not destabilize mature package surfaces.
   API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
 - [Kusto storage connection
   strings](https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric)
+- [Kusto export to
+  storage](https://learn.microsoft.com/en-us/kusto/management/data-export/export-data-to-storage?view=microsoft-fabric)
+- [Show Kusto
+  operations](https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric)
 - [Use SparkR in
   Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr)
 - [Use sparklyr in
