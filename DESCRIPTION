@@ -18,15 +18,16 @@ Description:
     in 'OneLake' ('Azure Data Lake Storage Gen2'), including direct 'R' and
     'Arrow' interchange with columnar files and shortcut lifecycle management;
     discover and read 'Delta Lake'
-    tables in 'OneLake'; stage data frames or existing CSV and Parquet files
-    into managed Lakehouse tables; bulk load data frames and lazy 'Arrow'
-    sources into existing Warehouse tables; start, monitor, diagnose, and
+    tables in 'OneLake'; stage data frames or load existing CSV and Parquet
+    files into managed Lakehouse tables; bulk load data frames and lazy 'Arrow'
+    sources into existing or newly created Warehouse tables; start, monitor, diagnose, and
     cancel semantic model refreshes; invoke published Fabric User Data
     Functions; execute
     'Kusto Query Language' ('KQL')
     queries against 'Eventhouse' databases; submit and monitor tracked queued
     ingestion from blob or 'OneLake' storage into existing 'Eventhouse' tables,
-    including bounded staging of data frames and lazy 'Arrow' data; export
+    including bounded staging of data frames and lazy 'Arrow' data with optional
+    target-table creation; export
     large 'KQL' query results directly to external storage with tracked
     server-side operations;
     call user-configured 'GraphQL'

@@ -123,7 +123,9 @@ infers the format from its extension. A folder should specify the format.}
 
 \item{mode}{Load mode, \code{"Overwrite"} or \code{"Append"}. Overwrite and append
 behavior is performed by Fabric's managed Delta load, never by changing
-files below \verb{Tables/} directly.}
+files below \verb{Tables/} directly. Fabric documents overwrite as dropping and
+recreating an existing Delta table; the API does not expose a truncate
+alternative.}
 
 \item{recursive}{Whether a folder load should include descendant folders.}
 
@@ -217,6 +219,19 @@ OneLake currently returns a null table type for those records.
 Service principals and managed identities are supported by the Load Table
 API. Tenant and item permissions still determine whether those identities
 can use OneLake and the Lakehouse.
+}
+
+\section{Choose an existing-file load or an R-object write}{
+
+\code{fabric_lakehouse_load_table()} never uploads a local file or serializes an R
+object. Its \code{path} must already exist inside the selected Lakehouse's
+OneLake \verb{Files/} area. Use \code{\link[=fabric_onelake_upload]{fabric_onelake_upload()}} first when intentionally
+managing that source yourself, or use \code{\link[=fabric_lakehouse_write_table]{fabric_lakehouse_write_table()}} for a
+single call that accepts a data frame, tibble, or Arrow object, stages it,
+waits for the load, and cleans up.
+
+Both load functions can create a missing destination Delta table. Fabric
+infers its schema from the source. No \code{create_if_missing} flag is needed.
 }
 
 \section{Data types and names}{

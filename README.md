@@ -295,6 +295,14 @@ shortcut, never its destination data.
 Inspect schemas and Delta metadata, load an existing CSV or Parquet path, or
 stage a local R data frame as Parquet and wait for Fabric to commit it.
 
+`fabric_lakehouse_load_table()` is specifically for a `Files/` path that is
+already present in that Lakehouse. It does not read a local path or an R
+object; use `fabric_lakehouse_write_table()` for the one-call R/Arrow workflow
+shown below. Both routes can create a missing Delta table. Fabric's Load Table
+API exposes only `Append` and service-managed `Overwrite`; its documented
+overwrite behavior drops and recreates the Delta table rather than truncating
+it.
+
 ``` r
 tables <- fabric_lakehouse_tables(lakehouse)
 
@@ -345,9 +353,9 @@ for permissions, type mappings, schema behavior, and recovery after failures.
 
 ### 8. Write R or Arrow data to a Warehouse
 
-Load an in-memory data frame or a larger-than-memory Arrow source into an
-existing Warehouse table. Fabric requires OneLake `COPY INTO` sources to come
-from a non-Warehouse item, so provide a Lakehouse for temporary staging:
+Load an in-memory data frame or a larger-than-memory Arrow source into a
+Warehouse table. Fabric requires OneLake `COPY INTO` sources to come from a
+non-Warehouse item, so provide a Lakehouse for temporary staging:
 
 ``` r
 written <- fabric_warehouse_write_table(
@@ -355,14 +363,19 @@ written <- fabric_warehouse_write_table(
   table = "orders",
   data = orders,
   staging_lakehouse = lakehouse,
-  mode = "Append"
+  mode = "Append",
+  create_if_missing = TRUE
 )
 ```
 
 The writer creates bounded Parquet parts, maps their fields to destination
 columns by name and ordinal position, and removes staging after confirmed
-success. `mode = "Overwrite"` runs `TRUNCATE TABLE` and `COPY INTO` in one
-Fabric Warehouse transaction. The destination table must already exist.
+success. Existing append and truncate targets must match those fields.
+`create_if_missing = TRUE` creates and loads a missing table with Fabric CTAS.
+For `mode = "Overwrite"`, choose `overwrite_method = "Truncate"` to preserve
+the table definition or `"Drop"` to recreate it from the staged Parquet
+schema. Drop replacement also removes table-specific constraints and grants.
+Both overwrite paths are transactional.
 
 ### 9. Query Eventhouse data with KQL
 
@@ -381,8 +394,9 @@ df_kql <- fabric_kql_query(
 )
 ```
 
-Queue existing blob or OneLake files into an existing table and wait for the
-per-file outcome:
+Queue files that already exist in blob storage or OneLake into an existing KQL
+table and wait for the per-file outcome. `fabric_kql_ingest()` does not upload
+local files or R objects; use `fabric_kql_write_table()` below for those:
 
 ``` r
 source <- paste0(
@@ -420,13 +434,16 @@ written <- fabric_kql_write_table(
     category = c("A", "B", "A"),
     amount = c(10.5, 20, 30.5)
   ),
+  create_if_missing = TRUE,
   ingest_if_not_exists = "r-events-2026-08-14"
 )
 written$status$state
 ```
 
 The writer partitions large inputs into multiple Parquet sources while staying
-within the ingestion service's advertised file-count and total-size limits.
+within the ingestion service's advertised file-count and total-size limits. A
+missing table can be inferred from the Arrow schema; use `column_types` when
+the Kusto types need to be explicit. Existing table schemas are never altered.
 
 For a large result moving in the other direction, export on the Kusto service
 directly into a OneLake `Files/` directory. This avoids collecting the result

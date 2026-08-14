@@ -41,7 +41,9 @@
 #'   infers the format from its extension. A folder should specify the format.
 #' @param mode Load mode, `"Overwrite"` or `"Append"`. Overwrite and append
 #'   behavior is performed by Fabric's managed Delta load, never by changing
-#'   files below `Tables/` directly.
+#'   files below `Tables/` directly. Fabric documents overwrite as dropping and
+#'   recreating an existing Delta table; the API does not expose a truncate
+#'   alternative.
 #' @param recursive Whether a folder load should include descendant folders.
 #' @param header Whether the first CSV row contains column names.
 #' @param delimiter CSV delimiter of 1 to 8 non-whitespace characters. Fabric
@@ -102,6 +104,17 @@
 #' Service principals and managed identities are supported by the Load Table
 #' API. Tenant and item permissions still determine whether those identities
 #' can use OneLake and the Lakehouse.
+#'
+#' @section Choose an existing-file load or an R-object write:
+#' `fabric_lakehouse_load_table()` never uploads a local file or serializes an R
+#' object. Its `path` must already exist inside the selected Lakehouse's
+#' OneLake `Files/` area. Use [fabric_onelake_upload()] first when intentionally
+#' managing that source yourself, or use [fabric_lakehouse_write_table()] for a
+#' single call that accepts a data frame, tibble, or Arrow object, stages it,
+#' waits for the load, and cleans up.
+#'
+#' Both load functions can create a missing destination Delta table. Fabric
+#' infers its schema from the source. No `create_if_missing` flag is needed.
 #'
 #' @section Data types and names:
 #' Arrow determines the Parquet schema before Fabric infers the destination
