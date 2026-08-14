@@ -742,7 +742,7 @@ test_that("print methods expose identity and state without credentials", {
   expect_output(print(handle), pbi_refresh_id, fixed = TRUE)
   expect_output(print(handle), "enhanced", fixed = TRUE)
   expect_output(print(detail), "Completed", fixed = TRUE)
-  expect_output(print(detail), "attempts:1", fixed = TRUE)
+  expect_output(print(detail), "attempts: 1", fixed = TRUE)
   expect_false(any(grepl(
     "test-token",
     capture.output(print(handle)),

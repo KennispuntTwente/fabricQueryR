@@ -252,7 +252,7 @@ fabric_onelake_shortcut_delete <- function(
   path <- .fabric_shortcut_path(path, "path")
   .fabric_shortcut_segment(name, "name")
   if (!isTRUE(confirm)) {
-    rlang::abort(
+    .fabric_abort(
       "Shortcut deletion is disabled by default; set confirm = TRUE explicitly"
     )
   }
@@ -351,7 +351,7 @@ fabric_onelake_shortcut_delete <- function(
   target_record <- fabric_as_record(target)
   if (!is.null(target_record) || is.character(target)) {
     if (is.null(target_path)) {
-      rlang::abort(
+      .fabric_abort(
         "`target_path` is required when `target` is a Fabric item",
         class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
       )
@@ -374,7 +374,7 @@ fabric_onelake_shortcut_delete <- function(
     ))
   }
   if (!is.list(target) || is.null(names(target))) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "`target` must be a Fabric item or a named raw shortcut target list"
       ),
@@ -386,7 +386,7 @@ fabric_onelake_shortcut_delete <- function(
       !is.null(target_path) ||
       !is.null(target_item_type)
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "`target_workspace`, `target_path`, and `target_item_type` are only ",
         "used when `target` is a Fabric item"
@@ -414,14 +414,14 @@ fabric_onelake_shortcut_delete <- function(
   supplied <- names(target)
   supplied <- supplied[!is.na(supplied) & nzchar(supplied)]
   if (length(supplied) != 1L || length(target) != 1L) {
-    rlang::abort(
+    .fabric_abort(
       "A raw shortcut target must contain exactly one target type",
       class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
     )
   }
   index <- match(tolower(supplied), tolower(allowed))
   if (is.na(index)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Unsupported raw shortcut target type '",
         supplied,
@@ -433,7 +433,7 @@ fabric_onelake_shortcut_delete <- function(
   name <- allowed[[index]]
   details <- target[[1L]]
   if (!is.list(details) || is.null(names(details))) {
-    rlang::abort(
+    .fabric_abort(
       "Raw shortcut target details must be a named list",
       class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
     )
@@ -442,7 +442,7 @@ fabric_onelake_shortcut_delete <- function(
     details$type <- NULL
   }
   if (.fabric_shortcut_has_secret_field(details)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Raw shortcut targets must reference a Fabric connection ID and must ",
         "not contain credential fields"
@@ -457,7 +457,7 @@ fabric_onelake_shortcut_delete <- function(
   if (identical(name, "oneLake")) {
     required <- c("workspaceId", "itemId", "path")
     if (!all(required %in% names(details))) {
-      rlang::abort(
+      .fabric_abort(
         "A raw oneLake target requires workspaceId, itemId, and path",
         class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
       )
@@ -513,7 +513,7 @@ fabric_onelake_shortcut_delete <- function(
 
 .fabric_shortcut_record <- function(record) {
   if (!is.list(record)) {
-    rlang::abort(
+    .fabric_abort(
       "Fabric returned an invalid shortcut record",
       class = c("fabric_shortcut_protocol_error", "fabric_shortcut_error")
     )
@@ -528,14 +528,14 @@ fabric_onelake_shortcut_delete <- function(
       length(name) != 1L ||
       is.na(name)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Fabric returned a shortcut without a valid path and name",
       class = c("fabric_shortcut_protocol_error", "fabric_shortcut_error")
     )
   }
   target <- record$target %||% list()
   if (!is.list(target)) {
-    rlang::abort(
+    .fabric_abort(
       "Fabric returned invalid shortcut target details",
       class = c("fabric_shortcut_protocol_error", "fabric_shortcut_error")
     )
@@ -549,7 +549,7 @@ fabric_onelake_shortcut_delete <- function(
       is.na(target_type) ||
       !nzchar(target_type)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Fabric returned an invalid shortcut target type",
       class = c("fabric_shortcut_protocol_error", "fabric_shortcut_error")
     )
@@ -601,16 +601,16 @@ fabric_onelake_shortcut_delete <- function(
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(paste0("`", name, "` must be one non-empty path"))
+    .fabric_abort(paste0("`", name, "` must be one non-empty path"))
   }
   value <- gsub("\\\\", "/", value)
   value <- sub("^/+", "", sub("/+$", "", value))
   pieces <- strsplit(value, "/", fixed = TRUE)[[1L]]
   if (!length(pieces) || !tolower(pieces[[1L]]) %in% c("files", "tables")) {
-    rlang::abort(paste0("`", name, "` must begin with Files or Tables"))
+    .fabric_abort(paste0("`", name, "` must begin with Files or Tables"))
   }
   if (length(pieces) > 251L || nchar(value, type = "bytes") > 2048L) {
-    rlang::abort(paste0("`", name, "` exceeds Fabric path limits"))
+    .fabric_abort(paste0("`", name, "` exceeds Fabric path limits"))
   }
   for (piece in pieces) {
     .fabric_shortcut_segment(piece, name)
@@ -635,7 +635,7 @@ fabric_onelake_shortcut_delete <- function(
       grepl("[. ]$", value) ||
       invalid_device
   ) {
-    rlang::abort(paste0("`", name, "` contains an invalid path component"))
+    .fabric_abort(paste0("`", name, "` contains an invalid path component"))
   }
   invisible(value)
 }
@@ -650,11 +650,11 @@ fabric_onelake_shortcut_delete <- function(
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(paste0("`", name, "` must be one non-empty string"))
+    .fabric_abort(paste0("`", name, "` must be one non-empty string"))
   }
   index <- match(tolower(value), tolower(choices))
   if (is.na(index)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must be one of ",

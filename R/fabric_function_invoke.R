@@ -145,7 +145,7 @@ fabric_function_invoke <- function(
   payload <- function_serialize_parameters(parameters)
   payload_bytes <- charToRaw(enc2utf8(payload))
   if (length(payload_bytes) > .fabric_function_request_limit) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "parameters exceed Fabric's 4 MB public-function request limit"
       ),
@@ -207,7 +207,7 @@ function_validate_url <- function(
     !length(parsed$query %||% list()) &&
     !nzchar(parsed$fragment %||% "")
   if (!valid_url) {
-    rlang::abort(
+    .fabric_abort(
       "function_url must be a valid HTTPS public function URL"
     )
   }
@@ -219,7 +219,7 @@ function_validate_url <- function(
     "[0-9a-f]{12}/functions/[A-Za-z_][A-Za-z0-9_]*/invoke$"
   )
   if (!grepl(route, parsed$path %||% "", ignore.case = TRUE)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "function_url must use Fabric's documented public function ",
         "invocation route"
@@ -231,7 +231,7 @@ function_validate_url <- function(
     !fabric_host_matches(parsed$hostname, "api.fabric.microsoft.com") &&
       !allow_custom_endpoint
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "function_url must use a Microsoft Fabric endpoint; set ",
       "allow_custom_endpoint = TRUE only for a trusted custom origin"
     ))
@@ -246,7 +246,7 @@ function_serialize_parameters <- function(parameters) {
     parameters <- as.list(parameters)
   }
   if (!is.list(parameters)) {
-    rlang::abort(
+    .fabric_abort(
       "parameters must be a named R object, such as a named list"
     )
   }
@@ -257,7 +257,7 @@ function_serialize_parameters <- function(parameters) {
         !all(nzchar(names(parameters))) ||
         anyDuplicated(names(parameters)))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "parameters must have unique, non-empty names"
     )
   }
@@ -277,7 +277,7 @@ function_serialize_parameters <- function(parameters) {
     silent = TRUE
   )
   if (inherits(encoded, "try-error")) {
-    rlang::abort(
+    .fabric_abort(
       "parameters must contain only JSON-serializable values",
       class = "fabric_function_parameters_error"
     )
@@ -348,7 +348,7 @@ function_parse_response <- function(
     if (status_code >= 400L) {
       .httr2_stop_http(response)
     }
-    rlang::abort(
+    .fabric_abort(
       "The Fabric function endpoint returned a malformed response envelope",
       class = "fabric_function_response_error",
       response_metadata = .httr2_response_metadata(response)
@@ -428,7 +428,7 @@ function_stop_response_too_large <- function(
   response_bytes,
   max_response_bytes
 ) {
-  rlang::abort(
+  .fabric_abort(
     sprintf(
       "Fabric function response is %s bytes, exceeding the %s-byte client limit",
       format(response_bytes, scientific = FALSE, trim = TRUE),
@@ -444,7 +444,7 @@ function_stop_response_too_large <- function(
 
 function_validate_logical <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(paste0(name, " must be TRUE or FALSE"))
+    .fabric_abort(paste0(name, " must be TRUE or FALSE"))
   }
   invisible(TRUE)
 }
@@ -457,7 +457,7 @@ function_validate_positive_number <- function(value, name) {
       !is.finite(value) ||
       value <= 0
   ) {
-    rlang::abort(paste0(name, " must be one positive number"))
+    .fabric_abort(paste0(name, " must be one positive number"))
   }
   invisible(TRUE)
 }
@@ -471,7 +471,7 @@ function_validate_byte_limit <- function(value, name) {
       value < 1 ||
       value != floor(value)
   ) {
-    rlang::abort(paste0(name, " must be one positive whole number"))
+    .fabric_abort(paste0(name, " must be one positive whole number"))
   }
   invisible(TRUE)
 }
@@ -483,7 +483,7 @@ function_required_string <- function(value, name) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    rlang::abort(paste0(name, " must be one non-empty string"))
+    .fabric_abort(paste0(name, " must be one non-empty string"))
   }
   trimws(value)
 }

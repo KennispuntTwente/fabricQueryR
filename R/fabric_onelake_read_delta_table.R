@@ -165,7 +165,7 @@ fabric_onelake_read_delta_table <- function(
   fabric_delta_validate_columns(columns)
 
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
-    rlang::abort("verbose must be TRUE or FALSE")
+    .fabric_abort("verbose must be TRUE or FALSE")
   }
 
   # 2 Prepare authenticated table access -----------------------------------------------------------
@@ -272,7 +272,7 @@ fabric_delta_config <- function(initialize = FALSE) {
       length(initialize) != 1L ||
       is.na(initialize)
   ) {
-    rlang::abort("initialize must be TRUE or FALSE")
+    .fabric_abort("initialize must be TRUE or FALSE")
   }
 
   requirements <- reticulate::py_require()
@@ -369,7 +369,7 @@ fabric_delta_resolve_public_target <- function(
       tolower(item_type),
       lakehouse = "Lakehouse",
       warehouse = "Warehouse",
-      rlang::abort('item_type must be "Lakehouse" or "Warehouse"')
+      .fabric_abort('item_type must be "Lakehouse" or "Warehouse"')
     )
   }
 
@@ -395,7 +395,7 @@ fabric_delta_resolve_public_target <- function(
       !is.null(suffix_type) &&
       !identical(requested_item_type, suffix_type)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "item_type conflicts with the .Lakehouse/.Warehouse item suffix"
     )
   }
@@ -410,7 +410,7 @@ fabric_delta_resolve_public_target <- function(
     )
 
     if (!record_type %in% c("lakehouse", "warehouse")) {
-      rlang::abort(
+      .fabric_abort(
         "lakehouse_name discovery record must be a Lakehouse or Warehouse item"
       )
     }
@@ -425,7 +425,7 @@ fabric_delta_resolve_public_target <- function(
       !is.null(requested_item_type) &&
         !identical(requested_item_type, record_item_type)
     ) {
-      rlang::abort("item_type conflicts with the item discovery record")
+      .fabric_abort("item_type conflicts with the item discovery record")
     }
 
     item_type <- record_item_type
@@ -449,7 +449,7 @@ fabric_delta_resolve_public_target <- function(
 
   fabric_delta_validate_non_empty(table_path, "table_path")
   if (grepl("[/\\\\]", table_path)) {
-    rlang::abort(
+    .fabric_abort(
       "table_path must be one table name; supply the schema with schema"
     )
   }
@@ -467,7 +467,7 @@ fabric_delta_resolve_public_target <- function(
   if (!is.null(schema)) {
     fabric_delta_validate_non_empty(schema, "schema")
     if (grepl("[/\\\\]", schema)) {
-      rlang::abort("schema must be exactly one URI path segment")
+      .fabric_abort("schema must be exactly one URI path segment")
     }
   }
 
@@ -502,7 +502,7 @@ fabric_delta_validate_non_empty <- function(value, name, suffix = "") {
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be one non-empty string",
       suffix
@@ -533,7 +533,7 @@ fabric_delta_validate_whole_number <- function(
       value != floor(value) ||
       value > .fabric_delta_max_exact_version
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be ",
       if (allow_null) "NULL or " else "",
@@ -556,7 +556,7 @@ fabric_delta_validate_columns <- function(columns) {
         !all(nzchar(columns)) ||
         anyDuplicated(columns))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "columns must be NULL or one or more unique, non-empty strings"
     )
   }
@@ -570,14 +570,14 @@ fabric_delta_validate_columns <- function(columns) {
 fabric_delta_target_uri <- function(target) {
   host <- httr2::url_parse(target$dfs_base)$hostname
   if (is.null(host) || !nzchar(host)) {
-    rlang::abort("The resolved OneLake target has no DFS host")
+    .fabric_abort("The resolved OneLake target has no DFS host")
   }
 
   if (
     !fabric_is_guid(target$workspace) &&
       grepl("[^A-Za-z0-9_-]", target$workspace)
   ) {
-    rlang::abort(
+    .fabric_abort(
       c(
         "The workspace display name is not valid in an ABFSS authority.",
         "x" = paste("Workspace:", target$workspace),
@@ -683,7 +683,7 @@ fabric_delta_check_protocol <- function(protocol) {
     intersect(normalized, names(.fabric_delta_unsupported_reader_features))
   ])
   if (length(unsupported)) {
-    rlang::abort(
+    .fabric_abort(
       c(
         paste0(
           "The selected Delta table requires unsupported reader feature",
@@ -831,7 +831,10 @@ fabric_delta_spool_stream <- function(stream) {
     nanoarrow::read_nanoarrow(connection, lazy = TRUE),
     error = function(error) {
       close(connection)
-      stop(error)
+      .fabric_abort(
+        "Could not open the staged Arrow stream",
+        parent = error
+      )
     }
   )
   cleanup <- local({
@@ -848,7 +851,10 @@ fabric_delta_spool_stream <- function(stream) {
     nanoarrow::array_stream_set_finalizer(local_stream, cleanup),
     error = function(error) {
       cleanup()
-      stop(error)
+      .fabric_abort(
+        "Could not attach cleanup to the staged Arrow stream",
+        parent = error
+      )
     }
   )
 
@@ -951,7 +957,7 @@ fabric_delta_validate_collect_schema <- function(schema) {
   }
 
   column_names <- names(schema$children)[unsupported]
-  rlang::abort(
+  .fabric_abort(
     c(
       "Nested and extension Delta columns cannot be collected to a tibble.",
       "x" = paste(
@@ -1038,7 +1044,15 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
   # token-shaped text before attaching it to a public condition
 
   if (inherits(error, "fabric_delta_error")) {
-    stop(error)
+    error_class <- setdiff(
+      class(error),
+      c("rlang_error", "error", "condition")
+    )
+    .fabric_abort(
+      "Delta table reading failed",
+      class = error_class,
+      parent = error
+    )
   }
 
   # Remove both the exact credential and any token-shaped text
@@ -1177,7 +1191,7 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
 
   # Turn the final state into clear output for the caller
 
-  rlang::abort(
+  .fabric_abort(
     bullets,
     class = unique(classes),
     delta_features = unsupported_features

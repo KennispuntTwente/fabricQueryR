@@ -289,10 +289,14 @@ FabricLivyBatch <- R6::R6Class(
     #' @param ... Unused
     #' @returns `self`, invisibly
     print = function(...) {
-      cat("<Fabric Livy batch>\n")
-      cat("  id: ", self$id, "\n", sep = "")
-      cat("  state: ", self$state %||% "<unknown>", "\n", sep = "")
-      cat("  cancel requested: ", self$cancel_requested, "\n", sep = "")
+      .fabric_print(
+        "Fabric Livy batch",
+        list(
+          id = self$id,
+          state = self$state %||% "<unknown>",
+          `cancel requested` = self$cancel_requested
+        )
+      )
       invisible(self)
     },
 
@@ -331,6 +335,11 @@ FabricLivyBatch <- R6::R6Class(
       fabric_livy_check_flag(error_on_failure, "error_on_failure")
       fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
       deadline <- Sys.time() + timeout
+      progress <- .fabric_poll_progress(
+        "Fabric Livy batch",
+        self$id,
+        verbose = self$verbose
+      )
       repeat {
         if (fabric_livy_remaining(deadline) <= 0) {
           private$abort_timeout(deadline, cancel_on_timeout)
@@ -342,6 +351,7 @@ FabricLivyBatch <- R6::R6Class(
           }
         )
         state <- fabric_livy_state(response)
+        .fabric_poll_progress_update(progress, state)
         result <- tolower(response$result %||% "")
         fabric_state <- tolower(
           response$fabricBatchStateInfo$state %||% ""
@@ -359,6 +369,7 @@ FabricLivyBatch <- R6::R6Class(
             fabric_livy_abort_batch(response)
           }
 
+          .fabric_poll_progress_done(progress)
           return(invisible(self))
         }
         fabric_livy_poll_sleep(deadline, poll_interval)

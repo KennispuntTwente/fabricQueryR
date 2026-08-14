@@ -286,7 +286,7 @@ fabric_operation_result <- function(
     if (identical(state$status, "Failed")) {
       .fabric_operation_abort_failure(state)
     }
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Fabric operation ",
         state$id %||% "<unknown>",
@@ -360,7 +360,7 @@ fabric_operation_result <- function(
 
   .fabric_operation_logical(idempotent, "idempotent")
   if (!inherits(request, "httr2_request")) {
-    rlang::abort("`request` must be an httr2 request")
+    .fabric_abort("`request` must be an httr2 request")
   }
   base <- if (is.null(api_base)) {
     .fabric_operation_api_base(request$url, allow_custom_endpoint)
@@ -502,6 +502,7 @@ fabric_operation_result <- function(
 ) {
   operation <- context$operation
   last_state <- NULL
+  progress <- .fabric_poll_progress("Fabric operation", operation$id)
 
   repeat {
     if (.now() >= deadline) {
@@ -517,18 +518,21 @@ fabric_operation_result <- function(
     )
     operation <- state$operation
     last_state <- state
+    .fabric_poll_progress_update(progress, state$status)
 
     if (identical(state$status, "Succeeded")) {
+      .fabric_poll_progress_done(progress)
       return(state)
     }
     if (identical(state$status, "Failed")) {
       if (isTRUE(error_on_failure)) {
         .fabric_operation_abort_failure(state)
       }
+      .fabric_poll_progress_done(progress)
       return(state)
     }
     if (!state$status %in% .fabric_operation_active_states) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "Fabric operation ",
           state$id %||% "<unknown>",
@@ -802,7 +806,7 @@ fabric_operation_result <- function(
       is.na(operation) ||
       !nzchar(operation)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "`operation` must be a fabric_operation, operation GUID, or Location URL"
     )
   }
@@ -1053,7 +1057,7 @@ fabric_operation_result <- function(
 .fabric_operation_api_base <- function(url, allow_custom_endpoint) {
   parsed <- try(httr2::url_parse(url), silent = TRUE)
   if (inherits(parsed, "try-error")) {
-    rlang::abort("The operation URL is not a valid URL")
+    .fabric_abort("The operation URL is not a valid URL")
   }
   if (fabric_host_matches(parsed$hostname, "analysis.windows.net")) {
     return(.fabric_api_base)
@@ -1191,7 +1195,7 @@ fabric_operation_result <- function(
     NULL
   }
   if (is.null(credential)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "This Fabric operation handle no longer has an in-process credential; ",
         "supply `token`, `tenant_id`, or other authentication arguments"
@@ -1233,7 +1237,7 @@ fabric_operation_result <- function(
 # This function does not return and keeps the last state available to the caller
 .fabric_operation_abort_failure <- function(state) {
   detail <- .fabric_job_failure_text(state$error)
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Fabric operation ",
       state$id %||% "<unknown>",
@@ -1251,7 +1255,7 @@ fabric_operation_result <- function(
 # Raise a typed timeout with the latest known operation state
 # This function does not return and never attempts cancellation or initiation
 .fabric_operation_abort_timeout <- function(operation, state) {
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Timed out waiting for Fabric operation ",
       operation$id %||% "<unknown>"
@@ -1269,7 +1273,7 @@ fabric_operation_result <- function(
   operation = NULL,
   response = NULL
 ) {
-  rlang::abort(
+  .fabric_abort(
     message,
     class = c("fabric_operation_protocol_error", "fabric_operation_error"),
     operation = operation,
@@ -1285,7 +1289,7 @@ fabric_operation_result <- function(
 # Returns invisibly after requiring one non-missing logical value
 .fabric_operation_logical <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(paste0("`", name, "` must be TRUE or FALSE"))
+    .fabric_abort(paste0("`", name, "` must be TRUE or FALSE"))
   }
   invisible(TRUE)
 }
@@ -1301,7 +1305,7 @@ fabric_operation_result <- function(
         !is.finite(value) ||
         value < 0)
   ) {
-    rlang::abort("`poll_interval` must be NULL or one non-negative number")
+    .fabric_abort("`poll_interval` must be NULL or one non-negative number")
   }
   invisible(TRUE)
 }
@@ -1316,7 +1320,7 @@ fabric_operation_result <- function(
       !is.finite(value) ||
       value < 0
   ) {
-    rlang::abort("`timeout` must be one non-negative number")
+    .fabric_abort("`timeout` must be one non-negative number")
   }
   invisible(TRUE)
 }

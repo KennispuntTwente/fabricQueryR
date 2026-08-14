@@ -2,7 +2,7 @@
 # RecordBatchReader so lazy Arrow inputs are never collected into an R object.
 .fabric_parquet_prepare_data <- function(data, caller) {
   if (!requireNamespace("arrow", quietly = TRUE)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(caller, " requires the optional arrow package"),
       class = c("fabric_arrow_error", "fabric_error")
     )
@@ -22,7 +22,7 @@
       logical(1)
     )
     if (any(unsupported)) {
-      rlang::abort(paste0(
+      .fabric_abort(paste0(
         "Unsupported column type in: ",
         paste(names(value)[unsupported], collapse = ", "),
         ". Complex and difftime columns need an explicit supported conversion"
@@ -36,7 +36,7 @@
   reader <- tryCatch(
     arrow::as_record_batch_reader(value),
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "data must be a data frame, tibble, Arrow Table, RecordBatch, ",
           "Dataset, Scanner, RecordBatchReader, arrow_dplyr_query, or ",
@@ -58,7 +58,7 @@
       inherits(column_names, "try-error") ||
       !inherits(schema, "Schema")
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Could not inspect the supplied Arrow schema",
       class = c("fabric_arrow_error", "fabric_error")
     )
@@ -120,7 +120,7 @@
             !is.finite(batch_rows) ||
             batch_rows < 0
         ) {
-          rlang::abort("Arrow returned an invalid record-batch row count")
+          .fabric_abort("Arrow returned an invalid record-batch row count")
         }
         if (batch_rows > 0) {
           writer$WriteBatch(
@@ -141,7 +141,7 @@
           !is.finite(bytes) ||
           bytes < 0
       ) {
-        rlang::abort("Arrow did not create a readable Parquet file")
+        .fabric_abort("Arrow did not create a readable Parquet file")
       }
       list(
         path = path,
@@ -151,7 +151,7 @@
       )
     },
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0("Could not serialize `data` to Parquet for ", caller),
         class = unique(c(error_class, "fabric_arrow_error", "fabric_error")),
         parent = error
@@ -184,10 +184,10 @@
   )
   .fabric_parquet_positive_whole(max_files, "max_files")
   if (!dir.exists(directory) && !dir.create(directory, recursive = TRUE)) {
-    rlang::abort("Could not create the local Parquet staging directory")
+    .fabric_abort("Could not create the local Parquet staging directory")
   }
   if (!dir.exists(directory)) {
-    rlang::abort("Local Parquet staging path is not a directory")
+    .fabric_abort("Local Parquet staging path is not a directory")
   }
 
   output <- NULL
@@ -222,7 +222,7 @@
       open_file <- function() {
         file_index <- length(paths) + 1L
         if (file_index > max_files) {
-          rlang::abort(sprintf(
+          .fabric_abort(sprintf(
             paste0(
               "Parquet staging requires more than the allowed %d files; ",
               "increase target_file_size or max_rows_per_file"
@@ -235,7 +235,9 @@
           sprintf("part-%05d.parquet", file_index)
         )
         if (file.exists(current_path)) {
-          rlang::abort("Parquet staging would overwrite an existing local file")
+          .fabric_abort(
+            "Parquet staging would overwrite an existing local file"
+          )
         }
         output <<- arrow::FileOutputStream$create(current_path)
         writer <<- arrow::ParquetFileWriter$create(
@@ -257,7 +259,7 @@
             !is.finite(bytes) ||
             bytes < 0
         ) {
-          rlang::abort("Arrow did not create a readable Parquet part")
+          .fabric_abort("Arrow did not create a readable Parquet part")
         }
         paths <<- c(paths, current_path)
         rows_per_file <<- c(rows_per_file, current_rows)
@@ -279,7 +281,7 @@
             !is.finite(batch_rows) ||
             batch_rows < 0
         ) {
-          rlang::abort("Arrow returned an invalid record-batch row count")
+          .fabric_abort("Arrow returned an invalid record-batch row count")
         }
         offset <- 0
         while (offset < batch_rows) {
@@ -332,7 +334,7 @@
       )
     },
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0("Could not serialize data to partitioned Parquet for ", caller),
         class = unique(c(error_class, "fabric_arrow_error", "fabric_error")),
         parent = error
@@ -357,7 +359,7 @@
       value < 1 ||
       value != floor(value)
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be ",
       if (allow_null) "NULL or " else "",
@@ -371,13 +373,13 @@
 # destination-specific naming grammar.
 .fabric_parquet_column_names <- function(value) {
   if (!length(value)) {
-    rlang::abort("data must contain at least one column")
+    .fabric_abort("data must contain at least one column")
   }
   if (anyNA(value) || !all(nzchar(value))) {
-    rlang::abort("data column names must be non-empty")
+    .fabric_abort("data column names must be non-empty")
   }
   if (anyDuplicated(value)) {
-    rlang::abort("data column names must be unique")
+    .fabric_abort("data column names must be unique")
   }
   invisible(value)
 }

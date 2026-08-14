@@ -109,7 +109,7 @@ fabric_livy_query <- function(
   )
   token <- resolved$token
   if (length(resolved$dots)) {
-    rlang::abort("fabric_livy_query() received unused arguments in ...")
+    .fabric_abort("fabric_livy_query() received unused arguments in ...")
   }
 
   # 2 Start a temporary session --------------------------------------------------------------------
@@ -189,7 +189,7 @@ fabric_livy_resolve_url <- function(
         "lakehouse"
       )
     ) {
-      rlang::abort(
+      .fabric_abort(
         "livy_url discovery record must be a Lakehouse item"
       )
     }
@@ -213,7 +213,7 @@ fabric_livy_validate_endpoint <- function(
       !identical(tolower(parsed$scheme %||% ""), "https") ||
       !nzchar(parsed$hostname %||% "")
   ) {
-    rlang::abort("livy_url must be a valid HTTPS endpoint")
+    .fabric_abort("livy_url must be a valid HTTPS endpoint")
   }
   host <- tolower(parsed$hostname)
   fabric_host <- grepl("(^|\\.)api\\.fabric\\.microsoft\\.com$", host)
@@ -223,7 +223,7 @@ fabric_livy_validate_endpoint <- function(
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort(
+    .fabric_abort(
       "livy_url must not contain userinfo, a query string, or a fragment"
     )
   }
@@ -233,13 +233,13 @@ fabric_livy_validate_endpoint <- function(
       !is.null(parsed$port) &&
       as.character(parsed$port) != "443"
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Microsoft Fabric livy_url may use only the HTTPS default port"
     )
   }
 
   if (!fabric_host && !isTRUE(allow_custom_endpoint)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "livy_url is not a Microsoft Fabric API host; set ",
       "allow_custom_endpoint = TRUE only for a trusted HTTPS service"
     ))
@@ -260,7 +260,7 @@ fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    rlang::abort(cli::format_inline("{name} must be one non-empty string"))
+    .fabric_abort(cli::format_inline("{name} must be one non-empty string"))
   }
   invisible(value)
 }
@@ -275,7 +275,7 @@ fabric_livy_check_number <- function(value, name, minimum = 0) {
       !is.finite(value) ||
       value < minimum
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be one finite number greater than or equal to ",
       minimum
@@ -296,7 +296,7 @@ fabric_livy_check_integer <- function(value, name, minimum = 1L) {
       value < minimum ||
       value > .Machine$integer.max
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be one whole number between ",
       minimum,
@@ -311,7 +311,7 @@ fabric_livy_check_integer <- function(value, name, minimum = 1L) {
 # used by public functions and R6 methods
 fabric_livy_check_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(cli::format_inline("{name} must be TRUE or FALSE"))
+    .fabric_abort(cli::format_inline("{name} must be TRUE or FALSE"))
   }
   invisible(value)
 }
@@ -341,7 +341,7 @@ fabric_livy_check_string_vector <- function(
   }
 
   if (!valid) {
-    rlang::abort(cli::format_inline(
+    .fabric_abort(cli::format_inline(
       "{name} must be a character vector without missing{if (!allow_empty_strings) ' or empty' else ''} values"
     ))
   }
@@ -365,7 +365,7 @@ fabric_livy_normalize_named_list <- function(value, name) {
       logical(1)
     ))
   if (!valid_names || !valid_values) {
-    rlang::abort(cli::format_inline(
+    .fabric_abort(cli::format_inline(
       "{name} must be a uniquely named list of single, non-missing strings"
     ))
   }
@@ -467,13 +467,13 @@ fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
       !length(audience) ||
       anyNA(audience)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "audience must be a non-empty character vector without duplicates"
     )
   }
   audience <- trimws(audience)
   if (!all(nzchar(audience)) || anyDuplicated(audience)) {
-    rlang::abort(
+    .fabric_abort(
       "audience must be a non-empty character vector without duplicates"
     )
   }
@@ -483,7 +483,7 @@ fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
       fabric_uses_client_credentials(auth_args) &&
       length(audience) != 1L
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Client-credentials authentication requires one .default audience"
     )
   }
@@ -654,7 +654,7 @@ fabric_livy_error_text <- function(response, fallback) {
 # and preserves the statement output and traceback for callers
 fabric_livy_abort_statement <- function(response) {
   state <- response$state %||% "unknown"
-  rlang::abort(
+  .fabric_abort(
     fabric_livy_error_text(
       response,
       paste0("Livy statement ended with state ", state)
@@ -670,7 +670,7 @@ fabric_livy_abort_statement <- function(response) {
 # attaches the raw session response
 fabric_livy_abort_session <- function(response) {
   state <- response$state %||% "unknown"
-  rlang::abort(
+  .fabric_abort(
     fabric_livy_error_text(
       response,
       paste0("Livy session ended with state ", state)
@@ -684,7 +684,7 @@ fabric_livy_abort_session <- function(response) {
 # attaches logs and service error information
 fabric_livy_abort_batch <- function(response) {
   state <- response$state %||% "unknown"
-  rlang::abort(
+  .fabric_abort(
     fabric_livy_error_text(
       response,
       paste0("Livy batch ended with state ", state)
@@ -806,7 +806,7 @@ fabric_livy_parse_sql_json <- function(value) {
   }
   fields <- value$schema$fields
   if (!is.list(fields)) {
-    rlang::abort(
+    .fabric_abort(
       "Livy returned malformed Spark SQL output: schema fields must be an array",
       class = "fabric_livy_protocol_error"
     )
@@ -839,7 +839,7 @@ fabric_livy_parse_table <- function(value) {
   }
   # Raise a table protocol error with beginner-readable `detail`; never returns
   malformed <- function(detail) {
-    rlang::abort(
+    .fabric_abort(
       paste0("Livy returned malformed table output: ", detail),
       class = "fabric_livy_protocol_error"
     )
@@ -931,7 +931,7 @@ fabric_livy_atomic_text <- function(values) {
 # Raise a typed protocol error naming invalid Spark `kind`. This function does
 # not return and keeps conversion failures consistent
 fabric_livy_invalid_type <- function(kind) {
-  rlang::abort(
+  .fabric_abort(
     paste0("Livy returned an invalid value for declared Spark type ", kind),
     class = "fabric_livy_protocol_error"
   )

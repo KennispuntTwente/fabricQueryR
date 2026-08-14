@@ -550,7 +550,7 @@ fabric_warehouse_write_table <- function(
   tryCatch(
     .fabric_warehouse_disconnect(connection, backend),
     error = function(error) {
-      rlang::warn(
+      .fabric_warn(
         "The Warehouse load succeeded, but the SQL connection did not close cleanly",
         parent = error
       )
@@ -565,10 +565,13 @@ fabric_warehouse_write_table <- function(
     removed <- .fabric_warehouse_remove_staging(storage_target, credential)
     staging_retained <- !removed
     if (!removed) {
-      rlang::warn(paste0(
-        "The Warehouse load succeeded, but staging cleanup failed; retained ",
-        staging_path
-      ))
+      .fabric_warn(
+        c(
+          "Staging cleanup failed after the Warehouse table load succeeded",
+          "i" = "Staged files remain at {.path {staging_path}}"
+        ),
+        .format = TRUE
+      )
     }
   }
   structure(
@@ -617,7 +620,7 @@ fabric_warehouse_write_table <- function(
       is.null(actual_type) ||
         !identical(tolower(actual_type), tolower(expected_type))
     ) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "`",
           argument,
@@ -658,7 +661,7 @@ fabric_warehouse_write_table <- function(
         tolower(as.character(supplied_workspace_id))
       )
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0("`", argument, "` belongs to a different workspace"),
       class = c(
         "fabric_warehouse_target_error",
@@ -680,7 +683,7 @@ fabric_warehouse_write_table <- function(
   }
   if (needs_lookup) {
     if (is.null(workspace_value)) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "`workspace` is required to resolve `",
           argument,
@@ -712,7 +715,7 @@ fabric_warehouse_write_table <- function(
       !fabric_is_guid(as.character(item_id)) ||
       !fabric_is_guid(as.character(workspace_id))
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "`",
         argument,
@@ -808,7 +811,7 @@ fabric_warehouse_write_table <- function(
       caller = "fabric_warehouse_write_table()"
     ),
     fabric_arrow_error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         conditionMessage(error),
         class = c(
           "fabric_warehouse_arrow_error",
@@ -822,14 +825,14 @@ fabric_warehouse_write_table <- function(
 
 .fabric_warehouse_column_names <- function(value) {
   if (!length(value)) {
-    rlang::abort("data must contain at least one column")
+    .fabric_abort("data must contain at least one column")
   }
   for (column in value) {
     .fabric_warehouse_identifier(column, "column")
   }
   normalized <- tolower(enc2utf8(value))
   if (anyDuplicated(normalized)) {
-    rlang::abort("Column names must be unique ignoring case")
+    .fabric_abort("Column names must be unique ignoring case")
   }
   invisible(value)
 }
@@ -843,7 +846,7 @@ fabric_warehouse_write_table <- function(
       nchar(value) > 128L ||
       grepl("[[:cntrl:]]", value)
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must be one non-empty identifier of at most 128 characters"
@@ -859,7 +862,7 @@ fabric_warehouse_write_table <- function(
   .fabric_warehouse_nonempty(value, name)
   index <- match(tolower(value), tolower(choices))
   if (is.na(index)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must be one of ",
@@ -876,7 +879,7 @@ fabric_warehouse_write_table <- function(
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(paste0("`", name, "` must be one non-empty string"))
+    .fabric_abort(paste0("`", name, "` must be one non-empty string"))
   }
   invisible(value)
 }
@@ -888,7 +891,7 @@ fabric_warehouse_write_table <- function(
     !startsWith(tolower(normalized), "files/") ||
       identical(tolower(normalized), "files/")
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must begin with Files/ and name a folder"
@@ -914,7 +917,7 @@ fabric_warehouse_write_table <- function(
   if (!isTRUE(keep_staging) && !isTRUE(ambiguous)) {
     retained <- !.fabric_warehouse_remove_staging(storage_target, credential)
   }
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Fabric could not write the staged Parquet files to Warehouse. ",
       if (isTRUE(ambiguous)) {
@@ -990,7 +993,7 @@ fabric_warehouse_write_table <- function(
   )
   value <- .fabric_warehouse_query(connection, sql)
   if (!is.data.frame(value) || nrow(value) != 1L || ncol(value) < 1L) {
-    rlang::abort("Warehouse returned an invalid table-existence result")
+    .fabric_abort("Warehouse returned an invalid table-existence result")
   }
   flag <- value[[1L]][[1L]]
   if (
@@ -998,7 +1001,7 @@ fabric_warehouse_write_table <- function(
       is.na(flag) ||
       !as.character(flag) %in% c("0", "1", "FALSE", "TRUE")
   ) {
-    rlang::abort("Warehouse returned an invalid table-existence value")
+    .fabric_abort("Warehouse returned an invalid table-existence value")
   }
   as.character(flag) %in% c("1", "TRUE")
 }

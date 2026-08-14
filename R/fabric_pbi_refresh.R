@@ -318,7 +318,7 @@ fabric_pbi_refresh_history <- function(
         length(refresh_id) != 1L ||
         !fabric_is_guid(refresh_id)
     ) {
-      rlang::abort(
+      .fabric_abort(
         "Power BI returned refresh history without a valid requestId",
         class = c(
           "fabric_pbi_refresh_protocol_error",
@@ -436,7 +436,7 @@ fabric_pbi_refresh_wait <- function(
     !inherits(refresh, "fabric_pbi_refresh") &&
       !inherits(refresh, "fabric_pbi_refresh_detail")
   ) {
-    rlang::abort(
+    .fabric_abort(
       "refresh must be a fabric_pbi_refresh handle or detail record"
     )
   }
@@ -447,7 +447,7 @@ fabric_pbi_refresh_wait <- function(
   .pbi_refresh_flag(error_on_failure, "error_on_failure")
   .pbi_refresh_flag(cancel_on_timeout, "cancel_on_timeout")
   if (!is.null(cancel) && !is.function(cancel)) {
-    rlang::abort("cancel must be a function or NULL")
+    .fabric_abort("cancel must be a function or NULL")
   }
 
   override_auth <- !missing(tenant_id) ||
@@ -472,10 +472,11 @@ fabric_pbi_refresh_wait <- function(
 
   # Client cancellation and timeout remain distinct from service cancellation and timeout states
 
+  progress <- .fabric_poll_progress("Power BI refresh", context$id)
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
       outcome <- .pbi_refresh_cancel_outcome(context)
-      rlang::abort(
+      .fabric_abort(
         "Power BI refresh polling was cancelled by the caller",
         class = c(
           "fabric_pbi_refresh_cancelled_by_caller",
@@ -495,7 +496,7 @@ fabric_pbi_refresh_wait <- function(
       } else {
         list(accepted = NULL, error = NULL)
       }
-      rlang::abort(
+      .fabric_abort(
         sprintf(
           "Timed out after %s seconds waiting for Power BI refresh %s",
           format(timeout, trim = TRUE),
@@ -527,11 +528,12 @@ fabric_pbi_refresh_wait <- function(
 
     last <- .pbi_refresh_get_status(context)
     retry_after <- last$retry_after
+    .fabric_poll_progress_update(progress, last$state)
     if (last$state %in% .fabric_pbi_refresh_active_states) {
       next
     }
     if (!last$state %in% .fabric_pbi_refresh_terminal_states) {
-      rlang::abort(
+      .fabric_abort(
         paste0("Power BI returned an unknown refresh state: ", last$state),
         class = c(
           "fabric_pbi_refresh_unknown_status",
@@ -546,6 +548,7 @@ fabric_pbi_refresh_wait <- function(
         .fabric_pbi_refresh_success_states ||
         !isTRUE(error_on_failure)
     ) {
+      .fabric_poll_progress_done(progress)
       return(last)
     }
     .pbi_refresh_abort_terminal(last, context$refresh)
@@ -610,21 +613,14 @@ fabric_pbi_refresh_cancel <- function(
 #' @return `x`, invisibly
 #' @export
 print.fabric_pbi_refresh <- function(x, ...) {
-  cat(
-    "<fabric_pbi_refresh>\n",
-    "  refresh:   ",
-    x$id,
-    "\n",
-    "  dataset:   ",
-    x$dataset_id,
-    "\n",
-    "  workspace: ",
-    x$workspace_id %||% "My Workspace",
-    "\n",
-    "  mode:      ",
-    x$mode,
-    "\n",
-    sep = ""
+  .fabric_print(
+    "fabric_pbi_refresh",
+    list(
+      refresh = x$id,
+      dataset = x$dataset_id,
+      workspace = x$workspace_id %||% "My Workspace",
+      mode = x$mode
+    )
   )
   invisible(x)
 }
@@ -637,18 +633,13 @@ print.fabric_pbi_refresh <- function(x, ...) {
 #' @return `x`, invisibly
 #' @export
 print.fabric_pbi_refresh_detail <- function(x, ...) {
-  cat(
-    "<fabric_pbi_refresh_detail>\n",
-    "  refresh: ",
-    x$id,
-    "\n",
-    "  state:   ",
-    x$state,
-    "\n",
-    "  attempts:",
-    x$number_of_attempts %||% length(x$attempts),
-    "\n",
-    sep = ""
+  .fabric_print(
+    "fabric_pbi_refresh_detail",
+    list(
+      refresh = x$id,
+      state = x$state,
+      attempts = x$number_of_attempts %||% length(x$attempts)
+    )
   )
   invisible(x)
 }
@@ -675,7 +666,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
         "semanticmodel"
       )
     ) {
-      rlang::abort("connstr discovery record must be a SemanticModel item")
+      .fabric_abort("connstr discovery record must be a SemanticModel item")
     }
     discovered_workspace_id <- fabric_record_value(discovered, "workspaceId")
     discovered_dataset_id <- fabric_record_value(discovered, "id")
@@ -716,21 +707,21 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
         is.na(connstr) ||
         !nzchar(connstr))
   ) {
-    rlang::abort("connstr must be one non-empty string")
+    .fabric_abort("connstr must be one non-empty string")
   }
   pbi_validate_optional_guid(workspace_id, "workspace_id")
   pbi_validate_optional_guid(dataset_id, "dataset_id")
   .pbi_refresh_flag(my_workspace, "my_workspace")
 
   if (!is.null(workspace_id) && isTRUE(my_workspace)) {
-    rlang::abort("Supply workspace_id or set my_workspace = TRUE, not both")
+    .fabric_abort("Supply workspace_id or set my_workspace = TRUE, not both")
   }
   if (
     is.null(discovered) &&
       !is.null(connstr) &&
       (!is.null(workspace_id) || !is.null(dataset_id) || isTRUE(my_workspace))
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Supply a connection string or explicit workspace/dataset selectors, ",
         "not both"
@@ -739,7 +730,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     )
   }
   if (is.null(dataset_id) && is.null(connstr)) {
-    rlang::abort("Supply either connstr or dataset_id")
+    .fabric_abort("Supply either connstr or dataset_id")
   }
 
   # 3 Resolve connection-string names --------------------------------------------------------------
@@ -756,7 +747,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     dataset_id <- ids$dataset_id
   }
   if (is.null(workspace_id) && !isTRUE(my_workspace)) {
-    rlang::abort(
+    .fabric_abort(
       "dataset_id requires workspace_id or explicit my_workspace = TRUE"
     )
   }
@@ -797,12 +788,12 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     mode <- if (has_enhanced) "enhanced" else "standard"
   }
   if (identical(mode, "standard") && has_enhanced) {
-    rlang::abort(
+    .fabric_abort(
       "Enhanced refresh options cannot be used with mode = \"standard\""
     )
   }
   if (identical(mode, "enhanced") && !is.null(notify_option)) {
-    rlang::abort("notify_option cannot be used with an enhanced refresh")
+    .fabric_abort("notify_option cannot be used with an enhanced refresh")
   }
 
   notify_option <- .pbi_refresh_choice(
@@ -842,7 +833,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     identical(commit_mode, "PartialBatch") &&
       isTRUE(apply_refresh_policy)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "apply_refresh_policy = TRUE requires commit_mode = \"Transactional\""
     )
   }
@@ -865,7 +856,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       !is.null(retry_count) &&
       timeout_seconds * (retry_count + 1) > 24 * 60 * 60
   ) {
-    rlang::abort(
+    .fabric_abort(
       "timeout multiplied by all attempts cannot exceed 24 hours"
     )
   }
@@ -907,14 +898,14 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 ) {
   if (inherits(refresh, "fabric_pbi_refresh_detail")) {
     if (!is.null(refresh_id)) {
-      rlang::abort("refresh_id cannot be combined with a refresh detail")
+      .fabric_abort("refresh_id cannot be combined with a refresh detail")
     }
     refresh <- refresh$refresh
   }
 
   if (inherits(refresh, "fabric_pbi_refresh")) {
     if (!is.null(refresh_id)) {
-      rlang::abort("refresh_id cannot be combined with a refresh handle")
+      .fabric_abort("refresh_id cannot be combined with a refresh handle")
     }
     if (
       !is.null(connstr) ||
@@ -922,7 +913,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
         !is.null(dataset_id) ||
         isTRUE(my_workspace)
     ) {
-      rlang::abort(
+      .fabric_abort(
         "Semantic-model selectors cannot be combined with a refresh handle"
       )
     }
@@ -960,7 +951,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   id <- refresh_id %||% refresh
   pbi_validate_optional_guid(id, "refresh ID")
   if (is.null(id)) {
-    rlang::abort("Supply a refresh handle or refresh_id")
+    .fabric_abort("Supply a refresh handle or refresh_id")
   }
   base <- pbi_api_base(api_base, allow_custom_endpoint)
   credential <- fabric_credential(
@@ -1065,7 +1056,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       length(refresh_id) != 1L ||
       !fabric_is_guid(refresh_id)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Power BI accepted the refresh without a valid refresh request ID",
       class = c("fabric_pbi_refresh_protocol_error", "fabric_pbi_refresh_error")
     )
@@ -1075,7 +1066,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       fabric_is_guid(location_id) &&
       !identical(tolower(location_id), tolower(refresh_id))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Power BI returned conflicting refresh IDs in response headers",
       class = c("fabric_pbi_refresh_protocol_error", "fabric_pbi_refresh_error")
     )
@@ -1141,7 +1132,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     NULL
   }
   if (is.null(credential)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "This Power BI refresh handle no longer has an in-process credential; ",
         "supply token, tenant_id, or other authentication arguments"
@@ -1388,7 +1379,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     tz = "UTC"
   )
   if (is.na(parsed)) {
-    rlang::abort(
+    .fabric_abort(
       paste0("Power BI returned an invalid refresh timestamp: ", value),
       class = c("fabric_pbi_refresh_protocol_error", "fabric_pbi_refresh_error")
     )
@@ -1441,11 +1432,11 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(paste0(name, " must be one non-empty string"))
+    .fabric_abort(paste0(name, " must be one non-empty string"))
   }
   index <- match(tolower(value), tolower(choices))
   if (is.na(index)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be one of ",
       paste(choices, collapse = ", ")
@@ -1461,12 +1452,12 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   }
   if (is.character(objects)) {
     if (!length(objects) || anyNA(objects) || !all(nzchar(objects))) {
-      rlang::abort("objects table names must be non-empty strings")
+      .fabric_abort("objects table names must be non-empty strings")
     }
     return(lapply(unname(objects), function(table) list(table = table)))
   }
   if (!is.list(objects) || is.data.frame(objects) || !length(objects)) {
-    rlang::abort(
+    .fabric_abort(
       "objects must be table names or a non-empty list of table records"
     )
   }
@@ -1483,7 +1474,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
         ) ||
         !"table" %in% names(object)
     ) {
-      rlang::abort(
+      .fabric_abort(
         "Each refresh object must contain table and optional partition"
       )
     }
@@ -1495,7 +1486,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
           is.na(value) ||
           !nzchar(value)
       ) {
-        rlang::abort(paste0("Refresh object ", field, " must be one string"))
+        .fabric_abort(paste0("Refresh object ", field, " must be one string"))
       }
     }
     object[c("table", intersect("partition", names(object)))]
@@ -1509,13 +1500,13 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   }
   if (inherits(value, "Date")) {
     if (length(value) != 1L || is.na(value)) {
-      rlang::abort("effective_date must contain one non-missing date")
+      .fabric_abort("effective_date must contain one non-missing date")
     }
     return(paste0(format(value, "%Y-%m-%d"), "T00:00:00Z"))
   }
   if (inherits(value, "POSIXt")) {
     if (length(value) != 1L || is.na(value)) {
-      rlang::abort("effective_date must contain one non-missing date-time")
+      .fabric_abort("effective_date must contain one non-missing date-time")
     }
     return(format(value, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
   }
@@ -1531,13 +1522,15 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
         value
       )
   ) {
-    rlang::abort("effective_date must be a Date, POSIXt, or ISO 8601 date-time")
+    .fabric_abort(
+      "effective_date must be a Date, POSIXt, or ISO 8601 date-time"
+    )
   }
   normalized <- sub("Z$", "+0000", value, ignore.case = TRUE)
   normalized <- sub("([+-][0-9]{2}):([0-9]{2})$", "\\1\\2", normalized)
   parsed <- strptime(normalized, "%Y-%m-%dT%H:%M:%OS%z", tz = "UTC")
   if (is.na(parsed)) {
-    rlang::abort("effective_date must contain a valid ISO 8601 date-time")
+    .fabric_abort("effective_date must contain a valid ISO 8601 date-time")
   }
   value
 }
@@ -1553,7 +1546,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       is.na(value) ||
       !grepl("^(?:[01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$", value)
   ) {
-    rlang::abort("timeout must use HH:MM:SS with hours from 0 through 23")
+    .fabric_abort("timeout must use HH:MM:SS with hours from 0 through 23")
   }
   parts <- as.numeric(strsplit(value, ":", fixed = TRUE)[[1L]])
   parts[[1L]] * 3600 + parts[[2L]] * 60 + parts[[3L]]
@@ -1562,7 +1555,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 # Validate a scalar logical option
 .pbi_refresh_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(paste0(name, " must be TRUE or FALSE"))
+    .fabric_abort(paste0(name, " must be TRUE or FALSE"))
   }
   invisible(value)
 }
@@ -1576,7 +1569,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       !is.finite(value) ||
       value < minimum
   ) {
-    rlang::abort(paste0(name, " must be one number at least ", minimum))
+    .fabric_abort(paste0(name, " must be one number at least ", minimum))
   }
   invisible(value)
 }
@@ -1585,7 +1578,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 .pbi_refresh_whole_number <- function(value, name, minimum) {
   .pbi_refresh_number(value, name, minimum)
   if (value != floor(value) || value > .Machine$integer.max) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       name,
       " must be a whole number within R's integer range"
     ))
@@ -1618,7 +1611,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   ) {
     message <- paste0(message, ": ", service_message)
   }
-  rlang::abort(
+  .fabric_abort(
     message,
     class = c(class_name, "fabric_pbi_refresh_error"),
     refresh = refresh,

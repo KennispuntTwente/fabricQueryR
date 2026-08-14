@@ -400,7 +400,7 @@ fabric_graphql_paginate <- function(
   # The callback controls when paging ends, while `max_pages` is a safety cap
 
   if (!is.function(next_cursor)) {
-    rlang::abort("next_cursor must be a function")
+    .fabric_abort("next_cursor must be a function")
   }
   cursor_variable <- graphql_required_string(
     cursor_variable,
@@ -416,7 +416,7 @@ fabric_graphql_paginate <- function(
       max_pages > .Machine$integer.max ||
       max_pages != floor(max_pages)
   ) {
-    rlang::abort("max_pages must be one positive integer")
+    .fabric_abort("max_pages must be one positive integer")
   }
   variables <- graphql_validate_variables(variables)
   error_policy <- match.arg(error_policy, c("return", "warn", "error"))
@@ -458,7 +458,7 @@ fabric_graphql_paginate <- function(
     }
     cursor <- graphql_required_string(cursor, "next_cursor result")
     if (cursor %in% seen) {
-      rlang::abort(
+      .fabric_abort(
         "next_cursor returned a cursor that was already used"
       )
     }
@@ -470,18 +470,13 @@ fabric_graphql_paginate <- function(
 
   # Turn the final state into clear output for the caller
 
-  structure(
-    list(
-      message = sprintf(
-        "GraphQL pagination exceeded max_pages (%d)",
-        as.integer(max_pages)
-      ),
-      call = NULL,
-      pages = graphql_pages_result(pages, variables, complete = FALSE)
-    ),
-    class = c("fabric_graphql_pagination_error", "error", "condition")
-  ) |>
-    rlang::cnd_signal()
+  .fabric_abort(
+    "GraphQL pagination exceeded {.arg max_pages} ({as.integer(max_pages)})",
+    .format = TRUE,
+    class = "fabric_graphql_pagination_error",
+    pages = graphql_pages_result(pages, variables, complete = FALSE),
+    call = NULL
+  )
 }
 
 #' Locate pagination information in a GraphQL result
@@ -531,7 +526,7 @@ fabric_graphql_cursor <- function(
   function(result) {
     # Cursor extraction only works on results produced by this package
     if (!inherits(result, "fabric_graphql_result")) {
-      rlang::abort(
+      .fabric_abort(
         "The cursor extractor requires a fabric_graphql_result"
       )
     }
@@ -539,7 +534,7 @@ fabric_graphql_cursor <- function(
     # Follow the configured field path to the connection object
     connection <- graphql_at_path(result$data, path)
     if (is.null(connection)) {
-      rlang::abort(
+      .fabric_abort(
         sprintf(
           "GraphQL pagination path '%s' was not found",
           paste(path, collapse = ".")
@@ -550,7 +545,7 @@ fabric_graphql_cursor <- function(
     # The service must return one unambiguous continuation flag
     more <- connection[[has_next]]
     if (!is.logical(more) || length(more) != 1L || is.na(more)) {
-      rlang::abort(
+      .fabric_abort(
         sprintf(
           "GraphQL pagination field '%s' must be TRUE or FALSE",
           has_next
@@ -631,7 +626,7 @@ fabric_graphql_collect <- function(pages, path) {
   # 1 Validate the collection contract -------------------------------------------------------------
 
   if (!inherits(pages, "fabric_graphql_pages")) {
-    rlang::abort(
+    .fabric_abort(
       paste(
         "pages must be a fabric_graphql_pages result from",
         "fabric_graphql_paginate()"
@@ -640,7 +635,7 @@ fabric_graphql_collect <- function(pages, path) {
   }
   path <- graphql_validate_path(path)
   if (!is.list(pages$pages)) {
-    rlang::abort("pages$pages must be a list of GraphQL results")
+    .fabric_abort("pages$pages must be a list of GraphQL results")
   }
   complete <- pages$complete
   graphql_validate_scalar(
@@ -663,26 +658,22 @@ fabric_graphql_collect <- function(pages, path) {
   # 3 Refuse to present an incomplete collection as a normal tibble -------------------------------
 
   if (!complete) {
-    condition <- structure(
-      list(
-        message = paste(
-          "GraphQL row collection is incomplete because pagination stopped",
-          "before the API reported completion. This can happen at max_pages",
-          "or the Fabric 100,000-item pagination limit; partial rows are",
-          "available in `partial_data`."
+    .fabric_abort(
+      c(
+        "GraphQL row collection is incomplete",
+        "x" = paste(
+          "Pagination stopped before the API reported completion, either at",
+          "{.arg max_pages} or Fabric's 100,000-item pagination limit"
         ),
-        call = NULL,
-        partial_data = result,
-        pages = pages,
-        errors = attr(result, "errors")
+        "i" = "Partial rows are available in {.field partial_data}"
       ),
-      class = c(
-        "fabric_graphql_collection_error",
-        "error",
-        "condition"
-      )
+      .format = TRUE,
+      class = "fabric_graphql_collection_error",
+      partial_data = result,
+      pages = pages,
+      errors = attr(result, "errors"),
+      call = NULL
     )
-    rlang::cnd_signal(condition)
   }
 
   result
@@ -699,12 +690,14 @@ print.fabric_graphql_rows <- function(x, ...) {
   complete <- isTRUE(attr(x, "complete"))
   errors <- attr(x, "errors") %||% list()
   page_count <- attr(x, "page_count") %||% NA_integer_
-  cat(sprintf(
-    "# Fabric GraphQL: pagination %s; %s; %s\n",
-    if (complete) "complete" else "incomplete",
-    graphql_count_label(page_count, "page"),
-    graphql_count_label(length(errors), "GraphQL error")
-  ))
+  pagination <- if (complete) "complete" else "incomplete"
+  pages <- graphql_count_label(page_count, "page")
+  errors <- graphql_count_label(length(errors), "GraphQL error")
+  app <- cli::start_app(output = "stdout", .auto_close = FALSE)
+  on.exit(cli::stop_app(app), add = TRUE)
+  cli::cli_text(
+    "# Fabric GraphQL: pagination {pagination}; {pages}; {errors}"
+  )
   NextMethod()
 }
 
@@ -864,14 +857,14 @@ graphql_parse_response <- function(
 
   error_policy <- match.arg(error_policy)
   if (!is.list(response) || is.null(names(response))) {
-    rlang::abort(
+    .fabric_abort(
       "The GraphQL endpoint returned a malformed response object"
     )
   }
   has_data <- "data" %in% names(response)
   has_errors <- "errors" %in% names(response)
   if (!has_data && !has_errors) {
-    rlang::abort(
+    .fabric_abort(
       "The GraphQL response contains neither data nor errors"
     )
   }
@@ -879,7 +872,7 @@ graphql_parse_response <- function(
   if (is.null(errors)) {
     errors <- list()
   } else if (!is.list(errors)) {
-    rlang::abort("GraphQL response errors must be a list")
+    .fabric_abort("GraphQL response errors must be a list")
   } else if (
     length(errors) &&
       !is.null(names(errors)) &&
@@ -909,13 +902,15 @@ graphql_parse_response <- function(
   if (length(errors)) {
     message <- graphql_error_message(errors)
     if (identical(error_policy, "warn")) {
-      rlang::warn(message)
+      .fabric_warn(message)
     } else if (identical(error_policy, "error")) {
-      condition <- structure(
-        list(message = message, call = NULL, result = result, errors = errors),
-        class = c("fabric_graphql_error", "error", "condition")
+      .fabric_abort(
+        message,
+        class = "fabric_graphql_error",
+        result = result,
+        errors = errors,
+        call = NULL
       )
-      rlang::cnd_signal(condition)
     }
   }
   result
@@ -954,27 +949,23 @@ graphql_schema_abort <- function(result) {
   } else {
     " The response did not contain a __schema object."
   }
-  condition <- structure(
-    list(
-      message = paste0(
-        "GraphQL schema introspection failed. Microsoft Fabric disables ",
-        "introspection by default. Ask a workspace admin to open API ",
-        "Settings > Introspection and enable it, then retry. If runtime ",
-        "introspection must remain disabled, use Export schema in the Fabric ",
-        "portal instead.",
-        service_message
+  .fabric_abort(
+    c(
+      paste0("GraphQL schema introspection failed.", service_message),
+      "i" = paste(
+        "Microsoft Fabric disables introspection by default; ask a workspace",
+        "admin to enable API Settings > Introspection, then retry"
       ),
-      call = NULL,
-      result = result,
-      errors = result$errors
+      "i" = paste(
+        "If runtime introspection must remain disabled, use Export schema in",
+        "the Fabric portal"
+      )
     ),
-    class = c(
-      "fabric_graphql_introspection_error",
-      "error",
-      "condition"
-    )
+    class = "fabric_graphql_introspection_error",
+    result = result,
+    errors = result$errors,
+    call = NULL
   )
-  rlang::cnd_signal(condition)
 }
 
 # Validate a GraphQL field path. Returns the unchanged path for cursor and row
@@ -986,7 +977,7 @@ graphql_validate_path <- function(path) {
       anyNA(path) ||
       !all(nzchar(path))
   ) {
-    rlang::abort("path must contain one or more non-empty field names")
+    .fabric_abort("path must contain one or more non-empty field names")
   }
   path
 }
@@ -998,7 +989,7 @@ graphql_collect_page_rows <- function(pages, path) {
   for (page_number in seq_along(pages)) {
     page <- pages[[page_number]]
     if (!inherits(page, "fabric_graphql_result")) {
-      rlang::abort(sprintf(
+      .fabric_abort(sprintf(
         "GraphQL page %d is not a fabric_graphql_result",
         page_number
       ))
@@ -1008,7 +999,7 @@ graphql_collect_page_rows <- function(pages, path) {
       if (graphql_errors_overlap_path(page$errors, path)) {
         next
       }
-      rlang::abort(sprintf(
+      .fabric_abort(sprintf(
         "GraphQL row path '%s' was not found on page %d",
         paste(path, collapse = "."),
         page_number
@@ -1016,7 +1007,7 @@ graphql_collect_page_rows <- function(pages, path) {
     }
     page_rows <- located$value
     if (!is.list(page_rows)) {
-      rlang::abort(sprintf(
+      .fabric_abort(sprintf(
         "GraphQL row path '%s' must contain a list on page %d",
         paste(path, collapse = "."),
         page_number
@@ -1031,7 +1022,7 @@ graphql_collect_page_rows <- function(pages, path) {
           !all(nzchar(names(row))) ||
           anyDuplicated(names(row))
       ) {
-        rlang::abort(sprintf(
+        .fabric_abort(sprintf(
           paste0(
             "GraphQL row %d on page %d must be an object with unique, ",
             "non-empty field names"
@@ -1094,7 +1085,7 @@ graphql_rows_column <- function(values, name) {
   )
   if (any(complex)) {
     if (!all(complex)) {
-      rlang::abort(sprintf(
+      .fabric_abort(sprintf(
         paste0(
           "GraphQL field '%s' changes between nested and scalar values ",
           "across rows; transform the page values explicitly before collecting"
@@ -1115,7 +1106,7 @@ graphql_rows_column <- function(values, name) {
   prototype <- tryCatch(
     do.call(vctrs::vec_ptype_common, unname(non_null)),
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         sprintf(
           paste0(
             "GraphQL field '%s' has incompatible scalar types across rows; ",
@@ -1249,7 +1240,7 @@ graphql_resolve_endpoint <- function(
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
     if (!identical(type, "graphqlapi")) {
-      rlang::abort(
+      .fabric_abort(
         "api discovery record must be a GraphQLApi item"
       )
     }
@@ -1271,7 +1262,7 @@ graphql_resolve_endpoint <- function(
           is.na(workspace_id) ||
           !fabric_is_guid(workspace_id)
       ) {
-        rlang::abort("workspace_id must be a GUID")
+        .fabric_abort("workspace_id must be a GUID")
       }
       if (
         !is.character(record_workspace_id) ||
@@ -1279,10 +1270,10 @@ graphql_resolve_endpoint <- function(
           is.na(record_workspace_id) ||
           !fabric_is_guid(record_workspace_id)
       ) {
-        rlang::abort("api discovery record workspaceId must be a GUID")
+        .fabric_abort("api discovery record workspaceId must be a GUID")
       }
       if (!identical(tolower(workspace_id), tolower(record_workspace_id))) {
-        rlang::abort(
+        .fabric_abort(
           "workspace_id conflicts with the api discovery record workspaceId"
         )
       }
@@ -1312,7 +1303,7 @@ graphql_resolve_endpoint <- function(
         is.na(workspace_id) ||
         !fabric_is_guid(workspace_id)
     ) {
-      rlang::abort(
+      .fabric_abort(
         "workspace_id must be a GUID when api is a GraphQL API GUID"
       )
     }
@@ -1353,14 +1344,14 @@ graphql_validate_endpoint <- function(endpoint, allow_custom_endpoint = FALSE) {
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort("api must be a valid HTTPS GraphQL endpoint")
+    .fabric_abort("api must be a valid HTTPS GraphQL endpoint")
   }
 
   if (
     !fabric_host_matches(parsed$hostname, "api.fabric.microsoft.com") &&
       !allow_custom_endpoint
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "api must use a Microsoft Fabric endpoint; set ",
       "allow_custom_endpoint = TRUE only for a trusted custom origin"
     ))
@@ -1376,7 +1367,7 @@ graphql_validate_logical <- function(value, name) {
       length(value) != 1L ||
       is.na(value)
   ) {
-    rlang::abort(paste0(name, " must be TRUE or FALSE"))
+    .fabric_abort(paste0(name, " must be TRUE or FALSE"))
   }
   invisible(TRUE)
 }
@@ -1385,7 +1376,7 @@ graphql_validate_logical <- function(value, name) {
 # single-page and pagination requests
 graphql_validate_variables <- function(variables) {
   if (!is.list(variables)) {
-    rlang::abort("variables must be a list")
+    .fabric_abort("variables must be a list")
   }
 
   if (
@@ -1395,7 +1386,7 @@ graphql_validate_variables <- function(variables) {
         !all(nzchar(names(variables))) ||
         anyDuplicated(names(variables)))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "variables must have unique, non-empty names"
     )
   }
@@ -1411,7 +1402,7 @@ graphql_required_string <- function(value, name) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    rlang::abort(
+    .fabric_abort(
       sprintf("%s must be one non-empty character value", name)
     )
   }
@@ -1432,7 +1423,7 @@ graphql_validate_scalar <- function(
       is.na(value) ||
       !value_predicate(value)
   ) {
-    rlang::abort(message)
+    .fabric_abort(message)
   }
   invisible(TRUE)
 }

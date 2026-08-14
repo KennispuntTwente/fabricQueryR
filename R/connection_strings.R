@@ -83,7 +83,7 @@ fabric_split_connection_string <- function(value) {
   # An unfinished quote would make later key/value parsing ambiguous
 
   if (!is.null(quote) || isTRUE(braced)) {
-    rlang::abort(
+    .fabric_abort(
       "Connection string contains an unterminated quoted or braced value"
     )
   }
@@ -125,7 +125,9 @@ fabric_quote_connection_value <- function(value) {
       length(value) != 1L ||
       is.na(value)
   ) {
-    rlang::abort("Connection string values must be single, non-missing strings")
+    .fabric_abort(
+      "Connection string values must be single, non-missing strings"
+    )
   }
   paste0("{", gsub("}", "}}", value, fixed = TRUE), "}")
 }

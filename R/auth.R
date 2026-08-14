@@ -52,7 +52,7 @@ fabric_credential <- function(
 
   fabric_validate_auth_args(auth_args)
   if (!is.null(token) && length(auth_args)) {
-    rlang::abort(
+    .fabric_abort(
       "auth_args can only be used when fabricQueryR acquires the token"
     )
   }
@@ -98,7 +98,7 @@ fabric_credential <- function(
       # Internal credentials can pass through without another adapter
       return(token)
     } else {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "token must be an AzureAuth AzureToken object, one bearer-token ",
           "string, or a token-provider function"
@@ -117,7 +117,7 @@ fabric_credential <- function(
       is.na(tenant_id) ||
       !nzchar(tenant_id)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "tenant_id must be one non-empty string (or set FABRICQUERYR_TENANT_ID)",
       class = "fabric_auth_validation_error"
     )
@@ -129,7 +129,7 @@ fabric_credential <- function(
       is.na(client_id) ||
       !nzchar(client_id)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "client_id must be one non-empty string (or set FABRICQUERYR_CLIENT_ID)",
       class = "fabric_auth_validation_error"
     )
@@ -199,7 +199,7 @@ fabric_resolve_token_alias <- function(
   }
   positions <- which(dot_names == "access_token")
   if (length(positions) > 1L) {
-    rlang::abort(
+    .fabric_abort(
       paste0(caller, " received access_token more than once")
     )
   }
@@ -210,7 +210,7 @@ fabric_resolve_token_alias <- function(
   }
 
   if (!is.null(token) && !is.null(access_token)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         caller,
         " received both token and the deprecated access_token alias; ",
@@ -234,7 +234,7 @@ fabric_resolve_token_alias <- function(
 #' @noRd
 fabric_validate_auth_args <- function(auth_args) {
   if (!is.list(auth_args)) {
-    rlang::abort("auth_args must be a named list")
+    .fabric_abort("auth_args must be a named list")
   }
 
   if (!length(auth_args)) {
@@ -246,11 +246,11 @@ fabric_validate_auth_args <- function(auth_args) {
       anyNA(names(auth_args)) ||
       !all(nzchar(names(auth_args)))
   ) {
-    rlang::abort("auth_args must be a fully named list")
+    .fabric_abort("auth_args must be a fully named list")
   }
 
   if (anyDuplicated(names(auth_args))) {
-    rlang::abort("auth_args names must be unique")
+    .fabric_abort("auth_args names must be unique")
   }
   reserved <- intersect(
     names(auth_args),
@@ -258,7 +258,7 @@ fabric_validate_auth_args <- function(auth_args) {
   )
 
   if (length(reserved)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "auth_args cannot override ",
       paste(reserved, collapse = ", "),
       "; use the function's authentication arguments instead"
@@ -266,7 +266,7 @@ fabric_validate_auth_args <- function(auth_args) {
   }
   unknown <- setdiff(names(auth_args), .fabric_azure_auth_args)
   if (length(unknown)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "Unknown AzureAuth argument",
       if (length(unknown) == 1L) " " else "s ",
       paste(unknown, collapse = ", ")
@@ -341,7 +341,7 @@ fabric_azure_token_credential <- function(token) {
 #' @noRd
 fabric_extract_azure_token <- function(token) {
   if (!AzureAuth::is_azure_token(token)) {
-    rlang::abort("AzureAuth did not return an AzureToken object")
+    .fabric_abort("AzureAuth did not return an AzureToken object")
   }
   access_token <- token$credentials$access_token
   fabric_validate_bearer_token(access_token, "AzureToken access token")
@@ -363,7 +363,7 @@ fabric_validate_bearer_token <- function(token, label) {
       is.na(token) ||
       !nzchar(token)
   ) {
-    rlang::abort(paste0(label, " must be one non-empty string"))
+    .fabric_abort(paste0(label, " must be one non-empty string"))
   }
   invisible(token)
 }
@@ -411,7 +411,7 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
       is.na(token) ||
       !nzchar(token)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "The token provider must return one non-empty bearer token"
     )
   }
@@ -430,7 +430,7 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
 #' @noRd
 fabric_get_token <- function(credential, audience, force_refresh = FALSE) {
   if (!inherits(credential, "fabric_credential")) {
-    rlang::abort("Invalid Fabric credential")
+    .fabric_abort("Invalid Fabric credential")
   }
   credential$provider(audience, force_refresh = force_refresh)
 }

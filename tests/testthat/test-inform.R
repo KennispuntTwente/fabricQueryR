@@ -1,4 +1,4 @@
-test_that("inform dispatches every message type and honors verbose", {
+test_that("inform displays optional informational and success alerts", {
   calls <- list()
   capture <- function(type) {
     force(type)
@@ -12,24 +12,127 @@ test_that("inform dispatches every message type and honors verbose", {
   }
   local_mocked_bindings(
     cli_alert_info = capture("info"),
-    cli_alert_warning = capture("warning"),
-    cli_alert_danger = capture("danger"),
     cli_alert_success = capture("success"),
     .package = "cli"
   )
 
   item_name <- "Lakehouse"
-  for (type in c("info", "warning", "danger", "success")) {
-    expect_invisible(inform(TRUE, "Handled {item_name}", type = type))
-  }
-  expect_invisible(inform(FALSE, "hidden", type = "info"))
+  expect_invisible(inform(TRUE, "Opening {item_name}"))
+  expect_invisible(
+    inform(TRUE, "Opened {item_name}", type = "success")
+  )
+  expect_invisible(inform(FALSE, "Hidden {item_name}"))
 
   expect_identical(
     vapply(calls, `[[`, character(1), "type"),
-    c("info", "warning", "danger", "success")
+    c("info", "success")
   )
   expect_identical(
     vapply(calls, `[[`, character(1), "message"),
-    rep("Handled Lakehouse", 4L)
+    c("Opening Lakehouse", "Opened Lakehouse")
   )
+})
+
+test_that("condition helpers use cli markup and rlang conditions", {
+  local_reproducible_output()
+  argument <- "workspace"
+  value <- "missing"
+
+  expect_snapshot(
+    .fabric_warn(
+      c(
+        "Could not resolve {.arg {argument}}",
+        "i" = "Received {.val {value}}"
+      ),
+      .format = TRUE,
+      class = "fabric_test_warning",
+      call = NULL
+    )
+  )
+  expect_snapshot(
+    error = TRUE,
+    .fabric_abort(
+      c(
+        "Could not resolve {.arg {argument}}",
+        "x" = "Received {.val {value}}"
+      ),
+      .format = TRUE,
+      class = "fabric_test_error",
+      detail = 42L,
+      call = NULL
+    )
+  )
+})
+
+test_that("polling progress has one consistent lifecycle", {
+  calls <- list()
+  local_mocked_bindings(
+    cli_progress_step = function(...) {
+      calls[[length(calls) + 1L]] <<- list(action = "start", args = list(...))
+      "progress-id"
+    },
+    cli_progress_update = function(...) {
+      calls[[length(calls) + 1L]] <<- list(action = "update", args = list(...))
+      invisible(NULL)
+    },
+    cli_progress_done = function(...) {
+      calls[[length(calls) + 1L]] <<- list(action = "done", args = list(...))
+      invisible(NULL)
+    },
+    .package = "cli"
+  )
+
+  progress <- .fabric_poll_progress("Fabric job", "job-1")
+  expect_identical(progress, "progress-id")
+  expect_invisible(.fabric_poll_progress_update(progress, "Running"))
+  expect_invisible(.fabric_poll_progress_done(progress))
+  expect_null(.fabric_poll_progress("Fabric job", "job-2", verbose = FALSE))
+
+  expect_identical(
+    vapply(calls, `[[`, character(1), "action"),
+    c("start", "update", "done")
+  )
+  expect_identical(calls[[2L]]$args$id, "progress-id")
+  expect_identical(calls[[2L]]$args$status, "Status: \"Running\"")
+  expect_identical(calls[[3L]]$args$id, "progress-id")
+})
+
+test_that("package objects use one cli summary layout", {
+  local_reproducible_output()
+
+  expect_snapshot(
+    .fabric_print(
+      "fabric_example",
+      list(id = "item-1", state = "Running", omitted = NULL)
+    )
+  )
+})
+
+test_that("package code does not bypass the presentation layer", {
+  source_dir <- normalizePath(test_path("..", "..", "R"), mustWork = TRUE)
+  paths <- list.files(source_dir, pattern = "[.]R$", full.names = TRUE)
+  lines <- unlist(lapply(paths, readLines, warn = FALSE), use.names = FALSE)
+
+  base_output <- grep(
+    paste0(
+      "(^|[^[:alnum:]_.])",
+      "(stop|warning|message|cat|writeLines)[[:space:]]*\\("
+    ),
+    lines,
+    value = TRUE
+  )
+  cli_conditions <- grep(
+    "cli::cli_(abort|warn)[[:space:]]*\\(",
+    lines,
+    value = TRUE
+  )
+  direct_rlang <- grep(
+    "rlang::(abort|warn)[[:space:]]*\\(",
+    lines,
+    value = TRUE
+  )
+
+  expect_length(base_output, 0L)
+  expect_length(cli_conditions, 0L)
+  expect_length(direct_rlang, 2L)
 })

@@ -160,7 +160,7 @@ fabric_pbi_dax_query <- function(
 
   # Check the query and simple flags before resolving a semantic model
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
-    rlang::abort("dax must be one non-empty string")
+    .fabric_abort("dax must be one non-empty string")
   }
 
   if (
@@ -168,7 +168,7 @@ fabric_pbi_dax_query <- function(
       length(include_nulls) != 1L ||
       is.na(include_nulls)
   ) {
-    rlang::abort("include_nulls must be TRUE or FALSE")
+    .fabric_abort("include_nulls must be TRUE or FALSE")
   }
 
   # Discovery records may safely supply IDs and a connection string together
@@ -180,7 +180,7 @@ fabric_pbi_dax_query <- function(
         "semanticmodel"
       )
     ) {
-      rlang::abort(
+      .fabric_abort(
         "connstr discovery record must be a SemanticModel item"
       )
     }
@@ -225,7 +225,7 @@ fabric_pbi_dax_query <- function(
         is.na(connstr) ||
         !nzchar(connstr))
   ) {
-    rlang::abort("connstr must be one non-empty string")
+    .fabric_abort("connstr must be one non-empty string")
   }
 
   pbi_validate_optional_guid(workspace_id, "workspace_id")
@@ -236,11 +236,11 @@ fabric_pbi_dax_query <- function(
       length(my_workspace) != 1L ||
       is.na(my_workspace)
   ) {
-    rlang::abort("my_workspace must be TRUE or FALSE")
+    .fabric_abort("my_workspace must be TRUE or FALSE")
   }
 
   if (!is.null(workspace_id) && isTRUE(my_workspace)) {
-    rlang::abort("Supply workspace_id or set my_workspace = TRUE, not both")
+    .fabric_abort("Supply workspace_id or set my_workspace = TRUE, not both")
   }
 
   if (
@@ -248,7 +248,7 @@ fabric_pbi_dax_query <- function(
       !is.null(connstr) &&
       (!is.null(workspace_id) || !is.null(dataset_id) || isTRUE(my_workspace))
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Supply a connection string or explicit workspace/dataset selectors, ",
         "not both"
@@ -258,7 +258,7 @@ fabric_pbi_dax_query <- function(
   }
 
   if (is.null(dataset_id) && is.null(connstr)) {
-    rlang::abort(
+    .fabric_abort(
       "Supply either connstr or dataset_id"
     )
   }
@@ -271,21 +271,21 @@ fabric_pbi_dax_query <- function(
         is.na(impersonated_user) ||
         !nzchar(impersonated_user))
   ) {
-    rlang::abort("impersonated_user must be one non-empty string")
+    .fabric_abort("impersonated_user must be one non-empty string")
   }
 
   arrow_options <- pbi_validate_arrow_options(arrow_options)
 
   if (identical(api, "json") && length(arrow_options)) {
-    rlang::abort("arrow_options can only be used with api = \"arrow\"")
+    .fabric_abort("arrow_options can only be used with api = \"arrow\"")
   }
 
   if (identical(api, "json") && !identical(result, "tibble")) {
-    rlang::abort("result = \"arrow_stream\" requires api = \"arrow\"")
+    .fabric_abort("result = \"arrow_stream\" requires api = \"arrow\"")
   }
 
   if (!is.null(dataset_id) && is.null(workspace_id) && !isTRUE(my_workspace)) {
-    rlang::abort(
+    .fabric_abort(
       "dataset_id requires workspace_id or explicit my_workspace = TRUE"
     )
   }
@@ -295,7 +295,7 @@ fabric_pbi_dax_query <- function(
       !is.null(impersonated_user) &&
       "effectiveUsername" %in% names(arrow_options)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Supply effective identity through either impersonated_user or arrow_options, not both"
     )
   }
@@ -378,7 +378,7 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
       length(allow_custom_endpoint) != 1L ||
       is.na(allow_custom_endpoint)
   ) {
-    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
   }
 
   if (
@@ -387,7 +387,7 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
       is.na(api_base) ||
       !nzchar(api_base)
   ) {
-    rlang::abort("api_base must be one non-empty string")
+    .fabric_abort("api_base must be one non-empty string")
   }
 
   # Parse the URL once, then inspect every part of its origin
@@ -411,7 +411,7 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     !nzchar(parsed$fragment %||% "")
 
   if (!clean_origin) {
-    rlang::abort(
+    .fabric_abort(
       "api_base must be an HTTPS origin ending in /v1.0/myorg",
       class = "fabric_pbi_endpoint_error"
     )
@@ -422,7 +422,7 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     !fabric_host_matches(host, "api.powerbi.com") &&
       !isTRUE(allow_custom_endpoint)
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Refusing to send a Power BI token to untrusted api_base '",
         api_base,
@@ -452,7 +452,7 @@ pbi_validate_optional_guid <- function(value, name) {
       is.na(value) ||
       !fabric_is_guid(value)
   ) {
-    rlang::abort(paste0(name, " must be a GUID"))
+    .fabric_abort(paste0(name, " must be a GUID"))
   }
   invisible(value)
 }
@@ -470,7 +470,7 @@ pbi_parse_connstr <- function(conn) {
   # Reuse the shared parser so quoted names may contain semicolons safely
 
   if (!is.character(conn) || length(conn) != 1L || is.na(conn)) {
-    rlang::abort("conn must be one string")
+    .fabric_abort("conn must be one string")
   }
   toks <- trimws(fabric_split_connection_string(conn))
   toks <- toks[nzchar(toks)]
@@ -488,7 +488,7 @@ pbi_parse_connstr <- function(conn) {
   }
 
   if (length(ds) != 1) {
-    rlang::abort(
+    .fabric_abort(
       "Could not find a unique Data Source in connection string"
     )
   }
@@ -510,7 +510,7 @@ pbi_parse_connstr <- function(conn) {
   )
   personal <- regmatches(ds, personal)[[1L]]
   if (!length(shared) && !length(personal)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Data Source must be a shared-workspace v1 or personal-workspace ",
         "v2 Power BI XMLA URL"
@@ -532,7 +532,7 @@ pbi_parse_connstr <- function(conn) {
   )
 
   if (length(catv) != 1L || !nzchar(catv[[1L]])) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Connection string must contain exactly one non-empty ",
         "Initial Catalog, Catalog, Database, or Dataset value"
@@ -549,7 +549,7 @@ pbi_parse_connstr <- function(conn) {
   }
 
   if (!nzchar(workspace_name)) {
-    rlang::abort(
+    .fabric_abort(
       "Power BI Data Source does not contain a workspace name"
     )
   }
@@ -585,7 +585,7 @@ pbi_resolve_ids_from_connstr <- function(
   p <- pbi_parse_connstr(connstr)
 
   if (isTRUE(p$personal)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "A personal-workspace XMLA target cannot be resolved safely through ",
         "the unscoped Power BI REST dataset route. Supply dataset_id and set ",
@@ -682,7 +682,7 @@ pbi_validate_arrow_options <- function(options) {
   # Check option names now so later code can rely on safe input
 
   if (!is.list(options) || is.data.frame(options)) {
-    rlang::abort("arrow_options must be a named list")
+    .fabric_abort("arrow_options must be a named list")
   }
 
   if (!length(options)) {
@@ -695,7 +695,7 @@ pbi_validate_arrow_options <- function(options) {
       !all(nzchar(option_names)) ||
       anyDuplicated(option_names)
   ) {
-    rlang::abort("arrow_options must have unique, non-empty names")
+    .fabric_abort("arrow_options must have unique, non-empty names")
   }
   supported <- c(
     "applicationContext",
@@ -711,7 +711,7 @@ pbi_validate_arrow_options <- function(options) {
   )
   unknown <- setdiff(option_names, supported)
   if (length(unknown)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "Unsupported arrow_options name(s): ",
       paste(unknown, collapse = ", ")
     ))
@@ -741,7 +741,7 @@ pbi_validate_arrow_options <- function(options) {
         is.na(value) ||
         !nzchar(value)
     ) {
-      rlang::abort(paste0(
+      .fabric_abort(paste0(
         "arrow_options$",
         name,
         " must be one non-empty string"
@@ -765,7 +765,7 @@ pbi_validate_arrow_options <- function(options) {
         value <= 0 ||
         value != floor(value)
     ) {
-      rlang::abort(paste0(
+      .fabric_abort(paste0(
         "arrow_options$",
         name,
         " must be one positive integer"
@@ -782,7 +782,7 @@ pbi_validate_arrow_options <- function(options) {
         anyNA(roles) ||
         !all(nzchar(roles))
     ) {
-      rlang::abort(
+      .fabric_abort(
         "arrow_options$roles must be a non-empty character vector"
       )
     }
@@ -801,7 +801,7 @@ pbi_validate_arrow_options <- function(options) {
         length(value) != 1L ||
         is.na(value)
     ) {
-      rlang::abort(paste0(
+      .fabric_abort(paste0(
         "arrow_options$",
         name,
         " must be TRUE or FALSE"
@@ -906,11 +906,11 @@ pbi_parse_dax_arrow_response <- function(
     !is.na(payload) &&
     file.exists(payload)
   if ((!is.raw(payload) && !path_payload) || !length(payload)) {
-    rlang::abort("Power BI returned an empty Arrow DAX response")
+    .fabric_abort("Power BI returned an empty Arrow DAX response")
   }
 
   if (path_payload && file.info(payload)$size == 0) {
-    rlang::abort("Power BI returned an empty Arrow DAX response")
+    .fabric_abort("Power BI returned an empty Arrow DAX response")
   }
   buffer <- if (path_payload) {
     arrow::mmap_open(payload)
@@ -937,7 +937,7 @@ pbi_parse_dax_arrow_response <- function(
     reader <- tryCatch(
       arrow::RecordBatchStreamReader$create(buffer),
       error = function(error) {
-        rlang::abort(
+        .fabric_abort(
           "Power BI returned an invalid Arrow DAX response",
           parent = error
         )
@@ -962,7 +962,7 @@ pbi_parse_dax_arrow_response <- function(
       value <- tryCatch(
         reader$read_table(),
         error = function(error) {
-          rlang::abort(
+          .fabric_abort(
             "Could not decompress or read the Power BI Arrow DAX response",
             parent = error
           )
@@ -975,7 +975,7 @@ pbi_parse_dax_arrow_response <- function(
           # Validate and advance one bounded record batch at a time
         },
         error = function(error) {
-          rlang::abort(
+          .fabric_abort(
             "Could not decompress or read the Power BI Arrow DAX response",
             parent = error
           )
@@ -999,7 +999,7 @@ pbi_parse_dax_arrow_response <- function(
 
     # A reader that did not advance would otherwise create an endless loop
     if (buffer$tell() <= position) {
-      rlang::abort("Power BI returned a non-advancing Arrow DAX stream")
+      .fabric_abort("Power BI returned a non-advancing Arrow DAX stream")
     }
   }
 
@@ -1008,11 +1008,11 @@ pbi_parse_dax_arrow_response <- function(
   # Check returned rowsets now so later code can rely on safe input
 
   if (!length(data_tables)) {
-    rlang::abort("Power BI returned no Arrow DAX data rowset")
+    .fabric_abort("Power BI returned no Arrow DAX data rowset")
   }
 
   if (length(metrics_tables) > 1L) {
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "Power BI returned %d Arrow DAX execution-metrics rowsets; at most one is supported",
       length(metrics_tables)
     ))
@@ -1140,7 +1140,7 @@ pbi_abort_dax_arrow_error <- function(metadata, table) {
   if (!nzchar(detail)) {
     detail <- "unknown Arrow error rowset"
   }
-  rlang::abort(
+  .fabric_abort(
     paste0("Power BI Arrow DAX query failed: ", detail),
     class = "fabric_pbi_dax_error"
   )
@@ -1168,7 +1168,7 @@ pbi_parse_dax_response <- function(out) {
   }
 
   if (length(results) != 1L) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Power BI returned %d query results; exactly one is supported",
         length(results)
@@ -1182,7 +1182,7 @@ pbi_parse_dax_response <- function(out) {
   }
 
   if (length(tables) != 1L) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Power BI returned %d result tables; exactly one is supported",
         length(tables)
@@ -1215,7 +1215,7 @@ pbi_reject_conflicting_id <- function(
       !is.null(discovered) &&
       !identical(tolower(explicit), tolower(discovered))
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(explicit_name, " conflicts with ", source),
       class = "fabric_pbi_target_conflict"
     )
@@ -1286,7 +1286,7 @@ pbi_check_dax_error <- function(error, level) {
   )
 
   if (is_partial) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Power BI returned an incomplete DAX ",
         level,
@@ -1296,7 +1296,7 @@ pbi_check_dax_error <- function(error, level) {
       )
     )
   }
-  rlang::abort(
+  .fabric_abort(
     paste0("Power BI DAX ", level, " failed: ", detail)
   )
 }
@@ -1327,11 +1327,11 @@ pbi_get_group_id_by_name <- function(
     logical(1)
   )]
   if (length(hits) == 0) {
-    rlang::abort(sprintf("Workspace '%s' not found", workspace_name))
+    .fabric_abort(sprintf("Workspace '%s' not found", workspace_name))
   }
 
   if (length(hits) > 1L) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Workspace name '%s' is ambiguous (%d case-insensitive matches). Use workspace_id",
         workspace_name,
@@ -1370,11 +1370,11 @@ pbi_get_dataset_id_by_name <- function(
     logical(1)
   )]
   if (length(hits) == 0) {
-    rlang::abort(sprintf("Dataset '%s' not found in workspace", dataset_name))
+    .fabric_abort(sprintf("Dataset '%s' not found in workspace", dataset_name))
   }
 
   if (length(hits) > 1L) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Dataset name '%s' is ambiguous in the workspace (%d case-insensitive matches). Use dataset_id",
         dataset_name,

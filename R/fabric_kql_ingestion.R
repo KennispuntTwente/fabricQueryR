@@ -215,13 +215,13 @@ fabric_kql_ingest <- function(
   # Complete validation before authentication so local mistakes cannot prompt for sign-in
 
   if (missing(table)) {
-    rlang::abort("table is required")
+    .fabric_abort("table is required")
   }
   if (missing(sources)) {
-    rlang::abort("sources is required")
+    .fabric_abort("sources is required")
   }
   if (missing(format)) {
-    rlang::abort("format is required")
+    .fabric_abort("format is required")
   }
   target <- kusto_resolve_ingestion_target(
     cluster,
@@ -238,7 +238,7 @@ fabric_kql_ingest <- function(
     "ingest_if_not_exists"
   )
   if (any(startsWith(tolower(ingest_if_not_exists), "ingest-by:"))) {
-    rlang::abort(
+    .fabric_abort(
       "ingest_if_not_exists values must omit the 'ingest-by:' prefix"
     )
   }
@@ -368,7 +368,7 @@ fabric_kql_ingestion_status <- function(
     minimum = .kusto_ingestion_poll_floor
   )
   if (!is.function(.sleep) || !is.function(.now)) {
-    rlang::abort(".sleep and .now must be functions")
+    .fabric_abort(".sleep and .now must be functions")
   }
   override_auth <- !missing(tenant_id) ||
     !missing(client_id) ||
@@ -394,6 +394,11 @@ fabric_kql_ingestion_status <- function(
   # Status GETs are idempotent and can safely retry transient failures and throttling
 
   last <- NULL
+  progress <- if (isTRUE(wait)) {
+    .fabric_poll_progress("Kusto ingestion", context$id)
+  } else {
+    NULL
+  }
   repeat {
     last <- tryCatch(
       kusto_ingestion_get_status(
@@ -405,6 +410,7 @@ fabric_kql_ingestion_status <- function(
         kusto_ingestion_timeout_error(context, timeout, last, error)
       }
     )
+    .fabric_poll_progress_update(progress, last$state)
     if (!isTRUE(wait) || isTRUE(last$complete)) {
       break
     }
@@ -441,6 +447,7 @@ fabric_kql_ingestion_status <- function(
   ) {
     kusto_ingestion_failure_error(last)
   }
+  .fabric_poll_progress_done(progress)
   last
 }
 
@@ -451,11 +458,15 @@ fabric_kql_ingestion_status <- function(
 #' @return `x`, invisibly
 #' @export
 print.fabric_kql_ingestion <- function(x, ...) {
-  cat("<fabric_kql_ingestion>\n")
-  cat("  operation:", x$id, "\n")
-  cat("  target:   ", paste0(x$database, ".", x$table), "\n")
-  cat("  sources:  ", x$source_count, "\n")
-  cat("  format:   ", x$format, "\n")
+  .fabric_print(
+    "fabric_kql_ingestion",
+    list(
+      operation = x$id,
+      target = paste0(x$database, ".", x$table),
+      sources = x$source_count,
+      format = x$format
+    )
+  )
   invisible(x)
 }
 
@@ -466,22 +477,22 @@ print.fabric_kql_ingestion <- function(x, ...) {
 #' @return `x`, invisibly
 #' @export
 print.fabric_kql_ingestion_status <- function(x, ...) {
-  cat("<fabric_kql_ingestion_status>\n")
-  cat("  operation:", x$operation_id, "\n")
-  cat("  state:    ", x$state, "\n")
-  cat(
-    "  blobs:     ",
-    paste0(
-      x$succeeded,
-      " succeeded, ",
-      x$failed,
-      " failed, ",
-      x$in_progress,
-      " in progress, ",
-      x$canceled,
-      " canceled"
-    ),
-    "\n"
+  .fabric_print(
+    "fabric_kql_ingestion_status",
+    list(
+      operation = x$operation_id,
+      state = x$state,
+      blobs = paste0(
+        x$succeeded,
+        " succeeded, ",
+        x$failed,
+        " failed, ",
+        x$in_progress,
+        " in progress, ",
+        x$canceled,
+        " canceled"
+      )
+    )
   )
   invisible(x)
 }
@@ -499,7 +510,7 @@ kusto_resolve_ingestion_target <- function(
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
     if (!type %in% c("eventhouse", "kqldatabase")) {
-      rlang::abort(
+      .fabric_abort(
         "cluster discovery record must be an Eventhouse or KQLDatabase item"
       )
     }
@@ -535,7 +546,7 @@ kusto_resolve_ingestion_target <- function(
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "cluster must be a valid HTTPS Kusto ingestion-service origin using ",
       "the default port (443)"
     ))
@@ -550,7 +561,7 @@ kusto_resolve_ingestion_target <- function(
     logical(1)
   ))
   if (!trusted && !allow_custom_endpoint) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "cluster must use a Microsoft Kusto ingestion endpoint; set ",
       "allow_custom_endpoint = TRUE only for a trusted custom origin"
     ))
@@ -569,7 +580,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
   structured <- is.data.frame(sources) ||
     is.list(sources) && !is.character(sources)
   if (structured && (!is.null(source_ids) || !is.null(raw_sizes))) {
-    rlang::abort(
+    .fabric_abort(
       "source_ids and raw_sizes cannot be combined with structured sources"
     )
   }
@@ -579,7 +590,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
     count <- length(records)
     if (!is.null(source_ids)) {
       if (!is.character(source_ids) || length(source_ids) != count) {
-        rlang::abort("source_ids must contain one character value per source")
+        .fabric_abort("source_ids must contain one character value per source")
       }
       for (index in seq_len(count)) {
         records[[index]]$source_id <- source_ids[[index]]
@@ -587,7 +598,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
     }
     if (!is.null(raw_sizes)) {
       if (!is.numeric(raw_sizes) || length(raw_sizes) != count) {
-        rlang::abort("raw_sizes must contain one numeric value per source")
+        .fabric_abort("raw_sizes must contain one numeric value per source")
       }
       for (index in seq_len(count)) {
         records[[index]]$raw_size <- raw_sizes[[index]]
@@ -595,7 +606,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
     }
   } else if (is.data.frame(sources)) {
     if (!"url" %in% names(sources)) {
-      rlang::abort("structured sources must include a url field")
+      .fabric_abort("structured sources must include a url field")
     }
     records <- lapply(seq_len(nrow(sources)), function(index) {
       as.list(sources[index, , drop = FALSE])
@@ -605,20 +616,20 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
       sources <- list(sources)
     }
     if (!all(vapply(sources, is.list, logical(1)))) {
-      rlang::abort("structured sources must be a list of source records")
+      .fabric_abort("structured sources must be a list of source records")
     }
     records <- sources
   } else {
-    rlang::abort(
+    .fabric_abort(
       "sources must be character storage URLs or structured source records"
     )
   }
 
   if (!length(records)) {
-    rlang::abort("sources must contain at least one storage source")
+    .fabric_abort("sources must contain at least one storage source")
   }
   if (length(records) > .kusto_ingestion_max_blobs) {
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "sources exceeds the queued-ingestion limit of %d blobs per request",
       .kusto_ingestion_max_blobs
     ))
@@ -662,13 +673,13 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
         is.na(source_id) ||
         !fabric_is_guid(source_id)
     ) {
-      rlang::abort("every source_id must be a GUID or missing")
+      .fabric_abort("every source_id must be a GUID or missing")
     }
     normalized[[index]]$source_id <- tolower(source_id)
     existing_ids <- c(existing_ids, tolower(source_id))
   }
   if (anyDuplicated(existing_ids)) {
-    rlang::abort("source_ids must be unique within an ingestion request")
+    .fabric_abort("source_ids must be unique within an ingestion request")
   }
 
   for (index in seq_along(normalized)) {
@@ -684,7 +695,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
       whole = TRUE
     )
     if (size > .kusto_ingestion_max_size) {
-      rlang::abort(sprintf(
+      .fabric_abort(sprintf(
         "raw_size for source %d exceeds the 6 GB ingestion limit",
         index
       ))
@@ -697,7 +708,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
     numeric(1)
   )
   if (!anyNA(sizes) && sum(sizes) > .kusto_ingestion_max_size) {
-    rlang::abort("the known raw_sizes exceed the 6 GB ingestion limit")
+    .fabric_abort("the known raw_sizes exceed the 6 GB ingestion limit")
   }
   normalized
 }
@@ -719,7 +730,7 @@ kusto_ingestion_record_value <- function(record, ...) {
         values[[1L]]
       ))
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "source record contains conflicting aliases: ",
       paste(present, collapse = ", ")
     ))
@@ -732,7 +743,7 @@ kusto_ingestion_record_value <- function(record, ...) {
 kusto_ingestion_source_url <- function(value) {
   value <- kusto_ingestion_optional_text(value, "source url", required = TRUE)
   if (nchar(value, type = "bytes") > 32768L) {
-    rlang::abort("source url must not exceed 32,768 bytes")
+    .fabric_abort("source url must not exceed 32,768 bytes")
   }
   parsed <- try(httr2::url_parse(value), silent = TRUE)
   scheme <- if (inherits(parsed, "try-error")) {
@@ -755,7 +766,7 @@ kusto_ingestion_source_url <- function(value) {
       identical(parsed$path, "/") ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort(
+    .fabric_abort(
       "each source url must be a valid https:// or abfss:// storage source"
     )
   }
@@ -815,7 +826,7 @@ kusto_ingestion_submit <- function(target, body, credential, timeout) {
       idempotent = FALSE
     ),
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "Queued ingestion submission failed before a tracking ID was ",
           "received. The request was not replayed because the service may ",
@@ -945,7 +956,7 @@ kusto_ingestion_context <- function(
   }
   if (inherits(ingestion, "fabric_kql_ingestion")) {
     if (!is.null(cluster) || !is.null(database) || !is.null(table)) {
-      rlang::abort(
+      .fabric_abort(
         "cluster, database, and table cannot be combined with an ingestion handle"
       )
     }
@@ -977,7 +988,7 @@ kusto_ingestion_context <- function(
 
   kusto_ingestion_operation_id(ingestion)
   if (is.null(cluster)) {
-    rlang::abort("cluster is required when ingestion is a raw operation ID")
+    .fabric_abort("cluster is required when ingestion is a raw operation ID")
   }
   target <- kusto_resolve_ingestion_target(
     cluster,
@@ -1270,7 +1281,7 @@ kusto_ingestion_credential <- function(ingestion) {
     NULL
   }
   if (is.null(credential)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "This Kusto ingestion handle no longer has an in-process credential; ",
         "supply token, tenant_id, or other authentication arguments"
@@ -1340,7 +1351,7 @@ kusto_ingestion_failure_error <- function(status) {
   } else {
     "fabric_kql_ingestion_failure"
   }
-  rlang::abort(
+  .fabric_abort(
     message,
     class = c(class, "fabric_kql_ingestion_error"),
     operation_id = status$operation_id,
@@ -1357,7 +1368,7 @@ kusto_ingestion_timeout_error <- function(
   last,
   parent = NULL
 ) {
-  rlang::abort(
+  .fabric_abort(
     sprintf(
       "Timed out after %s seconds waiting for Kusto ingestion %s; the service operation may still be running",
       format(timeout, trim = TRUE),
@@ -1376,7 +1387,7 @@ kusto_ingestion_timeout_error <- function(
 
 # Raise a typed preview-protocol error
 kusto_ingestion_protocol_error <- function(message, parent = NULL) {
-  rlang::abort(
+  .fabric_abort(
     message,
     class = c(
       "fabric_kql_ingestion_protocol_error",
@@ -1407,11 +1418,11 @@ kusto_ingestion_operation_id <- function(
 # Validate and normalize one supported format name
 kusto_ingestion_format <- function(value) {
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort("format must be one supported Kusto ingestion format")
+    .fabric_abort("format must be one supported Kusto ingestion format")
   }
   value <- tolower(trimws(value))
   if (!value %in% .kusto_ingestion_formats) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "format must be one of: ",
       paste(.kusto_ingestion_formats, collapse = ", ")
     ))
@@ -1423,7 +1434,7 @@ kusto_ingestion_format <- function(value) {
 kusto_ingestion_target_name <- function(value, name) {
   value <- kusto_ingestion_optional_text(value, name, required = TRUE)
   if (nchar(value, type = "bytes") > 1024L) {
-    rlang::abort(sprintf("%s must not exceed 1,024 bytes", name))
+    .fabric_abort(sprintf("%s must not exceed 1,024 bytes", name))
   }
   trimws(value)
 }
@@ -1444,7 +1455,7 @@ kusto_ingestion_optional_text <- function(
       !nzchar(trimws(value)) ||
       grepl("[[:cntrl:]]", value)
   ) {
-    rlang::abort(sprintf("%s must be one non-empty character value", name))
+    .fabric_abort(sprintf("%s must be one non-empty character value", name))
   }
   trimws(value)
 }
@@ -1461,14 +1472,14 @@ kusto_ingestion_text_vector <- function(value, name) {
       any(grepl("[[:cntrl:]]", value)) ||
       any(nchar(value, type = "bytes") > 1024L)
   ) {
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "%s must contain non-empty text values of at most 1,024 bytes",
       name
     ))
   }
   value <- trimws(value)
   if (anyDuplicated(value)) {
-    rlang::abort(sprintf("%s values must be unique", name))
+    .fabric_abort(sprintf("%s values must be unique", name))
   }
   value
 }
@@ -1476,7 +1487,7 @@ kusto_ingestion_text_vector <- function(value, name) {
 # Validate a strict scalar flag
 kusto_ingestion_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(sprintf("%s must be TRUE or FALSE", name))
+    .fabric_abort(sprintf("%s must be TRUE or FALSE", name))
   }
   invisible(value)
 }
@@ -1500,7 +1511,7 @@ kusto_ingestion_number <- function(
   if (!valid) {
     qualifier <- if (strict) "greater than" else "at least"
     suffix <- if (whole) " whole number" else " number"
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "%s must be one%s %s %s",
       name,
       suffix,
@@ -1530,7 +1541,7 @@ kusto_ingestion_datetime <- function(value, name, allow_date) {
     return(format(value, "%Y-%m-%d"))
   }
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(sprintf("%s must be one ISO 8601 date-time", name))
+    .fabric_abort(sprintf("%s must be one ISO 8601 date-time", name))
   }
   date <- "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
   datetime <- paste0(
@@ -1540,7 +1551,7 @@ kusto_ingestion_datetime <- function(value, name, allow_date) {
   )
   valid <- grepl(datetime, value) || allow_date && grepl(date, value)
   if (!valid) {
-    rlang::abort(sprintf("%s must use ISO 8601 format", name))
+    .fabric_abort(sprintf("%s must use ISO 8601 format", name))
   }
   value
 }
@@ -1552,7 +1563,7 @@ kusto_ingestion_validation_policy <- function(value, format) {
   }
   delimited <- c("csv", "tsv", "tsve", "psv", "scsv", "sohsv")
   if (!format %in% delimited) {
-    rlang::abort(
+    .fabric_abort(
       "validation_policy is supported only for delimited text formats"
     )
   }
@@ -1560,7 +1571,7 @@ kusto_ingestion_validation_policy <- function(value, format) {
     if (
       is.null(names(value)) || anyNA(names(value)) || !all(nzchar(names(value)))
     ) {
-      rlang::abort("validation_policy must be a named list or JSON object")
+      .fabric_abort("validation_policy must be a named list or JSON object")
     }
     return(as.character(jsonlite::toJSON(
       value,
@@ -1570,7 +1581,7 @@ kusto_ingestion_validation_policy <- function(value, format) {
     )))
   }
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort("validation_policy must be a named list or JSON object")
+    .fabric_abort("validation_policy must be a named list or JSON object")
   }
   decoded <- try(
     jsonlite::fromJSON(value, simplifyVector = FALSE),
@@ -1581,7 +1592,7 @@ kusto_ingestion_validation_policy <- function(value, format) {
       !is.list(decoded) ||
       is.null(names(decoded))
   ) {
-    rlang::abort("validation_policy must contain one valid JSON object")
+    .fabric_abort("validation_policy must contain one valid JSON object")
   }
   value
 }
@@ -1812,7 +1823,7 @@ fabric_kql_write_table <- function(
   # 1 Validate local arguments and adapt data to one lazy Arrow reader ----------------------------
 
   if (missing(data)) {
-    rlang::abort("data is required")
+    .fabric_abort("data is required")
   }
   target <- kusto_resolve_ingestion_target(
     cluster,
@@ -1827,7 +1838,7 @@ fabric_kql_write_table <- function(
     "ingest_if_not_exists"
   )
   if (any(startsWith(tolower(ingest_if_not_exists), "ingest-by:"))) {
-    rlang::abort(
+    .fabric_abort(
       "ingest_if_not_exists values must omit the 'ingest-by:' prefix"
     )
   }
@@ -1845,13 +1856,13 @@ fabric_kql_write_table <- function(
   kusto_ingestion_flag(error_on_failure, "error_on_failure")
   kusto_ingestion_flag(create_if_missing, "create_if_missing")
   if (!isTRUE(create_if_missing) && !is.null(column_types)) {
-    rlang::abort("column_types requires create_if_missing = TRUE")
+    .fabric_abort("column_types requires create_if_missing = TRUE")
   }
   if (!isTRUE(create_if_missing) && !is.null(query_cluster)) {
-    rlang::abort("query_cluster requires create_if_missing = TRUE")
+    .fabric_abort("query_cluster requires create_if_missing = TRUE")
   }
   if (isTRUE(create_if_missing) && !is.function(.now)) {
-    rlang::abort(".now must be a function")
+    .fabric_abort(".now must be a function")
   }
   kusto_ingestion_number(timeout, "timeout", minimum = 0, strict = TRUE)
   kusto_ingestion_number(
@@ -1882,7 +1893,7 @@ fabric_kql_write_table <- function(
       value
     },
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         conditionMessage(error),
         class = c("fabric_kql_arrow_error", "fabric_kql_write_error"),
         parent = error
@@ -1921,7 +1932,7 @@ fabric_kql_write_table <- function(
         operation = "CreateTable"
       ),
       error = function(error) {
-        rlang::abort(
+        .fabric_abort(
           paste0(
             "Kusto could not create or confirm target table '",
             table,
@@ -1973,7 +1984,7 @@ fabric_kql_write_table <- function(
     error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
   )
   if (serialized$total_bytes > configuration$max_data_size) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "The staged Parquet batch is ",
         format(serialized$total_bytes, scientific = FALSE, trim = TRUE),
@@ -2011,7 +2022,7 @@ fabric_kql_write_table <- function(
       )
     },
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "Could not confirm the Parquet upload to OneLake; the unique ",
           "staging path may exist and should be inspected before cleanup"
@@ -2092,10 +2103,13 @@ fabric_kql_write_table <- function(
       credential
     )
     if (staging_retained) {
-      rlang::warn(paste0(
-        "Kusto ingestion succeeded, but staging cleanup failed; retained ",
-        staging_path
-      ))
+      .fabric_warn(
+        c(
+          "Staging cleanup failed after the Kusto ingestion succeeded",
+          "i" = "Staged files remain at {.path {staging_path}}"
+        ),
+        .format = TRUE
+      )
     }
   } else if (!succeeded && !isTRUE(keep_staging_on_failure)) {
     staging_retained <- !.fabric_onelake_remove_staging(
@@ -2119,7 +2133,7 @@ fabric_kql_write_table <- function(
       kusto_ingestion_failure_error(status),
       error = identity
     )
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Kusto could not ingest the staged R/Arrow data. ",
         if (staging_retained) {
@@ -2147,13 +2161,17 @@ fabric_kql_write_table <- function(
 #' @return `x`, invisibly.
 #' @export
 print.fabric_kql_write_result <- function(x, ...) {
-  cat("<fabric_kql_write_result>\n")
-  cat("  operation:", x$operation_id, "\n")
-  cat("  target:   ", paste0(x$database, ".", x$table), "\n")
-  cat("  state:    ", x$status$state, "\n")
-  cat("  rows:     ", x$rows, "\n")
-  cat("  files:    ", x$file_count, "\n")
-  cat("  staging:  ", if (x$staging_retained) "retained" else "removed", "\n")
+  .fabric_print(
+    "fabric_kql_write_result",
+    list(
+      operation = x$operation_id,
+      target = paste0(x$database, ".", x$table),
+      state = x$status$state,
+      rows = x$rows,
+      files = x$file_count,
+      staging = if (x$staging_retained) "retained" else "removed"
+    )
+  )
   invisible(x)
 }
 
@@ -2183,7 +2201,7 @@ kusto_write_management_target <- function(
     ))
   }
   if (isTRUE(allow_custom_endpoint)) {
-    rlang::abort(
+    .fabric_abort(
       "query_cluster is required to create a table through a custom endpoint",
       class = c("fabric_kql_table_create_error", "fabric_kql_write_error")
     )
@@ -2243,7 +2261,7 @@ kusto_entity_identifier <- function(value, name, error_class = NULL) {
     !startsWith(value, "__") &&
     !endsWith(value, "__")
   if (!valid) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         name,
         " must use Kusto identifier characters (letters, numbers, spaces, ",
@@ -2287,7 +2305,7 @@ kusto_write_column_types <- function(schema, columns, column_types = NULL) {
       anyDuplicated(names(column_types)) ||
       !setequal(names(column_types), columns)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "column_types must be a named character vector with one entry for every data column",
       class = c("fabric_kql_schema_error", "fabric_kql_write_error")
     )
@@ -2300,7 +2318,7 @@ kusto_write_column_types <- function(schema, columns, column_types = NULL) {
     !nzchar(column_types) |
     !column_types %in% allowed
   if (any(invalid)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "column_types contains unsupported Kusto types for: ",
         paste(columns[invalid], collapse = ", "),
@@ -2351,7 +2369,7 @@ kusto_write_arrow_type <- function(type, column) {
     NA_character_
   }
   if (is.na(inferred)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Cannot infer a Kusto type for data column '",
         column,
@@ -2482,7 +2500,7 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
   configured <- is.null(override)
   candidates <- if (configured) configuration$lake_folders else override
   if (!length(candidates)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Kusto returned no OneLake lake folder for R/Arrow staging; supply ",
         "staging_folder with a writable OneLake Files URI"
@@ -2510,7 +2528,7 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
       return(target)
     }
   }
-  rlang::abort(
+  .fabric_abort(
     if (configured) {
       "Kusto returned no writable OneLake staging folder outside Tables/"
     } else {
@@ -2548,7 +2566,7 @@ kusto_write_ambiguous_error <- function(
   ingestion = NULL,
   message
 ) {
-  rlang::abort(
+  .fabric_abort(
     message,
     class = c("fabric_kql_write_ambiguous", "fabric_kql_write_error"),
     staging_path = staging_path,
@@ -2729,7 +2747,7 @@ fabric_kql_export <- function(
       is.na(query) ||
       !nzchar(trimws(query))
   ) {
-    rlang::abort("query must be one non-empty character value")
+    .fabric_abort("query must be one non-empty character value")
   }
   target <- kusto_resolve_target(
     cluster,
@@ -2764,7 +2782,7 @@ fabric_kql_export <- function(
     minimum = .kusto_ingestion_poll_floor
   )
   if (!is.function(.sleep) || !is.function(.now)) {
-    rlang::abort(".sleep and .now must be functions")
+    .fabric_abort(".sleep and .now must be functions")
   }
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -2798,7 +2816,7 @@ fabric_kql_export <- function(
       )
     },
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "KQL export submission did not return a tracking operation ID. ",
           "The request was not replayed because Kusto may already have ",
@@ -2820,6 +2838,7 @@ fabric_kql_export <- function(
   # 3 Poll the retry-safe management status until one documented terminal state ------------------
 
   last <- NULL
+  progress <- .fabric_poll_progress("KQL export", operation_id)
   repeat {
     elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
     if (!is.finite(elapsed) || elapsed >= timeout) {
@@ -2864,6 +2883,10 @@ fabric_kql_export <- function(
       }
     )
     last <- kusto_export_status(status_response$tables, operation_id)
+    .fabric_poll_progress_update(
+      progress,
+      if (is.null(last)) "Pending" else last$state
+    )
     if (!is.null(last) && !last$state %in% c("InProgress", "Scheduled")) {
       break
     }
@@ -2892,6 +2915,7 @@ fabric_kql_export <- function(
       last
     )
   }
+  .fabric_poll_progress_done(progress)
   detail_response <- tryCatch(
     kusto_export_management(
       target,
@@ -2913,7 +2937,7 @@ fabric_kql_export <- function(
       )
     },
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "KQL export ",
           operation_id,
@@ -2965,12 +2989,16 @@ fabric_kql_export <- function(
 #' @return `x`, invisibly.
 #' @export
 print.fabric_kql_export_result <- function(x, ...) {
-  cat("<fabric_kql_export_result>\n")
-  cat("  operation:", x$operation_id, "\n")
-  cat("  database: ", x$database, "\n")
-  cat("  state:    ", x$state, "\n")
-  cat("  files:    ", x$file_count, "\n")
-  cat("  records:  ", format(x$records, scientific = FALSE), "\n")
+  .fabric_print(
+    "fabric_kql_export_result",
+    list(
+      operation = x$operation_id,
+      database = x$database,
+      state = x$state,
+      files = x$file_count,
+      records = format(x$records, scientific = FALSE)
+    )
+  )
   invisible(x)
 }
 
@@ -2987,7 +3015,7 @@ kusto_export_destination <- function(
     grepl("^(?:https|abfss)://", destination, ignore.case = TRUE)
   if (complete) {
     if (!is.null(workspace) || !is.null(path) || !is.null(item_type)) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "workspace, path, and item_type must be omitted when destination ",
           "is a complete storage path"
@@ -3020,7 +3048,7 @@ kusto_export_destination <- function(
       is.na(path) ||
       !nzchar(trimws(path))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "path is required when destination is a Fabric item"
     )
   }
@@ -3050,7 +3078,7 @@ kusto_export_onelake_target <- function(target) {
   onelake_require_mutable_path(target, "KQL export")
   root <- strsplit(target$path, "/", fixed = TRUE)[[1L]][[1L]]
   if (!identical(tolower(root), "files")) {
-    rlang::abort("A OneLake KQL export destination must be below Files/")
+    .fabric_abort("A OneLake KQL export destination must be below Files/")
   }
   invisible(target)
 }
@@ -3081,7 +3109,7 @@ kusto_export_properties <- function(
       c("none", "all", "firstFile")
     )
     if (!format %in% c("csv", "tsv")) {
-      rlang::abort("include_headers is available only for csv or tsv exports")
+      .fabric_abort("include_headers is available only for csv or tsv exports")
     }
   }
   name_prefix <- kusto_export_optional_text(name_prefix, "name_prefix")
@@ -3093,12 +3121,12 @@ kusto_export_properties <- function(
     !is.null(file_extension) &&
       (!startsWith(file_extension, ".") || grepl("[/\\\\]", file_extension))
   ) {
-    rlang::abort("file_extension must begin with a dot and contain no slash")
+    .fabric_abort("file_extension must begin with a dot and contain no slash")
   }
   if (!is.null(encoding)) {
     encoding <- match.arg(encoding, c("UTF8NoBOM", "UTF8BOM"))
     if (identical(format, "parquet")) {
-      rlang::abort("encoding is not available for parquet exports")
+      .fabric_abort("encoding is not available for parquet exports")
     }
   }
   if (!is.null(compression_type)) {
@@ -3107,10 +3135,10 @@ kusto_export_properties <- function(
       c("gzip", "snappy", "lz4_raw", "brotli", "zstd")
     )
     if (!isTRUE(compressed)) {
-      rlang::abort("compression_type requires compressed = TRUE")
+      .fabric_abort("compression_type requires compressed = TRUE")
     }
     if (!identical(format, "parquet") && !identical(compression_type, "gzip")) {
-      rlang::abort("Non-Parquet exports support only gzip compression")
+      .fabric_abort("Non-Parquet exports support only gzip compression")
     }
   }
   kusto_ingestion_number(
@@ -3120,7 +3148,7 @@ kusto_export_properties <- function(
     whole = TRUE
   )
   if (size_limit > 4 * 1024^3) {
-    rlang::abort("size_limit must not exceed 4 GiB")
+    .fabric_abort("size_limit must not exceed 4 GiB")
   }
   if (!is.null(parquet_row_group_size)) {
     kusto_ingestion_number(
@@ -3130,7 +3158,7 @@ kusto_export_properties <- function(
       whole = TRUE
     )
     if (!identical(format, "parquet")) {
-      rlang::abort(
+      .fabric_abort(
         "parquet_row_group_size is available only for parquet exports"
       )
     }
@@ -3141,7 +3169,7 @@ kusto_export_properties <- function(
       c("millisecond", "microsecond")
     )
     if (!identical(format, "parquet")) {
-      rlang::abort(
+      .fabric_abort(
         "parquet_datetime_precision is available only for parquet exports"
       )
     }
@@ -3174,7 +3202,7 @@ kusto_export_optional_text <- function(value, name) {
       !nzchar(value) ||
       nchar(value, type = "bytes") > 1024L
   ) {
-    rlang::abort(paste0(name, " must be one non-empty text value"))
+    .fabric_abort(paste0(name, " must be one non-empty text value"))
   }
   value
 }
@@ -3265,7 +3293,7 @@ kusto_export_management <- function(
       bigint_as_char = TRUE
     ),
     error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         "Kusto returned invalid management response JSON",
         class = c(
           "fabric_kql_export_protocol_error",
@@ -3285,7 +3313,7 @@ kusto_export_management <- function(
 # Parse every v1 management table using the established Kusto type converter.
 kusto_export_tables <- function(payload) {
   if (!is.list(payload) || !is.list(payload$Tables)) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto management response has no Tables array",
       class = c(
         "fabric_kql_export_protocol_error",
@@ -3300,7 +3328,7 @@ kusto_export_tables <- function(payload) {
         !is.list(table$Columns) ||
         !is.list(table$Rows)
     ) {
-      rlang::abort(
+      .fabric_abort(
         "Kusto management response contains a malformed table",
         class = c(
           "fabric_kql_export_protocol_error",
@@ -3319,7 +3347,7 @@ kusto_export_table <- function(tables, fields) {
       return(table)
     }
   }
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Kusto management response is missing columns: ",
       paste(fields, collapse = ", ")
@@ -3341,7 +3369,7 @@ kusto_export_column <- function(table, name) {
 kusto_export_operation_id <- function(tables) {
   table <- kusto_export_table(tables, "OperationId")
   if (nrow(table) != 1L) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto async export did not return exactly one operation ID",
       class = c(
         "fabric_kql_export_protocol_error",
@@ -3351,7 +3379,7 @@ kusto_export_operation_id <- function(tables) {
   }
   id <- as.character(kusto_export_column(table, "OperationId")[[1L]])
   if (!fabric_is_guid(id)) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto async export returned an invalid operation ID",
       class = c(
         "fabric_kql_export_protocol_error",
@@ -3381,7 +3409,7 @@ kusto_export_status <- function(tables, operation_id) {
   ids <- tolower(as.character(kusto_export_column(table, "OperationId")))
   index <- which(ids == tolower(operation_id))
   if (length(index) != 1L) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto operation status did not identify the requested export once",
       class = c(
         "fabric_kql_export_protocol_error",
@@ -3403,7 +3431,7 @@ kusto_export_status <- function(tables, operation_id) {
     "Skipped"
   )
   if (!state %in% documented) {
-    rlang::abort(
+    .fabric_abort(
       paste0("Kusto returned an unknown export operation state: ", state),
       class = c(
         "fabric_kql_export_protocol_error",
@@ -3447,7 +3475,7 @@ kusto_export_artifacts <- function(tables) {
   counts <- as.character(kusto_export_column(table, "NumRecords"))
   valid <- grepl("^[0-9]+$", counts)
   if (anyNA(counts) || !all(valid)) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto export details contain an invalid NumRecords value",
       class = c(
         "fabric_kql_export_protocol_error",
@@ -3470,7 +3498,7 @@ kusto_export_tracking_error <- function(
   status,
   parent = NULL
 ) {
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Could not confirm the state of KQL export ",
       operation_id,
@@ -3498,7 +3526,7 @@ kusto_export_failure_error <- function(
   format,
   status
 ) {
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "KQL export ",
       operation_id,
@@ -3526,7 +3554,7 @@ kusto_export_timeout_error <- function(
   status,
   parent = NULL
 ) {
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "KQL export ",
       operation_id,

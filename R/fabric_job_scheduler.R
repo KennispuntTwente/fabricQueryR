@@ -185,7 +185,7 @@ fabric_job_schedule_config <- function(
     configuration$recurrence <- as.integer(recurrence)
     if (!is.null(day_of_month)) {
       if (!is.null(week_index) || !is.null(weekday)) {
-        rlang::abort(
+        .fabric_abort(
           "`day_of_month` cannot be combined with `week_index` or `weekday`"
         )
       }
@@ -196,7 +196,7 @@ fabric_job_schedule_config <- function(
       )
     } else {
       if (is.null(week_index) || is.null(weekday)) {
-        rlang::abort(
+        .fabric_abort(
           "Monthly schedules need `day_of_month` or both `week_index` and `weekday`"
         )
       }
@@ -467,7 +467,7 @@ fabric_job_schedule_delete <- function(
   allow_custom_endpoint = FALSE
 ) {
   if (!isTRUE(confirm) || length(confirm) != 1L) {
-    rlang::abort(
+    .fabric_abort(
       "Set `confirm = TRUE` to delete this Fabric job schedule",
       class = "fabric_job_schedule_confirmation_error"
     )
@@ -497,7 +497,7 @@ fabric_job_schedule_delete <- function(
     parse_json = FALSE
   )
   if (!result$status_code %in% c(200L, 204L)) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Fabric returned HTTP %d after schedule deletion",
         result$status_code
@@ -515,21 +515,14 @@ fabric_job_schedule_delete <- function(
 #' @return `x`, invisibly.
 #' @export
 print.fabric_job_schedule <- function(x, ...) {
-  cat(
-    "<fabric_job_schedule>\n",
-    "  schedule: ",
-    x$id,
-    "\n",
-    "  type:     ",
-    x$type %||% "unknown",
-    "\n",
-    "  state:    ",
-    x$state,
-    "\n",
-    "  job type: ",
-    x$job_type,
-    "\n",
-    sep = ""
+  .fabric_print(
+    "fabric_job_schedule",
+    list(
+      schedule = x$id,
+      type = x$type %||% "unknown",
+      state = x$state,
+      `job type` = x$job_type
+    )
   )
   invisible(x)
 }
@@ -677,7 +670,7 @@ print.fabric_job_schedule <- function(x, ...) {
   if (
     !identical(result$status_code, expected_status) || !is.list(result$body)
   ) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Fabric returned an invalid schedule response (expected HTTP %d, received HTTP %d)",
         expected_status,
@@ -762,7 +755,7 @@ print.fabric_job_schedule <- function(x, ...) {
   required <- c("startDateTime", "endDateTime", "localTimeZoneId")
   missing_fields <- required[!required %in% names(configuration)]
   if (length(missing_fields)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "Known schedule configurations are missing: ",
       paste(missing_fields, collapse = ", ")
     ))
@@ -779,7 +772,7 @@ print.fabric_job_schedule <- function(x, ...) {
     .fabric_job_time(configuration$endDateTime) <=
       .fabric_job_time(configuration$startDateTime)
   ) {
-    rlang::abort("The schedule end time must be later than its start time")
+    .fabric_abort("The schedule end time must be later than its start time")
   }
   .fabric_job_nonempty(
     configuration$localTimeZoneId,
@@ -841,7 +834,7 @@ print.fabric_job_schedule <- function(x, ...) {
 .fabric_schedule_utc <- function(value, name) {
   if (inherits(value, "POSIXt")) {
     if (length(value) != 1L || is.na(value)) {
-      rlang::abort(sprintf("`%s` must be one non-missing date-time", name))
+      .fabric_abort(sprintf("`%s` must be one non-missing date-time", name))
     }
     parsed <- as.POSIXct(value)
   } else if (
@@ -852,14 +845,14 @@ print.fabric_job_schedule <- function(x, ...) {
   ) {
     parsed <- .fabric_job_time(value)
   } else {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must be a POSIX date-time or RFC 3339 string with an explicit offset"
     ))
   }
   if (is.na(parsed)) {
-    rlang::abort(sprintf("`%s` is not a valid date-time", name))
+    .fabric_abort(sprintf("`%s` is not a valid date-time", name))
   }
   format(parsed, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
 }
@@ -872,12 +865,12 @@ print.fabric_job_schedule <- function(x, ...) {
       anyNA(times) ||
       !all(grepl("^(?:[01][0-9]|2[0-3]):[0-5][0-9]$", times))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "`times` must contain 1 to 100 unique clock times in HH:MM form"
     )
   }
   if (anyDuplicated(times)) {
-    rlang::abort("`times` must not contain duplicates")
+    .fabric_abort("`times` must not contain duplicates")
   }
   unname(times)
 }
@@ -889,11 +882,11 @@ print.fabric_job_schedule <- function(x, ...) {
       anyNA(value) ||
       (!isTRUE(multiple) && length(value) != 1L)
   ) {
-    rlang::abort(sprintf("`%s` must contain valid schedule values", name))
+    .fabric_abort(sprintf("`%s` must contain valid schedule values", name))
   }
   index <- match(tolower(value), tolower(choices))
   if (anyNA(index) || anyDuplicated(index)) {
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "`%s` must use unique values from: %s",
       name,
       paste(choices, collapse = ", ")
@@ -916,7 +909,7 @@ print.fabric_job_schedule <- function(x, ...) {
       value < minimum ||
       value > maximum
   ) {
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "`%s` must be one whole number from %d through %d",
       name,
       minimum,
@@ -928,7 +921,7 @@ print.fabric_job_schedule <- function(x, ...) {
 
 .fabric_schedule_flag <- function(value, name) {
   if (!is.logical(value) || length(value) != 1L || is.na(value)) {
-    rlang::abort(sprintf("`%s` must be TRUE or FALSE", name))
+    .fabric_abort(sprintf("`%s` must be TRUE or FALSE", name))
   }
   invisible(value)
 }

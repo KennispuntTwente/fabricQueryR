@@ -275,7 +275,7 @@ fabric_lakehouse_read_table <- function(
   if (!is.null(lakehouse_record)) {
     type <- tolower(fabric_record_value(lakehouse_record, "type") %||% "")
     if (!identical(type, "lakehouse")) {
-      rlang::abort(
+      .fabric_abort(
         "lakehouse discovery record must be a Lakehouse item",
         class = c("fabric_lakehouse_read_error", "fabric_delta_error")
       )
@@ -294,7 +294,7 @@ fabric_lakehouse_read_table <- function(
       )
   }
   if (is.null(workspace)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "workspace is required unless lakehouse is a discovered record ",
         "containing workspaceId"
@@ -392,7 +392,10 @@ fabric_lakehouse_tables <- function(
       ) {
         return(list())
       }
-      stop(error)
+      .fabric_abort(
+        "Could not list tables in the Lakehouse",
+        parent = error
+      )
     }
   )
 
@@ -425,7 +428,7 @@ fabric_lakehouse_tables <- function(
           is.na(value) ||
           !nzchar(value)
       ) {
-        rlang::abort(
+        .fabric_abort(
           "OneLake returned schema metadata without one non-empty name",
           class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
         )
@@ -457,7 +460,7 @@ fabric_lakehouse_tables <- function(
           is.na(table_name) ||
           !nzchar(table_name)
       ) {
-        rlang::abort(
+        .fabric_abort(
           "OneLake returned table metadata without one non-empty name",
           class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
         )
@@ -779,10 +782,13 @@ fabric_lakehouse_write_table <- function(
     removed <- .fabric_lakehouse_remove_staging(storage_target, credential)
     staging_retained <- !removed
     if (!removed) {
-      rlang::warn(paste0(
-        "The table load succeeded, but staging cleanup failed; retained ",
-        staging_path
-      ))
+      .fabric_warn(
+        c(
+          "Staging cleanup failed after the Lakehouse table load succeeded",
+          "i" = "Staged files remain at {.path {staging_path}}"
+        ),
+        .format = TRUE
+      )
     }
   }
   structure(
@@ -818,7 +824,7 @@ fabric_lakehouse_write_table <- function(
   workspace_record <- fabric_as_record(workspace)
   record_type <- fabric_record_value(lakehouse_record %||% list(), "type")
   if (!is.null(record_type) && !identical(tolower(record_type), "lakehouse")) {
-    rlang::abort(
+    .fabric_abort(
       paste0("`lakehouse` has type '", record_type, "', not 'Lakehouse'"),
       class = c("fabric_lakehouse_validation_error", "fabric_lakehouse_error")
     )
@@ -871,7 +877,7 @@ fabric_lakehouse_write_table <- function(
     length(parsed$query %||% list()) == 0L &&
     !nzchar(parsed$fragment %||% "")
   if (!clean) {
-    rlang::abort(
+    .fabric_abort(
       "table_api_base must be an HTTPS origin with an optional /delta path",
       class = c("fabric_lakehouse_endpoint_error", "fabric_lakehouse_error")
     )
@@ -880,7 +886,7 @@ fabric_lakehouse_write_table <- function(
     !identical(host, "onelake.table.fabric.microsoft.com") &&
       !isTRUE(allow_custom_endpoint)
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Refusing to send a Storage token to untrusted table_api_base '",
         value,
@@ -929,7 +935,7 @@ fabric_lakehouse_write_table <- function(
     )
     values <- body[[field]] %||% list()
     if (!is.list(values)) {
-      rlang::abort(
+      .fabric_abort(
         paste0("OneLake returned an invalid `", field, "` collection"),
         class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
       )
@@ -942,7 +948,7 @@ fabric_lakehouse_write_table <- function(
     if (
       !is.character(page_token) || length(page_token) != 1L || is.na(page_token)
     ) {
-      rlang::abort(
+      .fabric_abort(
         "OneLake returned an invalid next_page_token",
         class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
       )
@@ -1143,18 +1149,18 @@ fabric_lakehouse_write_table <- function(
   .fabric_operation_logical(recursive, "recursive")
   .fabric_operation_logical(header, "header")
   if (identical(path_type, "File") && isTRUE(recursive)) {
-    rlang::abort("recursive = TRUE requires path_type = \"Folder\"")
+    .fabric_abort("recursive = TRUE requires path_type = \"Folder\"")
   }
   if (!is.null(file_extension)) {
     .fabric_lakehouse_nonempty(file_extension, "file_extension")
     file_extension <- sub("^[.]", "", file_extension)
     if (!grepl("^[A-Za-z0-9_-]{1,16}$", file_extension)) {
-      rlang::abort(
+      .fabric_abort(
         "file_extension must contain 1 to 16 letters, numbers, underscores, or hyphens"
       )
     }
     if (identical(path_type, "File")) {
-      rlang::abort("file_extension is only used with path_type = \"Folder\"")
+      .fabric_abort("file_extension is only used with path_type = \"Folder\"")
     }
   }
   if (is.null(format)) {
@@ -1167,7 +1173,7 @@ fabric_lakehouse_write_table <- function(
       tolower(extension %||% ""),
       csv = "Csv",
       parquet = "Parquet",
-      rlang::abort(
+      .fabric_abort(
         "format must be supplied when it cannot be inferred as CSV or Parquet"
       )
     )
@@ -1179,7 +1185,7 @@ fabric_lakehouse_write_table <- function(
     invalid_delimiter <- nchar(delimiter) > 8L ||
       grepl("[()\\[\\]{}'\"[:space:]]", delimiter, perl = TRUE)
     if (invalid_delimiter) {
-      rlang::abort(
+      .fabric_abort(
         "delimiter must be 1 to 8 characters without whitespace, brackets, braces, parentheses, or quotes"
       )
     }
@@ -1274,7 +1280,7 @@ fabric_lakehouse_write_table <- function(
       caller = "fabric_lakehouse_write_table()"
     ),
     fabric_arrow_error = function(error) {
-      rlang::abort(
+      .fabric_abort(
         conditionMessage(error),
         class = c(
           "fabric_lakehouse_arrow_error",
@@ -1289,21 +1295,21 @@ fabric_lakehouse_write_table <- function(
 # Require names that Fabric documents as preserving exactly during table load.
 .fabric_lakehouse_column_names <- function(value) {
   if (!length(value)) {
-    rlang::abort("data must contain at least one column")
+    .fabric_abort("data must contain at least one column")
   }
   invalid <- is.na(value) |
     !nzchar(value) |
     nchar(value) > 128L |
     !grepl("^[\\p{L}\\p{N}_]+$", value, perl = TRUE)
   if (any(invalid)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "Column names must contain only Unicode letters, numbers, and underscores ",
       "and be at most 128 characters; invalid: ",
       paste(value[invalid], collapse = ", ")
     ))
   }
   if (anyDuplicated(value)) {
-    rlang::abort("Column names must be unique")
+    .fabric_abort("Column names must be unique")
   }
   invisible(value)
 }
@@ -1326,7 +1332,7 @@ fabric_lakehouse_write_table <- function(
   if (!isTRUE(keep_staging) && isTRUE(confirmed_failure)) {
     retained <- !.fabric_lakehouse_remove_staging(storage_target, credential)
   }
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Fabric could not load the staged Parquet files. ",
       if (retained) {
@@ -1374,7 +1380,7 @@ fabric_lakehouse_write_table <- function(
     !startsWith(tolower(normalized), "files/") ||
       identical(tolower(normalized), "files/")
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must begin with Files/ and name a file or folder"
@@ -1390,7 +1396,7 @@ fabric_lakehouse_write_table <- function(
     nchar(value) > 256L ||
       !grepl("^(?=.*[A-Za-z_])[A-Za-z0-9_]+$", value, perl = TRUE)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "table must contain 1 to 256 ASCII letters, numbers, or underscores and include a letter or underscore"
     )
   }
@@ -1400,7 +1406,7 @@ fabric_lakehouse_write_table <- function(
 .fabric_lakehouse_schema_name <- function(value) {
   .fabric_lakehouse_nonempty(value, "schema")
   if (nchar(value) > 128L || !grepl("^[A-Za-z0-9_]+$", value)) {
-    rlang::abort(
+    .fabric_abort(
       "schema must contain 1 to 128 ASCII letters, numbers, or underscores"
     )
   }
@@ -1415,7 +1421,7 @@ fabric_lakehouse_write_table <- function(
   .fabric_lakehouse_nonempty(value, name)
   index <- match(tolower(value), tolower(choices))
   if (is.na(index)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "`",
       name,
       "` must be one of ",
@@ -1432,7 +1438,7 @@ fabric_lakehouse_write_table <- function(
       is.na(value) ||
       !nzchar(value)
   ) {
-    rlang::abort(paste0("`", name, "` must be one non-empty string"))
+    .fabric_abort(paste0("`", name, "` must be one non-empty string"))
   }
   invisible(value)
 }
@@ -1450,7 +1456,7 @@ fabric_lakehouse_write_table <- function(
       value != floor(value) ||
       value > 100
   ) {
-    rlang::abort("page_size must be NULL or one whole number from 1 to 100")
+    .fabric_abort("page_size must be NULL or one whole number from 1 to 100")
   }
   invisible(as.integer(value))
 }

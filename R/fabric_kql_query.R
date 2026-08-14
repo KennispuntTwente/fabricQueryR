@@ -124,7 +124,7 @@ kusto_read_columns <- function(columns) {
         !all(nzchar(columns)) ||
         anyDuplicated(columns))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "columns must be NULL or one or more unique, non-empty strings",
       class = "fabric_kql_read_error"
     )
@@ -147,7 +147,7 @@ kusto_read_limit <- function(limit) {
       limit != floor(limit) ||
       limit > .Machine$integer.max
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "limit must be NULL or one non-negative whole number no greater than ",
         .Machine$integer.max
@@ -297,7 +297,7 @@ fabric_kql_query <- function(
       is.na(query) ||
       !nzchar(trimws(query))
   ) {
-    rlang::abort("query must be one non-empty character value")
+    .fabric_abort("query must be one non-empty character value")
   }
   target <- kusto_resolve_target(
     cluster,
@@ -317,14 +317,14 @@ fabric_kql_query <- function(
       !is.finite(timeout) ||
       timeout <= 0
   ) {
-    rlang::abort("timeout must be one positive number of seconds")
+    .fabric_abort("timeout must be one positive number of seconds")
   }
   if (
     !is.logical(retain_raw_frames) ||
       length(retain_raw_frames) != 1L ||
       is.na(retain_raw_frames)
   ) {
-    rlang::abort("retain_raw_frames must be TRUE or FALSE")
+    .fabric_abort("retain_raw_frames must be TRUE or FALSE")
   }
 
   # 2 Execute and return the query -----------------------------------------------------------------
@@ -365,13 +365,13 @@ kusto_resolve_target <- function(
       length(allow_custom_endpoint) != 1L ||
       is.na(allow_custom_endpoint)
   ) {
-    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
   }
   record <- fabric_as_record(cluster)
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
     if (!type %in% c("eventhouse", "kqldatabase")) {
-      rlang::abort(
+      .fabric_abort(
         "cluster discovery record must be an Eventhouse or KQLDatabase item"
       )
     }
@@ -392,7 +392,7 @@ kusto_resolve_target <- function(
       is.na(cluster) ||
       !nzchar(trimws(cluster))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "cluster must supply one non-empty Kusto query-service URI"
     )
   }
@@ -403,7 +403,7 @@ kusto_resolve_target <- function(
       is.na(database) ||
       !nzchar(trimws(database))
   ) {
-    rlang::abort(
+    .fabric_abort(
       "database is required unless cluster is a discovered KQLDatabase item"
     )
   }
@@ -426,7 +426,7 @@ kusto_resolve_target <- function(
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "cluster must be a valid HTTPS query-service URI using the ",
       "default port (443)"
     ))
@@ -443,7 +443,7 @@ kusto_resolve_target <- function(
     logical(1)
   ))
   if (!trusted && !allow_custom_endpoint) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "cluster must use a Microsoft Kusto endpoint; set ",
       "allow_custom_endpoint = TRUE only for a trusted custom origin"
     ))
@@ -455,7 +455,7 @@ kusto_resolve_target <- function(
     !path %in% c("", "/") &&
       !grepl("/v[12]/rest/query/?$", path, ignore.case = TRUE)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "cluster URI must be a service root or a Kusto REST query endpoint"
     )
   }
@@ -482,7 +482,7 @@ kusto_named_list <- function(value, name) {
   }
 
   if (!is.list(value)) {
-    rlang::abort(cli::format_inline("{name} must be a named list"))
+    .fabric_abort(cli::format_inline("{name} must be a named list"))
   }
 
   if (
@@ -492,7 +492,7 @@ kusto_named_list <- function(value, name) {
         !all(nzchar(names(value))) ||
         anyDuplicated(names(value)))
   ) {
-    rlang::abort(
+    .fabric_abort(
       cli::format_inline("{name} must have unique, non-empty names")
     )
   }
@@ -509,7 +509,7 @@ kusto_validate_request_properties <- function(request_properties) {
   supplied <- names(request_properties)
   matches <- supplied[tolower(supplied) %in% unsupported]
   if (length(matches)) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "Microsoft Fabric does not support request_properties: ",
       paste(matches, collapse = ", ")
     ))
@@ -525,7 +525,7 @@ kusto_encode_parameters <- function(parameters) {
     length(parameters) &&
       !all(grepl("^[A-Za-z_][A-Za-z0-9_]*$", names(parameters)))
   ) {
-    rlang::abort("parameters names must be valid KQL identifiers")
+    .fabric_abort("parameters names must be valid KQL identifiers")
   }
   lapply(parameters, kusto_encode_parameter)
 }
@@ -547,7 +547,7 @@ kusto_encode_parameter <- function(value) {
   }
 
   if (is.null(value) || anyNA(value)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "KQL parameter values cannot be NULL or NA. ",
         "Use an explicit typed KQL null literal such as 'long(null)'"
@@ -559,7 +559,7 @@ kusto_encode_parameter <- function(value) {
     inherits(value, c("POSIXt", "Date", "difftime", "integer64")) &&
       length(value) != 1L
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Date, time, difftime, and integer64 KQL parameters must be scalar"
     )
   }
@@ -583,7 +583,7 @@ kusto_encode_parameter <- function(value) {
   if (inherits(value, "difftime")) {
     seconds <- as.numeric(value, units = "secs")
     if (!is.finite(seconds)) {
-      rlang::abort("KQL difftime parameter values must be finite")
+      .fabric_abort("KQL difftime parameter values must be finite")
     }
 
     return(paste0(
@@ -786,7 +786,7 @@ kusto_parse_response <- function(
   # A v2 response must start with one header and end with one completion frame
 
   if (!is.list(frames) || !length(frames)) {
-    rlang::abort("Kusto returned a malformed v2 response")
+    .fabric_abort("Kusto returned a malformed v2 response")
   }
 
   if (!all(vapply(frames, is.list, logical(1)))) {
@@ -1042,7 +1042,7 @@ kusto_attach_metadata <- function(
 # Raise a protocol error with beginner-readable `detail`. This function does
 # not return and is shared by all Kusto frame validators
 kusto_abort_malformed <- function(detail) {
-  rlang::abort(
+  .fabric_abort(
     paste0("Kusto returned a malformed v2 response: ", detail),
     class = "fabric_kql_protocol_error"
   )
@@ -1160,7 +1160,7 @@ kusto_check_completion <- function(
   kusto_require_flag(completion, "HasErrors", "DataSetCompletion")
   kusto_require_flag(completion, "Cancelled", "DataSetCompletion")
   if (isTRUE(completion$Cancelled)) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto query was cancelled before completion",
       class = "fabric_kql_partial_error",
       partial_data = partial_data,
@@ -1180,7 +1180,7 @@ kusto_check_completion <- function(
   if (!length(detail)) {
     detail <- "The service reported an unspecified partial query failure"
   }
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "Kusto query failed after HTTP success: ",
       paste(detail, collapse = ": ")
@@ -1253,7 +1253,7 @@ kusto_numeric_column <- function(values) {
   out[!is.na(matched)] <- unname(special[matched[!is.na(matched)]])
   invalid <- !is.na(text) & is.na(out) & is.na(matched)
   if (any(invalid)) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto returned an invalid numeric value for its declared type"
     )
   }
@@ -1277,20 +1277,21 @@ kusto_integer_column <- function(values, type) {
   }
   invalid <- !is.na(text) & is.na(parsed) & text != minimum
   if (any(invalid)) {
-    rlang::abort(
+    .fabric_abort(
       "Kusto returned an invalid integer value for its declared type"
     )
   }
 
   if (contains_minimum) {
-    rlang::warn(
-      paste0(
-        "KQL `",
-        type,
-        "` column contains ",
-        minimum,
-        ", which R reserves for missing data; returning it as character"
+    .fabric_warn(
+      c(
+        "KQL {.code {type}} column contains {.val {minimum}}",
+        "i" = paste(
+          "R reserves this value for missing data; returning it as",
+          "character"
+        )
       ),
+      .format = TRUE,
       class = "fabric_kql_integer_boundary_warning"
     )
 
@@ -1310,7 +1311,7 @@ kusto_datetime_column <- function(values) {
   )
   invalid <- !is.na(text) & is.na(out)
   if (any(invalid)) {
-    rlang::abort("Kusto returned an invalid datetime value")
+    .fabric_abort("Kusto returned an invalid datetime value")
   }
   out
 }
@@ -1327,7 +1328,7 @@ kusto_timespan_seconds <- function(value) {
   )
   parts <- regmatches(value, match)[[1L]]
   if (!length(parts)) {
-    rlang::abort("Kusto returned an invalid timespan value")
+    .fabric_abort("Kusto returned an invalid timespan value")
   }
   sign <- if (identical(parts[[2L]], "-")) -1 else 1
   days <- if (nzchar(parts[[3L]])) as.numeric(parts[[3L]]) else 0
@@ -1381,7 +1382,7 @@ kusto_convert_column <- function(values, type) {
             length(value) != 1L ||
             is.na(value)
         ) {
-          rlang::abort(
+          .fabric_abort(
             "Kusto returned an invalid Boolean value",
             class = "fabric_kql_protocol_error"
           )

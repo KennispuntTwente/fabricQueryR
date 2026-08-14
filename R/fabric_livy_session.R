@@ -150,7 +150,7 @@ fabric_livy_session <- function(
 
   # A session tag has no meaning outside high-concurrency mode
   if (!is.null(session_tag) && !isTRUE(high_concurrency)) {
-    rlang::abort(
+    .fabric_abort(
       "session_tag is only available for high-concurrency sessions"
     )
   }
@@ -167,7 +167,7 @@ fabric_livy_session <- function(
   )
 
   if (!high_concurrency && !all(vapply(hc_values, is.null, logical(1)))) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "artifact_name, file, class_name, args, jars, files, and py_files ",
       "are only available for high-concurrency sessions"
     ))
@@ -319,20 +319,19 @@ FabricLivySession <- R6::R6Class(
       } else {
         "Fabric Livy session"
       }
-      cat("<", label, ">\n", sep = "")
-      cat("  id: ", self$id %||% "<not created>", "\n", sep = "")
-      cat("  state: ", self$state %||% "<unknown>", "\n", sep = "")
+      fields <- list(
+        id = self$id %||% "<not created>",
+        state = self$state %||% "<unknown>"
+      )
       if (self$high_concurrency) {
-        cat(
-          "  session/repl: ",
+        fields[["session/repl"]] <- paste0(
           self$session_id %||% "<pending>",
           "/",
-          self$repl_id %||% "<pending>",
-          "\n",
-          sep = ""
+          self$repl_id %||% "<pending>"
         )
       }
-      cat("  closed: ", self$closed, "\n", sep = "")
+      fields$closed <- self$closed
+      .fabric_print(label, fields)
       invisible(self)
     },
 
@@ -363,6 +362,11 @@ FabricLivySession <- R6::R6Class(
       fabric_livy_check_number(timeout, "timeout")
       fabric_livy_check_number(poll_interval, "poll_interval")
       deadline <- Sys.time() + timeout
+      progress <- .fabric_poll_progress(
+        "Fabric Livy session",
+        self$id,
+        verbose = self$verbose
+      )
       repeat {
         if (fabric_livy_remaining(deadline) <= 0) {
           fabric_livy_abort_timeout("session", self, self$response)
@@ -374,6 +378,7 @@ FabricLivySession <- R6::R6Class(
           }
         )
         state <- fabric_livy_state(response)
+        .fabric_poll_progress_update(progress, state)
         ready <- if (self$high_concurrency) {
           identical(state, "idle") &&
             nzchar(self$session_id %||% "") &&
@@ -383,7 +388,7 @@ FabricLivySession <- R6::R6Class(
         }
 
         if (ready) {
-          inform(self$verbose, "Fabric Livy session is ready", type = "success")
+          .fabric_poll_progress_done(progress)
           return(invisible(self))
         }
         fabric_state <- tolower(
@@ -420,7 +425,7 @@ FabricLivySession <- R6::R6Class(
       }
 
       if (!identical(tolower(self$state %||% ""), "idle")) {
-        rlang::abort(
+        .fabric_abort(
           "The Livy session is not ready; call session$wait() first"
         )
       }
@@ -492,7 +497,7 @@ FabricLivySession <- R6::R6Class(
     reset_timeout = function() {
       private$assert_open()
       if (self$high_concurrency) {
-        rlang::abort(
+        .fabric_abort(
           "reset_timeout() is not supported for high-concurrency sessions"
         )
       }
@@ -532,7 +537,7 @@ FabricLivySession <- R6::R6Class(
     # request. It takes no input and either returns quietly or raises an error
     assert_open = function() {
       if (isTRUE(self$closed)) {
-        rlang::abort("The Livy session is closed")
+        .fabric_abort("The Livy session is closed")
       }
     },
 
@@ -557,7 +562,7 @@ FabricLivySession <- R6::R6Class(
         !nzchar(self$session_id %||% "") ||
           !nzchar(self$repl_id %||% "")
       ) {
-        rlang::abort(paste0(
+        .fabric_abort(paste0(
           "The high-concurrency session has no sessionId/replId yet; ",
           "call session$wait()"
         ))
@@ -627,10 +632,14 @@ FabricLivyStatement <- R6::R6Class(
     #' @param ... Unused
     #' @returns `self`, invisibly
     print = function(...) {
-      cat("<Fabric Livy statement>\n")
-      cat("  id: ", self$id, "\n", sep = "")
-      cat("  state: ", self$state %||% "<unknown>", "\n", sep = "")
-      cat("  url: ", self$url, "\n", sep = "")
+      .fabric_print(
+        "Fabric Livy statement",
+        list(
+          id = self$id,
+          state = self$state %||% "<unknown>",
+          url = self$url
+        )
+      )
       invisible(self)
     },
 
@@ -666,6 +675,11 @@ FabricLivyStatement <- R6::R6Class(
       fabric_livy_check_number(poll_interval, "poll_interval")
       fabric_livy_check_flag(error_on_failure, "error_on_failure")
       deadline <- Sys.time() + timeout
+      progress <- .fabric_poll_progress(
+        "Fabric Livy statement",
+        self$id,
+        verbose = self$verbose
+      )
       repeat {
         if (fabric_livy_remaining(deadline) <= 0) {
           fabric_livy_abort_timeout("statement", self, self$response)
@@ -677,6 +691,7 @@ FabricLivyStatement <- R6::R6Class(
           }
         )
         state <- fabric_livy_state(response)
+        .fabric_poll_progress_update(progress, state)
         output_error <- identical(
           tolower(response$output$status %||% ""),
           "error"
@@ -694,6 +709,7 @@ FabricLivyStatement <- R6::R6Class(
             fabric_livy_abort_statement(response)
           }
 
+          .fabric_poll_progress_done(progress)
           return(invisible(self))
         }
         fabric_livy_poll_sleep(deadline, poll_interval)
@@ -712,7 +728,7 @@ FabricLivyStatement <- R6::R6Class(
         !identical(state, "available") &&
           !state %in% .fabric_livy_statement_failure_states
       ) {
-        rlang::abort(
+        .fabric_abort(
           "The Livy statement is not complete; call statement$wait()"
         )
       }

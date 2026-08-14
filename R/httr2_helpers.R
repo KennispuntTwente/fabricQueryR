@@ -53,7 +53,7 @@
       max_tries > .Machine$integer.max ||
       max_tries != floor(max_tries)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "max_tries must be one whole number between 1 and .Machine$integer.max"
     )
   }
@@ -67,7 +67,7 @@
         !is.finite(request_timeout) ||
         request_timeout <= 0)
   ) {
-    rlang::abort("request_timeout must be NULL or one positive number")
+    .fabric_abort("request_timeout must be NULL or one positive number")
   }
 
   if (
@@ -77,7 +77,7 @@
       !is.finite(max_retry_delay) ||
       max_retry_delay < 0
   ) {
-    rlang::abort("max_retry_delay must be one non-negative number")
+    .fabric_abort("max_retry_delay must be one non-negative number")
   }
 
   if (
@@ -86,7 +86,7 @@
         length(deadline) != 1L ||
         is.na(deadline))
   ) {
-    rlang::abort("deadline must be NULL or one POSIX date-time")
+    .fabric_abort("deadline must be NULL or one POSIX date-time")
   }
 
   if (
@@ -94,7 +94,7 @@
       length(return_error_response) != 1L ||
       is.na(return_error_response)
   ) {
-    rlang::abort("return_error_response must be TRUE or FALSE")
+    .fabric_abort("return_error_response must be TRUE or FALSE")
   }
 
   # 2 Prepare retry state --------------------------------------------------------------------------
@@ -125,7 +125,7 @@
     }
 
     if (remaining <= 0) {
-      rlang::abort(
+      .fabric_abort(
         "The HTTP request deadline was exhausted",
         class = "fabric_http_deadline_error",
         parent = last_failure
@@ -157,7 +157,7 @@
     }
 
     if (remaining <= 0) {
-      rlang::abort(
+      .fabric_abort(
         "The HTTP request deadline was exhausted",
         class = "fabric_http_deadline_error",
         parent = last_failure
@@ -247,7 +247,7 @@
     if (!is.null(deadline)) {
       remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
       if (remaining <= 0) {
-        rlang::abort(
+        .fabric_abort(
           "The HTTP request deadline was exhausted",
           class = "fabric_http_deadline_error",
           parent = last_failure
@@ -255,7 +255,7 @@
       }
 
       if (!is.null(retry_after) && retry_after > remaining) {
-        rlang::abort(
+        .fabric_abort(
           paste0(
             "The service Retry-After interval exceeds the HTTP request ",
             "deadline"
@@ -268,7 +268,7 @@
     }
 
     if (!is.null(retry_after) && retry_after > max_retry_delay) {
-      rlang::abort(
+      .fabric_abort(
         sprintf(
           "The service requested a %s-second retry delay, exceeding the %s-second client limit",
           format(retry_after, trim = TRUE),
@@ -554,7 +554,7 @@
 
   # Turn the final state into clear output for the caller
 
-  rlang::abort(
+  .fabric_abort(
     msg,
     class = "fabric_http_error",
     status = status,
@@ -707,7 +707,7 @@
     ) &&
     identical(normalized_port(origin), normalized_port(next_url))
   if (!same_origin) {
-    rlang::abort(
+    .fabric_abort(
       "The service returned a continuation URL on a different origin"
     )
   }
@@ -723,14 +723,14 @@
   max_pages = 10000L
 ) {
   if (page > as.integer(max_pages)) {
-    rlang::abort(sprintf(
+    .fabric_abort(sprintf(
       "Pagination exceeded the maximum of %d pages",
       as.integer(max_pages)
     ))
   }
 
   if (url %in% seen_urls) {
-    rlang::abort(
+    .fabric_abort(
       "The service returned a repeated pagination URL or continuation token"
     )
   }

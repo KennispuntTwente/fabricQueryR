@@ -73,7 +73,7 @@ fabric_sql_connection_info <- function(
           "sqldatabase"
         )
     ) {
-      rlang::abort(
+      .fabric_abort(
         paste0(
           "SQL connections require a discovered Lakehouse, Warehouse, ",
           "WarehouseSnapshot, or SQLDatabase item"
@@ -117,7 +117,7 @@ fabric_sql_connection_info <- function(
   parsed <- fabric_parse_sql_connection_string(server_value)
   database <- database %||% parsed$database
   if (!is.null(database) && !nzchar(trimws(database))) {
-    rlang::abort(
+    .fabric_abort(
       "database must be one non-empty character value when supplied",
       class = c("fabric_sql_database_error", "fabric_sql_target_error")
     )
@@ -299,7 +299,7 @@ fabric_sql_connect <- function(
   target_type <- match.arg(target_type)
   backend <- match.arg(backend)
   if (!is.logical(read_only) || length(read_only) != 1L || is.na(read_only)) {
-    rlang::abort("read_only must be TRUE or FALSE")
+    .fabric_abort("read_only must be TRUE or FALSE")
   }
   fabric_sql_timeout(timeout)
   fabric_sql_retry_settings(max_tries, retry_delay)
@@ -308,7 +308,7 @@ fabric_sql_connect <- function(
   if (identical(backend, "adbc")) {
     fabric_sql_scalar(adbc_driver, "adbc_driver")
     if ("uri" %in% names(resolved$dots)) {
-      rlang::abort(
+      .fabric_abort(
         "fabric_sql_connect() constructs the ADBC uri; uri cannot be supplied in ...",
         class = "fabric_sql_target_error"
       )
@@ -386,7 +386,7 @@ fabric_sql_connect <- function(
         force_refresh = attempt > 1L
       ),
       error = function(error) {
-        rlang::abort(
+        .fabric_abort(
           "Fabric SQL authentication failed while acquiring an access token",
           class = "fabric_sql_authentication_error",
           parent = error
@@ -451,7 +451,7 @@ fabric_sql_connect <- function(
     )
     .fabric_sql_sleep(delay)
   }
-  rlang::abort("Fabric SQL connection retry loop ended unexpectedly")
+  .fabric_abort("Fabric SQL connection retry loop ended unexpectedly")
 }
 
 #' Run a parameterized query against Microsoft Fabric SQL
@@ -556,7 +556,7 @@ fabric_sql_query <- function(
   fabric_sql_scalar(sql, "sql")
   fabric_sql_validate_query_statement(sql)
   if (!is.null(params) && !is.list(params)) {
-    rlang::abort(
+    .fabric_abort(
       "params must be NULL or a list",
       class = "fabric_sql_execution_error"
     )
@@ -567,7 +567,7 @@ fabric_sql_query <- function(
       length(idempotent) != 1L ||
       is.na(idempotent)
   ) {
-    rlang::abort("idempotent must be TRUE or FALSE")
+    .fabric_abort("idempotent must be TRUE or FALSE")
   }
   fabric_sql_retry_settings(max_tries, retry_delay)
   fabric_sql_require_backend(backend, result = result)
@@ -694,7 +694,7 @@ fabric_sql_query <- function(
       if (connection_failure) {
         rlang::cnd_signal(outcome$error)
       }
-      rlang::abort(
+      .fabric_abort(
         "Fabric SQL query execution failed",
         class = "fabric_sql_execution_error",
         parent = outcome$error
@@ -708,7 +708,7 @@ fabric_sql_query <- function(
     )
     .fabric_sql_sleep(delay)
   }
-  rlang::abort("Fabric SQL query retry loop ended unexpectedly")
+  .fabric_abort("Fabric SQL query retry loop ended unexpectedly")
 }
 
 # Validate `sql` as one top-level SELECT or WITH...SELECT statement. Returns
@@ -793,7 +793,7 @@ fabric_sql_validate_query_statement <- function(sql) {
 # Raise the shared one-shot SQL statement error. This function does not return
 # and keeps invalid-statement guidance consistent across parser branches
 fabric_sql_statement_error <- function() {
-  rlang::abort(
+  .fabric_abort(
     paste0(
       "fabric_sql_query() accepts only result-producing SELECT statements, ",
       "with exactly one statement per call. ",
@@ -869,7 +869,7 @@ fabric_sql_top_level_tokens <- function(sql) {
       )
       close <- regexpr("*/", remainder, fixed = TRUE)[[1L]]
       if (close < 0L) {
-        rlang::abort("sql contains an unterminated block comment")
+        .fabric_abort("sql contains an unterminated block comment")
       }
       index <- index + close + 3L
       next
@@ -946,7 +946,7 @@ fabric_sql_load_adbc_driver <- function(adbc_driver) {
           "with `dbc install <driver>`."
         )
       }
-      rlang::abort(
+      .fabric_abort(
         paste(
           sprintf("Could not load ADBC driver '%s'.", adbc_driver),
           install_guidance,
@@ -1008,7 +1008,7 @@ fabric_sql_adbc_boolean <- function(value, argument) {
   if (normalized %in% c("false", "no", "0", "f")) {
     return("false")
   }
-  rlang::abort(
+  .fabric_abort(
     sprintf(
       "%s must be a true/false or yes/no value for the ADBC backend",
       argument
@@ -1165,7 +1165,7 @@ fabric_sql_adbc_parameter_sql <- function(sql, params) {
   # Check and return rewritten SQL now so later code can rely on safe input
 
   if (marker != length(params)) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "ADBC parameter binding found %d SQL placeholder%s for %d value%s",
         marker,
@@ -1191,7 +1191,7 @@ fabric_sql_retry_settings <- function(max_tries, retry_delay) {
       max_tries != floor(max_tries) ||
       max_tries > .Machine$integer.max
   ) {
-    rlang::abort("max_tries must be one positive integer")
+    .fabric_abort("max_tries must be one positive integer")
   }
 
   if (
@@ -1201,7 +1201,7 @@ fabric_sql_retry_settings <- function(max_tries, retry_delay) {
       !is.finite(retry_delay) ||
       retry_delay < 0
   ) {
-    rlang::abort("retry_delay must be one non-negative number")
+    .fabric_abort("retry_delay must be one non-negative number")
   }
   invisible(TRUE)
 }
@@ -1214,7 +1214,7 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
       length(allow_custom_endpoint) != 1L ||
       is.na(allow_custom_endpoint)
   ) {
-    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
   }
   host <- tolower(sub("\\.$", "", trimws(server)))
   trusted_suffixes <- c(
@@ -1233,7 +1233,7 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
     logical(1)
   ))
   if (!trusted && !isTRUE(allow_custom_endpoint)) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Refusing to send a SQL access token to untrusted server '",
         server,
@@ -1250,7 +1250,7 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
 fabric_sql_odbc_options <- function(dots) {
   positions <- which(names(dots) == "attributes")
   if (length(positions) > 1L) {
-    rlang::abort("attributes may be supplied only once in ...")
+    .fabric_abort("attributes may be supplied only once in ...")
   }
   attributes <- if (length(positions)) dots[[positions]] else list()
   if (length(positions)) {
@@ -1258,22 +1258,22 @@ fabric_sql_odbc_options <- function(dots) {
   }
 
   if (!is.list(attributes)) {
-    rlang::abort("attributes in ... must be a named list")
+    .fabric_abort("attributes in ... must be a named list")
   }
   attribute_names <- names(attributes)
   if (
     length(attributes) &&
       (is.null(attribute_names) || !all(nzchar(attribute_names)))
   ) {
-    rlang::abort("attributes in ... must be a named list")
+    .fabric_abort("attributes in ... must be a named list")
   }
   normalized <- tolower(attribute_names %||% character())
   if (anyDuplicated(normalized)) {
-    rlang::abort("attributes in ... must have unique names ignoring case")
+    .fabric_abort("attributes in ... must have unique names ignoring case")
   }
 
   if ("azure_token" %in% normalized) {
-    rlang::abort(
+    .fabric_abort(
       "attributes in ... cannot override the package-managed azure_token"
     )
   }
@@ -1348,7 +1348,7 @@ fabric_parse_sql_connection_string <- function(server) {
   if (is.null(host)) {
     bare <- tokens[!grepl("=", tokens, fixed = TRUE)]
     if (length(bare) != 1L) {
-      rlang::abort(
+      .fabric_abort(
         "Could not find a unique Server/Data Source in the SQL target",
         class = "fabric_sql_target_error"
       )
@@ -1365,7 +1365,7 @@ fabric_parse_sql_connection_string <- function(server) {
   }
 
   if (!nzchar(host)) {
-    rlang::abort(
+    .fabric_abort(
       "Fabric SQL server is empty",
       class = "fabric_sql_target_error"
     )
@@ -1419,7 +1419,7 @@ fabric_sql_scalar <- function(value, argument) {
       is.na(value) ||
       !nzchar(trimws(value))
   ) {
-    rlang::abort(
+    .fabric_abort(
       sprintf("%s must be one non-empty character value", argument),
       class = "fabric_sql_target_error"
     )
@@ -1443,7 +1443,7 @@ fabric_sql_port <- function(
       value > 65535 ||
       value != floor(value)
   ) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "%s must be one integer between %d and 65535",
         argument,
@@ -1467,7 +1467,7 @@ fabric_sql_timeout <- function(value) {
       value != floor(value) ||
       value > .Machine$integer.max
   ) {
-    rlang::abort(
+    .fabric_abort(
       "timeout must be one non-negative whole number",
       class = "fabric_sql_target_error"
     )
@@ -1498,7 +1498,7 @@ fabric_sql_connection_error <- function(error, secrets = NULL) {
   } else {
     "fabric_sql_endpoint_error"
   }
-  rlang::abort(
+  .fabric_abort(
     paste0("Fabric SQL connection failed: ", message),
     class = c(class, "fabric_sql_connection_error"),
     # Driver conditions can retain call arguments and backend-specific state.

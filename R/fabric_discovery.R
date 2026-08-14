@@ -60,7 +60,7 @@ fabric_workspaces <- function(
         anyNA(roles) ||
         !all(nzchar(roles)))
   ) {
-    rlang::abort("roles must contain one or more non-empty strings")
+    .fabric_abort("roles must contain one or more non-empty strings")
   }
 
   if (
@@ -68,7 +68,7 @@ fabric_workspaces <- function(
       length(prefer_workspace_endpoints) != 1L ||
       is.na(prefer_workspace_endpoints)
   ) {
-    rlang::abort("prefer_workspace_endpoints must be TRUE or FALSE")
+    .fabric_abort("prefer_workspace_endpoints must be TRUE or FALSE")
   }
 
   # 2 Request visible workspaces -------------------------------------------------------------------
@@ -187,15 +187,15 @@ fabric_items <- function(
         is.na(type) ||
         !nzchar(type))
   ) {
-    rlang::abort("type must be one non-empty string")
+    .fabric_abort("type must be one non-empty string")
   }
 
   if (!is.logical(detail) || length(detail) != 1L || is.na(detail)) {
-    rlang::abort("detail must be TRUE or FALSE")
+    .fabric_abort("detail must be TRUE or FALSE")
   }
   detail_errors <- match.arg(detail_errors)
   if (!is.logical(recursive) || length(recursive) != 1L || is.na(recursive)) {
-    rlang::abort("recursive must be TRUE or FALSE")
+    .fabric_abort("recursive must be TRUE or FALSE")
   }
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
@@ -284,14 +284,13 @@ fabric_items <- function(
     logical(1)
   ))
   if (failed > 0) {
-    rlang::warn(sprintf(
-      paste0(
-        "Could not fully enrich %d Fabric item%s; ",
-        "see detail_error"
+    .fabric_warn(
+      c(
+        "Could not fully enrich {failed} Fabric item{?s}",
+        "i" = "See the {.field detail_error} field for each affected item"
       ),
-      failed,
-      if (failed == 1L) "" else "s"
-    ))
+      .format = TRUE
+    )
   }
 
   # 5 Return discovery records ---------------------------------------------------------------------
@@ -374,7 +373,7 @@ fabric_item <- function(
     if (
       !is.character(item) || length(item) != 1L || is.na(item) || !nzchar(item)
     ) {
-      rlang::abort("item must be one non-empty string or a discovered item")
+      .fabric_abort("item must be one non-empty string or a discovered item")
     }
 
     if (fabric_is_guid(item)) {
@@ -413,7 +412,7 @@ fabric_item <- function(
   )
   record <- fabric_add_workspace_endpoints(record, ws)
   if (!is.null(type) && !identical(tolower(record$type), tolower(type))) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "Item '%s' has type '%s', not '%s'",
         record$displayName %||% record$id,
@@ -615,7 +614,7 @@ fabric_discovery_optional_string <- function(value, name) {
         is.na(value) ||
         !nzchar(value))
   ) {
-    rlang::abort(paste0(name, " must be NULL or one non-empty string"))
+    .fabric_abort(paste0(name, " must be NULL or one non-empty string"))
   }
   invisible(value)
 }
@@ -629,7 +628,7 @@ fabric_validate_personal_workspace_identity <- function(tenant_id, owner) {
   )
   fabric_discovery_optional_string(owner, "personal_workspace_owner")
   if (xor(is.null(tenant_id), is.null(owner))) {
-    rlang::abort(paste0(
+    .fabric_abort(paste0(
       "personal_workspace_tenant_id and personal_workspace_owner ",
       "must be supplied together"
     ))
@@ -687,7 +686,7 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
         tolower(as.character(workspace_id))
       )
   ) {
-    rlang::abort(
+    .fabric_abort(
       "The discovered item belongs to a different workspace"
     )
   }
@@ -706,7 +705,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
       length(allow_custom_endpoint) != 1L ||
       is.na(allow_custom_endpoint)
   ) {
-    rlang::abort("allow_custom_endpoint must be TRUE or FALSE")
+    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
   }
 
   if (
@@ -715,7 +714,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
       is.na(api_base) ||
       !nzchar(api_base)
   ) {
-    rlang::abort("api_base must be one non-empty string")
+    .fabric_abort("api_base must be one non-empty string")
   }
 
   # Parse the URL once, then inspect every part of its origin
@@ -739,7 +738,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     !nzchar(parsed$fragment %||% "")
 
   if (!clean_origin) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "api_base must be an HTTPS origin using the default port (443), ",
         "with an optional /v1 path"
@@ -753,7 +752,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     !fabric_host_matches(host, "api.fabric.microsoft.com") &&
       !isTRUE(allow_custom_endpoint)
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "Refusing to send a Fabric token to untrusted api_base '",
         api_base,
@@ -785,7 +784,7 @@ fabric_is_guid <- function(value) {
 fabric_as_record <- function(value) {
   if (inherits(value, "data.frame")) {
     if (nrow(value) != 1L) {
-      rlang::abort("A discovered object must contain exactly one row")
+      .fabric_abort("A discovered object must contain exactly one row")
     }
 
     return(lapply(value, function(column) {
@@ -857,7 +856,7 @@ fabric_workspace_api_base <- function(record, fallback) {
       length(parsed$query %||% list()) > 0L ||
       nzchar(parsed$fragment %||% "")
   ) {
-    rlang::abort(
+    .fabric_abort(
       paste0(
         "The workspace apiEndpoint must be an HTTPS origin using the ",
         "default port (443), with an optional /v1 path"
@@ -914,7 +913,7 @@ fabric_resolve_workspace <- function(
       is.na(workspace) ||
       !nzchar(workspace)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "workspace must be one non-empty string or a discovered workspace"
     )
   }
@@ -965,13 +964,13 @@ fabric_unique_name <- function(records, name, kind) {
   }
 
   if (!length(matches)) {
-    rlang::abort(
+    .fabric_abort(
       sprintf("%s '%s' was not found", tools::toTitleCase(kind), name)
     )
   }
 
   if (length(matches) > 1L) {
-    rlang::abort(
+    .fabric_abort(
       sprintf(
         "%s name '%s' is ambiguous (%d matches). Use its GUID",
         tools::toTitleCase(kind),
@@ -1130,7 +1129,7 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
       is.na(connection_string) ||
       !nzchar(connection_string)
   ) {
-    rlang::abort(
+    .fabric_abort(
       "Fabric returned an invalid workspace-private SQL connection string"
     )
   }
