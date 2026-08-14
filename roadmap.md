@@ -314,34 +314,7 @@ interfaces.
 - Permission and trusted-host requirements are documented, and bearer tokens
   never appear in results or conditions.
 
-## Priority 6: Manage OneLake shortcuts
-
-**Status (August 2026): proposed.**
-
-### Objective
-
-Expose shortcut lifecycle operations without confusing shortcut definitions
-with the files visible through them.
-
-### Direction
-
-- Add `fabric_onelake_shortcuts()`, `fabric_onelake_shortcut()`,
-  `fabric_onelake_shortcut_create()`, and `fabric_onelake_shortcut_delete()`.
-- Make OneLake-to-OneLake targets ergonomic first. Support external targets
-  through validated constructors that reference existing Fabric connection IDs
-  rather than accepting external credentials.
-- Support pagination, conflict policies, transforms, bulk creation where useful,
-  and cache reset.
-- Make clear that deleting a shortcut does not delete destination data.
-
-### Acceptance criteria
-
-- Live tests create, inspect, list, and delete a cross-item OneLake shortcut and
-  confirm that destination data survives deletion.
-- Conflict policies, encoded paths, inaccessible targets, and unknown future
-  target types behave deterministically.
-
-## Priority 7: Improve GraphQL schema and tidy-result ergonomics
+## Priority 6: Improve GraphQL schema and tidy-result ergonomics
 
 **Status (August 2026): proposed.**
 
@@ -367,7 +340,7 @@ tibbles without assuming a universal schema shape.
 - Collection reports whether pagination completed and never returns an apparently
   complete tibble after reaching a page or service limit.
 
-## Priority 8: Add tracked Eventhouse ingestion
+## Priority 7: Add tracked Eventhouse ingestion
 
 **Status (August 2026): proposed, preview-dependent.** The Kusto queued-ingestion
 REST API is currently preview.
@@ -421,7 +394,7 @@ using discovered records instead of copied IDs where possible.
 | M0 | Typed executable-item discovery plus job history and schedules | Every executable item is discoverable; history and schedule lifecycle pass live tests |
 | M1 | Generic Fabric LRO support plus Lakehouse table list/load | Shared operation contract passes; preview table APIs are isolated and labeled |
 | M2 | R data-frame-to-Lakehouse workflow plus semantic-model refresh | End-to-end load/read/refresh validation preserves documented types and states |
-| M3 | User Data Function invocation and OneLake shortcuts | External invocation and shortcut lifecycle are authenticated, safe, and live-tested |
+| M3 | User Data Function invocation | External invocation is authenticated, safe, and live-tested |
 | M4 | GraphQL ergonomics and tracked Eventhouse ingestion | Tidy collection is complete/error-aware; preview ingestion has tracked round-trip coverage |
 
 Each milestone must extend the offline unit suite and live Fabric fixture contract
@@ -448,7 +421,6 @@ mature package surfaces.
 - [Power BI dataset APIs](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/)
 - [Fabric User Data Functions overview](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview)
 - [Invoke User Data Functions externally](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app)
-- [OneLake Shortcuts API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 - [Fabric GraphQL introspection and schema export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export)
 - [Kusto queued ingestion REST API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric)
 - [Use SparkR in Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr)
