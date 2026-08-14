@@ -44,8 +44,9 @@ Sys.setenv(FABRICQUERYR_TENANT_ID = "your-tenant-id")
 
 The [authentication
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
-covers interactive sign-in, app registrations, service principals, and
-other authentication options.
+tells you where to find your tenant ID and client ID. It also explains
+interactive sign-in, app registrations, service principals, and other
+authentication options.
 
 The examples below focus on the main use of each function group. See the
 [function
