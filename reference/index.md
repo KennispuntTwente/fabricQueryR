@@ -35,6 +35,8 @@ Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
   : Connect to a Microsoft Fabric SQL target
 - [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   : Run a parameterized query against Microsoft Fabric SQL
+- [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
+  : Read a Microsoft Fabric Warehouse table
 - [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
   : Write an R or Arrow object to a Fabric Warehouse table
 
@@ -95,6 +97,8 @@ Query Eventhouse data, ingest storage or R objects, and export results
 
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Run a KQL query in Microsoft Fabric
+- [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
+  : Read a Microsoft Fabric KQL table
 - [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
   [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
   : Submit and monitor tracked Eventhouse ingestion

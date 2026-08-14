@@ -58,6 +58,7 @@ most workflows, you do not need to copy IDs or connection details by hand</p>
 Lakehouse SQL analytics endpoint</p></li>
 <li><p>Use <code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code> for report-ready semantic models,
 <code><a href="fabric_kql_query.html">fabric_kql_query()</a></code> for Eventhouse/KQL data,
+<code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code> for table-oriented Eventhouse reads,
 <code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code> for tracked storage ingestion,
 <code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code> for R/Arrow-to-Eventhouse writes,
 <code><a href="fabric_kql_export.html">fabric_kql_export()</a></code> for tracked server-side exports to storage, and
@@ -68,6 +69,8 @@ User Data Function's explicit public URL</p></li>
 <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> to discover or load managed Delta tables,
 <code><a href="fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> to read them, and the Livy helpers when
 Spark processing is required</p></li>
+<li><p>Use <code><a href="fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code> and
+<code><a href="fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code> for symmetric Warehouse table transfer</p></li>
 <li><p>Use <code><a href="fabric_job_run.html">fabric_job_run()</a></code>, <code><a href="fabric_job_run.html">fabric_job_status()</a></code>, <code><a href="fabric_job_run.html">fabric_job_wait()</a></code>, and
 <code><a href="fabric_job_run.html">fabric_job_cancel()</a></code> to control supported on-demand item jobs</p></li>
 <li><p>See <code><a href="../articles/authentication.html">vignette("authentication", package = "fabricQueryR")</a></code> for interactive
