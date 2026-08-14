@@ -14,6 +14,8 @@ import httpx
 KUSTO_SCOPE = "https://api.kusto.windows.net/.default"
 TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 SEED_TABLE = "fabricqueryr_events"
+INGESTION_TABLE = "fabricqueryr_ingestion"
+INGESTION_MAPPING = "fabricqueryr_ingestion_csv"
 SEED_COMMAND = f"""
 .set-or-replace {SEED_TABLE} with (recreate_schema=true) <|
 datatable(
@@ -38,6 +40,20 @@ datatable(
         dynamic({{"source":"sandbox","rank":3}})
 ]
 """.strip()
+INGESTION_TABLE_COMMAND = f"""
+.set-or-replace {INGESTION_TABLE} with (recreate_schema=true) <|
+datatable(id:int, name:string, category:string, amount:real)[]
+""".strip()
+INGESTION_MAPPING_JSON = (
+    '[{"column":"id","DataType":"int","Properties":{"Ordinal":"0"}},'
+    '{"column":"name","DataType":"string","Properties":{"Ordinal":"1"}},'
+    '{"column":"category","DataType":"string","Properties":{"Ordinal":"2"}},'
+    '{"column":"amount","DataType":"real","Properties":{"Ordinal":"3"}}]'
+)
+INGESTION_MAPPING_COMMAND = (
+    f".create-or-alter table {INGESTION_TABLE} ingestion csv mapping "
+    f'"{INGESTION_MAPPING}" \'{INGESTION_MAPPING_JSON}\''
+)
 
 
 class KustoApi:
@@ -134,8 +150,19 @@ class KustoApi:
                     raise RuntimeError(str(detail))
 
     def seed_fixture(self, query_service_uri: str, database: str) -> dict[str, Any]:
-        return self.execute_management(
+        result = self.execute_management(
             query_service_uri,
             database,
             SEED_COMMAND,
         )
+        self.execute_management(
+            query_service_uri,
+            database,
+            INGESTION_TABLE_COMMAND,
+        )
+        self.execute_management(
+            query_service_uri,
+            database,
+            INGESTION_MAPPING_COMMAND,
+        )
+        return result

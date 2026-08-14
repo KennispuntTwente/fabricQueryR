@@ -360,8 +360,8 @@ tibbles without assuming a universal schema shape.
 
 ## Priority 7: Add tracked Eventhouse ingestion
 
-**Status (August 2026): proposed, preview-dependent.** The Kusto queued-ingestion
-REST API is currently preview.
+**Status (August 2026): implemented, preview-dependent.** The Kusto
+queued-ingestion REST API is currently preview.
 
 ### Objective
 
@@ -379,6 +379,27 @@ existing Eventhouse table and monitor the outcome.
 - Document at-least-once semantics and expose source IDs for idempotent designs.
 - Keep general Kusto administration and production use of `.ingest` commands out
   of the primary API.
+
+### Implementation
+
+- Added `fabric_kql_ingest()` over the preview ingestion-service REST route for
+  existing HTTPS and ABFSS blob or OneLake sources, with discovery-record
+  support and strict ingestion-URI trust boundaries.
+- Added client-generated or caller-supplied source GUIDs, structured source
+  metadata, the documented ingestion formats and properties, 20-blob and 6 GB
+  validation, predefined mappings, and automatic `ingest-by:` tags for stable
+  `ingest_if_not_exists` keys.
+- Kept submission non-retriable because queued ingestion is at least once and
+  an ambiguous POST replay can duplicate data. Submission errors explicitly
+  retain throttling and permission diagnostics; source URLs are redacted in
+  retained handles and results.
+- Added `fabric_kql_ingestion_status()` for one-shot or bounded polling with
+  retry-safe status GETs, normalized aggregate states, typed timeouts, and
+  actionable per-source permanent/transient failure details, including partial
+  batches.
+- Added offline request, validation, duplicate, mapping, permission, timeout,
+  throttling, protocol, and redaction coverage plus a live tagged OneLake CSV
+  ingestion, wait, duplicate-prevention, and KQL query round trip.
 
 ### Acceptance criteria
 
@@ -441,5 +462,8 @@ mature package surfaces.
 - [Invoke User Data Functions externally](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app)
 - [Fabric GraphQL introspection and schema export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export)
 - [Kusto queued ingestion REST API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric)
+- [Kusto queued ingestion status REST API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-status-http?view=microsoft-fabric)
+- [Kusto queued ingestion configuration REST API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
+- [Kusto storage connection strings](https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric)
 - [Use SparkR in Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr)
 - [Use sparklyr in Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr)

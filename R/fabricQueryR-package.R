@@ -11,7 +11,8 @@
 #' - Use [fabric_sql_query()] for T-SQL against a Warehouse, SQL Database, or
 #'   Lakehouse SQL analytics endpoint
 #' - Use [fabric_pbi_dax_query()] for report-ready semantic models,
-#'   [fabric_kql_query()] for Eventhouse/KQL data, and
+#'   [fabric_kql_query()] for Eventhouse/KQL data,
+#'   [fabric_kql_ingest()] for tracked batch ingestion, and
 #'   [fabric_graphql_query()] for an API for GraphQL item
 #' - Use [fabric_function_invoke()] to call published business logic through a
 #'   User Data Function's explicit public URL

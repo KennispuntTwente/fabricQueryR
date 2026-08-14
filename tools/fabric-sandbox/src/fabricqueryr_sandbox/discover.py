@@ -569,6 +569,10 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 ),
                 "tables": {
                     "events": "fabricqueryr_events",
+                    "ingestion": "fabricqueryr_ingestion",
+                },
+                "mappings": {
+                    "ingestion_csv": "fabricqueryr_ingestion_csv",
                 },
             },
             "TestSemanticModel": {

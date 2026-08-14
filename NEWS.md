@@ -14,6 +14,12 @@
   `fabric_graphql_collect()`. Nested values remain list-columns and exact large
   integers remain character data.
 
+* Added preview tracked Eventhouse ingestion with `fabric_kql_ingest()` and
+  `fabric_kql_ingestion_status()`. Existing blob and OneLake batches are
+  validated, submitted without unsafe automatic replay, and monitored with
+  per-source IDs, partial-failure details, idempotency tags, redacted storage
+  credentials, and bounded polling.
+
 * Added `fabric_function_invoke()` for published Fabric User Data Functions,
   with trusted public-URL validation, flow-aware Power BI authentication,
   non-idempotent retry safety, bounded payloads and responses, redacted result

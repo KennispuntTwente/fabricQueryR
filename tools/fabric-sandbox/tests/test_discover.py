@@ -327,7 +327,13 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "parent_eventhouse_id": "TestEventhouse-id",
         "query_service_uri": "https://eventhouse.kusto.test",
         "ingestion_service_uri": "https://ingest-eventhouse.kusto.test",
-        "tables": {"events": "fabricqueryr_events"},
+        "tables": {
+            "events": "fabricqueryr_events",
+            "ingestion": "fabricqueryr_ingestion",
+        },
+        "mappings": {
+            "ingestion_csv": "fabricqueryr_ingestion_csv",
+        },
     }
     assert manifest.items["TestGraphQL"] == {
         "id": "TestGraphQL-id",

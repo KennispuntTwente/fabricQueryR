@@ -310,7 +310,9 @@ features. The OneLake suite also reads the Warehouse Delta export, checks exact
 Warehouse values, and enforces an explicit assertion disposition for every
 discovered Delta fixture. The sandbox creates
 matching deterministic typed SQL tables in the Warehouse and SQL Database,
-plus a deterministic typed Kusto table.
+  plus deterministic typed Kusto query and queued-ingestion tables. The
+  ingestion table has a predefined CSV mapping and consumes the staged
+  `Files/fixtures/basic.csv` fixture in the live ingestion round trip.
 
 Warehouse Delta-log publication is asynchronous after a SQL commit. Seeding
 therefore polls OneLake until a log file modified after the fixture rebuild is

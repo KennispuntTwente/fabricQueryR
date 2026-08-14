@@ -169,6 +169,100 @@ test_that("fabric_kql_query surfaces live Kusto service errors", {
   )
 })
 
+test_that("tracked Eventhouse ingestion completes and prevents duplicates", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  table <- database$tables$ingestion %||% "fabricqueryr_ingestion"
+  mapping <- database$mappings$ingestion_csv %||%
+    "fabricqueryr_ingestion_csv"
+  source <- paste0(
+    lakehouse$one_lake_files_path,
+    "/fixtures/basic.csv;impersonate"
+  )
+  idempotency_key <- paste0(
+    "fabricqueryr-priority7-",
+    format(Sys.time(), "%Y%m%d%H%M%OS6", tz = "UTC"),
+    "-",
+    Sys.getpid()
+  )
+  count_rows <- function() {
+    result <- fabric_kql_query(
+      database$query_service_uri,
+      query = paste(table, "| count"),
+      database = database$database_name,
+      token = token
+    )
+    as.numeric(result$Count)
+  }
+  before <- count_rows()
+
+  ingestion <- fabric_kql_ingest(
+    database,
+    table = table,
+    sources = source,
+    format = "csv",
+    source_ids = kusto_ingestion_source_id(),
+    raw_sizes = 66,
+    mapping = mapping,
+    tags = "fabricqueryr-integration",
+    ingest_if_not_exists = idempotency_key,
+    ignore_first_record = TRUE,
+    skip_batching = TRUE,
+    token = token
+  )
+  expect_s3_class(ingestion, "fabric_kql_ingestion")
+  expect_true(fabric_is_guid(ingestion$sources$source_id))
+  expect_true(
+    paste0("ingest-by:", idempotency_key) %in% ingestion$tags
+  )
+
+  status <- fabric_kql_ingestion_status(
+    ingestion,
+    wait = TRUE,
+    timeout = 600,
+    poll_interval = 2
+  )
+  expect_equal(status$state, "Succeeded")
+  expect_true(status$complete)
+  expect_equal(status$succeeded, 1)
+  expect_equal(status$details$source_id, ingestion$sources$source_id)
+
+  rows <- fabric_kql_query(
+    database$query_service_uri,
+    query = paste(table, "| order by id asc"),
+    database = database$database_name,
+    token = token
+  )
+  expect_equal(nrow(rows), before + 3)
+  expect_true(all(c("alpha", "beta", "gamma") %in% rows$name))
+
+  duplicate <- fabric_kql_ingest(
+    database,
+    table = table,
+    sources = source,
+    format = "csv",
+    source_ids = kusto_ingestion_source_id(),
+    raw_sizes = 66,
+    mapping = mapping,
+    ingest_if_not_exists = idempotency_key,
+    ignore_first_record = TRUE,
+    skip_batching = TRUE,
+    token = token
+  )
+  duplicate_status <- fabric_kql_ingestion_status(
+    duplicate,
+    wait = TRUE,
+    timeout = 600,
+    poll_interval = 2,
+    error_on_failure = FALSE
+  )
+  expect_true(duplicate_status$complete)
+  expect_gt(duplicate_status$failed, 0)
+  expect_equal(count_rows(), before + 3)
+})
+
 test_that("fabric_graphql_query executes variables and preserves nulls", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")

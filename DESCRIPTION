@@ -20,7 +20,9 @@ Description:
     into managed Lakehouse tables; start, monitor, diagnose, and cancel semantic
     model refreshes; invoke published Fabric User Data Functions; execute
     'Kusto Query Language' ('KQL')
-    queries against 'Eventhouse' databases; call user-configured 'GraphQL'
+    queries against 'Eventhouse' databases; submit and monitor tracked queued
+    ingestion from blob or 'OneLake' storage into existing 'Eventhouse' tables;
+    call user-configured 'GraphQL'
     APIs over Fabric data; and execute 'Spark' code via the 'Livy API'.
     Item jobs can be submitted, monitored, waited on, and cancelled, and their
     run history and recurring schedules can be managed through the Fabric Job

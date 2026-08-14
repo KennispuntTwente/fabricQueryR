@@ -5,6 +5,10 @@ import httpx
 import pytest
 
 from fabricqueryr_sandbox.kusto_api import (
+    INGESTION_MAPPING,
+    INGESTION_MAPPING_COMMAND,
+    INGESTION_TABLE,
+    INGESTION_TABLE_COMMAND,
     KUSTO_SCOPE,
     SEED_COMMAND,
     SEED_TABLE,
@@ -23,6 +27,7 @@ class RecordingCredential:
 
 def test_seed_fixture_uses_kusto_scope_and_replace_command():
     credential = RecordingCredential()
+    commands = []
 
     def handler(request):
         assert request.url == "https://cluster.kusto.test/v1/rest/mgmt"
@@ -30,9 +35,7 @@ def test_seed_fixture_uses_kusto_scope_and_replace_command():
         assert request.headers["x-ms-app"] == "fabricqueryr-sandbox"
         body = json.loads(request.content)
         assert body["db"] == "TestKQLDatabase"
-        assert body["csl"] == SEED_COMMAND
-        assert body["csl"].startswith(f".set-or-replace {SEED_TABLE}")
-        assert "datatable(" in body["csl"]
+        commands.append(body["csl"])
         properties = json.loads(body["properties"])
         assert properties["ClientRequestId"].startswith(
             "fabricqueryr-sandbox.Seed;"
@@ -49,7 +52,18 @@ def test_seed_fixture_uses_kusto_scope_and_replace_command():
         )
 
     assert result == {"Tables": []}
-    assert credential.scopes == [KUSTO_SCOPE]
+    assert commands == [
+        SEED_COMMAND,
+        INGESTION_TABLE_COMMAND,
+        INGESTION_MAPPING_COMMAND,
+    ]
+    assert SEED_COMMAND.startswith(f".set-or-replace {SEED_TABLE}")
+    assert INGESTION_TABLE_COMMAND.startswith(
+        f".set-or-replace {INGESTION_TABLE}"
+    )
+    assert f'"{INGESTION_MAPPING}"' in INGESTION_MAPPING_COMMAND
+    assert "datatable(" in SEED_COMMAND
+    assert credential.scopes == [KUSTO_SCOPE] * 3
 
 
 def test_management_seed_retries_transient_readiness_failures():
@@ -71,7 +85,7 @@ def test_management_seed_retries_transient_readiness_failures():
     ) as api:
         api.seed_fixture("https://cluster.kusto.test", "TestKQLDatabase")
 
-    assert attempts == 2
+    assert attempts == 4
     assert sleeps == [3.0]
 
 

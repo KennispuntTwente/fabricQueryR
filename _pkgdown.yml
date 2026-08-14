@@ -9,6 +9,9 @@ articles:
   - title: GraphQL
     contents:
       - graphql-schema-and-rows
+  - title: Eventhouse ingestion
+    contents:
+      - eventhouse-ingestion
   - title: Job automation
     contents:
       - job-automation
@@ -73,9 +76,12 @@ reference:
       - fabric_delta_config
 
   - title: KQL
-    desc: Query Eventhouse and KQL Database data
+    desc: Query Eventhouse data and track queued ingestion from storage
     contents:
       - fabric_kql_query
+      - fabric_kql_ingest
+      - print.fabric_kql_ingestion
+      - print.fabric_kql_ingestion_status
 
   - title: GraphQL
     desc: Explore schemas, execute operations, and collect cursor-based pages
