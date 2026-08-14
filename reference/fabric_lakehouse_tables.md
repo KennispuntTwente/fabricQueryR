@@ -177,7 +177,9 @@ fabric_lakehouse_write_table(
 
   Load mode, `"Overwrite"` or `"Append"`. Overwrite and append behavior
   is performed by Fabric's managed Delta load, never by changing files
-  below `Tables/` directly.
+  below `Tables/` directly. Fabric documents overwrite as dropping and
+  recreating an existing Delta table; the API does not expose a truncate
+  alternative.
 
 - recursive:
 
@@ -289,6 +291,21 @@ records.
 Service principals and managed identities are supported by the Load
 Table API. Tenant and item permissions still determine whether those
 identities can use OneLake and the Lakehouse.
+
+## Choose an existing-file load or an R-object write
+
+`fabric_lakehouse_load_table()` never uploads a local file or serializes
+an R object. Its `path` must already exist inside the selected
+Lakehouse's OneLake `Files/` area. Use
+[`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+first when intentionally managing that source yourself, or use
+`fabric_lakehouse_write_table()` for a single call that accepts a data
+frame, tibble, or Arrow object, stages it, waits for the load, and
+cleans up.
+
+Both load functions can create a missing destination Delta table. Fabric
+infers its schema from the source. No `create_if_missing` flag is
+needed.
 
 ## Data types and names
 

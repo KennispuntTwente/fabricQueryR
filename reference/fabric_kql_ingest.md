@@ -209,15 +209,21 @@ times, and an optional details tibble
 
 ## Sources and storage access
 
+`fabric_kql_ingest()` never uploads local data or serializes an R
+object. Every `sources` value must already identify a file in blob
+storage or OneLake, and `table` must already exist. Use
+[`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+when the data is a data frame, tibble, or Arrow object; that function
+performs staging and can create the target with
+`create_if_missing = TRUE`.
+
 `sources` can be a character vector of storage connection strings, a
 data frame with `url`, `source_id`, and optional `raw_size` columns, or
 a list of records with those fields. The camel-case service names
 `sourceId` and `rawSize` are also accepted. Character inputs use the
 parallel `source_ids` and `raw_sizes` arguments
 
-Only existing `https://` or `abfss://` storage sources are accepted. Use
-[`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
-for one-call staging of data frames, tibbles, or lazy Arrow objects.
+Only existing `https://` or `abfss://` storage sources are accepted.
 Nonpublic sources must include a Kusto-supported authentication suffix
 or credential in the storage connection string. For example, append
 `;impersonate` to a OneLake URL when the caller has permission to read

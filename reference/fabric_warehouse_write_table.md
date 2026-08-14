@@ -1,10 +1,12 @@
 # Write an R or Arrow object to a Fabric Warehouse table
 
 Serializes a data frame, tibble, or Arrow object to bounded Parquet
-parts, stages them in a Lakehouse, and loads them into an existing
-Fabric Warehouse table with the Warehouse `COPY INTO` command. Lazy
-Arrow inputs are consumed as record batches and are not first collected
-into an R data frame.
+parts, stages them in a Lakehouse, and loads them into a Fabric
+Warehouse table. Existing tables use the Warehouse `COPY INTO` command.
+When creation or drop-based replacement is requested,
+`CREATE TABLE AS SELECT` (CTAS) creates and loads the table directly
+from the staged Parquet schema. Lazy Arrow inputs are consumed as record
+batches and are not first collected into an R data frame.
 
 ## Usage
 
@@ -18,6 +20,8 @@ fabric_warehouse_write_table(
   staging_workspace = NULL,
   schema = "dbo",
   mode = c("Append", "Overwrite"),
+  overwrite_method = c("Truncate", "Drop"),
+  create_if_missing = FALSE,
   staging_root = "Files/fabricqueryr-staging",
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
@@ -49,7 +53,7 @@ fabric_warehouse_write_table(
 
 - table:
 
-  Existing destination table name.
+  Destination table name.
 
 - data:
 
@@ -84,9 +88,23 @@ fabric_warehouse_write_table(
 
 - mode:
 
-  `"Append"` adds rows. `"Overwrite"` runs `TRUNCATE TABLE` and
-  `COPY INTO` in one Warehouse transaction so a failed copy can be
-  rolled back.
+  `"Append"` adds rows. `"Overwrite"` replaces the table contents using
+  `overwrite_method`.
+
+- overwrite_method:
+
+  For `mode = "Overwrite"`, `"Truncate"` preserves the existing table
+  definition and loads it with `COPY INTO`; `"Drop"` drops and recreates
+  the table from the staged Parquet schema with CTAS. Drop replacement
+  also removes table-specific metadata such as constraints and grants.
+  Ignored for append mode.
+
+- create_if_missing:
+
+  Whether to create and load a missing destination with CTAS. The
+  default preserves the previous requirement that append and
+  truncate-overwrite targets already exist. Drop-overwrite recreates an
+  existing table; set this argument to `TRUE` if it may be absent.
 
 - staging_root:
 
@@ -167,9 +185,17 @@ staging identifiers, row and byte counts, part paths, and cleanup state.
 
 ## Details
 
-The destination table must already exist. Input fields are mapped by
-ordinal position to quoted destination columns with the same names as
-`data`.
+Existing-table writes map input fields by ordinal position to quoted
+destination columns with the same names as `data`. With
+`create_if_missing = TRUE`, a missing table is created and populated by
+a single CTAS statement; Fabric infers its names and types from the
+staged Parquet files.
+
+Truncate overwrite preserves the table definition. Drop overwrite
+recreates the table and therefore intentionally discards its previous
+constraints, indexes, permissions, and other table-level metadata. Both
+overwrite paths run in an explicit Warehouse transaction and roll back
+on a confirmed SQL failure.
 
 `COPY INTO` authenticates to OneLake as the identity executing the SQL
 statement. That identity therefore needs the documented Warehouse
@@ -192,6 +218,12 @@ guidance](https://learn.microsoft.com/en-us/fabric/data-warehouse/guidelines-war
 
 [Transactions in Fabric
 Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/transactions)
+
+[Create tables in Fabric
+Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table)
+
+[Query Parquet files in Fabric
+Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files)
 
 ## Examples
 

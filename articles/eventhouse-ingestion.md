@@ -21,10 +21,10 @@ database <- fabric_kql_databases("Telemetry workspace")[[1]]
 database$ingestion_service_uri
 ```
 
-The destination table must already exist. For CSV, JSON, Avro, Parquet,
+[`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+requires the destination table to exist. For CSV, JSON, Avro, Parquet,
 and ORC workflows, create and validate a named ingestion mapping in
-Fabric before the R workflow starts. General Kusto administration is
-intentionally outside this API.
+Fabric before that storage-ingestion workflow starts.
 
 The source must be a Kusto storage connection string. A OneLake file can
 use the workspace and item GUIDs and caller impersonation:
@@ -48,9 +48,10 @@ necessarily sends the complete source string to the trusted Kusto
 ingestion endpoint.
 
 [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
-deliberately treats its inputs as existing storage sources. Use
+deliberately treats its inputs as existing storage sources: it never
+uploads a local file or serializes an R object. Use
 [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
-when the source is an R object.
+when the source is a data frame, tibble, or Arrow object.
 
 ## Write an R or Arrow object in one call
 
@@ -70,6 +71,7 @@ written <- fabric_kql_write_table(
     category = c("A", "B", "A"),
     amount = c(10.5, 20, 30.5)
   ),
+  create_if_missing = TRUE,
   ingest_if_not_exists = "r-events-2026-08-14"
 )
 
@@ -78,8 +80,16 @@ written$rows
 written$staging_retained
 ```
 
+With `create_if_missing = TRUE`, the writer sends Kusto’s idempotent
+`.create table` command before staging. A missing target is inferred
+from the Arrow schema; an existing target is returned unchanged. Common
+logical, integer, double, character, date/time, decimal, and nested
+Arrow types are mapped to Kusto scalar types. Use a named `column_types`
+vector with one value per source field when those inferred types are not
+appropriate.
+
 Parquet identity mapping is case-sensitive. Source field names and types
-must match the existing KQL table; otherwise supply a predefined Parquet
+must match an existing KQL table; otherwise supply a predefined Parquet
 `mapping`. Factors are written as strings. Convert complex and
 `difftime` columns explicitly.
 
@@ -96,7 +106,8 @@ written <- fabric_kql_write_table(
   database,
   table = "Events",
   data = dataset,
-  mapping = "EventsParquet"
+  mapping = "EventsParquet",
+  create_if_missing = FALSE
 )
 ```
 

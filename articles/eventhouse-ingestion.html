@@ -76,10 +76,10 @@ used here:</p>
 <span></span>
 <span><span class="va">database</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">database</span><span class="op">$</span><span class="va">ingestion_service_uri</span></span></code></pre></div>
-<p>The destination table must already exist. For CSV, JSON, Avro,
-Parquet, and ORC workflows, create and validate a named ingestion
-mapping in Fabric before the R workflow starts. General Kusto
-administration is intentionally outside this API.</p>
+<p><code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> requires the destination table to
+exist. For CSV, JSON, Avro, Parquet, and ORC workflows, create and
+validate a named ingestion mapping in Fabric before that
+storage-ingestion workflow starts.</p>
 <p>The source must be a Kusto storage connection string. A OneLake file
 can use the workspace and item GUIDs and caller impersonation:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -97,8 +97,9 @@ results redact recognized secrets, but the submission process
 necessarily sends the complete source string to the trusted Kusto
 ingestion endpoint.</p>
 <p><code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> deliberately treats its inputs as
-existing storage sources. Use <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> when
-the source is an R object.</p>
+existing storage sources: it never uploads a local file or serializes an
+R object. Use <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> when the source is a
+data frame, tibble, or Arrow object.</p>
 </div>
 <div class="section level2">
 <h2 id="write-an-r-or-arrow-object-in-one-call">Write an R or Arrow object in one call<a class="anchor" aria-label="anchor" href="#write-an-r-or-arrow-object-in-one-call"></a>
@@ -117,14 +118,22 @@ success:</p>
 <span>    category <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span><span class="op">)</span>,</span>
 <span>    amount <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10.5</span>, <span class="fl">20</span>, <span class="fl">30.5</span><span class="op">)</span></span>
 <span>  <span class="op">)</span>,</span>
+<span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  ingest_if_not_exists <span class="op">=</span> <span class="st">"r-events-2026-08-14"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">rows</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">staging_retained</span></span></code></pre></div>
+<p>With <code>create_if_missing = TRUE</code>, the writer sends Kusto’s
+idempotent <code>.create table</code> command before staging. A missing
+target is inferred from the Arrow schema; an existing target is returned
+unchanged. Common logical, integer, double, character, date/time,
+decimal, and nested Arrow types are mapped to Kusto scalar types. Use a
+named <code>column_types</code> vector with one value per source field
+when those inferred types are not appropriate.</p>
 <p>Parquet identity mapping is case-sensitive. Source field names and
-types must match the existing KQL table; otherwise supply a predefined
+types must match an existing KQL table; otherwise supply a predefined
 Parquet <code>mapping</code>. Factors are written as strings. Convert
 complex and <code>difftime</code> columns explicitly.</p>
 <p>Arrow Tables and RecordBatches work without an R data-frame
@@ -138,7 +147,8 @@ returned by a package query:</p>
 <span>  <span class="va">database</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
-<span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span></span>
+<span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span>,</span>
+<span>  create_if_missing <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The dataset is scanned one record batch at a time into bounded
 temporary Parquet parts and then uploaded in bounded chunks. It is never

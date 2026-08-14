@@ -61,17 +61,19 @@
     
     
 <p><code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code> moves an ordinary R
-object or a lazy Arrow source into an existing Microsoft Fabric
-Warehouse table. It stages bounded Parquet parts in OneLake and submits
-Fabric’s recommended high-throughput <code>COPY INTO</code> statement
-over a normal Entra-authenticated SQL connection.</p>
+object or a lazy Arrow source into a Microsoft Fabric Warehouse table.
+It stages bounded Parquet parts in OneLake and uses Fabric’s recommended
+high-throughput <code>COPY INTO</code> for existing tables or CTAS to
+create and load a missing table.</p>
 <div class="section level2">
 <h2 id="discover-the-destination-and-staging-item">Discover the destination and staging item<a class="anchor" aria-label="anchor" href="#discover-the-destination-and-staging-item"></a>
 </h2>
-<p>The target table must already exist. Fabric supports OneLake as a
-<code>COPY INTO</code> source, but its current contract explicitly
-excludes Warehouse items as source locations. Supply a Lakehouse for the
-temporary <code>Files/</code> directory:</p>
+<p>Existing targets remain the default. Set
+<code>create_if_missing = TRUE</code> when the writer should create and
+load an absent target from the staged Parquet schema. Fabric supports
+OneLake as a <code>COPY INTO</code> source, but its current contract
+explicitly excludes Warehouse items as source locations. Supply a
+Lakehouse for the temporary <code>Files/</code> directory:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -113,6 +115,19 @@ the Parquet schema. The names and compatible types therefore need to
 match the existing destination columns. Factor columns are serialized as
 strings; Arrow retains supported 64-bit integers, dates, timestamps,
 decimals, and nulls.</p>
+<p>To create a missing target and load it in the same transaction:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">created</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
+<span>  <span class="va">warehouse</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">orders</span>,</span>
+<span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
+<span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Fabric’s CTAS statement infers the names and Warehouse types from the
+staged Parquet result. Use a pre-created table when exact lengths,
+nullability, constraints, or other schema details must be controlled
+explicitly.</p>
 </div>
 <div class="section level2">
 <h2 id="stream-a-larger-than-memory-arrow-source">Stream a larger-than-memory Arrow source<a class="anchor" aria-label="anchor" href="#stream-a-larger-than-memory-arrow-source"></a>
@@ -121,7 +136,7 @@ decimals, and nulls.</p>
 and Arrow-compatible streams use the same function. They are consumed
 one record batch at a time rather than collected into an R data
 frame:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
@@ -138,20 +153,37 @@ range. Use <code>max_rows_per_file</code> when an exact and
 deterministic part boundary matters.</p>
 </div>
 <div class="section level2">
-<h2 id="replace-a-table-safely">Replace a table safely<a class="anchor" aria-label="anchor" href="#replace-a-table-safely"></a>
+<h2 id="choose-truncate-or-drop-replacement">Choose truncate or drop replacement<a class="anchor" aria-label="anchor" href="#choose-truncate-or-drop-replacement"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">replacement</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
-<span>  mode <span class="op">=</span> <span class="st">"Overwrite"</span></span>
+<span>  mode <span class="op">=</span> <span class="st">"Overwrite"</span>,</span>
+<span>  overwrite_method <span class="op">=</span> <span class="st">"Truncate"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Overwrite starts an explicit Fabric Warehouse transaction, truncates
-the existing table, executes <code>COPY INTO</code>, and commits only
-after the load succeeds. Fabric Warehouse documents ACID transactions
-and all-or-nothing rollback for grouped write operations.</p>
+<p>The default truncate path preserves the existing definition, executes
+<code>COPY INTO</code>, and commits only after the load succeeds. Use
+drop replacement when the target definition should instead be inferred
+again:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">recreated</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
+<span>  <span class="va">warehouse</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">replacement</span>,</span>
+<span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
+<span>  mode <span class="op">=</span> <span class="st">"Overwrite"</span>,</span>
+<span>  overwrite_method <span class="op">=</span> <span class="st">"Drop"</span>,</span>
+<span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Drop replacement discards the old table definition—including
+table-specific constraints, indexes, and grants—and recreates it with
+CTAS. Setting <code>create_if_missing = TRUE</code> also lets this path
+proceed when the target is already absent. Fabric Warehouse documents
+DDL inside ACID transactions and all-or-nothing rollback for these
+grouped write operations.</p>
 <p>Local temporary files are always removed. The OneLake staging
 directory is removed only after confirmed success. If SQL delivery
 becomes ambiguous, it is retained even when
@@ -165,6 +197,10 @@ contains <code>staging_path</code>, <code>staging_retained</code>, and
 <ul>
 <li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/copy-into-transact-sql?view=fabric" class="external-link">COPY
 INTO in Fabric Warehouse</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table" class="external-link">Create
+tables in Fabric Warehouse</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files" class="external-link">Query
+Parquet files</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/guidelines-warehouse-performance" class="external-link">Warehouse
 performance guidelines</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/transactions" class="external-link">Warehouse

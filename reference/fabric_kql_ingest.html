@@ -251,14 +251,17 @@ times, and an optional details tibble</p>
     <h2 id="sources-and-storage-access">Sources and storage access<a class="anchor" aria-label="anchor" href="#sources-and-storage-access"></a></h2>
 
 
+<p><code>fabric_kql_ingest()</code> never uploads local data or serializes an R object.
+Every <code>sources</code> value must already identify a file in blob storage or
+OneLake, and <code>table</code> must already exist. Use <code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code> when
+the data is a data frame, tibble, or Arrow object; that function performs
+staging and can create the target with <code>create_if_missing = TRUE</code>.</p>
 <p><code>sources</code> can be a character vector of storage connection strings, a data
 frame with <code>url</code>, <code>source_id</code>, and optional <code>raw_size</code> columns, or a list of
 records with those fields. The camel-case service names <code>sourceId</code> and
 <code>rawSize</code> are also accepted. Character inputs use the parallel <code>source_ids</code>
 and <code>raw_sizes</code> arguments</p>
-<p>Only existing <code>https://</code> or <code>abfss://</code> storage sources are accepted. Use
-<code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code> for one-call staging of data frames, tibbles, or
-lazy Arrow objects.
+<p>Only existing <code>https://</code> or <code>abfss://</code> storage sources are accepted.
 Nonpublic sources must include a Kusto-supported authentication suffix or
 credential in the storage connection string. For example, append
 <code>;impersonate</code> to a OneLake URL when the caller has permission to read it</p>

@@ -230,7 +230,9 @@ infers the format from its extension. A folder should specify the format.</p></d
 <dt id="arg-mode">mode<a class="anchor" aria-label="anchor" href="#arg-mode"></a></dt>
 <dd><p>Load mode, <code>"Overwrite"</code> or <code>"Append"</code>. Overwrite and append
 behavior is performed by Fabric's managed Delta load, never by changing
-files below <code>Tables/</code> directly.</p></dd>
+files below <code>Tables/</code> directly. Fabric documents overwrite as dropping and
+recreating an existing Delta table; the API does not expose a truncate
+alternative.</p></dd>
 
 
 <dt id="arg-recursive">recursive<a class="anchor" aria-label="anchor" href="#arg-recursive"></a></dt>
@@ -336,6 +338,19 @@ OneLake currently returns a null table type for those records.</p>
 <p>Service principals and managed identities are supported by the Load Table
 API. Tenant and item permissions still determine whether those identities
 can use OneLake and the Lakehouse.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="choose-an-existing-file-load-or-an-r-object-write">Choose an existing-file load or an R-object write<a class="anchor" aria-label="anchor" href="#choose-an-existing-file-load-or-an-r-object-write"></a></h2>
+
+
+<p><code>fabric_lakehouse_load_table()</code> never uploads a local file or serializes an R
+object. Its <code>path</code> must already exist inside the selected Lakehouse's
+OneLake <code>Files/</code> area. Use <code><a href="fabric_onelake_files.html">fabric_onelake_upload()</a></code> first when intentionally
+managing that source yourself, or use <code>fabric_lakehouse_write_table()</code> for a
+single call that accepts a data frame, tibble, or Arrow object, stages it,
+waits for the load, and cleans up.</p>
+<p>Both load functions can create a missing destination Delta table. Fabric
+infers its schema from the source. No <code>create_if_missing</code> flag is needed.</p>
     </div>
     <div class="section level2">
     <h2 id="data-types-and-names">Data types and names<a class="anchor" aria-label="anchor" href="#data-types-and-names"></a></h2>

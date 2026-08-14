@@ -34,6 +34,9 @@ fabric_kql_write_table(
   token = NULL,
   auth_args = list(),
   allow_custom_endpoint = FALSE,
+  create_if_missing = FALSE,
+  column_types = NULL,
+  query_cluster = NULL,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -48,7 +51,7 @@ fabric_kql_write_table(
 
 - table:
 
-  Existing target KQL table name.
+  Target KQL table name.
 
 - data:
 
@@ -137,6 +140,25 @@ fabric_kql_write_table(
 
   Permit a trusted non-Microsoft Kusto origin.
 
+- create_if_missing:
+
+  Whether to create a missing KQL table from the Arrow schema before
+  staging. Existing tables are left unchanged.
+
+- column_types:
+
+  Optional named character vector giving one Kusto scalar type for every
+  data column when `create_if_missing = TRUE`. Supported canonical types
+  are `bool`, `datetime`, `decimal`, `dynamic`, `guid`, `int`, `long`,
+  `real`, `string`, and `timespan`. `NULL` infers them.
+
+- query_cluster:
+
+  Optional Kusto query-service URI or discovery record used for table
+  creation. A discovered `cluster` already carries this URI; a standard
+  Microsoft ingestion URI is converted to its paired query URI. Supply
+  this explicitly for a trusted custom ingestion endpoint.
+
 - .sleep, .now:
 
   Internal deterministic polling hooks.
@@ -177,6 +199,13 @@ Parquet identity mapping matches source fields to existing KQL columns
 by case-sensitive name. Supply `mapping` when the Parquet schema and
 table need an explicit predefined mapping.
 
+Set `create_if_missing = TRUE` to issue Kusto's idempotent
+`.create table` command before staging. A missing table is created from
+the Arrow schema; an existing table is returned unchanged, so this
+option never alters an existing schema. Common Arrow scalar and nested
+types are inferred as Kusto types. Supply a named `column_types` vector
+to override every column type.
+
 ## Failure and cleanup safety
 
 A successful tracked ingestion is cleaned up by default. A submission
@@ -197,6 +226,15 @@ the path to inspect.
 [Queued ingestion REST API
 (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric)
 
+[Create a Kusto
+table](https://learn.microsoft.com/en-us/kusto/management/create-table-command?view=microsoft-fabric)
+
+[Kusto scalar data
+types](https://learn.microsoft.com/en-us/kusto/query/scalar-data-types/?view=microsoft-fabric)
+
+[Kusto Parquet
+mappings](https://learn.microsoft.com/en-us/kusto/management/parquet-mapping?view=microsoft-fabric)
+
 [OneLake ADLS-compatible
 access](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 
@@ -216,6 +254,7 @@ result <- fabric_kql_write_table(
   database,
   table = "Events",
   data = data.frame(id = 1:3, value = c("a", "b", "c")),
+  create_if_missing = TRUE,
   ingest_if_not_exists = "r-batch-2026-08-14"
 )
 result$status$state
