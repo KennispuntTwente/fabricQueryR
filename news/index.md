@@ -39,6 +39,8 @@
   Eventhouse ingestion. The Lakehouse writer now uses the same
   batch-wise Arrow serializer for larger-than-memory inputs. Both
   writers retain staging whenever a remote outcome is ambiguous.
+  Eventhouse staging uses a storage-audience token for unattended,
+  audience-aware credentials.
 
 - Added
   [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)

@@ -174,9 +174,10 @@ The queued-ingestion REST API accepts storage blobs rather than inline R
 values. This function provides the higher-level one-call workflow: it
 reads the ingestion service's preview configuration, chooses a trusted
 OneLake lake folder, creates a unique `fabricqueryr-staging` path,
-uploads bounded Parquet parts, and submits them with `;impersonate`
-storage authentication. `staging_folder` can override the advertised
-folder with a trusted OneLake `Files/` URI.
+uploads bounded Parquet parts, and submits them with a storage-audience
+access token when an audience-aware credential is available. Static
+credentials retain caller impersonation. `staging_folder` can override
+the advertised folder with a trusted OneLake `Files/` URI.
 
 The caller therefore needs Kusto Table Ingestor and Database User
 access, plus write/delete access to the selected OneLake folder. The

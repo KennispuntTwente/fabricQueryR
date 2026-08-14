@@ -219,8 +219,9 @@ disposition.</p>
 values. This function provides the higher-level one-call workflow: it reads
 the ingestion service's preview configuration, chooses a trusted OneLake
 lake folder, creates a unique <code>fabricqueryr-staging</code> path, uploads bounded
-Parquet parts, and submits them with <code>;impersonate</code> storage
-authentication. <code>staging_folder</code> can override the advertised folder with a
+Parquet parts, and submits them with a storage-audience access token when an
+audience-aware credential is available. Static credentials retain caller
+impersonation. <code>staging_folder</code> can override the advertised folder with a
 trusted OneLake <code>Files/</code> URI.</p>
 <p>The caller therefore needs Kusto Table Ingestor and Database User access,
 plus write/delete access to the selected OneLake folder. The Eventhouse
