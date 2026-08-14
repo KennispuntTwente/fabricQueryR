@@ -76,6 +76,60 @@ When changing a public function, review its whole help topic for
 readability; do not append new implementation notes to an already dense
 introduction.
 
+## User-facing messages, conditions, and progress
+
+Route every user-facing informational message and printed package
+summary through `cli`. Use `inform()` for optional lifecycle messages
+controlled by a `verbose` argument, direct semantic `cli` functions for
+other output, and `.fabric_print()` for concise package-object
+summaries. Do not use
+[`message()`](https://rdrr.io/r/base/message.html),
+[`cat()`](https://rdrr.io/r/base/cat.html), or
+[`writeLines()`](https://rdrr.io/r/base/writeLines.html) for user-facing
+output.
+
+Raise new errors and warnings through `.fabric_abort()` and
+`.fabric_warn()`. These package helpers apply `cli` dynamic formatting
+and then call
+[`rlang::abort()`](https://rlang.r-lib.org/reference/abort.html) or
+[`rlang::warn()`](https://rlang.r-lib.org/reference/abort.html),
+preserving caller context, parent conditions, classes, and metadata. Set
+`.format = TRUE` only for trusted message templates written in package
+code. Keep service responses and other runtime-supplied messages literal
+so they are never evaluated as `cli` glue expressions. Never use
+[`stop()`](https://rdrr.io/r/base/stop.html),
+[`warning()`](https://rdrr.io/r/base/warning.html),
+[`cli::cli_abort()`](https://cli.r-lib.org/reference/cli_abort.html), or
+[`cli::cli_warn()`](https://cli.r-lib.org/reference/cli_abort.html).
+Re-signal an existing condition with
+[`rlang::cnd_signal()`](https://rlang.r-lib.org/reference/cnd_signal.html)
+only when preserving that exact condition is required.
+
+Write messages consistently:
+
+- State the outcome or problem first in sentence case, without trailing
+  punctuation
+- Use `cli` markup such as `{.arg name}`, `{.fn function}`,
+  `{.path path}`, `{.field field}`, and `{.val value}` instead of manual
+  quotes or backticks
+- Use a short main line plus `x`, `!`, or `i` bullets when context or a
+  recovery action is useful; avoid repeating the same fact in multiple
+  bullets
+- Use `cli` pluralization instead of manual singular/plural branches
+- Use the same resource names throughout a workflow, including
+  `Fabric job`, `Fabric operation`, `Power BI refresh`,
+  `Kusto ingestion`, and `KQL export`
+
+Long-running polling must use `.fabric_poll_progress()`, update it with
+`.fabric_poll_progress_update()` after each received service state, and
+finish it with `.fabric_poll_progress_done()` before returning a
+terminal result. Let `cli` delay progress display so fast operations
+remain quiet, and respect an existing `verbose = FALSE` setting. For
+work with a known total, use an appropriate `cli_progress_bar()` type
+and update it only after confirmed work; use download-style byte
+progress for uploads and downloads. Rely on `cli`’s automatic cleanup on
+errors, but close successful progress explicitly.
+
 ## R code organization and maintainability
 
 Apply these rules to every file in `R/`. Treat them as part of the
