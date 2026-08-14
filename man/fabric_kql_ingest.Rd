@@ -156,8 +156,9 @@ records with those fields. The camel-case service names \code{sourceId} and
 \code{rawSize} are also accepted. Character inputs use the parallel \code{source_ids}
 and \code{raw_sizes} arguments
 
-Only existing \verb{https://} or \verb{abfss://} storage sources are accepted. Local
-files and data frames containing the data itself are not staged implicitly.
+Only existing \verb{https://} or \verb{abfss://} storage sources are accepted. Use
+\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} for one-call staging of data frames, tibbles, or
+lazy Arrow objects.
 Nonpublic sources must include a Kusto-supported authentication suffix or
 credential in the storage connection string. For example, append
 \verb{;impersonate} to a OneLake URL when the caller has permission to read it

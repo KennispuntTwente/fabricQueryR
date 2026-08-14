@@ -42,24 +42,6 @@ fabric_test_lakehouse_table_target <- function(manifest, lakehouse) {
   )
 }
 
-fabric_test_eventually <- function(callback, attempts = 36L, delay = 5) {
-  last_error <- NULL
-  for (attempt in seq_len(attempts)) {
-    value <- tryCatch(callback(), error = function(error) {
-      last_error <<- error
-      NULL
-    })
-    if (!is.null(value)) {
-      return(value)
-    }
-    if (attempt < attempts) Sys.sleep(delay)
-  }
-  rlang::abort(
-    "Fabric did not expose the loaded table before the integration deadline",
-    parent = last_error
-  )
-}
-
 test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   fabric_test_require_package("arrow")
   fabric_test_require_package("DBI")
@@ -362,4 +344,52 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
     confirm = TRUE,
     token = token
   ))
+})
+
+test_that("Lakehouse writer streams a lazy Arrow Dataset end to end", {
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  fabric_test_use_table_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  target <- fabric_test_lakehouse_table_target(manifest, lakehouse)
+  token <- fabric_test_token_provider()
+  table <- "fabricqueryr_lazy_arrow_load"
+  dataset_path <- tempfile("fabricqueryr-lazy-lakehouse-")
+  dir.create(dataset_path)
+  on.exit(unlink(dataset_path, recursive = TRUE, force = TRUE), add = TRUE)
+  arrow::write_parquet(
+    data.frame(id = 1:2, label = c("a", "b")),
+    file.path(dataset_path, "part-1.parquet")
+  )
+  arrow::write_parquet(
+    data.frame(id = 3:5, label = c("c", "d", "e")),
+    file.path(dataset_path, "part-2.parquet")
+  )
+
+  result <- fabric_lakehouse_write_table(
+    target,
+    table = table,
+    data = arrow::open_dataset(dataset_path),
+    mode = "Overwrite",
+    timeout = 900,
+    token = token
+  )
+  expect_equal(result$operation_status$status, "Succeeded")
+  expect_equal(result$rows, 5)
+  expect_false(result$staging_retained)
+
+  rows <- fabric_test_eventually(function() {
+    value <- fabric_onelake_read_delta_table(
+      table_path = table,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = token,
+      verbose = FALSE
+    )
+    if (nrow(value) != 5L) return(NULL)
+    value[order(value$id), ]
+  })
+  expect_equal(rows$id, 1:5)
+  expect_equal(rows$label, letters[1:5])
 })

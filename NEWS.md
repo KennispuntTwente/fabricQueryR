@@ -20,6 +20,12 @@
   per-source IDs, partial-failure details, idempotency tags, redacted storage
   credentials, and bounded polling.
 
+* Added `fabric_kql_write_table()` to stream data frames, tibbles, and Arrow
+  Tables, Datasets, Scanners, queries, or RecordBatchReaders through temporary
+  Parquet into tracked Eventhouse ingestion. The Lakehouse writer now uses the
+  same batch-wise Arrow serializer for larger-than-memory inputs. Both writers
+  retain staging whenever a remote outcome is ambiguous.
+
 * Added `fabric_function_invoke()` for published Fabric User Data Functions,
   with trusted public-URL validation, flow-aware Power BI authentication,
   non-idempotent retry safety, bounded payloads and responses, redacted result

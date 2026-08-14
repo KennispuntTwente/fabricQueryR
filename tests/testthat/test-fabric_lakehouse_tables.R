@@ -718,3 +718,50 @@ test_that("Lakehouse writer validates names and unsupported R types", {
     "Unsupported column type"
   )
 })
+
+test_that("Lakehouse writer streams a lazy Arrow Dataset", {
+  skip_if_not_installed("arrow")
+  dataset_path <- tempfile("fabricqueryr-arrow-dataset-")
+  dir.create(dataset_path)
+  on.exit(unlink(dataset_path, recursive = TRUE, force = TRUE), add = TRUE)
+  arrow::write_parquet(
+    data.frame(id = 1:2, label = c("a", "b")),
+    file.path(dataset_path, "part-1.parquet")
+  )
+  arrow::write_parquet(
+    data.frame(id = 3:5, label = c("c", "d", "e")),
+    file.path(dataset_path, "part-2.parquet")
+  )
+  dataset <- arrow::open_dataset(dataset_path)
+  uploaded <- NULL
+  fake_operation <- structure(
+    list(id = lakehouse_table_test_operation),
+    class = "fabric_operation"
+  )
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "lazy-dataset",
+    onelake_upload_target = function(target, credential, source, ...) {
+      uploaded <<- as.data.frame(arrow::read_parquet(source))
+      tibble::tibble(path = target$path)
+    },
+    .fabric_lakehouse_load_submit = function(...) fake_operation,
+    fabric_operation_wait = function(operation, ...) {
+      structure(
+        list(status = "Succeeded", operation = operation),
+        class = "fabric_operation_state"
+      )
+    },
+    .fabric_lakehouse_remove_staging = function(...) TRUE
+  )
+
+  result <- fabric_lakehouse_write_table(
+    lakehouse_table_test_item(),
+    "orders",
+    dataset,
+    token = "test-token"
+  )
+
+  expect_equal(result$rows, 5)
+  expect_equal(uploaded$id, 1:5)
+  expect_equal(uploaded$label, letters[1:5])
+})

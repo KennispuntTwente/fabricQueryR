@@ -31,8 +31,9 @@
 #' `rawSize` are also accepted. Character inputs use the parallel `source_ids`
 #' and `raw_sizes` arguments
 #'
-#' Only existing `https://` or `abfss://` storage sources are accepted. Local
-#' files and data frames containing the data itself are not staged implicitly.
+#' Only existing `https://` or `abfss://` storage sources are accepted. Use
+#' [fabric_kql_write_table()] for one-call staging of data frames, tibbles, or
+#' lazy Arrow objects.
 #' Nonpublic sources must include a Kusto-supported authentication suffix or
 #' credential in the storage connection string. For example, append
 #' `;impersonate` to a OneLake URL when the caller has permission to read it
@@ -1633,5 +1634,620 @@ kusto_ingestion_time_vector <- function(records, field) {
     vapply(values, as.numeric, numeric(1)),
     origin = "1970-01-01",
     tz = "UTC"
+  )
+}
+
+#' Write an R or Arrow object to an Eventhouse table
+#'
+#' Serializes an R or Arrow object to Parquet, uploads it to the OneLake staging
+#' folder advertised by the Kusto ingestion service, submits tracked queued
+#' ingestion, waits for the terminal per-file result, and removes staging only
+#' after a confirmed success.
+#'
+#' @section One-call staging workflow:
+#' The queued-ingestion REST API accepts storage blobs rather than inline R
+#' values. This function provides the higher-level one-call workflow: it reads
+#' the ingestion service's preview configuration, chooses a trusted OneLake
+#' lake folder, creates a unique `fabricqueryr-staging` path, uploads one
+#' complete Parquet file, and submits that file with `;impersonate` storage
+#' authentication. `staging_folder` can override the advertised folder with a
+#' trusted OneLake `Files/` URI.
+#'
+#' The caller therefore needs Kusto Table Ingestor and Database User access,
+#' plus write/delete access to the selected OneLake folder. The Eventhouse
+#' ingestion service must be able to read that file as the caller.
+#'
+#' @section R and Arrow inputs:
+#' Data frames and tibbles are converted through Arrow. Factors become strings;
+#' complex and `difftime` columns require an explicit conversion. Arrow Tables,
+#' RecordBatches, Datasets, Scanners, `arrow_dplyr_query` objects, and
+#' RecordBatchReaders are accepted, as are Arrow-compatible
+#' `nanoarrow_array_stream` objects returned by package query helpers. Lazy
+#' inputs are read one record batch at a time and written directly to a
+#' temporary Parquet file, so the complete data set is never collected into R
+#' memory. A supplied reader or stream is single-use and is consumed.
+#'
+#' Parquet identity mapping matches source fields to existing KQL columns by
+#' case-sensitive name. Supply `mapping` when the Parquet schema and table need
+#' an explicit predefined mapping.
+#'
+#' @section Failure and cleanup safety:
+#' A successful tracked ingestion is cleaned up by default. A submission error,
+#' polling timeout, or other ambiguous result always retains staging because
+#' Kusto may still be reading it. A confirmed terminal ingestion failure retains
+#' staging by default and can remove it with
+#' `keep_staging_on_failure = FALSE`. The retained full OneLake path is carried
+#' by `fabric_kql_write_error` conditions.
+#' A transport failure during OneLake's final atomic rename can also leave the
+#' unique destination present; upload errors report `staging_retained = NA` and
+#' the path to inspect.
+#'
+#' @param cluster Ingestion URI or Eventhouse/KQLDatabase discovery record; see
+#'   [fabric_kql_ingest()].
+#' @param table Existing target KQL table name.
+#' @param data Data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
+#'   Dataset/Scanner/query, Arrow RecordBatchReader, or compatible array stream.
+#' @param database Target KQL database name. Omit for a discovered KQLDatabase.
+#' @param mapping Optional predefined Parquet ingestion mapping name.
+#' @param staging_folder Optional trusted OneLake folder URI beginning below an
+#'   item's `Files/` area. The ingestion configuration's lake folder is used by
+#'   default.
+#' @param staging_root Relative directory created below the selected lake
+#'   folder for package staging.
+#' @param cleanup Remove the unique staging directory after confirmed success.
+#' @param keep_staging_on_failure Retain staging after a confirmed terminal
+#'   Kusto failure. Ambiguous failures are always retained.
+#' @param compression Parquet compression supported by [arrow::write_parquet()].
+#' @param tags,ingest_if_not_exists,skip_batching,creation_time Ingestion
+#'   properties passed to [fabric_kql_ingest()].
+#' @param timeout Positive number of seconds allowed for submission and tracked
+#'   status waiting after upload.
+#' @param poll_interval Minimum seconds between ingestion status requests.
+#' @param error_on_failure Raise a typed error for a confirmed failed or
+#'   canceled ingestion. Set `FALSE` to return the failed result and its staging
+#'   disposition.
+#' @param tenant_id Microsoft Entra tenant ID.
+#' @param client_id Microsoft Entra application/client ID.
+#' @param token Optional access token or audience-aware token-provider function.
+#' @param auth_args Additional options passed to [AzureAuth::get_azure_token()].
+#' @param allow_custom_endpoint Permit a trusted non-Microsoft Kusto origin.
+#' @param .sleep,.now Internal deterministic polling hooks.
+#'
+#' @return A `fabric_kql_write_result` containing row/byte counts, normalized
+#'   ingestion status, tracking handle, source ID, and staging disposition.
+#' @references
+#' [Queued ingestion configuration REST API (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
+#'
+#' [Queued ingestion REST API (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric)
+#'
+#' [OneLake ADLS-compatible access](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+#'
+#' [Arrow RecordBatchReader](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
+#'
+#' [Arrow Parquet writer](https://arrow.apache.org/docs/r/reference/ParquetFileWriter.html)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' database <- fabric_kql_databases("Telemetry workspace")[[1]]
+#'
+#' result <- fabric_kql_write_table(
+#'   database,
+#'   table = "Events",
+#'   data = data.frame(id = 1:3, value = c("a", "b", "c")),
+#'   ingest_if_not_exists = "r-batch-2026-08-14"
+#' )
+#' result$status$state
+#'
+#' # A lazy Arrow Dataset is scanned batch by batch rather than collected.
+#' dataset <- arrow::open_dataset("local-parquet-directory")
+#' fabric_kql_write_table(database, "Events", dataset)
+#' }
+fabric_kql_write_table <- function(
+  cluster,
+  table,
+  data,
+  database = NULL,
+  mapping = NULL,
+  staging_folder = NULL,
+  staging_root = "fabricqueryr-staging",
+  cleanup = TRUE,
+  keep_staging_on_failure = TRUE,
+  compression = "snappy",
+  tags = character(),
+  ingest_if_not_exists = character(),
+  skip_batching = FALSE,
+  creation_time = NULL,
+  timeout = 900,
+  poll_interval = 2,
+  error_on_failure = TRUE,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  allow_custom_endpoint = FALSE,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
+  # 1 Validate local arguments and adapt data to one lazy Arrow reader ----------------------------
+
+  if (missing(data)) {
+    rlang::abort("data is required")
+  }
+  target <- kusto_resolve_ingestion_target(
+    cluster,
+    database,
+    table,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+  mapping <- kusto_ingestion_optional_text(mapping, "mapping")
+  tags <- kusto_ingestion_text_vector(tags, "tags")
+  ingest_if_not_exists <- kusto_ingestion_text_vector(
+    ingest_if_not_exists,
+    "ingest_if_not_exists"
+  )
+  if (any(startsWith(tolower(ingest_if_not_exists), "ingest-by:"))) {
+    rlang::abort(
+      "ingest_if_not_exists values must omit the 'ingest-by:' prefix"
+    )
+  }
+  kusto_ingestion_flag(skip_batching, "skip_batching")
+  creation_time <- kusto_ingestion_datetime(
+    creation_time,
+    "creation_time",
+    allow_date = TRUE
+  )
+  kusto_ingestion_flag(cleanup, "cleanup")
+  kusto_ingestion_flag(
+    keep_staging_on_failure,
+    "keep_staging_on_failure"
+  )
+  kusto_ingestion_flag(error_on_failure, "error_on_failure")
+  kusto_ingestion_number(timeout, "timeout", minimum = 0, strict = TRUE)
+  kusto_ingestion_number(
+    poll_interval,
+    "poll_interval",
+    minimum = .kusto_ingestion_poll_floor
+  )
+  compression <- kusto_ingestion_optional_text(
+    compression,
+    "compression",
+    required = TRUE
+  )
+  staging_root <- onelake_normalize_path(staging_root)
+  if (!is.null(staging_folder)) {
+    staging_folder <- kusto_ingestion_optional_text(
+      staging_folder,
+      "staging_folder",
+      required = TRUE
+    )
+  }
+  prepared <- tryCatch(
+    {
+      value <- .fabric_parquet_prepare_data(
+        data,
+        "fabric_kql_write_table()"
+      )
+      .fabric_parquet_column_names(value$names)
+      value
+    },
+    error = function(error) {
+      rlang::abort(
+        conditionMessage(error),
+        class = c("fabric_kql_arrow_error", "fabric_kql_write_error"),
+        parent = error
+      )
+    }
+  )
+
+  # 2 Discover the service-owned OneLake staging root ---------------------------------------------
+
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  configuration <- kusto_ingestion_configuration(
+    target,
+    credential,
+    timeout = min(timeout, 60)
+  )
+  folder <- kusto_ingestion_staging_folder(
+    configuration,
+    override = staging_folder
+  )
+  storage_target <- folder
+  storage_target$path <- paste(
+    folder$path,
+    staging_root,
+    .fabric_lakehouse_staging_id(),
+    "data.parquet",
+    sep = "/"
+  )
+  staging_path <- onelake_path_url(storage_target)
+
+  # 3 Stream to bounded local Parquet storage and enforce the advertised limit -------------------
+
+  parquet <- tempfile("fabricqueryr-kql-", fileext = ".parquet")
+  on.exit(unlink(parquet, force = TRUE), add = TRUE)
+  serialized <- .fabric_parquet_write_stream(
+    prepared,
+    path = parquet,
+    compression = compression,
+    caller = "fabric_kql_write_table()",
+    error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
+  )
+  if (serialized$bytes > configuration$max_data_size) {
+    rlang::abort(
+      paste0(
+        "The staged Parquet file is ",
+        format(serialized$bytes, scientific = FALSE, trim = TRUE),
+        " bytes, exceeding the ingestion service limit of ",
+        format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
+        " bytes"
+      ),
+      class = c("fabric_kql_size_error", "fabric_kql_write_error")
+    )
+  }
+
+  # 4 Upload the complete file atomically ---------------------------------------------------------
+
+  tryCatch(
+    onelake_upload_target(
+      storage_target,
+      credential,
+      source = parquet,
+      overwrite = FALSE,
+      if_match = NULL,
+      chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2),
+      content_type = "application/vnd.apache.parquet",
+      create_parents = TRUE
+    ),
+    error = function(error) {
+      rlang::abort(
+        paste0(
+          "Could not confirm the Parquet upload to OneLake; the unique ",
+          "staging path may exist and should be inspected before cleanup"
+        ),
+        class = c("fabric_kql_upload_error", "fabric_kql_write_error"),
+        staging_path = staging_path,
+        staging_retained = NA,
+        parent = error
+      )
+    }
+  )
+
+  # 5 Submit once, then wait using retry-safe status requests ------------------------------------
+
+  source_id <- kusto_ingestion_source_id()
+  ingestion <- tryCatch(
+    fabric_kql_ingest(
+      cluster,
+      table = table,
+      sources = paste0(staging_path, ";impersonate"),
+      database = database,
+      format = "parquet",
+      source_ids = source_id,
+      raw_sizes = serialized$bytes,
+      mapping = mapping,
+      tags = tags,
+      ingest_if_not_exists = ingest_if_not_exists,
+      skip_batching = skip_batching,
+      creation_time = creation_time,
+      timeout = timeout,
+      token = credential,
+      allow_custom_endpoint = allow_custom_endpoint
+    ),
+    error = function(error) {
+      kusto_write_ambiguous_error(
+        error,
+        staging_path,
+        message = paste0(
+          "Kusto submission did not return a tracking handle; staging was ",
+          "retained because ingestion may still have been accepted"
+        )
+      )
+    }
+  )
+  status <- tryCatch(
+    fabric_kql_ingestion_status(
+      ingestion,
+      wait = TRUE,
+      timeout = timeout,
+      poll_interval = poll_interval,
+      error_on_failure = FALSE,
+      .sleep = .sleep,
+      .now = .now
+    ),
+    error = function(error) {
+      kusto_write_ambiguous_error(
+        error,
+        staging_path,
+        ingestion = ingestion,
+        message = paste0(
+          "Could not confirm the terminal Kusto ingestion result; staging ",
+          "was retained because the operation may still be running"
+        )
+      )
+    }
+  )
+
+  # 6 Apply cleanup only after the tracked outcome is unambiguous --------------------------------
+
+  succeeded <- identical(status$state, "Succeeded") && isTRUE(status$complete)
+  staging_retained <- TRUE
+  if (succeeded && isTRUE(cleanup)) {
+    staging_retained <- !.fabric_onelake_remove_staging(
+      storage_target,
+      credential
+    )
+    if (staging_retained) {
+      rlang::warn(paste0(
+        "Kusto ingestion succeeded, but staging cleanup failed; retained ",
+        staging_path
+      ))
+    }
+  } else if (!succeeded && !isTRUE(keep_staging_on_failure)) {
+    staging_retained <- !.fabric_onelake_remove_staging(
+      storage_target,
+      credential
+    )
+  }
+  result <- kusto_write_result(
+    target,
+    serialized,
+    ingestion,
+    status,
+    source_id,
+    staging_path,
+    staging_retained
+  )
+  if (!succeeded && isTRUE(error_on_failure)) {
+    parent <- tryCatch(
+      kusto_ingestion_failure_error(status),
+      error = identity
+    )
+    rlang::abort(
+      paste0(
+        "Kusto could not ingest the staged R/Arrow data. ",
+        if (staging_retained) {
+          paste0("Staging was retained at '", staging_path, "'.")
+        } else {
+          "The staging directory was removed."
+        }
+      ),
+      class = c("fabric_kql_write_failure", "fabric_kql_write_error"),
+      staging_path = staging_path,
+      staging_retained = staging_retained,
+      ingestion = ingestion,
+      last_status = status,
+      result = result,
+      parent = parent
+    )
+  }
+  result
+}
+
+#' Print an Eventhouse R/Arrow write result
+#'
+#' @param x A `fabric_kql_write_result`.
+#' @param ... Unused.
+#' @return `x`, invisibly.
+#' @export
+print.fabric_kql_write_result <- function(x, ...) {
+  cat("<fabric_kql_write_result>\n")
+  cat("  operation:", x$operation_id, "\n")
+  cat("  target:   ", paste0(x$database, ".", x$table), "\n")
+  cat("  state:    ", x$status$state, "\n")
+  cat("  rows:     ", x$rows, "\n")
+  cat("  staging:  ", if (x$staging_retained) "retained" else "removed", "\n")
+  invisible(x)
+}
+
+# Read and strictly normalize the preview ingestion configuration.
+kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
+  request <- httr2::request(paste0(
+    target$url,
+    "/v1/rest/ingestion/configuration"
+  )) |>
+    httr2::req_headers(
+      Accept = "application/json",
+      `x-ms-app` = "fabricQueryR",
+      `x-ms-client-version` = as.character(utils::packageVersion("fabricQueryR")),
+      `x-ms-client-request-id` = .kusto_next_ingestion_request_id("Configuration")
+    ) |>
+    httr2::req_timeout(timeout)
+  response <- .httr2_perform(
+    request,
+    credential = credential,
+    audience = .fabric_audience$kusto,
+    idempotent = TRUE
+  )
+  payload <- tryCatch(
+    httr2::resp_body_json(
+      response,
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
+    ),
+    error = function(error) {
+      kusto_ingestion_protocol_error(
+        "Kusto returned invalid ingestion configuration JSON",
+        parent = error
+      )
+    }
+  )
+  if (
+    !is.list(payload) ||
+      !is.list(payload$containerSettings) ||
+      !is.list(payload$ingestionSettings)
+  ) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion configuration is missing required settings"
+    )
+  }
+  max_data_size <- suppressWarnings(as.numeric(
+    payload$ingestionSettings$maxDataSize
+  ))
+  max_blobs <- suppressWarnings(as.numeric(
+    payload$ingestionSettings$maxBlobsPerBatch
+  ))
+  if (
+    length(max_data_size) != 1L ||
+      is.na(max_data_size) ||
+      !is.finite(max_data_size) ||
+      max_data_size <= 0 ||
+      max_data_size != floor(max_data_size) ||
+      length(max_blobs) != 1L ||
+      is.na(max_blobs) ||
+      !is.finite(max_blobs) ||
+      max_blobs < 1 ||
+      max_blobs != floor(max_blobs)
+  ) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion configuration contains invalid service limits"
+    )
+  }
+  list(
+    lake_folders = kusto_ingestion_configuration_paths(
+      payload$containerSettings$lakeFolders
+    ),
+    max_data_size = max_data_size,
+    max_blobs = max_blobs,
+    preferred_upload_method = payload$containerSettings$preferredUploadMethod %||%
+      NA_character_,
+    preferred_ingestion_method = payload$ingestionSettings$preferredIngestionMethod %||%
+      NA_character_,
+    raw = .httr2_redact_object(payload)
+  )
+}
+
+# Extract optional path records without retaining SAS-bearing container paths.
+kusto_ingestion_configuration_paths <- function(value) {
+  if (is.null(value)) {
+    return(character())
+  }
+  if (!is.list(value)) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion configuration lakeFolders must be an array"
+    )
+  }
+  paths <- vapply(value, function(record) {
+    path <- if (is.list(record)) record$path else NULL
+    if (
+      !is.character(path) ||
+        length(path) != 1L ||
+        is.na(path) ||
+        !nzchar(path)
+    ) {
+      kusto_ingestion_protocol_error(
+        "Kusto ingestion configuration contains an invalid lake folder"
+      )
+    }
+    path
+  }, character(1))
+  unique(paths)
+}
+
+# Choose a trusted OneLake Files folder from configuration or an explicit URI.
+kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
+  candidates <- if (is.null(override)) configuration$lake_folders else override
+  if (!length(candidates)) {
+    rlang::abort(
+      paste0(
+        "Kusto returned no OneLake lake folder for R/Arrow staging; supply ",
+        "staging_folder with a writable OneLake Files URI"
+      ),
+      class = c(
+        "fabric_kql_staging_configuration_error",
+        "fabric_kql_write_error"
+      )
+    )
+  }
+  for (candidate in candidates) {
+    target <- try(onelake_resolve_target(candidate), silent = TRUE)
+    if (inherits(target, "try-error")) {
+      next
+    }
+    pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
+    if (length(pieces) && identical(tolower(pieces[[1L]]), "files")) {
+      return(target)
+    }
+  }
+  rlang::abort(
+    paste0(
+      "No configured staging folder is a trusted OneLake Files URI",
+      if (is.null(override)) "" else "; check staging_folder"
+    ),
+    class = c(
+      "fabric_kql_staging_configuration_error",
+      "fabric_kql_write_error"
+    )
+  )
+}
+
+# Best-effort removal of the unique directory containing one staged file.
+.fabric_onelake_remove_staging <- function(target, credential) {
+  isTRUE(tryCatch(
+    {
+      directory <- target
+      directory$path <- dirname(target$path)
+      onelake_delete_target(
+        directory,
+        credential,
+        recursive = TRUE,
+        is_directory = TRUE
+      )
+      TRUE
+    },
+    error = function(error) FALSE
+  ))
+}
+
+# Raise one safe error while retaining staging after an ambiguous Kusto result.
+kusto_write_ambiguous_error <- function(
+  error,
+  staging_path,
+  ingestion = NULL,
+  message
+) {
+  rlang::abort(
+    message,
+    class = c("fabric_kql_write_ambiguous", "fabric_kql_write_error"),
+    staging_path = staging_path,
+    staging_retained = TRUE,
+    ingestion = ingestion,
+    parent = error
+  )
+}
+
+# Build the stable high-level result after status and cleanup are known.
+kusto_write_result <- function(
+  target,
+  serialized,
+  ingestion,
+  status,
+  source_id,
+  staging_path,
+  staging_retained
+) {
+  structure(
+    list(
+      operation_id = ingestion$id,
+      database = target$database,
+      table = target$table,
+      rows = serialized$rows,
+      bytes = serialized$bytes,
+      columns = serialized$names,
+      source_id = source_id,
+      staging_path = staging_path,
+      staging_retained = staging_retained,
+      status = status,
+      ingestion = ingestion
+    ),
+    class = "fabric_kql_write_result"
   )
 }

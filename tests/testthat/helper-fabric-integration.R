@@ -13,6 +13,24 @@ fabric_test_skip_or_fail <- function(condition, message) {
   testthat::skip(message)
 }
 
+fabric_test_eventually <- function(callback, attempts = 36L, delay = 5) {
+  last_error <- NULL
+  for (attempt in seq_len(attempts)) {
+    value <- tryCatch(callback(), error = function(error) {
+      last_error <<- error
+      NULL
+    })
+    if (!is.null(value)) {
+      return(value)
+    }
+    if (attempt < attempts) Sys.sleep(delay)
+  }
+  rlang::abort(
+    "Fabric did not expose the expected state before the integration deadline",
+    parent = last_error
+  )
+}
+
 fabric_test_repository_root <- function(start = getwd()) {
   current <- normalizePath(start, winslash = "/", mustWork = TRUE)
   repeat {

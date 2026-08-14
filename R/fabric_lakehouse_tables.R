@@ -4,7 +4,7 @@
 #'
 #' @description
 #' Use Fabric's table APIs to inspect Delta tables, load staged CSV or Parquet
-#' files, or write an R data frame through a failure-aware staging workflow.
+#' files, or write an R/Arrow object through a failure-aware staging workflow.
 #'
 #' - `fabric_lakehouse_tables()` combines Fabric's paginated List Tables API
 #'   with the read-only OneLake Delta table API. The first supplies managed or
@@ -13,7 +13,7 @@
 #' - `fabric_lakehouse_load_table()` starts the preview Fabric Load Table API
 #'   for a file or folder that already exists below the Lakehouse `Files/`
 #'   area. It returns a handle accepted by [fabric_operation_status()].
-#' - `fabric_lakehouse_write_table()` serializes a data frame to Parquet,
+#' - `fabric_lakehouse_write_table()` streams an R or Arrow object to Parquet,
 #'   uploads it to a unique `Files/` staging path, waits for the Delta load, and
 #'   removes the staged file after confirmed success by default.
 #'
@@ -48,8 +48,12 @@
 #'   does not allow parentheses, brackets, braces, or quotes in a delimiter.
 #' @param file_extension Optional extension used to filter a folder load,
 #'   without a leading dot.
-#' @param data A data frame, tibble, or Arrow Table/RecordBatch to serialize as
-#'   Parquet. The optional `arrow` package is required.
+#' @param data A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
+#'   Dataset/Scanner/query, or Arrow RecordBatchReader to serialize as Parquet.
+#'   Lazy inputs are consumed batch by batch without collecting the complete
+#'   object in R memory. Arrow-compatible `nanoarrow_array_stream` inputs are
+#'   also accepted. Readers and streams are single-use. The optional `arrow`
+#'   package is required.
 #' @param staging_root Item-relative directory below `Files/` used for unique
 #'   staging files.
 #' @param cleanup Whether to delete the staged Parquet file after Fabric
@@ -60,7 +64,7 @@
 #' @param compression Parquet compression passed to [arrow::write_parquet()].
 #' @param poll_interval Minimum seconds between load-operation status requests.
 #'   `NULL` follows Fabric's `Retry-After` hint with the shared fallback.
-#' @param timeout Maximum total seconds to wait for a data-frame load.
+#' @param timeout Maximum total seconds to wait for an R/Arrow load.
 #' @param tenant_id Entra tenant ID. Defaults to `FABRICQUERYR_TENANT_ID`.
 #' @param client_id Entra application ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
@@ -102,7 +106,7 @@
 #' Arrow as nested data and can fail if their values do not have one consistent
 #' Arrow type. R complex and `difftime` columns are rejected.
 #'
-#' R has no native fixed-precision decimal vector. Supply an Arrow Table with a
+#' R has no native fixed-precision decimal vector. Supply Arrow data with a
 #' decimal field when decimal precision and scale must be explicit. Fabric's
 #' Load to Tables flow does not accept a caller-defined destination schema, so
 #' use Spark or another schema-controlled writer when inference is unsuitable.
@@ -142,6 +146,8 @@
 #' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
 #'
 #' [Getting started with OneLake Delta table APIs](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-get-started)
+#'
+#' [Arrow RecordBatchReader](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
 #'
 #' [List Lakehouse tables](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables)
 #'
@@ -476,12 +482,6 @@ fabric_lakehouse_write_table <- function(
   .fabric_operation_logical(keep_staging_on_failure, "keep_staging_on_failure")
   .fabric_operation_poll_interval(poll_interval)
   .fabric_operation_timeout(timeout)
-  if (!requireNamespace("arrow", quietly = TRUE)) {
-    rlang::abort(
-      "fabric_lakehouse_write_table() requires the optional arrow package",
-      class = c("fabric_lakehouse_arrow_error", "fabric_lakehouse_error")
-    )
-  }
   prepared <- .fabric_lakehouse_prepare_data(data)
   .fabric_lakehouse_column_names(prepared$names)
   .fabric_lakehouse_nonempty(compression, "compression")
@@ -505,19 +505,15 @@ fabric_lakehouse_write_table <- function(
 
   parquet <- tempfile("fabricqueryr-table-", fileext = ".parquet")
   on.exit(unlink(parquet, force = TRUE), add = TRUE)
-  tryCatch(
-    arrow::write_parquet(
-      prepared$value,
-      sink = parquet,
-      compression = compression
-    ),
-    error = function(error) {
-      rlang::abort(
-        "Could not serialize `data` to Parquet with Arrow",
-        class = c("fabric_lakehouse_arrow_error", "fabric_lakehouse_error"),
-        parent = error
-      )
-    }
+  serialized <- .fabric_parquet_write_stream(
+    prepared,
+    path = parquet,
+    compression = compression,
+    caller = "fabric_lakehouse_write_table()",
+    error_class = c(
+      "fabric_lakehouse_arrow_error",
+      "fabric_lakehouse_error"
+    )
   )
 
   # 3 Resolve Fabric and OneLake targets with one audience-aware credential ----------------------
@@ -625,7 +621,7 @@ fabric_lakehouse_write_table <- function(
       schema = settings$schema,
       table = settings$table,
       mode = settings$mode,
-      rows = prepared$rows,
+      rows = serialized$rows,
       staging_path = staging_path,
       staging_retained = staging_retained,
       operation_status = state,
@@ -1096,49 +1092,23 @@ fabric_lakehouse_write_table <- function(
   operation
 }
 
-# Validate, normalize, and count a data frame or Arrow tabular object.
+# Validate and adapt an R or Arrow object to a lazy record-batch reader.
 .fabric_lakehouse_prepare_data <- function(data) {
-  if (inherits(data, "data.frame")) {
-    value <- data
-    unsupported <- vapply(
-      value,
-      function(column) {
-        is.complex(column) ||
-          inherits(column, "difftime") ||
-          is.environment(column) ||
-          is.function(column) ||
-          is.language(column)
-      },
-      logical(1)
-    )
-    if (any(unsupported)) {
-      rlang::abort(paste0(
-        "Unsupported column type in: ",
-        paste(names(value)[unsupported], collapse = ", "),
-        ". Complex and difftime columns need an explicit supported conversion"
-      ))
+  tryCatch(
+    .fabric_parquet_prepare_data(
+      data,
+      caller = "fabric_lakehouse_write_table()"
+    ),
+    fabric_arrow_error = function(error) {
+      rlang::abort(
+        conditionMessage(error),
+        class = c(
+          "fabric_lakehouse_arrow_error",
+          "fabric_lakehouse_error"
+        ),
+        parent = error
+      )
     }
-    value[] <- lapply(value, function(column) {
-      if (is.factor(column)) as.character(column) else column
-    })
-    return(list(value = value, names = names(value), rows = nrow(value)))
-  }
-  if (inherits(data, c("Table", "RecordBatch", "ArrowTabular"))) {
-    column_names <- try(data$ColumnNames, silent = TRUE)
-    row_count <- try(data$num_rows, silent = TRUE)
-    if (
-      inherits(column_names, "try-error") || inherits(row_count, "try-error")
-    ) {
-      rlang::abort("Could not inspect the supplied Arrow tabular object")
-    }
-    return(list(
-      value = data,
-      names = as.character(column_names),
-      rows = as.numeric(row_count)
-    ))
-  }
-  rlang::abort(
-    "data must be a data frame, tibble, Arrow Table, or Arrow RecordBatch"
   )
 }
 

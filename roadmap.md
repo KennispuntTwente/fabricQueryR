@@ -201,6 +201,9 @@ Delta table without requiring users to author a Fabric notebook.
 - Added `fabric_lakehouse_write_table()` with Arrow Parquet serialization,
   audience-aware OneLake staging, managed append/overwrite loading, confirmed-
   success cleanup, and actionable retained paths after failure.
+- Extended the writer to consume Arrow Datasets, Scanners, dplyr queries, and
+  RecordBatchReaders batch by batch, avoiding whole-data collection for inputs
+  larger than R memory.
 - Added offline protocol, validation, type, cleanup, and recovery tests plus a
   live CSV/Parquet, pagination, schema, Unicode, append/overwrite, Delta-reader,
   and SQL round trip in the Fabric sandbox.
@@ -397,9 +400,14 @@ existing Eventhouse table and monitor the outcome.
   retry-safe status GETs, normalized aggregate states, typed timeouts, and
   actionable per-source permanent/transient failure details, including partial
   batches.
+- Added `fabric_kql_write_table()` for a one-call data-frame/tibble or lazy
+  Arrow workflow. It reads the preview ingestion configuration, streams one
+  bounded Parquet file, uploads to the advertised trusted OneLake lake folder,
+  waits for tracked ingestion, and retains staging after ambiguous or confirmed
+  failures according to an explicit cleanup policy.
 - Added offline request, validation, duplicate, mapping, permission, timeout,
-  throttling, protocol, and redaction coverage plus a live tagged OneLake CSV
-  ingestion, wait, duplicate-prevention, and KQL query round trip.
+  throttling, protocol, Arrow streaming, cleanup, and redaction coverage plus
+  live tagged file, R data-frame, and lazy Arrow ingestion/query round trips.
 
 ### Acceptance criteria
 

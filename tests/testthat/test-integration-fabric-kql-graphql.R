@@ -263,6 +263,102 @@ test_that("tracked Eventhouse ingestion completes and prevents duplicates", {
   expect_equal(count_rows(), before + 3)
 })
 
+test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
+  manifest <- fabric_test_manifest()
+  fabric_test_require_package("arrow")
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  token <- fabric_test_token_provider()
+  table <- database$tables$ingestion %||% "fabricqueryr_ingestion"
+  nonce <- paste0(
+    format(Sys.time(), "%Y%m%d%H%M%OS6", tz = "UTC"),
+    "-",
+    Sys.getpid()
+  )
+  base_id <- as.integer(as.numeric(Sys.time()) %% 100000000) * 10L
+  frame_category <- paste0("r-frame-", nonce)
+  arrow_category <- paste0("r-arrow-", nonce)
+
+  frame <- data.frame(
+    id = base_id + 1:2,
+    name = c("frame-a", "frame-b"),
+    category = frame_category,
+    amount = c(10.5, 20.5),
+    stringsAsFactors = FALSE
+  )
+  frame_result <- fabric_kql_write_table(
+    database,
+    table = table,
+    data = frame,
+    ingest_if_not_exists = paste0("frame-", nonce),
+    skip_batching = TRUE,
+    timeout = 600,
+    token = token
+  )
+  expect_equal(frame_result$status$state, "Succeeded")
+  expect_equal(frame_result$rows, 2)
+  expect_false(frame_result$staging_retained)
+
+  dataset_path <- tempfile("fabricqueryr-kql-dataset-")
+  dir.create(dataset_path)
+  on.exit(unlink(dataset_path, recursive = TRUE, force = TRUE), add = TRUE)
+  arrow::write_parquet(
+    data.frame(
+      id = base_id + 3:4,
+      name = c("arrow-a", "arrow-b"),
+      category = arrow_category,
+      amount = c(30.5, 40.5),
+      stringsAsFactors = FALSE
+    ),
+    file.path(dataset_path, "part-1.parquet")
+  )
+  arrow::write_parquet(
+    data.frame(
+      id = base_id + 5L,
+      name = "arrow-c",
+      category = arrow_category,
+      amount = 50.5,
+      stringsAsFactors = FALSE
+    ),
+    file.path(dataset_path, "part-2.parquet")
+  )
+  dataset <- arrow::open_dataset(dataset_path)
+  arrow_result <- fabric_kql_write_table(
+    database,
+    table = table,
+    data = dataset,
+    ingest_if_not_exists = paste0("arrow-", nonce),
+    skip_batching = TRUE,
+    timeout = 600,
+    token = token
+  )
+  expect_equal(arrow_result$status$state, "Succeeded")
+  expect_equal(arrow_result$rows, 3)
+  expect_false(arrow_result$staging_retained)
+
+  rows <- fabric_test_eventually(function() {
+    value <- fabric_kql_query(
+      database,
+      query = paste(
+        "declare query_parameters(frame_category:string,",
+        "arrow_category:string);",
+        table,
+        "| where category == frame_category or category == arrow_category",
+        "| summarize rows=count() by category"
+      ),
+      parameters = list(
+        frame_category = frame_category,
+        arrow_category = arrow_category
+      ),
+      token = token
+    )
+    if (sum(as.numeric(value$rows)) != 5L) return(NULL)
+    value
+  })
+  counts <- setNames(as.numeric(rows$rows), rows$category)
+  expect_equal(unname(counts[[frame_category]]), 2)
+  expect_equal(unname(counts[[arrow_category]]), 3)
+})
+
 test_that("fabric_graphql_query executes variables and preserves nulls", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")

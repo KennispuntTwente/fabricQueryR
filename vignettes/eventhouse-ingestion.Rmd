@@ -11,10 +11,11 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-Kusto queued ingestion is designed for batch files that already exist in blob
-storage or OneLake. fabricQueryR submits those files to an existing Eventhouse
-table, retains the operation and source IDs, and turns the status response into
-a failure-aware R record. The underlying REST routes are currently in preview.
+Kusto queued ingestion is designed for batch files in blob storage or OneLake.
+fabricQueryR can submit those files directly or provide a one-call workflow
+that streams an R or Arrow object to Parquet, stages it in OneLake, waits for
+tracked ingestion, and cleans up safely. The underlying REST routes are
+currently in preview.
 
 ## Prepare the target and source
 
@@ -52,10 +53,67 @@ URLs to logs. Handles and status results redact recognized secrets, but the
 submission process necessarily sends the complete source string to the trusted
 Kusto ingestion endpoint.
 
-Local paths and R data frames are not uploaded implicitly. Stage them in a
-bounded format first—for example with `fabric_onelake_upload()`—and then submit
-the resulting OneLake URL. This makes memory use, file format, cleanup, and
-retry ownership explicit.
+`fabric_kql_ingest()` deliberately treats its inputs as existing storage
+sources. Use `fabric_kql_write_table()` when the source is an R object.
+
+## Write an R or Arrow object in one call
+
+For an ordinary data frame or tibble, supply the target and object. The
+function asks the ingestion service for its current Fabric lake folder and
+limits, writes Parquet, uploads it with a Storage-audience token, queues tracked
+ingestion, waits, and deletes only after confirmed success:
+
+```{r}
+written <- fabric_kql_write_table(
+  database,
+  table = "Events",
+  data = data.frame(
+    id = 1:3,
+    category = c("A", "B", "A"),
+    amount = c(10.5, 20, 30.5)
+  ),
+  ingest_if_not_exists = "r-events-2026-08-14"
+)
+
+written$status$state
+written$rows
+written$staging_retained
+```
+
+Parquet identity mapping is case-sensitive. Source field names and types must
+match the existing KQL table; otherwise supply a predefined Parquet `mapping`.
+Factors are written as strings. Convert complex and `difftime` columns
+explicitly.
+
+Arrow Tables and RecordBatches work without an R data-frame conversion. For
+data larger than memory, pass a lazy Dataset, Scanner, Arrow dplyr query,
+RecordBatchReader, or an Arrow-compatible stream returned by a package query:
+
+```{r}
+dataset <- arrow::open_dataset("local-parquet-directory")
+
+written <- fabric_kql_write_table(
+  database,
+  table = "Events",
+  data = dataset,
+  mapping = "EventsParquet"
+)
+```
+
+The dataset is scanned one record batch at a time into a temporary Parquet file
+and then uploaded in bounded chunks. It is never collected into a data frame or
+Arrow Table. A supplied RecordBatchReader is single-use and is exhausted by the
+write. The local file must fit on disk and the serialized file must remain
+within the ingestion service's advertised size limit.
+
+The function uses the OneLake folder returned by
+`/v1/rest/ingestion/configuration`. If an administrator provides a different
+writable location, pass its full trusted `Files/` URI as `staging_folder`.
+Ambiguous submission and polling failures always retain staging. Confirmed
+terminal failures retain it by default; set
+`keep_staging_on_failure = FALSE` only when automatic removal is appropriate.
+An upload transport error can make the final atomic rename ambiguous; its
+condition reports the unique path with `staging_retained = NA` for inspection.
 
 ## Queue a tracked batch
 
@@ -177,6 +235,7 @@ loaded <- fabric_kql_query(
 
 The caller needs Table Ingestor permission on the destination and Database User
 access. Status details for nonpublic storage also require source storage read
-access. Keep the staged file until the tracked result is terminal and verified;
-then remove it with the storage system's normal, explicitly authorized cleanup
-workflow.
+access. For manual `fabric_kql_ingest()` workflows, keep the staged file until
+the tracked result is terminal and verified. `fabric_kql_write_table()` applies
+that retention rule automatically and reports the full retained path whenever
+manual recovery is required.

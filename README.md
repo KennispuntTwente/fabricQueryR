@@ -295,6 +295,19 @@ written <- fabric_lakehouse_write_table(
 written$operation_status$status
 ```
 
+The writer also accepts lazy Arrow Datasets, Scanners, queries, and
+RecordBatchReaders. They are streamed through Parquet batch by batch instead of
+being collected into R memory:
+
+``` r
+dataset <- arrow::open_dataset("local-parquet-directory")
+written <- fabric_lakehouse_write_table(
+  lakehouse,
+  table = "orders_from_arrow",
+  data = dataset
+)
+```
+
 The Fabric List Tables and Load Table routes are preview APIs. The higher-level
 writer uploads only to a unique `Files/` staging path and never edits managed
 `Tables/` files directly. See the [Lakehouse table loading
@@ -344,10 +357,28 @@ ingestion_status <- fabric_kql_ingestion_status(
 )
 ```
 
+Write a data frame, tibble, or lazy Arrow source in one call. The package uses
+the ingestion service's configured OneLake folder for temporary Parquet
+staging, waits for tracked completion, and then cleans up:
+
+``` r
+written <- fabric_kql_write_table(
+  kql_database,
+  table = "Events",
+  data = data.frame(
+    id = 1:3,
+    category = c("A", "B", "A"),
+    amount = c(10.5, 20, 30.5)
+  ),
+  ingest_if_not_exists = "r-events-2026-08-14"
+)
+written$status$state
+```
+
 The queued-ingestion REST API is in preview. Submissions use Kusto's ingestion
 URI, accept at most 20 existing storage sources per request, and have
 at-least-once delivery semantics. The package does not automatically replay a
-failed submission or stage local files implicitly. See the [tracked Eventhouse
+failed submission. See the [tracked Eventhouse
 ingestion guide](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html)
 for OneLake authentication, mappings, idempotency tags, service limits, and
 failure handling.

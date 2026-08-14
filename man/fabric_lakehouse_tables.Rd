@@ -133,8 +133,12 @@ does not allow parentheses, brackets, braces, or quotes in a delimiter.}
 \item{file_extension}{Optional extension used to filter a folder load,
 without a leading dot.}
 
-\item{data}{A data frame, tibble, or Arrow Table/RecordBatch to serialize as
-Parquet. The optional \code{arrow} package is required.}
+\item{data}{A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
+Dataset/Scanner/query, or Arrow RecordBatchReader to serialize as Parquet.
+Lazy inputs are consumed batch by batch without collecting the complete
+object in R memory. Arrow-compatible \code{nanoarrow_array_stream} inputs are
+also accepted. Readers and streams are single-use. The optional \code{arrow}
+package is required.}
 
 \item{staging_root}{Item-relative directory below \verb{Files/} used for unique
 staging files.}
@@ -151,7 +155,7 @@ staging file when the load fails. The raised condition includes
 \item{poll_interval}{Minimum seconds between load-operation status requests.
 \code{NULL} follows Fabric's \code{Retry-After} hint with the shared fallback.}
 
-\item{timeout}{Maximum total seconds to wait for a data-frame load.}
+\item{timeout}{Maximum total seconds to wait for an R/Arrow load.}
 
 \item{dfs_base}{OneLake DFS service address used for the staging upload.
 A workspace-specific endpoint from a discovered record is preferred when
@@ -174,7 +178,7 @@ terminal operation state, staging path, and whether staging was retained.
 }
 \description{
 Use Fabric's table APIs to inspect Delta tables, load staged CSV or Parquet
-files, or write an R data frame through a failure-aware staging workflow.
+files, or write an R/Arrow object through a failure-aware staging workflow.
 \itemize{
 \item \code{fabric_lakehouse_tables()} combines Fabric's paginated List Tables API
 with the read-only OneLake Delta table API. The first supplies managed or
@@ -183,7 +187,7 @@ with \code{detail = TRUE}, column metadata.
 \item \code{fabric_lakehouse_load_table()} starts the preview Fabric Load Table API
 for a file or folder that already exists below the Lakehouse \verb{Files/}
 area. It returns a handle accepted by \code{\link[=fabric_operation_status]{fabric_operation_status()}}.
-\item \code{fabric_lakehouse_write_table()} serializes a data frame to Parquet,
+\item \code{fabric_lakehouse_write_table()} streams an R or Arrow object to Parquet,
 uploads it to a unique \verb{Files/} staging path, waits for the Delta load, and
 removes the staged file after confirmed success by default.
 }
@@ -215,7 +219,7 @@ logical types. Factors are written as strings. List columns are passed to
 Arrow as nested data and can fail if their values do not have one consistent
 Arrow type. R complex and \code{difftime} columns are rejected.
 
-R has no native fixed-precision decimal vector. Supply an Arrow Table with a
+R has no native fixed-precision decimal vector. Supply Arrow data with a
 decimal field when decimal precision and scale must be explicit. Fabric's
 Load to Tables flow does not accept a caller-defined destination schema, so
 use Spark or another schema-controlled writer when inference is unsuitable.
@@ -268,6 +272,8 @@ result$operation_status$status
 \href{https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview}{OneLake table APIs for Delta}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-get-started}{Getting started with OneLake Delta table APIs}
+
+\href{https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html}{Arrow RecordBatchReader}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables}{List Lakehouse tables}
 
