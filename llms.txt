@@ -29,17 +29,23 @@ remotes::install_github("kennispunttwente/fabricQueryR")
 ## Getting started
 
 To connect to Microsoft Fabric, set your Microsoft Entra tenant ID and
-sign in. The [authentication
-vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
-covers interactive sign-in, service principals, and other authentication
-options.
+sign in. You can also set a client ID if your tenant does not permit the
+package’s default public Azure CLI client.
 
 ``` r
 
 library(fabricQueryR)
 
 Sys.setenv(FABRICQUERYR_TENANT_ID = "your-tenant-id")
+
+# Optional, if your tenant does not permit the public Azure CLI client ID:
+# Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")
 ```
+
+The [authentication
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
+covers interactive sign-in, app registrations, service principals, and
+other authentication options.
 
 The examples below focus on the main use of each function group. See the
 [function
@@ -61,15 +67,14 @@ items <- fabric_items(workspace)
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
-Later snippets use names such as `warehouse` and `semantic_model` for
-records returned by their matching typed discovery helpers.
-
 ### 2. Query Fabric SQL endpoints
 
 Run SQL against a Warehouse, SQL Database, or Lakehouse SQL analytics
 endpoint and return the result as a tibble.
 
 ``` r
+
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
 customers <- fabric_sql_query(
   lakehouse,
@@ -90,6 +95,7 @@ accepts data frames as well as lazy Arrow sources.
 
 ``` r
 
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
 orders <- fabric_lakehouse_read_table(lakehouse, "orders")
 
 fabric_lakehouse_write_table(
@@ -110,6 +116,8 @@ Read and write common file formats directly between R and OneLake.
 Lakehouse file paths normally start with `Files/`.
 
 ``` r
+
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
 fabric_onelake_write_file(
   workspace,
@@ -135,6 +143,10 @@ without being copied into the current Lakehouse.
 
 ``` r
 
+lakehouses <- fabric_lakehouses(workspace)
+lakehouse <- lakehouses[[1L]]
+source_lakehouse <- lakehouses[[2L]]
+
 fabric_onelake_shortcut_create(
   lakehouse,
   path = "Files",
@@ -154,6 +166,8 @@ Fabric’s `COPY INTO`.
 
 ``` r
 
+warehouse <- fabric_warehouses(workspace)[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
 orders <- fabric_warehouse_read_table(warehouse, "orders")
 
 fabric_warehouse_write_table(
@@ -175,6 +189,8 @@ Use KQL to query an Eventhouse database, or write an R or Arrow object
 to an existing KQL table.
 
 ``` r
+
+kql_database <- fabric_kql_databases(workspace)[[1L]]
 
 events <- fabric_kql_query(
   kql_database,
@@ -200,6 +216,8 @@ the result as a tibble.
 
 ``` r
 
+semantic_model <- fabric_semantic_models(workspace)[[1L]]
+
 customers <- fabric_pbi_dax_query(
   semantic_model,
   dax = "EVALUATE TOPN(1000, 'Customers')"
@@ -216,6 +234,7 @@ returned object retains the details needed to inspect failures.
 
 ``` r
 
+semantic_model <- fabric_semantic_models(workspace)[[1L]]
 refresh <- fabric_pbi_refresh(semantic_model)
 completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
 
@@ -233,6 +252,8 @@ Call an API for GraphQL item configured in Fabric. Data and
 GraphQL-level errors remain separately available in the result.
 
 ``` r
+
+graphql_api <- fabric_graphql_apis(workspace)[[1L]]
 
 result <- fabric_graphql_query(
   graphql_api,
@@ -253,6 +274,8 @@ the result to the local R session.
 
 ``` r
 
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+
 result <- fabric_livy_query(
   lakehouse,
   kind = "sparkr",
@@ -269,6 +292,8 @@ Start a notebook, data pipeline, or Spark job definition and wait for it
 to finish.
 
 ``` r
+
+notebook <- fabric_notebooks(workspace)[[1L]]
 
 job <- fabric_job_run(
   notebook,

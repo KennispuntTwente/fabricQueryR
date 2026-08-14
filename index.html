@@ -71,11 +71,15 @@
 <div class="section level2">
 <h2 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
 </h2>
-<p>To connect to Microsoft Fabric, set your Microsoft Entra tenant ID and sign in. The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> covers interactive sign-in, service principals, and other authentication options.</p>
+<p>To connect to Microsoft Fabric, set your Microsoft Entra tenant ID and sign in. You can also set a client ID if your tenant does not permit the package’s default public Azure CLI client.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"your-tenant-id"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"your-tenant-id"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Optional, if your tenant does not permit the public Azure CLI client ID:</span></span>
+<span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")</span></span></code></pre></div>
+<p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> covers interactive sign-in, app registrations, service principals, and other authentication options.</p>
 <p>The examples below focus on the main use of each function group. See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html">function reference</a> and vignettes for configuration options and more involved workflows.</p>
 </div>
 <div class="section level2">
@@ -89,14 +93,15 @@
 <code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>Later snippets use names such as <code>warehouse</code> and <code>semantic_model</code> for records returned by their matching typed discovery helpers.</p>
 </div>
 <div class="section level3">
 <h3 id="id_2-query-fabric-sql-endpoints">2. Query Fabric SQL endpoints<a class="anchor" aria-label="anchor" href="#id_2-query-fabric-sql-endpoints"></a>
 </h3>
 <p>Run SQL against a Warehouse, SQL Database, or Lakehouse SQL analytics endpoint and return the result as a tibble.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -107,7 +112,8 @@
 </h3>
 <p>Move data between R and managed Delta tables in a Lakehouse. The writer accepts data frames as well as lazy Arrow sources.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span><span class="va">lakehouse</span>, <span class="st">"orders"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span><span class="va">lakehouse</span>, <span class="st">"orders"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
@@ -121,7 +127,9 @@
 </h3>
 <p>Read and write common file formats directly between R and OneLake. Lakehouse file paths normally start with <code>Files/</code>.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/fabric_onelake_object_files.html">fabric_onelake_write_file</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/fabric_onelake_object_files.html">fabric_onelake_write_file</a></span><span class="op">(</span></span>
 <span>  <span class="va">workspace</span>,</span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span>,</span>
@@ -140,7 +148,11 @@
 </h3>
 <p>Create a shortcut when data in another Fabric item should be available without being copied into the current Lakehouse.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
+<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">source_lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">2L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files"</span>,</span>
 <span>  name <span class="op">=</span> <span class="st">"shared-orders"</span>,</span>
@@ -154,7 +166,9 @@
 </h3>
 <p>Read a Warehouse table into R or load an R or Arrow object into a Warehouse. Writes use a Lakehouse as temporary OneLake staging for Fabric’s <code>COPY INTO</code>.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table</a></span><span class="op">(</span><span class="va">warehouse</span>, <span class="st">"orders"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table</a></span><span class="op">(</span><span class="va">warehouse</span>, <span class="st">"orders"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
@@ -170,7 +184,9 @@
 </h3>
 <p>Use KQL to query an Eventhouse database, or write an R or Arrow object to an existing KQL table.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">events</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">events</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">kql_database</span>,</span>
 <span>  <span class="st">"Events | where EventType == 'Warning' | take 100"</span></span>
 <span><span class="op">)</span></span>
@@ -188,7 +204,9 @@
 </h3>
 <p>Run a DAX query against a Fabric or Power BI semantic model and return the result as a tibble.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">semantic_model</span>,</span>
 <span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(1000, 'Customers')"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -199,7 +217,8 @@
 </h3>
 <p>Start a semantic-model refresh and wait for its final state. The returned object retains the details needed to inspect failures.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">semantic_model</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">semantic_model</span><span class="op">)</span></span>
 <span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
@@ -210,7 +229,9 @@
 </h3>
 <p>Call an API for GraphQL item configured in Fabric. Data and GraphQL-level errors remain separately available in the result.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">graphql_api</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">graphql_api</span>,</span>
 <span>  query <span class="op">=</span> <span class="st">"{ customers { items { id name region } } }"</span></span>
 <span><span class="op">)</span></span>
@@ -223,7 +244,9 @@
 </h3>
 <p>Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return the result to the local R session.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
@@ -235,7 +258,9 @@
 </h3>
 <p>Start a notebook, data pipeline, or Spark job definition and wait for it to finish.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_notebooks</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span></span>
 <span>  <span class="va">notebook</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"incremental"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
