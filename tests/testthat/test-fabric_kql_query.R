@@ -31,6 +31,96 @@ kusto_test_completion <- function(has_errors = FALSE, errors = NULL) {
   out
 }
 
+test_that("KQL table reader delegates a safely parameterized projection", {
+  captured <- NULL
+  expected <- tibble::tibble(id = 1L, `display name` = "alpha")
+  local_mocked_bindings(
+    fabric_kql_query = function(...) {
+      captured <<- list(...)
+      expected
+    }
+  )
+  hostile_table <- "Events'); drop table Other; --"
+
+  result <- fabric_kql_read_table(
+    list(
+      type = "KQLDatabase",
+      displayName = "Telemetry",
+      query_service_uri = "https://cluster.kusto.fabric.microsoft.com"
+    ),
+    list(name = hostile_table),
+    columns = c("id", "display name"),
+    limit = 25,
+    request_properties = list(servertimeout = "30s"),
+    timeout = 17,
+    retain_raw_frames = TRUE,
+    token = "kusto-token"
+  )
+
+  expect_identical(result, expected)
+  expect_identical(
+    captured$parameters,
+    list(
+      `_fabricqueryr_table` = hostile_table
+    )
+  )
+  expect_false(grepl(hostile_table, captured$query, fixed = TRUE))
+  expect_match(
+    captured$query,
+    "table(_fabricqueryr_table)",
+    fixed = TRUE
+  )
+  expect_match(
+    captured$query,
+    "| project ['id'], ['display name']",
+    fixed = TRUE
+  )
+  expect_match(captured$query, "| take 25", fixed = TRUE)
+  expect_identical(captured$request_properties, list(servertimeout = "30s"))
+  expect_identical(captured$timeout, 17)
+  expect_true(captured$retain_raw_frames)
+  expect_identical(captured$token, "kusto-token")
+
+  fabric_kql_read_table(
+    "https://cluster.kusto.fabric.microsoft.com",
+    "Events",
+    database = "Telemetry",
+    token = "kusto-token"
+  )
+  expect_false(grepl("| project", captured$query, fixed = TRUE))
+  expect_false(grepl("| take", captured$query, fixed = TRUE))
+})
+
+test_that("KQL table reader validates projections and limits before querying", {
+  calls <- 0L
+  local_mocked_bindings(
+    fabric_kql_query = function(...) {
+      calls <<- calls + 1L
+      tibble::tibble()
+    }
+  )
+  read <- function(...) {
+    fabric_kql_read_table(
+      "https://cluster.kusto.fabric.microsoft.com",
+      "Events",
+      database = "Telemetry",
+      token = "token",
+      ...
+    )
+  }
+
+  expect_error(read(columns = character()), class = "fabric_kql_read_error")
+  expect_error(read(columns = c("id", "id")), class = "fabric_kql_read_error")
+  expect_error(
+    read(columns = "id | take 0"),
+    class = "fabric_kql_read_error"
+  )
+  for (limit in list(-1, 1.5, Inf, NA_real_, c(1, 2), 2^31)) {
+    expect_error(read(limit = limit), class = "fabric_kql_read_error")
+  }
+  expect_equal(calls, 0L)
+})
+
 test_that("KQL targets normalize direct and discovered coordinates", {
   direct <- kusto_resolve_target(
     "https://cluster.kusto.fabric.microsoft.com/",

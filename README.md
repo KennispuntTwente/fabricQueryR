@@ -351,7 +351,26 @@ writer uploads only to a unique `Files/` staging path and never edits managed
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/lakehouse-table-loading.html)
 for permissions, type mappings, schema behavior, and recovery after failures.
 
-### 8. Write R or Arrow data to a Warehouse
+### 8. Read and write Warehouse tables
+
+Read a Warehouse table directly into a tibble, with optional projection and a
+row limit. For a larger result, request an Arrow stream through the ADBC
+backend:
+
+``` r
+orders <- fabric_warehouse_read_table(
+  warehouse,
+  "orders",
+  columns = c("id", "amount")
+)
+
+stream <- fabric_warehouse_read_table(
+  warehouse,
+  "orders",
+  backend = "adbc",
+  result = "arrow_stream"
+)
+```
 
 Load an in-memory data frame or a larger-than-memory Arrow source into a
 Warehouse table. Fabric requires OneLake `COPY INTO` sources to come from a
@@ -377,7 +396,7 @@ the table definition or `"Drop"` to recreate it from the staged Parquet
 schema. Drop replacement also removes table-specific constraints and grants.
 Both overwrite paths are transactional.
 
-### 9. Query Eventhouse data with KQL
+### 9. Read and query Eventhouse data with KQL
 
 Run a KQL query against a KQL database in an Eventhouse.
 A single result table is returned as a tibble, 
@@ -391,6 +410,19 @@ df_kql <- fabric_kql_query(
     "Events | where EventType == selected_type | take 100"
   ),
   parameters = list(selected_type = "Warning")
+)
+```
+
+For the common whole-table case, use the mirrored table reader. Table names
+are bound separately from generated KQL, and projection and row limiting happen
+on the Kusto service:
+
+``` r
+events <- fabric_kql_read_table(
+  kql_database,
+  "Events",
+  columns = c("id", "category", "amount"),
+  limit = 1000
 )
 ```
 

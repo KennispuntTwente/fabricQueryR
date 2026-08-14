@@ -33,6 +33,110 @@ warehouse_write_test_lakehouse <- function() {
   )
 }
 
+test_that("Warehouse table reader resolves and safely quotes its query", {
+  resolved <- NULL
+  queried <- NULL
+  stream <- structure(list(), class = "nanoarrow_array_stream")
+  local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE),
+    .fabric_warehouse_resolve_item = function(...) {
+      resolved <<- list(...)
+      list(record = warehouse_write_test_warehouse())
+    },
+    fabric_sql_query = function(...) {
+      queried <<- list(...)
+      if (identical(queried$result, "arrow_stream")) {
+        stream
+      } else {
+        tibble::tibble(id = 1L)
+      }
+    }
+  )
+  table <- list(
+    name = "orders]archive",
+    schema = "sales"
+  )
+
+  result <- fabric_warehouse_read_table(
+    warehouse_write_test_warehouse(),
+    table,
+    columns = c("id", "display]name"),
+    limit = 25,
+    result = "arrow_stream",
+    backend = "adbc",
+    token = "sql-token",
+    verbose = FALSE,
+    timeout = 12,
+    max_tries = 2,
+    retry_delay = 0
+  )
+
+  expect_identical(result, stream)
+  expect_identical(resolved$expected_type, "Warehouse")
+  expect_true(resolved$require_sql)
+  expect_identical(resolved$argument, "warehouse")
+  expect_identical(
+    queried$sql,
+    paste0(
+      "SELECT TOP (25) [id], [display]]name] ",
+      "FROM [sales].[orders]]archive]"
+    )
+  )
+  expect_identical(queried$result, "arrow_stream")
+  expect_identical(queried$target_type, "warehouse")
+  expect_identical(queried$backend, "adbc")
+  expect_s3_class(queried$token, "fabric_credential")
+  expect_true(queried$read_only)
+  expect_true(queried$idempotent)
+  expect_false(queried$verbose)
+  expect_identical(queried$timeout, 12)
+  expect_identical(queried$max_tries, 2)
+
+  plain <- fabric_warehouse_read_table(
+    warehouse_write_test_warehouse(),
+    "orders",
+    token = "sql-token",
+    verbose = FALSE
+  )
+  expect_identical(plain$id, 1L)
+  expect_identical(queried$sql, "SELECT * FROM [dbo].[orders]")
+  expect_identical(queried$result, "tibble")
+})
+
+test_that("Warehouse table reader validates before target resolution", {
+  calls <- 0L
+  local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE),
+    .fabric_warehouse_resolve_item = function(...) {
+      calls <<- calls + 1L
+      list(record = warehouse_write_test_warehouse())
+    },
+    fabric_sql_query = function(...) {
+      calls <<- calls + 1L
+      tibble::tibble()
+    }
+  )
+  read <- function(...) {
+    fabric_warehouse_read_table(
+      warehouse_write_test_warehouse(),
+      "orders",
+      token = "token",
+      verbose = FALSE,
+      ...
+    )
+  }
+
+  expect_error(read(schema = ""), "schema")
+  expect_error(read(columns = character()), "columns must be NULL")
+  expect_error(read(columns = c("id", "ID")), "unique ignoring case")
+  for (limit in list(-1, 1.5, Inf, NA_real_, c(1, 2))) {
+    expect_error(read(limit = limit), "limit must be NULL")
+  }
+  expect_error(read(result = "data.frame"))
+  expect_error(read(backend = "spark"))
+  expect_equal(calls, 0L)
+})
+
 test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
   skip_if_not_installed("arrow")
   uploads <- list()

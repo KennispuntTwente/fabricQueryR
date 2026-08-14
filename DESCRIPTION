@@ -19,12 +19,15 @@ Description:
     'Arrow' interchange with columnar files and shortcut lifecycle management;
     discover and read 'Delta Lake'
     tables in 'OneLake'; stage data frames or load existing CSV and Parquet
-    files into managed Lakehouse tables; bulk load data frames and lazy 'Arrow'
-    sources into existing or newly created Warehouse tables; start, monitor, diagnose, and
+    files into managed Lakehouse tables; read Warehouse tables as R or
+    streaming 'Arrow' results and bulk load data frames and lazy 'Arrow'
+    sources into existing or newly created Warehouse tables; start, monitor,
+    diagnose, and
     cancel semantic model refreshes; invoke published Fabric User Data
     Functions; execute
     'Kusto Query Language' ('KQL')
-    queries against 'Eventhouse' databases; submit and monitor tracked queued
+    queries and read projected tables from 'Eventhouse' databases; submit and
+    monitor tracked queued
     ingestion from blob or 'OneLake' storage into existing 'Eventhouse' tables,
     including bounded staging of data frames and lazy 'Arrow' data with optional
     target-table creation; export

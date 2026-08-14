@@ -190,6 +190,52 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
   }
 })
 
+test_that("fabric_warehouse_read_table returns projected rows and streams", {
+  manifest <- fabric_test_manifest()
+  provisioned <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  target <- fabric_item(
+    manifest$workspace_id,
+    provisioned$id,
+    type = "Warehouse",
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
+  token <- fabric_test_token_provider()
+
+  for (backend in fabric_test_sql_backends()) {
+    rows <- fabric_warehouse_read_table(
+      target,
+      provisioned$tables$types,
+      columns = c("id", "name", "amount"),
+      limit = 3,
+      backend = backend,
+      token = token,
+      verbose = FALSE
+    )
+    rows <- rows[order(rows$id), ]
+    expect_s3_class(rows, "tbl_df", info = backend)
+    expect_named(rows, c("id", "name", "amount"), info = backend)
+    expect_equal(rows$id, 1:3, info = backend)
+    expect_equal(rows$name, c("alpha", "beta", "gamma"), info = backend)
+    expect_equal(as.numeric(rows$amount), c(10.5, 20, NA), info = backend)
+
+    stream <- fabric_warehouse_read_table(
+      target,
+      provisioned$tables$types,
+      columns = c("id", "name"),
+      limit = 2,
+      result = "arrow_stream",
+      backend = backend,
+      token = token,
+      verbose = FALSE
+    )
+    expect_s3_class(stream, "nanoarrow_array_stream", info = backend)
+    streamed <- as.data.frame(nanoarrow::collect_array_stream(stream))
+    expect_named(streamed, c("id", "name"), info = backend)
+    expect_equal(nrow(streamed), 2L, info = backend)
+    expect_true(all(streamed$id %in% 1:3), info = backend)
+  }
+})
+
 fabric_test_sql_item <- function(name, backend) {
   manifest <- fabric_test_manifest()
   api_token <- fabric_test_token("FABRIC_TEST_API_TOKEN")

@@ -2228,6 +2228,16 @@ kusto_write_create_table_command <- function(
 }
 
 kusto_write_identifier <- function(value, name) {
+  kusto_entity_identifier(
+    value,
+    name,
+    error_class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+  )
+}
+
+# Validate and quote one Kusto table or column entity name. Returns safe KQL
+# source text shared by table creation and table-oriented reads
+kusto_entity_identifier <- function(value, name, error_class = NULL) {
   value <- kusto_ingestion_target_name(value, name)
   valid <- grepl("^[\\p{L}\\p{N}_. -]+$", value, perl = TRUE) &&
     !startsWith(value, "__") &&
@@ -2239,7 +2249,7 @@ kusto_write_identifier <- function(value, name) {
         " must use Kusto identifier characters (letters, numbers, spaces, ",
         "underscores, dots, or dashes) and cannot start or end with '__'"
       ),
-      class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+      class = error_class
     )
   }
   paste0("['", value, "']")

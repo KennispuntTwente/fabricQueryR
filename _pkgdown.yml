@@ -51,6 +51,7 @@ reference:
       - fabric_sql_connection_info
       - fabric_sql_connect
       - fabric_sql_query
+      - fabric_warehouse_read_table
       - fabric_warehouse_write_table
 
   - title: Semantic models and DAX
@@ -87,6 +88,7 @@ reference:
     desc: Query Eventhouse data, ingest storage or R objects, and export results
     contents:
       - fabric_kql_query
+      - fabric_kql_read_table
       - fabric_kql_ingest
       - fabric_kql_write_table
       - fabric_kql_export

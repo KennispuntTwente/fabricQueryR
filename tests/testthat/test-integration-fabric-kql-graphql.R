@@ -70,6 +70,26 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   )
 })
 
+test_that("fabric_kql_read_table reads projected seeded Eventhouse data", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  rows <- fabric_kql_read_table(
+    database$query_service_uri,
+    database$tables$events,
+    database = database$database_name,
+    columns = c("id", "name", "amount"),
+    limit = 3,
+    token = fabric_test_token_provider()
+  )
+  rows <- rows[order(rows$id), ]
+
+  expect_s3_class(rows, "tbl_df")
+  expect_named(rows, c("id", "name", "amount"))
+  expect_equal(rows$id, 1:3)
+  expect_equal(rows$name, c("alpha", "beta", "gamma"))
+  expect_equal(rows$amount, c(10.5, 20, NA_real_))
+})
+
 test_that("fabric_kql_query discovers targets and binds safe parameters", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestKQLDatabase")

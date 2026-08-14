@@ -1,3 +1,173 @@
+#' Read a Microsoft Fabric KQL table
+#'
+#' Provides the table-oriented read counterpart to [fabric_kql_write_table()].
+#' It safely resolves the table through Kusto's `table()` function, optionally
+#' projects columns and limits rows, then delegates typed result handling to
+#' [fabric_kql_query()]. Use that lower-level function for filters, ordering,
+#' joins, aggregations, or other KQL expressions.
+#'
+#' @inheritParams fabric_kql_query
+#' @param table KQL table name, or a record containing a `name`, `table`, or
+#'   `displayName` field.
+#' @param columns Optional unique column names to project.
+#' @param limit Optional non-negative whole-number maximum number of rows to
+#'   return, no greater than Kusto's signed 32-bit `take` limit.
+#'
+#' @return A typed tibble containing the selected table rows. Kusto metadata is
+#'   retained in the same attributes as [fabric_kql_query()].
+#'
+#' @section Large results:
+#' The Kusto query HTTP response is collected and decoded in R. Use `columns`
+#' and `limit` to bound an interactive read. For a result too large for client
+#' memory, use [fabric_kql_export()] to export it server-side to OneLake or
+#' another supported storage destination.
+#'
+#' @references
+#' [Kusto `table()` function](https://learn.microsoft.com/en-us/kusto/query/table-function?view=microsoft-fabric)
+#'
+#' [Kusto `take` operator](https://learn.microsoft.com/en-us/kusto/query/take-operator?view=microsoft-fabric)
+#'
+#' [Kusto entity names](https://learn.microsoft.com/en-us/kusto/query/schema-entities/entity-names?view=microsoft-fabric)
+#'
+#' [Kusto query HTTP request](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' database <- fabric_kql_databases("Telemetry workspace")[[1L]]
+#'
+#' events <- fabric_kql_read_table(
+#'   database,
+#'   "Events",
+#'   columns = c("EventId", "EventType", "ObservedAt"),
+#'   limit = 1000
+#' )
+#' }
+fabric_kql_read_table <- function(
+  cluster,
+  table,
+  database = NULL,
+  columns = NULL,
+  limit = NULL,
+  request_properties = list(),
+  timeout = 60,
+  retain_raw_frames = FALSE,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  allow_custom_endpoint = FALSE
+) {
+  table_record <- fabric_as_record(table)
+  if (is.null(table_record) && is.list(table)) {
+    table_record <- table
+  }
+  if (!is.null(table_record)) {
+    table <- fabric_record_value(
+      table_record,
+      "name",
+      "table",
+      "displayName"
+    )
+  }
+  table <- kusto_ingestion_target_name(table, "table")
+  kusto_read_columns(columns)
+  limit <- kusto_read_limit(limit)
+
+  query <- paste(
+    "declare query_parameters(_fabricqueryr_table:string);",
+    "table(_fabricqueryr_table)"
+  )
+  if (!is.null(columns)) {
+    projection <- paste(
+      vapply(
+        columns,
+        kusto_read_identifier,
+        character(1),
+        USE.NAMES = FALSE
+      ),
+      collapse = ", "
+    )
+    query <- paste(query, "| project", projection)
+  }
+  if (!is.null(limit)) {
+    query <- paste(query, "| take", as.character(limit))
+  }
+
+  fabric_kql_query(
+    cluster = cluster,
+    query = query,
+    database = database,
+    parameters = list(`_fabricqueryr_table` = table),
+    request_properties = request_properties,
+    timeout = timeout,
+    retain_raw_frames = retain_raw_frames,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+}
+
+# Validate an optional KQL projection before authentication. Returns invisibly
+# after checking unique, non-empty column names
+kusto_read_columns <- function(columns) {
+  if (
+    !is.null(columns) &&
+      (!is.character(columns) ||
+        !length(columns) ||
+        anyNA(columns) ||
+        !all(nzchar(columns)) ||
+        anyDuplicated(columns))
+  ) {
+    rlang::abort(
+      "columns must be NULL or one or more unique, non-empty strings",
+      class = "fabric_kql_read_error"
+    )
+  }
+  invisible(columns)
+}
+
+# Validate the row limit supported by Kusto's take operator. Returns an integer
+# or NULL before the generated query is submitted
+kusto_read_limit <- function(limit) {
+  if (is.null(limit)) {
+    return(NULL)
+  }
+  if (
+    !is.numeric(limit) ||
+      length(limit) != 1L ||
+      is.na(limit) ||
+      !is.finite(limit) ||
+      limit < 0 ||
+      limit != floor(limit) ||
+      limit > .Machine$integer.max
+  ) {
+    rlang::abort(
+      paste0(
+        "limit must be NULL or one non-negative whole number no greater than ",
+        .Machine$integer.max
+      ),
+      class = "fabric_kql_read_error"
+    )
+  }
+  as.integer(limit)
+}
+
+# Quote one projected Kusto column using the same documented entity-name subset
+# accepted by the writer. Returns safe KQL source text
+kusto_read_identifier <- function(value) {
+  kusto_entity_identifier(
+    value,
+    "column",
+    error_class = "fabric_kql_read_error"
+  )
+}
+
 #' Run a KQL query in Microsoft Fabric
 #'
 #' Runs a read-only query against a KQL database and returns the result as a

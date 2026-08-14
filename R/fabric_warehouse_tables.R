@@ -1,3 +1,183 @@
+#' Read a Microsoft Fabric Warehouse table
+#'
+#' Provides the table-oriented read counterpart to
+#' [fabric_warehouse_write_table()]. It resolves the Warehouse like the writer,
+#' safely quotes the schema, table, and projected columns, and delegates query
+#' execution and type conversion to [fabric_sql_query()]. Use that lower-level
+#' function for filters, ordering, joins, aggregations, or other T-SQL.
+#'
+#' @inheritParams fabric_warehouse_write_table
+#' @inheritParams fabric_sql_query
+#' @param table Warehouse table name, or a record containing a `name`, `table`,
+#'   or `displayName` field.
+#' @param schema Warehouse schema. Defaults to `"dbo"`; a table record can
+#'   supply its schema when this argument is omitted.
+#' @param columns Optional unique column names to project.
+#' @param limit Optional non-negative maximum number of rows to return.
+#' @param api_base Fabric REST API base used when a Warehouse name or GUID must
+#'   be discovered.
+#'
+#' @return A tibble, or a single-use `nanoarrow_array_stream` when
+#'   `result = "arrow_stream"`.
+#'
+#' @section Large results:
+#' Use `backend = "adbc"` with `result = "arrow_stream"` for a native Arrow
+#' result path that can be consumed without first collecting the complete table
+#' in an R data frame. The external ADBC `mssql` driver must be installed.
+#'
+#' `limit` uses T-SQL `TOP` and does not define row order. Use
+#' [fabric_sql_query()] with an explicit `ORDER BY` when deterministic row
+#' selection matters.
+#'
+#' @references
+#' [Query a Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-warehouse)
+#'
+#' [Fabric Warehouse connectivity](https://learn.microsoft.com/en-us/fabric/data-warehouse/connectivity)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' warehouse <- fabric_warehouses("Analytics")[[1L]]
+#' orders <- fabric_warehouse_read_table(
+#'   warehouse,
+#'   "orders",
+#'   columns = c("id", "amount"),
+#'   limit = 1000
+#' )
+#'
+#' stream <- fabric_warehouse_read_table(
+#'   warehouse,
+#'   "orders",
+#'   backend = "adbc",
+#'   result = "arrow_stream"
+#' )
+#' reader <- arrow::as_record_batch_reader(stream)
+#' }
+fabric_warehouse_read_table <- function(
+  warehouse,
+  table,
+  workspace = NULL,
+  schema = "dbo",
+  columns = NULL,
+  limit = NULL,
+  result = c("tibble", "arrow_stream"),
+  backend = c("odbc", "adbc"),
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE,
+  verbose = TRUE,
+  timeout = 30L,
+  max_tries = 3L,
+  retry_delay = 5
+) {
+  schema_supplied <- !missing(schema)
+  table_record <- fabric_as_record(table)
+  if (is.null(table_record) && is.list(table)) {
+    table_record <- table
+  }
+  if (!is.null(table_record)) {
+    table <- fabric_record_value(
+      table_record,
+      "name",
+      "table",
+      "displayName"
+    )
+    if (!schema_supplied) {
+      schema <- fabric_record_value(table_record, "schema") %||% schema
+    }
+  }
+
+  result <- match.arg(result)
+  backend <- match.arg(backend)
+  .fabric_warehouse_identifier(table, "table")
+  .fabric_warehouse_identifier(schema, "schema")
+  fabric_delta_validate_columns(columns)
+  if (!is.null(columns)) {
+    .fabric_warehouse_column_names(columns)
+  }
+  limit <- fabric_delta_validate_whole_number(
+    limit,
+    "limit",
+    allow_null = TRUE
+  )
+  fabric_sql_retry_settings(max_tries, retry_delay)
+  fabric_sql_timeout(timeout)
+  fabric_sql_require_backend(backend, result = result)
+
+  projection <- if (is.null(columns)) {
+    "*"
+  } else {
+    paste(
+      vapply(
+        columns,
+        .fabric_warehouse_quote_identifier,
+        character(1),
+        USE.NAMES = FALSE
+      ),
+      collapse = ", "
+    )
+  }
+  top <- if (is.null(limit)) {
+    ""
+  } else {
+    paste0("TOP (", fabric_delta_whole_number_text(limit), ") ")
+  }
+  sql <- paste0(
+    "SELECT ",
+    top,
+    projection,
+    " FROM ",
+    .fabric_warehouse_quote_identifier(schema),
+    ".",
+    .fabric_warehouse_quote_identifier(table)
+  )
+
+  api_base_supplied <- !missing(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  destination <- .fabric_warehouse_resolve_item(
+    warehouse,
+    workspace,
+    expected_type = "Warehouse",
+    credential = credential,
+    api_base = base,
+    api_base_supplied = api_base_supplied,
+    allow_custom_endpoint = allow_custom_endpoint,
+    require_sql = TRUE,
+    argument = "warehouse"
+  )
+
+  fabric_sql_query(
+    server = destination$record,
+    sql = sql,
+    result = result,
+    target_type = "warehouse",
+    backend = backend,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = credential,
+    auth_args = list(),
+    timeout = timeout,
+    read_only = TRUE,
+    allow_custom_endpoint = allow_custom_endpoint,
+    verbose = verbose,
+    max_tries = max_tries,
+    retry_delay = retry_delay,
+    idempotent = TRUE
+  )
+}
+
 #' Write an R or Arrow object to a Fabric Warehouse table
 #'
 #' Serializes a data frame, tibble, or Arrow object to bounded Parquet parts,

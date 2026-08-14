@@ -12,6 +12,7 @@
 #'   Lakehouse SQL analytics endpoint
 #' - Use [fabric_pbi_dax_query()] for report-ready semantic models,
 #'   [fabric_kql_query()] for Eventhouse/KQL data,
+#'   [fabric_kql_read_table()] for table-oriented Eventhouse reads,
 #'   [fabric_kql_ingest()] for tracked storage ingestion,
 #'   [fabric_kql_write_table()] for R/Arrow-to-Eventhouse writes,
 #'   [fabric_kql_export()] for tracked server-side exports to storage, and
@@ -22,6 +23,8 @@
 #'   [fabric_lakehouse_tables()] to discover or load managed Delta tables,
 #'   [fabric_onelake_read_delta_table()] to read them, and the Livy helpers when
 #'   Spark processing is required
+#' - Use [fabric_warehouse_read_table()] and
+#'   [fabric_warehouse_write_table()] for symmetric Warehouse table transfer
 #' - Use [fabric_job_run()], [fabric_job_status()], [fabric_job_wait()], and
 #'   [fabric_job_cancel()] to control supported on-demand item jobs
 #' - See `vignette("authentication", package = "fabricQueryR")` for interactive
