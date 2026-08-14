@@ -203,6 +203,48 @@ filter. For example:
 run_fabric_integration_tests(filter = "integration-fabric-sql")
 ```
 
+User Data Function invocation has a separate opt-in live fixture because the
+current User Data Function item-management API supports delegated users but not
+the service principal that provisions the disposable CI workspace. Publish
+three public functions with these signatures:
+
+```python
+@udf.function()
+def echoScalar(value: str) -> str:
+    return value
+
+@udf.function()
+def echoStructured(label: str, values: list[int], metadata: dict) -> dict:
+    return {
+        "label": label,
+        "values": values,
+        "total": sum(values),
+        "metadata": metadata,
+    }
+
+@udf.function()
+def raiseValidation(value: int) -> int:
+    if value < 0:
+        raise fn.UserThrownError(
+            "value must be non-negative",
+            {"value": value},
+        )
+    return value
+```
+
+Set `FABRIC_TEST_FUNCTION_SCALAR_URL`,
+`FABRIC_TEST_FUNCTION_STRUCTURED_URL`, and `FABRIC_TEST_FUNCTION_ERROR_URL` to
+their copied Public URLs, then run:
+
+```r
+run_fabric_integration_tests(filter = "integration-fabric-functions")
+```
+
+The normal local runner supplies the Power BI token. Missing function URLs skip
+this opt-in group; the offline suite always covers disabled public access,
+service and client timeouts, oversized responses, structured user errors, and
+secret redaction.
+
 The local runner:
 
 1. checks the R, ODBC, ADBC, `uv`, and sandbox-tool dependencies;

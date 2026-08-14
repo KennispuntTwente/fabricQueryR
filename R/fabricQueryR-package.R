@@ -13,6 +13,8 @@
 #' - Use [fabric_pbi_dax_query()] for report-ready semantic models,
 #'   [fabric_kql_query()] for Eventhouse/KQL data, and
 #'   [fabric_graphql_query()] for an API for GraphQL item
+#' - Use [fabric_function_invoke()] to call published business logic through a
+#'   User Data Function's explicit public URL
 #' - Use [fabric_onelake_files] for ordinary files,
 #'   [fabric_lakehouse_tables()] to discover or load managed Delta tables,
 #'   [fabric_onelake_read_delta_table()] to read them, and the Livy helpers when

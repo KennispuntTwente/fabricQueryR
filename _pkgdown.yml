@@ -12,6 +12,9 @@ articles:
   - title: Semantic-model refresh
     contents:
       - semantic-model-refresh
+  - title: User Data Functions
+    contents:
+      - user-data-functions
 reference:
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
@@ -77,6 +80,11 @@ reference:
       - fabric_graphql_query
       - fabric_graphql_paginate
       - fabric_graphql_cursor
+
+  - title: User Data Functions
+    desc: Invoke published Fabric business logic through trusted public URLs
+    contents:
+      - fabric_function_invoke
 
   - title: Livy and Spark
     desc: Run Spark statements, reusable sessions, and batch jobs through Livy

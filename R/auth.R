@@ -4,6 +4,10 @@
     "https://analysis.windows.net/powerbi/api/",
     "GraphQLApi.Execute.All"
   ),
+  user_data_function = paste0(
+    "https://analysis.windows.net/powerbi/api/",
+    "UserDataFunction.Execute.All"
+  ),
   power_bi = "https://analysis.windows.net/powerbi/api/.default",
   livy_delegated = c(
     "https://api.fabric.microsoft.com/Lakehouse.Execute.All",

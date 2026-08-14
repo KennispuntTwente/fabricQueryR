@@ -12,6 +12,11 @@
   also support variables, cursor pagination, and mutations where the configured
   API permits them.
 
+* Added `fabric_function_invoke()` for published Fabric User Data Functions,
+  with trusted public-URL validation, flow-aware Power BI authentication,
+  non-idempotent retry safety, bounded payloads and responses, redacted result
+  envelopes, and structured execution errors.
+
 * Added OneLake file management with `fabric_onelake_list()`,
   `fabric_onelake_metadata()`, `fabric_onelake_download()`,
   `fabric_onelake_upload()`, and `fabric_onelake_delete()`.

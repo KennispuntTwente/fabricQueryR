@@ -35,6 +35,7 @@
   request_timeout = getOption("fabricqueryr.http.timeout", 300),
   max_retry_delay = getOption("fabricqueryr.http.max_retry_delay", 120),
   deadline = NULL,
+  return_error_response = FALSE,
   .sleep = Sys.sleep,
   .runif = stats::runif,
   .now = Sys.time
@@ -86,6 +87,14 @@
         is.na(deadline))
   ) {
     rlang::abort("deadline must be NULL or one POSIX date-time")
+  }
+
+  if (
+    !is.logical(return_error_response) ||
+      length(return_error_response) != 1L ||
+      is.na(return_error_response)
+  ) {
+    rlang::abort("return_error_response must be TRUE or FALSE")
   }
 
   # 2 Prepare retry state --------------------------------------------------------------------------
@@ -212,6 +221,9 @@
         service_retriable
       }
       if (!can_retry || !transient || attempt == max_tries) {
+        if (isTRUE(return_error_response)) {
+          return(response)
+        }
         .httr2_stop_http(response)
       }
 

@@ -21,6 +21,8 @@ Lakehouse SQL analytics endpoint
 \item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
 \code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data, and
 \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item
+\item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
+User Data Function's explicit public URL
 \item Use \link{fabric_onelake_files} for ordinary files,
 \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover or load managed Delta tables,
 \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read them, and the Livy helpers when
