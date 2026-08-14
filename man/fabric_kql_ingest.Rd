@@ -150,15 +150,19 @@ use Kusto's queued-ingestion REST API, which is currently in preview
 }
 \section{Sources and storage access}{
 
+\code{fabric_kql_ingest()} never uploads local data or serializes an R object.
+Every \code{sources} value must already identify a file in blob storage or
+OneLake, and \code{table} must already exist. Use \code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} when
+the data is a data frame, tibble, or Arrow object; that function performs
+staging and can create the target with \code{create_if_missing = TRUE}.
+
 \code{sources} can be a character vector of storage connection strings, a data
 frame with \code{url}, \code{source_id}, and optional \code{raw_size} columns, or a list of
 records with those fields. The camel-case service names \code{sourceId} and
 \code{rawSize} are also accepted. Character inputs use the parallel \code{source_ids}
 and \code{raw_sizes} arguments
 
-Only existing \verb{https://} or \verb{abfss://} storage sources are accepted. Use
-\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} for one-call staging of data frames, tibbles, or
-lazy Arrow objects.
+Only existing \verb{https://} or \verb{abfss://} storage sources are accepted.
 Nonpublic sources must include a Kusto-supported authentication suffix or
 credential in the storage connection string. For example, append
 \verb{;impersonate} to a OneLake URL when the caller has permission to read it

@@ -184,6 +184,171 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   expect_false(status_args$error_on_failure)
 })
 
+test_that("Eventhouse writer creates a missing table before staging", {
+  skip_if_not_installed("arrow")
+  calls <- character()
+  management <- NULL
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "create-table",
+    kusto_export_management = function(
+      target,
+      command,
+      credential,
+      deadline,
+      idempotent,
+      operation
+    ) {
+      calls <<- c(calls, "management")
+      management <<- list(
+        target = target,
+        command = command,
+        credential = credential,
+        deadline = deadline,
+        idempotent = idempotent,
+        operation = operation
+      )
+      list(tables = list(), request_id = "create-request")
+    },
+    kusto_ingestion_configuration = function(...) {
+      calls <<- c(calls, "configuration")
+      kql_write_test_configuration()
+    },
+    onelake_upload_target = function(...) {
+      calls <<- c(calls, "upload")
+      tibble::tibble()
+    },
+    fabric_kql_ingest = function(...) kql_write_test_ingestion(),
+    fabric_kql_ingestion_status = function(...) kql_write_test_status()
+  )
+  now <- as.POSIXct("2026-08-14 12:00:00", tz = "UTC")
+  value <- data.frame(
+    id = 1:2,
+    amount = c(1.5, 2.5),
+    active = c(TRUE, FALSE),
+    observed_on = as.Date(c("2026-08-13", "2026-08-14")),
+    label = c("a", "b")
+  )
+
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw new",
+    value,
+    database = "Telemetry",
+    create_if_missing = TRUE,
+    cleanup = FALSE,
+    token = "test-token",
+    .now = function() now
+  )
+
+  expect_equal(calls[1:3], c("management", "configuration", "upload"))
+  expect_equal(
+    management$target$url,
+    "https://cluster.kusto.fabric.microsoft.com/v2/rest/query"
+  )
+  expect_equal(management$target$database, "Telemetry")
+  expect_equal(
+    management$command,
+    paste0(
+      ".create table ['Raw new'] (['id']:int, ['amount']:real, ",
+      "['active']:bool, ['observed_on']:datetime, ['label']:string)"
+    )
+  )
+  expect_true(management$idempotent)
+  expect_equal(management$operation, "CreateTable")
+  expect_s3_class(management$credential, "fabric_credential")
+  expect_equal(management$deadline, now + 60)
+  expect_true(result$table_creation_requested)
+})
+
+test_that("KQL table creation accepts exact type overrides", {
+  skip_if_not_installed("arrow")
+  schema <- arrow::schema(id = arrow::int32(), payload = arrow::binary())
+
+  command <- kusto_write_create_table_command(
+    "Events-v2",
+    schema,
+    c("id", "payload"),
+    c(payload = "dynamic", id = "long")
+  )
+
+  expect_equal(
+    command,
+    ".create table ['Events-v2'] (['id']:long, ['payload']:dynamic)"
+  )
+  expect_error(
+    kusto_write_create_table_command(
+      "Events",
+      schema,
+      c("id", "payload"),
+      c(id = "long")
+    ),
+    class = "fabric_kql_schema_error"
+  )
+  expect_error(
+    kusto_write_create_table_command(
+      "Events",
+      schema,
+      c("id", "payload")
+    ),
+    "Cannot infer",
+    class = "fabric_kql_schema_error"
+  )
+})
+
+test_that("KQL table creation fails before staging or upload", {
+  skip_if_not_installed("arrow")
+  configuration_calls <- 0L
+  upload_calls <- 0L
+  local_mocked_bindings(
+    kusto_export_management = function(...) rlang::abort("not authorized"),
+    kusto_ingestion_configuration = function(...) {
+      configuration_calls <<- configuration_calls + 1L
+      kql_write_test_configuration()
+    },
+    onelake_upload_target = function(...) {
+      upload_calls <<- upload_calls + 1L
+      tibble::tibble()
+    }
+  )
+
+  expect_error(
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1L),
+      database = "Telemetry",
+      create_if_missing = TRUE,
+      token = "test-token"
+    ),
+    class = "fabric_kql_table_create_error"
+  )
+  expect_equal(configuration_calls, 0L)
+  expect_equal(upload_calls, 0L)
+})
+
+test_that("KQL table creation protects management endpoint and identifiers", {
+  target <- kusto_resolve_ingestion_target(
+    "https://ingest.example.test",
+    "Telemetry",
+    "Raw",
+    allow_custom_endpoint = TRUE
+  )
+  expect_error(
+    kusto_write_management_target(
+      "https://ingest.example.test",
+      target,
+      query_cluster = NULL,
+      allow_custom_endpoint = TRUE
+    ),
+    "query_cluster is required",
+    class = "fabric_kql_table_create_error"
+  )
+  expect_error(
+    kusto_write_identifier("Raw; .drop table Other", "table"),
+    class = "fabric_kql_schema_error"
+  )
+})
+
 test_that("Eventhouse writer submits bounded Parquet batches", {
   skip_if_not_installed("arrow")
   uploads <- list()

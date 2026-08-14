@@ -363,6 +363,75 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
   expect_equal(unname(counts[[arrow_category]]), 3)
 })
 
+test_that("R data creates a missing KQL table from its Arrow schema", {
+  manifest <- fabric_test_manifest()
+  fabric_test_require_package("arrow")
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  token <- fabric_test_token_provider()
+  table <- paste0(
+    "fabricqueryr_r_create_",
+    format(Sys.time(), "%Y%m%d%H%M%S", tz = "UTC"),
+    "_",
+    Sys.getpid()
+  )
+  target <- kusto_resolve_target(database)
+  credential <- fabric_credential(token = token)
+  drop_command <- paste(
+    ".drop table",
+    kusto_write_identifier(table, "table"),
+    "ifexists"
+  )
+  drop_table <- function() {
+    kusto_export_management(
+      target,
+      drop_command,
+      credential,
+      deadline = Sys.time() + 60,
+      idempotent = TRUE,
+      operation = "DropCreatedTable"
+    )
+  }
+  try(drop_table(), silent = TRUE)
+  on.exit(try(drop_table(), silent = TRUE), add = TRUE)
+
+  written <- fabric_kql_write_table(
+    database,
+    table,
+    data.frame(
+      id = 1:2,
+      label = c("created-a", "created-b"),
+      amount = c(10.5, 20.5),
+      active = c(TRUE, FALSE),
+      observed_at = as.POSIXct(
+        c("2026-08-14 10:00:00", "2026-08-14 11:00:00"),
+        tz = "UTC"
+      )
+    ),
+    create_if_missing = TRUE,
+    skip_batching = TRUE,
+    timeout = 600,
+    token = token
+  )
+  expect_true(written$table_creation_requested)
+  expect_equal(written$status$state, "Succeeded")
+
+  rows <- fabric_test_eventually(function() {
+    value <- fabric_kql_query(
+      database,
+      query = paste0(
+        kusto_write_identifier(table, "table"),
+        " | project id, label, amount, active | order by id asc"
+      ),
+      token = token
+    )
+    if (nrow(value) != 2L) NULL else value
+  })
+  expect_equal(as.integer(rows$id), 1:2)
+  expect_equal(rows$label, c("created-a", "created-b"))
+  expect_equal(rows$amount, c(10.5, 20.5))
+  expect_equal(rows$active, c(TRUE, FALSE))
+})
+
 test_that("server-side KQL export writes readable Parquet artifacts to OneLake", {
   manifest <- fabric_test_manifest()
   fabric_test_require_package("arrow")

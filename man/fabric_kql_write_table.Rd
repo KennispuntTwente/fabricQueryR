@@ -30,6 +30,9 @@ fabric_kql_write_table(
   token = NULL,
   auth_args = list(),
   allow_custom_endpoint = FALSE,
+  create_if_missing = FALSE,
+  column_types = NULL,
+  query_cluster = NULL,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -38,7 +41,7 @@ fabric_kql_write_table(
 \item{cluster}{Ingestion URI or Eventhouse/KQLDatabase discovery record; see
 \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}
 
-\item{table}{Existing target KQL table name.}
+\item{table}{Target KQL table name.}
 
 \item{data}{Data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
 Dataset/Scanner/query, Arrow RecordBatchReader, or compatible array stream.}
@@ -88,6 +91,19 @@ disposition.}
 
 \item{allow_custom_endpoint}{Permit a trusted non-Microsoft Kusto origin.}
 
+\item{create_if_missing}{Whether to create a missing KQL table from the
+Arrow schema before staging. Existing tables are left unchanged.}
+
+\item{column_types}{Optional named character vector giving one Kusto scalar
+type for every data column when \code{create_if_missing = TRUE}. Supported
+canonical types are \code{bool}, \code{datetime}, \code{decimal}, \code{dynamic}, \code{guid},
+\code{int}, \code{long}, \code{real}, \code{string}, and \code{timespan}. \code{NULL} infers them.}
+
+\item{query_cluster}{Optional Kusto query-service URI or discovery record
+used for table creation. A discovered \code{cluster} already carries this URI;
+a standard Microsoft ingestion URI is converted to its paired query URI.
+Supply this explicitly for a trusted custom ingestion endpoint.}
+
 \item{.sleep, .now}{Internal deterministic polling hooks.}
 }
 \value{
@@ -130,6 +146,12 @@ memory. A supplied reader or stream is single-use and is consumed.
 Parquet identity mapping matches source fields to existing KQL columns by
 case-sensitive name. Supply \code{mapping} when the Parquet schema and table need
 an explicit predefined mapping.
+
+Set \code{create_if_missing = TRUE} to issue Kusto's idempotent \verb{.create table}
+command before staging. A missing table is created from the Arrow schema; an
+existing table is returned unchanged, so this option never alters an
+existing schema. Common Arrow scalar and nested types are inferred as Kusto
+types. Supply a named \code{column_types} vector to override every column type.
 }
 
 \section{Failure and cleanup safety}{
@@ -153,6 +175,7 @@ result <- fabric_kql_write_table(
   database,
   table = "Events",
   data = data.frame(id = 1:3, value = c("a", "b", "c")),
+  create_if_missing = TRUE,
   ingest_if_not_exists = "r-batch-2026-08-14"
 )
 result$status$state
@@ -166,6 +189,12 @@ fabric_kql_write_table(database, "Events", dataset)
 \href{https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric}{Queued ingestion configuration REST API (preview)}
 
 \href{https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric}{Queued ingestion REST API (preview)}
+
+\href{https://learn.microsoft.com/en-us/kusto/management/create-table-command?view=microsoft-fabric}{Create a Kusto table}
+
+\href{https://learn.microsoft.com/en-us/kusto/query/scalar-data-types/?view=microsoft-fabric}{Kusto scalar data types}
+
+\href{https://learn.microsoft.com/en-us/kusto/management/parquet-mapping?view=microsoft-fabric}{Kusto Parquet mappings}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api}{OneLake ADLS-compatible access}
 

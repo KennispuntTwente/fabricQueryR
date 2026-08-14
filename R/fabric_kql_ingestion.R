@@ -25,15 +25,19 @@
 #' use Kusto's queued-ingestion REST API, which is currently in preview
 #'
 #' @section Sources and storage access:
+#' `fabric_kql_ingest()` never uploads local data or serializes an R object.
+#' Every `sources` value must already identify a file in blob storage or
+#' OneLake, and `table` must already exist. Use [fabric_kql_write_table()] when
+#' the data is a data frame, tibble, or Arrow object; that function performs
+#' staging and can create the target with `create_if_missing = TRUE`.
+#'
 #' `sources` can be a character vector of storage connection strings, a data
 #' frame with `url`, `source_id`, and optional `raw_size` columns, or a list of
 #' records with those fields. The camel-case service names `sourceId` and
 #' `rawSize` are also accepted. Character inputs use the parallel `source_ids`
 #' and `raw_sizes` arguments
 #'
-#' Only existing `https://` or `abfss://` storage sources are accepted. Use
-#' [fabric_kql_write_table()] for one-call staging of data frames, tibbles, or
-#' lazy Arrow objects.
+#' Only existing `https://` or `abfss://` storage sources are accepted.
 #' Nonpublic sources must include a Kusto-supported authentication suffix or
 #' credential in the storage connection string. For example, append
 #' `;impersonate` to a OneLake URL when the caller has permission to read it
@@ -1671,6 +1675,12 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' case-sensitive name. Supply `mapping` when the Parquet schema and table need
 #' an explicit predefined mapping.
 #'
+#' Set `create_if_missing = TRUE` to issue Kusto's idempotent `.create table`
+#' command before staging. A missing table is created from the Arrow schema; an
+#' existing table is returned unchanged, so this option never alters an
+#' existing schema. Common Arrow scalar and nested types are inferred as Kusto
+#' types. Supply a named `column_types` vector to override every column type.
+#'
 #' @section Failure and cleanup safety:
 #' A successful tracked ingestion is cleaned up by default. A submission error,
 #' polling timeout, or other ambiguous result always retains staging because
@@ -1684,7 +1694,7 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'
 #' @param cluster Ingestion URI or Eventhouse/KQLDatabase discovery record; see
 #'   [fabric_kql_ingest()].
-#' @param table Existing target KQL table name.
+#' @param table Target KQL table name.
 #' @param data Data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
 #'   Dataset/Scanner/query, Arrow RecordBatchReader, or compatible array stream.
 #' @param database Target KQL database name. Omit for a discovered KQLDatabase.
@@ -1709,6 +1719,16 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param error_on_failure Raise a typed error for a confirmed failed or
 #'   canceled ingestion. Set `FALSE` to return the failed result and its staging
 #'   disposition.
+#' @param create_if_missing Whether to create a missing KQL table from the
+#'   Arrow schema before staging. Existing tables are left unchanged.
+#' @param column_types Optional named character vector giving one Kusto scalar
+#'   type for every data column when `create_if_missing = TRUE`. Supported
+#'   canonical types are `bool`, `datetime`, `decimal`, `dynamic`, `guid`,
+#'   `int`, `long`, `real`, `string`, and `timespan`. `NULL` infers them.
+#' @param query_cluster Optional Kusto query-service URI or discovery record
+#'   used for table creation. A discovered `cluster` already carries this URI;
+#'   a standard Microsoft ingestion URI is converted to its paired query URI.
+#'   Supply this explicitly for a trusted custom ingestion endpoint.
 #' @param tenant_id Microsoft Entra tenant ID.
 #' @param client_id Microsoft Entra application/client ID.
 #' @param token Optional access token or audience-aware token-provider function.
@@ -1723,6 +1743,12 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' [Queued ingestion configuration REST API (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
 #'
 #' [Queued ingestion REST API (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric)
+#'
+#' [Create a Kusto table](https://learn.microsoft.com/en-us/kusto/management/create-table-command?view=microsoft-fabric)
+#'
+#' [Kusto scalar data types](https://learn.microsoft.com/en-us/kusto/query/scalar-data-types/?view=microsoft-fabric)
+#'
+#' [Kusto Parquet mappings](https://learn.microsoft.com/en-us/kusto/management/parquet-mapping?view=microsoft-fabric)
 #'
 #' [OneLake ADLS-compatible access](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
 #'
@@ -1739,6 +1765,7 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   database,
 #'   table = "Events",
 #'   data = data.frame(id = 1:3, value = c("a", "b", "c")),
+#'   create_if_missing = TRUE,
 #'   ingest_if_not_exists = "r-batch-2026-08-14"
 #' )
 #' result$status$state
@@ -1775,6 +1802,9 @@ fabric_kql_write_table <- function(
   token = NULL,
   auth_args = list(),
   allow_custom_endpoint = FALSE,
+  create_if_missing = FALSE,
+  column_types = NULL,
+  query_cluster = NULL,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -1812,6 +1842,16 @@ fabric_kql_write_table <- function(
     "keep_staging_on_failure"
   )
   kusto_ingestion_flag(error_on_failure, "error_on_failure")
+  kusto_ingestion_flag(create_if_missing, "create_if_missing")
+  if (!isTRUE(create_if_missing) && !is.null(column_types)) {
+    rlang::abort("column_types requires create_if_missing = TRUE")
+  }
+  if (!isTRUE(create_if_missing) && !is.null(query_cluster)) {
+    rlang::abort("query_cluster requires create_if_missing = TRUE")
+  }
+  if (isTRUE(create_if_missing) && !is.function(.now)) {
+    rlang::abort(".now must be a function")
+  }
   kusto_ingestion_number(timeout, "timeout", minimum = 0, strict = TRUE)
   kusto_ingestion_number(
     poll_interval,
@@ -1857,6 +1897,44 @@ fabric_kql_write_table <- function(
     token = token,
     auth_args = auth_args
   )
+  if (isTRUE(create_if_missing)) {
+    management_target <- kusto_write_management_target(
+      cluster,
+      target,
+      query_cluster,
+      allow_custom_endpoint
+    )
+    command <- kusto_write_create_table_command(
+      table,
+      prepared$schema,
+      prepared$names,
+      column_types
+    )
+    tryCatch(
+      kusto_export_management(
+        management_target,
+        command,
+        credential,
+        deadline = .now() + min(timeout, 60),
+        idempotent = TRUE,
+        operation = "CreateTable"
+      ),
+      error = function(error) {
+        rlang::abort(
+          paste0(
+            "Kusto could not create or confirm target table '",
+            table,
+            "' before staging"
+          ),
+          class = c(
+            "fabric_kql_table_create_error",
+            "fabric_kql_write_error"
+          ),
+          parent = error
+        )
+      }
+    )
+  }
   configuration <- kusto_ingestion_configuration(
     target,
     credential,
@@ -2032,7 +2110,8 @@ fabric_kql_write_table <- function(
     source_ids,
     staging_path,
     staging_paths,
-    staging_retained
+    staging_retained,
+    create_if_missing
   )
   if (!succeeded && isTRUE(error_on_failure)) {
     parent <- tryCatch(
@@ -2075,6 +2154,194 @@ print.fabric_kql_write_result <- function(x, ...) {
   cat("  files:    ", x$file_count, "\n")
   cat("  staging:  ", if (x$staging_retained) "retained" else "removed", "\n")
   invisible(x)
+}
+
+# Resolve the query endpoint needed by `.create table`. Discovery records carry
+# both service URIs; standard Microsoft ingestion origins use the documented
+# `ingest-` hostname prefix. Custom origins require an explicit paired endpoint
+# so credentials are never redirected by an inferred host rewrite.
+kusto_write_management_target <- function(
+  cluster,
+  ingestion_target,
+  query_cluster,
+  allow_custom_endpoint
+) {
+  if (!is.null(query_cluster)) {
+    return(kusto_resolve_target(
+      query_cluster,
+      ingestion_target$database,
+      allow_custom_endpoint = allow_custom_endpoint
+    ))
+  }
+  record <- fabric_as_record(cluster)
+  if (!is.null(record)) {
+    return(kusto_resolve_target(
+      record,
+      ingestion_target$database,
+      allow_custom_endpoint = allow_custom_endpoint
+    ))
+  }
+  if (isTRUE(allow_custom_endpoint)) {
+    rlang::abort(
+      "query_cluster is required to create a table through a custom endpoint",
+      class = c("fabric_kql_table_create_error", "fabric_kql_write_error")
+    )
+  }
+  query_uri <- sub(
+    "^https://ingest-",
+    "https://",
+    ingestion_target$url,
+    ignore.case = TRUE
+  )
+  kusto_resolve_target(
+    query_uri,
+    ingestion_target$database,
+    allow_custom_endpoint = FALSE
+  )
+}
+
+# Build an idempotent Kusto creation command. `.create table` returns an
+# existing same-named table unchanged, which is exactly the public
+# create-if-missing contract.
+kusto_write_create_table_command <- function(
+  table,
+  schema,
+  columns,
+  column_types = NULL
+) {
+  table <- kusto_write_identifier(table, "table")
+  quoted_columns <- vapply(
+    columns,
+    kusto_write_identifier,
+    character(1),
+    name = "data column"
+  )
+  types <- kusto_write_column_types(schema, columns, column_types)
+  paste0(
+    ".create table ",
+    table,
+    " (",
+    paste0(quoted_columns, ":", types, collapse = ", "),
+    ")"
+  )
+}
+
+kusto_write_identifier <- function(value, name) {
+  value <- kusto_ingestion_target_name(value, name)
+  valid <- grepl("^[\\p{L}\\p{N}_. -]+$", value, perl = TRUE) &&
+    !startsWith(value, "__") &&
+    !endsWith(value, "__")
+  if (!valid) {
+    rlang::abort(
+      paste0(
+        name,
+        " must use Kusto identifier characters (letters, numbers, spaces, ",
+        "underscores, dots, or dashes) and cannot start or end with '__'"
+      ),
+      class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+    )
+  }
+  paste0("['", value, "']")
+}
+
+kusto_write_column_types <- function(schema, columns, column_types = NULL) {
+  allowed <- c(
+    "bool",
+    "datetime",
+    "decimal",
+    "dynamic",
+    "guid",
+    "int",
+    "long",
+    "real",
+    "string",
+    "timespan"
+  )
+  if (is.null(column_types)) {
+    return(vapply(seq_along(columns), function(index) {
+      field <- schema$field(index - 1L)
+      kusto_write_arrow_type(field$type, columns[[index]])
+    }, character(1)))
+  }
+  if (
+    !is.character(column_types) ||
+      length(column_types) != length(columns) ||
+      is.null(names(column_types)) ||
+      anyNA(names(column_types)) ||
+      !all(nzchar(names(column_types))) ||
+      anyDuplicated(names(column_types)) ||
+      !setequal(names(column_types), columns)
+  ) {
+    rlang::abort(
+      "column_types must be a named character vector with one entry for every data column",
+      class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+    )
+  }
+  column_types <- tolower(trimws(column_types[match(columns, names(column_types))]))
+  invalid <- is.na(column_types) | !nzchar(column_types) |
+    !column_types %in% allowed
+  if (any(invalid)) {
+    rlang::abort(
+      paste0(
+        "column_types contains unsupported Kusto types for: ",
+        paste(columns[invalid], collapse = ", "),
+        ". Use one of: ",
+        paste(allowed, collapse = ", ")
+      ),
+      class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+    )
+  }
+  unname(column_types)
+}
+
+# Infer only conversions supported by Kusto's documented Parquet mapping.
+# Ambiguous binary/interval types fail early and can be handled explicitly with
+# column_types or a source conversion.
+kusto_write_arrow_type <- function(type, column) {
+  if (inherits(type, "DictionaryType")) {
+    return(kusto_write_arrow_type(type$value_type, column))
+  }
+  arrow_type <- tolower(type$ToString())
+  inferred <- if (grepl("^bool$", arrow_type)) {
+    "bool"
+  } else if (grepl("^(u?int(8|16)|int32)$", arrow_type)) {
+    "int"
+  } else if (grepl("^(uint32|int64)$", arrow_type)) {
+    "long"
+  } else if (grepl("^uint64$", arrow_type)) {
+    "decimal"
+  } else if (grepl("^(half_?float|float|double)$", arrow_type)) {
+    "real"
+  } else if (grepl("^decimal(128)?\\(", arrow_type)) {
+    "decimal"
+  } else if (grepl("^(timestamp|date(32|64))", arrow_type)) {
+    "datetime"
+  } else if (grepl("^(time(32|64)|duration)", arrow_type)) {
+    "timespan"
+  } else if (grepl("^(string|large_string|string_view)$", arrow_type)) {
+    "string"
+  } else if (grepl("^(list|large_list|fixed_size_list|struct|map)", arrow_type)) {
+    "dynamic"
+  } else if (grepl("^extension<.*uuid", arrow_type)) {
+    "guid"
+  } else if (grepl("^null$", arrow_type)) {
+    "string"
+  } else {
+    NA_character_
+  }
+  if (is.na(inferred)) {
+    rlang::abort(
+      paste0(
+        "Cannot infer a Kusto type for data column '",
+        column,
+        "' with Arrow type '",
+        arrow_type,
+        "'; convert the column or supply column_types"
+      ),
+      class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+    )
+  }
+  inferred
 }
 
 # Read and strictly normalize the preview ingestion configuration.
@@ -2270,7 +2537,8 @@ kusto_write_result <- function(
   source_ids,
   staging_path,
   staging_paths,
-  staging_retained
+  staging_retained,
+  table_creation_requested
 ) {
   structure(
     list(
@@ -2287,6 +2555,7 @@ kusto_write_result <- function(
       staging_path = staging_path,
       staging_paths = staging_paths,
       staging_retained = staging_retained,
+      table_creation_requested = isTRUE(table_creation_requested),
       status = status,
       ingestion = ingestion
     ),
