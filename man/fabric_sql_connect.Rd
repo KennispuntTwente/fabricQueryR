@@ -135,18 +135,18 @@ or application must have access through a workspace role or the item's
 
 \examples{
 \dontrun{
-# Discover a Warehouse so no server name or database ID is copied by hand.
+# Discover a Warehouse so no server name or database ID is copied by hand
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Open a DBI connection, use it, and always disconnect when finished.
+# Open a DBI connection, use it, and always disconnect when finished
 con <- fabric_sql_connect(warehouse)
 table <- DBI::dbListTables(con)[[1L]]
 table <- DBI::dbQuoteIdentifier(con, table)
 DBI::dbGetQuery(con, paste("SELECT TOP 10 * FROM", table))
 DBI::dbDisconnect(con)
 
-# The ADBC backend can return Arrow-native results when installed.
+# The ADBC backend can return Arrow-native results when installed
 adbc_con <- fabric_sql_connect(warehouse, backend = "adbc")
 DBI::dbDisconnect(adbc_con)
 }

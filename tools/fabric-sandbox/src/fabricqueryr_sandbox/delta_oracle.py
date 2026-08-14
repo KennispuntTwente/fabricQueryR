@@ -114,7 +114,7 @@ def _normalize_array(array: pa.Array) -> pa.Array:
         return pc.cast(array, pa.string())
     if pa.types.is_timestamp(data_type) and data_type.tz is None:
         # R's POSIXct has instant semantics and binary-double precision. Keep
-        # Delta timestamp_ntz values as exact wall-clock text for comparison.
+        # Delta timestamp_ntz values as exact wall-clock text for comparison
         return pc.cast(array, pa.string())
     if pa.types.is_struct(data_type):
         children = [
@@ -384,7 +384,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
     # Partition values are serialized as strings in the log, one encoding per
     # type, and an empty string means NULL for every type. Exercise each
     # non-string partition type, a NULL partition, and an empty-string
-    # partition, in both the JSON-commit and Parquet-checkpoint paths.
+    # partition, in both the JSON-commit and Parquet-checkpoint paths
     typed_partitions = directory / "typed_partitions"
     typed_partitions_schema = pa.schema(
         [
@@ -430,7 +430,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
 
     # An empty string means NULL for every partition type, so it must not be
     # distinguishable from an absent value. Kept in its own single-column table
-    # so the encoded directory names stay short.
+    # so the encoded directory names stay short
     string_partitions = directory / "string_partitions"
     string_partitions_schema = pa.schema(
         [pa.field("id", pa.int32()), pa.field("label", pa.string())]
@@ -454,7 +454,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
     # them into the directory name as e.g. `amount=0.-50` and then fails to read
     # its own table back ("Failed to parse value '0.-50'"). The R reader takes
     # partition values from the log rather than the path, so it handles them;
-    # they are covered by direct R assertions instead of by parity.
+    # they are covered by direct R assertions instead of by parity
     checkpointed_partitions = directory / "checkpointed_partitions"
     write_deltalake(
         checkpointed_partitions,
@@ -875,7 +875,7 @@ def _write_local_fixtures(directory: Path) -> dict[str, Any]:
         {
             # A partial limit selects an implementation-defined subset of rows,
             # so compare it as a sub-multiset of the full snapshot instead of
-            # requiring both readers to pick the same rows.
+            # requiring both readers to pick the same rows
             "name": "primitive_limit_partial",
             "table": "primitive",
             "limit": 2,

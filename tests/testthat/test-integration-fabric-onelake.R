@@ -1,4 +1,4 @@
-# Fabric integration coverage: OneLake files and the production delta-rs path.
+# Fabric integration coverage: OneLake files and the production delta-rs path
 
 fabric_test_use_delta_runtime <- function() {
   if (
@@ -517,7 +517,7 @@ test_that("deep Arrow comparison preserves row order and binary values", {
 
 # Both sides use the production bridge. This comparison isolates protocol
 # feature handling by comparing a feature-bearing table with a Spark-materialized
-# neutral table; independent static assertions below cover bridge conversion.
+# neutral table; independent static assertions below cover bridge conversion
 fabric_test_expect_delta_matches_reference <- function(
   manifest,
   lakehouse,

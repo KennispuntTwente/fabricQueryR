@@ -128,12 +128,12 @@ code to access Fabric and storage, and an appropriate workspace role
 
 \examples{
 \dontrun{
-# Discover the Lakehouse whose Livy endpoint will host the Spark session.
+# Discover the Lakehouse whose Livy endpoint will host the Spark session
 workspace <- fabric_workspaces()[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
 run_shared_state <- function(lakehouse) {
-  # Keep one session alive so successive statements share Spark state.
+  # Keep one session alive so successive statements share Spark state
   session <- fabric_livy_session(lakehouse)
   on.exit(session$close(), add = TRUE)
   session$wait()
@@ -143,7 +143,7 @@ run_shared_state <- function(lakehouse) {
 run_shared_state(lakehouse)
 
 run_high_concurrency <- function(lakehouse) {
-  # A session tag lets compatible callers reuse high-concurrency compute.
+  # A session tag lets compatible callers reuse high-concurrency compute
   session <- fabric_livy_session(
     lakehouse,
     high_concurrency = TRUE,

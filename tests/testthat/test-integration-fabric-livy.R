@@ -1,6 +1,6 @@
-# Fabric integration coverage: running Spark code through Fabric Livy.
+# Fabric integration coverage: running Spark code through Fabric Livy
 # These tests use the sandbox lakehouse to exercise one-off queries, reusable
-# sessions, concurrent sessions, and batch success, failure, and cancellation.
+# sessions, concurrent sessions, and batch success, failure, and cancellation
 
 test_that("fabric_livy_query executes Spark and returns its output", {
   manifest <- fabric_test_manifest()
@@ -161,7 +161,7 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     poll_interval = 2
   )
   # Fabric serializes non-finite SQL doubles as JSON null. Preserve the typed
-  # missing value instead of guessing whether the source was NaN or SQL NULL.
+  # missing value instead of guessing whether the source was NaN or SQL NULL
   wire_values <- special_values$output$data[["application/json"]]$data
   expect_null(wire_values[[1L]][[1L]])
   expect_identical(special_values$output$parsed$nan_value, NA_real_)

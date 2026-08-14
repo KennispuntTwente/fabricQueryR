@@ -137,11 +137,11 @@ rounded
 
 \examples{
 \dontrun{
-# Discover an API for GraphQL item instead of copying its endpoint or ID.
+# Discover an API for GraphQL item instead of copying its endpoint or ID
 workspace <- fabric_workspaces()[[1L]]
 api <- fabric_graphql_apis(workspace)[[1L]]
 
-# Keep the filter value in variables rather than inserting it into the query.
+# Keep the filter value in variables rather than inserting it into the query
 result <- fabric_graphql_query(
   api,
   query = paste(
@@ -155,7 +155,7 @@ result <- fabric_graphql_query(
   operation_name = "Products"
 )
 
-# GraphQL can return data and errors in the same response; inspect both.
+# GraphQL can return data and errors in the same response; inspect both
 result$data$products$items
 result$errors
 }

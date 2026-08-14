@@ -73,7 +73,7 @@
 #'   `NULL` value
 #' @examples
 #' \dontrun{
-#' # Discover a Lakehouse and a CSV file that Fabric can load as a table.
+#' # Discover a Lakehouse and a CSV file that Fabric can load as a table
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' files <- fabric_onelake_list(
@@ -83,7 +83,7 @@
 #' )
 #' csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
 #'
-#' # The load call returns the long-running operation handle used below.
+#' # The load call returns the long-running operation handle used below
 #' operation <- fabric_lakehouse_load_table(
 #'   lakehouse,
 #'   table = "orders_imported",
@@ -92,7 +92,7 @@
 #'   header = TRUE
 #' )
 #'
-#' # Check once, wait for completion, then retrieve the operation result.
+#' # Check once, wait for completion, then retrieve the operation result
 #' state <- fabric_operation_status(operation)
 #' completed <- fabric_operation_wait(state$operation, timeout = 900)
 #' result <- fabric_operation_result(completed$operation)

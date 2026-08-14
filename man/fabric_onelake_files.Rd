@@ -222,11 +222,11 @@ replaced only if it has not changed since you inspected it
 
 \examples{
 \dontrun{
-# Discover the OneLake target instead of typing workspace and item names.
+# Discover the OneLake target instead of typing workspace and item names
 workspace <- fabric_workspaces()[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
-# Create a small local CSV and upload it to the discovered Lakehouse.
+# Create a small local CSV and upload it to the discovered Lakehouse
 local_csv <- tempfile(fileext = ".csv")
 write.csv(data.frame(id = 1:3), local_csv, row.names = FALSE)
 fabric_onelake_upload(
@@ -236,7 +236,7 @@ fabric_onelake_upload(
   source = local_csv
 )
 
-# List the folder and inspect metadata for the uploaded file.
+# List the folder and inspect metadata for the uploaded file
 files <- fabric_onelake_list(
   workspace = workspace,
   item = lakehouse,
@@ -249,7 +249,7 @@ metadata <- fabric_onelake_metadata(
   "Files/incoming/example.csv"
 )
 
-# Download the first 100 bytes when only a file sample is needed.
+# Download the first 100 bytes when only a file sample is needed
 bytes <- fabric_onelake_download(
   workspace,
   lakehouse,
@@ -257,7 +257,7 @@ bytes <- fabric_onelake_download(
   range = c(0, 99)
 )
 
-# Deletion is explicit and requires confirm = TRUE.
+# Deletion is explicit and requires confirm = TRUE
 fabric_onelake_delete(
   workspace,
   lakehouse,

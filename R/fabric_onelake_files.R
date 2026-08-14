@@ -111,11 +111,11 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the OneLake target instead of typing workspace and item names.
+#' # Discover the OneLake target instead of typing workspace and item names
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #'
-#' # Create a small local CSV and upload it to the discovered Lakehouse.
+#' # Create a small local CSV and upload it to the discovered Lakehouse
 #' local_csv <- tempfile(fileext = ".csv")
 #' write.csv(data.frame(id = 1:3), local_csv, row.names = FALSE)
 #' fabric_onelake_upload(
@@ -125,7 +125,7 @@
 #'   source = local_csv
 #' )
 #'
-#' # List the folder and inspect metadata for the uploaded file.
+#' # List the folder and inspect metadata for the uploaded file
 #' files <- fabric_onelake_list(
 #'   workspace = workspace,
 #'   item = lakehouse,
@@ -138,7 +138,7 @@
 #'   "Files/incoming/example.csv"
 #' )
 #'
-#' # Download the first 100 bytes when only a file sample is needed.
+#' # Download the first 100 bytes when only a file sample is needed
 #' bytes <- fabric_onelake_download(
 #'   workspace,
 #'   lakehouse,
@@ -146,7 +146,7 @@
 #'   range = c(0, 99)
 #' )
 #'
-#' # Deletion is explicit and requires confirm = TRUE.
+#' # Deletion is explicit and requires confirm = TRUE
 #' fabric_onelake_delete(
 #'   workspace,
 #'   lakehouse,
@@ -204,11 +204,11 @@ NULL
 #' [Get data into OneLake](https://learn.microsoft.com/en-us/fabric/onelake/quickstart-get-data)
 #' @examples
 #' \dontrun{
-#' # Discover the Lakehouse that will store the Parquet file.
+#' # Discover the Lakehouse that will store the Parquet file
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #'
-#' # Serialize the R data frame directly to OneLake as Parquet.
+#' # Serialize the R data frame directly to OneLake as Parquet
 #' fabric_onelake_write_file(
 #'   workspace,
 #'   lakehouse,
@@ -216,7 +216,7 @@ NULL
 #'   data.frame(id = 1:3, amount = c(10.5, NA, 30))
 #' )
 #'
-#' # Read the same file back as a tibble.
+#' # Read the same file back as a tibble
 #' orders <- fabric_onelake_read_file(
 #'   workspace,
 #'   lakehouse,
@@ -953,7 +953,7 @@ onelake_parse_uri <- function(uri) {
 
 # Extract and canonicalize the workspace GUID embedded in Fabric's documented
 # workspace-specific OneLake FQDN. These endpoints omit the workspace segment
-# from item-scoped paths and use the GUID without dashes in the hostname.
+# from item-scoped paths and use the GUID without dashes in the hostname
 onelake_workspace_host_guid <- function(host) {
   match <- regexec(
     paste0(
@@ -1008,7 +1008,7 @@ onelake_segment <- function(value, name) {
   unsafe <- FALSE
   # Check both supplied and decoded forms. Repeating the decode catches common
   # double-encoded separator/dot-segment forms before an HTTP stack or proxy can
-  # normalize them into a different resource path.
+  # normalize them into a different resource path
   for (index in seq_len(3L)) {
     unsafe <- unsafe ||
       decoded %in% c(".", "..") ||
@@ -1667,7 +1667,7 @@ onelake_commit_new_download <- function(temporary, dest) {
   file.link(from, to)
 }
 
-# Resolve an explicit or extension-derived object file format.
+# Resolve an explicit or extension-derived object file format
 .fabric_onelake_object_format <- function(path, format) {
   format <- match.arg(
     tolower(format),
@@ -1700,7 +1700,7 @@ onelake_commit_new_download <- function(temporary, dest) {
   inferred
 }
 
-# Require Arrow for object serialization and nanoarrow for streaming results.
+# Require Arrow for object serialization and nanoarrow for streaming results
 .fabric_onelake_require_arrow <- function(result = "tibble") {
   if (!requireNamespace("arrow", quietly = TRUE)) {
     .fabric_abort(
@@ -1727,7 +1727,7 @@ onelake_commit_new_download <- function(temporary, dest) {
   invisible(value)
 }
 
-# Serialize one prepared Arrow reader to a supported local staging format.
+# Serialize one prepared Arrow reader to a supported local staging format
 .fabric_onelake_serialize_object <- function(
   prepared,
   path,
@@ -1783,7 +1783,7 @@ onelake_commit_new_download <- function(temporary, dest) {
   )
 }
 
-# Open a downloaded object file as a lazy Arrow stream and own its local file.
+# Open a downloaded object file as a lazy Arrow stream and own its local file
 .fabric_onelake_object_stream <- function(path, format) {
   owner <- NULL
   reader <- NULL

@@ -151,14 +151,14 @@ Data Contributor on the destination.
 
 \examples{
 \dontrun{
-# Discover both the source KQL database and destination Lakehouse.
+# Discover both the source KQL database and destination Lakehouse
 workspace <- fabric_workspaces()[[1L]]
 database <- fabric_kql_databases(workspace)[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 table <- Sys.getenv("FABRIC_KQL_TABLE")
 table_literal <- jsonlite::toJSON(table, auto_unbox = TRUE)
 
-# Export a bounded query to a new folder in the discovered Lakehouse.
+# Export a bounded query to a new folder in the discovered Lakehouse
 exported <- fabric_kql_export(
   database,
   query = paste0("table(", table_literal, ") | take 10000"),

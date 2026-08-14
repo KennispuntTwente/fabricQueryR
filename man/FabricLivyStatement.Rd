@@ -13,13 +13,13 @@ submit-and-wait workflow, use the session's \verb{$run()} method instead
 }
 \examples{
 \dontrun{
-# Statements are returned by a session; users do not construct them directly.
+# Statements are returned by a session; users do not construct them directly
 workspace <- fabric_workspaces()[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 session <- fabric_livy_session(lakehouse)
 session$wait()
 
-# Submit code, wait for it, and inspect its result.
+# Submit code, wait for it, and inspect its result
 statement <- session$submit("print(40 + 2)", kind = "pyspark")
 inherits(statement, "FabricLivyStatement")
 statement$wait()

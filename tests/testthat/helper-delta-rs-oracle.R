@@ -1,7 +1,7 @@
 # Helpers for generating deterministic local Delta tables with the locked
 # Python development environment. These fixtures test the production Arrow
 # bridge against static expectations; deltalake is no longer an independent
-# oracle because the package reader itself uses deltalake.
+# oracle because the package reader itself uses deltalake
 
 fabric_test_delta_oracle_enabled <- function() {
   fabric_test_required() ||

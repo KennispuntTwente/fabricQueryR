@@ -76,14 +76,14 @@ schema export remains available independently of the runtime setting
 }
 \examples{
 \dontrun{
-# Discover the GraphQL API whose schema you want to inspect.
+# Discover the GraphQL API whose schema you want to inspect
 workspace <- fabric_workspaces()[[1L]]
 api <- fabric_graphql_apis(workspace)[[1L]]
 
-# Request the standard GraphQL introspection schema.
+# Request the standard GraphQL introspection schema
 schema <- fabric_graphql_schema(api)
 
-# List its named types to learn what can be queried.
+# List its named types to learn what can be queried
 vapply(schema$types, `[[`, character(1), "name")
 }
 }

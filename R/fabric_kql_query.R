@@ -34,14 +34,14 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover a KQL database instead of copying its Query URI and name.
+#' # Discover a KQL database instead of copying its Query URI and name
 #' workspace <- fabric_workspaces()[[1L]]
 #' database <- fabric_kql_databases(workspace)[[1L]]
 #'
-#' # Choose an existing table shown under Tables in the Fabric KQL explorer.
+#' # Choose an existing table shown under Tables in the Fabric KQL explorer
 #' table <- Sys.getenv("FABRIC_KQL_TABLE")
 #'
-#' # Read a bounded portion of that table into a tibble.
+#' # Read a bounded portion of that table into a tibble
 #' events <- fabric_kql_read_table(
 #'   database,
 #'   table,
@@ -264,12 +264,12 @@ kusto_read_identifier <- function(value) {
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the KQL database and choose one of its existing tables.
+#' # Discover the KQL database and choose one of its existing tables
 #' workspace <- fabric_workspaces()[[1L]]
 #' database <- fabric_kql_databases(workspace)[[1L]]
 #' table <- Sys.getenv("FABRIC_KQL_TABLE")
 #'
-#' # Keep the changing table name out of the KQL text by using a parameter.
+#' # Keep the changing table name out of the KQL text by using a parameter
 #' events <- fabric_kql_query(
 #'   database,
 #'   query = paste(

@@ -68,12 +68,12 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the Lakehouse whose Livy endpoint will host the Spark session.
+#' # Discover the Lakehouse whose Livy endpoint will host the Spark session
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #'
 #' run_shared_state <- function(lakehouse) {
-#'   # Keep one session alive so successive statements share Spark state.
+#'   # Keep one session alive so successive statements share Spark state
 #'   session <- fabric_livy_session(lakehouse)
 #'   on.exit(session$close(), add = TRUE)
 #'   session$wait()
@@ -83,7 +83,7 @@
 #' run_shared_state(lakehouse)
 #'
 #' run_high_concurrency <- function(lakehouse) {
-#'   # A session tag lets compatible callers reuse high-concurrency compute.
+#'   # A session tag lets compatible callers reuse high-concurrency compute
 #'   session <- fabric_livy_session(
 #'     lakehouse,
 #'     high_concurrency = TRUE,
@@ -254,13 +254,13 @@ fabric_livy_session <- function(
 #' @format An [R6::R6Class] generator
 #' @examples
 #' \dontrun{
-#' # fabric_livy_session() creates this class for a discovered Lakehouse.
+#' # fabric_livy_session() creates this class for a discovered Lakehouse
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' session <- fabric_livy_session(lakehouse)
 #' inherits(session, "FabricLivySession")
 #'
-#' # Wait before running code, and close the Spark session when finished.
+#' # Wait before running code, and close the Spark session when finished
 #' session$wait()
 #' session$run("print(1 + 1)", kind = "pyspark")
 #' session$close()
@@ -617,13 +617,13 @@ FabricLivySession <- R6::R6Class(
 #' @format An [R6::R6Class] generator
 #' @examples
 #' \dontrun{
-#' # Statements are returned by a session; users do not construct them directly.
+#' # Statements are returned by a session; users do not construct them directly
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' session <- fabric_livy_session(lakehouse)
 #' session$wait()
 #'
-#' # Submit code, wait for it, and inspect its result.
+#' # Submit code, wait for it, and inspect its result
 #' statement <- session$submit("print(40 + 2)", kind = "pyspark")
 #' inherits(statement, "FabricLivyStatement")
 #' statement$wait()

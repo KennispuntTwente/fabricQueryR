@@ -42,11 +42,11 @@ a Fabric SQL connection. Most users can pass a discovered item directly to
 }
 \examples{
 \dontrun{
-# Discover a Warehouse record that already contains its SQL endpoint.
+# Discover a Warehouse record that already contains its SQL endpoint
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Inspect connection details without opening a database connection.
+# Inspect connection details without opening a database connection
 info <- fabric_sql_connection_info(warehouse)
 info[c("server", "database", "port", "target_type")]
 }

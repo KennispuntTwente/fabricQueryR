@@ -65,7 +65,7 @@ saving behavior is controlled by Fabric using \code{time_zone}, not by the R
 process's local time zone.
 }
 \examples{
-# Describe a schedule in the Windows time zone used by Fabric.
+# Describe a schedule in the Windows time zone used by Fabric
 daily <- fabric_job_schedule_config(
   "Daily",
   start_time = "2026-10-01T00:00:00Z",

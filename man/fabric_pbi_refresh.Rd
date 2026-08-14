@@ -257,11 +257,11 @@ disabled or a controlled point-in-time frame is required
 
 \examples{
 \dontrun{
-# Discover the semantic model instead of copying workspace and model IDs.
+# Discover the semantic model instead of copying workspace and model IDs
 workspace <- fabric_workspaces()[[1L]]
 model <- fabric_semantic_models(workspace)[[1L]]
 
-# Start a refresh, inspect it once, then wait for completion.
+# Start a refresh, inspect it once, then wait for completion
 refresh <- fabric_pbi_refresh(model)
 current <- fabric_pbi_refresh_status(refresh)
 current$state
@@ -269,11 +269,11 @@ result <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
 result$state
 result$details_url
 
-# An active refresh can instead be cancelled when it is no longer needed.
+# An active refresh can instead be cancelled when it is no longer needed
 refresh_to_cancel <- fabric_pbi_refresh(model)
 fabric_pbi_refresh_cancel(refresh_to_cancel)
 
-# Choose a table shown in the model, then refresh only that table.
+# Choose a table shown in the model, then refresh only that table
 refresh_table <- Sys.getenv("FABRIC_PBI_TABLE")
 sales_only <- fabric_pbi_refresh(
   model,
@@ -285,7 +285,7 @@ sales_only <- fabric_pbi_refresh(
 )
 fabric_pbi_refresh_wait(sales_only)
 
-# Finally, inspect recent refreshes for the same discovered model.
+# Finally, inspect recent refreshes for the same discovered model
 history <- fabric_pbi_refresh_history(model, top = 10L)
 history[[1]]$attempts
 }

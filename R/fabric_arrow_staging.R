@@ -1,5 +1,5 @@
 # Prepare an R or Arrow object for one-pass Parquet serialization. Returns a
-# RecordBatchReader so lazy Arrow inputs are never collected into an R object.
+# RecordBatchReader so lazy Arrow inputs are never collected into an R object
 .fabric_parquet_prepare_data <- function(data, caller) {
   if (!requireNamespace("arrow", quietly = TRUE)) {
     .fabric_abort(
@@ -71,7 +71,7 @@
 }
 
 # Stream prepared record batches into one Parquet file. Returns exact row and
-# byte counts while keeping memory bounded by Arrow's current record batch.
+# byte counts while keeping memory bounded by Arrow's current record batch
 .fabric_parquet_write_stream <- function(
   prepared,
   path,
@@ -160,9 +160,9 @@
   )
 }
 
-# Stream prepared record batches into a directory of bounded Parquet files.
+# Stream prepared record batches into a directory of bounded Parquet files
 # The byte target is soft because the active row group is completed before a
-# file rotates; max_rows_per_file provides an exact deterministic boundary.
+# file rotates; max_rows_per_file provides an exact deterministic boundary
 .fabric_parquet_write_dataset <- function(
   prepared,
   directory,
@@ -370,7 +370,7 @@
 }
 
 # Require a usable Parquet identity-mapping schema without imposing a
-# destination-specific naming grammar.
+# destination-specific naming grammar
 .fabric_parquet_column_names <- function(value) {
   if (!length(value)) {
     .fabric_abort("data must contain at least one column")

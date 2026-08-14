@@ -1,6 +1,6 @@
-# Fabric integration coverage: asynchronous jobs for Fabric items.
+# Fabric integration coverage: asynchronous jobs for Fabric items
 # These tests run sandbox notebooks, pipelines, and Spark job definitions, then
-# check successful runs as well as failure, timeout, and cancellation behavior.
+# check successful runs as well as failure, timeout, and cancellation behavior
 
 test_that("Fabric item jobs complete, fail, time out, and cancel", {
   manifest <- fabric_test_manifest()
@@ -13,7 +13,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     type = notebook$type,
     displayName = notebook$display_name
   )
-  # Do not inherit a high-concurrency session from an earlier test invocation.
+  # Do not inherit a high-concurrency session from an earlier test invocation
   session_tag <- paste0(
     "fabricqueryr_job_integration_",
     substr(notebook$id, 1L, 8L),
@@ -52,7 +52,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   # The failure run deliberately avoids high-concurrency mode. Fabric keeps a
   # shared session alive when one of its statements fails, so a high-concurrency
   # run reports Completed with no exit value; only a run that owns its Spark
-  # session is cancelled and surfaced to the job scheduler as Failed.
+  # session is cancelled and surfaced to the job scheduler as Failed
   failed_job <- fabric_job_run(
     item,
     parameters = list(mode = "failure"),
@@ -88,7 +88,7 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     expect_true(nzchar(failed$job_status$root_activity_id))
     expect_null(failed$job_status$exit_value)
     # Fabric reports the Spark session cancellation, not the notebook's own
-    # exception text; that text stays in the run snapshot.
+    # exception text; that text stays in the run snapshot
     expect_true(nzchar(
       .fabric_job_failure_text(failed$job_status$failure_reason)
     ))

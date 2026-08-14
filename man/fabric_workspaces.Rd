@@ -59,14 +59,14 @@ Fabric API and requires \code{Workspace.Read.All} or \code{Workspace.ReadWrite.A
 }
 \examples{
 \dontrun{
-# Sign in and list every Fabric workspace you can access.
+# Sign in and list every Fabric workspace you can access
 workspaces <- fabric_workspaces()
 
-# Inspect the names before choosing a workspace record.
+# Inspect the names before choosing a workspace record
 vapply(workspaces, `[[`, character(1), "displayName")
 workspace <- workspaces[[1L]]
 
-# Pass the discovered record directly to the next discovery step.
+# Pass the discovered record directly to the next discovery step
 items <- fabric_items(workspace)
 }
 }

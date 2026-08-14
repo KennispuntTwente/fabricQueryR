@@ -90,15 +90,15 @@ require both \code{personal_workspace_tenant_id} and \code{personal_workspace_ow
 }
 \examples{
 \dontrun{
-# Start by discovering a workspace instead of copying its ID.
+# Start by discovering a workspace instead of copying its ID
 workspaces <- fabric_workspaces()
 workspace <- workspaces[[1L]]
 
-# List lightweight item records and inspect their names and types.
+# List lightweight item records and inspect their names and types
 items <- fabric_items(workspace)
 vapply(items, `[[`, character(1), "displayName")
 
-# Ask for enriched records when another function needs connection details.
+# Ask for enriched records when another function needs connection details
 lakehouses <- fabric_items(
   workspace,
   type = "Lakehouse",

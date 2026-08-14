@@ -275,7 +275,7 @@ try:
 
     # Spark's directory partition writer cannot safely materialize every byte
     # in a partition path. Delta does not require partition values in paths:
-    # AddFile.partitionValues is authoritative, so use safe data-file paths.
+    # AddFile.partitionValues is authoritative, so use safe data-file paths
     binary_partition_values = [
         (1, "\u0000"),
         (2, "\u0080"),
@@ -1219,7 +1219,7 @@ try:
     # Every data file predates the type change: the table is widened but no row
     # is written afterwards. Readers that lean on the widened physical type of a
     # newer file cannot fall back to it here and must convert the narrow values
-    # themselves.
+    # themselves
     spark.sql("DROP TABLE IF EXISTS dbo.fabricqueryr_type_widened_pending")
     spark.sql(
         """

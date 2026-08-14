@@ -1,6 +1,6 @@
-# Fabric integration coverage: authentication and resource discovery.
+# Fabric integration coverage: authentication and resource discovery
 # These tests use the live sandbox credentials and manifest to confirm that a
-# user can sign in, find the provisioned workspace, and resolve its test items.
+# user can sign in, find the provisioned workspace, and resolve its test items
 
 test_that("fabricQueryR acquires a live Fabric token through AzureAuth", {
   manifest <- fabric_test_manifest()

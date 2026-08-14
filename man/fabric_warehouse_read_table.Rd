@@ -104,24 +104,24 @@ selection matters.
 
 \examples{
 \dontrun{
-# Discover the Warehouse instead of copying its SQL connection details.
+# Discover the Warehouse instead of copying its SQL connection details
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Use DBI metadata to discover an existing table in that Warehouse.
+# Use DBI metadata to discover an existing table in that Warehouse
 con <- fabric_sql_connect(warehouse)
 tables <- DBI::dbListTables(con)
 DBI::dbDisconnect(con)
 table <- tables[[1L]]
 
-# Read a bounded selection into a tibble.
+# Read a bounded selection into a tibble
 orders <- fabric_warehouse_read_table(
   warehouse,
   table,
   limit = 1000
 )
 
-# Keep a larger read out of R memory with an Arrow stream.
+# Keep a larger read out of R memory with an Arrow stream
 stream <- fabric_warehouse_read_table(
   warehouse,
   table,

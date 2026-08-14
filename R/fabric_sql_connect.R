@@ -23,11 +23,11 @@
 #'   discovery record). No connection is opened
 #' @examples
 #' \dontrun{
-#' # Discover a Warehouse record that already contains its SQL endpoint.
+#' # Discover a Warehouse record that already contains its SQL endpoint
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Inspect connection details without opening a database connection.
+#' # Inspect connection details without opening a database connection
 #' info <- fabric_sql_connection_info(warehouse)
 #' info[c("server", "database", "port", "target_type")]
 #' }
@@ -240,18 +240,18 @@ fabric_sql_connection_info <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Discover a Warehouse so no server name or database ID is copied by hand.
+#' # Discover a Warehouse so no server name or database ID is copied by hand
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Open a DBI connection, use it, and always disconnect when finished.
+#' # Open a DBI connection, use it, and always disconnect when finished
 #' con <- fabric_sql_connect(warehouse)
 #' table <- DBI::dbListTables(con)[[1L]]
 #' table <- DBI::dbQuoteIdentifier(con, table)
 #' DBI::dbGetQuery(con, paste("SELECT TOP 10 * FROM", table))
 #' DBI::dbDisconnect(con)
 #'
-#' # The ADBC backend can return Arrow-native results when installed.
+#' # The ADBC backend can return Arrow-native results when installed
 #' adbc_con <- fabric_sql_connect(warehouse, backend = "adbc")
 #' DBI::dbDisconnect(adbc_con)
 #' }
@@ -489,21 +489,21 @@ fabric_sql_connect <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the Warehouse that will receive the query.
+#' # Discover the Warehouse that will receive the query
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Discover and quote a table name through a short DBI connection.
+#' # Discover and quote a table name through a short DBI connection
 #' con <- fabric_sql_connect(warehouse)
 #' table <- DBI::dbListTables(con)[[1L]]
 #' table <- DBI::dbQuoteIdentifier(con, table)
 #' DBI::dbDisconnect(con)
 #' sql <- paste("SELECT TOP 100 * FROM", table)
 #'
-#' # Run the resulting read-only query and collect a tibble.
+#' # Run the resulting read-only query and collect a tibble
 #' result <- fabric_sql_query(warehouse, sql)
 #'
-#' # Stream a larger result through Arrow instead of collecting it at once.
+#' # Stream a larger result through Arrow instead of collecting it at once
 #' stream <- fabric_sql_query(
 #'   warehouse,
 #'   sql,
@@ -749,7 +749,7 @@ fabric_sql_validate_query_statement <- function(sql) {
   # top-level tokens that can begin a second statement or turn the batch into a
   # state-changing/control-flow operation. Quoted identifiers, comments, string
   # literals, and tokens inside parentheses have already been excluded by the
-  # tokenizer.
+  # tokenizer
   non_query_tokens <- c(
     "ALTER",
     "BACKUP",
@@ -1512,8 +1512,8 @@ fabric_sql_connection_error <- function(error, secrets = NULL) {
   .fabric_abort(
     paste0("Fabric SQL connection failed: ", message),
     class = c(class, "fabric_sql_connection_error"),
-    # Driver conditions can retain call arguments and backend-specific state.
-    # Keep only the already-redacted message in the public condition chain.
+    # Driver conditions can retain call arguments and backend-specific state
+    # Keep only the already-redacted message in the public condition chain
     parent = simpleError(message)
   )
 }

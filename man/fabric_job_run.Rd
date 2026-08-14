@@ -218,23 +218,23 @@ Fabric reports an unfamiliar state instead of waiting indefinitely
 
 \examples{
 \dontrun{
-# Discover the workspace and Notebook that will be run.
+# Discover the workspace and Notebook that will be run
 workspace <- fabric_workspaces()[[1L]]
 notebook <- fabric_notebooks(workspace)[[1L]]
 
-# Start the discovered Notebook and keep the returned job handle.
+# Start the discovered Notebook and keep the returned job handle
 job <- fabric_job_run(notebook)
 
-# Refresh the current state without waiting for completion.
+# Refresh the current state without waiting for completion
 current <- fabric_job_status(job)
 current$status
 
-# For a normal run, wait and inspect its final status and exit value.
+# For a normal run, wait and inspect its final status and exit value
 completed <- fabric_job_wait(job, timeout = 900)
 completed$status
 completed$exit_value
 
-# A separate active run can be cancelled when it is no longer needed.
+# A separate active run can be cancelled when it is no longer needed
 job_to_cancel <- fabric_job_run(notebook)
 fabric_job_cancel(job_to_cancel)
 }

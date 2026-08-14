@@ -1,6 +1,6 @@
-# Fabric integration coverage: querying a Power BI semantic model with DAX.
+# Fabric integration coverage: querying a Power BI semantic model with DAX
 # These tests use the sandbox model to check target resolution, typed query
-# results, and the Arrow-based query path used for efficient data transfer.
+# results, and the Arrow-based query path used for efficient data transfer
 
 test_that("semantic-model refresh completes with history and execution details", {
   manifest <- fabric_test_manifest()

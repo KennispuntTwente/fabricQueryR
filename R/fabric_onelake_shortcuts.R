@@ -53,7 +53,7 @@
 #' [OneLake shortcuts REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 #' @examples
 #' \dontrun{
-#' # Discover two Lakehouses in the same workspace.
+#' # Discover two Lakehouses in the same workspace
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouses <- fabric_lakehouses(workspace)
 #' destination <- lakehouses[[1L]]
@@ -61,7 +61,7 @@
 #' source_paths <- fabric_onelake_list(workspace, source, path = "Tables")
 #' source_table <- source_paths[source_paths$is_directory, ][1L, ]
 #'
-#' # Create a shortcut whose target came from the source Lakehouse listing.
+#' # Create a shortcut whose target came from the source Lakehouse listing
 #' created <- fabric_onelake_shortcut_create(
 #'   destination,
 #'   path = "Files",
@@ -70,7 +70,7 @@
 #'   target_path = source_table$path[[1L]]
 #' )
 #'
-#' # List the folder, then fetch the created shortcut by its returned identity.
+#' # List the folder, then fetch the created shortcut by its returned identity
 #' fabric_onelake_shortcuts(destination, parent_path = "Files")
 #' shortcut <- fabric_onelake_shortcut_get(
 #'   destination,
@@ -78,7 +78,7 @@
 #'   name = created$name[[1L]]
 #' )
 #'
-#' # Delete that same discovered shortcut explicitly.
+#' # Delete that same discovered shortcut explicitly
 #' fabric_onelake_shortcut_delete(
 #'   destination,
 #'   path = created$path[[1L]],
@@ -294,7 +294,7 @@ fabric_onelake_shortcut_delete <- function(
   invisible(TRUE)
 }
 
-# Resolve the destination once for every shortcut operation.
+# Resolve the destination once for every shortcut operation
 .fabric_shortcut_context <- function(
   item,
   workspace,
@@ -352,7 +352,7 @@ fabric_onelake_shortcut_delete <- function(
 }
 
 # Convert a discovered target into OneLake JSON or validate a raw external
-# target object without adding response-only `type` fields.
+# target object without adding response-only `type` fields
 .fabric_shortcut_create_target <- function(
   target,
   target_workspace,
@@ -482,7 +482,7 @@ fabric_onelake_shortcut_delete <- function(
   stats::setNames(list(details), name)
 }
 
-# Normalize service records into a stable tibble while preserving raw fields.
+# Normalize service records into a stable tibble while preserving raw fields
 .fabric_shortcut_tibble <- function(records) {
   empty <- tibble::tibble(
     path = character(),
@@ -606,7 +606,7 @@ fabric_onelake_shortcut_delete <- function(
 }
 
 # Validate a full shortcut parent/target path using the service's linked file
-# naming limits, while requiring Fabric's Files or Tables root.
+# naming limits, while requiring Fabric's Files or Tables root
 .fabric_shortcut_path <- function(value, name) {
   if (
     !is.character(value) ||

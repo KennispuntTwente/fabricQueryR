@@ -130,16 +130,16 @@ returned output, errors, response metadata, and conditions.
 
 \examples{
 \dontrun{
-# Discover the user data functions item that owns the published function.
+# Discover the user data functions item that owns the published function
 workspace <- fabric_workspaces()[[1L]]
 function_item <- fabric_user_data_functions(workspace)[[1L]]
 function_item$displayName
 
 # Discovery cannot expose a function URL yet. Copy the published function's
-# complete Invoke URL from this item's Run-only settings into this variable.
+# complete Invoke URL from this item's Run-only settings into this variable
 function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 
-# Parameter names must match the published Python function signature.
+# Parameter names must match the published Python function signature
 result <- fabric_function_invoke(
   function_url,
   parameters = list(
@@ -148,7 +148,7 @@ result <- fabric_function_invoke(
   )
 )
 
-# Inspect the output and any function-level errors returned by Fabric.
+# Inspect the output and any function-level errors returned by Fabric
 result$status
 result$output
 result$errors

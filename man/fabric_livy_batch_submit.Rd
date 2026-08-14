@@ -141,7 +141,7 @@ code to access Fabric and storage, and an appropriate workspace role
 
 \examples{
 \dontrun{
-# Discover the Lakehouse and Python file used by this batch.
+# Discover the Lakehouse and Python file used by this batch
 workspace <- fabric_workspaces()[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 scripts <- fabric_onelake_list(
@@ -155,7 +155,7 @@ script_uri <- paste0(
   lakehouse$id, ".Lakehouse/", script$path[[1L]]
 )
 
-# Submit the discovered script and wait for its Spark application to finish.
+# Submit the discovered script and wait for its Spark application to finish
 batch <- fabric_livy_batch_submit(
   lakehouse,
   file = script_uri,

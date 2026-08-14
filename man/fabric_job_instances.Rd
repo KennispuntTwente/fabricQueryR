@@ -67,11 +67,11 @@ serialized.
 }
 \examples{
 \dontrun{
-# Discover the Notebook whose run history you want to inspect.
+# Discover the Notebook whose run history you want to inspect
 workspace <- fabric_workspaces()[[1L]]
 notebook <- fabric_notebooks(workspace)[[1L]]
 
-# List runs, then refresh one returned job record.
+# List runs, then refresh one returned job record
 history <- fabric_job_instances(notebook)
 history[[1]]$status
 fabric_job_status(history[[1]])

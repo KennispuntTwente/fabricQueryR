@@ -5,8 +5,8 @@ fabric_test_delta_runtime_python <- function(root) {
     file.path(".venv", "bin", "python")
   }
   python <- file.path(root, relative)
-  # On Unix, the venv executable is commonly a symlink to the base Python.
-  # Resolving that final component makes reticulate bypass the venv packages.
+  # On Unix, the venv executable is commonly a symlink to the base Python
+  # Resolving that final component makes reticulate bypass the venv packages
   file.path(
     normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
     basename(python)

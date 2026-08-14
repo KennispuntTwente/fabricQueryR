@@ -218,7 +218,7 @@ permanently removes successfully downloaded source blobs
 
 \examples{
 \dontrun{
-# Discover the KQL database and a Lakehouse containing staged CSV files.
+# Discover the KQL database and a Lakehouse containing staged CSV files
 workspace <- fabric_workspaces()[[1L]]
 database <- fabric_kql_databases(workspace)[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
@@ -229,18 +229,18 @@ files <- fabric_onelake_list(
 )
 csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
 
-# Build the source URI from discovered IDs and the listed file path.
+# Build the source URI from discovered IDs and the listed file path
 source <- paste0(
   "https://onelake.dfs.fabric.microsoft.com/",
   workspace$id, "/", lakehouse$id, "/", csv_file$path[[1L]],
   ";impersonate"
 )
 
-# Choose an existing target and CSV mapping from the KQL database explorer.
+# Choose an existing target and CSV mapping from the KQL database explorer
 table <- Sys.getenv("FABRIC_KQL_TABLE")
 mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING")
 
-# Queue the file once using a stable ingest-if-not-exists key.
+# Queue the file once using a stable ingest-if-not-exists key
 ingestion <- fabric_kql_ingest(
   database,
   table = table,
@@ -251,7 +251,7 @@ ingestion <- fabric_kql_ingest(
   ingest_if_not_exists = paste0("file:", csv_file$path[[1L]])
 )
 
-# Wait for every submitted file to reach a terminal ingestion state.
+# Wait for every submitted file to reach a terminal ingestion state
 result <- fabric_kql_ingestion_status(
   ingestion,
   wait = TRUE,

@@ -14,7 +14,7 @@ call this R6 class directly
 }
 \examples{
 \dontrun{
-# fabric_livy_batch_submit() returns this class for a submitted Spark job.
+# fabric_livy_batch_submit() returns this class for a submitted Spark job
 workspace <- fabric_workspaces()[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 scripts <- fabric_onelake_list(workspace, lakehouse, "Files/jobs")
@@ -29,7 +29,7 @@ batch <- fabric_livy_batch_submit(
 )
 inherits(batch, "FabricLivyBatch")
 
-# Wait for completion, then inspect the application result and logs.
+# Wait for completion, then inspect the application result and logs
 batch$wait()
 batch$result()
 batch$logs()

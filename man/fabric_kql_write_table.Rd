@@ -169,11 +169,11 @@ the path to inspect.
 
 \examples{
 \dontrun{
-# Discover the KQL database that will receive the R data.
+# Discover the KQL database that will receive the R data
 workspace <- fabric_workspaces()[[1L]]
 database <- fabric_kql_databases(workspace)[[1L]]
 
-# Create a new table when needed, stage the data, and wait for ingestion.
+# Create a new table when needed, stage the data, and wait for ingestion
 result <- fabric_kql_write_table(
   database,
   table = "EventsFromR",
@@ -183,7 +183,7 @@ result <- fabric_kql_write_table(
 )
 result$status$state
 
-# A local Arrow Dataset is scanned batch by batch rather than collected.
+# A local Arrow Dataset is scanned batch by batch rather than collected
 dataset <- arrow::open_dataset(Sys.getenv("ARROW_DATASET_PATH"))
 fabric_kql_write_table(database, "EventsFromArrow", dataset)
 }

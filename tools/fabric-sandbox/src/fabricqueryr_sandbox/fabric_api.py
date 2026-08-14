@@ -315,7 +315,7 @@ class FabricApi:
         while time.monotonic() < deadline:
             try:
                 # Fabric blocks introspection on this endpoint, so readiness
-                # must be proved by executing the known seeded schema.
+                # must be proved by executing the known seeded schema
                 response = self.request(
                     "POST",
                     endpoint,

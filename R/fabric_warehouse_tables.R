@@ -37,24 +37,24 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the Warehouse instead of copying its SQL connection details.
+#' # Discover the Warehouse instead of copying its SQL connection details
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Use DBI metadata to discover an existing table in that Warehouse.
+#' # Use DBI metadata to discover an existing table in that Warehouse
 #' con <- fabric_sql_connect(warehouse)
 #' tables <- DBI::dbListTables(con)
 #' DBI::dbDisconnect(con)
 #' table <- tables[[1L]]
 #'
-#' # Read a bounded selection into a tibble.
+#' # Read a bounded selection into a tibble
 #' orders <- fabric_warehouse_read_table(
 #'   warehouse,
 #'   table,
 #'   limit = 1000
 #' )
 #'
-#' # Keep a larger read out of R memory with an Arrow stream.
+#' # Keep a larger read out of R memory with an Arrow stream
 #' stream <- fabric_warehouse_read_table(
 #'   warehouse,
 #'   table,
@@ -277,12 +277,12 @@ fabric_warehouse_read_table <- function(
 #' [Query Parquet files in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files)
 #' @examples
 #' \dontrun{
-#' # Discover both the destination Warehouse and staging Lakehouse.
+#' # Discover both the destination Warehouse and staging Lakehouse
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #' staging <- fabric_lakehouses(workspace)[[1L]]
 #'
-#' # Upload through OneLake staging and create a new Warehouse table.
+#' # Upload through OneLake staging and create a new Warehouse table
 #' fabric_warehouse_write_table(
 #'   warehouse,
 #'   "orders_from_r",
@@ -616,7 +616,7 @@ fabric_warehouse_write_table <- function(
 }
 
 # Resolve a Warehouse or Lakehouse record, enriching names and IDs only when
-# the supplied record does not already contain the fields required downstream.
+# the supplied record does not already contain the fields required downstream
 .fabric_warehouse_resolve_item <- function(
   value,
   workspace,
@@ -753,7 +753,7 @@ fabric_warehouse_write_table <- function(
   )
 }
 
-# Build one COPY statement with quoted identifiers and an internal OneLake URL.
+# Build one COPY statement with quoted identifiers and an internal OneLake URL
 .fabric_warehouse_copy_sql <- function(table_sql, columns, target) {
   column_sql <- paste(
     paste0(
@@ -777,7 +777,7 @@ fabric_warehouse_write_table <- function(
 }
 
 # Build a CTAS statement that lets Fabric infer a missing table's schema from
-# the exact Parquet parts created by this writer.
+# the exact Parquet parts created by this writer
 .fabric_warehouse_ctas_sql <- function(table_sql, columns, target) {
   projection <- paste(
     vapply(columns, .fabric_warehouse_quote_identifier, character(1)),
@@ -795,12 +795,12 @@ fabric_warehouse_write_table <- function(
 }
 
 # Return the canonical OneLake wildcard used by both COPY and CTAS. Fabric's
-# SQL engine authenticates to this public OneLake origin as the SQL identity.
+# SQL engine authenticates to this public OneLake origin as the SQL identity
 .fabric_warehouse_source_url <- function(target) {
   folder <- target
   folder$path <- dirname(target$path)
   # Fabric's Warehouse contract requires the canonical OneLake origin even
-  # when the client upload itself uses a workspace-private DFS endpoint.
+  # when the client upload itself uses a workspace-private DFS endpoint
   folder$dfs_base <- "https://onelake.dfs.fabric.microsoft.com"
   paste0(onelake_path_url(folder), "/*.parquet")
 }
@@ -814,7 +814,7 @@ fabric_warehouse_write_table <- function(
   )
 }
 
-# Quote one validated T-SQL identifier without consulting a live connection.
+# Quote one validated T-SQL identifier without consulting a live connection
 .fabric_warehouse_quote_identifier <- function(value) {
   paste0("[", gsub("]", "]]", value, fixed = TRUE), "]")
 }
@@ -919,7 +919,7 @@ fabric_warehouse_write_table <- function(
   gsub("[^A-Za-z0-9_-]", "", basename(tempfile("load-")))
 }
 
-# Raise an actionable write error while preserving potentially active sources.
+# Raise an actionable write error while preserving potentially active sources
 .fabric_warehouse_write_abort <- function(
   error,
   storage_target,
@@ -971,7 +971,7 @@ fabric_warehouse_write_table <- function(
   ))
 }
 
-# Small database seams keep transaction behavior testable without Fabric.
+# Small database seams keep transaction behavior testable without Fabric
 .fabric_warehouse_connect <- function(...) fabric_sql_connect(...)
 
 .fabric_warehouse_disconnect <- function(connection, backend) {
@@ -994,7 +994,7 @@ fabric_warehouse_write_table <- function(
 
 # Query catalog views instead of relying on backend-specific dbExistsTable()
 # metadata support. The schema and table values are emitted only as escaped
-# Unicode string literals.
+# Unicode string literals
 .fabric_warehouse_table_exists <- function(connection, schema, table) {
   sql <- paste0(
     "SELECT CASE WHEN EXISTS (",

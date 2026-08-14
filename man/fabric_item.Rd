@@ -79,14 +79,14 @@ workload-specific read scope and access to the item. Use
 }
 \examples{
 \dontrun{
-# Discover a workspace and obtain a lightweight Warehouse record.
+# Discover a workspace and obtain a lightweight Warehouse record
 workspace <- fabric_workspaces()[[1L]]
 warehouses <- fabric_items(workspace, type = "Warehouse")
 
-# Enrich that discovered record with connection details.
+# Enrich that discovered record with connection details
 warehouse <- fabric_item(workspace, warehouses[[1L]])
 
-# The result can be passed directly to SQL helpers.
+# The result can be passed directly to SQL helpers
 fabric_sql_connection_info(warehouse)
 }
 }

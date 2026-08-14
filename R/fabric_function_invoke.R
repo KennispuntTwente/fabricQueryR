@@ -102,16 +102,16 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the user data functions item that owns the published function.
+#' # Discover the user data functions item that owns the published function
 #' workspace <- fabric_workspaces()[[1L]]
 #' function_item <- fabric_user_data_functions(workspace)[[1L]]
 #' function_item$displayName
 #'
 #' # Discovery cannot expose a function URL yet. Copy the published function's
-#' # complete Invoke URL from this item's Run-only settings into this variable.
+#' # complete Invoke URL from this item's Run-only settings into this variable
 #' function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 #'
-#' # Parameter names must match the published Python function signature.
+#' # Parameter names must match the published Python function signature
 #' result <- fabric_function_invoke(
 #'   function_url,
 #'   parameters = list(
@@ -120,7 +120,7 @@
 #'   )
 #' )
 #'
-#' # Inspect the output and any function-level errors returned by Fabric.
+#' # Inspect the output and any function-level errors returned by Fabric
 #' result$status
 #' result$output
 #' result$errors
@@ -197,7 +197,7 @@ fabric_function_invoke <- function(
 }
 
 # Validate a copied public function URL and its credential boundary. Returns a
-# normalized URL suitable for an authenticated POST request.
+# normalized URL suitable for an authenticated POST request
 function_validate_url <- function(
   function_url,
   allow_custom_endpoint = FALSE
@@ -251,7 +251,7 @@ function_validate_url <- function(
 }
 
 # Serialize a named top-level R object exactly once so its encoded request size
-# can be enforced before authentication or network activity.
+# can be enforced before authentication or network activity
 function_serialize_parameters <- function(parameters) {
   if (is.atomic(parameters) && !is.null(names(parameters))) {
     parameters <- as.list(parameters)
@@ -297,7 +297,7 @@ function_serialize_parameters <- function(parameters) {
 }
 
 # Select the narrow delegated scope for user sign-in and the Power BI resource
-# audience for application credentials, following Fabric's invocation docs.
+# audience for application credentials, following Fabric's invocation docs
 function_resolve_audience <- function(audience, token, auth_args) {
   if (!is.null(audience)) {
     return(function_required_string(audience, "audience"))
@@ -311,7 +311,7 @@ function_resolve_audience <- function(audience, token, auth_args) {
 
 # Decode one bounded Fabric invocation response. Valid execution envelopes are
 # domain results regardless of HTTP status; all other HTTP failures retain the
-# package's standard typed and redacted error behavior.
+# package's standard typed and redacted error behavior
 function_parse_response <- function(
   response,
   max_response_bytes = .fabric_function_response_limit
@@ -403,7 +403,7 @@ function_parse_response <- function(
 }
 
 # Check the documented five-field execution envelope while allowing unknown
-# status values and additional response fields for forward compatibility.
+# status values and additional response fields for forward compatibility
 function_is_result_envelope <- function(payload) {
   if (!is.list(payload) || is.null(names(payload))) {
     return(FALSE)
@@ -433,7 +433,7 @@ function_is_result_envelope <- function(payload) {
 }
 
 # Raise a credential-free size condition without reading or attaching the
-# oversized body.
+# oversized body
 function_stop_response_too_large <- function(
   response,
   response_bytes,

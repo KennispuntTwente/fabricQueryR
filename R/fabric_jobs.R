@@ -109,23 +109,23 @@
 #'   `TRUE` after Fabric accepts or confirms the cancellation
 #' @examples
 #' \dontrun{
-#' # Discover the workspace and Notebook that will be run.
+#' # Discover the workspace and Notebook that will be run
 #' workspace <- fabric_workspaces()[[1L]]
 #' notebook <- fabric_notebooks(workspace)[[1L]]
 #'
-#' # Start the discovered Notebook and keep the returned job handle.
+#' # Start the discovered Notebook and keep the returned job handle
 #' job <- fabric_job_run(notebook)
 #'
-#' # Refresh the current state without waiting for completion.
+#' # Refresh the current state without waiting for completion
 #' current <- fabric_job_status(job)
 #' current$status
 #'
-#' # For a normal run, wait and inspect its final status and exit value.
+#' # For a normal run, wait and inspect its final status and exit value
 #' completed <- fabric_job_wait(job, timeout = 900)
 #' completed$status
 #' completed$exit_value
 #'
-#' # A separate active run can be cancelled when it is no longer needed.
+#' # A separate active run can be cancelled when it is no longer needed
 #' job_to_cancel <- fabric_job_run(notebook)
 #' fabric_job_cancel(job_to_cancel)
 #' }
@@ -1466,7 +1466,7 @@ print.fabric_job_instance <- function(x, ...) {
     )
   }
 
-  # Validate shared scalar and mount-point fields before compute-specific ones.
+  # Validate shared scalar and mount-point fields before compute-specific ones
   if ("name" %in% names(configuration)) {
     .fabric_job_nonempty(configuration$name, "computeConfiguration$name")
   }
@@ -2115,7 +2115,7 @@ print.fabric_job_instance <- function(x, ...) {
 
 # Store a credential behind a weak reference. The key keeps the credential
 # available for the lifetime of the in-process job handle, while R serialization
-# deliberately does not persist the weak-reference value containing secrets.
+# deliberately does not persist the weak-reference value containing secrets
 .fabric_job_credential_reference <- function(credential) {
   key <- new.env(parent = emptyenv())
   list(
@@ -2125,7 +2125,7 @@ print.fabric_job_instance <- function(x, ...) {
 }
 
 # Resolve an in-process job credential. Direct credentials remain accepted for
-# internally constructed handles and objects created by older package versions.
+# internally constructed handles and objects created by older package versions
 .fabric_job_credential <- function(job) {
   stored <- job$credential
   if (inherits(stored, "fabric_credential")) {
@@ -2259,7 +2259,7 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(TRUE)
 }
 
-# Validate an integer against a documented Fabric enumeration.
+# Validate an integer against a documented Fabric enumeration
 .fabric_job_enum_integer <- function(value, allowed, name) {
   if (
     !is.numeric(value) ||
@@ -2278,7 +2278,7 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(value)
 }
 
-# Validate one ABFSS URI used by Fabric Spark execution settings.
+# Validate one ABFSS URI used by Fabric Spark execution settings
 .fabric_job_abfss <- function(value, name) {
   .fabric_job_nonempty(value, name)
   if (!grepl("^abfss://[^/]+/.+", value, ignore.case = TRUE)) {
@@ -2287,7 +2287,7 @@ print.fabric_job_instance <- function(x, ...) {
   invisible(value)
 }
 
-# Validate a non-empty vector of ABFSS URIs.
+# Validate a non-empty vector of ABFSS URIs
 .fabric_job_abfss_vector <- function(value, name) {
   if (
     !is.character(value) ||

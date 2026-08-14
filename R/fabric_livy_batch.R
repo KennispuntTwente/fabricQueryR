@@ -76,7 +76,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the Lakehouse and Python file used by this batch.
+#' # Discover the Lakehouse and Python file used by this batch
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' scripts <- fabric_onelake_list(
@@ -90,7 +90,7 @@
 #'   lakehouse$id, ".Lakehouse/", script$path[[1L]]
 #' )
 #'
-#' # Submit the discovered script and wait for its Spark application to finish.
+#' # Submit the discovered script and wait for its Spark application to finish
 #' batch <- fabric_livy_batch_submit(
 #'   lakehouse,
 #'   file = script_uri,
@@ -265,7 +265,7 @@ fabric_livy_batch_submit <- function(
 #' @format An [R6::R6Class] generator
 #' @examples
 #' \dontrun{
-#' # fabric_livy_batch_submit() returns this class for a submitted Spark job.
+#' # fabric_livy_batch_submit() returns this class for a submitted Spark job
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' scripts <- fabric_onelake_list(workspace, lakehouse, "Files/jobs")
@@ -280,7 +280,7 @@ fabric_livy_batch_submit <- function(
 #' )
 #' inherits(batch, "FabricLivyBatch")
 #'
-#' # Wait for completion, then inspect the application result and logs.
+#' # Wait for completion, then inspect the application result and logs
 #' batch$wait()
 #' batch$result()
 #' batch$logs()
@@ -510,7 +510,7 @@ FabricLivyBatch <- R6::R6Class(
       cancellation <- if (isTRUE(cancel_on_timeout)) {
         # The wait deadline is necessarily exhausted here. Give the best-effort
         # cleanup request its own short budget so the DELETE can actually leave
-        # the process without allowing cleanup to block indefinitely.
+        # the process without allowing cleanup to block indefinitely
         cleanup_timeout <- getOption("fabricqueryr.livy.cleanup_timeout", 30)
         fabric_livy_check_number(cleanup_timeout, "Livy cleanup timeout")
         cleanup_deadline <- Sys.time() + cleanup_timeout

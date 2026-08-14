@@ -1,5 +1,5 @@
 # Fabric integration coverage: schema-aware table metadata and managed
-# CSV/Parquet loads through the Lakehouse preview APIs.
+# CSV/Parquet loads through the Lakehouse preview APIs
 
 fabric_test_use_table_delta_runtime <- function() {
   if (
@@ -56,7 +56,7 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   parquet_table <- "fabricqueryr_r_load"
 
   # Force multiple metadata pages and retain the schema record associated with
-  # every table row.
+  # every table row
   initial <- fabric_lakehouse_tables(
     target,
     detail = FALSE,
@@ -80,7 +80,7 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   }
 
   # The staged CSV fixture covers both overwrite and append through the direct
-  # file-loading API.
+  # file-loading API
   csv_overwrite <- fabric_lakehouse_load_table(
     target,
     table = csv_table,
@@ -123,7 +123,7 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   expect_equal(sum(is.na(csv_rows$amount)), 2L)
 
   # The R workflow covers Unicode names, nulls, exact 64-bit integers, dates,
-  # timestamps, overwrite, append, and confirmed staging cleanup.
+  # timestamps, overwrite, append, and confirmed staging cleanup
   first <- data.frame(
     id = 1:2,
     whole = bit64::as.integer64(c("9007199254740993", NA)),
@@ -206,7 +206,7 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   )
 
   # The SQL analytics endpoint is eventually consistent with Lakehouse Delta
-  # metadata, so retry only the read-only verification query.
+  # metadata, so retry only the read-only verification query
   sql_rows <- fabric_test_eventually(function() {
     value <- fabric_sql_query(
       server = lakehouse$sql_endpoint,
@@ -294,7 +294,7 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
   expect_equal(sum(!retained$is_directory), 1L)
   expect_gt(sum(retained$content_length, na.rm = TRUE), 0)
 
-  # A rejected append must leave the committed destination unchanged.
+  # A rejected append must leave the committed destination unchanged
   destination_rows <- fabric_test_eventually(function() {
     value <- fabric_onelake_read_delta_table(
       table_path = failed_table,
@@ -312,7 +312,7 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
   expect_equal(destination_rows$id, 1L)
 
   # The retained source is complete and can be submitted again after fixing
-  # the destination problem.
+  # the destination problem
   recovered <- fabric_lakehouse_load_table(
     target,
     table = "fabricqueryr_recovered_load",

@@ -21,7 +21,7 @@ environment and report installed versions; packages may be downloaded the
 first time
 }
 \examples{
-# Inspect requirements without starting Python or downloading anything.
+# Inspect requirements without starting Python or downloading anything
 config <- fabric_delta_config()
 config[c("initialized", "requirements", "available")]
 }

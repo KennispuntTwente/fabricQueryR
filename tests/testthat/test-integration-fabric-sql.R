@@ -1,6 +1,6 @@
-# Fabric integration coverage: Fabric SQL endpoints and query clients.
+# Fabric integration coverage: Fabric SQL endpoints and query clients
 # These tests connect to seeded Lakehouse, Warehouse, and SQL Database targets
-# and verify discovery, DBI/ODBC queries, typed results, and Arrow streaming.
+# and verify discovery, DBI/ODBC queries, typed results, and Arrow streaming
 
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
   backends <- fabric_test_sql_backends()
@@ -56,8 +56,8 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
       DBI::dbDisconnect(con)
     }
     expect_true(isTRUE(disconnected), info = backend)
-    # ADBC Driver Foundry 1.x can keep reporting released handles as valid.
-    # The driver's successful disconnect return is its reliable lifecycle signal.
+    # ADBC Driver Foundry 1.x can keep reporting released handles as valid
+    # The driver's successful disconnect return is its reliable lifecycle signal
     if (!identical(backend, "adbc")) {
       expect_false(DBI::dbIsValid(con), info = backend)
     }

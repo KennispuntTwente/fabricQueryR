@@ -111,21 +111,21 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the semantic model instead of copying workspace and model IDs.
+#' # Discover the semantic model instead of copying workspace and model IDs
 #' workspace <- fabric_workspaces()[[1L]]
 #' model <- fabric_semantic_models(workspace)[[1L]]
 #'
-#' # Supply a query tested in the model's DAX query view.
+#' # Supply a query tested in the model's DAX query view
 #' dax <- Sys.getenv("FABRIC_DAX_QUERY")
 #'
-#' # Evaluate the DAX query and collect the result as a tibble.
+#' # Evaluate the DAX query and collect the result as a tibble
 #' df <- fabric_pbi_dax_query(
 #'   model,
 #'   dax = dax
 #' )
 #' dplyr::glimpse(df)
 #'
-#' # Keep a larger result out of R memory with an Arrow stream.
+#' # Keep a larger result out of R memory with an Arrow stream
 #' stream <- fabric_pbi_dax_query(
 #'   model,
 #'   dax = dax,

@@ -1,6 +1,6 @@
-# Fabric integration coverage: KQL analytics queries and the GraphQL API.
+# Fabric integration coverage: KQL analytics queries and the GraphQL API
 # The tests query seeded Eventhouse and Warehouse data in the live sandbox,
-# covering types, parameters, pagination, mutations, and service errors.
+# covering types, parameters, pagination, mutations, and service errors
 
 test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   manifest <- fabric_test_manifest()

@@ -177,11 +177,11 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover an API for GraphQL item instead of copying its endpoint or ID.
+#' # Discover an API for GraphQL item instead of copying its endpoint or ID
 #' workspace <- fabric_workspaces()[[1L]]
 #' api <- fabric_graphql_apis(workspace)[[1L]]
 #'
-#' # Keep the filter value in variables rather than inserting it into the query.
+#' # Keep the filter value in variables rather than inserting it into the query
 #' result <- fabric_graphql_query(
 #'   api,
 #'   query = paste(
@@ -195,7 +195,7 @@
 #'   operation_name = "Products"
 #' )
 #'
-#' # GraphQL can return data and errors in the same response; inspect both.
+#' # GraphQL can return data and errors in the same response; inspect both
 #' result$data$products$items
 #' result$errors
 #' }
@@ -272,14 +272,14 @@ fabric_graphql_query <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the GraphQL API whose schema you want to inspect.
+#' # Discover the GraphQL API whose schema you want to inspect
 #' workspace <- fabric_workspaces()[[1L]]
 #' api <- fabric_graphql_apis(workspace)[[1L]]
 #'
-#' # Request the standard GraphQL introspection schema.
+#' # Request the standard GraphQL introspection schema
 #' schema <- fabric_graphql_schema(api)
 #'
-#' # List its named types to learn what can be queried.
+#' # List its named types to learn what can be queried
 #' vapply(schema$types, `[[`, character(1), "name")
 #' }
 fabric_graphql_schema <- function(
@@ -367,11 +367,11 @@ fabric_graphql_schema <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the GraphQL API that exposes the Products query.
+#' # Discover the GraphQL API that exposes the Products query
 #' workspace <- fabric_workspaces()[[1L]]
 #' api <- fabric_graphql_apis(workspace)[[1L]]
 #'
-#' # Fetch pages until the helper sees no next cursor.
+#' # Fetch pages until the helper sees no next cursor
 #' pages <- fabric_graphql_paginate(
 #'   api,
 #'   query = paste(
@@ -510,10 +510,10 @@ fabric_graphql_paginate <- function(
 #'   [fabric_graphql_paginate()]. For each page it returns the cursor when
 #'   `has_next` is true, otherwise `NULL`
 #' @examples
-#' # Build a reusable extractor for a GraphQL connection named "products".
+#' # Build a reusable extractor for a GraphQL connection named "products"
 #' next_cursor <- fabric_graphql_cursor("products")
 #'
-#' # This small local result shows the response shape expected by the extractor.
+#' # This small local result shows the response shape expected by the extractor
 #' page <- structure(
 #'   list(data = list(products = list(
 #'     hasNextPage = TRUE,
@@ -522,7 +522,7 @@ fabric_graphql_paginate <- function(
 #'   class = c("fabric_graphql_result", "list")
 #' )
 #'
-#' # TRUE plus a cursor tells the paginator to request another page.
+#' # TRUE plus a cursor tells the paginator to request another page
 #' next_cursor(page)
 #' @export
 fabric_graphql_cursor <- function(
@@ -622,7 +622,7 @@ fabric_graphql_cursor <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the GraphQL API, then fetch every Products page.
+#' # Discover the GraphQL API, then fetch every Products page
 #' workspace <- fabric_workspaces()[[1L]]
 #' api <- fabric_graphql_apis(workspace)[[1L]]
 #' pages <- fabric_graphql_paginate(
@@ -639,7 +639,7 @@ fabric_graphql_cursor <- function(
 #'   next_cursor = fabric_graphql_cursor("products")
 #' )
 #'
-#' # Combine nested item rows from every page into one tibble.
+#' # Combine nested item rows from every page into one tibble
 #' rows <- fabric_graphql_collect(pages, c("products", "items"))
 #' attr(rows, "complete")
 #' attr(rows, "errors")

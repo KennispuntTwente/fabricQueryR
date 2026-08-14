@@ -151,12 +151,12 @@ source while \verb{COPY INTO} might still be completing.
 }
 \examples{
 \dontrun{
-# Discover both the destination Warehouse and staging Lakehouse.
+# Discover both the destination Warehouse and staging Lakehouse
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 staging <- fabric_lakehouses(workspace)[[1L]]
 
-# Upload through OneLake staging and create a new Warehouse table.
+# Upload through OneLake staging and create a new Warehouse table
 fabric_warehouse_write_table(
   warehouse,
   "orders_from_r",

@@ -37,14 +37,14 @@
 #' [Workspace roles](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)
 #' @examples
 #' \dontrun{
-#' # Sign in and list every Fabric workspace you can access.
+#' # Sign in and list every Fabric workspace you can access
 #' workspaces <- fabric_workspaces()
 #'
-#' # Inspect the names before choosing a workspace record.
+#' # Inspect the names before choosing a workspace record
 #' vapply(workspaces, `[[`, character(1), "displayName")
 #' workspace <- workspaces[[1L]]
 #'
-#' # Pass the discovered record directly to the next discovery step.
+#' # Pass the discovered record directly to the next discovery step
 #' items <- fabric_items(workspace)
 #' }
 #' @export
@@ -170,15 +170,15 @@ fabric_workspaces <- function(
 #' [Personal-workspace XMLA endpoints](https://learn.microsoft.com/en-us/fabric/enterprise/powerbi/service-premium-connect-tools#connecting-to-a-personal-workspace)
 #' @examples
 #' \dontrun{
-#' # Start by discovering a workspace instead of copying its ID.
+#' # Start by discovering a workspace instead of copying its ID
 #' workspaces <- fabric_workspaces()
 #' workspace <- workspaces[[1L]]
 #'
-#' # List lightweight item records and inspect their names and types.
+#' # List lightweight item records and inspect their names and types
 #' items <- fabric_items(workspace)
 #' vapply(items, `[[`, character(1), "displayName")
 #'
-#' # Ask for enriched records when another function needs connection details.
+#' # Ask for enriched records when another function needs connection details
 #' lakehouses <- fabric_items(
 #'   workspace,
 #'   type = "Lakehouse",
@@ -351,14 +351,14 @@ fabric_items <- function(
 #' [fabric_items()] with `detail = FALSE` when only core item metadata is needed
 #' @examples
 #' \dontrun{
-#' # Discover a workspace and obtain a lightweight Warehouse record.
+#' # Discover a workspace and obtain a lightweight Warehouse record
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouses <- fabric_items(workspace, type = "Warehouse")
 #'
-#' # Enrich that discovered record with connection details.
+#' # Enrich that discovered record with connection details
 #' warehouse <- fabric_item(workspace, warehouses[[1L]])
 #'
-#' # The result can be passed directly to SQL helpers.
+#' # The result can be passed directly to SQL helpers
 #' fabric_sql_connection_info(warehouse)
 #' }
 #' @export
@@ -523,10 +523,10 @@ fabric_item <- function(
 #' [List User Data Functions](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions)
 #' @examples
 #' \dontrun{
-#' # Discover a workspace once, then reuse its record for typed discovery.
+#' # Discover a workspace once, then reuse its record for typed discovery
 #' workspace <- fabric_workspaces()[[1]]
 #'
-#' # Discover data items that feed the package's query and storage helpers.
+#' # Discover data items that feed the package's query and storage helpers
 #' lakehouses <- fabric_lakehouses(workspace)
 #' warehouses <- fabric_warehouses(workspace)
 #' snapshots <- fabric_warehouse_snapshots(workspace)
@@ -536,7 +536,7 @@ fabric_item <- function(
 #' kql_databases <- fabric_kql_databases(workspace)
 #' graphql_apis <- fabric_graphql_apis(workspace)
 #'
-#' # A discovered record can be passed directly to a matching helper.
+#' # A discovered record can be passed directly to a matching helper
 #' fabric_lakehouse_tables(lakehouses[[1L]])
 #' fabric_sql_connection_info(warehouses[[1L]])
 #' fabric_pbi_dax_query(
@@ -544,7 +544,7 @@ fabric_item <- function(
 #'   dax = Sys.getenv("FABRIC_DAX_QUERY")
 #' )
 #'
-#' # Discover executable items that can be passed to fabric_job_run().
+#' # Discover executable items that can be passed to fabric_job_run()
 #' notebook <- fabric_notebooks(workspace)[[1]]
 #' pipeline <- fabric_data_pipelines(workspace)[[1]]
 #' spark_job <- fabric_spark_job_definitions(workspace)[[1]]
@@ -553,7 +553,7 @@ fabric_item <- function(
 #' fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
 #' fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
 #'
-#' # Discover supporting Spark and serverless-function items as well.
+#' # Discover supporting Spark and serverless-function items as well
 #' environments <- fabric_environments(workspace)
 #' functions <- fabric_user_data_functions(workspace)
 #' }

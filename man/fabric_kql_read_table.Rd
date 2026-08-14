@@ -89,14 +89,14 @@ another supported storage destination.
 
 \examples{
 \dontrun{
-# Discover a KQL database instead of copying its Query URI and name.
+# Discover a KQL database instead of copying its Query URI and name
 workspace <- fabric_workspaces()[[1L]]
 database <- fabric_kql_databases(workspace)[[1L]]
 
-# Choose an existing table shown under Tables in the Fabric KQL explorer.
+# Choose an existing table shown under Tables in the Fabric KQL explorer
 table <- Sys.getenv("FABRIC_KQL_TABLE")
 
-# Read a bounded portion of that table into a tibble.
+# Read a bounded portion of that table into a tibble
 events <- fabric_kql_read_table(
   database,
   table,

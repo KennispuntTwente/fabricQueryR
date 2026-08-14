@@ -177,14 +177,14 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover a Lakehouse instead of copying its workspace and item IDs.
+#' # Discover a Lakehouse instead of copying its workspace and item IDs
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #'
-#' # List its existing Delta tables.
+#' # List its existing Delta tables
 #' tables <- fabric_lakehouse_tables(lakehouse)
 #'
-#' # Discover a CSV already stored in this Lakehouse's Files area.
+#' # Discover a CSV already stored in this Lakehouse's Files area
 #' files <- fabric_onelake_list(
 #'   workspace,
 #'   lakehouse,
@@ -192,7 +192,7 @@
 #' )
 #' csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
 #'
-#' # Load that discovered CSV into a managed Delta table.
+#' # Load that discovered CSV into a managed Delta table
 #' operation <- fabric_lakehouse_load_table(
 #'   lakehouse,
 #'   table = "orders_from_csv",
@@ -203,7 +203,7 @@
 #' )
 #' fabric_operation_wait(operation, timeout = 900)
 #'
-#' # Or stage an R data frame and write it as a managed Delta table.
+#' # Or stage an R data frame and write it as a managed Delta table
 #' result <- fabric_lakehouse_write_table(
 #'   lakehouse,
 #'   table = "orders_from_r",
@@ -254,16 +254,16 @@ NULL
 #' @export
 #' @examples
 #' \dontrun{
-#' # Discover both the Lakehouse and the table to read.
+#' # Discover both the Lakehouse and the table to read
 #' workspace <- fabric_workspaces()[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' tables <- fabric_lakehouse_tables(lakehouse)
 #' table <- tables[1L, ]
 #'
-#' # Read the discovered table into a tibble.
+#' # Read the discovered table into a tibble
 #' rows <- fabric_lakehouse_read_table(lakehouse, table)
 #'
-#' # Stream selected columns when the full table may not fit in R memory.
+#' # Stream selected columns when the full table may not fit in R memory
 #' stream <- fabric_lakehouse_read_table(
 #'   lakehouse,
 #'   table,
@@ -526,7 +526,7 @@ fabric_lakehouse_tables <- function(
 }
 
 # Follow Fabric List Tables continuation URIs/tokens. This source is the only
-# documented table inventory that promises Managed/External type metadata.
+# documented table inventory that promises Managed/External type metadata
 .fabric_lakehouse_fabric_table_pages <- function(
   target,
   credential,
@@ -831,7 +831,7 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Resolve one Lakehouse record/name/ID into the IDs and endpoints used by all
-# table APIs. Returns the original records as well for OneLake private routing.
+# table APIs. Returns the original records as well for OneLake private routing
 .fabric_lakehouse_target <- function(
   lakehouse,
   workspace,
@@ -870,7 +870,7 @@ fabric_lakehouse_write_table <- function(
   )
 }
 
-# Validate and normalize the dedicated OneLake Delta metadata endpoint.
+# Validate and normalize the dedicated OneLake Delta metadata endpoint
 .fabric_lakehouse_table_api_base <- function(value, allow_custom_endpoint) {
   .fabric_operation_logical(allow_custom_endpoint, "allow_custom_endpoint")
   .fabric_lakehouse_nonempty(value, "table_api_base")
@@ -921,7 +921,7 @@ fabric_lakehouse_write_table <- function(
   }
 }
 
-# Follow Unity Catalog-compatible page tokens for a schema or table collection.
+# Follow Unity Catalog-compatible page tokens for a schema or table collection
 .fabric_lakehouse_table_pages <- function(
   url,
   field,
@@ -977,7 +977,7 @@ fabric_lakehouse_write_table <- function(
   records
 }
 
-# Build the normalized row while preserving columns and all unknown raw fields.
+# Build the normalized row while preserving columns and all unknown raw fields
 .fabric_lakehouse_table_row <- function(
   record,
   schema_name,
@@ -1026,7 +1026,7 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Match inventories by their path below Tables, falling back to an unambiguous
-# table name for service responses that omit or transform a storage location.
+# table name for service responses that omit or transform a storage location
 .fabric_lakehouse_match_fabric_table <- function(
   record,
   schema_name,
@@ -1085,7 +1085,7 @@ fabric_lakehouse_write_table <- function(
   if (length(parts) < 2L || !nzchar(parts[[2L]])) NULL else parts[[2L]]
 }
 
-# Bind normalized table rows into a stable tibble, including empty list columns.
+# Bind normalized table rows into a stable tibble, including empty list columns
 .fabric_lakehouse_table_tibble <- function(rows) {
   empty <- tibble::tibble(
     name = character(),
@@ -1132,7 +1132,7 @@ fabric_lakehouse_write_table <- function(
   )
 }
 
-# Convert Unity Catalog epoch milliseconds to UTC POSIXct, retaining missingness.
+# Convert Unity Catalog epoch milliseconds to UTC POSIXct, retaining missingness
 .fabric_lakehouse_epoch_ms <- function(value) {
   number <- suppressWarnings(as.numeric(value %||% NA_real_))
   if (length(number) != 1L || is.na(number) || !is.finite(number)) {
@@ -1141,7 +1141,7 @@ fabric_lakehouse_write_table <- function(
   as.POSIXct(number / 1000, origin = "1970-01-01", tz = "UTC")
 }
 
-# Validate all Load Table fields and build normalized settings for submission.
+# Validate all Load Table fields and build normalized settings for submission
 .fabric_lakehouse_load_settings <- function(
   table,
   path,
@@ -1223,7 +1223,7 @@ fabric_lakehouse_write_table <- function(
   )
 }
 
-# Submit the preview load request once and attach useful destination metadata.
+# Submit the preview load request once and attach useful destination metadata
 .fabric_lakehouse_load_submit <- function(
   target,
   settings,
@@ -1291,7 +1291,7 @@ fabric_lakehouse_write_table <- function(
   operation
 }
 
-# Validate and adapt an R or Arrow object to a lazy record-batch reader.
+# Validate and adapt an R or Arrow object to a lazy record-batch reader
 .fabric_lakehouse_prepare_data <- function(data) {
   tryCatch(
     .fabric_parquet_prepare_data(
@@ -1311,7 +1311,7 @@ fabric_lakehouse_write_table <- function(
   )
 }
 
-# Require names that Fabric documents as preserving exactly during table load.
+# Require names that Fabric documents as preserving exactly during table load
 .fabric_lakehouse_column_names <- function(value) {
   if (!length(value)) {
     .fabric_abort("data must contain at least one column")
@@ -1333,7 +1333,7 @@ fabric_lakehouse_write_table <- function(
   invisible(value)
 }
 
-# Raise one actionable load error and retain or remove the source as requested.
+# Raise one actionable load error and retain or remove the source as requested
 .fabric_lakehouse_write_abort <- function(
   error,
   storage_target,
@@ -1367,7 +1367,7 @@ fabric_lakehouse_write_table <- function(
   )
 }
 
-# Best-effort removal used after load success or in an already-failing path.
+# Best-effort removal used after load success or in an already-failing path
 .fabric_lakehouse_remove_staging <- function(target, credential) {
   isTRUE(tryCatch(
     {
@@ -1386,12 +1386,12 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Create a filesystem-safe, process-unique directory component without an
-# additional package dependency.
+# additional package dependency
 .fabric_lakehouse_staging_id <- function() {
   gsub("[^A-Za-z0-9_-]", "", basename(tempfile("load-")))
 }
 
-# Validate an item-relative path accepted by the Load Table API.
+# Validate an item-relative path accepted by the Load Table API
 .fabric_lakehouse_files_path <- function(value, name) {
   .fabric_lakehouse_nonempty(value, name)
   normalized <- onelake_normalize_path(value)
@@ -1408,7 +1408,7 @@ fabric_lakehouse_write_table <- function(
   normalized
 }
 
-# Validate documented Lakehouse destination identifiers.
+# Validate documented Lakehouse destination identifiers
 .fabric_lakehouse_table_name <- function(value) {
   .fabric_lakehouse_nonempty(value, "table")
   if (
@@ -1432,7 +1432,7 @@ fabric_lakehouse_write_table <- function(
   invisible(value)
 }
 
-# Match public choices case-insensitively while returning service casing.
+# Match public choices case-insensitively while returning service casing
 .fabric_lakehouse_choice <- function(value, choices, name) {
   if (length(value) > 1L) {
     value <- value[[1L]]

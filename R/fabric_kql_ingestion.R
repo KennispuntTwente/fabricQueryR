@@ -158,7 +158,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the KQL database and a Lakehouse containing staged CSV files.
+#' # Discover the KQL database and a Lakehouse containing staged CSV files
 #' workspace <- fabric_workspaces()[[1L]]
 #' database <- fabric_kql_databases(workspace)[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
@@ -169,18 +169,18 @@
 #' )
 #' csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
 #'
-#' # Build the source URI from discovered IDs and the listed file path.
+#' # Build the source URI from discovered IDs and the listed file path
 #' source <- paste0(
 #'   "https://onelake.dfs.fabric.microsoft.com/",
 #'   workspace$id, "/", lakehouse$id, "/", csv_file$path[[1L]],
 #'   ";impersonate"
 #' )
 #'
-#' # Choose an existing target and CSV mapping from the KQL database explorer.
+#' # Choose an existing target and CSV mapping from the KQL database explorer
 #' table <- Sys.getenv("FABRIC_KQL_TABLE")
 #' mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING")
 #'
-#' # Queue the file once using a stable ingest-if-not-exists key.
+#' # Queue the file once using a stable ingest-if-not-exists key
 #' ingestion <- fabric_kql_ingest(
 #'   database,
 #'   table = table,
@@ -191,7 +191,7 @@
 #'   ingest_if_not_exists = paste0("file:", csv_file$path[[1L]])
 #' )
 #'
-#' # Wait for every submitted file to reach a terminal ingestion state.
+#' # Wait for every submitted file to reach a terminal ingestion state
 #' result <- fabric_kql_ingestion_status(
 #'   ingestion,
 #'   wait = TRUE,
@@ -1789,11 +1789,11 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'
 #' @examples
 #' \dontrun{
-#' # Discover the KQL database that will receive the R data.
+#' # Discover the KQL database that will receive the R data
 #' workspace <- fabric_workspaces()[[1L]]
 #' database <- fabric_kql_databases(workspace)[[1L]]
 #'
-#' # Create a new table when needed, stage the data, and wait for ingestion.
+#' # Create a new table when needed, stage the data, and wait for ingestion
 #' result <- fabric_kql_write_table(
 #'   database,
 #'   table = "EventsFromR",
@@ -1803,7 +1803,7 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' )
 #' result$status$state
 #'
-#' # A local Arrow Dataset is scanned batch by batch rather than collected.
+#' # A local Arrow Dataset is scanned batch by batch rather than collected
 #' dataset <- arrow::open_dataset(Sys.getenv("ARROW_DATASET_PATH"))
 #' fabric_kql_write_table(database, "EventsFromArrow", dataset)
 #' }
@@ -2199,7 +2199,7 @@ print.fabric_kql_write_result <- function(x, ...) {
 # Resolve the query endpoint needed by `.create table`. Discovery records carry
 # both service URIs; standard Microsoft ingestion origins use the documented
 # `ingest-` hostname prefix. Custom origins require an explicit paired endpoint
-# so credentials are never redirected by an inferred host rewrite.
+# so credentials are never redirected by an inferred host rewrite
 kusto_write_management_target <- function(
   cluster,
   ingestion_target,
@@ -2242,7 +2242,7 @@ kusto_write_management_target <- function(
 
 # Build an idempotent Kusto creation command. `.create table` returns an
 # existing same-named table unchanged, which is exactly the public
-# create-if-missing contract.
+# create-if-missing contract
 kusto_write_create_table_command <- function(
   table,
   schema,
@@ -2352,9 +2352,9 @@ kusto_write_column_types <- function(schema, columns, column_types = NULL) {
   unname(column_types)
 }
 
-# Infer only conversions supported by Kusto's documented Parquet mapping.
+# Infer only conversions supported by Kusto's documented Parquet mapping
 # Ambiguous binary/interval types fail early and can be handled explicitly with
-# column_types or a source conversion.
+# column_types or a source conversion
 kusto_write_arrow_type <- function(type, column) {
   if (inherits(type, "DictionaryType")) {
     return(kusto_write_arrow_type(type$value_type, column))
@@ -2404,7 +2404,7 @@ kusto_write_arrow_type <- function(type, column) {
   inferred
 }
 
-# Read and strictly normalize the preview ingestion configuration.
+# Read and strictly normalize the preview ingestion configuration
 kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
   request <- httr2::request(paste0(
     target$url,
@@ -2485,7 +2485,7 @@ kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
   )
 }
 
-# Extract optional path records without retaining SAS-bearing container paths.
+# Extract optional path records without retaining SAS-bearing container paths
 kusto_ingestion_configuration_paths <- function(value) {
   if (is.null(value)) {
     return(character())
@@ -2516,7 +2516,7 @@ kusto_ingestion_configuration_paths <- function(value) {
   unique(paths)
 }
 
-# Choose a trusted OneLake folder from configuration or an explicit Files URI.
+# Choose a trusted OneLake folder from configuration or an explicit Files URI
 kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
   configured <- is.null(override)
   candidates <- if (configured) configuration$lake_folders else override
@@ -2562,7 +2562,7 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
   )
 }
 
-# Best-effort removal of the unique directory containing staged files.
+# Best-effort removal of the unique directory containing staged files
 .fabric_onelake_remove_staging <- function(target, credential) {
   isTRUE(tryCatch(
     {
@@ -2580,7 +2580,7 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
   ))
 }
 
-# Raise one safe error while retaining staging after an ambiguous Kusto result.
+# Raise one safe error while retaining staging after an ambiguous Kusto result
 kusto_write_ambiguous_error <- function(
   error,
   staging_path,
@@ -2597,7 +2597,7 @@ kusto_write_ambiguous_error <- function(
   )
 }
 
-# Build the stable high-level result after status and cleanup are known.
+# Build the stable high-level result after status and cleanup are known
 kusto_write_result <- function(
   target,
   serialized,
@@ -2715,14 +2715,14 @@ kusto_write_result <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Discover both the source KQL database and destination Lakehouse.
+#' # Discover both the source KQL database and destination Lakehouse
 #' workspace <- fabric_workspaces()[[1L]]
 #' database <- fabric_kql_databases(workspace)[[1L]]
 #' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #' table <- Sys.getenv("FABRIC_KQL_TABLE")
 #' table_literal <- jsonlite::toJSON(table, auto_unbox = TRUE)
 #'
-#' # Export a bounded query to a new folder in the discovered Lakehouse.
+#' # Export a bounded query to a new folder in the discovered Lakehouse
 #' exported <- fabric_kql_export(
 #'   database,
 #'   query = paste0("table(", table_literal, ") | take 10000"),
@@ -3028,7 +3028,7 @@ print.fabric_kql_export_result <- function(x, ...) {
   invisible(x)
 }
 
-# Normalize a discovered OneLake directory or complete storage connection.
+# Normalize a discovered OneLake directory or complete storage connection
 kusto_export_destination <- function(
   destination,
   workspace = NULL,
@@ -3092,14 +3092,14 @@ kusto_export_destination <- function(
   )
 }
 
-# Retain the resource location while dropping every query/authentication suffix.
+# Retain the resource location while dropping every query/authentication suffix
 kusto_export_storage_display <- function(value) {
   value <- sub(";.*$", "", value)
   value <- sub("[?].*$", "", value)
   .httr2_redact(value)
 }
 
-# Guard direct export against item roots and managed Delta table storage.
+# Guard direct export against item roots and managed Delta table storage
 kusto_export_onelake_target <- function(target) {
   onelake_require_mutable_path(target, "KQL export")
   root <- strsplit(target$path, "/", fixed = TRUE)[[1L]][[1L]]
@@ -3109,7 +3109,7 @@ kusto_export_onelake_target <- function(target) {
   invisible(target)
 }
 
-# Validate documented export properties and return their normalized values.
+# Validate documented export properties and return their normalized values
 kusto_export_properties <- function(
   format,
   compressed,
@@ -3216,7 +3216,7 @@ kusto_export_properties <- function(
   )
 }
 
-# Accept optional scalar text without interpolating it unsafely into KQL.
+# Accept optional scalar text without interpolating it unsafely into KQL
 kusto_export_optional_text <- function(value, name) {
   if (is.null(value)) {
     return(NULL)
@@ -3233,13 +3233,13 @@ kusto_export_optional_text <- function(value, name) {
   value
 }
 
-# Quote a Kusto verbatim string, optionally as an obfuscated literal.
+# Quote a Kusto verbatim string, optionally as an obfuscated literal
 kusto_export_literal <- function(value, hidden = FALSE) {
   escaped <- gsub('"', '""', value, fixed = TRUE)
   paste0(if (hidden) "h" else "", '@"', escaped, '"')
 }
 
-# Build the documented async command without retaining it in public results.
+# Build the documented async command without retaining it in public results
 kusto_export_command <- function(query, destination, properties) {
   compressed <- if (isTRUE(properties$compressed)) " compressed" else ""
   values <- properties[setdiff(names(properties), c("format", "compressed"))]
@@ -3273,7 +3273,7 @@ kusto_export_command <- function(query, destination, properties) {
   )
 }
 
-# Send one management command and parse the v1 table envelope.
+# Send one management command and parse the v1 table envelope
 kusto_export_management <- function(
   target,
   command,
@@ -3336,7 +3336,7 @@ kusto_export_management <- function(
   )
 }
 
-# Parse every v1 management table using the established Kusto type converter.
+# Parse every v1 management table using the established Kusto type converter
 kusto_export_tables <- function(payload) {
   if (!is.list(payload) || !is.list(payload$Tables)) {
     .fabric_abort(
@@ -3366,7 +3366,7 @@ kusto_export_tables <- function(payload) {
   })
 }
 
-# Find the first management table containing all requested fields.
+# Find the first management table containing all requested fields
 kusto_export_table <- function(tables, fields) {
   for (table in tables) {
     if (all(tolower(fields) %in% tolower(names(table)))) {
@@ -3385,13 +3385,13 @@ kusto_export_table <- function(tables, fields) {
   )
 }
 
-# Read a management table column case-insensitively.
+# Read a management table column case-insensitively
 kusto_export_column <- function(table, name) {
   index <- match(tolower(name), tolower(names(table)))
   table[[index]]
 }
 
-# Extract and validate the async export operation GUID.
+# Extract and validate the async export operation GUID
 kusto_export_operation_id <- function(tables) {
   table <- kusto_export_table(tables, "OperationId")
   if (nrow(table) != 1L) {
@@ -3416,7 +3416,7 @@ kusto_export_operation_id <- function(tables) {
   tolower(id)
 }
 
-# Normalize the latest documented operation status; no row means not visible yet.
+# Normalize the latest documented operation status; no row means not visible yet
 kusto_export_status <- function(tables, operation_id) {
   table <- kusto_export_table(
     tables,
@@ -3476,7 +3476,7 @@ kusto_export_status <- function(tables, operation_id) {
   )
 }
 
-# Redact named secrets and complete credential suffixes embedded in status text.
+# Redact named secrets and complete credential suffixes embedded in status text
 kusto_export_status_text <- function(value) {
   value <- .httr2_redact(value)
   gsub(
@@ -3490,7 +3490,7 @@ kusto_export_status_text <- function(value) {
   )
 }
 
-# Normalize successful detail output while preserving exact Kusto long counts.
+# Normalize successful detail output while preserving exact Kusto long counts
 kusto_export_artifacts <- function(tables) {
   table <- kusto_export_table(tables, c("Path", "NumRecords"))
   paths <- vapply(
@@ -3515,7 +3515,7 @@ kusto_export_artifacts <- function(tables) {
   )
 }
 
-# Preserve the operation context when status polling itself becomes ambiguous.
+# Preserve the operation context when status polling itself becomes ambiguous
 kusto_export_tracking_error <- function(
   operation_id,
   target,
@@ -3544,7 +3544,7 @@ kusto_export_tracking_error <- function(
   )
 }
 
-# Signal terminal failure without claiming that partial storage files are valid.
+# Signal terminal failure without claiming that partial storage files are valid
 kusto_export_failure_error <- function(
   operation_id,
   target,
@@ -3570,7 +3570,7 @@ kusto_export_failure_error <- function(
   )
 }
 
-# Signal an exhausted polling deadline with safe resumability context.
+# Signal an exhausted polling deadline with safe resumability context
 kusto_export_timeout_error <- function(
   operation_id,
   target,
