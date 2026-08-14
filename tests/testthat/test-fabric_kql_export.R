@@ -138,7 +138,9 @@ test_that("KQL export submits once, polls, and returns authoritative details", {
     token = "kusto-token",
     poll_interval = 0.1,
     .now = function() now,
-    .sleep = function(seconds) now <<- now + seconds
+    .sleep = function(seconds) {
+      now <<- now + seconds
+    }
   )
 
   expect_s3_class(result, "fabric_kql_export_result")
@@ -268,7 +270,9 @@ test_that("KQL export timeout retains its operation ID without replay", {
       poll_interval = 0.1,
       token = "token",
       .now = function() now,
-      .sleep = function(seconds) now <<- now + seconds
+      .sleep = function(seconds) {
+        now <<- now + seconds
+      }
     ),
     error = identity
   )
