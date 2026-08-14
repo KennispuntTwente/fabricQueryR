@@ -84,14 +84,16 @@ reference:
       - fabric_delta_config
 
   - title: KQL
-    desc: Query Eventhouse data and ingest storage, R, or Arrow sources
+    desc: Query Eventhouse data, ingest storage or R objects, and export results
     contents:
       - fabric_kql_query
       - fabric_kql_ingest
       - fabric_kql_write_table
+      - fabric_kql_export
       - print.fabric_kql_ingestion
       - print.fabric_kql_ingestion_status
       - print.fabric_kql_write_result
+      - print.fabric_kql_export_result
 
   - title: GraphQL
     desc: Explore schemas, execute operations, and collect cursor-based pages

@@ -21,7 +21,8 @@ Lakehouse SQL analytics endpoint
 \item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
 \code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data,
 \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}} for tracked storage ingestion,
-\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} for R/Arrow-to-Eventhouse writes, and
+\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} for R/Arrow-to-Eventhouse writes,
+\code{\link[=fabric_kql_export]{fabric_kql_export()}} for tracked server-side exports to storage, and
 \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item
 \item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
 User Data Function's explicit public URL

@@ -428,6 +428,27 @@ written$status$state
 The writer partitions large inputs into multiple Parquet sources while staying
 within the ingestion service's advertised file-count and total-size limits.
 
+For a large result moving in the other direction, export on the Kusto service
+directly into a OneLake `Files/` directory. This avoids collecting the result
+through R or the client-result channel:
+
+``` r
+exported <- fabric_kql_export(
+  kql_database,
+  query = "Events | where observed_at > ago(7d)",
+  destination = lakehouse,
+  path = "Files/exports/events-weekly",
+  format = "parquet",
+  name_prefix = "events"
+)
+exported$artifacts
+```
+
+The function waits on Kusto's asynchronous operation and returns file paths
+only after successful completion. Kusto can leave incomplete files after a
+failed export, so the initial command is never automatically replayed and a
+failure identifies the operation and destination for inspection.
+
 The queued-ingestion REST API is in preview. Submissions use Kusto's ingestion
 URI, accept at most 20 existing storage sources per request, and have
 at-least-once delivery semantics. The package does not automatically replay a

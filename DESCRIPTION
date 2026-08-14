@@ -26,7 +26,9 @@ Description:
     'Kusto Query Language' ('KQL')
     queries against 'Eventhouse' databases; submit and monitor tracked queued
     ingestion from blob or 'OneLake' storage into existing 'Eventhouse' tables,
-    including bounded staging of data frames and lazy 'Arrow' data;
+    including bounded staging of data frames and lazy 'Arrow' data; export
+    large 'KQL' query results directly to external storage with tracked
+    server-side operations;
     call user-configured 'GraphQL'
     APIs over Fabric data; and execute 'Spark' code via the 'Livy API'.
     Item jobs can be submitted, monitored, waited on, and cancelled, and their

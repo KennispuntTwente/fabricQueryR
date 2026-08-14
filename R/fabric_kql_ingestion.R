@@ -2293,3 +2293,944 @@ kusto_write_result <- function(
     class = "fabric_kql_write_result"
   )
 }
+
+#' Export a KQL query directly to external storage
+#'
+#' Runs Kusto's server-side `.export to storage` command and waits for its
+#' asynchronous operation to finish. This avoids returning a large query result
+#' through R and the Kusto client-result channel. A discovered Fabric item plus
+#' a `Files/` directory is converted to a OneLake connection string using
+#' caller impersonation; a complete documented Kusto storage connection string
+#' can also be supplied.
+#'
+#' @section Tracking and failure safety:
+#' The export submission is sent once and is never automatically replayed. The
+#' function polls `.show operations` until Kusto reports a terminal state, then
+#' calls `.show operation ... details` for the authoritative artifact paths and
+#' record counts. Kusto does not remove files written before a failed export, so
+#' a failure or timeout identifies the destination and operation ID but never
+#' reports partial files as a successful result.
+#'
+#' Storage connection strings are emitted as obfuscated Kusto string literals
+#' and are redacted from returned objects and conditions. If a submission fails
+#' before its operation ID is received, inspect the destination and Kusto
+#' operation history before trying again.
+#'
+#' @section Output properties:
+#' `format` supports Kusto's `parquet`, `csv`, `tsv`, and `json` exporters.
+#' `compressed = TRUE` enables the selected `compression_type`, or Kusto's
+#' default codec when it is omitted. `size_limit` is the uncompressed target
+#' size of each artifact and must be from 100 MiB through 4 GiB. Text header and
+#' encoding options, and Parquet row-group and datetime-precision options, are
+#' accepted only for their applicable formats.
+#'
+#' @section Permissions:
+#' The caller needs at least Kusto Database Viewer permission. OneLake caller
+#' impersonation additionally needs write access equivalent to Storage Blob
+#' Data Contributor on the destination.
+#'
+#' @param cluster Query URI, or one Eventhouse or KQLDatabase discovery record.
+#'   A KQLDatabase record also supplies `database`.
+#' @param query One non-empty KQL query. The first result set is exported.
+#' @param destination A discovered Fabric item, item name or ID, complete
+#'   OneLake path, or complete HTTPS/ABFSS Kusto storage connection string. For
+#'   an item, also supply `path` and optionally `workspace`.
+#' @param database KQL database display name. Omit for a discovered KQLDatabase.
+#' @param workspace Workspace containing an item supplied as `destination`.
+#'   Omit when the discovered item contains its workspace ID.
+#' @param path Destination directory relative to the OneLake item. It must be
+#'   below `Files/`. Omit when `destination` is a complete storage path.
+#' @param item_type Optional Fabric item type used to resolve a named item.
+#' @param format Storage artifact format.
+#' @param compressed Whether the artifacts use compression.
+#' @param include_headers For CSV/TSV, one of `"none"`, `"all"`, or
+#'   `"firstFile"`. `NULL` uses Kusto's default.
+#' @param name_prefix Optional prefix for generated artifact names.
+#' @param file_extension Optional artifact extension beginning with a dot.
+#' @param encoding For CSV/TSV/JSON text, `"UTF8NoBOM"` or `"UTF8BOM"`.
+#' @param compression_type Optional compression codec. Non-Parquet exports use
+#'   `"gzip"`; Parquet also supports `"snappy"`, `"lz4_raw"`, `"brotli"`,
+#'   and `"zstd"`.
+#' @param distribution Kusto export distribution hint.
+#' @param size_limit Maximum uncompressed bytes per artifact, from 100 MiB to
+#'   4 GiB.
+#' @param parquet_row_group_size Optional positive Parquet row-group row count.
+#' @param parquet_datetime_precision Optional `"millisecond"` or
+#'   `"microsecond"` precision for Parquet datetime values.
+#' @param timeout Positive total client-side wait limit in seconds.
+#' @param poll_interval Positive seconds between operation status requests.
+#' @inheritParams fabric_kql_query
+#' @param .sleep,.now Internal hooks for deterministic polling tests.
+#'
+#' @return A `fabric_kql_export_result` containing the operation state,
+#'   redacted destination, artifact paths, per-artifact record counts, and
+#'   aggregate record count.
+#' @references
+#' [Kusto export to storage](https://learn.microsoft.com/en-us/kusto/management/data-export/export-data-to-storage?view=microsoft-fabric)
+#'
+#' [Kusto storage connection strings](https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric)
+#'
+#' [Kusto management HTTP request](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric)
+#'
+#' [Show Kusto operations](https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' database <- fabric_kql_databases("Telemetry workspace")[[1L]]
+#' lakehouse <- fabric_lakehouses("Telemetry workspace")[[1L]]
+#'
+#' exported <- fabric_kql_export(
+#'   database,
+#'   query = "Events | where observed_at > ago(7d)",
+#'   destination = lakehouse,
+#'   path = "Files/exports/events-weekly",
+#'   format = "parquet",
+#'   name_prefix = "events"
+#' )
+#' exported$artifacts
+#' }
+fabric_kql_export <- function(
+  cluster,
+  query,
+  destination,
+  database = NULL,
+  workspace = NULL,
+  path = NULL,
+  item_type = NULL,
+  format = c("parquet", "csv", "tsv", "json"),
+  compressed = TRUE,
+  include_headers = NULL,
+  name_prefix = NULL,
+  file_extension = NULL,
+  encoding = NULL,
+  compression_type = NULL,
+  distribution = c("per_shard", "per_node", "single"),
+  size_limit = 100 * 1024^2,
+  parquet_row_group_size = NULL,
+  parquet_datetime_precision = NULL,
+  timeout = 900,
+  poll_interval = 2,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  allow_custom_endpoint = FALSE,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
+  # 1 Resolve and validate the complete export contract -------------------------------------------
+
+  if (
+    !is.character(query) ||
+      length(query) != 1L ||
+      is.na(query) ||
+      !nzchar(trimws(query))
+  ) {
+    rlang::abort("query must be one non-empty character value")
+  }
+  target <- kusto_resolve_target(
+    cluster,
+    database,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+  destination <- kusto_export_destination(
+    destination,
+    workspace = workspace,
+    path = path,
+    item_type = item_type
+  )
+  format <- match.arg(format)
+  distribution <- match.arg(distribution)
+  properties <- kusto_export_properties(
+    format = format,
+    compressed = compressed,
+    include_headers = include_headers,
+    name_prefix = name_prefix,
+    file_extension = file_extension,
+    encoding = encoding,
+    compression_type = compression_type,
+    distribution = distribution,
+    size_limit = size_limit,
+    parquet_row_group_size = parquet_row_group_size,
+    parquet_datetime_precision = parquet_datetime_precision
+  )
+  kusto_ingestion_number(timeout, "timeout", minimum = 0, strict = TRUE)
+  kusto_ingestion_number(
+    poll_interval,
+    "poll_interval",
+    minimum = .kusto_ingestion_poll_floor
+  )
+  if (!is.function(.sleep) || !is.function(.now)) {
+    rlang::abort(".sleep and .now must be functions")
+  }
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  command <- kusto_export_command(
+    query,
+    destination$connection,
+    properties
+  )
+  started <- .now()
+  deadline <- started + timeout
+
+  # 2 Submit exactly once and recover the asynchronous operation ID -------------------------------
+
+  submission <- tryCatch(
+    {
+      response <- kusto_export_management(
+        target,
+        command,
+        credential,
+        deadline = deadline,
+        idempotent = FALSE,
+        operation = "Submit"
+      )
+      list(
+        response = response,
+        operation_id = kusto_export_operation_id(response$tables)
+      )
+    },
+    error = function(error) {
+      rlang::abort(
+        paste0(
+          "KQL export submission did not return a tracking operation ID. ",
+          "The request was not replayed because Kusto may already have ",
+          "accepted it; inspect the destination and operation history before ",
+          "resubmitting."
+        ),
+        class = c(
+          "fabric_kql_export_submission_error",
+          "fabric_kql_export_error"
+        ),
+        destination = destination$display,
+        parent = error
+      )
+    }
+  )
+  submitted <- submission$response
+  operation_id <- submission$operation_id
+
+  # 3 Poll the retry-safe management status until one documented terminal state ------------------
+
+  last <- NULL
+  repeat {
+    elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
+    if (!is.finite(elapsed) || elapsed >= timeout) {
+      kusto_export_timeout_error(
+        operation_id,
+        target,
+        destination,
+        properties$format,
+        timeout,
+        last
+      )
+    }
+    status_response <- tryCatch(
+      kusto_export_management(
+        target,
+        paste(".show operations", operation_id),
+        credential,
+        deadline = deadline,
+        idempotent = TRUE,
+        operation = "Status"
+      ),
+      fabric_http_deadline_error = function(error) {
+        kusto_export_timeout_error(
+          operation_id,
+          target,
+          destination,
+          properties$format,
+          timeout,
+          last,
+          parent = error
+        )
+      },
+      error = function(error) {
+        kusto_export_tracking_error(
+          operation_id,
+          target,
+          destination,
+          properties$format,
+          last,
+          parent = error
+        )
+      }
+    )
+    last <- kusto_export_status(status_response$tables, operation_id)
+    if (!is.null(last) && !last$state %in% c("InProgress", "Scheduled")) {
+      break
+    }
+    elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
+    if (!is.finite(elapsed) || elapsed >= timeout) {
+      kusto_export_timeout_error(
+        operation_id,
+        target,
+        destination,
+        properties$format,
+        timeout,
+        last
+      )
+    }
+    .sleep(min(poll_interval, timeout - elapsed))
+  }
+
+  # 4 Retrieve authoritative artifacts only for a successful operation ----------------------------
+
+  if (!identical(last$state, "Completed")) {
+    kusto_export_failure_error(
+      operation_id,
+      target,
+      destination,
+      properties$format,
+      last
+    )
+  }
+  detail_response <- tryCatch(
+    kusto_export_management(
+      target,
+      paste(".show operation", operation_id, "details"),
+      credential,
+      deadline = deadline,
+      idempotent = TRUE,
+      operation = "Details"
+    ),
+    fabric_http_deadline_error = function(error) {
+      kusto_export_timeout_error(
+        operation_id,
+        target,
+        destination,
+        properties$format,
+        timeout,
+        last,
+        parent = error
+      )
+    },
+    error = function(error) {
+      rlang::abort(
+        paste0(
+          "KQL export ",
+          operation_id,
+          " completed, but its artifact details could not be retrieved; ",
+          "use .show operation ",
+          operation_id,
+          " details before resubmitting."
+        ),
+        class = c(
+          "fabric_kql_export_details_error",
+          "fabric_kql_export_error"
+        ),
+        operation_id = operation_id,
+        database = target$database,
+        destination = destination$display,
+        format = properties$format,
+        last_status = last,
+        parent = error
+      )
+    }
+  )
+  artifacts <- kusto_export_artifacts(detail_response$tables)
+  structure(
+    list(
+      operation_id = operation_id,
+      database = target$database,
+      state = last$state,
+      status = last$status,
+      destination = destination$display,
+      format = properties$format,
+      artifacts = artifacts,
+      file_count = nrow(artifacts),
+      records = sum(artifacts$num_records),
+      started_on = last$started_on,
+      last_updated_on = last$last_updated_on,
+      duration = last$duration,
+      submitted_at = started,
+      completed_at = .now(),
+      request_id = submitted$request_id
+    ),
+    class = "fabric_kql_export_result"
+  )
+}
+
+#' Print a KQL storage export result
+#'
+#' @param x A `fabric_kql_export_result`.
+#' @param ... Unused.
+#' @return `x`, invisibly.
+#' @export
+print.fabric_kql_export_result <- function(x, ...) {
+  cat("<fabric_kql_export_result>\n")
+  cat("  operation:", x$operation_id, "\n")
+  cat("  database: ", x$database, "\n")
+  cat("  state:    ", x$state, "\n")
+  cat("  files:    ", x$file_count, "\n")
+  cat("  records:  ", format(x$records, scientific = FALSE), "\n")
+  invisible(x)
+}
+
+# Normalize a discovered OneLake directory or complete storage connection.
+kusto_export_destination <- function(
+  destination,
+  workspace = NULL,
+  path = NULL,
+  item_type = NULL
+) {
+  complete <- is.character(destination) &&
+    length(destination) == 1L &&
+    !is.na(destination) &&
+    grepl("^(?:https|abfss)://", destination, ignore.case = TRUE)
+  if (complete) {
+    if (!is.null(workspace) || !is.null(path) || !is.null(item_type)) {
+      rlang::abort(
+        paste0(
+          "workspace, path, and item_type must be omitted when destination ",
+          "is a complete storage path"
+        )
+      )
+    }
+    parsed <- try(httr2::url_parse(destination), silent = TRUE)
+    onelake <- !inherits(parsed, "try-error") &&
+      fabric_host_matches(
+        parsed$hostname %||% "",
+        "onelake.dfs.fabric.microsoft.com"
+      ) &&
+      !grepl("[;?]", destination)
+    if (onelake) {
+      target <- onelake_resolve_target(destination)
+      kusto_export_onelake_target(target)
+      connection <- paste0(onelake_path_url(target), ";impersonate")
+    } else {
+      connection <- kusto_ingestion_source_url(destination)
+    }
+    return(list(
+      connection = connection,
+      display = kusto_export_storage_display(connection)
+    ))
+  }
+  if (
+    is.null(path) ||
+      !is.character(path) ||
+      length(path) != 1L ||
+      is.na(path) ||
+      !nzchar(trimws(path))
+  ) {
+    rlang::abort(
+      "path is required when destination is a Fabric item"
+    )
+  }
+  target <- onelake_resolve_target(
+    workspace,
+    destination,
+    path = path,
+    item_type = item_type
+  )
+  kusto_export_onelake_target(target)
+  connection <- paste0(onelake_path_url(target), ";impersonate")
+  list(
+    connection = connection,
+    display = kusto_export_storage_display(connection)
+  )
+}
+
+# Retain the resource location while dropping every query/authentication suffix.
+kusto_export_storage_display <- function(value) {
+  value <- sub(";.*$", "", value)
+  value <- sub("[?].*$", "", value)
+  .httr2_redact(value)
+}
+
+# Guard direct export against item roots and managed Delta table storage.
+kusto_export_onelake_target <- function(target) {
+  onelake_require_mutable_path(target, "KQL export")
+  root <- strsplit(target$path, "/", fixed = TRUE)[[1L]][[1L]]
+  if (!identical(tolower(root), "files")) {
+    rlang::abort("A OneLake KQL export destination must be below Files/")
+  }
+  invisible(target)
+}
+
+# Validate documented export properties and return their normalized values.
+kusto_export_properties <- function(
+  format,
+  compressed,
+  include_headers,
+  name_prefix,
+  file_extension,
+  encoding,
+  compression_type,
+  distribution,
+  size_limit,
+  parquet_row_group_size,
+  parquet_datetime_precision
+) {
+  format <- match.arg(tolower(format), c("parquet", "csv", "tsv", "json"))
+  distribution <- match.arg(
+    tolower(distribution),
+    c("per_shard", "per_node", "single")
+  )
+  kusto_ingestion_flag(compressed, "compressed")
+  if (!is.null(include_headers)) {
+    include_headers <- match.arg(
+      include_headers,
+      c("none", "all", "firstFile")
+    )
+    if (!format %in% c("csv", "tsv")) {
+      rlang::abort("include_headers is available only for csv or tsv exports")
+    }
+  }
+  name_prefix <- kusto_export_optional_text(name_prefix, "name_prefix")
+  file_extension <- kusto_export_optional_text(
+    file_extension,
+    "file_extension"
+  )
+  if (
+    !is.null(file_extension) &&
+      (!startsWith(file_extension, ".") || grepl("[/\\\\]", file_extension))
+  ) {
+    rlang::abort("file_extension must begin with a dot and contain no slash")
+  }
+  if (!is.null(encoding)) {
+    encoding <- match.arg(encoding, c("UTF8NoBOM", "UTF8BOM"))
+    if (identical(format, "parquet")) {
+      rlang::abort("encoding is not available for parquet exports")
+    }
+  }
+  if (!is.null(compression_type)) {
+    compression_type <- match.arg(
+      tolower(compression_type),
+      c("gzip", "snappy", "lz4_raw", "brotli", "zstd")
+    )
+    if (!isTRUE(compressed)) {
+      rlang::abort("compression_type requires compressed = TRUE")
+    }
+    if (!identical(format, "parquet") && !identical(compression_type, "gzip")) {
+      rlang::abort("Non-Parquet exports support only gzip compression")
+    }
+  }
+  kusto_ingestion_number(
+    size_limit,
+    "size_limit",
+    minimum = 100 * 1024^2,
+    whole = TRUE
+  )
+  if (size_limit > 4 * 1024^3) {
+    rlang::abort("size_limit must not exceed 4 GiB")
+  }
+  if (!is.null(parquet_row_group_size)) {
+    kusto_ingestion_number(
+      parquet_row_group_size,
+      "parquet_row_group_size",
+      minimum = 1,
+      whole = TRUE
+    )
+    if (!identical(format, "parquet")) {
+      rlang::abort(
+        "parquet_row_group_size is available only for parquet exports"
+      )
+    }
+  }
+  if (!is.null(parquet_datetime_precision)) {
+    parquet_datetime_precision <- match.arg(
+      tolower(parquet_datetime_precision),
+      c("millisecond", "microsecond")
+    )
+    if (!identical(format, "parquet")) {
+      rlang::abort(
+        "parquet_datetime_precision is available only for parquet exports"
+      )
+    }
+  }
+  list(
+    format = format,
+    compressed = isTRUE(compressed),
+    includeHeaders = include_headers,
+    namePrefix = name_prefix,
+    fileExtension = file_extension,
+    encoding = encoding,
+    compressionType = compression_type,
+    distribution = distribution,
+    persistDetails = TRUE,
+    sizeLimit = as.numeric(size_limit),
+    parquetRowGroupSize = parquet_row_group_size,
+    parquetDatetimePrecision = parquet_datetime_precision
+  )
+}
+
+# Accept optional scalar text without interpolating it unsafely into KQL.
+kusto_export_optional_text <- function(value, name) {
+  if (is.null(value)) {
+    return(NULL)
+  }
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value) ||
+      nchar(value, type = "bytes") > 1024L
+  ) {
+    rlang::abort(paste0(name, " must be one non-empty text value"))
+  }
+  value
+}
+
+# Quote a Kusto verbatim string, optionally as an obfuscated literal.
+kusto_export_literal <- function(value, hidden = FALSE) {
+  escaped <- gsub('"', '""', value, fixed = TRUE)
+  paste0(if (hidden) "h" else "", '@"', escaped, '"')
+}
+
+# Build the documented async command without retaining it in public results.
+kusto_export_command <- function(query, destination, properties) {
+  compressed <- if (isTRUE(properties$compressed)) " compressed" else ""
+  values <- properties[setdiff(names(properties), c("format", "compressed"))]
+  values <- values[!vapply(values, is.null, logical(1))]
+  encoded <- vapply(names(values), function(name) {
+    value <- values[[name]]
+    if (is.character(value)) {
+      value <- kusto_export_literal(value)
+    } else if (is.logical(value)) {
+      value <- if (value) "true" else "false"
+    } else {
+      value <- format(value, scientific = FALSE, trim = TRUE)
+    }
+    paste0(name, "=", value)
+  }, character(1))
+  paste0(
+    ".export async",
+    compressed,
+    " to ",
+    properties$format,
+    " (",
+    kusto_export_literal(destination, hidden = TRUE),
+    ") with (",
+    paste(encoded, collapse = ", "),
+    ") <| ",
+    query
+  )
+}
+
+# Send one management command and parse the v1 table envelope.
+kusto_export_management <- function(
+  target,
+  command,
+  credential,
+  deadline,
+  idempotent,
+  operation
+) {
+  client_request_id <- .kusto_next_ingestion_request_id(
+    paste0("Export", operation)
+  )
+  url <- sub("/v2/rest/query$", "/v1/rest/mgmt", target$url)
+  properties <- as.character(jsonlite::toJSON(
+    list(ClientRequestId = client_request_id),
+    auto_unbox = TRUE
+  ))
+  request <- httr2::request(url) |>
+    httr2::req_headers(
+      Accept = "application/json",
+      `x-ms-app` = "fabricQueryR",
+      `x-ms-client-version` = as.character(
+        utils::packageVersion("fabricQueryR")
+      ),
+      `x-ms-client-request-id` = client_request_id
+    ) |>
+    httr2::req_body_json(
+      list(db = target$database, csl = command, properties = properties),
+      auto_unbox = TRUE,
+      digits = 22,
+      null = "null"
+    )
+  response <- .httr2_perform(
+    request,
+    credential = credential,
+    audience = .fabric_audience$kusto,
+    idempotent = idempotent,
+    deadline = deadline
+  )
+  payload <- tryCatch(
+    httr2::resp_body_json(
+      response,
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
+    ),
+    error = function(error) {
+      rlang::abort(
+        "Kusto returned invalid management response JSON",
+        class = c(
+          "fabric_kql_export_protocol_error",
+          "fabric_kql_export_error"
+        ),
+        parent = error
+      )
+    }
+  )
+  list(
+    tables = kusto_export_tables(payload),
+    request_id = httr2::resp_header(response, "x-ms-request-id") %||%
+      client_request_id
+  )
+}
+
+# Parse every v1 management table using the established Kusto type converter.
+kusto_export_tables <- function(payload) {
+  if (!is.list(payload) || !is.list(payload$Tables)) {
+    rlang::abort(
+      "Kusto management response has no Tables array",
+      class = c(
+        "fabric_kql_export_protocol_error",
+        "fabric_kql_export_error"
+      )
+    )
+  }
+  tables <- payload$Tables
+  lapply(tables, function(table) {
+    if (
+      !is.list(table) ||
+        !is.list(table$Columns) ||
+        !is.list(table$Rows)
+    ) {
+      rlang::abort(
+        "Kusto management response contains a malformed table",
+        class = c(
+          "fabric_kql_export_protocol_error",
+          "fabric_kql_export_error"
+        )
+      )
+    }
+    kusto_parse_table(table)
+  })
+}
+
+# Find the first management table containing all requested fields.
+kusto_export_table <- function(tables, fields) {
+  for (table in tables) {
+    if (all(tolower(fields) %in% tolower(names(table)))) {
+      return(table)
+    }
+  }
+  rlang::abort(
+    paste0(
+      "Kusto management response is missing columns: ",
+      paste(fields, collapse = ", ")
+    ),
+    class = c(
+      "fabric_kql_export_protocol_error",
+      "fabric_kql_export_error"
+    )
+  )
+}
+
+# Read a management table column case-insensitively.
+kusto_export_column <- function(table, name) {
+  index <- match(tolower(name), tolower(names(table)))
+  table[[index]]
+}
+
+# Extract and validate the async export operation GUID.
+kusto_export_operation_id <- function(tables) {
+  table <- kusto_export_table(tables, "OperationId")
+  if (nrow(table) != 1L) {
+    rlang::abort(
+      "Kusto async export did not return exactly one operation ID",
+      class = c(
+        "fabric_kql_export_protocol_error",
+        "fabric_kql_export_error"
+      )
+    )
+  }
+  id <- as.character(kusto_export_column(table, "OperationId")[[1L]])
+  if (!fabric_is_guid(id)) {
+    rlang::abort(
+      "Kusto async export returned an invalid operation ID",
+      class = c(
+        "fabric_kql_export_protocol_error",
+        "fabric_kql_export_error"
+      )
+    )
+  }
+  tolower(id)
+}
+
+# Normalize the latest documented operation status; no row means not visible yet.
+kusto_export_status <- function(tables, operation_id) {
+  table <- kusto_export_table(
+    tables,
+    c("OperationId", "StartedOn", "LastUpdatedOn", "Duration", "State", "Status")
+  )
+  if (!nrow(table)) {
+    return(NULL)
+  }
+  ids <- tolower(as.character(kusto_export_column(table, "OperationId")))
+  index <- which(ids == tolower(operation_id))
+  if (length(index) != 1L) {
+    rlang::abort(
+      "Kusto operation status did not identify the requested export once",
+      class = c(
+        "fabric_kql_export_protocol_error",
+        "fabric_kql_export_error"
+      )
+    )
+  }
+  state <- as.character(kusto_export_column(table, "State")[[index]])
+  documented <- c(
+    "InProgress",
+    "Completed",
+    "Failed",
+    "PartiallySucceeded",
+    "Abandoned",
+    "BadInput",
+    "Scheduled",
+    "Throttled",
+    "Canceled",
+    "Skipped"
+  )
+  if (!state %in% documented) {
+    rlang::abort(
+      paste0("Kusto returned an unknown export operation state: ", state),
+      class = c(
+        "fabric_kql_export_protocol_error",
+        "fabric_kql_export_error"
+      )
+    )
+  }
+  list(
+    state = state,
+    status = kusto_export_status_text(as.character(
+      kusto_export_column(table, "Status")[[index]]
+    )),
+    started_on = kusto_export_column(table, "StartedOn")[[index]],
+    last_updated_on = kusto_export_column(table, "LastUpdatedOn")[[index]],
+    duration = kusto_export_column(table, "Duration")[[index]]
+  )
+}
+
+# Redact named secrets and complete credential suffixes embedded in status text.
+kusto_export_status_text <- function(value) {
+  value <- .httr2_redact(value)
+  gsub(
+    paste0(
+      "(?i)((?:https|abfss)://[^[:space:]?;\"']+)",
+      "(?:[?;][^[:space:]\"']+)"
+    ),
+    "\\1;<redacted>",
+    value,
+    perl = TRUE
+  )
+}
+
+# Normalize successful detail output while preserving exact Kusto long counts.
+kusto_export_artifacts <- function(tables) {
+  table <- kusto_export_table(tables, c("Path", "NumRecords"))
+  paths <- vapply(
+    as.character(kusto_export_column(table, "Path")),
+    kusto_export_storage_display,
+    character(1)
+  )
+  counts <- as.character(kusto_export_column(table, "NumRecords"))
+  valid <- grepl("^[0-9]+$", counts)
+  if (anyNA(counts) || !all(valid)) {
+    rlang::abort(
+      "Kusto export details contain an invalid NumRecords value",
+      class = c(
+        "fabric_kql_export_protocol_error",
+        "fabric_kql_export_error"
+      )
+    )
+  }
+  tibble::tibble(
+    path = paths,
+    num_records = bit64::as.integer64(counts)
+  )
+}
+
+# Preserve the operation context when status polling itself becomes ambiguous.
+kusto_export_tracking_error <- function(
+  operation_id,
+  target,
+  destination,
+  format,
+  status,
+  parent = NULL
+) {
+  rlang::abort(
+    paste0(
+      "Could not confirm the state of KQL export ",
+      operation_id,
+      ". It may still be running; inspect the operation and destination ",
+      "before resubmitting."
+    ),
+    class = c(
+      "fabric_kql_export_tracking_error",
+      "fabric_kql_export_error"
+    ),
+    operation_id = operation_id,
+    database = target$database,
+    destination = destination$display,
+    format = format,
+    last_status = status,
+    parent = parent
+  )
+}
+
+# Signal terminal failure without claiming that partial storage files are valid.
+kusto_export_failure_error <- function(
+  operation_id,
+  target,
+  destination,
+  format,
+  status
+) {
+  rlang::abort(
+    paste0(
+      "KQL export ",
+      operation_id,
+      " finished with state ",
+      status$state,
+      ". Files already written may be incomplete and were not returned as a ",
+      "successful export."
+    ),
+    class = c("fabric_kql_export_failure", "fabric_kql_export_error"),
+    operation_id = operation_id,
+    database = target$database,
+    destination = destination$display,
+    format = format,
+    last_status = status
+  )
+}
+
+# Signal an exhausted polling deadline with safe resumability context.
+kusto_export_timeout_error <- function(
+  operation_id,
+  target,
+  destination,
+  format,
+  timeout,
+  status,
+  parent = NULL
+) {
+  rlang::abort(
+    paste0(
+      "KQL export ",
+      operation_id,
+      " did not reach a terminal state within ",
+      base::format(timeout, scientific = FALSE, trim = TRUE),
+      " seconds. It may still be running; inspect the operation and ",
+      "destination before resubmitting."
+    ),
+    class = c("fabric_kql_export_timeout", "fabric_kql_export_error"),
+    operation_id = operation_id,
+    database = target$database,
+    destination = destination$display,
+    format = format,
+    last_status = status,
+    parent = parent
+  )
+}

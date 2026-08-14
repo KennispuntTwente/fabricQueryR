@@ -406,6 +406,12 @@ existing Eventhouse table and monitor the outcome.
   Parquet parts, uploads them to the advertised trusted OneLake lake folder,
   waits for tracked ingestion, and retains staging after ambiguous or confirmed
   failures according to an explicit cleanup policy.
+- Added `fabric_kql_export()` for the reverse large-result path. It sends one
+  documented asynchronous `.export to storage` management command, polls
+  `.show operations`, and retrieves artifact paths and exact record counts only
+  after successful completion. Discovered OneLake destinations use caller
+  impersonation, credentialed paths are redacted, and failed exports explicitly
+  leave potentially incomplete artifacts for inspection.
 - Added offline request, validation, duplicate, mapping, permission, timeout,
   throttling, protocol, Arrow streaming, cleanup, and redaction coverage plus
   live tagged file, R data-frame, and lazy Arrow ingestion/query round trips.
@@ -480,5 +486,7 @@ mature package surfaces.
 - [Kusto queued ingestion status REST API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-status-http?view=microsoft-fabric)
 - [Kusto queued ingestion configuration REST API](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
 - [Kusto storage connection strings](https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric)
+- [Kusto export to storage](https://learn.microsoft.com/en-us/kusto/management/data-export/export-data-to-storage?view=microsoft-fabric)
+- [Show Kusto operations](https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric)
 - [Use SparkR in Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr)
 - [Use sparklyr in Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr)

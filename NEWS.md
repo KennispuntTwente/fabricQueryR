@@ -26,6 +26,12 @@
   same batch-wise Arrow serializer for larger-than-memory inputs. Both writers
   retain staging whenever a remote outcome is ambiguous.
 
+* Added `fabric_kql_export()` for server-side KQL exports to discovered
+  OneLake `Files/` directories or documented storage connection strings. It
+  submits once, tracks `.show operations`, returns authoritative artifact paths
+  and record counts, and treats files from failed or timed-out exports as
+  potentially incomplete.
+
 * Lakehouse and Eventhouse writers now rotate lazy Arrow input into bounded
   Parquet parts. Lakehouse uses the documented folder-load contract; Kusto
   batches honor the ingestion service's advertised blob-count and total-size

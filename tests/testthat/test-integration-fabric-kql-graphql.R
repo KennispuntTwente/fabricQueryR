@@ -363,6 +363,98 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
   expect_equal(unname(counts[[arrow_category]]), 3)
 })
 
+test_that("server-side KQL export writes readable Parquet artifacts to OneLake", {
+  manifest <- fabric_test_manifest()
+  fabric_test_require_package("arrow")
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  root <- paste0(
+    "Files/fabricqueryr-kql-export/",
+    format(Sys.time(), "%Y%m%d%H%M%OS6", tz = "UTC"),
+    "-",
+    Sys.getpid()
+  )
+  removed <- FALSE
+  on.exit(
+    if (!removed) {
+      try(
+        fabric_onelake_delete(
+          manifest$workspace_id,
+          lakehouse$id,
+          root,
+          recursive = TRUE,
+          confirm = TRUE,
+          token = token
+        ),
+        silent = TRUE
+      )
+    },
+    add = TRUE
+  )
+
+  exported <- fabric_kql_export(
+    database,
+    query = paste(
+      database$tables$events,
+      "| project id, name, category, amount"
+    ),
+    destination = lakehouse,
+    workspace = manifest$workspace_id,
+    path = root,
+    format = "parquet",
+    name_prefix = "events",
+    compression_type = "snappy",
+    timeout = 600,
+    poll_interval = 2,
+    token = token
+  )
+  expect_s3_class(exported, "fabric_kql_export_result")
+  expect_equal(exported$state, "Completed")
+  expect_gte(exported$file_count, 1L)
+  expect_equal(as.numeric(exported$records), 3)
+
+  files <- fabric_test_eventually(function() {
+    value <- fabric_onelake_list(
+      manifest$workspace_id,
+      lakehouse$id,
+      path = root,
+      recursive = TRUE,
+      token = token
+    )
+    parquet <- value[
+      !value$is_directory & grepl("[.]parquet$", value$path),
+      ,
+      drop = FALSE
+    ]
+    if (!nrow(parquet)) NULL else parquet
+  })
+  rows <- dplyr::bind_rows(lapply(files$path, function(file) {
+    fabric_onelake_read_file(
+      manifest$workspace_id,
+      lakehouse$id,
+      path = file,
+      format = "parquet",
+      token = token
+    )
+  }))
+  rows <- rows[order(rows$id), , drop = FALSE]
+  expect_equal(rows$id, 1:3)
+  expect_equal(rows$name, c("alpha", "beta", "gamma"))
+  expect_equal(rows$category, c("A", "B", "A"))
+  expect_equal(rows$amount, c(10.5, 20, NA_real_))
+
+  expect_true(fabric_onelake_delete(
+    manifest$workspace_id,
+    lakehouse$id,
+    root,
+    recursive = TRUE,
+    confirm = TRUE,
+    token = token
+  ))
+  removed <- TRUE
+})
+
 test_that("fabric_graphql_query executes variables and preserves nulls", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")
