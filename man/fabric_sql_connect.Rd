@@ -135,21 +135,20 @@ or application must have access through a workspace role or the item's
 
 \examples{
 \dontrun{
-warehouse <- fabric_warehouses("Analytics")[[1]]
+# Discover a Warehouse so no server name or database ID is copied by hand.
+workspace <- fabric_workspaces()[[1L]]
+warehouse <- fabric_warehouses(workspace)[[1L]]
+
+# Open a DBI connection, use it, and always disconnect when finished.
 con <- fabric_sql_connect(warehouse)
-DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.Customers")
+table <- DBI::dbListTables(con)[[1L]]
+table <- DBI::dbQuoteIdentifier(con, table)
+DBI::dbGetQuery(con, paste("SELECT TOP 10 * FROM", table))
 DBI::dbDisconnect(con)
 
-# A connection string copied from Fabric also works
-con <- fabric_sql_connect(paste0(
-  "Server=tcp:example.datawarehouse.fabric.microsoft.com,1433;",
-  "Initial Catalog=SalesWarehouse;"
-))
-DBI::dbDisconnect(con)
-
-# After installing the external driver with `dbc install mssql`:
-con <- fabric_sql_connect(warehouse, backend = "adbc")
-DBI::dbDisconnect(con)
+# The ADBC backend can return Arrow-native results when installed.
+adbc_con <- fabric_sql_connect(warehouse, backend = "adbc")
+DBI::dbDisconnect(adbc_con)
 }
 }
 \references{

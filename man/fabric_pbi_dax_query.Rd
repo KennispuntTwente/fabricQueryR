@@ -145,19 +145,25 @@ additional Power BI restrictions; see the linked Microsoft documentation
 }
 
 \examples{
-# Example is not executed since it requires configured credentials for Fabric
 \dontrun{
-model <- fabric_semantic_models("Sales Workspace")[[1]]
+# Discover the semantic model instead of copying workspace and model IDs.
+workspace <- fabric_workspaces()[[1L]]
+model <- fabric_semantic_models(workspace)[[1L]]
+
+# Supply a query tested in the model's DAX query view.
+dax <- Sys.getenv("FABRIC_DAX_QUERY")
+
+# Evaluate the DAX query and collect the result as a tibble.
 df <- fabric_pbi_dax_query(
   model,
-  dax = "EVALUATE TOPN(1000, 'Customers')"
+  dax = dax
 )
 dplyr::glimpse(df)
 
-# Keep a large Arrow result out of R memory
+# Keep a larger result out of R memory with an Arrow stream.
 stream <- fabric_pbi_dax_query(
   model,
-  dax = "EVALUATE TOPN(1000, 'Customers')",
+  dax = dax,
   api = "arrow",
   result = "arrow_stream"
 )

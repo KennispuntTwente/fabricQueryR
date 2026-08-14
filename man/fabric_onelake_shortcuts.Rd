@@ -156,19 +156,32 @@ identities.
 }
 \examples{
 \dontrun{
+# Discover two Lakehouses in the same workspace.
 workspace <- fabric_workspaces()[[1L]]
 lakehouses <- fabric_lakehouses(workspace)
 destination <- lakehouses[[1L]]
 source <- lakehouses[[2L]]
+source_paths <- fabric_onelake_list(workspace, source, path = "Tables")
+source_table <- source_paths[source_paths$is_directory, ][1L, ]
 
+# Create a shortcut whose target came from the source Lakehouse listing.
 created <- fabric_onelake_shortcut_create(
   destination,
   path = "Files",
   name = "shared-orders",
   target = source,
-  target_path = "Tables/orders"
+  target_path = source_table$path[[1L]]
 )
+
+# List the folder, then fetch the created shortcut by its returned identity.
 fabric_onelake_shortcuts(destination, parent_path = "Files")
+shortcut <- fabric_onelake_shortcut_get(
+  destination,
+  path = created$path[[1L]],
+  name = created$name[[1L]]
+)
+
+# Delete that same discovered shortcut explicitly.
 fabric_onelake_shortcut_delete(
   destination,
   path = created$path[[1L]],

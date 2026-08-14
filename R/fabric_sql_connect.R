@@ -22,11 +22,15 @@
 #'   `port`, `target_type`, and `source` (whether the input was text or a
 #'   discovery record). No connection is opened
 #' @examples
-#' info <- fabric_sql_connection_info(
-#'   "sample.datawarehouse.fabric.microsoft.com",
-#'   database = "Sales"
-#' )
+#' \dontrun{
+#' # Discover a Warehouse record that already contains its SQL endpoint.
+#' workspace <- fabric_workspaces()[[1L]]
+#' warehouse <- fabric_warehouses(workspace)[[1L]]
+#'
+#' # Inspect connection details without opening a database connection.
+#' info <- fabric_sql_connection_info(warehouse)
 #' info[c("server", "database", "port", "target_type")]
+#' }
 #' @export
 fabric_sql_connection_info <- function(
   server,
@@ -236,21 +240,20 @@ fabric_sql_connection_info <- function(
 #'
 #' @examples
 #' \dontrun{
-#' warehouse <- fabric_warehouses("Analytics")[[1]]
+#' # Discover a Warehouse so no server name or database ID is copied by hand.
+#' workspace <- fabric_workspaces()[[1L]]
+#' warehouse <- fabric_warehouses(workspace)[[1L]]
+#'
+#' # Open a DBI connection, use it, and always disconnect when finished.
 #' con <- fabric_sql_connect(warehouse)
-#' DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.Customers")
+#' table <- DBI::dbListTables(con)[[1L]]
+#' table <- DBI::dbQuoteIdentifier(con, table)
+#' DBI::dbGetQuery(con, paste("SELECT TOP 10 * FROM", table))
 #' DBI::dbDisconnect(con)
 #'
-#' # A connection string copied from Fabric also works
-#' con <- fabric_sql_connect(paste0(
-#'   "Server=tcp:example.datawarehouse.fabric.microsoft.com,1433;",
-#'   "Initial Catalog=SalesWarehouse;"
-#' ))
-#' DBI::dbDisconnect(con)
-#'
-#' # After installing the external driver with `dbc install mssql`:
-#' con <- fabric_sql_connect(warehouse, backend = "adbc")
-#' DBI::dbDisconnect(con)
+#' # The ADBC backend can return Arrow-native results when installed.
+#' adbc_con <- fabric_sql_connect(warehouse, backend = "adbc")
+#' DBI::dbDisconnect(adbc_con)
 #' }
 fabric_sql_connect <- function(
   server,
@@ -486,16 +489,24 @@ fabric_sql_connect <- function(
 #'
 #' @examples
 #' \dontrun{
-#' warehouse <- fabric_warehouses("Analytics")[[1]]
-#' result <- fabric_sql_query(
-#'   warehouse,
-#'   sql = "SELECT * FROM dbo.Customers WHERE region = ?",
-#'   params = list("West")
-#' )
+#' # Discover the Warehouse that will receive the query.
+#' workspace <- fabric_workspaces()[[1L]]
+#' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
+#' # Discover and quote a table name through a short DBI connection.
+#' con <- fabric_sql_connect(warehouse)
+#' table <- DBI::dbListTables(con)[[1L]]
+#' table <- DBI::dbQuoteIdentifier(con, table)
+#' DBI::dbDisconnect(con)
+#' sql <- paste("SELECT TOP 100 * FROM", table)
+#'
+#' # Run the resulting read-only query and collect a tibble.
+#' result <- fabric_sql_query(warehouse, sql)
+#'
+#' # Stream a larger result through Arrow instead of collecting it at once.
 #' stream <- fabric_sql_query(
 #'   warehouse,
-#'   "SELECT * FROM dbo.Customers",
+#'   sql,
 #'   backend = "adbc",
 #'   result = "arrow_stream"
 #' )

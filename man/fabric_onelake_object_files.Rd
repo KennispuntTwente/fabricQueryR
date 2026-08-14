@@ -108,15 +108,21 @@ supported OneLake files directly to a tibble or Arrow stream.
 }
 \examples{
 \dontrun{
-lakehouse <- fabric_lakehouses("Analytics")[[1L]]
+# Discover the Lakehouse that will store the Parquet file.
+workspace <- fabric_workspaces()[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+
+# Serialize the R data frame directly to OneLake as Parquet.
 fabric_onelake_write_file(
-  lakehouse$workspaceId,
+  workspace,
   lakehouse,
   "Files/exports/orders.parquet",
   data.frame(id = 1:3, amount = c(10.5, NA, 30))
 )
+
+# Read the same file back as a tibble.
 orders <- fabric_onelake_read_file(
-  lakehouse$workspaceId,
+  workspace,
   lakehouse,
   "Files/exports/orders.parquet"
 )

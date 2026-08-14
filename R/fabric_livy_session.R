@@ -68,15 +68,22 @@
 #'
 #' @examples
 #' \dontrun{
+#' # Discover the Lakehouse whose Livy endpoint will host the Spark session.
+#' workspace <- fabric_workspaces()[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#'
 #' run_shared_state <- function(lakehouse) {
+#'   # Keep one session alive so successive statements share Spark state.
 #'   session <- fabric_livy_session(lakehouse)
 #'   on.exit(session$close(), add = TRUE)
 #'   session$wait()
 #'   session$run("shared_value = 40", kind = "pyspark")
 #'   session$run("print(shared_value + 2)", kind = "pyspark")
 #' }
+#' run_shared_state(lakehouse)
 #'
 #' run_high_concurrency <- function(lakehouse) {
+#'   # A session tag lets compatible callers reuse high-concurrency compute.
 #'   session <- fabric_livy_session(
 #'     lakehouse,
 #'     high_concurrency = TRUE,
@@ -86,6 +93,7 @@
 #'   session$wait()
 #'   session$run("SELECT current_timestamp()", kind = "sql")
 #' }
+#' run_high_concurrency(lakehouse)
 #' }
 #'
 #' @export
@@ -244,6 +252,19 @@ fabric_livy_session <- function(
 #' @field repl_id Isolated REPL ID for HC sessions
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
+#' @examples
+#' \dontrun{
+#' # fabric_livy_session() creates this class for a discovered Lakehouse.
+#' workspace <- fabric_workspaces()[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#' session <- fabric_livy_session(lakehouse)
+#' inherits(session, "FabricLivySession")
+#'
+#' # Wait before running code, and close the Spark session when finished.
+#' session$wait()
+#' session$run("print(1 + 1)", kind = "pyspark")
+#' session$close()
+#' }
 #' @export
 FabricLivySession <- R6::R6Class(
   classname = "FabricLivySession",
@@ -594,6 +615,21 @@ FabricLivySession <- R6::R6Class(
 #' @field completed_local Local completion timestamp
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
+#' @examples
+#' \dontrun{
+#' # Statements are returned by a session; users do not construct them directly.
+#' workspace <- fabric_workspaces()[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#' session <- fabric_livy_session(lakehouse)
+#' session$wait()
+#'
+#' # Submit code, wait for it, and inspect its result.
+#' statement <- session$submit("print(40 + 2)", kind = "pyspark")
+#' inherits(statement, "FabricLivyStatement")
+#' statement$wait()
+#' statement$result()
+#' session$close()
+#' }
 #' @export
 FabricLivyStatement <- R6::R6Class(
   classname = "FabricLivyStatement",

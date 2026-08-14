@@ -157,7 +157,14 @@ an explicit marker. The complete response stays available in \code{raw}.
 }
 \examples{
 \dontrun{
-notebook <- fabric_notebooks("Analytics workspace")[[1]]
+# Discover the Notebook instead of copying workspace and item IDs.
+workspace <- fabric_workspaces()[[1L]]
+notebook <- fabric_notebooks(workspace)[[1L]]
+
+# Inspect existing schedules before creating another one.
+existing <- fabric_job_schedules(notebook)
+
+# Build a weekly configuration using Fabric's Windows time-zone name.
 configuration <- fabric_job_schedule_config(
   "Weekly",
   start_time = "2026-10-01T00:00:00Z",
@@ -166,6 +173,8 @@ configuration <- fabric_job_schedule_config(
   times = "07:30",
   weekdays = c("Monday", "Thursday")
 )
+
+# Create, disable, and finally delete the schedule returned by Fabric.
 schedule <- fabric_job_schedule_create(notebook, configuration)
 fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)

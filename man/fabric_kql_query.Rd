@@ -122,15 +122,19 @@ sharing, or KQL database sharing. Authentication uses the Kusto query service
 
 \examples{
 \dontrun{
-database <- fabric_kql_databases("Telemetry workspace")[[1]]
+# Discover the KQL database and choose one of its existing tables.
+workspace <- fabric_workspaces()[[1L]]
+database <- fabric_kql_databases(workspace)[[1L]]
+table <- Sys.getenv("FABRIC_KQL_TABLE")
 
+# Keep the changing table name out of the KQL text by using a parameter.
 events <- fabric_kql_query(
   database,
   query = paste(
-    "declare query_parameters(selected_type:string);",
-    "Events | where EventType == selected_type | take 100"
+    "declare query_parameters(selected_table:string);",
+    "table(selected_table) | take 100"
   ),
-  parameters = list(selected_type = "Warning")
+  parameters = list(selected_table = table)
 )
 }
 }

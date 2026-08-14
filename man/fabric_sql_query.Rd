@@ -136,16 +136,24 @@ than pasting them into the SQL text
 }
 \examples{
 \dontrun{
-warehouse <- fabric_warehouses("Analytics")[[1]]
-result <- fabric_sql_query(
-  warehouse,
-  sql = "SELECT * FROM dbo.Customers WHERE region = ?",
-  params = list("West")
-)
+# Discover the Warehouse that will receive the query.
+workspace <- fabric_workspaces()[[1L]]
+warehouse <- fabric_warehouses(workspace)[[1L]]
 
+# Discover and quote a table name through a short DBI connection.
+con <- fabric_sql_connect(warehouse)
+table <- DBI::dbListTables(con)[[1L]]
+table <- DBI::dbQuoteIdentifier(con, table)
+DBI::dbDisconnect(con)
+sql <- paste("SELECT TOP 100 * FROM", table)
+
+# Run the resulting read-only query and collect a tibble.
+result <- fabric_sql_query(warehouse, sql)
+
+# Stream a larger result through Arrow instead of collecting it at once.
 stream <- fabric_sql_query(
   warehouse,
-  "SELECT * FROM dbo.Customers",
+  sql,
   backend = "adbc",
   result = "arrow_stream"
 )

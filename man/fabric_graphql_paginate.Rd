@@ -102,8 +102,11 @@ a different place, \code{next_cursor} tells the function where to find it
 }
 \examples{
 \dontrun{
-api <- fabric_graphql_apis("Analytics workspace")[[1]]
+# Discover the GraphQL API that exposes the Products query.
+workspace <- fabric_workspaces()[[1L]]
+api <- fabric_graphql_apis(workspace)[[1L]]
 
+# Fetch pages until the helper sees no next cursor.
 pages <- fabric_graphql_paginate(
   api,
   query = paste(
@@ -116,5 +119,6 @@ pages <- fabric_graphql_paginate(
   variables = list(first = 100L, after = NULL),
   next_cursor = fabric_graphql_cursor("products")
 )
+pages$complete
 }
 }

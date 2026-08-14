@@ -177,20 +177,33 @@
 #'
 #' @examples
 #' \dontrun{
-#' lakehouse <- fabric_lakehouses("Analytics")[[1L]]
+#' # Discover a Lakehouse instead of copying its workspace and item IDs.
+#' workspace <- fabric_workspaces()[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
 #'
+#' # List its existing Delta tables.
 #' tables <- fabric_lakehouse_tables(lakehouse)
 #'
+#' # Discover a CSV already stored in this Lakehouse's Files area.
+#' files <- fabric_onelake_list(
+#'   workspace,
+#'   lakehouse,
+#'   path = "Files/incoming"
+#' )
+#' csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
+#'
+#' # Load that discovered CSV into a managed Delta table.
 #' operation <- fabric_lakehouse_load_table(
 #'   lakehouse,
-#'   table = "orders",
-#'   path = "Files/incoming/orders.csv",
+#'   table = "orders_from_csv",
+#'   path = csv_file$path[[1L]],
 #'   format = "Csv",
 #'   header = TRUE,
 #'   delimiter = ","
 #' )
 #' fabric_operation_wait(operation, timeout = 900)
 #'
+#' # Or stage an R data frame and write it as a managed Delta table.
 #' result <- fabric_lakehouse_write_table(
 #'   lakehouse,
 #'   table = "orders_from_r",
@@ -241,13 +254,19 @@ NULL
 #' @export
 #' @examples
 #' \dontrun{
-#' lakehouse <- fabric_lakehouses("Analytics")[[1L]]
-#' orders <- fabric_lakehouse_read_table(lakehouse, "orders")
+#' # Discover both the Lakehouse and the table to read.
+#' workspace <- fabric_workspaces()[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#' tables <- fabric_lakehouse_tables(lakehouse)
+#' table <- tables[1L, ]
 #'
+#' # Read the discovered table into a tibble.
+#' rows <- fabric_lakehouse_read_table(lakehouse, table)
+#'
+#' # Stream selected columns when the full table may not fit in R memory.
 #' stream <- fabric_lakehouse_read_table(
 #'   lakehouse,
-#'   "orders",
-#'   columns = c("id", "amount"),
+#'   table,
 #'   result = "arrow_stream"
 #' )
 #' reader <- arrow::as_record_batch_reader(stream)

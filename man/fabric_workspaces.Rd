@@ -57,6 +57,19 @@ discovery helpers
 The caller needs permission to read Fabric workspaces. Discovery uses the
 Fabric API and requires \code{Workspace.Read.All} or \code{Workspace.ReadWrite.All}
 }
+\examples{
+\dontrun{
+# Sign in and list every Fabric workspace you can access.
+workspaces <- fabric_workspaces()
+
+# Inspect the names before choosing a workspace record.
+vapply(workspaces, `[[`, character(1), "displayName")
+workspace <- workspaces[[1L]]
+
+# Pass the discovered record directly to the next discovery step.
+items <- fabric_items(workspace)
+}
+}
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces}{List workspaces REST API}
 

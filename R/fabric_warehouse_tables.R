@@ -37,17 +37,27 @@
 #'
 #' @examples
 #' \dontrun{
-#' warehouse <- fabric_warehouses("Analytics")[[1L]]
+#' # Discover the Warehouse instead of copying its SQL connection details.
+#' workspace <- fabric_workspaces()[[1L]]
+#' warehouse <- fabric_warehouses(workspace)[[1L]]
+#'
+#' # Use DBI metadata to discover an existing table in that Warehouse.
+#' con <- fabric_sql_connect(warehouse)
+#' tables <- DBI::dbListTables(con)
+#' DBI::dbDisconnect(con)
+#' table <- tables[[1L]]
+#'
+#' # Read a bounded selection into a tibble.
 #' orders <- fabric_warehouse_read_table(
 #'   warehouse,
-#'   "orders",
-#'   columns = c("id", "amount"),
+#'   table,
 #'   limit = 1000
 #' )
 #'
+#' # Keep a larger read out of R memory with an Arrow stream.
 #' stream <- fabric_warehouse_read_table(
 #'   warehouse,
-#'   "orders",
+#'   table,
 #'   backend = "adbc",
 #'   result = "arrow_stream"
 #' )
@@ -267,13 +277,18 @@ fabric_warehouse_read_table <- function(
 #' [Query Parquet files in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files)
 #' @examples
 #' \dontrun{
-#' warehouse <- fabric_warehouses("Analytics")[[1L]]
-#' staging <- fabric_lakehouses("Analytics")[[1L]]
+#' # Discover both the destination Warehouse and staging Lakehouse.
+#' workspace <- fabric_workspaces()[[1L]]
+#' warehouse <- fabric_warehouses(workspace)[[1L]]
+#' staging <- fabric_lakehouses(workspace)[[1L]]
+#'
+#' # Upload through OneLake staging and create a new Warehouse table.
 #' fabric_warehouse_write_table(
 #'   warehouse,
-#'   "orders",
+#'   "orders_from_r",
 #'   data.frame(id = 1:3, amount = c(10, 20, 30)),
-#'   staging_lakehouse = staging
+#'   staging_lakehouse = staging,
+#'   create_if_missing = TRUE
 #' )
 #' }
 #' @export

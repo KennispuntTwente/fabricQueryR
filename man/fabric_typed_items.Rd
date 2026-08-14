@@ -105,9 +105,28 @@ Environment or User Data Function details
 
 \examples{
 \dontrun{
+# Discover a workspace once, then reuse its record for typed discovery.
 workspace <- fabric_workspaces()[[1]]
 
-# Discover and run each executable item type
+# Discover data items that feed the package's query and storage helpers.
+lakehouses <- fabric_lakehouses(workspace)
+warehouses <- fabric_warehouses(workspace)
+snapshots <- fabric_warehouse_snapshots(workspace)
+sql_databases <- fabric_sql_databases(workspace)
+semantic_models <- fabric_semantic_models(workspace)
+eventhouses <- fabric_eventhouses(workspace)
+kql_databases <- fabric_kql_databases(workspace)
+graphql_apis <- fabric_graphql_apis(workspace)
+
+# A discovered record can be passed directly to a matching helper.
+fabric_lakehouse_tables(lakehouses[[1L]])
+fabric_sql_connection_info(warehouses[[1L]])
+fabric_pbi_dax_query(
+  semantic_models[[1L]],
+  dax = Sys.getenv("FABRIC_DAX_QUERY")
+)
+
+# Discover executable items that can be passed to fabric_job_run().
 notebook <- fabric_notebooks(workspace)[[1]]
 pipeline <- fabric_data_pipelines(workspace)[[1]]
 spark_job <- fabric_spark_job_definitions(workspace)[[1]]
@@ -116,7 +135,7 @@ fabric_job_wait(fabric_job_run(notebook), timeout = 900)
 fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
 fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
 
-# Discover related Spark and serverless-function items
+# Discover supporting Spark and serverless-function items as well.
 environments <- fabric_environments(workspace)
 functions <- fabric_user_data_functions(workspace)
 }

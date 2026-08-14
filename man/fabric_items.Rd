@@ -88,6 +88,24 @@ workload-specific read scope and access to the item
 Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
 require both \code{personal_workspace_tenant_id} and \code{personal_workspace_owner}
 }
+\examples{
+\dontrun{
+# Start by discovering a workspace instead of copying its ID.
+workspaces <- fabric_workspaces()
+workspace <- workspaces[[1L]]
+
+# List lightweight item records and inspect their names and types.
+items <- fabric_items(workspace)
+vapply(items, `[[`, character(1), "displayName")
+
+# Ask for enriched records when another function needs connection details.
+lakehouses <- fabric_items(
+  workspace,
+  type = "Lakehouse",
+  detail = TRUE
+)
+}
+}
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items}{List items REST API}
 

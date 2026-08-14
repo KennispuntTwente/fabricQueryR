@@ -41,9 +41,13 @@ a Fabric SQL connection. Most users can pass a discovered item directly to
 \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this helper
 }
 \examples{
-info <- fabric_sql_connection_info(
-  "sample.datawarehouse.fabric.microsoft.com",
-  database = "Sales"
-)
+\dontrun{
+# Discover a Warehouse record that already contains its SQL endpoint.
+workspace <- fabric_workspaces()[[1L]]
+warehouse <- fabric_warehouses(workspace)[[1L]]
+
+# Inspect connection details without opening a database connection.
+info <- fabric_sql_connection_info(warehouse)
 info[c("server", "database", "port", "target_type")]
+}
 }

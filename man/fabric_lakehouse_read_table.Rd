@@ -72,13 +72,19 @@ larger result out of R memory.
 }
 \examples{
 \dontrun{
-lakehouse <- fabric_lakehouses("Analytics")[[1L]]
-orders <- fabric_lakehouse_read_table(lakehouse, "orders")
+# Discover both the Lakehouse and the table to read.
+workspace <- fabric_workspaces()[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+tables <- fabric_lakehouse_tables(lakehouse)
+table <- tables[1L, ]
 
+# Read the discovered table into a tibble.
+rows <- fabric_lakehouse_read_table(lakehouse, table)
+
+# Stream selected columns when the full table may not fit in R memory.
 stream <- fabric_lakehouse_read_table(
   lakehouse,
-  "orders",
-  columns = c("id", "amount"),
+  table,
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)

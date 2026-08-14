@@ -158,22 +158,40 @@
 #'
 #' @examples
 #' \dontrun{
-#' database <- fabric_kql_databases("Telemetry workspace")[[1]]
+#' # Discover the KQL database and a Lakehouse containing staged CSV files.
+#' workspace <- fabric_workspaces()[[1L]]
+#' database <- fabric_kql_databases(workspace)[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#' files <- fabric_onelake_list(
+#'   workspace,
+#'   lakehouse,
+#'   path = "Files/events"
+#' )
+#' csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
+#'
+#' # Build the source URI from discovered IDs and the listed file path.
 #' source <- paste0(
-#'   "https://onelake.dfs.fabric.microsoft.com/workspace-id/",
-#'   "lakehouse-id/Files/events/2026-08-14.csv;impersonate"
+#'   "https://onelake.dfs.fabric.microsoft.com/",
+#'   workspace$id, "/", lakehouse$id, "/", csv_file$path[[1L]],
+#'   ";impersonate"
 #' )
 #'
+#' # Choose an existing target and CSV mapping from the KQL database explorer.
+#' table <- Sys.getenv("FABRIC_KQL_TABLE")
+#' mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING")
+#'
+#' # Queue the file once using a stable ingest-if-not-exists key.
 #' ingestion <- fabric_kql_ingest(
 #'   database,
-#'   table = "Events",
+#'   table = table,
 #'   sources = source,
 #'   format = "csv",
-#'   mapping = "EventsCsv",
+#'   mapping = mapping,
 #'   ignore_first_record = TRUE,
-#'   ingest_if_not_exists = "events-2026-08-14"
+#'   ingest_if_not_exists = paste0("file:", csv_file$path[[1L]])
 #' )
 #'
+#' # Wait for every submitted file to reach a terminal ingestion state.
 #' result <- fabric_kql_ingestion_status(
 #'   ingestion,
 #'   wait = TRUE,
@@ -1771,20 +1789,23 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'
 #' @examples
 #' \dontrun{
-#' database <- fabric_kql_databases("Telemetry workspace")[[1]]
+#' # Discover the KQL database that will receive the R data.
+#' workspace <- fabric_workspaces()[[1L]]
+#' database <- fabric_kql_databases(workspace)[[1L]]
 #'
+#' # Create a new table when needed, stage the data, and wait for ingestion.
 #' result <- fabric_kql_write_table(
 #'   database,
-#'   table = "Events",
+#'   table = "EventsFromR",
 #'   data = data.frame(id = 1:3, value = c("a", "b", "c")),
 #'   create_if_missing = TRUE,
 #'   ingest_if_not_exists = "r-batch-2026-08-14"
 #' )
 #' result$status$state
 #'
-#' # A lazy Arrow Dataset is scanned batch by batch rather than collected.
-#' dataset <- arrow::open_dataset("local-parquet-directory")
-#' fabric_kql_write_table(database, "Events", dataset)
+#' # A local Arrow Dataset is scanned batch by batch rather than collected.
+#' dataset <- arrow::open_dataset(Sys.getenv("ARROW_DATASET_PATH"))
+#' fabric_kql_write_table(database, "EventsFromArrow", dataset)
 #' }
 fabric_kql_write_table <- function(
   cluster,
@@ -2694,12 +2715,17 @@ kusto_write_result <- function(
 #'
 #' @examples
 #' \dontrun{
-#' database <- fabric_kql_databases("Telemetry workspace")[[1L]]
-#' lakehouse <- fabric_lakehouses("Telemetry workspace")[[1L]]
+#' # Discover both the source KQL database and destination Lakehouse.
+#' workspace <- fabric_workspaces()[[1L]]
+#' database <- fabric_kql_databases(workspace)[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#' table <- Sys.getenv("FABRIC_KQL_TABLE")
+#' table_literal <- jsonlite::toJSON(table, auto_unbox = TRUE)
 #'
+#' # Export a bounded query to a new folder in the discovered Lakehouse.
 #' exported <- fabric_kql_export(
 #'   database,
-#'   query = "Events | where observed_at > ago(7d)",
+#'   query = paste0("table(", table_literal, ") | take 10000"),
 #'   destination = lakehouse,
 #'   path = "Files/exports/events-weekly",
 #'   format = "parquet",

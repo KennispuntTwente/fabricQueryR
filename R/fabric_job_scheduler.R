@@ -43,7 +43,11 @@
 #' [List item job instances](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/list-item-job-instances)
 #' @examples
 #' \dontrun{
-#' notebook <- fabric_notebooks("Analytics workspace")[[1]]
+#' # Discover the Notebook whose run history you want to inspect.
+#' workspace <- fabric_workspaces()[[1L]]
+#' notebook <- fabric_notebooks(workspace)[[1L]]
+#'
+#' # List runs, then refresh one returned job record.
 #' history <- fabric_job_instances(notebook)
 #' history[[1]]$status
 #' fabric_job_status(history[[1]])
@@ -135,6 +139,7 @@ fabric_job_instances <- function(
 #'
 #' [Windows default time zones](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/default-time-zones)
 #' @examples
+#' # Describe a schedule in the Windows time zone used by Fabric.
 #' daily <- fabric_job_schedule_config(
 #'   "Daily",
 #'   start_time = "2026-10-01T00:00:00Z",
@@ -272,7 +277,14 @@ fabric_job_schedule_config <- function(
 #' [Fabric job scheduler behavior](https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler)
 #' @examples
 #' \dontrun{
-#' notebook <- fabric_notebooks("Analytics workspace")[[1]]
+#' # Discover the Notebook instead of copying workspace and item IDs.
+#' workspace <- fabric_workspaces()[[1L]]
+#' notebook <- fabric_notebooks(workspace)[[1L]]
+#'
+#' # Inspect existing schedules before creating another one.
+#' existing <- fabric_job_schedules(notebook)
+#'
+#' # Build a weekly configuration using Fabric's Windows time-zone name.
 #' configuration <- fabric_job_schedule_config(
 #'   "Weekly",
 #'   start_time = "2026-10-01T00:00:00Z",
@@ -281,6 +293,8 @@ fabric_job_schedule_config <- function(
 #'   times = "07:30",
 #'   weekdays = c("Monday", "Thursday")
 #' )
+#'
+#' # Create, disable, and finally delete the schedule returned by Fabric.
 #' schedule <- fabric_job_schedule_create(notebook, configuration)
 #' fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 #' fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)

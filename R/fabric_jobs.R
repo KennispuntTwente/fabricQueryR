@@ -109,16 +109,25 @@
 #'   `TRUE` after Fabric accepts or confirms the cancellation
 #' @examples
 #' \dontrun{
-#' notebook <- fabric_notebooks("Analytics workspace")[[1]]
+#' # Discover the workspace and Notebook that will be run.
+#' workspace <- fabric_workspaces()[[1L]]
+#' notebook <- fabric_notebooks(workspace)[[1L]]
 #'
-#' job <- fabric_job_run(
-#'   notebook,
-#'   parameters = list(run_date = Sys.Date(), full_load = FALSE)
-#' )
+#' # Start the discovered Notebook and keep the returned job handle.
+#' job <- fabric_job_run(notebook)
 #'
+#' # Refresh the current state without waiting for completion.
+#' current <- fabric_job_status(job)
+#' current$status
+#'
+#' # For a normal run, wait and inspect its final status and exit value.
 #' completed <- fabric_job_wait(job, timeout = 900)
 #' completed$status
 #' completed$exit_value
+#'
+#' # A separate active run can be cancelled when it is no longer needed.
+#' job_to_cancel <- fabric_job_run(notebook)
+#' fabric_job_cancel(job_to_cancel)
 #' }
 #' @export
 fabric_job_run <- function(

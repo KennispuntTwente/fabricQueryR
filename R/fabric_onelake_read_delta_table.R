@@ -102,17 +102,26 @@
 #'
 #' @examples
 #' \dontrun{
-#' patients <- fabric_onelake_read_delta_table(
-#'   table_path = "Patients",
-#'   workspace_name = "PatientsWorkspace",
-#'   lakehouse_name = "Clinical.Lakehouse"
+#' # Discover a Lakehouse and one of its Delta tables.
+#' workspace <- fabric_workspaces()[[1L]]
+#' lakehouse <- fabric_lakehouses(workspace)[[1L]]
+#' tables <- fabric_lakehouse_tables(lakehouse)
+#' table <- tables[1L, ]
+#'
+#' # Read the discovered table into a tibble.
+#' rows <- fabric_onelake_read_delta_table(
+#'   table_path = table$name[[1L]],
+#'   workspace_name = workspace,
+#'   lakehouse_name = lakehouse,
+#'   schema = table$schema[[1L]]
 #' )
 #'
+#' # Stream the same table when it may not fit in R memory.
 #' stream <- fabric_onelake_read_delta_table(
-#'   table_path = "Patients",
-#'   workspace_name = "PatientsWorkspace",
-#'   lakehouse_name = "Clinical.Lakehouse",
-#'   columns = c("PatientId", "Status"),
+#'   table_path = table$name[[1L]],
+#'   workspace_name = workspace,
+#'   lakehouse_name = lakehouse,
+#'   schema = table$schema[[1L]],
 #'   result = "arrow_stream"
 #' )
 #' reader <- arrow::as_record_batch_reader(stream)
@@ -258,6 +267,7 @@ fabric_onelake_read_delta_table <- function(
 #'   interpreter, module availability, and installed package versions when
 #'   initialized
 #' @examples
+#' # Inspect requirements without starting Python or downloading anything.
 #' config <- fabric_delta_config()
 #' config[c("initialized", "requirements", "available")]
 #' @export

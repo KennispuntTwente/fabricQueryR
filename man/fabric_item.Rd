@@ -77,3 +77,16 @@ additionally requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the appl
 workload-specific read scope and access to the item. Use
 \code{\link[=fabric_items]{fabric_items()}} with \code{detail = FALSE} when only core item metadata is needed
 }
+\examples{
+\dontrun{
+# Discover a workspace and obtain a lightweight Warehouse record.
+workspace <- fabric_workspaces()[[1L]]
+warehouses <- fabric_items(workspace, type = "Warehouse")
+
+# Enrich that discovered record with connection details.
+warehouse <- fabric_item(workspace, warehouses[[1L]])
+
+# The result can be passed directly to SQL helpers.
+fabric_sql_connection_info(warehouse)
+}
+}
