@@ -227,54 +227,34 @@
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-6-manage-onelake-shortcuts">Priority 6: Manage OneLake shortcuts<a class="anchor" aria-label="anchor" href="#priority-6-manage-onelake-shortcuts"></a></h2>
+<h2 id="priority-6-improve-graphql-schema-and-tidy-result-ergonomics">Priority 6: Improve GraphQL schema and tidy-result ergonomics<a class="anchor" aria-label="anchor" href="#priority-6-improve-graphql-schema-and-tidy-result-ergonomics"></a></h2>
 <p><strong>Status (August 2026): proposed.</strong></p>
 <div class="section level3">
 <h3 id="objective-6">Objective<a class="anchor" aria-label="anchor" href="#objective-6"></a></h3>
-<p>Expose shortcut lifecycle operations without confusing shortcut definitions with the files visible through them.</p>
-</div>
-<div class="section level3">
-<h3 id="direction-6">Direction<a class="anchor" aria-label="anchor" href="#direction-6"></a></h3>
-<ul><li>Add <code>fabric_onelake_shortcuts()</code>, <code>fabric_onelake_shortcut()</code>, <code>fabric_onelake_shortcut_create()</code>, and <code>fabric_onelake_shortcut_delete()</code>.</li>
-<li>Make OneLake-to-OneLake targets ergonomic first. Support external targets through validated constructors that reference existing Fabric connection IDs rather than accepting external credentials.</li>
-<li>Support pagination, conflict policies, transforms, bulk creation where useful, and cache reset.</li>
-<li>Make clear that deleting a shortcut does not delete destination data.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="acceptance-criteria-6">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-6"></a></h3>
-<ul><li>Live tests create, inspect, list, and delete a cross-item OneLake shortcut and confirm that destination data survives deletion.</li>
-<li>Conflict policies, encoded paths, inaccessible targets, and unknown future target types behave deterministically.</li>
-</ul></div>
-</div>
-<div class="section level2">
-<h2 id="priority-7-improve-graphql-schema-and-tidy-result-ergonomics">Priority 7: Improve GraphQL schema and tidy-result ergonomics<a class="anchor" aria-label="anchor" href="#priority-7-improve-graphql-schema-and-tidy-result-ergonomics"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
-<div class="section level3">
-<h3 id="objective-7">Objective<a class="anchor" aria-label="anchor" href="#objective-7"></a></h3>
 <p>Make Fabric GraphQL APIs easier to explore and convert into analysis-ready tibbles without assuming a universal schema shape.</p>
 </div>
 <div class="section level3">
-<h3 id="direction-7">Direction<a class="anchor" aria-label="anchor" href="#direction-7"></a></h3>
+<h3 id="direction-6">Direction<a class="anchor" aria-label="anchor" href="#direction-6"></a></h3>
 <ul><li>Add <code>fabric_graphql_schema()</code> using standard introspection, with an actionable error when introspection is disabled.</li>
 <li>Add <code>fabric_graphql_collect()</code> or <code>fabric_graphql_rows()</code> with an explicit field path for combining row objects across pages.</li>
 <li>Preserve nested objects as list-columns and retain exact large-integer handling instead of flattening or coercing silently.</li>
 <li>Continue to use <code><a href="reference/fabric_graphql_cursor.html">fabric_graphql_cursor()</a></code> for arbitrary cursor extraction.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-7">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-7"></a></h3>
+<h3 id="acceptance-criteria-6">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-6"></a></h3>
 <ul><li>Tests cover nested paths, empty pages, evolving columns, list-columns, partial errors, large integers, and introspection-disabled APIs.</li>
 <li>Collection reports whether pagination completed and never returns an apparently complete tibble after reaching a page or service limit.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="priority-8-add-tracked-eventhouse-ingestion">Priority 8: Add tracked Eventhouse ingestion<a class="anchor" aria-label="anchor" href="#priority-8-add-tracked-eventhouse-ingestion"></a></h2>
+<h2 id="priority-7-add-tracked-eventhouse-ingestion">Priority 7: Add tracked Eventhouse ingestion<a class="anchor" aria-label="anchor" href="#priority-7-add-tracked-eventhouse-ingestion"></a></h2>
 <p><strong>Status (August 2026): proposed, preview-dependent.</strong> The Kusto queued-ingestion REST API is currently preview.</p>
 <div class="section level3">
-<h3 id="objective-8">Objective<a class="anchor" aria-label="anchor" href="#objective-8"></a></h3>
+<h3 id="objective-7">Objective<a class="anchor" aria-label="anchor" href="#objective-7"></a></h3>
 <p>Let batch-oriented R workflows submit files or staged OneLake data to an existing Eventhouse table and monitor the outcome.</p>
 </div>
 <div class="section level3">
-<h3 id="direction-8">Direction<a class="anchor" aria-label="anchor" href="#direction-8"></a></h3>
+<h3 id="direction-7">Direction<a class="anchor" aria-label="anchor" href="#direction-7"></a></h3>
 <ul><li>Add <code>fabric_kql_ingest()</code> and <code>fabric_kql_ingestion_status()</code> for tracked queued ingestion.</li>
 <li>Support existing blob or OneLake sources first. Add data-frame convenience only through a staged, documented format with bounded memory use.</li>
 <li>Validate format, mapping, tags, size, source IDs, batch limits, and target database/table before submission.</li>
@@ -282,7 +262,7 @@
 <li>Keep general Kusto administration and production use of <code>.ingest</code> commands out of the primary API.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="acceptance-criteria-8">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-8"></a></h3>
+<h3 id="acceptance-criteria-7">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-7"></a></h3>
 <ul><li>Live tests ingest a tagged fixture, wait on its operation ID, and verify rows with <code><a href="reference/fabric_kql_query.html">fabric_kql_query()</a></code>.</li>
 <li>Duplicate submission, mapping and permission failure, partial batch failure, timeout, and throttling are observable and actionable.</li>
 </ul></div>
@@ -313,8 +293,8 @@
 <td>R data-frame-to-Lakehouse workflow plus semantic-model refresh</td>
 <td>End-to-end load/read/refresh validation preserves documented types and states</td>
 </tr><tr><td>M3</td>
-<td>User Data Function invocation and OneLake shortcuts</td>
-<td>External invocation and shortcut lifecycle are authenticated, safe, and live-tested</td>
+<td>User Data Function invocation</td>
+<td>External invocation is authenticated, safe, and live-tested</td>
 </tr><tr><td>M4</td>
 <td>GraphQL ergonomics and tracked Eventhouse ingestion</td>
 <td>Tidy collection is complete/error-aware; preview ingestion has tracked round-trip coverage</td>
@@ -339,7 +319,6 @@
 <li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/" class="external-link">Power BI dataset APIs</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview" class="external-link">Fabric User Data Functions overview</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">Invoke User Data Functions externally</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/" class="external-link">OneLake Shortcuts API</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export" class="external-link">Fabric GraphQL introspection and schema export</a></li>
 <li><a href="https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-use-http?view=microsoft-fabric" class="external-link">Kusto queued ingestion REST API</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparkr" class="external-link">Use SparkR in Fabric</a></li>
