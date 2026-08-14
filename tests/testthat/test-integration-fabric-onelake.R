@@ -611,6 +611,32 @@ test_that("the delta-rs reader handles schema-enabled Fabric tables", {
   expect_true(all(projected$id %in% 1:3))
 })
 
+test_that("the Lakehouse reader provides a discovered-item round trip", {
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  discovered <- fabric_item(
+    manifest$workspace_id,
+    lakehouse$id,
+    type = "Lakehouse",
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
+
+  result <- fabric_lakehouse_read_table(
+    discovered,
+    lakehouse$tables$basic,
+    columns = c("id", "name"),
+    token = fabric_test_token_provider(),
+    verbose = FALSE
+  )
+  result <- result[order(result$id), ]
+
+  expect_named(result, c("id", "name"))
+  expect_identical(result$id, c(1, 2, 3))
+  expect_identical(result$name, c("alpha", "beta", "gamma"))
+})
+
 test_that("the delta-rs reader handles a schema-disabled Fabric Lakehouse", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()

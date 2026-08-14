@@ -70,6 +70,7 @@ reference:
     desc: Discover, load, and read Delta Lake tables in OneLake
     contents:
       - fabric_lakehouse_tables
+      - fabric_lakehouse_read_table
       - fabric_lakehouse_load_table
       - fabric_lakehouse_write_table
       - fabric_onelake_read_delta_table

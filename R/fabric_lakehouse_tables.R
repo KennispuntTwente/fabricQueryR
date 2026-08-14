@@ -183,6 +183,133 @@
 #' @name fabric_lakehouse_tables
 NULL
 
+#' Read a Microsoft Fabric Lakehouse table
+#'
+#' Provides the symmetric read counterpart to [fabric_lakehouse_write_table()].
+#' It resolves a discovered Lakehouse and table record, then delegates to the
+#' authenticated OneLake Delta reader. Use `result = "arrow_stream"` to keep a
+#' larger result out of R memory.
+#'
+#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse record
+#'   returned by [fabric_lakehouses()]. A discovered record is recommended
+#'   because it carries its workspace ID and default schema.
+#' @param table Table name or one row returned by [fabric_lakehouse_tables()].
+#' @param workspace Workspace GUID, exact display name, or discovered workspace.
+#'   Omit it when `lakehouse` is a record containing `workspaceId`.
+#' @param schema Optional schema. A table record supplies its schema when this
+#'   argument is omitted.
+#' @param columns Optional unique column names to project before collection.
+#' @param limit Optional non-negative maximum number of rows to return.
+#' @param version Optional non-negative Delta table version for time travel.
+#' @param result Return a `"tibble"` or a disk-backed, single-use
+#'   `"arrow_stream"`.
+#' @param verbose Whether to report authentication and read progress.
+#' @param tenant_id Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Entra application ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Optional access token or audience-aware token-provider function.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
+#' @param dfs_base OneLake DFS service address. A private or regional endpoint
+#'   on a discovered record is preferred when this argument is omitted.
+#'
+#' @return A tibble, or a disk-backed `nanoarrow_array_stream` when
+#'   `result = "arrow_stream"`.
+#' @references
+#' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+#'
+#' [Connect to OneLake](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+#' @export
+#' @examples
+#' \dontrun{
+#' lakehouse <- fabric_lakehouses("Analytics")[[1L]]
+#' orders <- fabric_lakehouse_read_table(lakehouse, "orders")
+#'
+#' stream <- fabric_lakehouse_read_table(
+#'   lakehouse,
+#'   "orders",
+#'   columns = c("id", "amount"),
+#'   result = "arrow_stream"
+#' )
+#' reader <- arrow::as_record_batch_reader(stream)
+#' }
+fabric_lakehouse_read_table <- function(
+  lakehouse,
+  table,
+  workspace = NULL,
+  schema = NULL,
+  columns = NULL,
+  limit = NULL,
+  version = NULL,
+  result = c("tibble", "arrow_stream"),
+  verbose = TRUE,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+) {
+  lakehouse_record <- fabric_as_record(lakehouse)
+  if (!is.null(lakehouse_record)) {
+    type <- tolower(fabric_record_value(lakehouse_record, "type") %||% "")
+    if (!identical(type, "lakehouse")) {
+      rlang::abort(
+        "lakehouse discovery record must be a Lakehouse item",
+        class = c("fabric_lakehouse_read_error", "fabric_delta_error")
+      )
+    }
+    workspace <- workspace %||%
+      fabric_record_value(
+        lakehouse_record,
+        "workspaceId",
+        "workspace_id"
+      )
+    schema <- schema %||%
+      fabric_record_value(
+        lakehouse_record,
+        "default_schema",
+        "defaultSchema"
+      )
+  }
+  if (is.null(workspace)) {
+    rlang::abort(
+      paste0(
+        "workspace is required unless lakehouse is a discovered record ",
+        "containing workspaceId"
+      ),
+      class = c("fabric_lakehouse_read_error", "fabric_delta_error")
+    )
+  }
+
+  table_record <- fabric_as_record(table)
+  if (!is.null(table_record)) {
+    table <- fabric_record_value(table_record, "name", "table")
+    schema <- schema %||% fabric_record_value(table_record, "schema")
+  }
+
+  fabric_onelake_read_delta_table(
+    table_path = table,
+    workspace_name = workspace,
+    lakehouse_name = lakehouse,
+    schema = schema,
+    item_type = "Lakehouse",
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    version = version,
+    verbose = verbose,
+    dfs_base = dfs_base,
+    columns = columns,
+    limit = limit,
+    result = result
+  )
+}
+
 #' @rdname fabric_lakehouse_tables
 #' @export
 fabric_lakehouse_tables <- function(

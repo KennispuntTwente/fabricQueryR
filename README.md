@@ -229,17 +229,12 @@ endpoint**, or pass a Lakehouse returned by `fabric_lakehouses()` as above.
 Read a Delta table stored in OneLake and return its current rows as a tibble.
 
 ``` r
-df_onelake <- fabric_onelake_read_delta_table(
-  table_path = "Customers",
-  workspace_name = workspace,
-  lakehouse_name = lakehouse
-)
+df_onelake <- fabric_lakehouse_read_table(lakehouse, "Customers")
 
 # Optional: return an Arrow C stream instead of a tibble
-stream <- fabric_onelake_read_delta_table(
-  table_path = "Customers",
-  workspace_name = workspace,
-  lakehouse_name = lakehouse,
+stream <- fabric_lakehouse_read_table(
+  lakehouse,
+  "Customers",
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)

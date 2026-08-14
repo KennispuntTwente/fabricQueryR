@@ -15,6 +15,87 @@ lakehouse_table_test_item <- function(default_schema = "dbo") {
   )
 }
 
+test_that("Lakehouse reader resolves discovered item and table records", {
+  captured <- NULL
+  item <- lakehouse_table_test_item(default_schema = "sales")
+  table <- tibble::tibble(name = "orders", schema = "curated")
+  local_mocked_bindings(
+    fabric_onelake_read_delta_table = function(...) {
+      captured <<- list(...)
+      tibble::tibble(id = 1L)
+    }
+  )
+
+  result <- fabric_lakehouse_read_table(
+    item,
+    table,
+    columns = "id",
+    limit = 1,
+    version = 4,
+    result = "tibble",
+    verbose = FALSE,
+    token = "storage-token"
+  )
+
+  expect_equal(result$id, 1L)
+  expect_identical(captured$table_path, "orders")
+  expect_identical(captured$workspace_name, item$workspaceId)
+  expect_identical(captured$lakehouse_name, item)
+  expect_identical(captured$schema, "sales")
+  expect_identical(captured$item_type, "Lakehouse")
+  expect_identical(captured$columns, "id")
+  expect_identical(captured$limit, 1)
+  expect_identical(captured$version, 4)
+  expect_identical(captured$result, "tibble")
+  expect_false(captured$verbose)
+  expect_identical(captured$token, "storage-token")
+})
+
+test_that("Lakehouse reader accepts names and explicit schema", {
+  captured <- NULL
+  local_mocked_bindings(
+    fabric_onelake_read_delta_table = function(...) {
+      captured <<- list(...)
+      structure(list(), class = "nanoarrow_array_stream")
+    }
+  )
+
+  result <- fabric_lakehouse_read_table(
+    "Curated",
+    "orders",
+    workspace = "Analytics",
+    schema = "dbo",
+    result = "arrow_stream",
+    token = "storage-token"
+  )
+
+  expect_s3_class(result, "nanoarrow_array_stream")
+  expect_identical(captured$workspace_name, "Analytics")
+  expect_identical(captured$lakehouse_name, "Curated")
+  expect_identical(captured$schema, "dbo")
+  expect_identical(captured$result, "arrow_stream")
+})
+
+test_that("Lakehouse reader rejects ambiguous and non-Lakehouse targets", {
+  expect_error(
+    fabric_lakehouse_read_table("Curated", "orders"),
+    "workspace is required",
+    class = "fabric_lakehouse_read_error"
+  )
+  expect_error(
+    fabric_lakehouse_read_table(
+      list(
+        id = "warehouse-id",
+        workspaceId = "workspace-id",
+        type = "Warehouse"
+      ),
+      "orders"
+    ),
+    "must be a Lakehouse",
+    class = "fabric_lakehouse_read_error"
+  )
+})
+
 lakehouse_table_test_response <- function(
   body = NULL,
   status = 200L,
