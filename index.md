@@ -44,9 +44,8 @@ Sys.setenv(FABRICQUERYR_TENANT_ID = "your-tenant-id")
 
 The [authentication
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html)
-tells you where to find your tenant ID and client ID. It also explains
-interactive sign-in, app registrations, service principals, and other
-authentication options.
+covers interactive sign-in, app registrations, service principals, and
+other authentication options.
 
 The examples below focus on the main use of each function group. See the
 [function
@@ -70,12 +69,17 @@ lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
 ### 2. Query Fabric SQL endpoints
 
-Run SQL against a Warehouse, SQL Database, or Lakehouse SQL analytics
-endpoint and return the result as a tibble.
+Open a reusable DBI connection to a Warehouse, SQL Database, or
+Lakehouse SQL analytics endpoint, or run a single query and return its
+result as a tibble.
 
 ``` r
 
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
+
+con <- fabric_sql_connect(lakehouse)
+DBI::dbListTables(con)
+DBI::dbDisconnect(con)
 
 customers <- fabric_sql_query(
   lakehouse,
@@ -83,13 +87,49 @@ customers <- fabric_sql_query(
 )
 ```
 
-For longer database workflows,
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-creates a standard DBI connection using either ODBC or ADBC. The default
-ODBC backend requires [Microsoft ODBC Driver 18 for SQL
+supports both ODBC and ADBC. The default ODBC backend requires
+[Microsoft ODBC Driver 18 for SQL
 Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
 
-### 3. Read and write Lakehouse tables
+### 3. Query a semantic model with DAX
+
+Run a DAX query against a Fabric or Power BI semantic model and return
+the result as a tibble.
+
+``` r
+
+semantic_model <- fabric_semantic_models(workspace)[[1L]]
+
+customers <- fabric_pbi_dax_query(
+  semantic_model,
+  dax = "EVALUATE TOPN(1000, 'Customers')"
+)
+```
+
+The function also supports Arrow streaming for modern semantic models on
+Premium or Fabric capacity.
+
+### 4. Run Spark code through Livy
+
+Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return
+the result to the local R session.
+
+``` r
+
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+
+result <- fabric_livy_query(
+  lakehouse,
+  kind = "sparkr",
+  code = "print(1 + 2)"
+)
+```
+
+Reusable Livy sessions and independent batch submissions are available
+for multi-step and application-file workflows.
+
+### 5. Read and write Lakehouse tables
 
 Move data between R and managed Delta tables in a Lakehouse. The writer
 accepts data frames as well as lazy Arrow sources.
@@ -111,7 +151,7 @@ Use
 when the source CSV or Parquet data already exists under `Files/` in the
 same Lakehouse.
 
-### 4. Work with OneLake files
+### 6. Work with OneLake files
 
 Read and write common file formats directly between R and OneLake.
 Lakehouse file paths normally start with `Files/`.
@@ -124,7 +164,7 @@ fabric_onelake_write_file(
   workspace,
   lakehouse,
   path = "Files/exports/orders.parquet",
-  data = orders
+  data = data.frame(id = 1:3, amount = c(10, 20, 30))
 )
 
 orders <- fabric_onelake_read_file(
@@ -137,29 +177,7 @@ orders <- fabric_onelake_read_file(
 The same function group also lists, inspects, downloads, uploads, and
 deletes OneLake files.
 
-### 5. Create OneLake shortcuts
-
-Create a shortcut when data in another Fabric item should be available
-without being copied into the current Lakehouse.
-
-``` r
-
-lakehouses <- fabric_lakehouses(workspace)
-lakehouse <- lakehouses[[1L]]
-source_lakehouse <- lakehouses[[2L]]
-
-fabric_onelake_shortcut_create(
-  lakehouse,
-  path = "Files",
-  name = "shared-orders",
-  target = source_lakehouse,
-  target_path = "Tables/orders"
-)
-```
-
-Deleting a shortcut removes only the link, not the destination data.
-
-### 6. Read and write Warehouse tables
+### 7. Read and write Warehouse tables
 
 Read a Warehouse table into R or load an R or Arrow object into a
 Warehouse. Writes use a Lakehouse as temporary OneLake staging for
@@ -184,7 +202,7 @@ See the [Warehouse writing
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html)
 for overwrite behavior, schema matching, and large Arrow inputs.
 
-### 7. Query and write Eventhouse data
+### 8. Query and write Eventhouse data
 
 Use KQL to query an Eventhouse database, or write an R or Arrow object
 to an existing KQL table.
@@ -210,44 +228,7 @@ For tracked ingestion from existing storage files and server-side export
 to OneLake, see the [Eventhouse ingestion
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html).
 
-### 8. Query a semantic model with DAX
-
-Run a DAX query against a Fabric or Power BI semantic model and return
-the result as a tibble.
-
-``` r
-
-semantic_model <- fabric_semantic_models(workspace)[[1L]]
-
-customers <- fabric_pbi_dax_query(
-  semantic_model,
-  dax = "EVALUATE TOPN(1000, 'Customers')"
-)
-```
-
-The function also supports Arrow streaming for modern semantic models on
-Premium or Fabric capacity.
-
-### 9. Refresh a semantic model
-
-Start a semantic-model refresh and wait for its final state. The
-returned object retains the details needed to inspect failures.
-
-``` r
-
-semantic_model <- fabric_semantic_models(workspace)[[1L]]
-refresh <- fabric_pbi_refresh(semantic_model)
-completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
-
-completed$state
-```
-
-See the [semantic-model refresh
-vignette](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html)
-for enhanced refresh, cancellation, capacity limits, and Direct Lake
-behavior.
-
-### 10. Query a Fabric GraphQL API
+### 9. Query a Fabric GraphQL API
 
 Call an API for GraphQL item configured in Fabric. Data and
 GraphQL-level errors remain separately available in the result.
@@ -268,24 +249,44 @@ The [GraphQL
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html)
 covers schema inspection, cursor pagination, and row collection.
 
-### 11. Run Spark code through Livy
+### 10. Invoke a User Data Function
 
-Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return
-the result to the local R session.
+Call published Fabric business logic through its public function URL and
+inspect the structured result.
 
 ``` r
 
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
-
-result <- fabric_livy_query(
-  lakehouse,
-  kind = "sparkr",
-  code = "print(1 + 2)"
+result <- fabric_function_invoke(
+  Sys.getenv("FABRIC_FUNCTION_URL"),
+  parameters = list(customerName = "Ada", orderId = 42L)
 )
+
+result$output
 ```
 
-Reusable Livy sessions and independent batch submissions are available
-for multi-step and application-file workflows.
+Enable Public access in Run only mode and copy the URL from the
+function’s properties. See the [User Data Functions
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html)
+for permissions, limits, and retry behavior.
+
+### 11. Refresh a semantic model
+
+Start a semantic-model refresh and wait for its final state. The
+returned object retains the details needed to inspect failures.
+
+``` r
+
+semantic_model <- fabric_semantic_models(workspace)[[1L]]
+refresh <- fabric_pbi_refresh(semantic_model)
+completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
+
+completed$state
+```
+
+See the [semantic-model refresh
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html)
+for enhanced refresh, cancellation, capacity limits, and Direct Lake
+behavior.
 
 ### 12. Run and monitor Fabric jobs
 
@@ -309,25 +310,27 @@ The [job automation
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html)
 covers run history, cancellation, and recurring schedules.
 
-### 13. Invoke a User Data Function
+### 13. Create OneLake shortcuts
 
-Call published Fabric business logic through its public function URL and
-inspect the structured result.
+Create a shortcut when data in another Fabric item should be available
+without being copied into the current Lakehouse.
 
 ``` r
 
-result <- fabric_function_invoke(
-  Sys.getenv("FABRIC_FUNCTION_URL"),
-  parameters = list(customerName = "Ada", orderId = 42L)
-)
+lakehouses <- fabric_lakehouses(workspace)
+lakehouse <- lakehouses[[1L]]
+source_lakehouse <- lakehouses[[2L]]
 
-result$output
+fabric_onelake_shortcut_create(
+  lakehouse,
+  path = "Files",
+  name = "shared-orders",
+  target = source_lakehouse,
+  target_path = "Tables/orders"
+)
 ```
 
-Enable Public access in Run only mode and copy the URL from the
-function’s properties. See the [User Data Functions
-vignette](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html)
-for permissions, limits, and retry behavior.
+Deleting a shortcut removes only the link, not the destination data.
 
 ### 14. Resume a long-running Fabric operation
 

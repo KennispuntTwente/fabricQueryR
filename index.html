@@ -79,7 +79,7 @@
 <span></span>
 <span><span class="co"># Optional, if your tenant does not permit the public Azure CLI client ID:</span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")</span></span></code></pre></div>
-<p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> tells you where to find your tenant ID and client ID. It also explains interactive sign-in, app registrations, service principals, and other authentication options.</p>
+<p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> covers interactive sign-in, app registrations, service principals, and other authentication options.</p>
 <p>The examples below focus on the main use of each function group. See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html">function reference</a> and vignettes for configuration options and more involved workflows.</p>
 </div>
 <div class="section level2">
@@ -97,21 +97,52 @@
 <div class="section level3">
 <h3 id="id_2-query-fabric-sql-endpoints">2. Query Fabric SQL endpoints<a class="anchor" aria-label="anchor" href="#id_2-query-fabric-sql-endpoints"></a>
 </h3>
-<p>Run SQL against a Warehouse, SQL Database, or Lakehouse SQL analytics endpoint and return the result as a tibble.</p>
+<p>Open a reusable DBI connection to a Warehouse, SQL Database, or Lakehouse SQL analytics endpoint, or run a single query and return its result as a tibble.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>For longer database workflows, <code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> creates a standard DBI connection using either ODBC or ADBC. The default ODBC backend requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>.</p>
+<p><code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> supports both ODBC and ADBC. The default ODBC backend requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>.</p>
 </div>
 <div class="section level3">
-<h3 id="id_3-read-and-write-lakehouse-tables">3. Read and write Lakehouse tables<a class="anchor" aria-label="anchor" href="#id_3-read-and-write-lakehouse-tables"></a>
+<h3 id="id_3-query-a-semantic-model-with-dax">3. Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#id_3-query-a-semantic-model-with-dax"></a>
+</h3>
+<p>Run a DAX query against a Fabric or Power BI semantic model and return the result as a tibble.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">semantic_model</span>,</span>
+<span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(1000, 'Customers')"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The function also supports Arrow streaming for modern semantic models on Premium or Fabric capacity.</p>
+</div>
+<div class="section level3">
+<h3 id="id_4-run-spark-code-through-livy">4. Run Spark code through Livy<a class="anchor" aria-label="anchor" href="#id_4-run-spark-code-through-livy"></a>
+</h3>
+<p>Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return the result to the local R session.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">lakehouse</span>,</span>
+<span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
+<span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Reusable Livy sessions and independent batch submissions are available for multi-step and application-file workflows.</p>
+</div>
+<div class="section level3">
+<h3 id="id_5-read-and-write-lakehouse-tables">5. Read and write Lakehouse tables<a class="anchor" aria-label="anchor" href="#id_5-read-and-write-lakehouse-tables"></a>
 </h3>
 <p>Move data between R and managed Delta tables in a Lakehouse. The writer accepts data frames as well as lazy Arrow sources.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span><span class="va">lakehouse</span>, <span class="st">"orders"</span><span class="op">)</span></span>
 <span></span>
@@ -123,17 +154,17 @@
 <p>Use <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse.</p>
 </div>
 <div class="section level3">
-<h3 id="id_4-work-with-onelake-files">4. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_4-work-with-onelake-files"></a>
+<h3 id="id_6-work-with-onelake-files">6. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_6-work-with-onelake-files"></a>
 </h3>
 <p>Read and write common file formats directly between R and OneLake. Lakehouse file paths normally start with <code>Files/</code>.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/fabric_onelake_object_files.html">fabric_onelake_write_file</a></span><span class="op">(</span></span>
 <span>  <span class="va">workspace</span>,</span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">orders</span></span>
+<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, amount <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">20</span>, <span class="fl">30</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_object_files.html">fabric_onelake_read_file</a></span><span class="op">(</span></span>
@@ -144,28 +175,10 @@
 <p>The same function group also lists, inspects, downloads, uploads, and deletes OneLake files.</p>
 </div>
 <div class="section level3">
-<h3 id="id_5-create-onelake-shortcuts">5. Create OneLake shortcuts<a class="anchor" aria-label="anchor" href="#id_5-create-onelake-shortcuts"></a>
-</h3>
-<p>Create a shortcut when data in another Fabric item should be available without being copied into the current Lakehouse.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
-<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">source_lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">2L</span><span class="op">]</span><span class="op">]</span></span>
-<span></span>
-<span><span class="fu"><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
-<span>  path <span class="op">=</span> <span class="st">"Files"</span>,</span>
-<span>  name <span class="op">=</span> <span class="st">"shared-orders"</span>,</span>
-<span>  target <span class="op">=</span> <span class="va">source_lakehouse</span>,</span>
-<span>  target_path <span class="op">=</span> <span class="st">"Tables/orders"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Deleting a shortcut removes only the link, not the destination data.</p>
-</div>
-<div class="section level3">
-<h3 id="id_6-read-and-write-warehouse-tables">6. Read and write Warehouse tables<a class="anchor" aria-label="anchor" href="#id_6-read-and-write-warehouse-tables"></a>
+<h3 id="id_7-read-and-write-warehouse-tables">7. Read and write Warehouse tables<a class="anchor" aria-label="anchor" href="#id_7-read-and-write-warehouse-tables"></a>
 </h3>
 <p>Read a Warehouse table into R or load an R or Arrow object into a Warehouse. Writes use a Lakehouse as temporary OneLake staging for Fabric’s <code>COPY INTO</code>.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table</a></span><span class="op">(</span><span class="va">warehouse</span>, <span class="st">"orders"</span><span class="op">)</span></span>
@@ -180,10 +193,10 @@
 <p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html">Warehouse writing vignette</a> for overwrite behavior, schema matching, and large Arrow inputs.</p>
 </div>
 <div class="section level3">
-<h3 id="id_7-query-and-write-eventhouse-data">7. Query and write Eventhouse data<a class="anchor" aria-label="anchor" href="#id_7-query-and-write-eventhouse-data"></a>
+<h3 id="id_8-query-and-write-eventhouse-data">8. Query and write Eventhouse data<a class="anchor" aria-label="anchor" href="#id_8-query-and-write-eventhouse-data"></a>
 </h3>
 <p>Use KQL to query an Eventhouse database, or write an R or Arrow object to an existing KQL table.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">events</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
@@ -200,35 +213,10 @@
 <p>For tracked ingestion from existing storage files and server-side export to OneLake, see the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html">Eventhouse ingestion vignette</a>.</p>
 </div>
 <div class="section level3">
-<h3 id="id_8-query-a-semantic-model-with-dax">8. Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#id_8-query-a-semantic-model-with-dax"></a>
-</h3>
-<p>Run a DAX query against a Fabric or Power BI semantic model and return the result as a tibble.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span></span>
-<span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">semantic_model</span>,</span>
-<span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(1000, 'Customers')"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>The function also supports Arrow streaming for modern semantic models on Premium or Fabric capacity.</p>
-</div>
-<div class="section level3">
-<h3 id="id_9-refresh-a-semantic-model">9. Refresh a semantic model<a class="anchor" aria-label="anchor" href="#id_9-refresh-a-semantic-model"></a>
-</h3>
-<p>Start a semantic-model refresh and wait for its final state. The returned object retains the details needed to inspect failures.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">semantic_model</span><span class="op">)</span></span>
-<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
-<p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html">semantic-model refresh vignette</a> for enhanced refresh, cancellation, capacity limits, and Direct Lake behavior.</p>
-</div>
-<div class="section level3">
-<h3 id="id_10-query-a-fabric-graphql-api">10. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_10-query-a-fabric-graphql-api"></a>
+<h3 id="id_9-query-a-fabric-graphql-api">9. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_9-query-a-fabric-graphql-api"></a>
 </h3>
 <p>Call an API for GraphQL item configured in Fabric. Data and GraphQL-level errors remain separately available in the result.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">graphql_api</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
@@ -240,18 +228,29 @@
 <p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html">GraphQL vignette</a> covers schema inspection, cursor pagination, and row collection.</p>
 </div>
 <div class="section level3">
-<h3 id="id_11-run-spark-code-through-livy">11. Run Spark code through Livy<a class="anchor" aria-label="anchor" href="#id_11-run-spark-code-through-livy"></a>
+<h3 id="id_10-invoke-a-user-data-function">10. Invoke a User Data Function<a class="anchor" aria-label="anchor" href="#id_10-invoke-a-user-data-function"></a>
 </h3>
-<p>Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return the result to the local R session.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<p>Call published Fabric business logic through its public function URL and inspect the structured result.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span>,</span>
+<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>customerName <span class="op">=</span> <span class="st">"Ada"</span>, orderId <span class="op">=</span> <span class="fl">42L</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
-<span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
-<span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Reusable Livy sessions and independent batch submissions are available for multi-step and application-file workflows.</p>
+<span><span class="va">result</span><span class="op">$</span><span class="va">output</span></span></code></pre></div>
+<p>Enable Public access in Run only mode and copy the URL from the function’s properties. See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html">User Data Functions vignette</a> for permissions, limits, and retry behavior.</p>
+</div>
+<div class="section level3">
+<h3 id="id_11-refresh-a-semantic-model">11. Refresh a semantic model<a class="anchor" aria-label="anchor" href="#id_11-refresh-a-semantic-model"></a>
+</h3>
+<p>Start a semantic-model refresh and wait for its final state. The returned object retains the details needed to inspect failures.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">semantic_model</span><span class="op">)</span></span>
+<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
+<p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html">semantic-model refresh vignette</a> for enhanced refresh, cancellation, capacity limits, and Direct Lake behavior.</p>
 </div>
 <div class="section level3">
 <h3 id="id_12-run-and-monitor-fabric-jobs">12. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_12-run-and-monitor-fabric-jobs"></a>
@@ -270,17 +269,22 @@
 <p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html">job automation vignette</a> covers run history, cancellation, and recurring schedules.</p>
 </div>
 <div class="section level3">
-<h3 id="id_13-invoke-a-user-data-function">13. Invoke a User Data Function<a class="anchor" aria-label="anchor" href="#id_13-invoke-a-user-data-function"></a>
+<h3 id="id_13-create-onelake-shortcuts">13. Create OneLake shortcuts<a class="anchor" aria-label="anchor" href="#id_13-create-onelake-shortcuts"></a>
 </h3>
-<p>Call published Fabric business logic through its public function URL and inspect the structured result.</p>
+<p>Create a shortcut when data in another Fabric item should be available without being copied into the current Lakehouse.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span>,</span>
-<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>customerName <span class="op">=</span> <span class="st">"Ada"</span>, orderId <span class="op">=</span> <span class="fl">42L</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
+<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">source_lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">2L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">output</span></span></code></pre></div>
-<p>Enable Public access in Run only mode and copy the URL from the function’s properties. See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html">User Data Functions vignette</a> for permissions, limits, and retry behavior.</p>
+<span><span class="fu"><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create</a></span><span class="op">(</span></span>
+<span>  <span class="va">lakehouse</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"Files"</span>,</span>
+<span>  name <span class="op">=</span> <span class="st">"shared-orders"</span>,</span>
+<span>  target <span class="op">=</span> <span class="va">source_lakehouse</span>,</span>
+<span>  target_path <span class="op">=</span> <span class="st">"Tables/orders"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Deleting a shortcut removes only the link, not the destination data.</p>
 </div>
 <div class="section level3">
 <h3 id="id_14-resume-a-long-running-fabric-operation">14. Resume a long-running Fabric operation<a class="anchor" aria-label="anchor" href="#id_14-resume-a-long-running-fabric-operation"></a>
