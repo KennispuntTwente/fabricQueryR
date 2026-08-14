@@ -129,35 +129,36 @@ Entra tenant ID:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"fabricQueryR"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"&lt;your-tenant-id&gt;"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"&lt;your-tenant-id&gt;"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Optional, if your organization requires an approved application:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_CLIENT_ID <span class="op">=</span> <span class="st">"&lt;your-app-client-id&gt;"</span><span class="op">)</span></span></code></pre></div>
 <p>The first Fabric call may open a browser. Sign in with the same work
 or school account that you use in the Fabric portal. If your
 organization requires an approved application, your administrator may
 also give you a client ID to set as
 <code>FABRICQUERYR_CLIENT_ID</code>.</p>
-<p>The authentication vignette explains this setup and common login
-problems in more detail:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"authentication"</span>, package <span class="op">=</span> <span class="st">"fabricQueryR"</span><span class="op">)</span></span></code></pre></div>
+<p>The <a href="authentication.html">authentication vignette</a>
+explains this setup and common login problems in more detail.</p>
 </div>
 <div class="section level2">
 <h2 id="find-a-workspace-and-an-item">Find a workspace and an item<a class="anchor" aria-label="anchor" href="#find-a-workspace-and-an-item"></a>
 </h2>
 <p>Start by listing the workspaces that your account can access:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">workspaces</span></span></code></pre></div>
 <p>The result is a list. Select a workspace by position when
 exploring:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span></span></code></pre></div>
 <p>For a script that will run repeatedly, selecting by exact name is
 easier to understand than relying on list order:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"Analytics workspace"</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>Now list all items or ask directly for one type:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
 <span><span class="va">items</span></span>
 <span></span>
@@ -174,7 +175,7 @@ portal.</p>
 </h2>
 <p>If the workspace contains a Lakehouse, reading one managed table is a
 gentle first data workflow:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tables</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
 <span><span class="va">tables</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"schema"</span>, <span class="st">"name"</span>, <span class="st">"type"</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
@@ -198,18 +199,19 @@ confirm that access and table selection are correct.</p>
 the guide that matches your goal:</p>
 <ul>
 <li>
-<code><a href="../articles/reading-data.html">vignette("reading-data")</a></code> compares SQL, Lakehouse,
-Warehouse, Eventhouse, semantic-model, OneLake-file, GraphQL, and Spark
-reads.</li>
+<a href="reading-data.html">Bring Fabric data into R</a> compares
+SQL, Lakehouse, Warehouse, Eventhouse, semantic-model, OneLake-file,
+GraphQL, and Spark reads.</li>
 <li>
-<code><a href="../articles/ingesting-data.html">vignette("ingesting-data")</a></code> compares ways to send an R
-object or an existing file to Fabric.</li>
+<a href="ingesting-data.html">Bring R data into Microsoft Fabric</a>
+compares ways to send an R object or an existing file to Fabric.</li>
 <li>
-<code><a href="../articles/onelake-and-lakehouse.html">vignette("onelake-and-lakehouse")</a></code> explains Lakehouse
-files and tables in more detail.</li>
+<a href="onelake-and-lakehouse.html">Working with Fabric LakeHouses
+and OneLake</a> explains Lakehouse files and tables in more detail.</li>
 <li>
-<code><a href="../articles/spark-with-livy.html">vignette("spark-with-livy")</a></code> introduces remote Spark
-work after the simpler read and write paths.</li>
+<a href="spark-with-livy.html">Working with Livy (Spark)</a>
+introduces remote Spark work after the simpler read and write
+paths.</li>
 </ul>
 <p>The function reference contains the complete arguments and return
 values. The vignettes focus on choosing a workflow and building it from

@@ -1,4 +1,4 @@
-# Query and refresh a semantic model
+# Working with Semantic Models (DAX queries)
 
 A semantic model is the report-ready data behind Power BI and Fabric
 reports. It combines tables with relationships, measures, and business

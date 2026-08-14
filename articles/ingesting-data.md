@@ -1,4 +1,4 @@
-# Send R data to Microsoft Fabric
+# Bring R data into Microsoft Fabric
 
 Ingestion means moving data into a system so it can be stored and used
 there. In this guide, the source is an R data frame, an Arrow object, or
@@ -133,9 +133,10 @@ warehouse_result <- fabric_warehouse_write_table(
 ```
 
 For a missing table, Fabric can infer a basic definition. Pre-create the
-table when exact SQL types, lengths, constraints, or grants matter. The
-Warehouse writing vignette explains overwrite choices, transactions, and
-larger Arrow inputs.
+table when exact SQL types, lengths, constraints, or grants matter.
+[Working with Fabric
+WareHouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md)
+explains overwrite choices, transactions, and larger Arrow inputs.
 
 ## Write an Eventhouse table
 
@@ -157,9 +158,11 @@ kql_result$status$state
 ```
 
 The high-level writer stages the R object, submits tracked ingestion,
-waits, and cleans up after confirmed success. The Eventhouse ingestion
-vignette covers predefined mappings, existing storage files, idempotency
-keys, and failure recovery.
+waits, and cleans up after confirmed success. [Working with Fabric
+EventHouses (real-time
+data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md)
+covers predefined mappings, existing storage files, idempotency keys,
+and failure recovery.
 
 ## Load a file that is already in a Lakehouse
 
@@ -197,8 +200,8 @@ destination:
 | Create if missing | A basic inferred table is acceptable | Inferred types and nullability meet downstream needs |
 
 Warehouse drop replacement can discard table-specific metadata.
-Eventhouse queued ingestion has at-least-once delivery. Read the
-destination-specific vignette before using these paths in an automated
+Eventhouse queued ingestion has at-least-once delivery. Read the linked
+destination-specific guide before using these paths in an automated
 production workflow.
 
 ## Scale up with Arrow
@@ -221,5 +224,7 @@ fabric_lakehouse_write_table(
 
 Start with the default part sizes. Tune file or row boundaries only
 after measuring a real workload. For transformations that need
-distributed compute or exact Spark-managed schemas, use the Spark
-vignette rather than moving all intermediate data through R.
+distributed compute or exact Spark-managed schemas, use [Working with
+Livy
+(Spark)](https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.md)
+rather than moving all intermediate data through R.

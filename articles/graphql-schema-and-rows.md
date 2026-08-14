@@ -1,4 +1,4 @@
-# Explore and collect Fabric GraphQL data
+# Working with GraphQL
 
 A Fabric API for GraphQL is a structured doorway to data selected by the
 API’s owner. A GraphQL query names the fields you want, and the response

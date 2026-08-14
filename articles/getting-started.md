@@ -41,6 +41,9 @@ install.packages("fabricQueryR")
 
 library(fabricQueryR)
 Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
+
+# Optional, if your organization requires an approved application:
+Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-app-client-id>")
 ```
 
 The first Fabric call may open a browser. Sign in with the same work or
@@ -48,13 +51,9 @@ school account that you use in the Fabric portal. If your organization
 requires an approved application, your administrator may also give you a
 client ID to set as `FABRICQUERYR_CLIENT_ID`.
 
-The authentication vignette explains this setup and common login
-problems in more detail:
-
-``` r
-
-vignette("authentication", package = "fabricQueryR")
-```
+The [authentication
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md)
+explains this setup and common login problems in more detail.
 
 ## Find a workspace and an item
 
@@ -128,14 +127,18 @@ correct.
 There are often several valid ways to move the same data. Start with the
 guide that matches your goal:
 
-- [`vignette("reading-data")`](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
+- [Bring Fabric data into
+  R](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
   compares SQL, Lakehouse, Warehouse, Eventhouse, semantic-model,
   OneLake-file, GraphQL, and Spark reads.
-- [`vignette("ingesting-data")`](https://kennispunttwente.github.io/fabricQueryR/articles/ingesting-data.md)
+- [Bring R data into Microsoft
+  Fabric](https://kennispunttwente.github.io/fabricQueryR/articles/ingesting-data.md)
   compares ways to send an R object or an existing file to Fabric.
-- [`vignette("onelake-and-lakehouse")`](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md)
+- [Working with Fabric LakeHouses and
+  OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md)
   explains Lakehouse files and tables in more detail.
-- [`vignette("spark-with-livy")`](https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.md)
+- [Working with Livy
+  (Spark)](https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.md)
   introduces remote Spark work after the simpler read and write paths.
 
 The function reference contains the complete arguments and return

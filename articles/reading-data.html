@@ -245,8 +245,9 @@ than raw source tables:</p>
 <span>    <span class="st">")"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The semantic-model vignette continues from a basic DAX query into
-refresh and monitoring workflows.</p>
+<p>The <a href="semantic-model-refresh.html">Semantic Models
+vignette</a> continues from a basic DAX query into refresh and
+monitoring workflows.</p>
 </div>
 <div class="section level2">
 <h2 id="read-a-onelake-file">Read a OneLake file<a class="anchor" aria-label="anchor" href="#read-a-onelake-file"></a>
@@ -277,7 +278,8 @@ selection of fields:</p>
 <span>  query <span class="op">=</span> <span class="st">"{ products { items { id name category } } }"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">products</span> <span class="op">&lt;-</span> <span class="va">response</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">products</span><span class="op">$</span><span class="va">items</span></span></code></pre></div>
-<p>Use the GraphQL vignette for schema inspection and pagination.</p>
+<p>Use <a href="graphql-schema-and-rows.html">Working with GraphQL</a>
+for schema inspection and pagination.</p>
 <p>Spark is the later choice for distributed transformations, Spark-only
 data formats, or logic already written for Spark:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">

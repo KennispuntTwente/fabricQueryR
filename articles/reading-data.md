@@ -162,8 +162,9 @@ sales_by_region <- fabric_pbi_dax_query(
 )
 ```
 
-The semantic-model vignette continues from a basic DAX query into
-refresh and monitoring workflows.
+The [Semantic Models
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.md)
+continues from a basic DAX query into refresh and monitoring workflows.
 
 ## Read a OneLake file
 
@@ -199,7 +200,9 @@ response <- fabric_graphql_query(
 products <- response$data$products$items
 ```
 
-Use the GraphQL vignette for schema inspection and pagination.
+Use [Working with
+GraphQL](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.md)
+for schema inspection and pagination.
 
 Spark is the later choice for distributed transformations, Spark-only
 data formats, or logic already written for Spark:

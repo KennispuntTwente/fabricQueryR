@@ -1,4 +1,4 @@
-# Write R and Arrow data to Fabric Warehouse
+# Working with Fabric WareHouses
 
 A Fabric Warehouse stores relational tables that you can query with SQL.
 Use

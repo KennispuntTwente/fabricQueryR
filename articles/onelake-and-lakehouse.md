@@ -1,4 +1,4 @@
-# Work with OneLake files and Lakehouse tables
+# Working with Fabric LakeHouses and OneLake
 
 A Fabric Lakehouse gives you two related ways to organize data:
 

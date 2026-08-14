@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Send R data to Microsoft Fabric • fabricQueryR</title>
+<title>Bring R data into Microsoft Fabric • fabricQueryR</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Send R data to Microsoft Fabric">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Bring R data into Microsoft Fabric">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -51,7 +51,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Send R data to Microsoft Fabric</h1>
+      <h1>Bring R data into Microsoft Fabric</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/kennispunttwente/fabricQueryR/blob/master/vignettes/ingesting-data.Rmd" class="external-link"><code>vignettes/ingesting-data.Rmd</code></a></small>
@@ -206,8 +206,8 @@ temporary staging, then asks the Warehouse to load it efficiently:</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>For a missing table, Fabric can infer a basic definition. Pre-create
 the table when exact SQL types, lengths, constraints, or grants matter.
-The Warehouse writing vignette explains overwrite choices, transactions,
-and larger Arrow inputs.</p>
+<a href="warehouse-write.html">Working with Fabric WareHouses</a>
+explains overwrite choices, transactions, and larger Arrow inputs.</p>
 </div>
 <div class="section level2">
 <h2 id="write-an-eventhouse-table">Write an Eventhouse table<a class="anchor" aria-label="anchor" href="#write-an-eventhouse-table"></a>
@@ -226,9 +226,9 @@ with KQL:</p>
 <span></span>
 <span><span class="va">kql_result</span><span class="op">$</span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
 <p>The high-level writer stages the R object, submits tracked ingestion,
-waits, and cleans up after confirmed success. The Eventhouse ingestion
-vignette covers predefined mappings, existing storage files, idempotency
-keys, and failure recovery.</p>
+waits, and cleans up after confirmed success. <a href="eventhouse-ingestion.html">Working with Fabric EventHouses
+(real-time data)</a> covers predefined mappings, existing storage files,
+idempotency keys, and failure recovery.</p>
 </div>
 <div class="section level2">
 <h2 id="load-a-file-that-is-already-in-a-lakehouse">Load a file that is already in a Lakehouse<a class="anchor" aria-label="anchor" href="#load-a-file-that-is-already-in-a-lakehouse"></a>
@@ -288,8 +288,8 @@ preserves</td>
 </tbody>
 </table>
 <p>Warehouse drop replacement can discard table-specific metadata.
-Eventhouse queued ingestion has at-least-once delivery. Read the
-destination-specific vignette before using these paths in an automated
+Eventhouse queued ingestion has at-least-once delivery. Read the linked
+destination-specific guide before using these paths in an automated
 production workflow.</p>
 </div>
 <div class="section level2">
@@ -309,8 +309,8 @@ R data frame:</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Start with the default part sizes. Tune file or row boundaries only
 after measuring a real workload. For transformations that need
-distributed compute or exact Spark-managed schemas, use the Spark
-vignette rather than moving all intermediate data through R.</p>
+distributed compute or exact Spark-managed schemas, use <a href="spark-with-livy.html">Working with Livy (Spark)</a> rather than
+moving all intermediate data through R.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

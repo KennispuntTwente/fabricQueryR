@@ -1,4 +1,4 @@
-# Run Spark work from R with Livy
+# Working with Livy (Spark)
 
 Apache Spark processes data using compute that runs in Fabric. **Livy**
 is the service that lets an R program submit Spark code and receive its

@@ -136,7 +136,7 @@
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Reusable Livy sessions and independent batch submissions are available for multi-step and application-file workflows.</p>
+<p>Reusable Livy sessions and independent batch submissions are available for multi-step and application-file workflows. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.html">Working with Livy (Spark)</a> for choosing between one-off queries, reusable sessions, and batch jobs.</p>
 </div>
 <div class="section level3">
 <h3 id="id_5-read-and-write-lakehouse-tables">5. Read and write Lakehouse tables<a class="anchor" aria-label="anchor" href="#id_5-read-and-write-lakehouse-tables"></a>
@@ -151,7 +151,7 @@
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Use <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse.</p>
+<p>Use <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Working with Fabric LakeHouses and OneLake</a> for the distinction between ordinary files and managed Delta tables, table loading, larger reads, and shortcuts.</p>
 </div>
 <div class="section level3">
 <h3 id="id_6-work-with-onelake-files">6. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_6-work-with-onelake-files"></a>
@@ -172,7 +172,7 @@
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The same function group also lists, inspects, downloads, uploads, and deletes OneLake files.</p>
+<p>The same function group also lists, inspects, downloads, uploads, and deletes OneLake files. The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Fabric LakeHouses and OneLake vignette</a> continues with file discovery, uploads, managed tables, and safe deletion.</p>
 </div>
 <div class="section level3">
 <h3 id="id_7-read-and-write-warehouse-tables">7. Read and write Warehouse tables<a class="anchor" aria-label="anchor" href="#id_7-read-and-write-warehouse-tables"></a>
@@ -190,7 +190,7 @@
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html">Warehouse writing vignette</a> for overwrite behavior, schema matching, and large Arrow inputs.</p>
+<p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html">Working with Fabric WareHouses</a> for staging, table creation, overwrite behavior, schema matching, and large Arrow inputs.</p>
 </div>
 <div class="section level3">
 <h3 id="id_8-query-and-write-eventhouse-data">8. Query and write Eventhouse data<a class="anchor" aria-label="anchor" href="#id_8-query-and-write-eventhouse-data"></a>
@@ -210,7 +210,7 @@
 <span>  data <span class="op">=</span> <span class="va">events</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>For tracked ingestion from existing storage files and server-side export to OneLake, see the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html">Eventhouse ingestion vignette</a>.</p>
+<p>For tracked ingestion from existing storage files and server-side export to OneLake, see <a href="https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html">Working with Fabric EventHouses (real-time data)</a>.</p>
 </div>
 <div class="section level3">
 <h3 id="id_9-query-a-fabric-graphql-api">9. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_9-query-a-fabric-graphql-api"></a>
@@ -225,7 +225,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">customers</span><span class="op">$</span><span class="va">items</span></span></code></pre></div>
-<p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html">GraphQL vignette</a> covers schema inspection, cursor pagination, and row collection.</p>
+<p><a href="https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html">Working with GraphQL</a> covers schema inspection, cursor pagination, and row collection.</p>
 </div>
 <div class="section level3">
 <h3 id="id_10-invoke-a-user-data-function">10. Invoke a User Data Function<a class="anchor" aria-label="anchor" href="#id_10-invoke-a-user-data-function"></a>
@@ -250,7 +250,7 @@
 <span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
-<p>See the <a href="https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html">semantic-model refresh vignette</a> for enhanced refresh, cancellation, capacity limits, and Direct Lake behavior.</p>
+<p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html">Working with Semantic Models (DAX queries)</a> for DAX queries, enhanced refresh, cancellation, capacity limits, and Direct Lake behavior.</p>
 </div>
 <div class="section level3">
 <h3 id="id_12-run-and-monitor-fabric-jobs">12. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_12-run-and-monitor-fabric-jobs"></a>
