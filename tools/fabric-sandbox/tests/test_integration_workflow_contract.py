@@ -3,6 +3,7 @@ from pathlib import Path
 
 INTEGRATION_GROUPS = {
     "auth-discovery",
+    "functions",
     "jobs",
     "kql-graphql",
     "livy",

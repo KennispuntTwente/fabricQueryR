@@ -182,6 +182,12 @@ jobs:
             runtime: "1.3"
             odbc: false
             adbc: false
+          - label: user data functions
+            filter: integration-fabric-functions
+            lane: core
+            runtime: "1.3"
+            odbc: false
+            adbc: false
           - label: KQL and GraphQL
             filter: integration-fabric-kql-graphql
             lane: core

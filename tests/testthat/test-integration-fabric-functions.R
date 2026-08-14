@@ -1,4 +1,5 @@
-# Live Fabric user data function coverage is opt-in because Microsoft's current
+# Fabric integration coverage: invoking published user data functions.
+# Live coverage is opt-in because Microsoft's current
 # item-management API does not support the service principal used to provision
 # the disposable CI sandbox. Point these variables at three published public
 # functions with the signatures exercised below and provide the normal Power BI
