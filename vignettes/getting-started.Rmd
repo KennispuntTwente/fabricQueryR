@@ -1,0 +1,144 @@
+---
+title: "Get started with fabricQueryR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Get started with fabricQueryR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Microsoft Fabric is a collection of services for storing, transforming, and
+reporting on data. `fabricQueryR` lets you use many of those services from R.
+You can bring Fabric data into an R data frame, send R data to Fabric, or start
+work that runs inside Fabric.
+
+This guide introduces the few Fabric concepts you need for a first successful
+workflow. You do not need to know Fabric's REST APIs, cloud-storage protocols,
+or data-engineering terminology.
+
+## The Fabric objects you will see
+
+A **workspace** is a shared area that contains Fabric items. An **item** is a
+resource such as a Lakehouse, Warehouse, semantic model, or notebook.
+
+The most common data items have different purposes:
+
+| Item | Think of it as | A common R task |
+|---|---|---|
+| Lakehouse | Files plus managed data tables | Read or write a table or file |
+| Warehouse | A relational SQL database | Query or load business tables |
+| Eventhouse | A database for event and time-series data | Query with KQL or ingest events |
+| Semantic model | Report-ready tables, relationships, and calculations | Query with DAX or refresh the model |
+| API for GraphQL | A structured API in front of Fabric data | Request selected fields |
+
+**OneLake** is the storage layer shared by Fabric items. In a Lakehouse, the
+`Files/` area contains ordinary files and the `Tables/` area contains managed
+Delta tables. Use the package's table functions for `Tables/`; do not edit the
+files underneath a managed table directly.
+
+## Sign in
+
+Install and load the package, then set your organization's Microsoft Entra
+tenant ID:
+
+```{r}
+install.packages("fabricQueryR")
+
+library(fabricQueryR)
+Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
+```
+
+The first Fabric call may open a browser. Sign in with the same work or school
+account that you use in the Fabric portal. If your organization requires an
+approved application, your administrator may also give you a client ID to set
+as `FABRICQUERYR_CLIENT_ID`.
+
+The authentication vignette explains this setup and common login problems in
+more detail:
+
+```{r}
+vignette("authentication", package = "fabricQueryR")
+```
+
+## Find a workspace and an item
+
+Start by listing the workspaces that your account can access:
+
+```{r}
+workspaces <- fabric_workspaces()
+workspaces
+```
+
+The result is a list. Select a workspace by position when exploring:
+
+```{r}
+workspace <- workspaces[[1L]]
+workspace$displayName
+```
+
+For a script that will run repeatedly, selecting by exact name is easier to
+understand than relying on list order:
+
+```{r}
+workspace <- fabric_workspaces()[["Analytics workspace"]]
+```
+
+Now list all items or ask directly for one type:
+
+```{r}
+items <- fabric_items(workspace)
+items
+
+lakehouses <- fabric_lakehouses(workspace)
+lakehouse <- lakehouses[[1L]]
+lakehouse$displayName
+```
+
+A discovered item is more than a name. It also carries the IDs and service
+addresses that other package functions need. Pass the object itself to later
+calls instead of copying values from the Fabric portal.
+
+## Complete a first read
+
+If the workspace contains a Lakehouse, reading one managed table is a gentle
+first data workflow:
+
+```{r}
+tables <- fabric_lakehouse_tables(lakehouse)
+tables[c("schema", "name", "type")]
+
+first_table <- tables[1L, ]
+rows <- fabric_lakehouse_read_table(
+  lakehouse,
+  first_table,
+  limit = 100L
+)
+
+head(rows)
+```
+
+The result is a tibble, which can be used with base R, `dplyr`, plotting
+packages, or other familiar R tools. `limit = 100L` keeps this first request
+small while you confirm that access and table selection are correct.
+
+## Choose the next guide
+
+There are often several valid ways to move the same data. Start with the guide
+that matches your goal:
+
+- `vignette("reading-data")` compares SQL, Lakehouse, Warehouse, Eventhouse,
+  semantic-model, OneLake-file, GraphQL, and Spark reads.
+- `vignette("ingesting-data")` compares ways to send an R object or an existing
+  file to Fabric.
+- `vignette("onelake-and-lakehouse")` explains Lakehouse files and tables in
+  more detail.
+- `vignette("spark-with-livy")` introduces remote Spark work after the simpler
+  read and write paths.
+
+The function reference contains the complete arguments and return values. The
+vignettes focus on choosing a workflow and building it from a small first
+example to more advanced use.

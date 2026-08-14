@@ -11,10 +11,14 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-Fabric user data functions host reusable Python business logic behind
-authenticated REST endpoints. fabricQueryR invokes functions that are already
-defined, published, and enabled for public access; it does not create, publish,
-or deploy function items.
+A Fabric user data function is similar to calling a function in another R
+package, except its Python code runs in Fabric. R sends named inputs to a secure
+web address and receives a structured result.
+
+fabricQueryR invokes functions that are already defined, published, and enabled
+for public access. It does not create or deploy the function. This guide starts
+with one small scalar call before introducing nested inputs, retries, and
+security limits.
 
 ## Prepare the function in Fabric
 
@@ -37,13 +41,35 @@ permission and item access. fabricQueryR chooses the narrow delegated scope for
 interactive authentication and the Power BI `.default` audience for client
 credentials; use `audience` only for a custom identity provider.
 
-## Send scalar and structured parameters
+## Make a first call
+
+Parameter names must match the published Python function. For a function with
+`customerName` and `priority` inputs:
+
+```{r}
+result <- fabric_function_invoke(
+  function_url,
+  parameters = list(
+    customerName = "Ada",
+    priority = 2L
+  )
+)
+
+result$status
+result$output
+```
+
+`Succeeded` means the function completed. The output shape is defined by the
+published function, so inspect `result$output` before building downstream R
+code around it.
+
+## Send structured parameters
 
 The request body is one named JSON object. Its names must match the published
 function's camelCase parameters:
 
 ```{r}
-result <- fabric_function_invoke(
+structured_result <- fabric_function_invoke(
   function_url,
   parameters = list(
     customerName = "Ada",
@@ -62,12 +88,12 @@ clearest control over nested JSON shapes.
 The result is deliberately inspectable:
 
 ```{r}
-result$function_name
-result$invocation_id
-result$status
-result$output
-result$errors
-result$http_status
+structured_result$function_name
+structured_result$invocation_id
+structured_result$status
+structured_result$output
+structured_result$errors
+structured_result$http_status
 ```
 
 Fabric documents the statuses `Succeeded`, `BadRequest`, `Failed`, `Timeout`,

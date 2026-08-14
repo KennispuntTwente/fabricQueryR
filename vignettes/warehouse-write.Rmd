@@ -11,37 +11,34 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-`fabric_warehouse_write_table()` moves an ordinary R object or a lazy Arrow
-source into a Microsoft Fabric Warehouse table. It stages bounded Parquet
-parts in OneLake and uses Fabric's recommended high-throughput `COPY INTO` for
-existing tables or CTAS to create and load a missing table.
+A Fabric Warehouse stores relational tables that you can query with SQL. Use
+`fabric_warehouse_write_table()` when rows held in R should become part of one
+of those tables. The source can be an ordinary data frame or, later, a larger
+Arrow dataset.
 
-## Discover the destination and staging item
+This guide starts by appending a three-row data frame. It then covers table
+creation, large inputs, replacement choices, and the staging and transaction
+details that matter in production.
 
-Existing targets remain the default. Set `create_if_missing = TRUE` when the
-writer should create and load an absent target from the staged Parquet schema.
-Fabric supports OneLake as a `COPY INTO` source, but its current contract
-explicitly excludes Warehouse items as source locations. Supply a Lakehouse
-for the temporary `Files/` directory:
+## Find the Warehouse and a staging Lakehouse
+
+A Warehouse is the final destination. The writer also needs a Lakehouse in the
+same tenant for temporary files while Fabric loads the data. Those files are
+removed after a confirmed successful write.
+
+Discover both items so their IDs and connection details travel with them:
 
 ```{r}
 library(fabricQueryR)
 
-workspace <- Filter(
-  function(value) value$displayName == "Analytics",
-  fabric_workspaces()
-)[[1L]]
+workspace <- fabric_workspaces()[["Analytics"]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 staging_lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
-The SQL identity needs `INSERT` and `ADMINISTER DATABASE BULK OPERATIONS` on
-the Warehouse. For a OneLake source, Microsoft also documents Contributor or
-higher access on the source and destination workspaces. Cross-workspace staging
-is supported in the same tenant by setting `staging_workspace` when the
-Lakehouse is supplied by name or ID.
+## Append a small R data frame
 
-## Append an R data frame
+Start with a test table whose definition already matches the R columns:
 
 ```{r}
 written <- fabric_warehouse_write_table(
@@ -62,6 +59,10 @@ written$file_count
 written$staging_retained
 ```
 
+`rows` confirms how many source rows were staged. A successful result normally
+has `staging_retained = FALSE`, meaning the temporary OneLake files were
+removed.
+
 Column identifiers are quoted and mapped in the same ordinal order as the
 Parquet schema. The names and compatible types therefore need to match the
 existing destination columns. Factor columns are serialized as strings; Arrow
@@ -79,9 +80,20 @@ created <- fabric_warehouse_write_table(
 )
 ```
 
-Fabric's CTAS statement infers the names and Warehouse types from the staged
-Parquet result. Use a pre-created table when exact lengths, nullability,
-constraints, or other schema details must be controlled explicitly.
+Fabric infers the names and Warehouse types from the staged Parquet result.
+Use a pre-created table when exact lengths, nullability, constraints, or other
+schema details must be controlled explicitly.
+
+The SQL identity needs `INSERT` and `ADMINISTER DATABASE BULK OPERATIONS` on
+the Warehouse. Microsoft also documents Contributor or higher workspace access
+for the OneLake staging source and Warehouse destination. Cross-workspace
+staging is supported in the same tenant through `staging_workspace` when the
+Lakehouse is supplied by name or ID.
+
+Behind the scenes, the function writes bounded Parquet parts to OneLake and
+uses Fabric's high-throughput `COPY INTO` path. When creating a missing table,
+it uses a create-table-as-select operation so creation and loading are one
+transaction.
 
 ## Stream a larger-than-memory Arrow source
 

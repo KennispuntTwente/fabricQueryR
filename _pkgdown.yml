@@ -3,26 +3,23 @@ template:
   bootstrap: 5
 
 articles:
-  - title: Authentication
+  - title: Start here
     contents:
+      - getting-started
       - authentication
-  - title: GraphQL
+  - title: Read and write data
     contents:
-      - graphql-schema-and-rows
-  - title: Eventhouse ingestion
-    contents:
-      - eventhouse-ingestion
-  - title: Warehouse ingestion
-    contents:
+      - reading-data
+      - ingesting-data
+      - onelake-and-lakehouse
       - warehouse-write
-  - title: Job automation
-    contents:
-      - job-automation
-  - title: Semantic-model refresh
-    contents:
+      - eventhouse-ingestion
       - semantic-model-refresh
-  - title: User Data Functions
+      - graphql-schema-and-rows
+  - title: Run and automate workloads
     contents:
+      - spark-with-livy
+      - job-automation
       - user-data-functions
 reference:
   - title: Discovery

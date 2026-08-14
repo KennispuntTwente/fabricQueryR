@@ -1,0 +1,227 @@
+---
+title: "Work with OneLake files and Lakehouse tables"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Work with OneLake files and Lakehouse tables}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+A Fabric Lakehouse gives you two related ways to organize data:
+
+- `Files/` contains ordinary files such as CSV, Parquet, JSON, images, and
+  scripts.
+- `Tables/` contains managed Delta tables that Fabric engines can query.
+
+An ordinary file can be copied, downloaded, or replaced. A Delta table also
+has a transaction log that records valid table versions. Use table functions
+for managed tables and file functions for ordinary files; never change the
+files underneath `Tables/` directly.
+
+## Find a Lakehouse
+
+```{r}
+library(fabricQueryR)
+
+workspace <- fabric_workspaces()[["Analytics workspace"]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+
+lakehouse$displayName
+```
+
+Passing this discovered object to later calls avoids copying workspace IDs,
+item IDs, and service addresses.
+
+## List and read ordinary files
+
+Start by listing a small folder:
+
+```{r}
+files <- fabric_onelake_list(
+  workspace,
+  lakehouse,
+  path = "Files/incoming"
+)
+
+files[c("path", "is_directory", "content_length")]
+```
+
+Read a supported tabular file directly into R:
+
+```{r}
+orders <- fabric_onelake_read_file(
+  workspace,
+  lakehouse,
+  path = "Files/incoming/orders.csv"
+)
+
+head(orders)
+```
+
+Use `fabric_onelake_metadata()` for size and other properties without reading
+the contents. Use `fabric_onelake_download()` for a file type that should stay
+as bytes or be saved to local disk.
+
+## Write or upload a file
+
+`fabric_onelake_write_file()` turns an R or Arrow object into CSV, Parquet, or
+Arrow IPC content based on the path or explicit format:
+
+```{r}
+fabric_onelake_write_file(
+  workspace,
+  lakehouse,
+  path = "Files/exports/orders.parquet",
+  data = data.frame(
+    order_id = 1:3,
+    amount = c(10.5, 20, 30.25)
+  )
+)
+```
+
+If the file already exists on your computer, upload it without first parsing
+it in R:
+
+```{r}
+fabric_onelake_upload(
+  workspace,
+  lakehouse,
+  path = "Files/incoming/logo.png",
+  source = "logo.png"
+)
+```
+
+Both operations can replace a destination. Use a new path while learning and
+check `?fabric_onelake_write_file` or `?fabric_onelake_upload` before replacing
+shared data.
+
+## Discover and read managed tables
+
+```{r}
+tables <- fabric_lakehouse_tables(lakehouse)
+tables[c("schema", "name", "type", "format")]
+```
+
+Select a discovered row or supply the table name:
+
+```{r}
+table <- tables[1L, ]
+
+rows <- fabric_lakehouse_read_table(
+  lakehouse,
+  table,
+  columns = c("order_id", "amount"),
+  limit = 100L
+)
+```
+
+Column selection and row limits happen before the result is fully collected in
+R. For SQL joins, grouping, or complex filters, use `fabric_sql_query()`
+against the Lakehouse SQL analytics endpoint instead.
+
+## Write an R object as a managed table
+
+```{r}
+result <- fabric_lakehouse_write_table(
+  lakehouse,
+  table = "orders_from_r",
+  data = data.frame(
+    order_id = 1:3,
+    amount = c(10.5, 20, 30.25)
+  ),
+  mode = "Overwrite"
+)
+
+result$rows
+result$staging_retained
+```
+
+The function stages Parquet files under a unique `Files/` path, asks Fabric to
+perform a managed Delta load, waits for completion, and cleans up after
+confirmed success. Fabric can infer a missing table's schema. Use Spark or a
+separately schema-controlled process when inference is not suitable.
+
+## Turn existing files into a table
+
+When CSV or Parquet files already exist in the Lakehouse, ask Fabric to load
+them directly:
+
+```{r}
+operation <- fabric_lakehouse_load_table(
+  lakehouse,
+  table = "orders_from_csv",
+  path = "Files/incoming/orders.csv",
+  format = "Csv",
+  header = TRUE,
+  delimiter = ",",
+  mode = "Overwrite"
+)
+
+operation <- fabric_operation_wait(operation, timeout = 900)
+```
+
+The source can be one file or a folder. Folder loads can filter by extension
+and include nested folders. The source must already be inside the selected
+Lakehouse's `Files/` area.
+
+## Read a large or historical Delta table
+
+Use an Arrow stream when the selected data may not fit comfortably in memory:
+
+```{r}
+stream <- fabric_lakehouse_read_table(
+  lakehouse,
+  table = "large_orders",
+  result = "arrow_stream"
+)
+reader <- arrow::as_record_batch_reader(stream)
+```
+
+The stream is disk-backed and single-use. `version` can select an earlier Delta
+table version when that history is still available:
+
+```{r}
+older_rows <- fabric_lakehouse_read_table(
+  lakehouse,
+  table = "orders",
+  version = 42L,
+  limit = 100L
+)
+```
+
+`fabric_onelake_read_delta_table()` is the lower-level reader for compatible
+Delta paths in Lakehouses and Warehouses. Prefer the Lakehouse wrapper for a
+normal discovered-table workflow.
+
+## Use shortcuts instead of copying data
+
+A OneLake shortcut makes data stored elsewhere appear at a path in the current
+item. It is a link, not a second copy:
+
+```{r}
+lakehouses <- fabric_lakehouses(workspace)
+destination <- lakehouses[[1L]]
+source <- lakehouses[[2L]]
+
+shortcut <- fabric_onelake_shortcut_create(
+  destination,
+  path = "Files",
+  name = "shared-orders",
+  target = source,
+  target_path = "Tables/orders"
+)
+```
+
+List shortcuts with `fabric_onelake_shortcuts()`. Deleting a shortcut requires
+`confirm = TRUE` and removes only the link; it does not delete the target data.
+
+## Treat deletion as a separate step
+
+`fabric_onelake_delete()` can permanently remove a file or directory. Inspect
+the exact path with `fabric_onelake_list()` or `fabric_onelake_metadata()`
+first. Keep destructive cleanup separate from read, write, and verification
+code so that a failed earlier step cannot accidentally broaden what is removed.

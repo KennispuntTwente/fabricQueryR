@@ -1,8 +1,8 @@
 ---
-title: "Update data and refresh a semantic model"
+title: "Query and refresh a semantic model"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Update data and refresh a semantic model}
+  %\VignetteIndexEntry{Query and refresh a semantic model}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -11,9 +11,13 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-Semantic models serve report-ready data to Power BI and Fabric reports. After
-an upstream load finishes, fabricQueryR can start the model refresh, monitor
-it, preserve diagnostic details, and link to Fabric's refresh detail page.
+A semantic model is the report-ready data behind Power BI and Fabric reports.
+It combines tables with relationships, measures, and business calculations.
+From R, you can query that model with DAX and refresh it after its source data
+changes.
+
+Start by querying a small result. Refresh and monitoring come next, followed by
+the more specialized controls used for production models.
 
 This guide uses a discovered model so its workspace and dataset IDs travel
 together:
@@ -24,12 +28,57 @@ library(fabricQueryR)
 model <- fabric_semantic_models("Analytics workspace")[[1]]
 ```
 
-Starting or cancelling a refresh requires `Dataset.ReadWrite.All` and Write
-permission on the semantic model. Status and history use `Dataset.Read.All` or
-`Dataset.ReadWrite.All`, although Microsoft also requires model Write
-permission for refresh history. Service principals are supported when the
-tenant setting and model/workspace access allow them. Do not set an email
-notification option for a service-principal request.
+## Query the model with DAX
+
+DAX is the query and calculation language used by semantic models. A query
+normally begins with `EVALUATE` and returns a table. If you are new to DAX,
+create and test a query in the model's **DAX query view** in Fabric, then use the
+same text from R:
+
+```{r}
+rows <- fabric_pbi_dax_query(
+  model,
+  dax = "EVALUATE TOPN(100, 'Customers')"
+)
+
+head(rows)
+```
+
+Query the semantic model when you want its measures and relationships, or need
+the same business definition used by a report. Query the Warehouse or
+Lakehouse instead when you need the underlying source rows and SQL is a better
+fit.
+
+For example, a DAX measure can be grouped by a model column:
+
+```{r}
+sales <- fabric_pbi_dax_query(
+  model,
+  dax = paste(
+    "EVALUATE",
+    "SUMMARIZECOLUMNS(",
+    "  'Region'[Region],",
+    "  \"Total Sales\", [Total Sales]",
+    ")"
+  )
+)
+```
+
+The normal JSON mode returns one tibble and is the simplest option. The later
+`api = "arrow"` mode is useful for richer types, multiple result tables, or a
+stream, but requires a capacity-backed model and additional tenant settings.
+
+## Check access before refreshing
+
+Querying requires Read and Build permission on the model and the tenant's
+**Semantic Model Execute Queries REST API** setting. Starting or cancelling a
+refresh requires `Dataset.ReadWrite.All` and Write permission on the model.
+Status and history use `Dataset.Read.All` or `Dataset.ReadWrite.All`, although
+Microsoft also requires model Write permission for refresh history.
+
+Service principals are supported when tenant settings and model or workspace
+access allow them. Do not set an email notification option for a
+service-principal refresh request.
 
 ## Refresh after an upstream update
 
@@ -145,9 +194,7 @@ result <- fabric_pbi_refresh_wait(
   error_on_failure = FALSE
 )
 
-if (result$state != "Completed") {
-  message(result$details_url)
-}
+if (result$state != "Completed") result$details_url
 ```
 
 ## Inspect history or cancel work

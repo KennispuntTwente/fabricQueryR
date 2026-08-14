@@ -11,22 +11,19 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-fabricQueryR supports both on-demand and recurring item jobs through the
-Microsoft Fabric Job Scheduler APIs. This guide uses a discovered notebook so
-the workspace ID, item ID, type, and workspace-specific API endpoint travel
-together.
+A Fabric **job** is a run of an item such as a notebook, data pipeline, or Spark
+job definition. fabricQueryR can start a run, wait for it, inspect recent runs,
+and manage recurring schedules.
+
+Start with one on-demand run. Add a schedule only after that run succeeds and
+its parameters and runtime are understood. This guide uses a notebook, but the
+same pattern applies to other supported item types.
 
 ```{r}
 library(fabricQueryR)
 
 notebook <- fabric_notebooks("Analytics workspace")[[1]]
 ```
-
-The examples use the package's normal authentication flow. Reading history and
-schedules needs an item read permission. Running jobs needs item execute
-permission. Creating or updating a schedule needs item execute and read-write
-permissions; deletion needs item read-write permission. A workspace Contributor
-role or direct item Write permission is normally needed to change schedules.
 
 ## Run once and inspect history
 
@@ -40,6 +37,17 @@ job <- fabric_job_run(
 result <- fabric_job_wait(job, timeout = 900, cancel_on_timeout = TRUE)
 result$status
 ```
+
+The first call returns immediately with a job handle. The wait call checks
+Fabric until the job finishes or the 15-minute local deadline is reached.
+`cancel_on_timeout = TRUE` asks Fabric to cancel the run if that deadline is
+exceeded.
+
+Running jobs needs item execute permission. Reading history and schedules
+needs item read permission. Creating or updating a schedule needs item execute
+and read-write permissions; deletion needs item read-write permission. A
+workspace Contributor role or direct item Write permission is normally needed
+to change schedules.
 
 `fabric_job_instances()` follows all Fabric continuation pages. Most item types
 retain at most 100 recently completed runs, in addition to active runs.
