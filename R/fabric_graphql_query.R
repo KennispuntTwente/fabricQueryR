@@ -1,3 +1,80 @@
+.graphql_introspection_query <- paste(
+  c(
+    "query IntrospectionQuery {",
+    "  __schema {",
+    "    queryType { name }",
+    "    mutationType { name }",
+    "    subscriptionType { name }",
+    "    types { ...FullType }",
+    "    directives {",
+    "      name",
+    "      description",
+    "      locations",
+    "      args { ...InputValue }",
+    "    }",
+    "  }",
+    "}",
+    "fragment FullType on __Type {",
+    "  kind",
+    "  name",
+    "  description",
+    "  fields(includeDeprecated: true) {",
+    "    name",
+    "    description",
+    "    args { ...InputValue }",
+    "    type { ...TypeRef }",
+    "    isDeprecated",
+    "    deprecationReason",
+    "  }",
+    "  inputFields { ...InputValue }",
+    "  interfaces { ...TypeRef }",
+    "  enumValues(includeDeprecated: true) {",
+    "    name",
+    "    description",
+    "    isDeprecated",
+    "    deprecationReason",
+    "  }",
+    "  possibleTypes { ...TypeRef }",
+    "}",
+    "fragment InputValue on __InputValue {",
+    "  name",
+    "  description",
+    "  type { ...TypeRef }",
+    "  defaultValue",
+    "}",
+    "fragment TypeRef on __Type {",
+    "  kind",
+    "  name",
+    "  ofType {",
+    "    kind",
+    "    name",
+    "    ofType {",
+    "      kind",
+    "      name",
+    "      ofType {",
+    "        kind",
+    "        name",
+    "        ofType {",
+    "          kind",
+    "          name",
+    "          ofType {",
+    "            kind",
+    "            name",
+    "            ofType {",
+    "              kind",
+    "              name",
+    "              ofType { kind name }",
+    "            }",
+    "          }",
+    "        }",
+    "      }",
+    "    }",
+    "  }",
+    "}"
+  ),
+  collapse = "\n"
+)
+
 #' Run a query against a Fabric GraphQL API
 #'
 #' Sends a GraphQL query or mutation to an **API for GraphQL** item and returns
@@ -165,6 +242,98 @@ fabric_graphql_query <- function(
   # Execute and return the query only after the request inputs are ready
 
   graphql_execute_context(context, variables)
+}
+
+#' Inspect a Fabric GraphQL schema
+#'
+#' Runs the standard GraphQL introspection query against an **API for GraphQL**
+#' item. The returned schema retains the service's nested type references,
+#' fields, input values, enum values, and directives so callers can explore the
+#' API without assuming how Fabric named its generated objects
+#'
+#' Microsoft Fabric disables runtime introspection by default. A workspace
+#' administrator must enable it under **API Settings > Introspection**. When it
+#' must remain disabled, use **Export schema** in the Fabric portal instead;
+#' schema export remains available independently of the runtime setting
+#'
+#' @inheritParams fabric_graphql_query
+#'
+#' @return A `fabric_graphql_schema` list containing the standard `__schema`
+#'   fields. The original GraphQL response and its (normally empty) errors are
+#'   available in the `response` and `errors` attributes
+#' @references
+#' [Fabric API for GraphQL introspection and schema export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' api <- fabric_graphql_apis("Analytics workspace")[[1]]
+#' schema <- fabric_graphql_schema(api)
+#'
+#' vapply(schema$types, `[[`, character(1), "name")
+#' }
+fabric_graphql_schema <- function(
+  api,
+  workspace_id = NULL,
+  timeout = 110,
+  idempotent = TRUE,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  audience = NULL,
+  api_base = .fabric_api_base,
+  allow_custom_endpoint = FALSE
+) {
+  # 1 Request the standard schema -----------------------------------------------------------------
+
+  # Introspection is read-only, so transient transport retries are safe when
+  # the caller leaves the idempotent default enabled
+
+  result <- fabric_graphql_query(
+    api = api,
+    query = .graphql_introspection_query,
+    operation_name = "IntrospectionQuery",
+    workspace_id = workspace_id,
+    error_policy = "return",
+    timeout = timeout,
+    idempotent = idempotent,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    audience = audience,
+    api_base = api_base,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+
+
+  # 2 Reject unavailable or partial introspection --------------------------------------------------
+
+  # A partial type graph is unsafe for discovery and code generation. Fabric's
+  # default-disabled setting is the common cause, so make its remedy explicit
+
+  schema <- if (is.list(result$data)) {
+    result$data[["__schema"]] %||% NULL
+  } else {
+    NULL
+  }
+  if (length(result$errors) || !is.list(schema)) {
+    graphql_schema_abort(result)
+  }
+
+
+  # 3 Return the service schema unchanged ----------------------------------------------------------
+
+  structure(
+    schema,
+    errors = result$errors,
+    response = result$response,
+    class = c("fabric_graphql_schema", "list")
+  )
 }
 
 #' Read all pages from a Fabric GraphQL query
@@ -353,11 +522,7 @@ fabric_graphql_cursor <- function(
 
   # Capture valid field names now so the returned callback stays simple
 
-  if (
-    !is.character(path) || !length(path) || anyNA(path) || !all(nzchar(path))
-  ) {
-    rlang::abort("path must contain one or more non-empty field names")
-  }
+  path <- graphql_validate_path(path)
   has_next <- graphql_required_string(has_next, "has_next")
   end_cursor <- graphql_required_string(end_cursor, "end_cursor")
 
@@ -404,6 +569,147 @@ fabric_graphql_cursor <- function(
       sprintf("GraphQL pagination field '%s'", end_cursor)
     )
   }
+}
+
+#' Collect paged GraphQL row objects into a tibble
+#'
+#' Combines row objects from a caller-selected field in every result returned
+#' by [fabric_graphql_paginate()]. The explicit `path` is relative to each
+#' page's `data` field because GraphQL response shapes are schema-defined and
+#' cannot be inferred safely
+#'
+#' Scalar fields become ordinary tibble columns. Nested objects and arrays stay
+#' as list-columns and are never flattened. Fields introduced on later pages
+#' are added in first-seen order, with missing or GraphQL `null` scalar values
+#' represented by typed `NA` values when their type can be inferred. Exact
+#' integer strings returned by [fabric_graphql_query()] remain character data;
+#' integer-valued numeric entries in the same field are promoted to character
+#' rather than coercing a large integer to an inexact double
+#'
+#' A successful result has class `fabric_graphql_rows` and reports completion,
+#' page count, path, and GraphQL errors in its printed header and attributes.
+#' Use `attr(rows, "errors")` to inspect partial GraphQL errors. If pagination
+#' stopped before `next_cursor` reported completion, including at `max_pages`,
+#' the function raises `fabric_graphql_collection_error`; its `partial_data`
+#' field contains the rows collected so far and is explicitly marked
+#' incomplete
+#'
+#' @param pages A `fabric_graphql_pages` result from
+#'   [fabric_graphql_paginate()]. Requiring that result, rather than an
+#'   unverified single response, lets the function enforce completion
+#' @param path Character path from each page's `data` field to the list of row
+#'   objects, for example `c("viewer", "products", "items")`
+#'
+#' @return A `fabric_graphql_rows` tibble. Attributes `complete`, `errors`,
+#'   `page_count`, and `path` retain collection metadata
+#' @references
+#' [Fabric API for GraphQL limits](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits)
+#'
+#' [Fabric GraphQL aggregation and pagination shape](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-aggregations)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' api <- fabric_graphql_apis("Analytics workspace")[[1]]
+#' pages <- fabric_graphql_paginate(
+#'   api,
+#'   query = paste(
+#'     "query Products($first: Int!, $after: String) {",
+#'     "  products(first: $first, after: $after) {",
+#'     "    items { id name details { category } }",
+#'     "    hasNextPage endCursor",
+#'     "  }",
+#'     "}"
+#'   ),
+#'   variables = list(first = 100L, after = NULL),
+#'   next_cursor = fabric_graphql_cursor("products")
+#' )
+#'
+#' rows <- fabric_graphql_collect(pages, c("products", "items"))
+#' attr(rows, "complete")
+#' attr(rows, "errors")
+#' }
+fabric_graphql_collect <- function(pages, path) {
+  # 1 Validate the collection contract -------------------------------------------------------------
+
+  if (!inherits(pages, "fabric_graphql_pages")) {
+    rlang::abort(
+      paste(
+        "pages must be a fabric_graphql_pages result from",
+        "fabric_graphql_paginate()"
+      )
+    )
+  }
+  path <- graphql_validate_path(path)
+  if (!is.list(pages$pages)) {
+    rlang::abort("pages$pages must be a list of GraphQL results")
+  }
+  complete <- pages$complete
+  graphql_validate_scalar(
+    complete,
+    is.logical,
+    "pages$complete must be TRUE or FALSE"
+  )
+
+
+  # 2 Locate and bind the selected row objects -----------------------------------------------------
+
+  rows <- graphql_collect_page_rows(pages$pages, path)
+  result <- graphql_rows_result(
+    rows,
+    complete = complete,
+    errors = pages$errors %||% list(),
+    page_count = length(pages$pages),
+    path = path
+  )
+
+
+  # 3 Refuse to present an incomplete collection as a normal tibble -------------------------------
+
+  if (!complete) {
+    condition <- structure(
+      list(
+        message = paste(
+          "GraphQL row collection is incomplete because pagination stopped",
+          "before the API reported completion. This can happen at max_pages",
+          "or the Fabric 100,000-item pagination limit; partial rows are",
+          "available in `partial_data`."
+        ),
+        call = NULL,
+        partial_data = result,
+        pages = pages,
+        errors = attr(result, "errors")
+      ),
+      class = c(
+        "fabric_graphql_collection_error",
+        "error",
+        "condition"
+      )
+    )
+    rlang::cnd_signal(condition)
+  }
+
+  result
+}
+
+#' Print collected GraphQL rows
+#'
+#' @param x A `fabric_graphql_rows` tibble returned by
+#'   [fabric_graphql_collect()]
+#' @param ... Additional arguments passed to the tibble print method
+#' @return `x`, invisibly
+#' @export
+print.fabric_graphql_rows <- function(x, ...) {
+  complete <- isTRUE(attr(x, "complete"))
+  errors <- attr(x, "errors") %||% list()
+  page_count <- attr(x, "page_count") %||% NA_integer_
+  cat(sprintf(
+    "# Fabric GraphQL: pagination %s; %s; %s\n",
+    if (complete) "complete" else "incomplete",
+    graphql_count_label(page_count, "page"),
+    graphql_count_label(length(errors), "GraphQL error")
+  ))
+  NextMethod()
 }
 
 # Validate shared GraphQL request inputs and resolve service state. Returns a
@@ -644,6 +950,266 @@ graphql_error_message <- function(errors) {
   paste0("GraphQL response contains errors: ", paste(messages, collapse = "; "))
 }
 
+# Stop after unsuccessful introspection. The typed condition retains the
+# GraphQL result while directing Fabric users to the documented setting
+graphql_schema_abort <- function(result) {
+  service_message <- if (length(result$errors)) {
+    paste0(" ", graphql_error_message(result$errors))
+  } else {
+    " The response did not contain a __schema object."
+  }
+  condition <- structure(
+    list(
+      message = paste0(
+        "GraphQL schema introspection failed. Microsoft Fabric disables ",
+        "introspection by default. Ask a workspace admin to open API ",
+        "Settings > Introspection and enable it, then retry. If runtime ",
+        "introspection must remain disabled, use Export schema in the Fabric ",
+        "portal instead.",
+        service_message
+      ),
+      call = NULL,
+      result = result,
+      errors = result$errors
+    ),
+    class = c(
+      "fabric_graphql_introspection_error",
+      "error",
+      "condition"
+    )
+  )
+  rlang::cnd_signal(condition)
+}
+
+# Validate a GraphQL field path. Returns the unchanged path for cursor and row
+# extraction helpers
+graphql_validate_path <- function(path) {
+  if (
+    !is.character(path) ||
+      !length(path) ||
+      anyNA(path) ||
+      !all(nzchar(path))
+  ) {
+    rlang::abort("path must contain one or more non-empty field names")
+  }
+  path
+}
+
+# Locate row arrays in each GraphQL page. Returns one flat list of named row
+# objects, tolerating a missing/null path only on a page with retained errors
+graphql_collect_page_rows <- function(pages, path) {
+  rows <- list()
+  for (page_number in seq_along(pages)) {
+    page <- pages[[page_number]]
+    if (!inherits(page, "fabric_graphql_result")) {
+      rlang::abort(sprintf(
+        "GraphQL page %d is not a fabric_graphql_result",
+        page_number
+      ))
+    }
+    located <- graphql_find_path(page$data, path)
+    if (!located$found || is.null(located$value)) {
+      if (graphql_errors_overlap_path(page$errors, path)) {
+        next
+      }
+      rlang::abort(sprintf(
+        "GraphQL row path '%s' was not found on page %d",
+        paste(path, collapse = "."),
+        page_number
+      ))
+    }
+    page_rows <- located$value
+    if (!is.list(page_rows)) {
+      rlang::abort(sprintf(
+        "GraphQL row path '%s' must contain a list on page %d",
+        paste(path, collapse = "."),
+        page_number
+      ))
+    }
+    for (row_number in seq_along(page_rows)) {
+      row <- page_rows[[row_number]]
+      if (
+        !is.list(row) ||
+          is.null(names(row)) ||
+          anyNA(names(row)) ||
+          !all(nzchar(names(row))) ||
+          anyDuplicated(names(row))
+      ) {
+        rlang::abort(sprintf(
+          paste0(
+            "GraphQL row %d on page %d must be an object with unique, ",
+            "non-empty field names"
+          ),
+          row_number,
+          page_number
+        ))
+      }
+      rows[[length(rows) + 1L]] <- row
+    }
+  }
+  rows
+}
+
+# Bind named GraphQL row objects by first-seen column name. Returns a tibble
+# whose nested fields remain list-columns
+graphql_rows_result <- function(
+  rows,
+  complete,
+  errors,
+  page_count,
+  path
+) {
+  column_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
+  columns <- stats::setNames(
+    lapply(
+      column_names,
+      function(name) {
+        values <- lapply(
+          rows,
+          function(row) {
+            if (name %in% names(row)) row[[name]] else NULL
+          }
+        )
+        graphql_rows_column(values, name)
+      }
+    ),
+    column_names
+  )
+  result <- tibble::new_tibble(columns, nrow = length(rows))
+  class(result) <- c("fabric_graphql_rows", class(result))
+  attr(result, "complete") <- complete
+  attr(result, "errors") <- errors
+  attr(result, "page_count") <- as.integer(page_count)
+  attr(result, "path") <- path
+  result
+}
+
+# Combine one GraphQL field across rows. Returns an atomic vector when a common
+# scalar type exists, otherwise a list-column for nested/array/unknown values
+graphql_rows_column <- function(values, name) {
+  non_null <- Filter(Negate(is.null), values)
+  if (!length(non_null)) {
+    return(rep(list(NULL), length(values)))
+  }
+  complex <- vapply(
+    non_null,
+    function(value) is.list(value) || length(value) != 1L,
+    logical(1)
+  )
+  if (any(complex)) {
+    if (!all(complex)) {
+      rlang::abort(sprintf(
+        paste0(
+          "GraphQL field '%s' changes between nested and scalar values ",
+          "across rows; transform the page values explicitly before collecting"
+        ),
+        name
+      ))
+    }
+    return(values)
+  }
+  if (graphql_rows_mixed_integer_strings(non_null)) {
+    return(vapply(
+      values,
+      graphql_rows_integer_character,
+      character(1)
+    ))
+  }
+
+  prototype <- tryCatch(
+    do.call(vctrs::vec_ptype_common, unname(non_null)),
+    error = function(error) {
+      rlang::abort(
+        sprintf(
+          paste0(
+            "GraphQL field '%s' has incompatible scalar types across rows; ",
+            "transform the page values explicitly before collecting"
+          ),
+          name
+        ),
+        parent = error
+      )
+    }
+  )
+  pieces <- lapply(
+    values,
+    function(value) {
+      if (is.null(value)) {
+        vctrs::vec_init(prototype, 1L)
+      } else {
+        vctrs::vec_cast(value, prototype)
+      }
+    }
+  )
+  do.call(vctrs::vec_c, unname(pieces))
+}
+
+# Detect safe character promotion for a column containing JSON integers on
+# both sides of jsonlite's exact-large-integer boundary
+graphql_rows_mixed_integer_strings <- function(values) {
+  kinds <- vapply(
+    values,
+    function(value) {
+      if (is.character(value)) "character" else if (is.numeric(value)) "numeric" else "other"
+    },
+    character(1)
+  )
+  if (!all(kinds %in% c("character", "numeric")) ||
+      !all(c("character", "numeric") %in% kinds)) {
+    return(FALSE)
+  }
+  all(vapply(
+    values,
+    function(value) {
+      if (is.character(value)) {
+        grepl("^[+-]?[0-9]+$", value)
+      } else {
+        is.finite(value) && value == floor(value)
+      }
+    },
+    logical(1)
+  ))
+}
+
+# Render one integer-valued scalar as exact character data. Returns NA for a
+# missing/null field
+graphql_rows_integer_character <- function(value) {
+  if (is.null(value)) {
+    return(NA_character_)
+  }
+  if (is.character(value)) {
+    return(value)
+  }
+  format(value, scientific = FALSE, trim = TRUE, digits = 22L)
+}
+
+# Format one count for the GraphQL rows print header
+graphql_count_label <- function(value, label) {
+  suffix <- if (identical(as.integer(value), 1L)) "" else "s"
+  paste(value, paste0(label, suffix))
+}
+
+# Check whether a page error can explain a null or absent selected row path
+# Returns one logical so unrelated errors cannot conceal a misspelled path
+graphql_errors_overlap_path <- function(errors, path) {
+  if (!length(errors)) {
+    return(FALSE)
+  }
+  any(vapply(
+    errors,
+    function(error) {
+      error_path <- if (is.list(error)) error$path %||% NULL else NULL
+      if (!length(error_path)) {
+        return(FALSE)
+      }
+      error_path <- as.character(unlist(error_path, use.names = FALSE))
+      shared <- min(length(error_path), length(path))
+      identical(error_path[seq_len(shared)], path[seq_len(shared)])
+    },
+    logical(1)
+  ))
+}
+
 # Combine page results, final `variables`, and completion state. Returns the
 # stable pagination object exposed by `fabric_graphql_paginate()`
 graphql_pages_result <- function(pages, variables, complete) {
@@ -870,11 +1436,22 @@ graphql_validate_scalar <- function(
 # Follow field names in `path` through nested `value`. Returns the located value
 # or `NULL` for the cursor callback to report clearly
 graphql_at_path <- function(value, path) {
+  located <- graphql_find_path(value, path)
+  if (located$found) located$value else NULL
+}
+
+# Follow field names while distinguishing a present GraphQL null from a missing
+# path. Returns both the location status and value for tidy row collection
+graphql_find_path <- function(value, path) {
   for (field in path) {
-    if (!is.list(value) || is.null(value[[field]])) {
-      return(NULL)
+    if (
+      !is.list(value) ||
+        is.null(names(value)) ||
+        !field %in% names(value)
+    ) {
+      return(list(found = FALSE, value = NULL))
     }
     value <- value[[field]]
   }
-  value
+  list(found = TRUE, value = value)
 }

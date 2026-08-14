@@ -341,6 +341,35 @@ graphql_result$data$customers$items
 graphql_result$errors
 ```
 
+Explore APIs whose administrators enabled runtime introspection, then collect
+an explicitly selected row path across cursor pages:
+
+``` r
+schema <- fabric_graphql_schema(graphql_api)
+
+pages <- fabric_graphql_paginate(
+  graphql_api,
+  query = paste(
+    "query Customers($first: Int!, $after: String) {",
+    "  customers(first: $first, after: $after, orderBy: {id: ASC}) {",
+    "    items { id name region profile { segment } }",
+    "    hasNextPage endCursor",
+    "  }",
+    "}"
+  ),
+  variables = list(first = 100L, after = NULL),
+  next_cursor = fabric_graphql_cursor("customers")
+)
+
+customers <- fabric_graphql_collect(pages, c("customers", "items"))
+attr(customers, "complete")
+attr(customers, "errors")
+```
+
+Nested objects remain list-columns. Fabric disables introspection by default;
+a workspace admin can enable it in the API settings, or export the schema from
+the portal without enabling runtime introspection.
+
 ### 10. Invoke a Fabric User Data Function
 
 Call published Fabric business logic through the function's explicit public

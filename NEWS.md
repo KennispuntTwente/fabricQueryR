@@ -9,8 +9,10 @@
 
 * Added query support for Eventhouse/KQL databases with `fabric_kql_query()`
   and Fabric APIs for GraphQL with `fabric_graphql_query()`. GraphQL helpers
-  also support variables, cursor pagination, and mutations where the configured
-  API permits them.
+  also support variables, cursor pagination, schema introspection with
+  `fabric_graphql_schema()`, and completion-aware tidy collection with
+  `fabric_graphql_collect()`. Nested values remain list-columns and exact large
+  integers remain character data.
 
 * Added `fabric_function_invoke()` for published Fabric User Data Functions,
   with trusted public-URL validation, flow-aware Power BI authentication,

@@ -1,0 +1,147 @@
+---
+title: "Explore and collect Fabric GraphQL data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Explore and collect Fabric GraphQL data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Fabric APIs for GraphQL generate their schema from the objects exposed by an
+API item. fabricQueryR keeps that schema-specific shape explicit: inspect the
+schema, write a normal GraphQL document, paginate with the connection fields
+selected by that document, and then identify the exact row path to collect.
+
+Start with a discovered API so its endpoint and workspace travel together:
+
+```{r}
+library(fabricQueryR)
+
+api <- fabric_graphql_apis("Analytics workspace")[[1]]
+```
+
+The caller needs **Run Queries and Mutations** permission on the API. With SSO
+connectivity, the caller also needs access to the underlying data source. The
+package uses the delegated `GraphQLApi.Execute.All` scope for interactive users
+and the Fabric audience for service-principal authentication.
+
+## Inspect the generated schema
+
+Microsoft Fabric disables runtime introspection by default. Only a workspace
+admin can enable it under **API Settings > Introspection**. Once enabled, the
+standard introspection response is available as a nested R list:
+
+```{r}
+schema <- fabric_graphql_schema(api)
+
+schema$queryType$name
+vapply(schema$types, `[[`, character(1), "name")
+```
+
+`fabric_graphql_schema()` stops with a
+`fabric_graphql_introspection_error` when the service does not return a complete
+schema. Its message points to the administrator setting and the portal's
+**Export schema** alternative. Export remains available when runtime
+introspection must stay disabled.
+
+## Query and paginate rows
+
+Fabric normally represents a generated collection with `items`,
+`hasNextPage`, and `endCursor`. Request all three pieces needed by the workflow
+and use a stable explicit ordering when pages must be repeatable:
+
+```{r}
+pages <- fabric_graphql_paginate(
+  api,
+  query = paste(
+    "query Products($first: Int!, $after: String) {",
+    "  products(first: $first, after: $after, orderBy: {id: ASC}) {",
+    "    items {",
+    "      id",
+    "      name",
+    "      category { id name }",
+    "      tags",
+    "    }",
+    "    hasNextPage",
+    "    endCursor",
+    "  }",
+    "}"
+  ),
+  variables = list(first = 100L, after = NULL),
+  operation_name = "Products",
+  next_cursor = fabric_graphql_cursor("products"),
+  idempotent = TRUE
+)
+```
+
+The cursor is opaque. `fabric_graphql_cursor()` only reads it from the
+configured connection path and feeds it back through the `after` variable; it
+does not interpret the value.
+
+## Build an analysis-ready tibble
+
+Select the row array explicitly relative to each page's `data` field:
+
+```{r}
+products <- fabric_graphql_collect(pages, c("products", "items"))
+
+products
+attr(products, "complete")
+attr(products, "page_count")
+attr(products, "errors")
+```
+
+Scalar fields become ordinary columns. A field that first appears on a later
+page is added to the union of columns, with typed `NA` values in earlier rows.
+Nested objects and arrays remain list-columns rather than being flattened:
+
+```{r}
+products$category[[1]]
+products$tags[[1]]
+```
+
+JSON whole numbers beyond R's exact double range are decoded as character
+values. The collector preserves those strings. If the same field has smaller R
+integer values on another page, it promotes those smaller values to character
+too; it never converts the large value to an inexact double. Other incompatible
+scalar changes stop with an error so a schema change cannot silently alter the
+analysis.
+
+GraphQL can return data and errors together. The rows remain usable, while the
+combined service errors stay in `attr(products, "errors")` and their count is
+shown when the tibble prints.
+
+## Treat incomplete pagination as partial data
+
+`fabric_graphql_paginate()` marks completion only after the cursor callback
+reports that no next page exists. Reaching `max_pages` raises a
+`fabric_graphql_pagination_error` whose `pages` field is marked incomplete. If
+those pages are passed to `fabric_graphql_collect()`, collection raises a
+`fabric_graphql_collection_error` instead of returning an apparently complete
+tibble:
+
+```{r}
+tryCatch(
+  fabric_graphql_collect(incomplete_pages, c("products", "items")),
+  fabric_graphql_collection_error = function(error) {
+    partial <- error$partial_data
+    attr(partial, "complete")
+    partial
+  }
+)
+```
+
+Fabric currently defaults each page to 100 items and limits pagination to
+100,000 items. A response is limited to 64 MB, one request to 100 seconds, and
+query nesting to 10 levels. Use smaller pages and stable filtered partitions
+for large results rather than treating a service-limit response as completion.
+
+See Microsoft's documentation for
+[introspection and schema export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export),
+[GraphQL limits](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits),
+and the generated
+[pagination shape](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-aggregations).

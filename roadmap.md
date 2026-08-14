@@ -316,7 +316,7 @@ interfaces.
 
 ## Priority 6: Improve GraphQL schema and tidy-result ergonomics
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -332,6 +332,24 @@ tibbles without assuming a universal schema shape.
 - Preserve nested objects as list-columns and retain exact large-integer handling
   instead of flattening or coercing silently.
 - Continue to use `fabric_graphql_cursor()` for arbitrary cursor extraction.
+
+### Implementation
+
+- Added `fabric_graphql_schema()` using the standard GraphQL introspection
+  document, preserving the complete nested type graph and returning a typed,
+  actionable condition when Fabric's default-disabled introspection setting
+  prevents discovery.
+- Added `fabric_graphql_collect()` over verified `fabric_graphql_pages` results,
+  requiring an explicit row path and combining evolving fields in first-seen
+  order while retaining nested objects and arrays as list-columns.
+- Preserved jsonlite's exact large-integer character values, including safe
+  character promotion when the same field contains smaller R integers, and
+  rejected incompatible scalar schema changes instead of silently coercing.
+- Attached page count, completion, path, and partial GraphQL errors to the
+  returned tibble. Incomplete pagination now raises a typed condition carrying
+  explicitly incomplete partial rows, including client page-limit scenarios.
+- Added offline schema, type, pagination, partial-error, and malformed-shape
+  coverage plus live Fabric introspection-setting and paged-collection tests.
 
 ### Acceptance criteria
 

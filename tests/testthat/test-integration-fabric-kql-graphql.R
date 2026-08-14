@@ -228,6 +228,40 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
   expect_null(result$data[[root_field]]$items[[2L]]$amount)
 })
 
+test_that("Fabric GraphQL introspection reflects the live API setting", {
+  manifest <- fabric_test_manifest()
+  api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  token <- fabric_test_token_provider()
+
+  outcome <- tryCatch(
+    fabric_graphql_schema(
+      api$endpoint,
+      token = token,
+      audience = "https://api.fabric.microsoft.com/.default"
+    ),
+    fabric_graphql_introspection_error = identity
+  )
+
+  if (inherits(outcome, "fabric_graphql_introspection_error")) {
+    expect_match(outcome$message, "API Settings > Introspection", fixed = TRUE)
+    expect_gt(length(outcome$errors), 0L)
+  } else {
+    expect_s3_class(outcome, "fabric_graphql_schema")
+    expect_equal(outcome$queryType$name, "Query")
+    query_types <- Filter(
+      function(type) identical(type$name, outcome$queryType$name),
+      outcome$types
+    )
+    expect_length(query_types, 1L)
+    expect_true(api$root_field %in% vapply(
+      query_types[[1L]]$fields,
+      `[[`,
+      character(1),
+      "name"
+    ))
+  }
+})
+
 test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
@@ -269,6 +303,14 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
     vapply(items, `[[`, character(1), "name"),
     c("alpha", "beta", "gamma")
   )
+
+  rows <- fabric_graphql_collect(pages, c(root_field, "items"))
+  expect_s3_class(rows, "fabric_graphql_rows")
+  expect_identical(rows$id, c(1L, 2L, 3L))
+  expect_identical(rows$name, c("alpha", "beta", "gamma"))
+  expect_true(attr(rows, "complete"))
+  expect_identical(attr(rows, "page_count"), 2L)
+  expect_length(attr(rows, "errors"), 0L)
 })
 
 test_that("Fabric GraphQL executes a live mutation", {

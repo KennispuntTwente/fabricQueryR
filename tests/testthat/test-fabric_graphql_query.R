@@ -138,7 +138,82 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
 
 test_that("GraphQL HTTP defaults include server-timeout overhead", {
   expect_identical(formals(fabric_graphql_query)$timeout, 110)
+  expect_identical(formals(fabric_graphql_schema)$timeout, 110)
   expect_identical(formals(fabric_graphql_paginate)$timeout, 110)
+})
+
+test_that("fabric_graphql_schema runs standard introspection", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- req
+    graphql_test_response(
+      list(
+        data = list(
+          `__schema` = list(
+            queryType = list(name = "Query"),
+            mutationType = list(name = "Mutation"),
+            subscriptionType = NULL,
+            types = list(
+              list(
+                kind = "OBJECT",
+                name = "Product",
+                fields = list(list(name = "id"))
+              )
+            ),
+            directives = list()
+          )
+        )
+      ),
+      url = req$url
+    )
+  })
+
+  schema <- fabric_graphql_schema(
+    "https://api.fabric.microsoft.com/graphql",
+    token = "token"
+  )
+
+  expect_s3_class(schema, "fabric_graphql_schema")
+  expect_equal(schema$queryType$name, "Query")
+  expect_equal(schema$types[[1L]]$name, "Product")
+  expect_length(attr(schema, "errors"), 0L)
+  expect_equal(captured$body$data$operationName, "IntrospectionQuery")
+  expect_match(captured$body$data$query, "__schema", fixed = TRUE)
+  expect_match(
+    captured$body$data$query,
+    "fields(includeDeprecated: true)",
+    fixed = TRUE
+  )
+  expect_match(captured$body$data$query, "fragment TypeRef on __Type", fixed = TRUE)
+})
+
+test_that("fabric_graphql_schema explains disabled introspection", {
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(
+      list(
+        errors = list(list(
+          message = "GraphQL introspection is not allowed",
+          extensions = list(code = "INTROSPECTION_DISABLED")
+        ))
+      ),
+      url = req$url
+    )
+  })
+
+  error <- expect_error(
+    fabric_graphql_schema(
+      "https://api.fabric.microsoft.com/graphql",
+      token = "secret-token"
+    ),
+    class = "fabric_graphql_introspection_error"
+  )
+  expect_match(error$message, "disables introspection by default", fixed = TRUE)
+  expect_match(error$message, "workspace admin", fixed = TRUE)
+  expect_match(error$message, "API Settings > Introspection", fixed = TRUE)
+  expect_match(error$message, "Export schema", fixed = TRUE)
+  expect_s3_class(error$result, "fabric_graphql_result")
+  expect_equal(error$errors[[1L]]$extensions$code, "INTROSPECTION_DISABLED")
+  expect_false(grepl("secret-token", error$message, fixed = TRUE))
 })
 
 test_that("fabric_graphql_query sends variables and operation names unchanged", {
@@ -584,6 +659,168 @@ test_that("GraphQL pagination forwards trusted custom endpoint opt-in", {
 
   expect_true(pages$complete)
   expect_length(pages$pages, 1L)
+})
+
+test_that("fabric_graphql_collect binds evolving nested rows exactly", {
+  first <- graphql_parse_response(list(
+    data = list(
+      viewer = list(
+        products = list(
+          items = list(
+            list(
+              id = 1L,
+              name = "alpha",
+              profile = list(source = "warehouse", rank = 1L),
+              tags = list("a", "b")
+            ),
+            list(
+              id = "9007199254740993",
+              name = NULL,
+              profile = NULL,
+              tags = list()
+            )
+          )
+        )
+      )
+    )
+  ))
+  empty <- graphql_parse_response(list(
+    data = list(viewer = list(products = list(items = list())))
+  ))
+  evolved <- graphql_parse_response(list(
+    data = list(
+      viewer = list(
+        products = list(
+          items = list(list(
+            id = 3L,
+            name = "gamma",
+            category = "new",
+            profile = list(source = "lakehouse"),
+            tags = list("c")
+          ))
+        )
+      )
+    ),
+    errors = list(list(
+      message = "A restricted sibling field was omitted",
+      path = list("viewer", "restricted")
+    ))
+  ))
+  pages <- graphql_pages_result(
+    list(first, empty, evolved),
+    variables = list(after = "last"),
+    complete = TRUE
+  )
+
+  rows <- fabric_graphql_collect(
+    pages,
+    c("viewer", "products", "items")
+  )
+
+  expect_s3_class(rows, "fabric_graphql_rows")
+  expect_s3_class(rows, "tbl_df")
+  expect_named(rows, c("id", "name", "profile", "tags", "category"))
+  expect_identical(rows$id, c("1", "9007199254740993", "3"))
+  expect_identical(rows$name, c("alpha", NA_character_, "gamma"))
+  expect_true(is.list(rows$profile))
+  expect_equal(rows$profile[[1L]]$source, "warehouse")
+  expect_null(rows$profile[[2L]])
+  expect_equal(rows$profile[[3L]]$source, "lakehouse")
+  expect_true(is.list(rows$tags))
+  expect_equal(rows$tags[[1L]], list("a", "b"))
+  expect_identical(rows$category, c(NA_character_, NA_character_, "new"))
+  expect_true(attr(rows, "complete"))
+  expect_identical(attr(rows, "page_count"), 3L)
+  expect_identical(
+    attr(rows, "path"),
+    c("viewer", "products", "items")
+  )
+  expect_length(attr(rows, "errors"), 1L)
+  expect_match(
+    paste(capture.output(print(rows)), collapse = "\n"),
+    "pagination complete; 3 pages; 1 GraphQL error",
+    fixed = TRUE
+  )
+})
+
+test_that("fabric_graphql_collect handles empty and partial-error pages", {
+  empty <- graphql_parse_response(list(
+    data = list(products = list(items = list()))
+  ))
+  unavailable <- graphql_parse_response(list(
+    data = list(products = NULL),
+    errors = list(list(
+      message = "Products could not be resolved",
+      path = list("products")
+    ))
+  ))
+  pages <- graphql_pages_result(
+    list(empty, unavailable),
+    variables = list(),
+    complete = TRUE
+  )
+
+  rows <- fabric_graphql_collect(pages, c("products", "items"))
+
+  expect_s3_class(rows, "fabric_graphql_rows")
+  expect_equal(dim(rows), c(0L, 0L))
+  expect_true(attr(rows, "complete"))
+  expect_length(attr(rows, "errors"), 1L)
+})
+
+test_that("fabric_graphql_collect refuses incomplete pagination", {
+  page <- graphql_parse_response(list(
+    data = list(products = list(items = list(list(id = 1L))))
+  ))
+  pages <- graphql_pages_result(
+    list(page),
+    variables = list(after = "next"),
+    complete = FALSE
+  )
+
+  error <- expect_error(
+    fabric_graphql_collect(pages, c("products", "items")),
+    class = "fabric_graphql_collection_error"
+  )
+
+  expect_match(error$message, "max_pages", fixed = TRUE)
+  expect_match(error$message, "100,000-item", fixed = TRUE)
+  expect_s3_class(error$partial_data, "fabric_graphql_rows")
+  expect_false(attr(error$partial_data, "complete"))
+  expect_identical(error$partial_data$id, 1L)
+})
+
+test_that("fabric_graphql_collect validates row paths and scalar evolution", {
+  result <- graphql_parse_response(list(
+    data = list(products = list(items = list(list(id = 1L))))
+  ))
+  expect_error(
+    fabric_graphql_collect(result, c("products", "items")),
+    "fabric_graphql_pages"
+  )
+
+  pages <- graphql_pages_result(list(result), list(), complete = TRUE)
+  expect_error(
+    fabric_graphql_collect(pages, c("products", "missing")),
+    "path 'products.missing' was not found"
+  )
+
+  changed <- graphql_pages_result(
+    list(
+      graphql_parse_response(list(
+        data = list(products = list(items = list(list(value = "text"))))
+      )),
+      graphql_parse_response(list(
+        data = list(products = list(items = list(list(value = 2L))))
+      ))
+    ),
+    list(),
+    complete = TRUE
+  )
+  expect_error(
+    fabric_graphql_collect(changed, c("products", "items")),
+    "incompatible scalar types"
+  )
 })
 
 test_that("fabric_graphql_query surfaces authentication and validates inputs", {

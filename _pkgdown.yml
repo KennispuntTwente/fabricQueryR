@@ -6,6 +6,9 @@ articles:
   - title: Authentication
     contents:
       - authentication
+  - title: GraphQL
+    contents:
+      - graphql-schema-and-rows
   - title: Job automation
     contents:
       - job-automation
@@ -75,11 +78,14 @@ reference:
       - fabric_kql_query
 
   - title: GraphQL
-    desc: Execute GraphQL operations and traverse cursor-based pages
+    desc: Explore schemas, execute operations, and collect cursor-based pages
     contents:
+      - fabric_graphql_schema
       - fabric_graphql_query
       - fabric_graphql_paginate
       - fabric_graphql_cursor
+      - fabric_graphql_collect
+      - print.fabric_graphql_rows
 
   - title: User Data Functions
     desc: Invoke published Fabric business logic through trusted public URLs
