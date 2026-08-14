@@ -239,3 +239,29 @@ Request batch cancellation
 #### Returns
 
 `TRUE`, invisibly, after Fabric accepts the request
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# fabric_livy_batch_submit() returns this class for a submitted Spark job
+workspace <- fabric_workspaces()[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+scripts <- fabric_onelake_list(workspace, lakehouse, "Files/jobs")
+script <- scripts[grepl("[.]py$", scripts$path), ][1L, ]
+script_uri <- paste0(
+  "abfss://", workspace$id, "@onelake.dfs.fabric.microsoft.com/",
+  lakehouse$id, ".Lakehouse/", script$path[[1L]]
+)
+batch <- fabric_livy_batch_submit(
+  lakehouse,
+  file = script_uri
+)
+inherits(batch, "FabricLivyBatch")
+
+# Wait for completion, then inspect the application result and logs
+batch$wait()
+batch$result()
+batch$logs()
+} # }
+```

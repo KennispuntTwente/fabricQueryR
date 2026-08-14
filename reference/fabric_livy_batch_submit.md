@@ -201,14 +201,24 @@ jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-
 
 ``` r
 if (FALSE) { # \dontrun{
-lakehouse <- fabric_lakehouses("Analytics workspace")[[1]]
+# Discover the Lakehouse and Python file used by this batch
+workspace <- fabric_workspaces()[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+scripts <- fabric_onelake_list(
+  workspace,
+  lakehouse,
+  path = "Files/jobs"
+)
+script <- scripts[grepl("[.]py$", scripts$path), ][1L, ]
+script_uri <- paste0(
+  "abfss://", workspace$id, "@onelake.dfs.fabric.microsoft.com/",
+  lakehouse$id, ".Lakehouse/", script$path[[1L]]
+)
 
+# Submit the discovered script and wait for its Spark application to finish
 batch <- fabric_livy_batch_submit(
   lakehouse,
-  file = paste0(
-    "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
-    "lakehouse.Lakehouse/Files/jobs/daily.py"
-  ),
+  file = script_uri,
   wait = TRUE,
   cancel_on_timeout = TRUE
 )

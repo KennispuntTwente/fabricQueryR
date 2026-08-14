@@ -197,15 +197,21 @@ metadata with additional <code>format</code>, <code>rows</code>, and <code>colum
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="st">"Analytics"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="co"># Discover the Lakehouse that will store the Parquet file</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Serialize the R data frame directly to OneLake as Parquet</span></span></span>
 <span class="r-in"><span><span class="fu">fabric_onelake_write_file</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="va">lakehouse</span><span class="op">$</span><span class="va">workspaceId</span>,</span></span>
+<span class="r-in"><span>  <span class="va">workspace</span>,</span></span>
 <span class="r-in"><span>  <span class="va">lakehouse</span>,</span></span>
 <span class="r-in"><span>  <span class="st">"Files/exports/orders.parquet"</span>,</span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, amount <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10.5</span>, <span class="cn">NA</span>, <span class="fl">30</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Read the same file back as a tibble</span></span></span>
 <span class="r-in"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu">fabric_onelake_read_file</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="va">lakehouse</span><span class="op">$</span><span class="va">workspaceId</span>,</span></span>
+<span class="r-in"><span>  <span class="va">workspace</span>,</span></span>
 <span class="r-in"><span>  <span class="va">lakehouse</span>,</span></span>
 <span class="r-in"><span>  <span class="st">"Files/exports/orders.parquet"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>

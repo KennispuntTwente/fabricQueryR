@@ -110,9 +110,14 @@ export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-in
 
 ``` r
 if (FALSE) { # \dontrun{
-api <- fabric_graphql_apis("Analytics workspace")[[1]]
+# Discover the GraphQL API whose schema you want to inspect
+workspace <- fabric_workspaces()[[1L]]
+api <- fabric_graphql_apis(workspace)[[1L]]
+
+# Request the standard GraphQL introspection schema
 schema <- fabric_graphql_schema(api)
 
+# List its named types to learn what can be queried
 vapply(schema$types, `[[`, character(1), "name")
 } # }
 ```

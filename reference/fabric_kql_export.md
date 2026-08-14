@@ -217,12 +217,17 @@ operations](https://learn.microsoft.com/en-us/kusto/management/show-operations?v
 
 ``` r
 if (FALSE) { # \dontrun{
-database <- fabric_kql_databases("Telemetry workspace")[[1L]]
-lakehouse <- fabric_lakehouses("Telemetry workspace")[[1L]]
+# Discover both the source KQL database and destination Lakehouse
+workspace <- fabric_workspaces()[[1L]]
+database <- fabric_kql_databases(workspace)[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+table <- Sys.getenv("FABRIC_KQL_TABLE")
+table_literal <- jsonlite::toJSON(table, auto_unbox = TRUE)
 
+# Export a bounded query to a new folder in the discovered Lakehouse
 exported <- fabric_kql_export(
   database,
-  query = "Events | where observed_at > ago(7d)",
+  query = paste0("table(", table_literal, ") | take 10000"),
   destination = lakehouse,
   path = "Files/exports/events-weekly",
   format = "parquet",

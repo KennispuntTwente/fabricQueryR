@@ -229,13 +229,18 @@ Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet
 
 ``` r
 if (FALSE) { # \dontrun{
-warehouse <- fabric_warehouses("Analytics")[[1L]]
-staging <- fabric_lakehouses("Analytics")[[1L]]
+# Discover both the destination Warehouse and staging Lakehouse
+workspace <- fabric_workspaces()[[1L]]
+warehouse <- fabric_warehouses(workspace)[[1L]]
+staging <- fabric_lakehouses(workspace)[[1L]]
+
+# Upload through OneLake staging and create a new Warehouse table
 fabric_warehouse_write_table(
   warehouse,
-  "orders",
+  "orders_from_r",
   data.frame(id = 1:3, amount = c(10, 20, 30)),
-  staging_lakehouse = staging
+  staging_lakehouse = staging,
+  create_if_missing = TRUE
 )
 } # }
 ```

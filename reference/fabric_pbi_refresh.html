@@ -361,23 +361,35 @@ disabled or a controlled point-in-time frame is required</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="co"># Discover the semantic model instead of copying workspace and model IDs</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Start a refresh, inspect it once, then wait for completion</span></span></span>
 <span class="r-in"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_refresh</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">current</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_refresh_status</span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">current</span><span class="op">$</span><span class="va">state</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_refresh_wait</span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">state</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">details_url</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># An active refresh can instead be cancelled when it is no longer needed</span></span></span>
+<span class="r-in"><span><span class="va">refresh_to_cancel</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_refresh</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">fabric_pbi_refresh_cancel</span><span class="op">(</span><span class="va">refresh_to_cancel</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Choose a table shown in the model, then refresh only that table</span></span></span>
+<span class="r-in"><span><span class="va">refresh_table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_PBI_TABLE"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sales_only</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_refresh</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">model</span>,</span></span>
 <span class="r-in"><span>  mode <span class="op">=</span> <span class="st">"enhanced"</span>,</span></span>
 <span class="r-in"><span>  type <span class="op">=</span> <span class="st">"Full"</span>,</span></span>
-<span class="r-in"><span>  objects <span class="op">=</span> <span class="st">"Sales"</span>,</span></span>
+<span class="r-in"><span>  objects <span class="op">=</span> <span class="va">refresh_table</span>,</span></span>
 <span class="r-in"><span>  retry_count <span class="op">=</span> <span class="fl">1L</span>,</span></span>
 <span class="r-in"><span>  timeout <span class="op">=</span> <span class="st">"02:00:00"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">fabric_pbi_refresh_wait</span><span class="op">(</span><span class="va">sales_only</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Finally, inspect recent refreshes for the same discovered model</span></span></span>
 <span class="r-in"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu">fabric_pbi_refresh_history</span><span class="op">(</span><span class="va">model</span>, top <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">attempts</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>

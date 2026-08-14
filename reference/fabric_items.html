@@ -164,6 +164,26 @@ require both <code>personal_workspace_tenant_id</code> and <code>personal_worksp
 <p><a href="https://learn.microsoft.com/en-us/fabric/enterprise/powerbi/service-premium-connect-tools#connecting-to-a-personal-workspace" class="external-link">Personal-workspace XMLA endpoints</a></p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># Start by discovering a workspace instead of copying its ID</span></span></span>
+<span class="r-in"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># List lightweight item records and inspect their names and types</span></span></span>
+<span class="r-in"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu">fabric_items</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">items</span>, <span class="va">`[[`</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>, <span class="st">"displayName"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Ask for enriched records when another function needs connection details</span></span></span>
+<span class="r-in"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu">fabric_items</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">workspace</span>,</span></span>
+<span class="r-in"><span>  type <span class="op">=</span> <span class="st">"Lakehouse"</span>,</span></span>
+<span class="r-in"><span>  detail <span class="op">=</span> <span class="cn">TRUE</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

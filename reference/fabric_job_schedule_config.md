@@ -98,6 +98,7 @@ zones](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/de
 ## Examples
 
 ``` r
+# Describe a schedule in the Windows time zone used by Fabric
 daily <- fabric_job_schedule_config(
   "Daily",
   start_time = "2026-10-01T00:00:00Z",

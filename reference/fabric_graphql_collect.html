@@ -98,7 +98,9 @@ incomplete</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="co"># Discover the GraphQL API, then fetch every Products page</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">pages</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_graphql_paginate.html">fabric_graphql_paginate</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">api</span>,</span></span>
 <span class="r-in"><span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span></span>
@@ -113,6 +115,7 @@ incomplete</p>
 <span class="r-in"><span>  next_cursor <span class="op">=</span> <span class="fu"><a href="fabric_graphql_cursor.html">fabric_graphql_cursor</a></span><span class="op">(</span><span class="st">"products"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Combine nested item rows from every page into one tibble</span></span></span>
 <span class="r-in"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu">fabric_graphql_collect</span><span class="op">(</span><span class="va">pages</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"products"</span>, <span class="st">"items"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">rows</span>, <span class="st">"complete"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">rows</span>, <span class="st">"errors"</span><span class="op">)</span></span></span>

@@ -127,3 +127,24 @@ overview](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-manage
 
 [Personal-workspace XMLA
 endpoints](https://learn.microsoft.com/en-us/fabric/enterprise/powerbi/service-premium-connect-tools#connecting-to-a-personal-workspace)
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# Start by discovering a workspace instead of copying its ID
+workspaces <- fabric_workspaces()
+workspace <- workspaces[[1L]]
+
+# List lightweight item records and inspect their names and types
+items <- fabric_items(workspace)
+vapply(items, `[[`, character(1), "displayName")
+
+# Ask for enriched records when another function needs connection details
+lakehouses <- fabric_items(
+  workspace,
+  type = "Lakehouse",
+  detail = TRUE
+)
+} # }
+```

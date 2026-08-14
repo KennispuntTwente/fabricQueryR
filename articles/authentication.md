@@ -393,7 +393,7 @@ token broker, pass a function. It can accept `audience` and
 ``` r
 
 provider <- function(audience, force_refresh = FALSE) {
-  # Acquire a token for `audience`; bypass your cache when force_refresh is TRUE.
+  # Acquire a token for `audience`; bypass your cache when force_refresh is TRUE
   my_token_broker(audience, refresh = force_refresh)
 }
 

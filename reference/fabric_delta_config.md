@@ -26,6 +26,7 @@ initialized
 ## Examples
 
 ``` r
+# Inspect requirements without starting Python or downloading anything
 config <- fabric_delta_config()
 config[c("initialized", "requirements", "available")]
 #> $initialized

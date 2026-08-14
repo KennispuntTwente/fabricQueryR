@@ -63,7 +63,9 @@ shape](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-agg
 
 ``` r
 if (FALSE) { # \dontrun{
-api <- fabric_graphql_apis("Analytics workspace")[[1]]
+# Discover the GraphQL API, then fetch every Products page
+workspace <- fabric_workspaces()[[1L]]
+api <- fabric_graphql_apis(workspace)[[1L]]
 pages <- fabric_graphql_paginate(
   api,
   query = paste(
@@ -78,6 +80,7 @@ pages <- fabric_graphql_paginate(
   next_cursor = fabric_graphql_cursor("products")
 )
 
+# Combine nested item rows from every page into one tibble
 rows <- fabric_graphql_collect(pages, c("products", "items"))
 attr(rows, "complete")
 attr(rows, "errors")

@@ -286,31 +286,46 @@ settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-on
 
 ``` r
 if (FALSE) { # \dontrun{
+# Discover the OneLake target instead of typing workspace and item names
+workspace <- fabric_workspaces()[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+
+# Create a small local CSV and upload it to the discovered Lakehouse
+local_csv <- tempfile(fileext = ".csv")
+write.csv(data.frame(id = 1:3), local_csv, row.names = FALSE)
+fabric_onelake_upload(
+  workspace,
+  lakehouse,
+  "Files/incoming/example.csv",
+  source = local_csv
+)
+
+# List the folder and inspect metadata for the uploaded file
 files <- fabric_onelake_list(
-  workspace = "Finance",
-  item = "Curated.Lakehouse",
+  workspace = workspace,
+  item = lakehouse,
   path = "Files/incoming",
   recursive = TRUE
 )
+metadata <- fabric_onelake_metadata(
+  workspace,
+  lakehouse,
+  "Files/incoming/example.csv"
+)
 
+# Download the first 100 bytes when only a file sample is needed
 bytes <- fabric_onelake_download(
-  "Finance",
-  "Curated.Lakehouse",
-  "Files/incoming/data.csv",
+  workspace,
+  lakehouse,
+  "Files/incoming/example.csv",
   range = c(0, 99)
 )
 
-fabric_onelake_upload(
-  "Finance",
-  "Curated.Lakehouse",
-  "Files/incoming/data.csv",
-  source = "data.csv"
-)
-
+# Deletion is explicit and requires confirm = TRUE
 fabric_onelake_delete(
-  "Finance",
-  "Curated.Lakehouse",
-  "Files/incoming/data.csv",
+  workspace,
+  lakehouse,
+  "Files/incoming/example.csv",
   confirm = TRUE
 )
 } # }

@@ -248,19 +248,22 @@ writer](https://arrow.apache.org/docs/r/reference/ParquetFileWriter.html)
 
 ``` r
 if (FALSE) { # \dontrun{
-database <- fabric_kql_databases("Telemetry workspace")[[1]]
+# Discover the KQL database that will receive the R data
+workspace <- fabric_workspaces()[[1L]]
+database <- fabric_kql_databases(workspace)[[1L]]
 
+# Create a new table when needed, stage the data, and wait for ingestion
 result <- fabric_kql_write_table(
   database,
-  table = "Events",
+  table = "EventsFromR",
   data = data.frame(id = 1:3, value = c("a", "b", "c")),
   create_if_missing = TRUE,
   ingest_if_not_exists = "r-batch-2026-08-14"
 )
 result$status$state
 
-# A lazy Arrow Dataset is scanned batch by batch rather than collected.
-dataset <- arrow::open_dataset("local-parquet-directory")
-fabric_kql_write_table(database, "Events", dataset)
+# A local Arrow Dataset is scanned batch by batch rather than collected
+dataset <- arrow::open_dataset(Sys.getenv("ARROW_DATASET_PATH"))
+fabric_kql_write_table(database, "EventsFromArrow", dataset)
 } # }
 ```

@@ -297,22 +297,40 @@ properties](https://learn.microsoft.com/en-us/kusto/ingestion-properties?view=mi
 
 ``` r
 if (FALSE) { # \dontrun{
-database <- fabric_kql_databases("Telemetry workspace")[[1]]
+# Discover the KQL database and a Lakehouse containing staged CSV files
+workspace <- fabric_workspaces()[[1L]]
+database <- fabric_kql_databases(workspace)[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+files <- fabric_onelake_list(
+  workspace,
+  lakehouse,
+  path = "Files/events"
+)
+csv_file <- files[grepl("[.]csv$", files$path), ][1L, ]
+
+# Build the source URI from discovered IDs and the listed file path
 source <- paste0(
-  "https://onelake.dfs.fabric.microsoft.com/workspace-id/",
-  "lakehouse-id/Files/events/2026-08-14.csv;impersonate"
+  "https://onelake.dfs.fabric.microsoft.com/",
+  workspace$id, "/", lakehouse$id, "/", csv_file$path[[1L]],
+  ";impersonate"
 )
 
+# Choose an existing target and CSV mapping from the KQL database explorer
+table <- Sys.getenv("FABRIC_KQL_TABLE")
+mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING")
+
+# Queue the file once using a stable ingest-if-not-exists key
 ingestion <- fabric_kql_ingest(
   database,
-  table = "Events",
+  table = table,
   sources = source,
   format = "csv",
-  mapping = "EventsCsv",
+  mapping = mapping,
   ignore_first_record = TRUE,
-  ingest_if_not_exists = "events-2026-08-14"
+  ingest_if_not_exists = paste0("file:", csv_file$path[[1L]])
 )
 
+# Wait for every submitted file to reach a terminal ingestion state
 result <- fabric_kql_ingestion_status(
   ingestion,
   wait = TRUE,

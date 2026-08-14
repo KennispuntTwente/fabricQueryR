@@ -39,7 +39,10 @@ For each page it returns the cursor when `has_next` is true, otherwise
 ## Examples
 
 ``` r
+# Build a reusable extractor for a GraphQL connection named "products"
 next_cursor <- fabric_graphql_cursor("products")
+
+# This small local result shows the response shape expected by the extractor
 page <- structure(
   list(data = list(products = list(
     hasNextPage = TRUE,
@@ -47,6 +50,8 @@ page <- structure(
   ))),
   class = c("fabric_graphql_result", "list")
 )
+
+# TRUE plus a cursor tells the paginator to request another page
 next_cursor(page)
 #> [1] "opaque-cursor"
 ```

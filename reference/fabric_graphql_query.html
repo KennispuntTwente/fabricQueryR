@@ -216,8 +216,11 @@ rounded</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="co"># Discover an API for GraphQL item instead of copying its endpoint or ID</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Keep the filter value in variables rather than inserting it into the query</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">fabric_graphql_query</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">api</span>,</span></span>
 <span class="r-in"><span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span></span>
@@ -230,6 +233,8 @@ rounded</p>
 <span class="r-in"><span>  variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>category <span class="op">=</span> <span class="st">"A"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  operation_name <span class="op">=</span> <span class="st">"Products"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># GraphQL can return data and errors in the same response; inspect both</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">products</span><span class="op">$</span><span class="va">items</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">errors</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>

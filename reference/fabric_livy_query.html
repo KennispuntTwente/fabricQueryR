@@ -186,23 +186,28 @@ nested values use list-columns</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric</span></span></span>
-<span class="r-in"><span><span class="co"># This function is not called automatically because it requires credentials and</span></span></span>
-<span class="r-in"><span><span class="co"># a real Lakehouse Livy endpoint</span></span></span>
+<span class="r-in"><span><span class="co"># This function is not called automatically because it requires credentials</span></span></span>
 <span class="r-in"><span><span class="va">fabric_livy_query_example</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="co"># Find the URL under Lakehouse &gt; Settings &gt; Livy Endpoint</span></span></span>
-<span class="r-in"><span>  <span class="va">session_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>    <span class="st">"https://api.fabric.microsoft.com/v1/workspaces/.../"</span>,</span></span>
-<span class="r-in"><span>    <span class="st">"lakehouses/.../livyapi/..."</span></span></span>
-<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># Discover a Lakehouse whose record contains its Fabric Livy endpoint</span></span></span>
+<span class="r-in"><span>  <span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span>  <span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span>  <span class="va">table</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span><span class="op">[</span><span class="fl">1L</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span>  <span class="co"># Build SQL from the discovered table, then close the temporary session</span></span></span>
+<span class="r-in"><span>  <span class="va">sql</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="st">"SELECT COUNT(*) AS row_count FROM `%s`.`%s`"</span>,</span></span>
+<span class="r-in"><span>    <span class="va">table</span><span class="op">$</span><span class="va">schema</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span>    <span class="va">table</span><span class="op">$</span><span class="va">name</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="va">sql_result</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_query</span><span class="op">(</span></span></span>
-<span class="r-in"><span>    livy_url <span class="op">=</span> <span class="va">session_url</span>,</span></span>
+<span class="r-in"><span>    livy_url <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
 <span class="r-in"><span>    kind <span class="op">=</span> <span class="st">"sql"</span>,</span></span>
-<span class="r-in"><span>    code <span class="op">=</span> <span class="st">"SELECT COUNT(*) AS row_count FROM dbo.example_table"</span></span></span>
+<span class="r-in"><span>    code <span class="op">=</span> <span class="va">sql</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span>  <span class="co"># The same discovered Lakehouse can also run SparkR code</span></span></span>
 <span class="r-in"><span>  <span class="va">sparkr_result</span> <span class="op">&lt;-</span> <span class="fu">fabric_livy_query</span><span class="op">(</span></span></span>
-<span class="r-in"><span>    livy_url <span class="op">=</span> <span class="va">session_url</span>,</span></span>
+<span class="r-in"><span>    livy_url <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
 <span class="r-in"><span>    kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span></span>
 <span class="r-in"><span>    code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>

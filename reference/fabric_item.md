@@ -101,3 +101,19 @@ which additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the
 applicable workload-specific read scope and access to the item. Use
 [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
 with `detail = FALSE` when only core item metadata is needed
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# Discover a workspace and obtain a lightweight Warehouse record
+workspace <- fabric_workspaces()[[1L]]
+warehouses <- fabric_items(workspace, type = "Warehouse")
+
+# Enrich that discovered record with connection details
+warehouse <- fabric_item(workspace, warehouses[[1L]])
+
+# The result can be passed directly to SQL helpers
+fabric_sql_connection_info(warehouse)
+} # }
+```

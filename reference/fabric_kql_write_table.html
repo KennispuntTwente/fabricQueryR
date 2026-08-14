@@ -276,20 +276,23 @@ the path to inspect.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">database</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="co"># Discover the KQL database that will receive the R data</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">database</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Create a new table when needed, stage the data, and wait for ingestion</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">fabric_kql_write_table</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">database</span>,</span></span>
-<span class="r-in"><span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span></span>
+<span class="r-in"><span>  table <span class="op">=</span> <span class="st">"EventsFromR"</span>,</span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  ingest_if_not_exists <span class="op">=</span> <span class="st">"r-batch-2026-08-14"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A lazy Arrow Dataset is scanned batch by batch rather than collected.</span></span></span>
-<span class="r-in"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">fabric_kql_write_table</span><span class="op">(</span><span class="va">database</span>, <span class="st">"Events"</span>, <span class="va">dataset</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># A local Arrow Dataset is scanned batch by batch rather than collected</span></span></span>
+<span class="r-in"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"ARROW_DATASET_PATH"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">fabric_kql_write_table</span><span class="op">(</span><span class="va">database</span>, <span class="st">"EventsFromArrow"</span>, <span class="va">dataset</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

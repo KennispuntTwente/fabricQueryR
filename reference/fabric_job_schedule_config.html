@@ -137,7 +137,8 @@ process's local time zone.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">daily</span> <span class="op">&lt;-</span> <span class="fu">fabric_job_schedule_config</span><span class="op">(</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Describe a schedule in the Windows time zone used by Fabric</span></span></span>
+<span class="r-in"><span><span class="va">daily</span> <span class="op">&lt;-</span> <span class="fu">fabric_job_schedule_config</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="st">"Daily"</span>,</span></span>
 <span class="r-in"><span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span></span>
 <span class="r-in"><span>  end_time <span class="op">=</span> <span class="st">"2027-10-01T00:00:00Z"</span>,</span></span>

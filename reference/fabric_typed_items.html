@@ -151,9 +151,28 @@ Environment or User Data Function details</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># Discover a workspace once, then reuse its record for typed discovery</span></span></span>
 <span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Discover and run each executable item type</span></span></span>
+<span class="r-in"><span><span class="co"># Discover data items that feed the package's query and storage helpers</span></span></span>
+<span class="r-in"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu">fabric_lakehouses</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">warehouses</span> <span class="op">&lt;-</span> <span class="fu">fabric_warehouses</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">snapshots</span> <span class="op">&lt;-</span> <span class="fu">fabric_warehouse_snapshots</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">sql_databases</span> <span class="op">&lt;-</span> <span class="fu">fabric_sql_databases</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">semantic_models</span> <span class="op">&lt;-</span> <span class="fu">fabric_semantic_models</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">eventhouses</span> <span class="op">&lt;-</span> <span class="fu">fabric_eventhouses</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">kql_databases</span> <span class="op">&lt;-</span> <span class="fu">fabric_kql_databases</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">graphql_apis</span> <span class="op">&lt;-</span> <span class="fu">fabric_graphql_apis</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A discovered record can be passed directly to a matching helper</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables</a></span><span class="op">(</span><span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_sql_connection_info.html">fabric_sql_connection_info</a></span><span class="op">(</span><span class="va">warehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">semantic_models</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span>  dax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_DAX_QUERY"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Discover executable items that can be passed to fabric_job_run()</span></span></span>
 <span class="r-in"><span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu">fabric_notebooks</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">pipeline</span> <span class="op">&lt;-</span> <span class="fu">fabric_data_pipelines</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">spark_job</span> <span class="op">&lt;-</span> <span class="fu">fabric_spark_job_definitions</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
@@ -162,7 +181,7 @@ Environment or User Data Function details</p>
 <span class="r-in"><span><span class="fu"><a href="fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="fu"><a href="fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span><span class="va">pipeline</span><span class="op">)</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="fu"><a href="fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span><span class="va">spark_job</span><span class="op">)</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Discover related Spark and serverless-function items</span></span></span>
+<span class="r-in"><span><span class="co"># Discover supporting Spark and serverless-function items as well</span></span></span>
 <span class="r-in"><span><span class="va">environments</span> <span class="op">&lt;-</span> <span class="fu">fabric_environments</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">functions</span> <span class="op">&lt;-</span> <span class="fu">fabric_user_data_functions</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>

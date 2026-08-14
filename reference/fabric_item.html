@@ -143,6 +143,21 @@ workload-specific read scope and access to the item. Use
 <code><a href="fabric_items.html">fabric_items()</a></code> with <code>detail = FALSE</code> when only core item metadata is needed</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># Discover a workspace and obtain a lightweight Warehouse record</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">warehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span>, type <span class="op">=</span> <span class="st">"Warehouse"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Enrich that discovered record with connection details</span></span></span>
+<span class="r-in"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu">fabric_item</span><span class="op">(</span><span class="va">workspace</span>, <span class="va">warehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># The result can be passed directly to SQL helpers</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="fabric_sql_connection_info.html">fabric_sql_connection_info</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

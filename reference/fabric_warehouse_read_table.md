@@ -156,17 +156,27 @@ connectivity](https://learn.microsoft.com/en-us/fabric/data-warehouse/connectivi
 
 ``` r
 if (FALSE) { # \dontrun{
-warehouse <- fabric_warehouses("Analytics")[[1L]]
+# Discover the Warehouse instead of copying its SQL connection details
+workspace <- fabric_workspaces()[[1L]]
+warehouse <- fabric_warehouses(workspace)[[1L]]
+
+# Use DBI metadata to discover an existing table in that Warehouse
+con <- fabric_sql_connect(warehouse)
+tables <- DBI::dbListTables(con)
+DBI::dbDisconnect(con)
+table <- tables[[1L]]
+
+# Read a bounded selection into a tibble
 orders <- fabric_warehouse_read_table(
   warehouse,
-  "orders",
-  columns = c("id", "amount"),
+  table,
   limit = 1000
 )
 
+# Keep a larger read out of R memory with an Arrow stream
 stream <- fabric_warehouse_read_table(
   warehouse,
-  "orders",
+  table,
   backend = "adbc",
   result = "arrow_stream"
 )

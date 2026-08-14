@@ -304,3 +304,20 @@ Release this session or high-concurrency context
 #### Returns
 
 `TRUE` when closed or `FALSE` when already closed, invisibly
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# fabric_livy_session() creates this class for a discovered Lakehouse
+workspace <- fabric_workspaces()[[1L]]
+lakehouse <- fabric_lakehouses(workspace)[[1L]]
+session <- fabric_livy_session(lakehouse)
+inherits(session, "FabricLivySession")
+
+# Wait before running code, and close the Spark session when finished
+session$wait()
+session$run("print(1 + 1)", kind = "pyspark")
+session$close()
+} # }
+```

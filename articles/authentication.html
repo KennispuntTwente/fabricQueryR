@@ -515,7 +515,7 @@ another token broker, pass a function. It can accept
 <code>audience</code> and <code>force_refresh</code>:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">provider</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">audience</span>, <span class="va">force_refresh</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="co"># Acquire a token for `audience`; bypass your cache when force_refresh is TRUE.</span></span>
+<span>  <span class="co"># Acquire a token for `audience`; bypass your cache when force_refresh is TRUE</span></span>
 <span>  <span class="fu">my_token_broker</span><span class="op">(</span><span class="va">audience</span>, refresh <span class="op">=</span> <span class="va">force_refresh</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>

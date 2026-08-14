@@ -188,8 +188,11 @@ limits](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-li
 
 ``` r
 if (FALSE) { # \dontrun{
-api <- fabric_graphql_apis("Analytics workspace")[[1]]
+# Discover an API for GraphQL item instead of copying its endpoint or ID
+workspace <- fabric_workspaces()[[1L]]
+api <- fabric_graphql_apis(workspace)[[1L]]
 
+# Keep the filter value in variables rather than inserting it into the query
 result <- fabric_graphql_query(
   api,
   query = paste(
@@ -202,6 +205,8 @@ result <- fabric_graphql_query(
   variables = list(category = "A"),
   operation_name = "Products"
 )
+
+# GraphQL can return data and errors in the same response; inspect both
 result$data$products$items
 result$errors
 } # }
