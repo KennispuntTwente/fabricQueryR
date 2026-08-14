@@ -32,9 +32,10 @@ details by hand
 - Use
   [fabric_onelake_files](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   for ordinary files,
+  [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  to discover or load managed Delta tables,
   [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  for Delta tables, and the Livy helpers when Spark processing is
-  required
+  to read them, and the Livy helpers when Spark processing is required
 
 - Use
   [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),

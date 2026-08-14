@@ -139,19 +139,26 @@
 </div>
 <div class="section level2">
 <h2 id="priority-3-add-lakehouse-table-discovery-and-loading">Priority 3: Add Lakehouse table discovery and loading<a class="anchor" aria-label="anchor" href="#priority-3-add-lakehouse-table-discovery-and-loading"></a></h2>
-<p><strong>Status (August 2026): proposed, preview-dependent.</strong> Microsoft currently marks the Lakehouse List Tables and Load Table APIs as preview.</p>
+<p><strong>Status (August 2026): completed in the development version; preview-dependent.</strong> Microsoft currently marks the Lakehouse List Tables and Load Table APIs as preview/beta. Schema-aware details use the read-only OneLake Delta table API.</p>
 <div class="section level3">
 <h3 id="objective-3">Objective<a class="anchor" aria-label="anchor" href="#objective-3"></a></h3>
 <p>Move a local R data frame or staged CSV or Parquet file into a managed Lakehouse Delta table without requiring users to author a Fabric notebook.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-3">Direction<a class="anchor" aria-label="anchor" href="#direction-3"></a></h3>
-<ul><li>Add <code>fabric_lakehouse_tables()</code> with pagination, table type, format, location, and schema metadata.</li>
-<li>Add <code>fabric_lakehouse_load_table()</code> for an existing OneLake <code>Files/</code> path, supporting file/folder inputs, CSV options, Parquet, recursion, append, and overwrite.</li>
-<li>Add <code>fabric_lakehouse_write_table()</code> as a higher-level workflow: serialize an R data frame to Parquet, upload it to a unique staging path, start and wait for the load operation, and clean up after confirmed success.</li>
+<ul><li>Add <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> with pagination, table type, format, location, and schema metadata.</li>
+<li>Add <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> for an existing OneLake <code>Files/</code> path, supporting file/folder inputs, CSV options, Parquet, recursion, append, and overwrite.</li>
+<li>Add <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code> as a higher-level workflow: serialize an R data frame to Parquet, upload it to a unique staging path, start and wait for the load operation, and clean up after confirmed success.</li>
 <li>Make staging retention configurable after failure so users can diagnose or resume a load. Never modify managed <code>Tables/</code> files directly.</li>
 <li>Use <code>arrow</code> for Parquet serialization and document R-to-Fabric mappings for 64-bit integers, decimals, dates, timestamps, nested columns, and unsupported types.</li>
 <li>Prefer the supported load API or Spark over a custom Delta transaction writer.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-3">Implementation<a class="anchor" aria-label="anchor" href="#implementation-3"></a></h3>
+<ul><li>Added schema-aware, paginated <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> discovery by combining Fabric’s authoritative table type/format/location inventory with the current OneLake Delta schema and column metadata, retaining untouched future fields from both services.</li>
+<li>Added validated CSV and Parquet file/folder loads for schema-enabled and legacy Lakehouses. Preview loads return resumable shared operation handles; the operation layer now understands the documented Lakehouse-scoped numeric state contract without replaying initiation or inventing a result route.</li>
+<li>Added <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code> with Arrow Parquet serialization, audience-aware OneLake staging, managed append/overwrite loading, confirmed- success cleanup, and actionable retained paths after failure.</li>
+<li>Added offline protocol, validation, type, cleanup, and recovery tests plus a live CSV/Parquet, pagination, schema, Unicode, append/overwrite, Delta-reader, and SQL round trip in the Fabric sandbox.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-3">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-3"></a></h3>
@@ -311,6 +318,8 @@
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/create-item-schedule" class="external-link">Create a Fabric item schedule</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables" class="external-link">List Lakehouse tables</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table" class="external-link">Load a Lakehouse table</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview" class="external-link">OneLake table APIs for Delta</a></li>
+<li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables" class="external-link">Load to Delta Lake tables</a></li>
 <li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/" class="external-link">Power BI dataset APIs</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview" class="external-link">Fabric User Data Functions overview</a></li>
 <li><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">Invoke User Data Functions externally</a></li>

@@ -193,6 +193,10 @@ retrieval waits by default, so it is enough for the common case</p>
 request identifiers, and structured error. Status values added by Fabric in
 the future remain inspectable, but <code>fabric_operation_wait()</code> stops with a
 typed error instead of polling an unfamiliar value indefinitely</p>
+<p>Some workload APIs, including Lakehouse table loading, expose completion in
+their state response and do not provide a separate <code>/result</code> resource. For
+those operations, <code>fabric_operation_result()</code> returns the terminal state
+payload as its <code>value</code></p>
 <p>A failed operation raises <code>fabric_operation_failed</code> by default. A timeout
 raises <code>fabric_operation_timeout</code>; neither condition repeats the request that
 originally started the operation</p>

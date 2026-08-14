@@ -199,9 +199,10 @@ adding more APIs that return `Location`, `x-ms-operation-id`, and
 
 ## Priority 3: Add Lakehouse table discovery and loading
 
-**Status (August 2026): proposed, preview-dependent.** Microsoft
-currently marks the Lakehouse List Tables and Load Table APIs as
-preview.
+**Status (August 2026): completed in the development version;
+preview-dependent.** Microsoft currently marks the Lakehouse List Tables
+and Load Table APIs as preview/beta. Schema-aware details use the
+read-only OneLake Delta table API.
 
 ### Objective
 
@@ -211,15 +212,18 @@ notebook.
 
 ### Direction
 
-- Add `fabric_lakehouse_tables()` with pagination, table type, format,
-  location, and schema metadata.
-- Add `fabric_lakehouse_load_table()` for an existing OneLake `Files/`
-  path, supporting file/folder inputs, CSV options, Parquet, recursion,
-  append, and overwrite.
-- Add `fabric_lakehouse_write_table()` as a higher-level workflow:
-  serialize an R data frame to Parquet, upload it to a unique staging
-  path, start and wait for the load operation, and clean up after
-  confirmed success.
+- Add
+  [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  with pagination, table type, format, location, and schema metadata.
+- Add
+  [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  for an existing OneLake `Files/` path, supporting file/folder inputs,
+  CSV options, Parquet, recursion, append, and overwrite.
+- Add
+  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  as a higher-level workflow: serialize an R data frame to Parquet,
+  upload it to a unique staging path, start and wait for the load
+  operation, and clean up after confirmed success.
 - Make staging retention configurable after failure so users can
   diagnose or resume a load. Never modify managed `Tables/` files
   directly.
@@ -228,6 +232,29 @@ notebook.
   columns, and unsupported types.
 - Prefer the supported load API or Spark over a custom Delta transaction
   writer.
+
+### Implementation
+
+- Added schema-aware, paginated
+  [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  discovery by combining Fabric’s authoritative table
+  type/format/location inventory with the current OneLake Delta schema
+  and column metadata, retaining untouched future fields from both
+  services.
+- Added validated CSV and Parquet file/folder loads for schema-enabled
+  and legacy Lakehouses. Preview loads return resumable shared operation
+  handles; the operation layer now understands the documented
+  Lakehouse-scoped numeric state contract without replaying initiation
+  or inventing a result route.
+- Added
+  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  with Arrow Parquet serialization, audience-aware OneLake staging,
+  managed append/overwrite loading, confirmed- success cleanup, and
+  actionable retained paths after failure.
+- Added offline protocol, validation, type, cleanup, and recovery tests
+  plus a live CSV/Parquet, pagination, schema, Unicode,
+  append/overwrite, Delta-reader, and SQL round trip in the Fabric
+  sandbox.
 
 ### Acceptance criteria
 
@@ -454,6 +481,10 @@ so changes in preview APIs do not destabilize mature package surfaces.
   tables](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables)
 - [Load a Lakehouse
   table](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table)
+- [OneLake table APIs for
+  Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+- [Load to Delta Lake
+  tables](https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables)
 - [Power BI dataset
   APIs](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/)
 - [Fabric User Data Functions

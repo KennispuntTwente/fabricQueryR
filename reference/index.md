@@ -56,8 +56,12 @@ List, inspect, download, upload, and delete files in OneLake
 
 ## Delta tables
 
-Resolve and read supported Delta Lake snapshots from OneLake
+Discover, load, and read Delta Lake tables in OneLake
 
+- [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  : Discover and load Microsoft Fabric Lakehouse tables
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   : Read a Delta table from OneLake
 - [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)

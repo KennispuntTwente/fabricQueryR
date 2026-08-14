@@ -38,6 +38,16 @@
   asynchronous operations share one result shape, including JSON,
   binary, and empty results.
 
+- Added
+  [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
+  [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
+  and
+  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  for schema-aware Delta table discovery, managed CSV/Parquet loading,
+  and failure-aware R data-frame staging through OneLake.
+  Lakehouse-scoped load operations use the shared resumable operation
+  interface.
+
 - Expanded Livy support with reusable Spark sessions, including
   high-concurrency sessions and standalone batch applications.
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)

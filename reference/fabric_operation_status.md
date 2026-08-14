@@ -152,6 +152,11 @@ added by Fabric in the future remain inspectable, but
 `fabric_operation_wait()` stops with a typed error instead of polling an
 unfamiliar value indefinitely
 
+Some workload APIs, including Lakehouse table loading, expose completion
+in their state response and do not provide a separate `/result`
+resource. For those operations, `fabric_operation_result()` returns the
+terminal state payload as its `value`
+
 A failed operation raises `fabric_operation_failed` by default. A
 timeout raises `fabric_operation_timeout`; neither condition repeats the
 request that originally started the operation
