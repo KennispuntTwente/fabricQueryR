@@ -30,6 +30,12 @@
   OneLake. Lakehouse-scoped load operations use the shared resumable operation
   interface.
 
+* Added `fabric_pbi_refresh()`, `fabric_pbi_refresh_history()`,
+  `fabric_pbi_refresh_status()`, `fabric_pbi_refresh_wait()`, and
+  `fabric_pbi_refresh_cancel()` for standard and enhanced semantic-model
+  refreshes, including table/partition selection, retry and timeout controls,
+  normalized execution attempts and errors, and links to refresh details.
+
 * Expanded Livy support with reusable Spark sessions, including
   high-concurrency sessions and standalone batch
   applications.

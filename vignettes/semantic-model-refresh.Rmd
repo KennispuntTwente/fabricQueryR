@@ -1,0 +1,198 @@
+---
+title: "Update data and refresh a semantic model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Update data and refresh a semantic model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Semantic models serve report-ready data to Power BI and Fabric reports. After
+an upstream load finishes, fabricQueryR can start the model refresh, monitor
+it, preserve diagnostic details, and link to Fabric's refresh detail page.
+
+This guide uses a discovered model so its workspace and dataset IDs travel
+together:
+
+```{r}
+library(fabricQueryR)
+
+model <- fabric_semantic_models("Analytics workspace")[[1]]
+```
+
+Starting or cancelling a refresh requires `Dataset.ReadWrite.All` and Write
+permission on the semantic model. Status and history use `Dataset.Read.All` or
+`Dataset.ReadWrite.All`, although Microsoft also requires model Write
+permission for refresh history. Service principals are supported when the
+tenant setting and model/workspace access allow them. Do not set an email
+notification option for a service-principal request.
+
+## Refresh after an upstream update
+
+A standard refresh processes the complete model using Power BI defaults:
+
+```{r}
+refresh <- fabric_pbi_refresh(model)
+completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
+
+completed$state
+completed$start_time
+completed$end_time
+```
+
+The returned handle stores its target and in-process sign-in context. It can be
+passed to status, wait, or cancel without copying IDs. Credentials are not
+persisted when a handle is serialized; authenticate again after restoring one
+in another R process.
+
+For example, a data-load workflow can refresh only after the source update has
+committed successfully:
+
+```{r}
+load <- fabric_lakehouse_write_table(
+  lakehouse,
+  "dbo.Sales",
+  new_sales,
+  mode = "overwrite",
+  wait = TRUE
+)
+
+refresh <- fabric_pbi_refresh(model)
+completed <- fabric_pbi_refresh_wait(
+  refresh,
+  timeout = 1800,
+  cancel_on_timeout = TRUE
+)
+```
+
+Client-side `timeout` in `fabric_pbi_refresh_wait()` only bounds how long R
+waits. Without `cancel_on_timeout = TRUE`, the Power BI refresh keeps running.
+
+## Use enhanced refresh controls
+
+Enhanced refresh requires Power BI Premium, Premium per user, Embedded, or
+Fabric capacity. Supplying an enhanced option selects enhanced mode
+automatically, or set `mode = "enhanced"` explicitly:
+
+```{r}
+refresh <- fabric_pbi_refresh(
+  model,
+  mode = "enhanced",
+  type = "Full",
+  objects = list(
+    list(table = "Sales", partition = "2026"),
+    list(table = "Calendar")
+  ),
+  commit_mode = "Transactional",
+  max_parallelism = 4L,
+  retry_count = 1L,
+  timeout = "02:00:00"
+)
+
+completed <- fabric_pbi_refresh_wait(refresh, timeout = 5 * 60 * 60)
+```
+
+The refresh submission `timeout` is an `HH:MM:SS` limit for each attempt. Each
+retry gets a new attempt limit, but Power BI limits the whole operation to 24
+hours. The wait function's numeric `timeout` remains a separate client limit.
+
+Use `Transactional` to preserve the previous model unless the entire refresh
+succeeds. `PartialBatch` commits each processing command separately, so a
+failure can leave only part of the new data loaded or a table empty. It also
+cannot be combined with `apply_refresh_policy = TRUE`.
+
+Power BI permits only one active refresh per semantic model. A second request
+is rejected rather than queued behind the first.
+
+## Diagnose attempts and failures
+
+Execution details retain the service's general and extended states. The
+normalized `state` distinguishes `Queued`, `InProgress`, `Completed`,
+`CompletedWithWarnings`, `Failed`, `TimedOut`, `Cancelled`, and `Disabled`.
+
+```{r}
+status <- fabric_pbi_refresh_status(refresh)
+
+status$state
+status$attempts
+status$messages
+status$service_error
+status$objects
+status$details_url
+```
+
+Each attempt retains Data or Query phase information, timestamps, execution
+metrics, and a parsed service exception. The complete response remains in
+`raw`, so new Microsoft fields are still inspectable.
+
+Power BI can finish successfully with non-fatal warnings. Microsoft currently
+documents that the history and execution-detail REST APIs do not include those
+warnings. If the service returns warning messages, fabricQueryR reports
+`CompletedWithWarnings`; otherwise open `details_url` to check the Fabric
+refresh-detail page.
+
+By default, wait raises typed R conditions for service failures, cancellation,
+service timeouts, and disabled refreshes. Keep the terminal detail instead when
+building a monitoring table:
+
+```{r}
+result <- fabric_pbi_refresh_wait(
+  refresh,
+  error_on_failure = FALSE
+)
+
+if (result$state != "Completed") {
+  message(result$details_url)
+}
+```
+
+## Inspect history or cancel work
+
+Power BI retains between 20 and 60 recent history entries depending on their
+age. OneDrive synchronization history is separate and is not returned here.
+
+```{r}
+history <- fabric_pbi_refresh_history(model, top = 10L)
+
+history[[1]]$refresh_type
+history[[1]]$state
+history[[1]]$attempts
+
+# Refresh an old history entry from its request ID and stored model context
+latest <- fabric_pbi_refresh_status(history[[1]])
+```
+
+Cancel a running Import or Composite model refresh when the model is on
+Premium, PPU, Embedded, or Fabric capacity. Microsoft requires Contributor,
+Member, or Admin access to the workspace:
+
+```{r}
+fabric_pbi_refresh_cancel(refresh)
+```
+
+## Capacity and Direct Lake behavior
+
+Shared capacity supports standard refresh only and permits at most eight
+scheduled and API-triggered refresh requests per day. Capacity-backed models
+have no fixed API-refresh count, but work can queue or throttle as capacity
+resources become busy. A refresh fails if capacity throttling continues beyond
+the service limit.
+
+Direct Lake refresh is different from Import refresh. It frames the current
+Delta table versions so the model has a new point-in-time baseline; it does not
+copy all OneLake data into the model. Automatic Direct Lake updates are enabled
+by default, so explicit refresh is commonly unnecessary. Use it when automatic
+updates are disabled, after programmatic table changes, or when a controlled
+consistent frame is part of the workflow.
+
+See Microsoft's documentation for the current contracts and limits:
+
+- [Refresh Dataset API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group)
+- [Enhanced refresh](https://learn.microsoft.com/en-us/power-bi/connect-data/asynchronous-refresh)
+- [Refresh execution details](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/get-refresh-execution-details-in-group)
+- [Data refresh and capacity limits](https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data)
+- [How Direct Lake works](https://learn.microsoft.com/en-us/fabric/fundamentals/direct-lake-how-it-works)

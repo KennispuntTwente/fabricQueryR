@@ -2,6 +2,68 @@
 # These tests use the sandbox model to check target resolution, typed query
 # results, and the Arrow-based query path used for efficient data transfer.
 
+test_that("semantic-model refresh completes with history and execution details", {
+  manifest <- fabric_test_manifest()
+  semantic_model <- fabric_test_manifest_item(
+    manifest,
+    "TestArrowSemanticModel"
+  )
+  token <- fabric_test_token_provider()
+
+  refresh <- fabric_pbi_refresh(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    mode = "enhanced",
+    type = "Full",
+    commit_mode = "Transactional",
+    objects = "Facts",
+    max_parallelism = 2L,
+    retry_count = 1L,
+    timeout = "00:10:00",
+    token = token
+  )
+  expect_s3_class(refresh, "fabric_pbi_refresh")
+  expect_identical(refresh$mode, "enhanced")
+
+  completed <- fabric_pbi_refresh_wait(
+    refresh,
+    poll_interval = 2,
+    timeout = 600
+  )
+  expect_s3_class(completed, "fabric_pbi_refresh_detail")
+  expect_true(
+    completed$state %in% c("Completed", "CompletedWithWarnings")
+  )
+  expect_identical(completed$id, refresh$id)
+  expect_true(completed$number_of_attempts >= 1L)
+  expect_true(length(completed$attempts) >= 1L)
+  expect_match(completed$details_url, refresh$id, fixed = TRUE)
+
+  history <- fabric_pbi_refresh_history(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    top = 10L,
+    token = token
+  )
+  expect_s3_class(history, "fabric_pbi_refresh_history")
+  history_ids <- vapply(history, `[[`, character(1), "id")
+  expect_true(refresh$id %in% history_ids)
+  history_entry <- history[[match(refresh$id, history_ids)]]
+  expect_identical(history_entry$state, completed$state)
+
+  execution <- fabric_pbi_refresh_status(history_entry)
+  expect_identical(execution$state, completed$state)
+  expect_true(length(execution$attempts) >= 1L)
+
+  rows <- fabric_pbi_dax_query(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    dax = 'EVALUATE ROW("row_count", COUNTROWS(\'Facts\'))',
+    token = token
+  )
+  expect_identical(as.numeric(rows[["[row_count]"]]), 3)
+})
+
 test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   manifest <- fabric_test_manifest()
   semantic_model <- manifest$items$TestSemanticModel

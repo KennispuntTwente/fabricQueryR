@@ -138,7 +138,43 @@ developer setting and **Allow XMLA endpoints and Analyze in Excel with
 on-premises semantic models** integration setting to be enabled by a Power BI
 administrator.
 
-### 3. Run Spark code through Livy
+### 3. Refresh and diagnose a semantic model
+
+After updating source data, start a semantic-model refresh and wait for its
+final state. A discovered semantic model carries the workspace and dataset IDs
+needed by every step.
+
+``` r
+refresh <- fabric_pbi_refresh(semantic_model)
+completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
+
+completed$state
+completed$attempts
+completed$details_url
+
+# Capacity-backed models can use enhanced processing controls
+sales_refresh <- fabric_pbi_refresh(
+  semantic_model,
+  mode = "enhanced",
+  type = "Full",
+  objects = "Sales",
+  commit_mode = "Transactional",
+  retry_count = 1L,
+  timeout = "02:00:00"
+)
+
+history <- fabric_pbi_refresh_history(semantic_model, top = 10L)
+```
+
+Standard refresh works on shared capacity, subject to its daily quota.
+Enhanced refresh, table/partition selection, and cancellation require a
+capacity-backed model. Direct Lake models normally update automatically; an
+explicit refresh frames the latest OneLake table versions when controlled
+point-in-time visibility is needed. See the
+[semantic-model refresh guide](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html)
+for permissions, capacity limits, error diagnosis, and Direct Lake behavior.
+
+### 4. Run Spark code through Livy
 
 Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric,
 and get the result in your local R session.
@@ -188,7 +224,7 @@ batch$result()
 Copy the session or batch connection URL from **Lakehouse settings > Livy
 endpoint**, or pass a Lakehouse returned by `fabric_lakehouses()` as above.
 
-### 4. Read a Lakehouse Delta table
+### 5. Read a Lakehouse Delta table
 
 Read a Delta table stored in OneLake and return its current rows as a tibble.
 
@@ -209,7 +245,7 @@ stream <- fabric_onelake_read_delta_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-### 5. Work with OneLake files
+### 6. Work with OneLake files
 
 List, inspect, download, upload, or delete files in OneLake. 
 Paths in a Lakehouse usually start with `Files/`.
@@ -230,7 +266,7 @@ fabric_onelake_download(
 )
 ```
 
-### 6. Discover and load Lakehouse tables
+### 7. Discover and load Lakehouse tables
 
 Inspect schemas and Delta metadata, load an existing CSV or Parquet path, or
 stage a local R data frame as Parquet and wait for Fabric to commit it.
@@ -265,7 +301,7 @@ writer uploads only to a unique `Files/` staging path and never edits managed
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/lakehouse-table-loading.html)
 for permissions, type mappings, schema behavior, and recovery after failures.
 
-### 7. Query Eventhouse data with KQL
+### 8. Query Eventhouse data with KQL
 
 Run a KQL query against a KQL database in an Eventhouse.
 A single result table is returned as a tibble, 
@@ -282,7 +318,7 @@ df_kql <- fabric_kql_query(
 )
 ```
 
-### 8. Query a Fabric GraphQL API
+### 9. Query a Fabric GraphQL API
 
 Call an `API for GraphQL` item that has already been configured in Fabric.
 The result keeps the nested GraphQL data and any GraphQL-level errors separate.
@@ -305,7 +341,7 @@ graphql_result$data$customers$items
 graphql_result$errors
 ```
 
-### 9. Run and monitor Fabric jobs
+### 10. Run and monitor Fabric jobs
 
 Start a notebook, data pipeline, or Spark job definition, then wait for
 completion or inspect/cancel it from R. You can also inspect earlier runs and
@@ -342,7 +378,7 @@ fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
-### 10. Resume a Fabric long-running operation
+### 11. Resume a Fabric long-running operation
 
 Some Fabric APIs return an operation ID while provisioning continues. Resume
 that work from its ID or `Location` URL, wait for success, and retrieve its
