@@ -596,7 +596,7 @@ test_that("confirmed failure follows the staging retention policy", {
   expect_equal(error$last_status$state, "Failed")
 })
 
-test_that("staging folders must stay inside trusted OneLake Files paths", {
+test_that("staging folders honor service paths and constrain overrides", {
   configuration <- kql_write_test_configuration()
   expect_error(
     kusto_ingestion_staging_folder(
@@ -605,11 +605,41 @@ test_that("staging folders must stay inside trusted OneLake Files paths", {
     ),
     class = "fabric_kql_staging_configuration_error"
   )
+
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  item_id <- "22222222-2222-4222-8222-222222222222"
+  host <- paste0(
+    gsub("-", "", workspace_id, fixed = TRUE),
+    ".z12.dfs.fabric.microsoft.com"
+  )
+  service_folder <- paste0(
+    "https://",
+    host,
+    "/",
+    item_id,
+    "/Ingestion/Queue"
+  )
+  configuration$lake_folders <- service_folder
+  target <- kusto_ingestion_staging_folder(configuration)
+  expect_equal(target$workspace, workspace_id)
+  expect_equal(target$item, item_id)
+  expect_equal(target$path, "Ingestion/Queue")
+
   expect_error(
     kusto_ingestion_staging_folder(
       configuration,
       sub("/Files/.*$", "/Tables", kql_write_test_folder)
     ),
+    class = "fabric_kql_staging_configuration_error"
+  )
+
+  configuration$lake_folders <- sub(
+    "/Ingestion/Queue$",
+    "/Tables",
+    service_folder
+  )
+  expect_error(
+    kusto_ingestion_staging_folder(configuration),
     class = "fabric_kql_staging_configuration_error"
   )
 })

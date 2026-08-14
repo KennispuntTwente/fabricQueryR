@@ -1130,7 +1130,8 @@ kusto_ingestion_status_record <- function(
       ),
       last_updated = kusto_ingestion_response_time(
         payload$lastUpdated,
-        "lastUpdated"
+        "lastUpdated",
+        optional = TRUE
       ),
       details = detail_rows,
       retry_after = retry_after,
@@ -2466,9 +2467,10 @@ kusto_ingestion_configuration_paths <- function(value) {
   unique(paths)
 }
 
-# Choose a trusted OneLake Files folder from configuration or an explicit URI.
+# Choose a trusted OneLake folder from configuration or an explicit Files URI.
 kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
-  candidates <- if (is.null(override)) configuration$lake_folders else override
+  configured <- is.null(override)
+  candidates <- if (configured) configuration$lake_folders else override
   if (!length(candidates)) {
     rlang::abort(
       paste0(
@@ -2487,15 +2489,23 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
       next
     }
     pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
-    if (length(pieces) && identical(tolower(pieces[[1L]]), "files")) {
+    if (!length(pieces) || !nzchar(target$path)) {
+      next
+    }
+    root <- tolower(pieces[[1L]])
+    if (
+      (configured && !identical(root, "tables")) ||
+        (!configured && identical(root, "files"))
+    ) {
       return(target)
     }
   }
   rlang::abort(
-    paste0(
-      "No configured staging folder is a trusted OneLake Files URI",
-      if (is.null(override)) "" else "; check staging_folder"
-    ),
+    if (configured) {
+      "Kusto returned no writable OneLake staging folder outside Tables/"
+    } else {
+      "staging_folder must be a trusted OneLake Files URI"
+    },
     class = c(
       "fabric_kql_staging_configuration_error",
       "fabric_kql_write_error"

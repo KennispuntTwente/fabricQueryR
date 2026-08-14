@@ -378,6 +378,33 @@ test_that("OneLake targets support IDs, discovery records, and complete paths", 
     private_workspace$dfs_base,
     paste0("https://", workspace_id, ".z12.dfs.fabric.microsoft.com")
   )
+
+  compact_workspace <- gsub("-", "", workspace_id, fixed = TRUE)
+  workspace_dfs <- paste0(
+    "https://",
+    compact_workspace,
+    ".z12.dfs.fabric.microsoft.com"
+  )
+  item_scoped <- onelake_resolve_target(paste0(
+    workspace_dfs,
+    "/",
+    item_id,
+    "/Ingestion/Queue"
+  ))
+  expect_equal(item_scoped$workspace, workspace_id)
+  expect_equal(item_scoped$item, item_id)
+  expect_equal(item_scoped$path, "Ingestion/Queue")
+  expect_equal(item_scoped$dfs_base, workspace_dfs)
+
+  blob_scoped <- onelake_resolve_target(paste0(
+    "https://",
+    compact_workspace,
+    ".z12.blob.fabric.microsoft.com/",
+    item_id,
+    "/Files/x"
+  ))
+  expect_equal(blob_scoped$workspace, workspace_id)
+  expect_equal(blob_scoped$dfs_base, workspace_dfs)
 })
 
 test_that("OneLake listing follows header continuation and preserves hierarchy", {

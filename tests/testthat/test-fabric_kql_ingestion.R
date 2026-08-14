@@ -416,6 +416,28 @@ test_that("ingestion status normalizes details and redacts source secrets", {
   expect_match(captured$url, "details=true", fixed = TRUE)
 })
 
+test_that("ingestion status permits a missing last-updated timestamp", {
+  response <- kusto_ingestion_test_status(in_progress = 1L)
+  response$lastUpdated <- NULL
+  httr2::local_mocked_responses(list(
+    kusto_ingestion_test_response(response)
+  ))
+
+  status <- fabric_kql_ingestion_status(
+    "operation;pending",
+    cluster = "https://ingest-cluster.kusto.fabric.microsoft.com",
+    database = "Telemetry",
+    table = "Raw",
+    details = FALSE,
+    token = "test-token"
+  )
+
+  expect_equal(status$state, "InProgress")
+  expect_false(status$complete)
+  expect_true(is.na(status$last_updated))
+  expect_s3_class(status$last_updated, "POSIXct")
+})
+
 test_that("waiting exposes partial batch and mapping failures", {
   active <- kusto_ingestion_test_status(
     succeeded = 1L,

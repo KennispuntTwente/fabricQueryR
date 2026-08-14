@@ -847,14 +847,40 @@ onelake_parse_uri <- function(uri) {
 
   if (scheme == "https") {
     pieces <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
-    if (length(pieces) < 2L) {
-      rlang::abort(
-        "A OneLake HTTPS path must include workspace and item"
+    host_workspace <- onelake_workspace_host_guid(parsed$hostname)
+    if (!is.null(host_workspace)) {
+      if (!length(pieces) || !nzchar(pieces[[1L]])) {
+        rlang::abort(
+          "A workspace-specific OneLake path must include an item"
+        )
+      }
+      first_is_workspace <- identical(
+        gsub("-", "", tolower(pieces[[1L]]), fixed = TRUE),
+        gsub("-", "", host_workspace, fixed = TRUE)
       )
+      if (first_is_workspace) {
+        if (length(pieces) < 2L) {
+          rlang::abort(
+            "A workspace-specific OneLake path must include an item"
+          )
+        }
+        item <- pieces[[2L]]
+        path <- paste(utils::tail(pieces, -2L), collapse = "/")
+      } else {
+        item <- pieces[[1L]]
+        path <- paste(utils::tail(pieces, -1L), collapse = "/")
+      }
+      workspace <- host_workspace
+    } else {
+      if (length(pieces) < 2L) {
+        rlang::abort(
+          "A OneLake HTTPS path must include workspace and item"
+        )
+      }
+      workspace <- pieces[[1L]]
+      item <- pieces[[2L]]
+      path <- paste(utils::tail(pieces, -2L), collapse = "/")
     }
-    workspace <- pieces[[1L]]
-    item <- pieces[[2L]]
-    path <- paste(utils::tail(pieces, -2L), collapse = "/")
   } else {
     workspace <- parsed$username
     pieces <- strsplit(sub("^/+", "", parsed$path), "/", fixed = TRUE)[[1L]]
@@ -886,12 +912,49 @@ onelake_parse_uri <- function(uri) {
 
   structure(
     list(
-      dfs_base = paste0("https://", parsed$hostname),
+      dfs_base = paste0(
+        "https://",
+        sub(
+          "\\.blob\\.fabric\\.microsoft\\.com$",
+          ".dfs.fabric.microsoft.com",
+          tolower(parsed$hostname)
+        )
+      ),
       workspace = workspace,
       item = item,
       path = onelake_normalize_path(path, allow_empty = TRUE)
     ),
     class = "fabric_onelake_target"
+  )
+}
+
+# Extract and canonicalize the workspace GUID embedded in Fabric's documented
+# workspace-specific OneLake FQDN. These endpoints omit the workspace segment
+# from item-scoped paths and use the GUID without dashes in the hostname.
+onelake_workspace_host_guid <- function(host) {
+  match <- regexec(
+    paste0(
+      "^([0-9a-f]{32})\\.z[0-9a-f]{2}\\.",
+      "(?:dfs|blob)\\.fabric\\.microsoft\\.com$"
+    ),
+    tolower(host %||% ""),
+    perl = TRUE
+  )
+  pieces <- regmatches(tolower(host %||% ""), match)[[1L]]
+  if (length(pieces) != 2L) {
+    return(NULL)
+  }
+  value <- pieces[[2L]]
+  paste0(
+    substr(value, 1L, 8L),
+    "-",
+    substr(value, 9L, 12L),
+    "-",
+    substr(value, 13L, 16L),
+    "-",
+    substr(value, 17L, 20L),
+    "-",
+    substr(value, 21L, 32L)
   )
 }
 
@@ -980,6 +1043,7 @@ onelake_validate_endpoint <- function(endpoint) {
 onelake_validate_host <- function(host) {
   host <- tolower(host %||% "")
   valid <- grepl("(^|\\.)dfs\\.fabric\\.microsoft\\.com$", host) ||
+    grepl("(^|\\.)blob\\.fabric\\.microsoft\\.com$", host) ||
     grepl("(^|[-.])api\\.onelake\\.fabric\\.microsoft\\.com$", host)
   if (!valid) {
     rlang::abort("The endpoint is not a Microsoft Fabric OneLake host")
