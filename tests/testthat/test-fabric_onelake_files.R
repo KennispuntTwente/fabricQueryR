@@ -16,6 +16,170 @@ onelake_test_response <- function(
   )
 }
 
+test_that("OneLake object writer serializes supported Arrow formats", {
+  skip_if_not_installed("arrow")
+  data <- data.frame(id = 1:3, label = c("a", "b", NA))
+  captured <- list()
+  local_mocked_bindings(
+    fabric_onelake_upload = function(path, source, content_type, ...) {
+      value <- switch(
+        tools::file_ext(path),
+        parquet = as.data.frame(arrow::read_parquet(source)),
+        csv = as.data.frame(arrow::read_csv_arrow(source)),
+        arrow = as.data.frame(arrow::read_ipc_stream(source))
+      )
+      captured[[path]] <<- list(
+        value = value,
+        content_type = content_type,
+        bytes = file.info(source)$size
+      )
+      tibble::tibble(
+        path = path,
+        name = basename(path),
+        is_directory = FALSE,
+        content_length = file.info(source)$size,
+        content_type = content_type,
+        etag = '"etag"',
+        last_modified = NA_character_,
+        content_range = NA_character_,
+        request_id = "request-id"
+      )
+    }
+  )
+
+  for (format in c("parquet", "csv", "arrow")) {
+    path <- paste0("Files/data.", format)
+    result <- fabric_onelake_write_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      path,
+      data,
+      token = "token"
+    )
+    expect_s3_class(result, "fabric_onelake_file_write_result")
+    expect_identical(result$format, format)
+    expect_identical(result$columns[[1L]], c("id", "label"))
+    expect_gt(captured[[path]]$bytes, 0)
+    expect_equal(captured[[path]]$value$id, 1:3)
+    expect_equal(captured[[path]]$value$label, c("a", "b", NA))
+  }
+  expect_equal(
+    captured[["Files/data.parquet"]]$content_type,
+    "application/vnd.apache.parquet"
+  )
+  expect_equal(
+    captured[["Files/data.csv"]]$content_type,
+    "text/csv; charset=utf-8"
+  )
+  expect_equal(
+    captured[["Files/data.arrow"]]$content_type,
+    "application/vnd.apache.arrow.stream"
+  )
+})
+
+test_that("OneLake object writer consumes lazy Arrow streams", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  uploaded <- NULL
+  reader <- arrow::as_record_batch_reader(data.frame(id = 1:4))
+  stream <- nanoarrow::as_nanoarrow_array_stream(reader)
+  local_mocked_bindings(
+    fabric_onelake_upload = function(source, ...) {
+      uploaded <<- as.data.frame(arrow::read_parquet(source))
+      tibble::tibble(path = "Files/stream.parquet")
+    }
+  )
+
+  result <- fabric_onelake_write_file(
+    "workspace",
+    "lakehouse.Lakehouse",
+    "Files/stream.parquet",
+    stream,
+    token = "token"
+  )
+
+  expect_equal(uploaded$id, 1:4)
+  expect_equal(result$rows, 4)
+})
+
+test_that("OneLake object reader returns tibbles and lazy streams", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  data <- data.frame(id = 1:3, label = c("a", "b", "c"))
+  fixtures <- list()
+  fixtures$parquet <- tempfile(fileext = ".parquet")
+  fixtures$csv <- tempfile(fileext = ".csv")
+  fixtures$arrow <- tempfile(fileext = ".arrow")
+  on.exit(unlink(unlist(fixtures), force = TRUE), add = TRUE)
+  arrow::write_parquet(data, fixtures$parquet)
+  arrow::write_csv_arrow(data, fixtures$csv)
+  arrow::write_ipc_stream(data, fixtures$arrow)
+  local_mocked_bindings(
+    fabric_onelake_download = function(path, dest, ...) {
+      extension <- tools::file_ext(path)
+      file.copy(fixtures[[extension]], dest)
+      invisible(dest)
+    }
+  )
+
+  for (format in names(fixtures)) {
+    value <- fabric_onelake_read_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      paste0("Files/data.", format),
+      token = "token"
+    )
+    expect_s3_class(value, "tbl_df")
+    expect_equal(value$id, 1:3)
+    expect_equal(value$label, c("a", "b", "c"))
+  }
+
+  for (format in names(fixtures)) {
+    stream <- fabric_onelake_read_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      paste0("Files/data.", format),
+      result = "arrow_stream",
+      token = "token"
+    )
+    local_path <- attr(stream, "fabric_onelake_file_path", exact = TRUE)
+    on.exit(unlink(local_path, force = TRUE), add = TRUE)
+    expect_s3_class(stream, "nanoarrow_array_stream")
+    expect_true(file.exists(local_path))
+    streamed <- as.data.frame(
+      arrow::as_record_batch_reader(stream)$read_table()
+    )
+    expect_equal(streamed, data)
+  }
+})
+
+test_that("OneLake object file formats are explicit and validated", {
+  expect_identical(
+    .fabric_onelake_object_format("Files/data.PQ", "auto"),
+    "parquet"
+  )
+  expect_identical(
+    .fabric_onelake_object_format("Files/no-extension", "csv"),
+    "csv"
+  )
+  expect_error(
+    .fabric_onelake_object_format("Files/data.json", "auto"),
+    "Could not infer format",
+    class = "fabric_onelake_object_format_error"
+  )
+  expect_error(
+    fabric_onelake_write_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      "Files/data.csv",
+      data.frame(id = 1L),
+      include_header = NA,
+      token = "token"
+    ),
+    "include_header must be TRUE or FALSE"
+  )
+})
+
 test_that("OneLake targets support IDs, discovery records, and complete paths", {
   workspace_id <- "11111111-1111-1111-1111-111111111111"
   item_id <- "22222222-2222-2222-2222-222222222222"

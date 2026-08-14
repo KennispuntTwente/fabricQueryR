@@ -1456,6 +1456,33 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
     add = TRUE
   )
 
+  fabric_test_require_package("arrow")
+  object_path <- paste0(test_root, "/objects/orders.parquet")
+  object_data <- data.frame(
+    id = 1:3,
+    amount = c(10.5, NA, 30),
+    loaded_on = as.Date(c("2026-08-12", "2026-08-13", "2026-08-14"))
+  )
+  object_write <- fabric_onelake_write_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    object_path,
+    object_data,
+    token = token
+  )
+  expect_s3_class(object_write, "fabric_onelake_file_write_result")
+  expect_identical(object_write$format, "parquet")
+  expect_equal(object_write$rows, 3)
+  object_read <- fabric_onelake_read_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    object_path,
+    token = token
+  )
+  expect_equal(object_read$id, object_data$id)
+  expect_equal(object_read$amount, object_data$amount)
+  expect_equal(object_read$loaded_on, object_data$loaded_on)
+
   fabric_onelake_upload(
     manifest$workspace_id,
     lakehouse$id,

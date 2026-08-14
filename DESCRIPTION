@@ -15,7 +15,8 @@ Description:
     of 'Lakehouse', 'Data Warehouse', and 'SQL Database' items; submit
     'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft
     Fabric' and 'Power BI'; list, inspect, download, upload, and delete files
-    in 'OneLake' ('Azure Data Lake Storage Gen2'); discover and read 'Delta Lake'
+    in 'OneLake' ('Azure Data Lake Storage Gen2'), including direct 'R' and
+    'Arrow' interchange with columnar files; discover and read 'Delta Lake'
     tables in 'OneLake'; stage data frames or existing CSV and Parquet files
     into managed Lakehouse tables; start, monitor, diagnose, and cancel semantic
     model refreshes; invoke published Fabric User Data Functions; execute

@@ -39,6 +39,11 @@
   `fabric_onelake_metadata()`, `fabric_onelake_download()`,
   `fabric_onelake_upload()`, and `fabric_onelake_delete()`.
 
+* Added `fabric_onelake_read_file()` and `fabric_onelake_write_file()` for
+  direct tibble or Arrow interchange with Parquet, CSV, and Arrow IPC files.
+  Larger reads return disk-backed Arrow streams and lazy writes remain bounded
+  by their current record batch.
+
 * Added `fabric_job_*()` functions to run, monitor, wait for, and cancel
   on-demand Notebook, pipeline, and Spark job definition runs.
 

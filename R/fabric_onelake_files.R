@@ -142,6 +142,242 @@
 #' @name fabric_onelake_files
 NULL
 
+#' Read and write R or Arrow objects in OneLake Files
+#'
+#' These object-aware helpers sit above [fabric_onelake_download()] and
+#' [fabric_onelake_upload()]. They serialize data frames, tibbles, and lazy
+#' Arrow inputs without collecting the complete object in R memory, and decode
+#' supported OneLake files directly to a tibble or Arrow stream.
+#'
+#' @param workspace Workspace name, ID, record from [fabric_workspaces()], or a
+#'   complete OneLake HTTPS/ABFSS path.
+#' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
+#'   `workspace` is a complete OneLake path.
+#' @param path Item-relative path, normally below `Files/`.
+#' @param data A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
+#'   Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.
+#' @param format File format. `"auto"` infers `"parquet"`, `"csv"`, or
+#'   `"arrow"` from the path extension.
+#' @param result Return a `"tibble"` or a disk-backed, single-use
+#'   `"arrow_stream"`.
+#' @param overwrite Whether an existing OneLake file may be replaced.
+#' @param if_match Optional destination ETag for conditional replacement.
+#' @param compression Parquet compression codec passed to Arrow.
+#' @param include_header Whether a written CSV includes column names.
+#' @param na Text used for missing values in a written CSV.
+#' @param create_parents Whether missing parent directories are created.
+#' @param item_type Optional Fabric item type used to resolve a named item.
+#' @param tenant_id Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Entra application ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Optional access token or audience-aware token-provider function.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()].
+#' @param dfs_base OneLake DFS service address. A private or regional endpoint
+#'   on a discovered record is preferred when this argument is omitted.
+#' @param allow_managed_tables Whether direct writes below `Tables/` are
+#'   permitted. Keep the safe default, `FALSE`, for managed Delta tables.
+#' @param chunk_size Upload chunk size in bytes.
+#'
+#' @return `fabric_onelake_read_file()` returns a tibble or a disk-backed
+#'   `nanoarrow_array_stream`. `fabric_onelake_write_file()` returns OneLake
+#'   metadata with additional `format`, `rows`, and `columns` fields.
+#' @references
+#' [Connect to OneLake with ADLS APIs](https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api)
+#'
+#' [Get data into OneLake](https://learn.microsoft.com/en-us/fabric/onelake/quickstart-get-data)
+#' @examples
+#' \dontrun{
+#' lakehouse <- fabric_lakehouses("Analytics")[[1L]]
+#' fabric_onelake_write_file(
+#'   lakehouse$workspaceId,
+#'   lakehouse,
+#'   "Files/exports/orders.parquet",
+#'   data.frame(id = 1:3, amount = c(10.5, NA, 30))
+#' )
+#' orders <- fabric_onelake_read_file(
+#'   lakehouse$workspaceId,
+#'   lakehouse,
+#'   "Files/exports/orders.parquet"
+#' )
+#' }
+#' @name fabric_onelake_object_files
+NULL
+
+#' @rdname fabric_onelake_object_files
+#' @export
+fabric_onelake_read_file <- function(
+  workspace,
+  item = NULL,
+  path = "",
+  format = c("auto", "parquet", "csv", "arrow"),
+  result = c("tibble", "arrow_stream"),
+  item_type = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+) {
+  format_path <- if (
+    is.character(path) && length(path) == 1L && !is.na(path) && nzchar(path)
+  ) {
+    path
+  } else if (is.character(workspace) && length(workspace) == 1L) {
+    workspace
+  } else {
+    path
+  }
+  format <- .fabric_onelake_object_format(format_path, format)
+  result <- rlang::arg_match(result, c("tibble", "arrow_stream"))
+  .fabric_onelake_require_arrow(result)
+
+  local_path <- tempfile(
+    "fabricqueryr-onelake-object-",
+    fileext = paste0(".", format)
+  )
+  keep_local <- FALSE
+  on.exit(
+    if (!keep_local) {
+      unlink(local_path, force = TRUE)
+    },
+    add = TRUE
+  )
+  fabric_onelake_download(
+    workspace = workspace,
+    item = item,
+    path = path,
+    dest = local_path,
+    item_type = item_type,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    dfs_base = dfs_base
+  )
+
+  if (identical(result, "tibble")) {
+    value <- tryCatch(
+      switch(
+        format,
+        parquet = arrow::read_parquet(local_path, as_data_frame = TRUE),
+        csv = arrow::read_csv_arrow(local_path, as_data_frame = TRUE),
+        arrow = arrow::read_ipc_stream(local_path, as_data_frame = TRUE)
+      ),
+      error = function(error) {
+        rlang::abort(
+          paste0("Could not decode the OneLake ", format, " file"),
+          class = c("fabric_onelake_object_read_error", "fabric_error"),
+          parent = error
+        )
+      }
+    )
+    return(tibble::as_tibble(value))
+  }
+
+  stream <- .fabric_onelake_object_stream(local_path, format)
+  keep_local <- TRUE
+  stream
+}
+
+#' @rdname fabric_onelake_object_files
+#' @export
+fabric_onelake_write_file <- function(
+  workspace,
+  item = NULL,
+  path = "",
+  data,
+  format = c("auto", "parquet", "csv", "arrow"),
+  overwrite = FALSE,
+  if_match = NULL,
+  compression = "snappy",
+  include_header = TRUE,
+  na = "",
+  create_parents = TRUE,
+  item_type = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  allow_managed_tables = FALSE,
+  chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2)
+) {
+  if (missing(data)) {
+    rlang::abort("data is required")
+  }
+  format_path <- if (
+    is.character(path) && length(path) == 1L && !is.na(path) && nzchar(path)
+  ) {
+    path
+  } else if (is.character(workspace) && length(workspace) == 1L) {
+    workspace
+  } else {
+    path
+  }
+  format <- .fabric_onelake_object_format(format_path, format)
+  .fabric_onelake_require_arrow()
+  prepared <- .fabric_parquet_prepare_data(data, "fabric_onelake_write_file()")
+  .fabric_parquet_column_names(prepared$names)
+  .fabric_onelake_scalar_logical(include_header, "include_header")
+  if (!is.character(na) || length(na) != 1L || is.na(na)) {
+    rlang::abort("na must be one character value")
+  }
+
+  local_path <- tempfile(
+    "fabricqueryr-onelake-object-",
+    fileext = paste0(".", format)
+  )
+  on.exit(unlink(local_path, force = TRUE), add = TRUE)
+  serialized <- .fabric_onelake_serialize_object(
+    prepared,
+    local_path,
+    format,
+    compression,
+    include_header,
+    na
+  )
+  content_type <- switch(
+    format,
+    parquet = "application/vnd.apache.parquet",
+    csv = "text/csv; charset=utf-8",
+    arrow = "application/vnd.apache.arrow.stream"
+  )
+  metadata <- fabric_onelake_upload(
+    workspace = workspace,
+    item = item,
+    path = path,
+    source = local_path,
+    overwrite = overwrite,
+    if_match = if_match,
+    content_type = content_type,
+    create_parents = create_parents,
+    item_type = item_type,
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args,
+    dfs_base = dfs_base,
+    allow_managed_tables = allow_managed_tables,
+    chunk_size = chunk_size
+  )
+  metadata$format <- format
+  metadata$rows <- serialized$rows
+  metadata$columns <- list(serialized$names)
+  class(metadata) <- unique(c(
+    "fabric_onelake_file_write_result",
+    class(metadata)
+  ))
+  metadata
+}
+
 #' @rdname fabric_onelake_files
 #' @export
 fabric_onelake_list <- function(
@@ -1339,6 +1575,177 @@ onelake_commit_new_download <- function(temporary, dest) {
 # test seam for the no-overwrite download path
 .onelake_file_link <- function(from, to) {
   file.link(from, to)
+}
+
+# Resolve an explicit or extension-derived object file format.
+.fabric_onelake_object_format <- function(path, format) {
+  format <- match.arg(
+    tolower(format),
+    c("auto", "parquet", "csv", "arrow")
+  )
+  if (!identical(format, "auto")) {
+    return(format)
+  }
+  onelake_scalar(path, "path")
+  extension <- tolower(tools::file_ext(path))
+  inferred <- switch(
+    extension,
+    parquet = "parquet",
+    pq = "parquet",
+    csv = "csv",
+    arrow = "arrow",
+    arrows = "arrow",
+    ipc = "arrow",
+    NULL
+  )
+  if (is.null(inferred)) {
+    rlang::abort(
+      paste0(
+        "Could not infer format from path; use a .parquet, .csv, .arrow, ",
+        ".arrows, or .ipc extension, or supply format"
+      ),
+      class = c("fabric_onelake_object_format_error", "fabric_error")
+    )
+  }
+  inferred
+}
+
+# Require Arrow for object serialization and nanoarrow for streaming results.
+.fabric_onelake_require_arrow <- function(result = "tibble") {
+  if (!requireNamespace("arrow", quietly = TRUE)) {
+    rlang::abort(
+      "OneLake object file I/O requires the optional arrow package",
+      class = c("fabric_onelake_object_error", "fabric_error")
+    )
+  }
+  if (
+    identical(result, "arrow_stream") &&
+      !requireNamespace("nanoarrow", quietly = TRUE)
+  ) {
+    rlang::abort(
+      "OneLake Arrow streams require the nanoarrow package",
+      class = c("fabric_onelake_object_error", "fabric_error")
+    )
+  }
+  invisible(TRUE)
+}
+
+.fabric_onelake_scalar_logical <- function(value, name) {
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    rlang::abort(paste0(name, " must be TRUE or FALSE"))
+  }
+  invisible(value)
+}
+
+# Serialize one prepared Arrow reader to a supported local staging format.
+.fabric_onelake_serialize_object <- function(
+  prepared,
+  path,
+  format,
+  compression,
+  include_header,
+  na
+) {
+  if (identical(format, "parquet")) {
+    return(.fabric_parquet_write_stream(
+      prepared,
+      path = path,
+      compression = compression,
+      caller = "fabric_onelake_write_file()",
+      error_class = c("fabric_onelake_object_write_error", "fabric_error")
+    ))
+  }
+  tryCatch(
+    {
+      if (identical(format, "csv")) {
+        arrow::write_csv_arrow(
+          prepared$reader,
+          path,
+          include_header = include_header,
+          na = na
+        )
+      } else {
+        arrow::write_ipc_stream(prepared$reader, path)
+      }
+      bytes <- file.info(path)$size
+      if (
+        length(bytes) != 1L ||
+          is.na(bytes) ||
+          !is.finite(bytes) ||
+          bytes < 0
+      ) {
+        rlang::abort("Arrow did not create a readable object file")
+      }
+      list(
+        path = path,
+        rows = NA_real_,
+        bytes = as.numeric(bytes),
+        names = prepared$names
+      )
+    },
+    error = function(error) {
+      rlang::abort(
+        paste0("Could not serialize data as ", format, " for OneLake"),
+        class = c("fabric_onelake_object_write_error", "fabric_error"),
+        parent = error
+      )
+    }
+  )
+}
+
+# Open a downloaded object file as a lazy Arrow stream and own its local file.
+.fabric_onelake_object_stream <- function(path, format) {
+  owner <- NULL
+  reader <- NULL
+  input <- NULL
+  complete <- FALSE
+  on.exit(
+    if (!complete) {
+      if (!is.null(input)) {
+        try(input$close(), silent = TRUE)
+      }
+      unlink(path, force = TRUE)
+    },
+    add = TRUE
+  )
+  tryCatch(
+    {
+      if (identical(format, "parquet")) {
+        owner <- arrow::open_dataset(path, format = "parquet")
+        reader <- arrow::as_record_batch_reader(owner)
+      } else if (identical(format, "csv")) {
+        owner <- arrow::open_csv_dataset(path)
+        reader <- arrow::as_record_batch_reader(owner)
+      } else {
+        input <- arrow::mmap_open(path)
+        reader <- arrow::RecordBatchStreamReader$create(input)
+        owner <- list(input = input, reader = reader)
+      }
+      stream <- nanoarrow::as_nanoarrow_array_stream(reader)
+      cleanup <- local({
+        local_input <- input
+        local_path <- path
+        function() {
+          if (!is.null(local_input)) {
+            try(local_input$close(), silent = TRUE)
+          }
+          unlink(local_path, force = TRUE)
+        }
+      })
+      stream <- nanoarrow::array_stream_set_finalizer(stream, cleanup)
+      attr(stream, "fabric_onelake_file_owner") <- owner
+      attr(stream, "fabric_onelake_file_path") <- path
+      complete <- TRUE
+      stream
+    },
+    error = function(error) {
+      rlang::abort(
+        paste0("Could not stream the OneLake ", format, " file"),
+        class = c("fabric_onelake_object_read_error", "fabric_error"),
+        parent = error
+      )
+    }
+  )
 }
 
 # Normalize raw bytes or a local file `source`. Returns its kind, value, and size

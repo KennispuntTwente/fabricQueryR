@@ -259,6 +259,21 @@ fabric_onelake_download(
   path = "Files/fixtures/basic.csv",
   dest = "basic.csv"
 )
+
+# Serialize an R or lazy Arrow object directly into OneLake Files
+fabric_onelake_write_file(
+  workspace,
+  lakehouse,
+  path = "Files/exports/orders.parquet",
+  data = orders
+)
+
+# Read a supported file without manually downloading and decoding it
+orders <- fabric_onelake_read_file(
+  workspace,
+  lakehouse,
+  path = "Files/exports/orders.parquet"
+)
 ```
 
 ### 7. Discover and load Lakehouse tables
