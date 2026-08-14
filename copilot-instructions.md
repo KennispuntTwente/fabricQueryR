@@ -76,6 +76,41 @@ When changing a public function, review its whole help topic for
 readability; do not append new implementation notes to an already dense
 introduction.
 
+## Vignettes
+
+Write vignettes for people who are still learning both fabricQueryR and
+Microsoft Fabric. Assume readers know basic R syntax, but may be
+unfamiliar with Fabric, cloud storage, SQL/KQL/DAX/GraphQL, and
+data-engineering concepts.
+
+- Open every vignette with the user goal and a gentle explanation of the
+  basic Fabric concepts needed for that goal. Define specialist terms on
+  first use.
+- Show the smallest common workflow before permissions matrices, API
+  behavior, scaling, performance tuning, failure recovery, or
+  implementation detail.
+- Prefer discovered workspace and item records, small data frames, and
+  results that readers can inspect. Avoid requiring copied IDs and
+  endpoints in the first example when discovery can supply them.
+- Explain why a reader would choose the featured workflow and, when
+  several package features overlap, compare them directly and link to
+  the relevant overview or deep-dive vignette.
+- Order material from basic and broadly useful to advanced, niche, or
+  workload-specific. Advanced detail is welcome after the beginner path
+  is complete, especially when it affects correctness, security, data
+  loss, precision, performance, or troubleshooting.
+- Keep examples approachable for less-experienced R users. Avoid
+  introducing an extra package or advanced R idiom when base R or a
+  direct fabricQueryR call is equally clear.
+- Maintain vignette coverage for every core feature group, with
+  particular attention to the alternative workflows for bringing Fabric
+  data into R and sending R or Arrow data into Fabric.
+
+When adding or substantially changing a core feature, review the
+vignette set as a learning path rather than appending an isolated
+advanced article. Update the `articles` order in `_pkgdown.yml` so
+introductory and comparative guides appear before deep dives.
+
 ## User-facing messages, conditions, and progress
 
 Route every user-facing informational message and printed package

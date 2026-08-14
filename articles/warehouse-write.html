@@ -60,39 +60,33 @@
 
     
     
-<p><code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code> moves an ordinary R
-object or a lazy Arrow source into a Microsoft Fabric Warehouse table.
-It stages bounded Parquet parts in OneLake and uses Fabric’s recommended
-high-throughput <code>COPY INTO</code> for existing tables or CTAS to
-create and load a missing table.</p>
+<p>A Fabric Warehouse stores relational tables that you can query with
+SQL. Use <code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code> when rows held in R
+should become part of one of those tables. The source can be an ordinary
+data frame or, later, a larger Arrow dataset.</p>
+<p>This guide starts by appending a three-row data frame. It then covers
+table creation, large inputs, replacement choices, and the staging and
+transaction details that matter in production.</p>
 <div class="section level2">
-<h2 id="discover-the-destination-and-staging-item">Discover the destination and staging item<a class="anchor" aria-label="anchor" href="#discover-the-destination-and-staging-item"></a>
+<h2 id="find-the-warehouse-and-a-staging-lakehouse">Find the Warehouse and a staging Lakehouse<a class="anchor" aria-label="anchor" href="#find-the-warehouse-and-a-staging-lakehouse"></a>
 </h2>
-<p>Existing targets remain the default. Set
-<code>create_if_missing = TRUE</code> when the writer should create and
-load an absent target from the staged Parquet schema. Fabric supports
-OneLake as a <code>COPY INTO</code> source, but its current contract
-explicitly excludes Warehouse items as source locations. Supply a
-Lakehouse for the temporary <code>Files/</code> directory:</p>
+<p>A Warehouse is the final destination. The writer also needs a
+Lakehouse in the same tenant for temporary files while Fabric loads the
+data. Those files are removed after a confirmed successful write.</p>
+<p>Discover both items so their IDs and connection details travel with
+them:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter</a></span><span class="op">(</span></span>
-<span>  <span class="kw">function</span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="va">value</span><span class="op">$</span><span class="va">displayName</span> <span class="op">==</span> <span class="st">"Analytics"</span>,</span>
-<span>  <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"Analytics"</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">staging_lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>The SQL identity needs <code>INSERT</code> and
-<code>ADMINISTER DATABASE BULK OPERATIONS</code> on the Warehouse. For a
-OneLake source, Microsoft also documents Contributor or higher access on
-the source and destination workspaces. Cross-workspace staging is
-supported in the same tenant by setting <code>staging_workspace</code>
-when the Lakehouse is supplied by name or ID.</p>
 </div>
 <div class="section level2">
-<h2 id="append-an-r-data-frame">Append an R data frame<a class="anchor" aria-label="anchor" href="#append-an-r-data-frame"></a>
+<h2 id="append-a-small-r-data-frame">Append a small R data frame<a class="anchor" aria-label="anchor" href="#append-a-small-r-data-frame"></a>
 </h2>
+<p>Start with a test table whose definition already matches the R
+columns:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
@@ -110,6 +104,9 @@ when the Lakehouse is supplied by name or ID.</p>
 <span><span class="va">written</span><span class="op">$</span><span class="va">rows</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">file_count</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">staging_retained</span></span></code></pre></div>
+<p><code>rows</code> confirms how many source rows were staged. A
+successful result normally has <code>staging_retained = FALSE</code>,
+meaning the temporary OneLake files were removed.</p>
 <p>Column identifiers are quoted and mapped in the same ordinal order as
 the Parquet schema. The names and compatible types therefore need to
 match the existing destination columns. Factor columns are serialized as
@@ -124,10 +121,20 @@ decimals, and nulls.</p>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Fabric’s CTAS statement infers the names and Warehouse types from the
-staged Parquet result. Use a pre-created table when exact lengths,
-nullability, constraints, or other schema details must be controlled
-explicitly.</p>
+<p>Fabric infers the names and Warehouse types from the staged Parquet
+result. Use a pre-created table when exact lengths, nullability,
+constraints, or other schema details must be controlled explicitly.</p>
+<p>The SQL identity needs <code>INSERT</code> and
+<code>ADMINISTER DATABASE BULK OPERATIONS</code> on the Warehouse.
+Microsoft also documents Contributor or higher workspace access for the
+OneLake staging source and Warehouse destination. Cross-workspace
+staging is supported in the same tenant through
+<code>staging_workspace</code> when the Lakehouse is supplied by name or
+ID.</p>
+<p>Behind the scenes, the function writes bounded Parquet parts to
+OneLake and uses Fabric’s high-throughput <code>COPY INTO</code> path.
+When creating a missing table, it uses a create-table-as-select
+operation so creation and loading are one transaction.</p>
 </div>
 <div class="section level2">
 <h2 id="stream-a-larger-than-memory-arrow-source">Stream a larger-than-memory Arrow source<a class="anchor" aria-label="anchor" href="#stream-a-larger-than-memory-arrow-source"></a>

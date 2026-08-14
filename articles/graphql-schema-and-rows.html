@@ -60,11 +60,13 @@
 
     
     
-<p>Fabric APIs for GraphQL generate their schema from the objects
-exposed by an API item. fabricQueryR keeps that schema-specific shape
-explicit: inspect the schema, write a normal GraphQL document, paginate
-with the connection fields selected by that document, and then identify
-the exact row path to collect.</p>
+<p>A Fabric API for GraphQL is a structured doorway to data selected by
+the API’s owner. A GraphQL query names the fields you want, and the
+response follows the same nested shape. This can be convenient when you
+need an approved API view instead of direct access to the underlying
+Lakehouse, Warehouse, or SQL Database.</p>
+<p>This guide starts with one small query. It then introduces schema
+inspection, pagination, and collection into a tibble.</p>
 <p>Start with a discovered API so its endpoint and workspace travel
 together:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -77,13 +79,32 @@ access to the underlying data source. The package uses the delegated
 <code>GraphQLApi.Execute.All</code> scope for interactive users and the
 Fabric audience for service-principal authentication.</p>
 <div class="section level2">
-<h2 id="inspect-the-generated-schema">Inspect the generated schema<a class="anchor" aria-label="anchor" href="#inspect-the-generated-schema"></a>
+<h2 id="run-a-first-query">Run a first query<a class="anchor" aria-label="anchor" href="#run-a-first-query"></a>
+</h2>
+<p>A GraphQL document is one character string. The field names depend on
+how the Fabric API was configured, so replace <code>products</code>,
+<code>id</code>, and <code>name</code> with fields from your API:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">response</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">api</span>,</span>
+<span>  query <span class="op">=</span> <span class="st">"{ products { items { id name } } }"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">response</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">products</span><span class="op">$</span><span class="va">items</span></span>
+<span><span class="va">response</span><span class="op">$</span><span class="va">errors</span></span></code></pre></div>
+<p>GraphQL can return useful data and service errors together.
+fabricQueryR keeps them separate so you can inspect both. When this
+small request works, use the next sections to discover fields and
+retrieve more than one page.</p>
+</div>
+<div class="section level2">
+<h2 id="inspect-the-available-fields">Inspect the available fields<a class="anchor" aria-label="anchor" href="#inspect-the-available-fields"></a>
 </h2>
 <p>Microsoft Fabric disables runtime introspection by default. Only a
 workspace admin can enable it under <strong>API Settings &gt;
 Introspection</strong>. Once enabled, the standard introspection
 response is available as a nested R list:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schema</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_schema.html">fabric_graphql_schema</a></span><span class="op">(</span><span class="va">api</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">schema</span><span class="op">$</span><span class="va">queryType</span><span class="op">$</span><span class="va">name</span></span>
@@ -96,13 +117,13 @@ Export remains available when runtime introspection must stay
 disabled.</p>
 </div>
 <div class="section level2">
-<h2 id="query-and-paginate-rows">Query and paginate rows<a class="anchor" aria-label="anchor" href="#query-and-paginate-rows"></a>
+<h2 id="read-more-than-one-page">Read more than one page<a class="anchor" aria-label="anchor" href="#read-more-than-one-page"></a>
 </h2>
 <p>Fabric normally represents a generated collection with
 <code>items</code>, <code>hasNextPage</code>, and
 <code>endCursor</code>. Request all three pieces needed by the workflow
 and use a stable explicit ordering when pages must be repeatable:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pages</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_paginate.html">fabric_graphql_paginate</a></span><span class="op">(</span></span>
 <span>  <span class="va">api</span>,</span>
 <span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -133,7 +154,7 @@ it from the configured connection path and feeds it back through the
 </h2>
 <p>Select the row array explicitly relative to each page’s
 <code>data</code> field:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">products</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_collect.html">fabric_graphql_collect</a></span><span class="op">(</span><span class="va">pages</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"products"</span>, <span class="st">"items"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">products</span></span>
@@ -144,7 +165,7 @@ it from the configured connection path and feeds it back through the
 a later page is added to the union of columns, with typed
 <code>NA</code> values in earlier rows. Nested objects and arrays remain
 list-columns rather than being flattened:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">products</span><span class="op">$</span><span class="va">category</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">products</span><span class="op">$</span><span class="va">tags</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>JSON whole numbers beyond R’s exact double range are decoded as
@@ -169,7 +190,7 @@ field is marked incomplete. If those pages are passed to
 <code><a href="../reference/fabric_graphql_collect.html">fabric_graphql_collect()</a></code>, collection raises a
 <code>fabric_graphql_collection_error</code> instead of returning an
 apparently complete tibble:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/fabric_graphql_collect.html">fabric_graphql_collect</a></span><span class="op">(</span><span class="va">incomplete_pages</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"products"</span>, <span class="st">"items"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  fabric_graphql_collection_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">error</span><span class="op">)</span> <span class="op">{</span></span>

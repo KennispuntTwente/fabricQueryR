@@ -60,13 +60,17 @@
 
     
     
-<p>Kusto queued ingestion is designed for batch files in blob storage or
-OneLake. fabricQueryR can submit those files directly or provide a
-one-call workflow that streams an R or Arrow object to Parquet, stages
-it in OneLake, waits for tracked ingestion, and cleans up safely. The
-underlying REST routes are currently in preview.</p>
+<p>An Eventhouse stores event, log, and time-series data in KQL
+databases. In this vignette, <strong>ingestion</strong> means adding
+rows to one of its KQL tables.</p>
+<p>Start with <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>: it accepts a data
+frame and manages the upload, ingestion status, and cleanup for you.
+Later sections cover larger Arrow inputs and the lower-level
+queued-ingestion workflow for files that are already in OneLake or blob
+storage. The underlying ingestion REST routes are currently in
+preview.</p>
 <div class="section level2">
-<h2 id="prepare-the-target-and-source">Prepare the target and source<a class="anchor" aria-label="anchor" href="#prepare-the-target-and-source"></a>
+<h2 id="find-a-kql-database">Find a KQL database<a class="anchor" aria-label="anchor" href="#find-a-kql-database"></a>
 </h2>
 <p>Start with a discovered KQL database. Its record contains both the
 query URI used by <code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code> and the ingestion URI
@@ -76,40 +80,13 @@ used here:</p>
 <span></span>
 <span><span class="va">database</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">database</span><span class="op">$</span><span class="va">ingestion_service_uri</span></span></code></pre></div>
-<p><code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> requires the destination table to
-exist. For CSV, JSON, Avro, Parquet, and ORC workflows, create and
-validate a named ingestion mapping in Fabric before that
-storage-ingestion workflow starts.</p>
-<p>The source must be a Kusto storage connection string. A OneLake file
-can use the workspace and item GUIDs and caller impersonation:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
-<span>  <span class="st">"https://onelake.dfs.fabric.microsoft.com/"</span>,</span>
-<span>  <span class="st">"00000000-0000-0000-0000-000000000001/"</span>,</span>
-<span>  <span class="st">"00000000-0000-0000-0000-000000000002/"</span>,</span>
-<span>  <span class="st">"Files/events/2026-08-14.csv;impersonate"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>The signed-in principal must be able to read that OneLake file. Other
-supported storage connection strings can carry a SAS token, a
-managed-identity suffix, or another authentication method documented by
-Kusto. Avoid writing credentialed URLs to logs. Handles and status
-results redact recognized secrets, but the submission process
-necessarily sends the complete source string to the trusted Kusto
-ingestion endpoint.</p>
-<p><code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> deliberately treats its inputs as
-existing storage sources: it never uploads a local file or serializes an
-R object. Use <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> when the source is a
-data frame, tibble, or Arrow object.</p>
 </div>
 <div class="section level2">
-<h2 id="write-an-r-or-arrow-object-in-one-call">Write an R or Arrow object in one call<a class="anchor" aria-label="anchor" href="#write-an-r-or-arrow-object-in-one-call"></a>
+<h2 id="write-a-small-data-frame-in-one-call">Write a small data frame in one call<a class="anchor" aria-label="anchor" href="#write-a-small-data-frame-in-one-call"></a>
 </h2>
-<p>For an ordinary data frame or tibble, supply the target and object.
-The function asks the ingestion service for its current Fabric lake
-folder and limits, writes Parquet, uploads it with a Storage-audience
-token, queues tracked ingestion, waits, and deletes only after confirmed
-success:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<p>Supply a destination table and an ordinary data frame or tibble. Use
+a new test table while learning:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">database</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
@@ -125,6 +102,10 @@ success:</p>
 <span><span class="va">written</span><span class="op">$</span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">rows</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">staging_retained</span></span></code></pre></div>
+<p>The function writes temporary Parquet data, uploads it to Fabric,
+queues the ingestion, waits for a final status, and deletes staging only
+after confirmed success. <code>create_if_missing = TRUE</code> creates a
+basic table from the R object’s columns when needed.</p>
 <p>With <code>create_if_missing = TRUE</code>, the writer sends Kusto’s
 idempotent <code>.create table</code> command before staging. A missing
 target is inferred from the Arrow schema; an existing target is returned
@@ -140,7 +121,7 @@ complex and <code>difftime</code> columns explicitly.</p>
 conversion. For data larger than memory, pass a lazy Dataset, Scanner,
 Arrow dplyr query, RecordBatchReader, or an Arrow-compatible stream
 returned by a package query:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
@@ -172,6 +153,26 @@ rename ambiguous; its condition reports the unique path with
 <div class="section level2">
 <h2 id="queue-a-tracked-batch">Queue a tracked batch<a class="anchor" aria-label="anchor" href="#queue-a-tracked-batch"></a>
 </h2>
+<p>Use the lower-level <code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> when the source
+file already exists in OneLake or supported blob storage. It does not
+upload a local file or serialize an R object, and the destination table
+must already exist.</p>
+<p>For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate
+a named ingestion mapping in Fabric before submission. A OneLake source
+can use the workspace and item GUIDs with caller impersonation:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>  <span class="st">"https://onelake.dfs.fabric.microsoft.com/"</span>,</span>
+<span>  <span class="st">"00000000-0000-0000-0000-000000000001/"</span>,</span>
+<span>  <span class="st">"00000000-0000-0000-0000-000000000002/"</span>,</span>
+<span>  <span class="st">"Files/events/2026-08-14.csv;impersonate"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The signed-in identity must be able to read the file. Other Kusto
+storage connection strings can contain a SAS token, managed-identity
+suffix, or another documented authentication method. Do not print or log
+a credential-bearing source string. The complete value must be sent to
+the trusted ingestion endpoint even though returned objects redact
+recognized secrets.</p>
 <p>Supply the source format and the predefined mapping. Source GUIDs are
 generated when omitted and exposed on the returned handle:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">

@@ -74,9 +74,8 @@ sign-in and basic Fabric access:
 
 workspaces <- fabric_workspaces()
 
-purrr::map(workspaces, function(workspace) {
-  workspace[c("displayName", "id")]
-})
+workspaces
+workspaces[[1L]][c("displayName", "id")]
 ```
 
 On the first call, a browser may open and ask you to sign in and approve
@@ -90,10 +89,9 @@ list of named `fabric_item` objects:
 
 ``` r
 
-items <- fabric_items(workspaces[[1]])
-purrr::map(items, function(item) {
-  item[c("displayName", "type", "id")]
-})
+items <- fabric_items(workspaces[[1L]])
+items
+items[[1L]][c("displayName", "type", "id")]
 ```
 
 An empty result does not necessarily mean sign-in failed. It can mean

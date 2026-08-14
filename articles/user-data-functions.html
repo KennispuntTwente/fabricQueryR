@@ -60,10 +60,13 @@
 
     
     
-<p>Fabric user data functions host reusable Python business logic behind
-authenticated REST endpoints. fabricQueryR invokes functions that are
-already defined, published, and enabled for public access; it does not
-create, publish, or deploy function items.</p>
+<p>A Fabric user data function is similar to calling a function in
+another R package, except its Python code runs in Fabric. R sends named
+inputs to a secure web address and receives a structured result.</p>
+<p>fabricQueryR invokes functions that are already defined, published,
+and enabled for public access. It does not create or deploy the
+function. This guide starts with one small scalar call before
+introducing nested inputs, retries, and security limits.</p>
 <div class="section level2">
 <h2 id="prepare-the-function-in-fabric">Prepare the function in Fabric<a class="anchor" aria-label="anchor" href="#prepare-the-function-in-fabric"></a>
 </h2>
@@ -87,12 +90,34 @@ the Power BI <code>.default</code> audience for client credentials; use
 <code>audience</code> only for a custom identity provider.</p>
 </div>
 <div class="section level2">
-<h2 id="send-scalar-and-structured-parameters">Send scalar and structured parameters<a class="anchor" aria-label="anchor" href="#send-scalar-and-structured-parameters"></a>
+<h2 id="make-a-first-call">Make a first call<a class="anchor" aria-label="anchor" href="#make-a-first-call"></a>
+</h2>
+<p>Parameter names must match the published Python function. For a
+function with <code>customerName</code> and <code>priority</code>
+inputs:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
+<span>  <span class="va">function_url</span>,</span>
+<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    customerName <span class="op">=</span> <span class="st">"Ada"</span>,</span>
+<span>    priority <span class="op">=</span> <span class="fl">2L</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span>
+<span><span class="va">result</span><span class="op">$</span><span class="va">output</span></span></code></pre></div>
+<p><code>Succeeded</code> means the function completed. The output shape
+is defined by the published function, so inspect
+<code>result$output</code> before building downstream R code around
+it.</p>
+</div>
+<div class="section level2">
+<h2 id="send-structured-parameters">Send structured parameters<a class="anchor" aria-label="anchor" href="#send-structured-parameters"></a>
 </h2>
 <p>The request body is one named JSON object. Its names must match the
 published function’s camelCase parameters:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">structured_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="va">function_url</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    customerName <span class="op">=</span> <span class="st">"Ada"</span>,</span>
@@ -107,13 +132,13 @@ Named atomic vectors and data frames are also accepted as top-level
 parameter objects; a named list gives the clearest control over nested
 JSON shapes.</p>
 <p>The result is deliberately inspectable:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span><span class="op">$</span><span class="va">function_name</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">invocation_id</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">output</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">errors</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">http_status</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">structured_result</span><span class="op">$</span><span class="va">function_name</span></span>
+<span><span class="va">structured_result</span><span class="op">$</span><span class="va">invocation_id</span></span>
+<span><span class="va">structured_result</span><span class="op">$</span><span class="va">status</span></span>
+<span><span class="va">structured_result</span><span class="op">$</span><span class="va">output</span></span>
+<span><span class="va">structured_result</span><span class="op">$</span><span class="va">errors</span></span>
+<span><span class="va">structured_result</span><span class="op">$</span><span class="va">http_status</span></span></code></pre></div>
 <p>Fabric documents the statuses <code>Succeeded</code>,
 <code>BadRequest</code>, <code>Failed</code>, <code>Timeout</code>, and
 <code>ResponseTooLarge</code>. A valid invocation envelope is returned
@@ -137,7 +162,7 @@ are preserved as character values.</p>
 <p>A function can write data or call another service, so invocation
 POSTs are not retried by default. If a function is read-only or
 implements its own durable idempotency key, opt in explicitly:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="va">function_url</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>requestId <span class="op">=</span> <span class="st">"stable-business-key"</span><span class="op">)</span>,</span>

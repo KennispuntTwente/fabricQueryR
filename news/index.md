@@ -4,6 +4,13 @@
 
 ### New
 
+- Since 0.2.1, new beginner-first vignettes introduce the package and
+  compare the main ways to bring Fabric data into R or send R and Arrow
+  data to Fabric. The expanded article set covers OneLake files,
+  Lakehouse tables, SQL, KQL, DAX, GraphQL, Warehouse ingestion, Spark,
+  jobs, semantic-model refreshes, and User Data Functions, with basic
+  workflows before advanced details.
+
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   and
   [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)

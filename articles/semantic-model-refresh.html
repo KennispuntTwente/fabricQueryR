@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Update data and refresh a semantic model • fabricQueryR</title>
+<title>Query and refresh a semantic model • fabricQueryR</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Update data and refresh a semantic model">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Query and refresh a semantic model">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -51,7 +51,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
 
-      <h1>Update data and refresh a semantic model</h1>
+      <h1>Query and refresh a semantic model</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/kennispunttwente/fabricQueryR/blob/master/vignettes/semantic-model-refresh.Rmd" class="external-link"><code>vignettes/semantic-model-refresh.Rmd</code></a></small>
@@ -60,30 +60,74 @@
 
     
     
-<p>Semantic models serve report-ready data to Power BI and Fabric
-reports. After an upstream load finishes, fabricQueryR can start the
-model refresh, monitor it, preserve diagnostic details, and link to
-Fabric’s refresh detail page.</p>
+<p>A semantic model is the report-ready data behind Power BI and Fabric
+reports. It combines tables with relationships, measures, and business
+calculations. From R, you can query that model with DAX and refresh it
+after its source data changes.</p>
+<p>Start by querying a small result. Refresh and monitoring come next,
+followed by the more specialized controls used for production
+models.</p>
 <p>This guide uses a discovered model so its workspace and dataset IDs
 travel together:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>Starting or cancelling a refresh requires
-<code>Dataset.ReadWrite.All</code> and Write permission on the semantic
-model. Status and history use <code>Dataset.Read.All</code> or
+<div class="section level2">
+<h2 id="query-the-model-with-dax">Query the model with DAX<a class="anchor" aria-label="anchor" href="#query-the-model-with-dax"></a>
+</h2>
+<p>DAX is the query and calculation language used by semantic models. A
+query normally begins with <code>EVALUATE</code> and returns a table. If
+you are new to DAX, create and test a query in the model’s <strong>DAX
+query view</strong> in Fabric, then use the same text from R:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>,</span>
+<span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(100, 'Customers')"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span></span></code></pre></div>
+<p>Query the semantic model when you want its measures and
+relationships, or need the same business definition used by a report.
+Query the Warehouse or Lakehouse instead when you need the underlying
+source rows and SQL is a better fit.</p>
+<p>For example, a DAX measure can be grouped by a model column:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>,</span>
+<span>  dax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
+<span>    <span class="st">"EVALUATE"</span>,</span>
+<span>    <span class="st">"SUMMARIZECOLUMNS("</span>,</span>
+<span>    <span class="st">"  'Region'[Region],"</span>,</span>
+<span>    <span class="st">"  \"Total Sales\", [Total Sales]"</span>,</span>
+<span>    <span class="st">")"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The normal JSON mode returns one tibble and is the simplest option.
+The later <code>api = "arrow"</code> mode is useful for richer types,
+multiple result tables, or a stream, but requires a capacity-backed
+model and additional tenant settings.</p>
+</div>
+<div class="section level2">
+<h2 id="check-access-before-refreshing">Check access before refreshing<a class="anchor" aria-label="anchor" href="#check-access-before-refreshing"></a>
+</h2>
+<p>Querying requires Read and Build permission on the model and the
+tenant’s <strong>Semantic Model Execute Queries REST API</strong>
+setting. Starting or cancelling a refresh requires
+<code>Dataset.ReadWrite.All</code> and Write permission on the model.
+Status and history use <code>Dataset.Read.All</code> or
 <code>Dataset.ReadWrite.All</code>, although Microsoft also requires
-model Write permission for refresh history. Service principals are
-supported when the tenant setting and model/workspace access allow them.
-Do not set an email notification option for a service-principal
-request.</p>
+model Write permission for refresh history.</p>
+<p>Service principals are supported when tenant settings and model or
+workspace access allow them. Do not set an email notification option for
+a service-principal refresh request.</p>
+</div>
 <div class="section level2">
 <h2 id="refresh-after-an-upstream-update">Refresh after an upstream update<a class="anchor" aria-label="anchor" href="#refresh-after-an-upstream-update"></a>
 </h2>
 <p>A standard refresh processes the complete model using Power BI
 defaults:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
 <span></span>
@@ -96,7 +140,7 @@ Credentials are not persisted when a handle is serialized; authenticate
 again after restoring one in another R process.</p>
 <p>For example, a data-load workflow can refresh only after the source
 update has committed successfully:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">load</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  <span class="st">"dbo.Sales"</span>,</span>
@@ -123,7 +167,7 @@ keeps running.</p>
 Embedded, or Fabric capacity. Supplying an enhanced option selects
 enhanced mode automatically, or set <code>mode = "enhanced"</code>
 explicitly:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
 <span>  mode <span class="op">=</span> <span class="st">"enhanced"</span>,</span>
@@ -161,7 +205,7 @@ The normalized <code>state</code> distinguishes <code>Queued</code>,
 <code>CompletedWithWarnings</code>, <code>Failed</code>,
 <code>TimedOut</code>, <code>Cancelled</code>, and
 <code>Disabled</code>.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_status</a></span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span>
@@ -182,15 +226,13 @@ fabricQueryR reports <code>CompletedWithWarnings</code>; otherwise open
 <p>By default, wait raises typed R conditions for service failures,
 cancellation, service timeouts, and disabled refreshes. Keep the
 terminal detail instead when building a monitoring table:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span></span>
 <span>  <span class="va">refresh</span>,</span>
 <span>  error_on_failure <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">state</span> <span class="op">!=</span> <span class="st">"Completed"</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">details_url</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
+<span><span class="kw">if</span> <span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">state</span> <span class="op">!=</span> <span class="st">"Completed"</span><span class="op">)</span> <span class="va">result</span><span class="op">$</span><span class="va">details_url</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="inspect-history-or-cancel-work">Inspect history or cancel work<a class="anchor" aria-label="anchor" href="#inspect-history-or-cancel-work"></a>
@@ -198,7 +240,7 @@ terminal detail instead when building a monitoring table:</p>
 <p>Power BI retains between 20 and 60 recent history entries depending
 on their age. OneDrive synchronization history is separate and is not
 returned here.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_history</a></span><span class="op">(</span><span class="va">model</span>, top <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">refresh_type</span></span>
@@ -210,7 +252,7 @@ returned here.</p>
 <p>Cancel a running Import or Composite model refresh when the model is
 on Premium, PPU, Embedded, or Fabric capacity. Microsoft requires
 Contributor, Member, or Admin access to the workspace:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_cancel</a></span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">

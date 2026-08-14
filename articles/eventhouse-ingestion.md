@@ -1,12 +1,18 @@
 # Track Eventhouse ingestion from R
 
-Kusto queued ingestion is designed for batch files in blob storage or
-OneLake. fabricQueryR can submit those files directly or provide a
-one-call workflow that streams an R or Arrow object to Parquet, stages
-it in OneLake, waits for tracked ingestion, and cleans up safely. The
-underlying REST routes are currently in preview.
+An Eventhouse stores event, log, and time-series data in KQL databases.
+In this vignette, **ingestion** means adding rows to one of its KQL
+tables.
 
-## Prepare the target and source
+Start with
+[`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md):
+it accepts a data frame and manages the upload, ingestion status, and
+cleanup for you. Later sections cover larger Arrow inputs and the
+lower-level queued-ingestion workflow for files that are already in
+OneLake or blob storage. The underlying ingestion REST routes are
+currently in preview.
+
+## Find a KQL database
 
 Start with a discovered KQL database. Its record contains both the query
 URI used by
@@ -21,45 +27,10 @@ database <- fabric_kql_databases("Telemetry workspace")[[1]]
 database$ingestion_service_uri
 ```
 
-[`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
-requires the destination table to exist. For CSV, JSON, Avro, Parquet,
-and ORC workflows, create and validate a named ingestion mapping in
-Fabric before that storage-ingestion workflow starts.
+## Write a small data frame in one call
 
-The source must be a Kusto storage connection string. A OneLake file can
-use the workspace and item GUIDs and caller impersonation:
-
-``` r
-
-source <- paste0(
-  "https://onelake.dfs.fabric.microsoft.com/",
-  "00000000-0000-0000-0000-000000000001/",
-  "00000000-0000-0000-0000-000000000002/",
-  "Files/events/2026-08-14.csv;impersonate"
-)
-```
-
-The signed-in principal must be able to read that OneLake file. Other
-supported storage connection strings can carry a SAS token, a
-managed-identity suffix, or another authentication method documented by
-Kusto. Avoid writing credentialed URLs to logs. Handles and status
-results redact recognized secrets, but the submission process
-necessarily sends the complete source string to the trusted Kusto
-ingestion endpoint.
-
-[`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
-deliberately treats its inputs as existing storage sources: it never
-uploads a local file or serializes an R object. Use
-[`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
-when the source is a data frame, tibble, or Arrow object.
-
-## Write an R or Arrow object in one call
-
-For an ordinary data frame or tibble, supply the target and object. The
-function asks the ingestion service for its current Fabric lake folder
-and limits, writes Parquet, uploads it with a Storage-audience token,
-queues tracked ingestion, waits, and deletes only after confirmed
-success:
+Supply a destination table and an ordinary data frame or tibble. Use a
+new test table while learning:
 
 ``` r
 
@@ -79,6 +50,11 @@ written$status$state
 written$rows
 written$staging_retained
 ```
+
+The function writes temporary Parquet data, uploads it to Fabric, queues
+the ingestion, waits for a final status, and deletes staging only after
+confirmed success. `create_if_missing = TRUE` creates a basic table from
+the R object’s columns when needed.
 
 With `create_if_missing = TRUE`, the writer sends Kusto’s idempotent
 `.create table` command before staging. A missing target is inferred
@@ -130,6 +106,33 @@ ambiguous; its condition reports the unique path with
 `staging_retained = NA` for inspection.
 
 ## Queue a tracked batch
+
+Use the lower-level
+[`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+when the source file already exists in OneLake or supported blob
+storage. It does not upload a local file or serialize an R object, and
+the destination table must already exist.
+
+For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate a
+named ingestion mapping in Fabric before submission. A OneLake source
+can use the workspace and item GUIDs with caller impersonation:
+
+``` r
+
+source <- paste0(
+  "https://onelake.dfs.fabric.microsoft.com/",
+  "00000000-0000-0000-0000-000000000001/",
+  "00000000-0000-0000-0000-000000000002/",
+  "Files/events/2026-08-14.csv;impersonate"
+)
+```
+
+The signed-in identity must be able to read the file. Other Kusto
+storage connection strings can contain a SAS token, managed-identity
+suffix, or another documented authentication method. Do not print or log
+a credential-bearing source string. The complete value must be sent to
+the trusted ingestion endpoint even though returned objects redact
+recognized secrets.
 
 Supply the source format and the predefined mapping. Source GUIDs are
 generated when omitted and exposed on the returned handle:

@@ -1,10 +1,13 @@
 # Explore and collect Fabric GraphQL data
 
-Fabric APIs for GraphQL generate their schema from the objects exposed
-by an API item. fabricQueryR keeps that schema-specific shape explicit:
-inspect the schema, write a normal GraphQL document, paginate with the
-connection fields selected by that document, and then identify the exact
-row path to collect.
+A Fabric API for GraphQL is a structured doorway to data selected by the
+API’s owner. A GraphQL query names the fields you want, and the response
+follows the same nested shape. This can be convenient when you need an
+approved API view instead of direct access to the underlying Lakehouse,
+Warehouse, or SQL Database.
+
+This guide starts with one small query. It then introduces schema
+inspection, pagination, and collection into a tibble.
 
 Start with a discovered API so its endpoint and workspace travel
 together:
@@ -22,7 +25,29 @@ data source. The package uses the delegated `GraphQLApi.Execute.All`
 scope for interactive users and the Fabric audience for
 service-principal authentication.
 
-## Inspect the generated schema
+## Run a first query
+
+A GraphQL document is one character string. The field names depend on
+how the Fabric API was configured, so replace `products`, `id`, and
+`name` with fields from your API:
+
+``` r
+
+response <- fabric_graphql_query(
+  api,
+  query = "{ products { items { id name } } }"
+)
+
+response$data$products$items
+response$errors
+```
+
+GraphQL can return useful data and service errors together. fabricQueryR
+keeps them separate so you can inspect both. When this small request
+works, use the next sections to discover fields and retrieve more than
+one page.
+
+## Inspect the available fields
 
 Microsoft Fabric disables runtime introspection by default. Only a
 workspace admin can enable it under **API Settings \> Introspection**.
@@ -43,7 +68,7 @@ not return a complete schema. Its message points to the administrator
 setting and the portal’s **Export schema** alternative. Export remains
 available when runtime introspection must stay disabled.
 
-## Query and paginate rows
+## Read more than one page
 
 Fabric normally represents a generated collection with `items`,
 `hasNextPage`, and `endCursor`. Request all three pieces needed by the
