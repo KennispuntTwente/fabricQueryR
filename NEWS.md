@@ -63,6 +63,9 @@
 
 ## Changed
 
+* `fabric_kql_write_table()` now gives Eventhouse the canonical OneLake DFS
+  source URL when staging through a regional OneLake API endpoint.
+
 * `fabric_sql_connect()` and `fabric_sql_query()` now accept discovered items
   and portal connection strings, and support Lakehouses, Warehouses, and Fabric
   SQL Databases. Queries can use parameters and return a tibble or Arrow stream.

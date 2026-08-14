@@ -6,10 +6,11 @@ kql_write_test_folder <- paste0(
 
 kql_write_test_configuration <- function(
   max_data_size = 6442450944,
-  max_blobs = 20
+  max_blobs = 20,
+  lake_folder = kql_write_test_folder
 ) {
   list(
-    lake_folders = kql_write_test_folder,
+    lake_folders = lake_folder,
     max_data_size = max_data_size,
     max_blobs = max_blobs,
     preferred_upload_method = "Lake",
@@ -113,6 +114,12 @@ test_that("ingestion configuration uses the documented Kusto contract", {
 
 test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   skip_if_not_installed("arrow")
+  regional_folder <- sub(
+    "onelake.dfs.fabric.microsoft.com",
+    "switzerlandnorth-api.onelake.fabric.microsoft.com",
+    kql_write_test_folder,
+    fixed = TRUE
+  )
   uploaded <- NULL
   submitted <- NULL
   status_args <- NULL
@@ -120,7 +127,7 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "write-fixed",
     kusto_ingestion_configuration = function(...) {
-      kql_write_test_configuration()
+      kql_write_test_configuration(lake_folder = regional_folder)
     },
     onelake_upload_target = function(target, credential, source, ...) {
       uploaded <<- list(
@@ -179,7 +186,18 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
     uploaded$target$path,
     "Files/ingestion/fabricqueryr-staging/write-fixed/part-00001.parquet"
   )
-  expect_match(submitted$sources, ";token=storage-token$", perl = TRUE)
+  expect_equal(
+    uploaded$target$dfs_base,
+    "https://switzerlandnorth-api.onelake.fabric.microsoft.com"
+  )
+  expect_equal(
+    submitted$sources,
+    paste0(
+      kql_write_test_folder,
+      "/fabricqueryr-staging/write-fixed/part-00001.parquet",
+      ";token=storage-token"
+    )
+  )
   expect_equal(submitted$format, "parquet")
   expect_equal(submitted$raw_sizes, uploaded$bytes)
   expect_equal(submitted$mapping, "RawParquet")

@@ -2563,8 +2563,17 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
   )
 }
 
-# Authenticate package-staged files for unattended and delegated credentials
+# Canonicalize and authenticate staged sources for Eventhouse retrieval
 kusto_write_storage_sources <- function(paths, credential) {
+  paths <- vapply(
+    paths,
+    function(path) {
+      target <- onelake_resolve_target(path)
+      target$dfs_base <- "https://onelake.dfs.fabric.microsoft.com"
+      onelake_path_url(target)
+    },
+    character(1)
+  )
   suffix <- if (credential$type %in% c("AzureAuth", "callback")) {
     paste0(
       ";token=",
