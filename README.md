@@ -274,7 +274,21 @@ orders <- fabric_onelake_read_file(
   lakehouse,
   path = "Files/exports/orders.parquet"
 )
+
+# Link another Fabric item's data without copying it
+fabric_onelake_shortcut_create(
+  lakehouse,
+  path = "Files",
+  name = "shared-orders",
+  target = source_lakehouse,
+  target_path = "Tables/orders"
+)
+shortcuts <- fabric_onelake_shortcuts(lakehouse)
 ```
+
+Shortcut creation defaults to conflict policy `"Abort"`; updates require the
+explicit `"CreateOrOverwrite"` policy. Confirmed deletion removes only the
+shortcut, never its destination data.
 
 ### 7. Discover and load Lakehouse tables
 

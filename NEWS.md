@@ -54,6 +54,11 @@
   Larger reads return disk-backed Arrow streams and lazy writes remain bounded
   by their current record batch.
 
+* Added `fabric_onelake_shortcuts()`, `fabric_onelake_shortcut_get()`,
+  `fabric_onelake_shortcut_create()`, and `fabric_onelake_shortcut_delete()` for
+  paginated shortcut discovery and a guarded lifecycle across discovered
+  OneLake items or documented connection-backed targets.
+
 * Added `fabric_job_*()` functions to run, monitor, wait for, and cancel
   on-demand Notebook, pipeline, and Spark job definition runs.
 

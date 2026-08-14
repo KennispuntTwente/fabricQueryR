@@ -16,7 +16,8 @@ Description:
     'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft
     Fabric' and 'Power BI'; list, inspect, download, upload, and delete files
     in 'OneLake' ('Azure Data Lake Storage Gen2'), including direct 'R' and
-    'Arrow' interchange with columnar files; discover and read 'Delta Lake'
+    'Arrow' interchange with columnar files and shortcut lifecycle management;
+    discover and read 'Delta Lake'
     tables in 'OneLake'; stage data frames or existing CSV and Parquet files
     into managed Lakehouse tables; bulk load data frames and lazy 'Arrow'
     sources into existing Warehouse tables; start, monitor, diagnose, and

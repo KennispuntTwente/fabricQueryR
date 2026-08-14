@@ -427,6 +427,8 @@ alongside new public functions:
 - Loading an R data frame or lazy Arrow source into an existing Warehouse table
   through documented OneLake `COPY INTO` staging and validating append and
   transactional overwrite round trips.
+- Linking Fabric and connection-backed storage locations with OneLake shortcuts
+  and covering paginated discovery plus a guarded create/read/delete lifecycle.
 - Updating source data, refreshing a semantic model, and checking history.
 - Running SparkR locally through Livy versus using SparkR or `sparklyr` inside a
   Fabric notebook or Spark job definition.
@@ -468,6 +470,7 @@ mature package surfaces.
 - [List Lakehouse tables](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables)
 - [Load a Lakehouse table](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/load-table)
 - [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+- [OneLake shortcuts REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 - [Load to Delta Lake tables](https://learn.microsoft.com/en-us/fabric/data-engineering/load-to-tables)
 - [Power BI dataset APIs](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/)
 - [Fabric User Data Functions overview](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview)

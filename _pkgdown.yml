@@ -71,6 +71,7 @@ reference:
       - fabric_onelake_read_file
       - fabric_onelake_write_file
       - fabric_onelake_delete
+      - fabric_onelake_shortcuts
 
   - title: Delta tables
     desc: Discover, load, and read Delta Lake tables in OneLake

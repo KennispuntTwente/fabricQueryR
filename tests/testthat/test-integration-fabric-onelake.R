@@ -1603,3 +1603,99 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
     token = token
   ))
 })
+
+test_that("OneLake shortcuts complete a live create/read/delete lifecycle", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  item <- fabric_item(
+    manifest$workspace_id,
+    lakehouse$id,
+    type = "Lakehouse",
+    token = token
+  )
+  name <- "fabricqueryr_shortcut_live"
+  parent <- "Files"
+  created <- FALSE
+  on.exit(
+    if (created) {
+      try(
+        fabric_onelake_shortcut_delete(
+          item,
+          parent,
+          name,
+          confirm = TRUE,
+          token = token
+        ),
+        silent = TRUE
+      )
+    },
+    add = TRUE
+  )
+  source_path <- "Files/fixtures/nested/unicode/café-数据.txt"
+  expected <- fabric_onelake_download(
+    manifest$workspace_id,
+    lakehouse$id,
+    source_path,
+    token = token
+  )
+
+  shortcut <- fabric_onelake_shortcut_create(
+    item,
+    path = parent,
+    name = name,
+    target = item,
+    target_path = "Files/fixtures/nested",
+    conflict_policy = "CreateOrOverwrite",
+    token = token
+  )
+  created <- TRUE
+  expect_equal(shortcut$name, name)
+  expect_equal(shortcut$target_type, "OneLake")
+  expect_equal(shortcut$one_lake_item_id, lakehouse$id)
+
+  observed <- fabric_test_eventually(function() {
+    fabric_onelake_download(
+      manifest$workspace_id,
+      lakehouse$id,
+      paste0("Files/", name, "/unicode/café-数据.txt"),
+      token = token
+    )
+  })
+  expect_identical(observed, expected)
+  listed <- fabric_onelake_shortcuts(
+    item,
+    parent_path = parent,
+    token = token
+  )
+  expect_true(name %in% listed$name)
+  inspected <- fabric_onelake_shortcut_get(
+    item,
+    parent,
+    name,
+    token = token
+  )
+  expect_equal(inspected$one_lake_path, "Files/fixtures/nested")
+
+  expect_true(fabric_onelake_shortcut_delete(
+    item,
+    parent,
+    name,
+    confirm = TRUE,
+    token = token
+  ))
+  created <- FALSE
+  expect_error(
+    fabric_onelake_shortcut_get(item, parent, name, token = token),
+    "HTTP 404"
+  )
+  expect_identical(
+    fabric_onelake_download(
+      manifest$workspace_id,
+      lakehouse$id,
+      source_path,
+      token = token
+    ),
+    expected
+  )
+})
