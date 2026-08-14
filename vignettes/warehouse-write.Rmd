@@ -1,8 +1,8 @@
 ---
-title: "Write R and Arrow data to Fabric Warehouse"
+title: "Working with Fabric WareHouses"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Write R and Arrow data to Fabric Warehouse}
+  %\VignetteIndexEntry{Working with Fabric WareHouses}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

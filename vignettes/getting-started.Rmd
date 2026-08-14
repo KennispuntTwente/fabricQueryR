@@ -50,6 +50,9 @@ install.packages("fabricQueryR")
 
 library(fabricQueryR)
 Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
+
+# Optional, if your organization requires an approved application:
+Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-app-client-id>")
 ```
 
 The first Fabric call may open a browser. Sign in with the same work or school
@@ -57,12 +60,8 @@ account that you use in the Fabric portal. If your organization requires an
 approved application, your administrator may also give you a client ID to set
 as `FABRICQUERYR_CLIENT_ID`.
 
-The authentication vignette explains this setup and common login problems in
-more detail:
-
-```{r}
-vignette("authentication", package = "fabricQueryR")
-```
+The [authentication vignette](authentication.html) explains this setup and
+common login problems in more detail.
 
 ## Find a workspace and an item
 
@@ -130,14 +129,15 @@ small while you confirm that access and table selection are correct.
 There are often several valid ways to move the same data. Start with the guide
 that matches your goal:
 
-- `vignette("reading-data")` compares SQL, Lakehouse, Warehouse, Eventhouse,
-  semantic-model, OneLake-file, GraphQL, and Spark reads.
-- `vignette("ingesting-data")` compares ways to send an R object or an existing
-  file to Fabric.
-- `vignette("onelake-and-lakehouse")` explains Lakehouse files and tables in
-  more detail.
-- `vignette("spark-with-livy")` introduces remote Spark work after the simpler
-  read and write paths.
+- [Bring Fabric data into R](reading-data.html) compares SQL, Lakehouse,
+  Warehouse, Eventhouse, semantic-model, OneLake-file, GraphQL, and Spark
+  reads.
+- [Bring R data into Microsoft Fabric](ingesting-data.html) compares ways to
+  send an R object or an existing file to Fabric.
+- [Working with Fabric LakeHouses and OneLake](onelake-and-lakehouse.html)
+  explains Lakehouse files and tables in more detail.
+- [Working with Livy (Spark)](spark-with-livy.html) introduces remote Spark work
+  after the simpler read and write paths.
 
 The function reference contains the complete arguments and return values. The
 vignettes focus on choosing a workflow and building it from a small first

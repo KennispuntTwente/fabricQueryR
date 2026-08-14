@@ -1,8 +1,8 @@
 ---
-title: "Run Spark work from R with Livy"
+title: "Working with Livy (Spark)"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Run Spark work from R with Livy}
+  %\VignetteIndexEntry{Working with Livy (Spark)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

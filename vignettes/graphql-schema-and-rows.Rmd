@@ -1,8 +1,8 @@
 ---
-title: "Explore and collect Fabric GraphQL data"
+title: "Working with GraphQL"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Explore and collect Fabric GraphQL data}
+  %\VignetteIndexEntry{Working with GraphQL}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

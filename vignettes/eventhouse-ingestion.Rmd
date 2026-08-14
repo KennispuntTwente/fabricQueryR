@@ -1,8 +1,8 @@
 ---
-title: "Track Eventhouse ingestion from R"
+title: "Working with Fabric EventHouses (real-time data)"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Track Eventhouse ingestion from R}
+  %\VignetteIndexEntry{Working with Fabric EventHouses (real-time data)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

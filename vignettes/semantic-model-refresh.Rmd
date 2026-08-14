@@ -1,8 +1,8 @@
 ---
-title: "Query and refresh a semantic model"
+title: "Working with Semantic Models (DAX queries)"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Query and refresh a semantic model}
+  %\VignetteIndexEntry{Working with Semantic Models (DAX queries)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

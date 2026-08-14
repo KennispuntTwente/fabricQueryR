@@ -16,9 +16,9 @@ articles:
       - eventhouse-ingestion
       - semantic-model-refresh
       - graphql-schema-and-rows
+      - spark-with-livy
   - title: Run and automate workloads
     contents:
-      - spark-with-livy
       - job-automation
       - user-data-functions
 reference:

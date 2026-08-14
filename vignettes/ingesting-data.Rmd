@@ -1,8 +1,8 @@
 ---
-title: "Send R data to Microsoft Fabric"
+title: "Bring R data into Microsoft Fabric"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Send R data to Microsoft Fabric}
+  %\VignetteIndexEntry{Bring R data into Microsoft Fabric}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -134,9 +134,9 @@ warehouse_result <- fabric_warehouse_write_table(
 ```
 
 For a missing table, Fabric can infer a basic definition. Pre-create the table
-when exact SQL types, lengths, constraints, or grants matter. The Warehouse
-writing vignette explains overwrite choices, transactions, and larger Arrow
-inputs.
+when exact SQL types, lengths, constraints, or grants matter.
+[Working with Fabric WareHouses](warehouse-write.html) explains overwrite
+choices, transactions, and larger Arrow inputs.
 
 ## Write an Eventhouse table
 
@@ -156,9 +156,10 @@ kql_result$status$state
 ```
 
 The high-level writer stages the R object, submits tracked ingestion, waits,
-and cleans up after confirmed success. The Eventhouse ingestion vignette covers
-predefined mappings, existing storage files, idempotency keys, and failure
-recovery.
+and cleans up after confirmed success.
+[Working with Fabric EventHouses (real-time data)](eventhouse-ingestion.html)
+covers predefined mappings, existing storage files, idempotency keys, and
+failure recovery.
 
 ## Load a file that is already in a Lakehouse
 
@@ -192,8 +193,9 @@ These names describe intent, but the exact behavior depends on the destination:
 | Create if missing | A basic inferred table is acceptable | Inferred types and nullability meet downstream needs |
 
 Warehouse drop replacement can discard table-specific metadata. Eventhouse
-queued ingestion has at-least-once delivery. Read the destination-specific
-vignette before using these paths in an automated production workflow.
+queued ingestion has at-least-once delivery. Read the linked
+destination-specific guide before using these paths in an automated production
+workflow.
 
 ## Scale up with Arrow
 
@@ -213,5 +215,6 @@ fabric_lakehouse_write_table(
 
 Start with the default part sizes. Tune file or row boundaries only after
 measuring a real workload. For transformations that need distributed compute
-or exact Spark-managed schemas, use the Spark vignette rather than moving all
+or exact Spark-managed schemas, use
+[Working with Livy (Spark)](spark-with-livy.html) rather than moving all
 intermediate data through R.
