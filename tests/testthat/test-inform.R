@@ -109,7 +109,11 @@ test_that("package objects use one cli summary layout", {
 })
 
 test_that("package code does not bypass the presentation layer", {
-  source_dir <- normalizePath(test_path("..", "..", "R"), mustWork = TRUE)
+  source_dir <- test_path("..", "..", "R")
+  if (!dir.exists(source_dir)) {
+    skip("Package source is not available in installed test runs")
+  }
+  source_dir <- normalizePath(source_dir, mustWork = TRUE)
   paths <- list.files(source_dir, pattern = "[.]R$", full.names = TRUE)
   lines <- unlist(lapply(paths, readLines, warn = FALSE), use.names = FALSE)
 
