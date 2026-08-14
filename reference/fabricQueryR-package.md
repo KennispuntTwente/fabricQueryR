@@ -30,6 +30,11 @@ details by hand
   for an API for GraphQL item
 
 - Use
+  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  to call published business logic through a User Data Function's
+  explicit public URL
+
+- Use
   [fabric_onelake_files](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   for ordinary files,
   [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)

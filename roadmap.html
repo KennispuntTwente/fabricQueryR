@@ -199,18 +199,26 @@
 </div>
 <div class="section level2">
 <h2 id="priority-5-invoke-fabric-user-data-functions">Priority 5: Invoke Fabric User Data Functions<a class="anchor" aria-label="anchor" href="#priority-5-invoke-fabric-user-data-functions"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
+<p><strong>Status (August 2026): completed in the development version.</strong></p>
 <div class="section level3">
 <h3 id="objective-5">Objective<a class="anchor" aria-label="anchor" href="#objective-5"></a></h3>
 <p>Allow R applications to invoke published Fabric business logic with the same authentication, endpoint validation, retry, and error behavior as other package interfaces.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-5">Direction<a class="anchor" aria-label="anchor" href="#direction-5"></a></h3>
-<ul><li>Add <code>fabric_function_invoke()</code> accepting a trusted public function URL and a named R object serialized as JSON.</li>
+<ul><li>Add <code><a href="reference/fabric_function_invoke.html">fabric_function_invoke()</a></code> accepting a trusted public function URL and a named R object serialized as JSON.</li>
 <li>Add typed item discovery but require an explicit function URL while the item API cannot provide enough information to derive it safely.</li>
 <li>Return function name, invocation ID, status, output, and structured errors in an inspectable <code>fabric_function_result</code>.</li>
 <li>Retry only when the caller explicitly marks an invocation idempotent because a function can have arbitrary side effects.</li>
 <li>Keep definition, publication, and deployment workflows out of initial scope.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-5">Implementation<a class="anchor" aria-label="anchor" href="#implementation-5"></a></h3>
+<ul><li>Added <code><a href="reference/fabric_function_invoke.html">fabric_function_invoke()</a></code> over the documented synchronous public URL, accepting named scalar and nested JSON parameters while requiring callers to supply the copied function URL explicitly.</li>
+<li>Added strict HTTPS route and trusted-host validation, delegated <code>UserDataFunction.Execute.All</code> and application-audience selection, a 4 MB request guard, a bounded 32 MiB response envelope, and recursive secret and bearer-token redaction.</li>
+<li>Preserved successful, bad-request, failed, timed-out, response-too-large, and unknown future execution states as inspectable <code>fabric_function_result</code> objects with structured errors, HTTP status, exact large integers, and the complete redacted service response.</li>
+<li>Kept POST retries disabled unless the caller explicitly marks an invocation idempotent; opted-in calls reuse the package’s bounded transient-failure, throttling, token-refresh, and deadline behavior.</li>
+<li>Added offline HTTP, serialization, validation, retry, response-limit, malformed-response, authentication, and redaction coverage plus opt-in live scalar, structured, and <code>UserThrownError</code> invocation tests.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-5">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-5"></a></h3>

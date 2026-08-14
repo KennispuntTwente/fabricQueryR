@@ -14,3 +14,8 @@
 
 - [Update data and refresh a semantic
   model](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.md):
+
+### User Data Functions
+
+- [Invoke Fabric user data
+  functions](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.md):

@@ -329,7 +329,7 @@ refresh and diagnose the semantic model serving that data.
 
 ## Priority 5: Invoke Fabric User Data Functions
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -339,8 +339,10 @@ other package interfaces.
 
 ### Direction
 
-- Add `fabric_function_invoke()` accepting a trusted public function URL
-  and a named R object serialized as JSON.
+- Add
+  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  accepting a trusted public function URL and a named R object
+  serialized as JSON.
 - Add typed item discovery but require an explicit function URL while
   the item API cannot provide enough information to derive it safely.
 - Return function name, invocation ID, status, output, and structured
@@ -349,6 +351,28 @@ other package interfaces.
   because a function can have arbitrary side effects.
 - Keep definition, publication, and deployment workflows out of initial
   scope.
+
+### Implementation
+
+- Added
+  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  over the documented synchronous public URL, accepting named scalar and
+  nested JSON parameters while requiring callers to supply the copied
+  function URL explicitly.
+- Added strict HTTPS route and trusted-host validation, delegated
+  `UserDataFunction.Execute.All` and application-audience selection, a 4
+  MB request guard, a bounded 32 MiB response envelope, and recursive
+  secret and bearer-token redaction.
+- Preserved successful, bad-request, failed, timed-out,
+  response-too-large, and unknown future execution states as inspectable
+  `fabric_function_result` objects with structured errors, HTTP status,
+  exact large integers, and the complete redacted service response.
+- Kept POST retries disabled unless the caller explicitly marks an
+  invocation idempotent; opted-in calls reuse the package’s bounded
+  transient-failure, throttling, token-refresh, and deadline behavior.
+- Added offline HTTP, serialization, validation, retry, response-limit,
+  malformed-response, authentication, and redaction coverage plus opt-in
+  live scalar, structured, and `UserThrownError` invocation tests.
 
 ### Acceptance criteria
 

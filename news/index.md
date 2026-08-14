@@ -18,6 +18,13 @@
   GraphQL helpers also support variables, cursor pagination, and
   mutations where the configured API permits them.
 
+- Added
+  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  for published Fabric User Data Functions, with trusted public-URL
+  validation, flow-aware Power BI authentication, non-idempotent retry
+  safety, bounded payloads and responses, redacted result envelopes, and
+  structured execution errors.
+
 - Added OneLake file management with
   [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
   [`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),

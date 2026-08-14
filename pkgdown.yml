@@ -5,7 +5,8 @@ articles:
   authentication: authentication.html
   job-automation: job-automation.html
   semantic-model-refresh: semantic-model-refresh.html
-last_built: 2026-08-14T11:16Z
+  user-data-functions: user-data-functions.html
+last_built: 2026-08-14T11:52Z
 urls:
   reference: https://kennispunttwente.github.io/fabricQueryR/reference
   article: https://kennispunttwente.github.io/fabricQueryR/articles

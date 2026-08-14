@@ -95,6 +95,13 @@ Execute GraphQL operations and traverse cursor-based pages
 - [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
   : Locate pagination information in a GraphQL result
 
+## User Data Functions
+
+Invoke published Fabric business logic through trusted public URLs
+
+- [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  : Invoke a published Fabric user data function
+
 ## Livy and Spark
 
 Run Spark statements, reusable sessions, and batch jobs through Livy

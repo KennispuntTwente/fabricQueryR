@@ -364,7 +364,37 @@ graphql_result$data$customers$items
 graphql_result$errors
 ```
 
-### 10. Run and monitor Fabric jobs
+### 10. Invoke a Fabric User Data Function
+
+Call published Fabric business logic through the function’s explicit
+public URL. Enable Public access in Run only mode and copy the URL from
+the function’s properties; discovery intentionally does not guess it.
+
+``` r
+
+function_result <- fabric_function_invoke(
+  Sys.getenv("FABRIC_FUNCTION_URL"),
+  parameters = list(
+    customerName = "Ada",
+    order = list(id = 42L, lines = I(c("A", "B")))
+  )
+)
+
+function_result$status
+function_result$output
+function_result$errors
+```
+
+Valid Fabric execution envelopes remain inspectable for `BadRequest`,
+`Failed`, `Timeout`, and `ResponseTooLarge`, including their HTTP status
+and structured error details. Invocations are never retried unless you
+set `idempotent = TRUE`; do that only when repeating the function cannot
+duplicate side effects. See the [User Data Functions
+vignette](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html)
+for permissions, trusted-host behavior, limits, and authentication
+details.
+
+### 11. Run and monitor Fabric jobs
 
 Start a notebook, data pipeline, or Spark job definition, then wait for
 completion or inspect/cancel it from R. You can also inspect earlier
@@ -402,7 +432,7 @@ fabric_job_schedule_update(notebook, schedule, enabled = FALSE)
 fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 ```
 
-### 11. Resume a Fabric long-running operation
+### 12. Resume a Fabric long-running operation
 
 Some Fabric APIs return an operation ID while provisioning continues.
 Resume that work from its ID or `Location` URL, wait for success, and
@@ -540,6 +570,13 @@ Execute GraphQL operations and traverse cursor-based pages
 - [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
   : Locate pagination information in a GraphQL result
 
+## User Data Functions
+
+Invoke published Fabric business logic through trusted public URLs
+
+- [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  : Invoke a published Fabric user data function
+
 ## Livy and Spark
 
 Run Spark statements, reusable sessions, and batch jobs through Livy
@@ -615,3 +652,8 @@ Package overview
 
 - [Update data and refresh a semantic
   model](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.md):
+
+### User Data Functions
+
+- [Invoke Fabric user data
+  functions](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.md):
