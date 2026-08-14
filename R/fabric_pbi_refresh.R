@@ -211,7 +211,6 @@ fabric_pbi_refresh <- function(
     api_base
   )
 
-
   # 2 Build the documented request body ------------------------------------------------------------
 
   # Standard and enhanced requests have different capacity and payload contracts
@@ -229,7 +228,6 @@ fabric_pbi_refresh <- function(
     refresh_timeout = timeout
   )
   url <- .pbi_refresh_collection_url(api_base, target)
-
 
   # 3 Submit once and retain the refresh identity --------------------------------------------------
 
@@ -297,7 +295,6 @@ fabric_pbi_refresh_history <- function(
     credential,
     api_base
   )
-
 
   # 2 Read and normalize recent refreshes ----------------------------------------------------------
 
@@ -391,7 +388,6 @@ fabric_pbi_refresh_status <- function(
     override_auth = override_auth
   )
 
-
   # 2 Honor the first service polling hint ---------------------------------------------------------
 
   # Delaying only the first handle check avoids querying sooner than the submission response asks
@@ -403,7 +399,6 @@ fabric_pbi_refresh_status <- function(
       .sleep(delay)
     }
   }
-
 
   # 3 Return one execution-detail snapshot ---------------------------------------------------------
 
@@ -472,7 +467,6 @@ fabric_pbi_refresh_wait <- function(
   started <- .now()
   last <- NULL
   retry_after <- context$refresh$retry_after
-
 
   # 2 Poll until the service reaches a terminal state ----------------------------------------------
 
@@ -601,7 +595,6 @@ fabric_pbi_refresh_cancel <- function(
     override_auth = override_auth
   )
 
-
   # 2 Ask Power BI to cancel -----------------------------------------------------------------------
 
   # DELETE is safe to retry at the transport layer and a successful response has no body
@@ -712,7 +705,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     }
   }
 
-
   # 2 Validate direct selectors --------------------------------------------------------------------
 
   # Connection strings and explicit selectors are alternatives, matching DAX query behavior
@@ -749,7 +741,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   if (is.null(dataset_id) && is.null(connstr)) {
     rlang::abort("Supply either connstr or dataset_id")
   }
-
 
   # 3 Resolve connection-string names --------------------------------------------------------------
 

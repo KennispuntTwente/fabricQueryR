@@ -340,7 +340,8 @@ function_parse_response <- function(
     silent = TRUE
   )
   execution_status_codes <- c(200L, 400L, 403L, 408L, 409L, 422L, 500L)
-  valid <- status_code %in% execution_status_codes &&
+  valid <- status_code %in%
+    execution_status_codes &&
     !inherits(payload, "try-error") &&
     function_is_result_envelope(payload)
   if (!valid) {

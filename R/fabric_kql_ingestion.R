@@ -426,12 +426,13 @@ fabric_kql_ingestion_status <- function(
   if (
     isTRUE(error_on_failure) &&
       isTRUE(last$complete) &&
-      last$state %in% c(
-        "Failed",
-        "PartiallySucceeded",
-        "Canceled",
-        "PartiallyCanceled"
-      )
+      last$state %in%
+        c(
+          "Failed",
+          "PartiallySucceeded",
+          "Canceled",
+          "PartiallyCanceled"
+        )
   ) {
     kusto_ingestion_failure_error(last)
   }
@@ -560,7 +561,8 @@ kusto_resolve_ingestion_target <- function(
 # Normalize all accepted source shapes. Returns service-ready records with a
 # unique GUID and optional uncompressed size for every source URL
 kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
-  structured <- is.data.frame(sources) || is.list(sources) && !is.character(sources)
+  structured <- is.data.frame(sources) ||
+    is.list(sources) && !is.character(sources)
   if (structured && (!is.null(source_ids) || !is.null(raw_sizes))) {
     rlang::abort(
       "source_ids and raw_sizes cannot be combined with structured sources"
@@ -703,12 +705,15 @@ kusto_ingestion_record_value <- function(record, ...) {
     return(NULL)
   }
   values <- lapply(present, function(field) record[[field]])
-  if (length(values) > 1L && !all(vapply(
-    values[-1L],
-    identical,
-    logical(1),
-    values[[1L]]
-  ))) {
+  if (
+    length(values) > 1L &&
+      !all(vapply(
+        values[-1L],
+        identical,
+        logical(1),
+        values[[1L]]
+      ))
+  ) {
     rlang::abort(paste0(
       "source record contains conflicting aliases: ",
       paste(present, collapse = ", ")
@@ -725,7 +730,9 @@ kusto_ingestion_source_url <- function(value) {
     rlang::abort("source url must not exceed 32,768 bytes")
   }
   parsed <- try(httr2::url_parse(value), silent = TRUE)
-  scheme <- if (inherits(parsed, "try-error")) "" else {
+  scheme <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
     tolower(parsed$scheme %||% "")
   }
   valid_credentials <- if (identical(scheme, "abfss")) {
@@ -1053,21 +1060,25 @@ kusto_ingestion_status_record <- function(
       "Kusto ingestion status counts must be named"
     )
   }
-  counts <- vapply(payload$status, function(value) {
-    parsed <- suppressWarnings(as.numeric(value))
-    if (
-      length(parsed) != 1L ||
-        is.na(parsed) ||
-        !is.finite(parsed) ||
-        parsed < 0 ||
-        parsed != floor(parsed)
-    ) {
-      kusto_ingestion_protocol_error(
-        "Kusto ingestion status contains an invalid count"
-      )
-    }
-    parsed
-  }, numeric(1))
+  counts <- vapply(
+    payload$status,
+    function(value) {
+      parsed <- suppressWarnings(as.numeric(value))
+      if (
+        length(parsed) != 1L ||
+          is.na(parsed) ||
+          !is.finite(parsed) ||
+          parsed < 0 ||
+          parsed != floor(parsed)
+      ) {
+        kusto_ingestion_protocol_error(
+          "Kusto ingestion status contains an invalid count"
+        )
+      }
+      parsed
+    },
+    numeric(1)
+  )
   names(counts) <- status_names
   count <- function(name) {
     index <- match(tolower(name), tolower(names(counts)))
@@ -1079,7 +1090,8 @@ kusto_ingestion_status_record <- function(
   canceled <- count("Canceled")
   terminal <- succeeded + failed + canceled
   expected <- context$expected_count
-  complete <- in_progress == 0 && terminal > 0 &&
+  complete <- in_progress == 0 &&
+    terminal > 0 &&
     (is.na(expected) || terminal >= expected)
   state <- kusto_ingestion_state(
     succeeded,
@@ -1128,16 +1140,18 @@ kusto_ingestion_status_record <- function(
 # Convert detailed service records into a fixed tibble. Returned URLs and error
 # messages are redacted before they can be printed or serialized
 kusto_ingestion_details <- function(value, requested) {
-  empty <- function() tibble::tibble(
-    source_id = character(),
-    url = character(),
-    status = character(),
-    start_time = as.POSIXct(character(), tz = "UTC"),
-    last_updated = as.POSIXct(character(), tz = "UTC"),
-    error_code = character(),
-    failure_status = character(),
-    message = character()
-  )
+  empty <- function() {
+    tibble::tibble(
+      source_id = character(),
+      url = character(),
+      status = character(),
+      start_time = as.POSIXct(character(), tz = "UTC"),
+      last_updated = as.POSIXct(character(), tz = "UTC"),
+      error_code = character(),
+      failure_status = character(),
+      message = character()
+    )
+  }
   if (is.null(value)) {
     if (isTRUE(requested)) {
       kusto_ingestion_protocol_error(
@@ -1272,19 +1286,28 @@ kusto_ingestion_failure_error <- function(status) {
     drop = FALSE
   ]
   summaries <- if (nrow(failures)) {
-    utils::head(vapply(seq_len(nrow(failures)), function(index) {
-      paste0(
-        failures$source_id[[index]] %||% "unknown source",
-        ": ",
-        failures$error_code[[index]] %||% failures$status[[index]],
-        if (!is.na(failures$message[[index]]) &&
-          nzchar(failures$message[[index]])) {
-          paste0(" (", failures$message[[index]], ")")
-        } else {
-          ""
-        }
-      )
-    }, character(1)), 3L)
+    utils::head(
+      vapply(
+        seq_len(nrow(failures)),
+        function(index) {
+          paste0(
+            failures$source_id[[index]] %||% "unknown source",
+            ": ",
+            failures$error_code[[index]] %||% failures$status[[index]],
+            if (
+              !is.na(failures$message[[index]]) &&
+                nzchar(failures$message[[index]])
+            ) {
+              paste0(" (", failures$message[[index]], ")")
+            } else {
+              ""
+            }
+          )
+        },
+        character(1)
+      ),
+      3L
+    )
   } else {
     character()
   }
@@ -1528,8 +1551,9 @@ kusto_ingestion_validation_policy <- function(value, format) {
     )
   }
   if (is.list(value)) {
-    if (is.null(names(value)) || anyNA(names(value)) ||
-      !all(nzchar(names(value)))) {
+    if (
+      is.null(names(value)) || anyNA(names(value)) || !all(nzchar(names(value)))
+    ) {
       rlang::abort("validation_policy must be a named list or JSON object")
     }
     return(as.character(jsonlite::toJSON(
@@ -1542,8 +1566,15 @@ kusto_ingestion_validation_policy <- function(value, format) {
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
     rlang::abort("validation_policy must be a named list or JSON object")
   }
-  decoded <- try(jsonlite::fromJSON(value, simplifyVector = FALSE), silent = TRUE)
-  if (inherits(decoded, "try-error") || !is.list(decoded) || is.null(names(decoded))) {
+  decoded <- try(
+    jsonlite::fromJSON(value, simplifyVector = FALSE),
+    silent = TRUE
+  )
+  if (
+    inherits(decoded, "try-error") ||
+      !is.list(decoded) ||
+      is.null(names(decoded))
+  ) {
     rlang::abort("validation_policy must contain one valid JSON object")
   }
   value

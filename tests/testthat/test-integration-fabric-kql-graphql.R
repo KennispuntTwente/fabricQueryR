@@ -347,12 +347,15 @@ test_that("Fabric GraphQL introspection reflects the live API setting", {
       outcome$types
     )
     expect_length(query_types, 1L)
-    expect_true(api$root_field %in% vapply(
-      query_types[[1L]]$fields,
-      `[[`,
-      character(1),
-      "name"
-    ))
+    expect_true(
+      api$root_field %in%
+        vapply(
+          query_types[[1L]]$fields,
+          `[[`,
+          character(1),
+          "name"
+        )
+    )
   }
 })
 

@@ -310,7 +310,6 @@ fabric_graphql_schema <- function(
     allow_custom_endpoint = allow_custom_endpoint
   )
 
-
   # 2 Reject unavailable or partial introspection --------------------------------------------------
 
   # A partial type graph is unsafe for discovery and code generation. Fabric's
@@ -324,7 +323,6 @@ fabric_graphql_schema <- function(
   if (length(result$errors) || !is.list(schema)) {
     graphql_schema_abort(result)
   }
-
 
   # 3 Return the service schema unchanged ----------------------------------------------------------
 
@@ -651,7 +649,6 @@ fabric_graphql_collect <- function(pages, path) {
     "pages$complete must be TRUE or FALSE"
   )
 
-
   # 2 Locate and bind the selected row objects -----------------------------------------------------
 
   rows <- graphql_collect_page_rows(pages$pages, path)
@@ -662,7 +659,6 @@ fabric_graphql_collect <- function(pages, path) {
     page_count = length(pages$pages),
     path = path
   )
-
 
   # 3 Refuse to present an incomplete collection as a normal tibble -------------------------------
 
@@ -1150,12 +1146,20 @@ graphql_rows_mixed_integer_strings <- function(values) {
   kinds <- vapply(
     values,
     function(value) {
-      if (is.character(value)) "character" else if (is.numeric(value)) "numeric" else "other"
+      if (is.character(value)) {
+        "character"
+      } else if (is.numeric(value)) {
+        "numeric"
+      } else {
+        "other"
+      }
     },
     character(1)
   )
-  if (!all(kinds %in% c("character", "numeric")) ||
-      !all(c("character", "numeric") %in% kinds)) {
+  if (
+    !all(kinds %in% c("character", "numeric")) ||
+      !all(c("character", "numeric") %in% kinds)
+  ) {
     return(FALSE)
   }
   all(vapply(

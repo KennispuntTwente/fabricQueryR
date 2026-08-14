@@ -331,10 +331,12 @@ test_that("submission failures are not replayed after throttling", {
 test_that("submission permission failures retain HTTP diagnostics", {
   httr2::local_mocked_responses(function(req) {
     kusto_ingestion_test_response(
-      list(error = list(
-        code = "Forbidden",
-        message = "Principal needs Table Ingestor permission"
-      )),
+      list(
+        error = list(
+          code = "Forbidden",
+          message = "Principal needs Table Ingestor permission"
+        )
+      ),
       status = 403L,
       url = req$url,
       headers = list("x-ms-request-id" = "permission-request-id")

@@ -59,11 +59,13 @@ test_that("fabric_function_invoke sends scalar and structured parameters", {
   httr2::local_mocked_responses(function(req) {
     captured <<- req
     function_test_response(
-      function_success_body(output = list(
-        text = "Ada",
-        values = list(2L, 3L),
-        metadata = list(active = TRUE)
-      )),
+      function_success_body(
+        output = list(
+          text = "Ada",
+          values = list(2L, 3L),
+          metadata = list(active = TRUE)
+        )
+      ),
       url = req$url
     )
   })
@@ -153,7 +155,12 @@ test_that("public function URLs enforce the documented trusted route", {
   )
 
   expect_error(
-    function_validate_url(sub("https", "http", function_test_url, fixed = TRUE)),
+    function_validate_url(sub(
+      "https",
+      "http",
+      function_test_url,
+      fixed = TRUE
+    )),
     "valid HTTPS",
     fixed = TRUE
   )
@@ -371,13 +378,15 @@ test_that("function response limits check headers and actual body bytes", {
 test_that("function results and conditions redact bearer tokens and secrets", {
   secret <- "function-super-secret"
   httr2::local_mocked_responses(function(req) {
-    function_test_response(function_success_body(output = list(
-      token = secret,
-      nested = list(
-        safe = "visible",
-        message = paste("Bearer", secret)
+    function_test_response(function_success_body(
+      output = list(
+        token = secret,
+        nested = list(
+          safe = "visible",
+          message = paste("Bearer", secret)
+        )
       )
-    )))
+    ))
   })
 
   result <- fabric_function_invoke(function_test_url, token = "request-token")
@@ -445,7 +454,10 @@ test_that("function invocation validates arguments before authentication", {
 
   invalid <- list(
     list(parameters = list(1L), pattern = "unique, non-empty names"),
-    list(parameters = structure(list(1L, 2L), names = c("x", "x")), pattern = "unique, non-empty names"),
+    list(
+      parameters = structure(list(1L, 2L), names = c("x", "x")),
+      pattern = "unique, non-empty names"
+    ),
     list(parameters = "scalar", pattern = "named R object")
   )
   for (case in invalid) {
@@ -486,10 +498,12 @@ test_that("function invocation validates arguments before authentication", {
   request_error <- expect_error(
     fabric_function_invoke(
       function_test_url,
-      parameters = list(value = strrep(
-        "x",
-        .fabric_function_request_limit + 1L
-      )),
+      parameters = list(
+        value = strrep(
+          "x",
+          .fabric_function_request_limit + 1L
+        )
+      ),
       token = function(...) stop("authentication should not run")
     ),
     class = "fabric_function_request_too_large"

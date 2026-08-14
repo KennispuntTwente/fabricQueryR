@@ -184,7 +184,11 @@ test_that("fabric_graphql_schema runs standard introspection", {
     "fields(includeDeprecated: true)",
     fixed = TRUE
   )
-  expect_match(captured$body$data$query, "fragment TypeRef on __Type", fixed = TRUE)
+  expect_match(
+    captured$body$data$query,
+    "fragment TypeRef on __Type",
+    fixed = TRUE
+  )
 })
 
 test_that("fabric_graphql_schema explains disabled introspection", {
