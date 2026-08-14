@@ -96,6 +96,10 @@
 
 ### Changed
 
+- [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  now gives Eventhouse the canonical OneLake DFS source URL when staging
+  through a regional OneLake API endpoint.
+
 - [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   and
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
