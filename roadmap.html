@@ -169,18 +169,26 @@
 </div>
 <div class="section level2">
 <h2 id="priority-4-manage-semantic-model-refreshes">Priority 4: Manage semantic-model refreshes<a class="anchor" aria-label="anchor" href="#priority-4-manage-semantic-model-refreshes"></a></h2>
-<p><strong>Status (August 2026): proposed.</strong></p>
+<p><strong>Status (August 2026): completed in the development version.</strong></p>
 <div class="section level3">
 <h3 id="objective-4">Objective<a class="anchor" aria-label="anchor" href="#objective-4"></a></h3>
 <p>Complete workflows that update source data by allowing R users to refresh and diagnose the semantic model serving that data.</p>
 </div>
 <div class="section level3">
 <h3 id="direction-4">Direction<a class="anchor" aria-label="anchor" href="#direction-4"></a></h3>
-<ul><li>Add <code>fabric_pbi_refresh()</code>, <code>fabric_pbi_refresh_history()</code>, <code>fabric_pbi_refresh_status()</code>, <code>fabric_pbi_refresh_wait()</code>, and <code>fabric_pbi_refresh_cancel()</code> over the Power BI dataset APIs.</li>
+<ul><li>Add <code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh()</a></code>, <code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_history()</a></code>, <code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_status()</a></code>, <code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait()</a></code>, and <code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_cancel()</a></code> over the Power BI dataset APIs.</li>
 <li>Accept the same discovered model records, workspace/dataset IDs, authentication inputs, and My Workspace behavior as <code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>.</li>
 <li>Support ordinary and enhanced refresh payloads, including selected tables or partitions, commit mode, retry count, and timeout.</li>
 <li>Normalize attempts, engine errors, timestamps, and links to Fabric refresh details.</li>
 <li>Keep Power BI refresh scheduling distinct from generic Fabric job schedules where their contracts and limits differ.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="implementation-4">Implementation<a class="anchor" aria-label="anchor" href="#implementation-4"></a></h3>
+<ul><li>Added standard and enhanced semantic-model refresh submission using the same discovered records, connection strings, explicit IDs, My Workspace routes, trusted endpoints, and Power BI authentication behavior as DAX queries.</li>
+<li>Added reusable refresh handles plus status, bounded wait, cancellation, and recent-history workflows. Client wait timeouts remain distinct from Power BI attempt timeouts and can request best-effort cancellation.</li>
+<li>Normalized queued, active, completed-with-warning, failed, service-timeout, cancelled, and disabled states while retaining attempts, execution metrics, engine messages, parsed service exceptions, raw future fields, UTC times, and documented Fabric refresh-detail links.</li>
+<li>Added strict standard/enhanced payload validation, transactional and partial commits, table/partition selection, incremental-policy controls, retries, parallelism, and the service’s 24-hour combined-attempt limit.</li>
+<li>Added offline request, validation, state, polling, error, and cancellation coverage plus a live enhanced table refresh with completion, history, execution-detail, retry-attempt, and DAX verification.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="acceptance-criteria-4">Acceptance criteria<a class="anchor" aria-label="anchor" href="#acceptance-criteria-4"></a></h3>

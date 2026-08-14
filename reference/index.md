@@ -38,10 +38,20 @@ Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
 
 ## Semantic models and DAX
 
-Run DAX queries against Fabric and Power BI semantic models
+Query and refresh Fabric and Power BI semantic models
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   : Query a Microsoft Fabric/Power BI semantic model with DAX
+- [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  [`fabric_pbi_refresh_history()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  [`fabric_pbi_refresh_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  [`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  [`fabric_pbi_refresh_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  : Refresh and monitor a Power BI semantic model
+- [`print(`*`<fabric_pbi_refresh>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_pbi_refresh.md)
+  : Print a submitted Power BI refresh
+- [`print(`*`<fabric_pbi_refresh_detail>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_pbi_refresh_detail.md)
+  : Print Power BI refresh details
 
 ## OneLake files
 

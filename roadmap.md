@@ -267,7 +267,7 @@ notebook.
 
 ## Priority 4: Manage semantic-model refreshes
 
-**Status (August 2026): proposed.**
+**Status (August 2026): completed in the development version.**
 
 ### Objective
 
@@ -276,9 +276,14 @@ refresh and diagnose the semantic model serving that data.
 
 ### Direction
 
-- Add `fabric_pbi_refresh()`, `fabric_pbi_refresh_history()`,
-  `fabric_pbi_refresh_status()`, `fabric_pbi_refresh_wait()`, and
-  `fabric_pbi_refresh_cancel()` over the Power BI dataset APIs.
+- Add
+  [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  [`fabric_pbi_refresh_history()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  [`fabric_pbi_refresh_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  [`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  and
+  [`fabric_pbi_refresh_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  over the Power BI dataset APIs.
 - Accept the same discovered model records, workspace/dataset IDs,
   authentication inputs, and My Workspace behavior as
   [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md).
@@ -288,6 +293,30 @@ refresh and diagnose the semantic model serving that data.
   refresh details.
 - Keep Power BI refresh scheduling distinct from generic Fabric job
   schedules where their contracts and limits differ.
+
+### Implementation
+
+- Added standard and enhanced semantic-model refresh submission using
+  the same discovered records, connection strings, explicit IDs, My
+  Workspace routes, trusted endpoints, and Power BI authentication
+  behavior as DAX queries.
+- Added reusable refresh handles plus status, bounded wait,
+  cancellation, and recent-history workflows. Client wait timeouts
+  remain distinct from Power BI attempt timeouts and can request
+  best-effort cancellation.
+- Normalized queued, active, completed-with-warning, failed,
+  service-timeout, cancelled, and disabled states while retaining
+  attempts, execution metrics, engine messages, parsed service
+  exceptions, raw future fields, UTC times, and documented Fabric
+  refresh-detail links.
+- Added strict standard/enhanced payload validation, transactional and
+  partial commits, table/partition selection, incremental-policy
+  controls, retries, parallelism, and the service’s 24-hour
+  combined-attempt limit.
+- Added offline request, validation, state, polling, error, and
+  cancellation coverage plus a live enhanced table refresh with
+  completion, history, execution-detail, retry-attempt, and DAX
+  verification.
 
 ### Acceptance criteria
 

@@ -48,6 +48,17 @@
   Lakehouse-scoped load operations use the shared resumable operation
   interface.
 
+- Added
+  [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  [`fabric_pbi_refresh_history()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  [`fabric_pbi_refresh_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  [`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+  and
+  [`fabric_pbi_refresh_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  for standard and enhanced semantic-model refreshes, including
+  table/partition selection, retry and timeout controls, normalized
+  execution attempts and errors, and links to refresh details.
+
 - Expanded Livy support with reusable Spark sessions, including
   high-concurrency sessions and standalone batch applications.
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
