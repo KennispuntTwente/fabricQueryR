@@ -215,12 +215,13 @@ a list of records with those fields. The camel-case service names
 `sourceId` and `rawSize` are also accepted. Character inputs use the
 parallel `source_ids` and `raw_sizes` arguments
 
-Only existing `https://` or `abfss://` storage sources are accepted.
-Local files and data frames containing the data itself are not staged
-implicitly. Nonpublic sources must include a Kusto-supported
-authentication suffix or credential in the storage connection string.
-For example, append `;impersonate` to a OneLake URL when the caller has
-permission to read it
+Only existing `https://` or `abfss://` storage sources are accepted. Use
+[`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+for one-call staging of data frames, tibbles, or lazy Arrow objects.
+Nonpublic sources must include a Kusto-supported authentication suffix
+or credential in the storage connection string. For example, append
+`;impersonate` to a OneLake URL when the caller has permission to read
+it
 
 Source IDs are generated when omitted and are returned in the ingestion
 handle. They identify blobs in status details, but they are not by

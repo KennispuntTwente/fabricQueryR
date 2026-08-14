@@ -1,8 +1,8 @@
 # Discover and load Microsoft Fabric Lakehouse tables
 
 Use Fabric's table APIs to inspect Delta tables, load staged CSV or
-Parquet files, or write an R data frame through a failure-aware staging
-workflow.
+Parquet files, or write an R/Arrow object through a failure-aware
+staging workflow.
 
 - `fabric_lakehouse_tables()` combines Fabric's paginated List Tables
   API with the read-only OneLake Delta table API. The first supplies
@@ -14,9 +14,10 @@ workflow.
   `Files/` area. It returns a handle accepted by
   [`fabric_operation_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md).
 
-- `fabric_lakehouse_write_table()` serializes a data frame to Parquet,
-  uploads it to a unique `Files/` staging path, waits for the Delta
-  load, and removes the staged file after confirmed success by default.
+- `fabric_lakehouse_write_table()` streams an R or Arrow object to
+  Parquet, uploads it to a unique `Files/` staging path, waits for the
+  Delta load, and removes the staged file after confirmed success by
+  default.
 
 ## Usage
 
@@ -196,8 +197,12 @@ fabric_lakehouse_write_table(
 
 - data:
 
-  A data frame, tibble, or Arrow Table/RecordBatch to serialize as
-  Parquet. The optional `arrow` package is required.
+  A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
+  Dataset/Scanner/query, or Arrow RecordBatchReader to serialize as
+  Parquet. Lazy inputs are consumed batch by batch without collecting
+  the complete object in R memory. Arrow-compatible
+  `nanoarrow_array_stream` inputs are also accepted. Readers and streams
+  are single-use. The optional `arrow` package is required.
 
 - staging_root:
 
@@ -226,7 +231,7 @@ fabric_lakehouse_write_table(
 
 - timeout:
 
-  Maximum total seconds to wait for a data-frame load.
+  Maximum total seconds to wait for an R/Arrow load.
 
 - dfs_base:
 
@@ -284,8 +289,8 @@ written as strings. List columns are passed to Arrow as nested data and
 can fail if their values do not have one consistent Arrow type. R
 complex and `difftime` columns are rejected.
 
-R has no native fixed-precision decimal vector. Supply an Arrow Table
-with a decimal field when decimal precision and scale must be explicit.
+R has no native fixed-precision decimal vector. Supply Arrow data with a
+decimal field when decimal precision and scale must be explicit.
 Fabric's Load to Tables flow does not accept a caller-defined
 destination schema, so use Spark or another schema-controlled writer
 when inference is unsuitable.
@@ -315,6 +320,9 @@ Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-a
 
 [Getting started with OneLake Delta table
 APIs](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-get-started)
+
+[Arrow
+RecordBatchReader](https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html)
 
 [List Lakehouse
 tables](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/tables/list-tables)

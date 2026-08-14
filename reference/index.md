@@ -79,17 +79,21 @@ Discover, load, and read Delta Lake tables in OneLake
 
 ## KQL
 
-Query Eventhouse data and track queued ingestion from storage
+Query Eventhouse data and ingest storage, R, or Arrow sources
 
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Run a KQL query in Microsoft Fabric
 - [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
   [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
   : Submit and monitor tracked Eventhouse ingestion
+- [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  : Write an R or Arrow object to an Eventhouse table
 - [`print(`*`<fabric_kql_ingestion>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion.md)
   : Print a tracked Kusto ingestion handle
 - [`print(`*`<fabric_kql_ingestion_status>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion_status.md)
   : Print tracked Kusto ingestion status
+- [`print(`*`<fabric_kql_write_result>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_write_result.md)
+  : Print an Eventhouse R/Arrow write result
 
 ## GraphQL
 

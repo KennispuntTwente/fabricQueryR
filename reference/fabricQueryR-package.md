@@ -27,7 +27,9 @@ details by hand
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   for Eventhouse/KQL data,
   [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
-  for tracked batch ingestion, and
+  for tracked storage ingestion,
+  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  for R/Arrow-to-Eventhouse writes, and
   [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
   for an API for GraphQL item
 
