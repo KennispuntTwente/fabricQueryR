@@ -1,84 +1,83 @@
 # fabricQueryR (development version)
 
-## Find and connect to Fabric
+## New
 
-* `fabric_workspaces()`, `fabric_items()`, and helpers such as
-  `fabric_lakehouses()` and `fabric_semantic_models()` can now discover common
-  Fabric resources. Their results can be passed directly to other fabricQueryR
-  functions, so most workflows no longer require copied IDs or endpoints.
+* `fabric_function_invoke()` calls published Fabric User Data Functions from R.
 
-* `fabric_sql_connect()` and `fabric_sql_query()` now accept discovered items
-  and portal connection strings, and support Lakehouses, Warehouses, and Fabric
-  SQL Databases. Queries can use parameters and return either a tibble or an
-  Arrow stream. The default `database = NULL` now infers the database when
-  possible; `fabric_sql_query()` is limited to one read-only statement, so use
-  `fabric_sql_connect()` for other SQL work.
-
-* Authentication is now consistent across the package: `token` accepts an
-  AzureAuth token, a bearer token, or a function that supplies refreshed tokens,
-  while `auth_args` controls AzureAuth sign-in. The older `access_token`
-  argument for SQL and Livy is deprecated. Authenticated requests also check
-  service addresses more carefully and give clearer retry, timeout, and error
-  messages.
-
-## Read and write Fabric data
-
-* New OneLake helpers list, inspect, download, upload, and delete files, or
-  read and write Parquet, CSV, and Arrow files as R or Arrow objects. Shortcut
-  helpers also manage links from a Lakehouse or other OneLake item to data
-  stored elsewhere.
-
-* New Lakehouse table helpers discover and read tables, load existing CSV or
-  Parquet files, and write data frames or Arrow data. They support both ordinary
-  and schema-enabled Lakehouses and can return large results as Arrow streams.
-
-* `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
-  and compatible Warehouse tables through an optional Python Delta reader. It
-  supports selecting columns, limiting rows, and streaming large or nested
-  results. The removed `dest_dir` argument is no longer needed; tables using
-  unsupported Delta features should be read through SQL or Spark instead.
-
-* `fabric_warehouse_read_table()` and `fabric_warehouse_write_table()` add
-  direct Warehouse table reads and bulk writes for data frames and Arrow data,
-  including creating tables and appending, overwriting, or recreating them when
-  requested.
-
-* New Eventhouse helpers query KQL databases and read tables used for event and
-  real-time data. They can also ingest existing files or R and Arrow data,
-  create a destination table when requested, monitor the load, and export large
-  query results to OneLake or other supported storage.
-
-* New GraphQL helpers run queries against a Fabric API for GraphQL, inspect its
+* `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
   schema, work through paginated results, and collect the result into tidy R
   objects.
 
-## Run and automate Fabric workloads
+* `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
+  Notebooks, data pipelines, Spark job definitions, and other supported item
+  jobs. They also inspect run history and manage recurring schedules.
+
+* `fabric_kql_*()` functions query Eventhouse data, read tables, ingest existing
+  files or R and Arrow data, monitor loads, and export large results to OneLake
+  or other supported storage. A destination table can be created when needed.
+
+* `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,
+  `fabric_lakehouse_load_table()`, and `fabric_lakehouse_write_table()` discover
+  and read Lakehouse tables, load CSV or Parquet files, and write data frames or
+  Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
+
+* `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
+  sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
+  option for running one piece of Spark code.
+
+* `fabric_onelake_*()` functions now manage files and shortcuts in OneLake. They
+  can list, inspect, download, upload, and delete files; read and write Parquet,
+  CSV, and Arrow data; and manage links to data stored elsewhere.
+
+* `fabric_operation_*()` functions resume, monitor, and retrieve the results of
+  longer-running Fabric tasks such as Lakehouse loads.
+
+* `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
+  inspect the history of semantic-model refreshes, including refreshes limited
+  to selected tables or partitions.
+
+* `fabric_warehouse_read_table()` and `fabric_warehouse_write_table()` read and
+  bulk-write Warehouse tables using data frames or Arrow data. Tables can be
+  created, appended to, overwritten, or recreated as requested.
+
+* `fabric_workspaces()`, `fabric_items()`, and type-specific functions such as
+  `fabric_lakehouses()` and `fabric_semantic_models()` discover common Fabric
+  resources. Their results can be passed directly to other fabricQueryR
+  functions, avoiding copied IDs and endpoints in most workflows.
+
+## Changed
+
+* `fabric_sql_*()`, `fabric_livy_*()`, `fabric_onelake_*()`, and other
+  authenticated functions now consistently accept an AzureAuth token, a bearer
+  token, or a function that supplies refreshed tokens through `token`;
+  `auth_args` controls AzureAuth sign-in. The older `access_token` argument for
+  SQL and Livy is deprecated. Requests also check service addresses more
+  carefully and give clearer retry, timeout, and error messages.
+
+* `fabric_job_*()`, `fabric_pbi_refresh_*()`, and `fabric_kql_*()` functions now
+  provide more consistent console messages, progress displays, and summaries
+  for long-running tasks.
+
+* `fabric_livy_query()` table results now follow the declared Spark schema and
+  preserve large whole numbers and decimals exactly.
+
+* `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
+  and compatible Warehouse tables through an optional Python Delta reader. It
+  supports selected columns, row limits, and Arrow streams for large or nested
+  results. The `dest_dir` argument has been removed; tables using unsupported
+  Delta features should be read through SQL or Spark instead.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
   can test results for a user under row-level security, and reports incomplete
   Power BI results instead of silently returning them. An optional Arrow mode
   provides typed tibbles or streams for models that support it.
 
-* New semantic-model refresh helpers start, monitor, wait for, cancel, and
-  inspect the history of Power BI refreshes, including refreshes limited to
-  selected tables or partitions.
-
-* Livy support now includes reusable Spark sessions and standalone batch jobs,
-  while `fabric_livy_query()` remains the simplest option for one piece of
-  Spark code. Table results now preserve the declared Spark types, including
-  large whole numbers and decimals.
-
-* New job helpers run, monitor, wait for, and cancel Fabric Notebooks, data
-  pipelines, Spark job definitions, and other supported item jobs. They also
-  inspect run history and manage recurring schedules.
-
-* `fabric_function_invoke()` can call published Fabric User Data Functions from
-  R. Shared operation helpers can resume, monitor, and retrieve the results of
-  longer-running Fabric tasks such as Lakehouse loads.
-
-* Console messages and progress displays are now more consistent across the
-  package, with clearer summaries for jobs, refreshes, KQL operations, and other
-  long-running tasks.
+* `fabric_sql_connect()` and `fabric_sql_query()` now accept discovered items
+  and portal connection strings, and support Lakehouses, Warehouses, and Fabric
+  SQL Databases. Queries can use parameters and return a tibble or Arrow stream.
+  The default `database = NULL` infers the database when possible;
+  `fabric_sql_query()` is now limited to one read-only statement, so use
+  `fabric_sql_connect()` for other SQL work.
 
 # fabricQueryR 0.2.1
 
