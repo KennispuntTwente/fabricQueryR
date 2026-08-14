@@ -1,13 +1,16 @@
 #' Write an R or Arrow object to a Fabric Warehouse table
 #'
 #' Serializes a data frame, tibble, or Arrow object to bounded Parquet parts,
-#' stages them in a Lakehouse, and loads them into an existing Fabric Warehouse
-#' table with the Warehouse `COPY INTO` command. Lazy Arrow inputs are consumed
-#' as record batches and are not first collected into an R data frame.
+#' stages them in a Lakehouse, and loads them into a Fabric Warehouse table.
+#' Existing tables use the Warehouse `COPY INTO` command. When creation or
+#' drop-based replacement is requested, `CREATE TABLE AS SELECT` (CTAS) creates
+#' and loads the table directly from the staged Parquet schema. Lazy Arrow
+#' inputs are consumed as record batches and are not first collected into an R
+#' data frame.
 #'
 #' @param warehouse A Warehouse record returned by [fabric_warehouses()] or
 #'   [fabric_item()], or its name or GUID when `workspace` is supplied.
-#' @param table Existing destination table name.
+#' @param table Destination table name.
 #' @param data A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
 #'   RecordBatchReader, Arrow dplyr query, or Arrow-compatible array stream.
 #' @param staging_lakehouse A Lakehouse record returned by
@@ -20,9 +23,17 @@
 #'   to the Warehouse workspace. May be omitted when `staging_lakehouse` is a
 #'   discovery record.
 #' @param schema Destination schema. Defaults to `"dbo"`.
-#' @param mode `"Append"` adds rows. `"Overwrite"` runs `TRUNCATE TABLE` and
-#'   `COPY INTO` in one Warehouse transaction so a failed copy can be rolled
-#'   back.
+#' @param mode `"Append"` adds rows. `"Overwrite"` replaces the table contents
+#'   using `overwrite_method`.
+#' @param overwrite_method For `mode = "Overwrite"`, `"Truncate"` preserves the
+#'   existing table definition and loads it with `COPY INTO`; `"Drop"` drops
+#'   and recreates the table from the staged Parquet schema with CTAS. Drop
+#'   replacement also removes table-specific metadata such as constraints and
+#'   grants. Ignored for append mode.
+#' @param create_if_missing Whether to create and load a missing destination
+#'   with CTAS. The default preserves the previous requirement that append and
+#'   truncate-overwrite targets already exist. Drop-overwrite recreates an
+#'   existing table; set this argument to `TRUE` if it may be absent.
 #' @param staging_root Lakehouse path below `Files/` used for temporary Parquet
 #'   directories.
 #' @param cleanup Whether to remove remote staging after confirmed success.
@@ -43,8 +54,17 @@
 #' @return A `fabric_warehouse_write_result` list containing destination and
 #'   staging identifiers, row and byte counts, part paths, and cleanup state.
 #' @details
-#' The destination table must already exist. Input fields are mapped by ordinal
-#' position to quoted destination columns with the same names as `data`.
+#' Existing-table writes map input fields by ordinal position to quoted
+#' destination columns with the same names as `data`. With
+#' `create_if_missing = TRUE`, a missing table is created and populated by a
+#' single CTAS statement; Fabric infers its names and types from the staged
+#' Parquet files.
+#'
+#' Truncate overwrite preserves the table definition. Drop overwrite recreates
+#' the table and therefore intentionally discards its previous constraints,
+#' indexes, permissions, and other table-level metadata. Both overwrite paths
+#' run in an explicit Warehouse transaction and roll back on a confirmed SQL
+#' failure.
 #'
 #' `COPY INTO` authenticates to OneLake as the identity executing the SQL
 #' statement. That identity therefore needs the documented Warehouse bulk-load
@@ -61,6 +81,10 @@
 #' [Warehouse ingestion performance guidance](https://learn.microsoft.com/en-us/fabric/data-warehouse/guidelines-warehouse-performance)
 #'
 #' [Transactions in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/transactions)
+#'
+#' [Create tables in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table)
+#'
+#' [Query Parquet files in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files)
 #' @examples
 #' \dontrun{
 #' warehouse <- fabric_warehouses("Analytics")[[1L]]
@@ -82,6 +106,8 @@ fabric_warehouse_write_table <- function(
   staging_workspace = NULL,
   schema = "dbo",
   mode = c("Append", "Overwrite"),
+  overwrite_method = c("Truncate", "Drop"),
+  create_if_missing = FALSE,
   staging_root = "Files/fabricqueryr-staging",
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
@@ -104,11 +130,17 @@ fabric_warehouse_write_table <- function(
   # 1 Validate and serialize without collecting lazy Arrow inputs --------------------------------
 
   mode <- .fabric_warehouse_choice(mode, c("Append", "Overwrite"), "mode")
+  overwrite_method <- .fabric_warehouse_choice(
+    overwrite_method,
+    c("Truncate", "Drop"),
+    "overwrite_method"
+  )
   backend <- match.arg(backend)
   .fabric_warehouse_identifier(table, "table")
   .fabric_warehouse_identifier(schema, "schema")
   .fabric_operation_logical(cleanup, "cleanup")
   .fabric_operation_logical(keep_staging_on_failure, "keep_staging_on_failure")
+  .fabric_operation_logical(create_if_missing, "create_if_missing")
   .fabric_operation_logical(verbose, "verbose")
   .fabric_warehouse_nonempty(compression, "compression")
   staging_root <- .fabric_warehouse_files_path(staging_root, "staging_root")
@@ -258,21 +290,61 @@ fabric_warehouse_write_table <- function(
     prepared$names,
     storage_target
   )
+  ctas_sql <- .fabric_warehouse_ctas_sql(
+    table_sql,
+    prepared$names,
+    storage_target
+  )
   transaction_open <- FALSE
   sql_started <- FALSE
-  affected <- tryCatch(
-    {
-      if (identical(mode, "Overwrite")) {
-        .fabric_warehouse_begin(connection)
-        transaction_open <- TRUE
-        sql_started <- TRUE
-        .fabric_warehouse_execute(
-          connection,
-          paste("TRUNCATE TABLE", table_sql)
+  table_exists <- TRUE
+  if (isTRUE(create_if_missing)) {
+    table_exists <- tryCatch(
+      .fabric_warehouse_table_exists(connection, schema, table),
+      error = function(error) {
+        .fabric_warehouse_write_abort(
+          error,
+          storage_target,
+          credential,
+          staging_path,
+          keep_staging_on_failure,
+          ambiguous = FALSE
         )
       }
-      sql_started <- TRUE
-      rows_affected <- .fabric_warehouse_execute(connection, copy_sql)
+    )
+  }
+  create_with_ctas <- isTRUE(create_if_missing) && !table_exists ||
+    identical(mode, "Overwrite") && identical(overwrite_method, "Drop")
+  affected <- tryCatch(
+    {
+      if (identical(mode, "Overwrite") || create_with_ctas) {
+        .fabric_warehouse_begin(connection)
+        transaction_open <- TRUE
+      }
+      if (create_with_ctas) {
+        sql_started <- TRUE
+        if (
+          identical(mode, "Overwrite") &&
+            identical(overwrite_method, "Drop") &&
+            table_exists
+        ) {
+          .fabric_warehouse_execute(
+            connection,
+            paste("DROP TABLE", table_sql)
+          )
+        }
+        rows_affected <- .fabric_warehouse_execute(connection, ctas_sql)
+      } else {
+        if (identical(mode, "Overwrite")) {
+          sql_started <- TRUE
+          .fabric_warehouse_execute(
+            connection,
+            paste("TRUNCATE TABLE", table_sql)
+          )
+        }
+        sql_started <- TRUE
+        rows_affected <- .fabric_warehouse_execute(connection, copy_sql)
+      }
       if (transaction_open) {
         .fabric_warehouse_commit(connection)
         transaction_open <- FALSE
@@ -325,6 +397,10 @@ fabric_warehouse_write_table <- function(
       schema = schema,
       table = table,
       mode = mode,
+      overwrite_method = overwrite_method,
+      table_created = isTRUE(create_if_missing) && !table_exists,
+      table_recreated = identical(mode, "Overwrite") &&
+        identical(overwrite_method, "Drop") && table_exists,
       rows = serialized$rows,
       bytes = serialized$total_bytes,
       file_count = serialized$file_count,
@@ -487,22 +563,54 @@ fabric_warehouse_write_table <- function(
     ),
     collapse = ", "
   )
-  folder <- target
-  folder$path <- dirname(target$path)
-  # Fabric's Warehouse contract requires the canonical OneLake origin even
-  # when the client upload itself uses a workspace-private DFS endpoint.
-  folder$dfs_base <- "https://onelake.dfs.fabric.microsoft.com"
-  source <- paste0(onelake_path_url(folder), "/*.parquet")
-  source <- gsub("'", "''", source, fixed = TRUE)
+  source <- .fabric_warehouse_source_url(target)
   paste0(
     "COPY INTO ",
     table_sql,
     " (",
     column_sql,
     ") ",
-    "FROM '",
-    source,
-    "' WITH (FILE_TYPE = 'PARQUET')"
+    "FROM ",
+    .fabric_warehouse_string_literal(source),
+    " WITH (FILE_TYPE = 'PARQUET')"
+  )
+}
+
+# Build a CTAS statement that lets Fabric infer a missing table's schema from
+# the exact Parquet parts created by this writer.
+.fabric_warehouse_ctas_sql <- function(table_sql, columns, target) {
+  projection <- paste(
+    vapply(columns, .fabric_warehouse_quote_identifier, character(1)),
+    collapse = ", "
+  )
+  paste0(
+    "CREATE TABLE ",
+    table_sql,
+    " AS SELECT ",
+    projection,
+    " FROM OPENROWSET(BULK ",
+    .fabric_warehouse_string_literal(.fabric_warehouse_source_url(target)),
+    ", FORMAT = 'PARQUET') AS [source]"
+  )
+}
+
+# Return the canonical OneLake wildcard used by both COPY and CTAS. Fabric's
+# SQL engine authenticates to this public OneLake origin as the SQL identity.
+.fabric_warehouse_source_url <- function(target) {
+  folder <- target
+  folder$path <- dirname(target$path)
+  # Fabric's Warehouse contract requires the canonical OneLake origin even
+  # when the client upload itself uses a workspace-private DFS endpoint.
+  folder$dfs_base <- "https://onelake.dfs.fabric.microsoft.com"
+  paste0(onelake_path_url(folder), "/*.parquet")
+}
+
+.fabric_warehouse_string_literal <- function(value, unicode = FALSE) {
+  paste0(
+    if (isTRUE(unicode)) "N" else "",
+    "'",
+    gsub("'", "''", value, fixed = TRUE),
+    "'"
   )
 }
 
@@ -683,3 +791,36 @@ fabric_warehouse_write_table <- function(
 .fabric_warehouse_commit <- function(connection) DBI::dbCommit(connection)
 
 .fabric_warehouse_rollback <- function(connection) DBI::dbRollback(connection)
+
+# Query catalog views instead of relying on backend-specific dbExistsTable()
+# metadata support. The schema and table values are emitted only as escaped
+# Unicode string literals.
+.fabric_warehouse_table_exists <- function(connection, schema, table) {
+  sql <- paste0(
+    "SELECT CASE WHEN EXISTS (",
+    "SELECT 1 FROM sys.tables AS [t] ",
+    "INNER JOIN sys.schemas AS [s] ON [s].[schema_id] = [t].[schema_id] ",
+    "WHERE [s].[name] = ",
+    .fabric_warehouse_string_literal(schema, unicode = TRUE),
+    " AND [t].[name] = ",
+    .fabric_warehouse_string_literal(table, unicode = TRUE),
+    ") THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS [table_exists]"
+  )
+  value <- .fabric_warehouse_query(connection, sql)
+  if (!is.data.frame(value) || nrow(value) != 1L || ncol(value) < 1L) {
+    rlang::abort("Warehouse returned an invalid table-existence result")
+  }
+  flag <- value[[1L]][[1L]]
+  if (
+    length(flag) != 1L ||
+      is.na(flag) ||
+      !as.character(flag) %in% c("0", "1", "FALSE", "TRUE")
+  ) {
+    rlang::abort("Warehouse returned an invalid table-existence value")
+  }
+  as.character(flag) %in% c("1", "TRUE")
+}
+
+.fabric_warehouse_query <- function(connection, sql) {
+  DBI::dbGetQuery(connection, sql)
+}

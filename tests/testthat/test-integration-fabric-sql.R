@@ -557,6 +557,55 @@ test_that("Warehouse writer loads R and lazy Arrow data through OneLake", {
   expect_equal(replaced$amount, c(40, 50))
 
   DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", table_sql))
+  created <- fabric_warehouse_write_table(
+    warehouse,
+    table,
+    data.frame(
+      id = 6:7,
+      label = c("created-a", "created-b"),
+      amount = c(60, 70)
+    ),
+    staging_lakehouse = staging_lakehouse,
+    mode = "Append",
+    create_if_missing = TRUE,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  expect_true(created$table_created)
+  created_rows <- DBI::dbGetQuery(
+    con,
+    paste("SELECT id, label, amount FROM", table_sql, "ORDER BY id")
+  )
+  expect_equal(created_rows$id, 6:7)
+  expect_equal(created_rows$label, c("created-a", "created-b"))
+  expect_equal(created_rows$amount, c(60, 70))
+
+  recreated <- fabric_warehouse_write_table(
+    warehouse,
+    table,
+    data.frame(
+      id = 8:9,
+      label = c("drop-a", "drop-b"),
+      amount = c(80, 90)
+    ),
+    staging_lakehouse = staging_lakehouse,
+    mode = "Overwrite",
+    overwrite_method = "Drop",
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  expect_true(recreated$table_recreated)
+  recreated_rows <- DBI::dbGetQuery(
+    con,
+    paste("SELECT id, label, amount FROM", table_sql, "ORDER BY id")
+  )
+  expect_equal(recreated_rows$id, 8:9)
+  expect_equal(recreated_rows$label, c("drop-a", "drop-b"))
+  expect_equal(recreated_rows$amount, c(80, 90))
+
+  DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", table_sql))
   DBI::dbDisconnect(con)
   connected <- FALSE
 })

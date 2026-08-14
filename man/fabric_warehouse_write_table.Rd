@@ -13,6 +13,8 @@ fabric_warehouse_write_table(
   staging_workspace = NULL,
   schema = "dbo",
   mode = c("Append", "Overwrite"),
+  overwrite_method = c("Truncate", "Drop"),
+  create_if_missing = FALSE,
   staging_root = "Files/fabricqueryr-staging",
   cleanup = TRUE,
   keep_staging_on_failure = TRUE,
@@ -35,7 +37,7 @@ fabric_warehouse_write_table(
 \item{warehouse}{A Warehouse record returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}} or
 \code{\link[=fabric_item]{fabric_item()}}, or its name or GUID when \code{workspace} is supplied.}
 
-\item{table}{Existing destination table name.}
+\item{table}{Destination table name.}
 
 \item{data}{A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
 RecordBatchReader, Arrow dplyr query, or Arrow-compatible array stream.}
@@ -54,9 +56,19 @@ discovery record.}
 
 \item{schema}{Destination schema. Defaults to \code{"dbo"}.}
 
-\item{mode}{\code{"Append"} adds rows. \code{"Overwrite"} runs \verb{TRUNCATE TABLE} and
-\verb{COPY INTO} in one Warehouse transaction so a failed copy can be rolled
-back.}
+\item{mode}{\code{"Append"} adds rows. \code{"Overwrite"} replaces the table contents
+using \code{overwrite_method}.}
+
+\item{overwrite_method}{For \code{mode = "Overwrite"}, \code{"Truncate"} preserves the
+existing table definition and loads it with \verb{COPY INTO}; \code{"Drop"} drops
+and recreates the table from the staged Parquet schema with CTAS. Drop
+replacement also removes table-specific metadata such as constraints and
+grants. Ignored for append mode.}
+
+\item{create_if_missing}{Whether to create and load a missing destination
+with CTAS. The default preserves the previous requirement that append and
+truncate-overwrite targets already exist. Drop-overwrite recreates an
+existing table; set this argument to \code{TRUE} if it may be absent.}
 
 \item{staging_root}{Lakehouse path below \verb{Files/} used for temporary Parquet
 directories.}
@@ -107,13 +119,25 @@ staging identifiers, row and byte counts, part paths, and cleanup state.
 }
 \description{
 Serializes a data frame, tibble, or Arrow object to bounded Parquet parts,
-stages them in a Lakehouse, and loads them into an existing Fabric Warehouse
-table with the Warehouse \verb{COPY INTO} command. Lazy Arrow inputs are consumed
-as record batches and are not first collected into an R data frame.
+stages them in a Lakehouse, and loads them into a Fabric Warehouse table.
+Existing tables use the Warehouse \verb{COPY INTO} command. When creation or
+drop-based replacement is requested, \verb{CREATE TABLE AS SELECT} (CTAS) creates
+and loads the table directly from the staged Parquet schema. Lazy Arrow
+inputs are consumed as record batches and are not first collected into an R
+data frame.
 }
 \details{
-The destination table must already exist. Input fields are mapped by ordinal
-position to quoted destination columns with the same names as \code{data}.
+Existing-table writes map input fields by ordinal position to quoted
+destination columns with the same names as \code{data}. With
+\code{create_if_missing = TRUE}, a missing table is created and populated by a
+single CTAS statement; Fabric infers its names and types from the staged
+Parquet files.
+
+Truncate overwrite preserves the table definition. Drop overwrite recreates
+the table and therefore intentionally discards its previous constraints,
+indexes, permissions, and other table-level metadata. Both overwrite paths
+run in an explicit Warehouse transaction and roll back on a confirmed SQL
+failure.
 
 \verb{COPY INTO} authenticates to OneLake as the identity executing the SQL
 statement. That identity therefore needs the documented Warehouse bulk-load
@@ -143,4 +167,8 @@ fabric_warehouse_write_table(
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/guidelines-warehouse-performance}{Warehouse ingestion performance guidance}
 
 \href{https://learn.microsoft.com/en-us/fabric/data-warehouse/transactions}{Transactions in Fabric Warehouse}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table}{Create tables in Fabric Warehouse}
+
+\href{https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files}{Query Parquet files in Fabric Warehouse}
 }

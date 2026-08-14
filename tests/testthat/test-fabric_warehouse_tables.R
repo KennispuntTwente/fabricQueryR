@@ -208,6 +208,116 @@ test_that("Warehouse overwrite is one explicit transaction", {
   expect_equal(events[[4L]], "commit")
   expect_false("rollback" %in% events)
   expect_equal(result$mode, "Overwrite")
+  expect_equal(result$overwrite_method, "Truncate")
+  expect_false(result$table_created)
+  expect_false(result$table_recreated)
+})
+
+test_that("Warehouse writer creates a missing table with transactional CTAS", {
+  skip_if_not_installed("arrow")
+  events <- character()
+  local_mocked_bindings(
+    .fabric_warehouse_staging_id = function() "create-load",
+    onelake_upload_target = function(...) tibble::tibble(),
+    .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_table_exists = function(...) FALSE,
+    .fabric_warehouse_begin = function(...) {
+      events <<- c(events, "begin")
+      TRUE
+    },
+    .fabric_warehouse_execute = function(connection, sql) {
+      events <<- c(events, sql)
+      2L
+    },
+    .fabric_warehouse_commit = function(...) {
+      events <<- c(events, "commit")
+      TRUE
+    },
+    .fabric_warehouse_disconnect = function(...) TRUE,
+    .fabric_warehouse_remove_staging = function(...) TRUE
+  )
+
+  result <- fabric_warehouse_write_table(
+    warehouse_write_test_warehouse(),
+    "new_orders",
+    data.frame(id = 1:2, label = c("a", "b")),
+    staging_lakehouse = warehouse_write_test_lakehouse(),
+    create_if_missing = TRUE,
+    token = "test-token",
+    verbose = FALSE
+  )
+
+  expect_equal(events[[1L]], "begin")
+  expect_match(
+    events[[2L]],
+    paste0(
+      "CREATE TABLE [dbo].[new_orders] AS SELECT [id], [label] ",
+      "FROM OPENROWSET(BULK"
+    ),
+    fixed = TRUE
+  )
+  expect_match(events[[2L]], "create-load/*.parquet", fixed = TRUE)
+  expect_equal(events[[3L]], "commit")
+  expect_true(result$table_created)
+  expect_false(result$table_recreated)
+  expect_equal(result$rows_affected, 2)
+})
+
+test_that("drop overwrite recreates the table with CTAS", {
+  skip_if_not_installed("arrow")
+  events <- character()
+  local_mocked_bindings(
+    .fabric_warehouse_staging_id = function() "drop-load",
+    onelake_upload_target = function(...) tibble::tibble(),
+    .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_begin = function(...) {
+      events <<- c(events, "begin")
+      TRUE
+    },
+    .fabric_warehouse_execute = function(connection, sql) {
+      events <<- c(events, sql)
+      2L
+    },
+    .fabric_warehouse_commit = function(...) {
+      events <<- c(events, "commit")
+      TRUE
+    },
+    .fabric_warehouse_disconnect = function(...) TRUE,
+    .fabric_warehouse_remove_staging = function(...) TRUE
+  )
+
+  result <- fabric_warehouse_write_table(
+    warehouse_write_test_warehouse(),
+    "orders",
+    data.frame(id = 1:2),
+    staging_lakehouse = warehouse_write_test_lakehouse(),
+    mode = "Overwrite",
+    overwrite_method = "Drop",
+    token = "test-token",
+    verbose = FALSE
+  )
+
+  expect_equal(events[[1L]], "begin")
+  expect_equal(events[[2L]], "DROP TABLE [dbo].[orders]")
+  expect_match(events[[3L]], "^CREATE TABLE \\[dbo\\]\\.\\[orders\\] AS", perl = TRUE)
+  expect_equal(events[[4L]], "commit")
+  expect_equal(result$overwrite_method, "Drop")
+  expect_false(result$table_created)
+  expect_true(result$table_recreated)
+})
+
+test_that("Warehouse table discovery uses escaped catalog literals", {
+  sql <- NULL
+  local_mocked_bindings(
+    .fabric_warehouse_query = function(connection, statement) {
+      sql <<- statement
+      data.frame(table_exists = TRUE)
+    }
+  )
+
+  expect_true(.fabric_warehouse_table_exists(list(), "sales'ops", "orders"))
+  expect_match(sql, "[s].[name] = N'sales''ops'", fixed = TRUE)
+  expect_match(sql, "[t].[name] = N'orders'", fixed = TRUE)
 })
 
 test_that("Warehouse writer rolls back and retains ambiguous SQL staging", {
@@ -369,6 +479,8 @@ test_that("Warehouse writer validates destinations before network I/O", {
     "must begin with Files/"
   )
   expect_error(invoke(mode = "merge"), "must be one of")
+  expect_error(invoke(overwrite_method = "replace"), "must be one of")
+  expect_error(invoke(create_if_missing = NA), "TRUE or FALSE")
   expect_error(
     invoke(data = data.frame(A = 1L, a = 2L, check.names = FALSE)),
     "unique ignoring case"
