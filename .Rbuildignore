@@ -3,6 +3,7 @@
 ^LICENSE\.md$
 ^cran-comments\.md$
 ^\.github$
+^\.codex$
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
