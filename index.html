@@ -233,17 +233,12 @@
 </h3>
 <p>Read a Delta table stored in OneLake and return its current rows as a tibble.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">df_onelake</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table</a></span><span class="op">(</span></span>
-<span>  table_path <span class="op">=</span> <span class="st">"Customers"</span>,</span>
-<span>  workspace_name <span class="op">=</span> <span class="va">workspace</span>,</span>
-<span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">df_onelake</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span><span class="va">lakehouse</span>, <span class="st">"Customers"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Optional: return an Arrow C stream instead of a tibble</span></span>
-<span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table</a></span><span class="op">(</span></span>
-<span>  table_path <span class="op">=</span> <span class="st">"Customers"</span>,</span>
-<span>  workspace_name <span class="op">=</span> <span class="va">workspace</span>,</span>
-<span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span>,</span>
+<span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span>
+<span>  <span class="va">lakehouse</span>,</span>
+<span>  <span class="st">"Customers"</span>,</span>
 <span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></code></pre></div>

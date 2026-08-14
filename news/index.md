@@ -41,6 +41,13 @@
   writers retain staging whenever a remote outcome is ambiguous.
 
 - Added
+  [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
+  as the symmetric, discovery-record-aware counterpart to
+  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
+  with projected, time-travel, tibble, and Arrow-stream results
+  delegated to the OneLake Delta reader.
+
+- Added
   [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
   for published Fabric User Data Functions, with trusted public-URL
   validation, flow-aware Power BI authentication, non-idempotent retry
