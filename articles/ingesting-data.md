@@ -1,12 +1,8 @@
 # Bring R data into Microsoft Fabric
 
-Ingestion means moving data into a system so it can be stored and used
-there. In this guide, the source is an R data frame, an Arrow object, or
-a file, and the destination is Microsoft Fabric.
-
-Writing changes shared data. Begin with a new test table or file,
-inspect the result in Fabric, and only then use append or overwrite
-behavior on an existing destination.
+‘fabricQueryR’ can also be used to ingest data into Microsoft Fabric. In
+this guide, it is shown you can move R data frames, Arrow objects, or
+files into Microsoft Fabric.
 
 ## Choose a destination
 
