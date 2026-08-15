@@ -142,9 +142,25 @@ service's advertised total-size and blob-count limits are still enforced.</p></d
 <dd><p>Optional exact maximum rows per staged file.</p></dd>
 
 
-<dt id="arg-tags-ingest-if-not-exists-skip-batching-creation-time">tags, ingest_if_not_exists, skip_batching, creation_time<a class="anchor" aria-label="anchor" href="#arg-tags-ingest-if-not-exists-skip-batching-creation-time"></a></dt>
-<dd><p>Ingestion
-properties passed to <code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>.</p></dd>
+<dt id="arg-tags">tags<a class="anchor" aria-label="anchor" href="#arg-tags"></a></dt>
+<dd><p>Extent tags passed to <code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>.</p></dd>
+
+
+<dt id="arg-ingest-if-not-exists">ingest_if_not_exists<a class="anchor" aria-label="anchor" href="#arg-ingest-if-not-exists"></a></dt>
+<dd><p>Stable idempotency keys passed to
+<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>. Cannot be combined with <code>skip_batching = TRUE</code> when
+staging produces multiple files.</p></dd>
+
+
+<dt id="arg-skip-batching">skip_batching<a class="anchor" aria-label="anchor" href="#arg-skip-batching"></a></dt>
+<dd><p>Whether Kusto should ingest each staged file
+independently. Cannot be combined with <code>ingest_if_not_exists</code> for a
+multi-file write.</p></dd>
+
+
+<dt id="arg-creation-time">creation_time<a class="anchor" aria-label="anchor" href="#arg-creation-time"></a></dt>
+<dd><p>Optional extent creation time passed to
+<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>.</p></dd>
 
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
@@ -242,6 +258,11 @@ memory. A supplied reader or stream is single-use and is consumed.</p>
 <p>Parquet identity mapping matches source fields to existing KQL columns by
 case-sensitive name. Supply <code>mapping</code> when the Parquet schema and table need
 an explicit predefined mapping.</p>
+<p><code>skip_batching = TRUE</code> cannot be combined with <code>ingest_if_not_exists</code> when
+staging produces multiple Parquet files. Kusto then ingests each file
+independently, so the shared idempotency tag can suppress later files in the
+same logical write. Use normal batching, stage one file, or omit the
+idempotency key.</p>
 <p>Set <code>create_if_missing = TRUE</code> to issue Kusto's idempotent <code>.create table</code>
 command before staging. A missing table is created from the Arrow schema; an
 existing table is returned unchanged, so this option never alters an

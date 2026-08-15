@@ -62,6 +62,10 @@
   load existing files or R and Arrow data into Eventhouse, monitor the
   load, and export large query results to OneLake or other supported
   storage. A destination table can be created when needed.
+  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  now rejects multi-file writes that combine per-blob ingestion with one
+  shared idempotency key, preventing successful tracking results with
+  omitted parts.
 
 - `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect
   its schema, work through paginated results, and collect the result

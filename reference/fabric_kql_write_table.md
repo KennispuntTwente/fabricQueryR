@@ -100,9 +100,26 @@ fabric_kql_write_table(
 
   Optional exact maximum rows per staged file.
 
-- tags, ingest_if_not_exists, skip_batching, creation_time:
+- tags:
 
-  Ingestion properties passed to
+  Extent tags passed to
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
+
+- ingest_if_not_exists:
+
+  Stable idempotency keys passed to
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
+  Cannot be combined with `skip_batching = TRUE` when staging produces
+  multiple files.
+
+- skip_batching:
+
+  Whether Kusto should ingest each staged file independently. Cannot be
+  combined with `ingest_if_not_exists` for a multi-file write.
+
+- creation_time:
+
+  Optional extent creation time passed to
   [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
 
 - timeout:
@@ -199,6 +216,12 @@ consumed.
 Parquet identity mapping matches source fields to existing KQL columns
 by case-sensitive name. Supply `mapping` when the Parquet schema and
 table need an explicit predefined mapping.
+
+`skip_batching = TRUE` cannot be combined with `ingest_if_not_exists`
+when staging produces multiple Parquet files. Kusto then ingests each
+file independently, so the shared idempotency tag can suppress later
+files in the same logical write. Use normal batching, stage one file, or
+omit the idempotency key.
 
 Set `create_if_missing = TRUE` to issue Kusto's idempotent
 `.create table` command before staging. A missing table is created from
