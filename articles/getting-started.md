@@ -3,17 +3,16 @@
 Microsoft Fabric is a collection of services for storing, transforming,
 and reporting on data. `fabricQueryR` lets you use many of those
 services from R. You can bring Fabric data into an R data frame, send R
-data to Fabric, or start work that runs inside Fabric.
+data to Fabric, or use R to start work that runs inside Fabric.
 
-This guide introduces the few Fabric concepts you need for a first
-successful workflow. You do not need to know Fabric’s REST APIs,
-cloud-storage protocols, or data-engineering terminology.
+This guide introduces the few of the Fabric concepts you need for a
+first successful workflow.
 
 ## The Fabric objects you will see
 
-A **workspace** is a shared area that contains Fabric items. An **item**
-is a resource such as a Lakehouse, Warehouse, semantic model, or
-notebook.
+A *workspace* is a shared area that contains Fabric items. An *item* is
+a resource inside a workspace, such as a Lakehouse, Warehouse, semantic
+model, or notebook.
 
 The most common data items have different purposes:
 
@@ -25,10 +24,11 @@ The most common data items have different purposes:
 | Semantic model | Report-ready tables, relationships, and calculations | Query with DAX or refresh the model |
 | API for GraphQL | A structured API in front of Fabric data | Request selected fields |
 
-**OneLake** is the storage layer shared by Fabric items. In a Lakehouse,
+*OneLake* is the storage layer shared by Fabric items. In a Lakehouse,
 the `Files/` area contains ordinary files and the `Tables/` area
-contains managed Delta tables. Use the package’s table functions for
-`Tables/`; do not edit the files underneath a managed table directly.
+contains managed Delta tables. Delta is a storage format that supports
+efficient reads and writes, schema evolution, and transactional
+consistency.
 
 ## Sign in
 
@@ -47,13 +47,16 @@ Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-app-client-id>")
 ```
 
 The first Fabric call may open a browser. Sign in with the same work or
-school account that you use in the Fabric portal. If your organization
-requires an approved application, your administrator may also give you a
-client ID to set as `FABRICQUERYR_CLIENT_ID`.
+school account that you use in the Fabric portal.
+
+If your organization requires an approved application, your
+administrator may also give you a client ID to set as
+`FABRICQUERYR_CLIENT_ID`.
 
 The [authentication
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md)
-explains this setup and common login problems in more detail.
+explains this setup and the different ways to authenticate in more
+detail.
 
 ## Find a workspace and an item
 
@@ -61,52 +64,61 @@ Start by listing the workspaces that your account can access:
 
 ``` r
 
+# List all workspaces you can access
 workspaces <- fabric_workspaces()
-workspaces
 ```
 
-The result is a list. Select a workspace by position when exploring:
+The result is a list of workspaces you have access to. If the list is
+empty, check that your account has been granted access to a workspace in
+the Fabric portal. If the list is not empty, select a specific
+workspace:
 
 ``` r
 
+# Select the first workspace in the list
 workspace <- workspaces[[1L]]
 workspace$displayName
 ```
 
-For a script that will run repeatedly, selecting by exact name is easier
-to understand than relying on list order:
+For a script that will run repeatedly, selecting by exact name is more
+robust:
 
 ``` r
 
+# Select a workspace by name
 workspace <- fabric_workspaces()[["Analytics workspace"]]
 ```
 
-Now list all items or ask directly for one type:
+Now list all items in the workspace, or ask directly for items of a
+specific type:
 
 ``` r
 
+# List all items in the workspace
 items <- fabric_items(workspace)
 items
 
+# List only Lakehouses in the workspace
 lakehouses <- fabric_lakehouses(workspace)
 lakehouse <- lakehouses[[1L]]
 lakehouse$displayName
 ```
 
-A discovered item is more than a name. It also carries the IDs and
-service addresses that other package functions need. Pass the object
-itself to later calls instead of copying values from the Fabric portal.
+A discovered item contains metadata such as its name and type. You can
+pass the discovered item to other functions of this package (see below).
 
 ## Complete a first read
 
 If the workspace contains a Lakehouse, reading one managed table is a
-gentle first data workflow:
+simple first workflow:
 
 ``` r
 
+# List the tables in the Lakehouse
 tables <- fabric_lakehouse_tables(lakehouse)
 tables[c("schema", "name", "type")]
 
+# Select the first table and read a small number of rows
 first_table <- tables[1L, ]
 rows <- fabric_lakehouse_read_table(
   lakehouse,
@@ -114,6 +126,7 @@ rows <- fabric_lakehouse_read_table(
   limit = 100L
 )
 
+# Show the first few rows
 head(rows)
 ```
 
@@ -124,23 +137,20 @@ correct.
 
 ## Choose the next guide
 
-There are often several valid ways to move the same data. Start with the
-guide that matches your goal:
+There are often several valid ways to move the same data. The vignettes
+below compare the options and show how to use them. Continue with one of
+the following vignettes:
 
 - [Bring Fabric data into
   R](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
   compares SQL, Lakehouse, Warehouse, Eventhouse, semantic-model,
-  OneLake-file, GraphQL, and Spark reads.
+  OneLake-file, GraphQL, and Spark reads
 - [Bring R data into Microsoft
   Fabric](https://kennispunttwente.github.io/fabricQueryR/articles/ingesting-data.md)
-  compares ways to send an R object or an existing file to Fabric.
+  compares ways to send an R object or an existing file to Fabric
 - [Working with Fabric LakeHouses and
   OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md)
-  explains Lakehouse files and tables in more detail.
+  explains Lakehouse files and tables in more detail
 - [Working with Livy
   (Spark)](https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.md)
-  introduces remote Spark work after the simpler read and write paths.
-
-The function reference contains the complete arguments and return
-values. The vignettes focus on choosing a workflow and building it from
-a small first example to more advanced use.
+  introduces remote Spark work after the simpler read and write paths

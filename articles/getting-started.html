@@ -63,16 +63,15 @@
 <p>Microsoft Fabric is a collection of services for storing,
 transforming, and reporting on data. <code>fabricQueryR</code> lets you
 use many of those services from R. You can bring Fabric data into an R
-data frame, send R data to Fabric, or start work that runs inside
-Fabric.</p>
-<p>This guide introduces the few Fabric concepts you need for a first
-successful workflow. You do not need to know Fabric’s REST APIs,
-cloud-storage protocols, or data-engineering terminology.</p>
+data frame, send R data to Fabric, or use R to start work that runs
+inside Fabric.</p>
+<p>This guide introduces the few of the Fabric concepts you need for a
+first successful workflow.</p>
 <div class="section level2">
 <h2 id="the-fabric-objects-you-will-see">The Fabric objects you will see<a class="anchor" aria-label="anchor" href="#the-fabric-objects-you-will-see"></a>
 </h2>
-<p>A <strong>workspace</strong> is a shared area that contains Fabric
-items. An <strong>item</strong> is a resource such as a Lakehouse,
+<p>A <em>workspace</em> is a shared area that contains Fabric items. An
+<em>item</em> is a resource inside a workspace, such as a Lakehouse,
 Warehouse, semantic model, or notebook.</p>
 <p>The most common data items have different purposes:</p>
 <table class="table">
@@ -114,11 +113,11 @@ Warehouse, semantic model, or notebook.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>OneLake</strong> is the storage layer shared by Fabric items.
-In a Lakehouse, the <code>Files/</code> area contains ordinary files and
-the <code>Tables/</code> area contains managed Delta tables. Use the
-package’s table functions for <code>Tables/</code>; do not edit the
-files underneath a managed table directly.</p>
+<p><em>OneLake</em> is the storage layer shared by Fabric items. In a
+Lakehouse, the <code>Files/</code> area contains ordinary files and the
+<code>Tables/</code> area contains managed Delta tables. Delta is a
+storage format that supports efficient reads and writes, schema
+evolution, and transactional consistency.</p>
 </div>
 <div class="section level2">
 <h2 id="sign-in">Sign in<a class="anchor" aria-label="anchor" href="#sign-in"></a>
@@ -134,51 +133,60 @@ Entra tenant ID:</p>
 <span><span class="co"># Optional, if your organization requires an approved application:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_CLIENT_ID <span class="op">=</span> <span class="st">"&lt;your-app-client-id&gt;"</span><span class="op">)</span></span></code></pre></div>
 <p>The first Fabric call may open a browser. Sign in with the same work
-or school account that you use in the Fabric portal. If your
-organization requires an approved application, your administrator may
-also give you a client ID to set as
+or school account that you use in the Fabric portal.</p>
+<p>If your organization requires an approved application, your
+administrator may also give you a client ID to set as
 <code>FABRICQUERYR_CLIENT_ID</code>.</p>
 <p>The <a href="authentication.html">authentication vignette</a>
-explains this setup and common login problems in more detail.</p>
+explains this setup and the different ways to authenticate in more
+detail.</p>
 </div>
 <div class="section level2">
 <h2 id="find-a-workspace-and-an-item">Find a workspace and an item<a class="anchor" aria-label="anchor" href="#find-a-workspace-and-an-item"></a>
 </h2>
 <p>Start by listing the workspaces that your account can access:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">workspaces</span></span></code></pre></div>
-<p>The result is a list. Select a workspace by position when
-exploring:</p>
+<code class="sourceCode R"><span><span class="co"># List all workspaces you can access</span></span>
+<span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The result is a list of workspaces you have access to. If the list is
+empty, check that your account has been granted access to a workspace in
+the Fabric portal. If the list is not empty, select a specific
+workspace:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="co"># Select the first workspace in the list</span></span>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span></span></code></pre></div>
 <p>For a script that will run repeatedly, selecting by exact name is
-easier to understand than relying on list order:</p>
+more robust:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"Analytics workspace"</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>Now list all items or ask directly for one type:</p>
+<code class="sourceCode R"><span><span class="co"># Select a workspace by name</span></span>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"Analytics workspace"</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<p>Now list all items in the workspace, or ask directly for items of a
+specific type:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># List all items in the workspace</span></span>
+<span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
 <span><span class="va">items</span></span>
 <span></span>
+<span><span class="co"># List only Lakehouses in the workspace</span></span>
 <span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span><span class="op">$</span><span class="va">displayName</span></span></code></pre></div>
-<p>A discovered item is more than a name. It also carries the IDs and
-service addresses that other package functions need. Pass the object
-itself to later calls instead of copying values from the Fabric
-portal.</p>
+<p>A discovered item contains metadata such as its name and type. You
+can pass the discovered item to other functions of this package (see
+below).</p>
 </div>
 <div class="section level2">
 <h2 id="complete-a-first-read">Complete a first read<a class="anchor" aria-label="anchor" href="#complete-a-first-read"></a>
 </h2>
 <p>If the workspace contains a Lakehouse, reading one managed table is a
-gentle first data workflow:</p>
+simple first workflow:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">tables</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># List the tables in the Lakehouse</span></span>
+<span><span class="va">tables</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
 <span><span class="va">tables</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"schema"</span>, <span class="st">"name"</span>, <span class="st">"type"</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
+<span><span class="co"># Select the first table and read a small number of rows</span></span>
 <span><span class="va">first_table</span> <span class="op">&lt;-</span> <span class="va">tables</span><span class="op">[</span><span class="fl">1L</span>, <span class="op">]</span></span>
 <span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
@@ -186,6 +194,7 @@ gentle first data workflow:</p>
 <span>  limit <span class="op">=</span> <span class="fl">100L</span></span>
 <span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Show the first few rows</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span></span></code></pre></div>
 <p>The result is a tibble, which can be used with base R,
 <code>dplyr</code>, plotting packages, or other familiar R tools.
@@ -195,27 +204,24 @@ confirm that access and table selection are correct.</p>
 <div class="section level2">
 <h2 id="choose-the-next-guide">Choose the next guide<a class="anchor" aria-label="anchor" href="#choose-the-next-guide"></a>
 </h2>
-<p>There are often several valid ways to move the same data. Start with
-the guide that matches your goal:</p>
+<p>There are often several valid ways to move the same data. The
+vignettes below compare the options and show how to use them. Continue
+with one of the following vignettes:</p>
 <ul>
 <li>
 <a href="reading-data.html">Bring Fabric data into R</a> compares
 SQL, Lakehouse, Warehouse, Eventhouse, semantic-model, OneLake-file,
-GraphQL, and Spark reads.</li>
+GraphQL, and Spark reads</li>
 <li>
 <a href="ingesting-data.html">Bring R data into Microsoft Fabric</a>
-compares ways to send an R object or an existing file to Fabric.</li>
+compares ways to send an R object or an existing file to Fabric</li>
 <li>
 <a href="onelake-and-lakehouse.html">Working with Fabric LakeHouses
-and OneLake</a> explains Lakehouse files and tables in more detail.</li>
+and OneLake</a> explains Lakehouse files and tables in more detail</li>
 <li>
 <a href="spark-with-livy.html">Working with Livy (Spark)</a>
-introduces remote Spark work after the simpler read and write
-paths.</li>
+introduces remote Spark work after the simpler read and write paths</li>
 </ul>
-<p>The function reference contains the complete arguments and return
-values. The vignettes focus on choosing a workflow and building it from
-a small first example to more advanced use.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
