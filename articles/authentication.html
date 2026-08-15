@@ -75,13 +75,12 @@ and other options for automated or advanced use.</p>
 <ul>
 <li>a work or school Microsoft account that can sign in to your
 organization’s Fabric portal;</li>
-<li>your organization’s Microsoft Entra <strong>tenant ID</strong>;</li>
+<li>your organization’s Microsoft Entra <em>tenant ID</em>;</li>
 <li>access to at least one Fabric workspace or item; and</li>
-<li>sometimes, a <strong>client ID</strong> supplied by your
-administrator.</li>
+<li>sometimes, a <em>client ID</em> supplied by your administrator.</li>
 </ul>
-<p>You do <strong>not</strong> need a client secret, certificate, or
-manually copied access token for this first setup.</p>
+<p>You do <em>not</em> need a client secret, certificate, or manually
+copied access token for this first setup.</p>
 <div class="section level3">
 <h3 id="find-your-tenant-id">1. Find your tenant ID<a class="anchor" aria-label="anchor" href="#find-your-tenant-id"></a>
 </h3>
@@ -92,8 +91,8 @@ profile (top-right corner) and hover over the tooltip icon near ‘Tenant
 Name’; this will then show ‘Tenant ID: <your-tenant-id>’.</your-tenant-id></p>
 <p>Alternatively, follow Microsoft’s <a href="https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant" class="external-link">tenant
 ID guide</a> for the Microsoft Entra admin center, Azure portal,
-PowerShell, or Azure CLI. The value may also be called the
-<strong>Directory (tenant) ID</strong>.</p>
+PowerShell, or Azure CLI. The value may also be called the <em>Directory
+(tenant) ID</em>.</p>
 <p>If you do not have access to your tenant ID through either portal,
 ask your Microsoft 365, Azure, or Fabric administrator for the tenant
 ID.</p>
@@ -178,16 +177,16 @@ least-privileged role that supports your task; or</li>
 <li>share the specific Fabric item with your account and grant any
 additional data permission it needs.</li>
 </ol>
-<p>The <strong>Viewer</strong> workspace role is enough to list the
-workspace and its items, but does not itself grant direct OneLake data
-access. A generic item <strong>Read</strong> grant also exposes metadata
-without granting the underlying OneLake data. For example, a semantic
-model normally needs Read and Build permission. A direct Lakehouse read
-needs an Admin, Member, or Contributor workspace role; item
-<strong>Read</strong> plus <strong>ReadAll</strong>; or, when OneLake
-security is enabled, item <strong>Read</strong> plus membership in a
-OneLake role that grants <strong>Read</strong> on the target data.
-Detailed workload guidance appears later in this vignette.</p>
+<p>The <em>Viewer</em> workspace role is enough to list the workspace
+and its items, but does not itself grant direct OneLake data access. A
+generic item <em>Read</em> grant also exposes metadata without granting
+the underlying OneLake data. For example, a semantic model normally
+needs Read and Build permission. A direct Lakehouse read needs an Admin,
+Member, or Contributor workspace role; item <em>Read</em> plus
+<em>ReadAll</em>; or, when OneLake security is enabled, item
+<em>Read</em> plus membership in a OneLake role that grants
+<em>Read</em> on the target data. Detailed workload guidance appears
+later in this vignette.</p>
 </div>
 <div class="section level2">
 <h2 id="first-login-troubleshooting">First-login troubleshooting<a class="anchor" aria-label="anchor" href="#first-login-troubleshooting"></a>
@@ -301,8 +300,8 @@ default client is blocked.</p>
 <p>For browser-based authorization-code login, the app needs a suitable
 redirect URI (normally <code>http://localhost:1410</code>) and R needs
 the <code>httpuv</code> package. For device-code login, the app
-registration needs <strong>Allow public client flows</strong> enabled.
-Your tenant’s user/admin consent, Conditional Access, and
+registration needs <em>Allow public client flows</em> enabled. Your
+tenant’s user/admin consent, Conditional Access, and
 multifactor-authentication policies continue to apply.</p>
 <p>Do not create a client secret for ordinary interactive user
 login.</p>
@@ -499,9 +498,9 @@ an <code>AzureToken</code> with
 <span>  <span class="st">"https://api.fabric.microsoft.com"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span>token <span class="op">=</span> <span class="va">managed_token</span><span class="op">)</span></span></code></pre></div>
-<p>Managed-identity support is API-specific. Check the <strong>Microsoft
-Entra supported identities</strong> table on the relevant Fabric REST
-API page. The current Fabric <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">identity-support
+<p>Managed-identity support is API-specific. Check the <em>Microsoft
+Entra supported identities</em> table on the relevant Fabric REST API
+page. The current Fabric <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">identity-support
 documentation</a> explains the tenant switch and this per-API
 requirement.</p>
 </div>
@@ -529,7 +528,7 @@ by <code>AzureAuth</code>.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="detailed-fabric-permissions-by-workload">Detailed Fabric permissions by workload<a class="anchor" aria-label="anchor" href="#detailed-fabric-permissions-by-workload"></a>
+<h2 id="set-fabric-permissions-by-workload">Set Fabric permissions by workload<a class="anchor" aria-label="anchor" href="#set-fabric-permissions-by-workload"></a>
 </h2>
 <p>Getting a token proves an identity; it does not grant that identity
 access to Fabric data. The quick-start section described the basic
@@ -537,10 +536,10 @@ access requirement. For production use or troubleshooting a particular
 function, configure the relevant layers below:</p>
 <ol style="list-style-type: decimal">
 <li>For service principals and managed identities, a Fabric
-administrator normally enables <strong>Service principals can use Fabric
-APIs</strong> under <strong>Admin portal &gt; Tenant settings &gt;
-Developer settings</strong>. Scope the setting to a dedicated Entra
-security group where possible. See <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">Fabric
+administrator normally enables <em>Service principals can use Fabric
+APIs</em> under <em>Admin portal &gt; Tenant settings &gt; Developer
+settings</em>. Scope the setting to a dedicated Entra security group
+where possible. See <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">Fabric
 identity support</a>.</li>
 <li>Add the user, service principal, managed identity, or an appropriate
 group to the workspace, or grant item-level permissions. Fabric <a href="https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces" class="external-link">workspace
@@ -549,106 +548,17 @@ least-privileged role that permits the required operation.</li>
 <li>Grant workload-specific data permissions. Workspace visibility and
 data access are not always the same permission.</li>
 </ol>
-<p>The main workload considerations are:</p>
-<ul>
-<li>
-<strong>Fabric discovery and item jobs.</strong> The principal needs
-access to the workspace/item and permission for the requested read,
-write, or execute operation. Service principals and managed identities
-are supported only where the individual API says so.</li>
-<li>
-<strong>OneLake and Delta.</strong> Admin, Member, and Contributor
-workspace roles can read and write all OneLake data in an item. For
-narrower direct access when OneLake security is not enabled, grant item
-<strong>Read</strong> (item visibility) and <strong>ReadAll</strong>
-(OneLake data). Item <strong>Read</strong> alone is insufficient. When
-OneLake security is enabled, grant item <strong>Read</strong> plus
-membership in a OneLake role whose <strong>Read</strong> scope includes
-the target table or folder; <strong>ReadAll</strong> grants access only
-through the <code>DefaultReader</code> role while that role exists and
-still includes the principal. fabricQueryR is not a Fabric-supported or
-registered authorized third-party engine and doesn’t fetch or enforce
-OneLake RLS/CLS. OneLake blocks direct file reads when the caller’s
-effective access is row- or column-restricted, so the package fails
-instead of returning filtered data. Use an unrestricted caller, a
-supported Fabric engine, or an <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/onelake-security-integrations-overview" class="external-link">authorized
-engine</a> that enforces the returned policies. A Fabric administrator
-must also enable <strong>Users can access data stored in OneLake with
-apps external to Fabric</strong> for the caller in the tenant’s OneLake
-settings. See <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake
-tenant settings</a>, the <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric
-permission model</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/get-started-onelake-security" class="external-link">OneLake
-security overview</a>, <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/row-level-security" class="external-link">OneLake
-row-level security</a>, and <a href="https://learn.microsoft.com/en-us/fabric/onelake/security/best-practices-secure-data-in-onelake" class="external-link">OneLake
-security best practices</a>.</li>
-<li>
-<strong>OneLake shortcuts.</strong> Listing and inspection use the
-Fabric API audience and require <code>OneLake.Read.All</code> or
-<code>OneLake.ReadWrite.All</code>; creation and deletion require
-<code>OneLake.ReadWrite.All</code>. The Core API supports users, service
-principals, and managed identities. Deleting a shortcut leaves the
-target storage untouched.</li>
-<li>
-<strong>SQL.</strong> A workspace role or item Read permission
-permits connection, while SQL <code>GRANT</code>, <code>DENY</code>, and
-database roles control granular data access. See <a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/entra-id-authentication" class="external-link">Microsoft
-Entra authentication in Fabric Data Warehouse</a> and <a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/sql-granular-permissions" class="external-link">SQL
-granular permissions</a>.</li>
-<li>
-<strong>DAX.</strong> Enable the <strong>Semantic Model Execute
-Queries REST API</strong> tenant setting. A user needs semantic-model
-Read and Build permissions. Service principals additionally need the
-Power BI service-principal tenant setting. For
-<code>api = "json"</code>, service principals cannot query models with
-RLS or SSO enabled. The <code>api = "arrow"</code> endpoint additionally
-requires Premium or Fabric capacity and the <strong>Allow XMLA endpoints
-and Analyze in Excel with on-premises semantic models</strong>
-integration setting. It also has a different effective-identity
-contract: <code>effectiveUsername</code> is user-only, while a service
-principal may use <code>roles</code> when it is a workspace admin. See
-<a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group" class="external-link">JSON
-Execute Queries</a> and the endpoint-specific notes in
-<code><a href="../reference/fabric_pbi_dax_query.html">?fabric_pbi_dax_query</a></code>.</li>
-<li>
-<strong>GraphQL.</strong> Grant <strong>Run Queries and
-Mutations</strong> (Execute) on the GraphQL API and grant access to its
-underlying data source. A Contributor workspace role is convenient for
-development but item-level permission is narrower. See the <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-service-principal" class="external-link">GraphQL
-service-principal guide</a>.</li>
-<li>
-<strong>KQL.</strong> Grant a Fabric workspace/item role or a Kusto
-database role such as <code>viewer</code>; effective access is the union
-of Fabric and Kusto roles. See <a href="https://learn.microsoft.com/en-us/kusto/access-control/role-based-access-control?view=microsoft-fabric" class="external-link">Kusto
-role-based access control</a>.</li>
-<li>
-<strong>Livy.</strong> The principal needs access to the Lakehouse
-and the execution/read permissions documented for Livy.
-Service-principal authentication is supported for app-only Spark
-sessions; see the <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session" class="external-link">Livy
-session guide</a>.</li>
-</ul>
-<p>When authentication succeeds but Fabric returns HTTP 403, inspect
-workspace, item, and workload permissions and the <strong>Users can
-access data stored in OneLake with apps external to Fabric</strong>
-tenant setting before changing the login flow. HTTP 401 more often
-indicates the wrong token resource, an expired/nonrefreshable raw token,
-or a tenant/app mismatch.</p>
 </div>
 <div class="section level2">
-<h2 id="sign-out-token-cache-and-secret-safety">Sign out, token cache, and secret safety<a class="anchor" aria-label="anchor" href="#sign-out-token-cache-and-secret-safety"></a>
+<h2 id="signing-out-token-cache">Signing out (token cache)<a class="anchor" aria-label="anchor" href="#signing-out-token-cache"></a>
 </h2>
 <p><code>AzureAuth</code> stores cached user tokens in its user-specific
 AzureR data directory, never in the package project. Use
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::list_azure_tokens()</a></code> to inspect the cache and
 remove only the relevant token with
-<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::delete_azure_token()</a></code>. Reserve
-<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code> for intentionally
-signing out of every cached AzureR session.</p>
-<p>Do not commit client secrets, certificates, bearer tokens,
-<code>.Renviron</code>, or AzureR cache contents. In CI, inject
-credentials from the platform’s secret store and prefer certificate or
-federated credentials over client secrets where your token provider
-supports them.</p>
+<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::delete_azure_token()</a></code>. Use
+<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code> for signing out of every
+cached AzureR session.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
