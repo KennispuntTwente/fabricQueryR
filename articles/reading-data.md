@@ -2,7 +2,8 @@
 
 Reading data means selecting data stored or served by Fabric and
 returning it to your local R session. For ordinary analysis, the result
-is usually a **tibble**: a modern R data frame.
+is usually a **tibble** (a modern R data frame). It’s also possible to
+get an Arrow stream for larger-than-memory data.
 
 The best method depends mainly on where the data lives and whether you
 want whole tables or a filtered result. Start with a small, filtered
@@ -144,9 +145,9 @@ daily_events <- fabric_kql_query(
 
 ## Query a semantic model with DAX
 
-A semantic model is the report-ready layer used by Power BI. Query it
-when you want its relationships, calculated columns, or measures rather
-than raw source tables:
+A semantic model is a dataset ready for reporting, commonly used in
+PowerBi. Semantic models can be queried with DAX (Data Analysis
+Expressions):
 
 ``` r
 
@@ -164,7 +165,8 @@ sales_by_region <- fabric_pbi_dax_query(
 
 The [Semantic Models
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.md)
-continues from a basic DAX query into refresh and monitoring workflows.
+shows more things you can do with semantic models, like refreshing their
+data.
 
 ## Read a OneLake file
 
@@ -220,11 +222,14 @@ counts <- result$output$parsed
 Spark has startup cost. Prefer SQL or a direct reader for a small,
 ordinary table read.
 
-## Keep large results out of R memory
+## Working with large data (Arrow streams)
 
-Several readers accept `result = "arrow_stream"`. A stream lets an
-Arrow-compatible tool consume batches instead of first creating one
-large in-memory data frame:
+If you work with large volumes of data (larger than your device’s
+working memory), you may need to stream the data into R rather than
+reading it all at once.
+
+Several readers accept `result = "arrow_stream"`. This can be used with
+the ‘arrow’ R package to read the data in batches:
 
 ``` r
 
@@ -237,6 +242,5 @@ stream <- fabric_lakehouse_read_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-Streams are single-use. Before adding this complexity, reduce the data
-at the source with selected columns, a row limit, or a SQL/KQL/DAX
-filter. That is usually faster and easier to maintain.
+See the [Arrow R package](https://arrow.apache.org/docs/r/) for more
+information on working with Arrow streams and record batches.
