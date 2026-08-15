@@ -1706,6 +1706,12 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' case-sensitive name. Supply `mapping` when the Parquet schema and table need
 #' an explicit predefined mapping.
 #'
+#' `skip_batching = TRUE` cannot be combined with `ingest_if_not_exists` when
+#' staging produces multiple Parquet files. Kusto then ingests each file
+#' independently, so the shared idempotency tag can suppress later files in the
+#' same logical write. Use normal batching, stage one file, or omit the
+#' idempotency key.
+#'
 #' Set `create_if_missing = TRUE` to issue Kusto's idempotent `.create table`
 #' command before staging. A missing table is created from the Arrow schema; an
 #' existing table is returned unchanged, so this option never alters an
@@ -1742,8 +1748,15 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param target_file_size Soft maximum bytes per staged Parquet file. The
 #'   service's advertised total-size and blob-count limits are still enforced.
 #' @param max_rows_per_file Optional exact maximum rows per staged file.
-#' @param tags,ingest_if_not_exists,skip_batching,creation_time Ingestion
-#'   properties passed to [fabric_kql_ingest()].
+#' @param tags Extent tags passed to [fabric_kql_ingest()].
+#' @param ingest_if_not_exists Stable idempotency keys passed to
+#'   [fabric_kql_ingest()]. Cannot be combined with `skip_batching = TRUE` when
+#'   staging produces multiple files.
+#' @param skip_batching Whether Kusto should ingest each staged file
+#'   independently. Cannot be combined with `ingest_if_not_exists` for a
+#'   multi-file write.
+#' @param creation_time Optional extent creation time passed to
+#'   [fabric_kql_ingest()].
 #' @param timeout Positive number of seconds allowed for submission and tracked
 #'   status waiting after upload.
 #' @param poll_interval Minimum seconds between ingestion status requests.
@@ -2015,6 +2028,27 @@ fabric_kql_write_table <- function(
         " bytes"
       ),
       class = c("fabric_kql_size_error", "fabric_kql_write_error")
+    )
+  }
+  if (
+    serialized$file_count > 1L &&
+      isTRUE(skip_batching) &&
+      length(ingest_if_not_exists)
+  ) {
+    .fabric_abort(
+      c(
+        "Cannot safely apply one idempotency key to independently ingested files",
+        "x" = paste0(
+          "{.arg skip_batching} is {.code TRUE} and staging produced ",
+          "{serialized$file_count} Parquet files"
+        ),
+        "i" = paste0(
+          "Disable {.arg skip_batching}, stage one file, or omit ",
+          "{.arg ingest_if_not_exists}"
+        )
+      ),
+      class = c("fabric_kql_idempotency_error", "fabric_kql_write_error"),
+      .format = TRUE
     )
   }
   storage_targets <- lapply(basename(serialized$paths), function(name) {

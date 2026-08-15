@@ -347,7 +347,6 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
     database,
     table = table,
     data = dataset,
-    ingest_if_not_exists = paste0("arrow-", nonce),
     skip_batching = TRUE,
     max_rows_per_file = 1,
     timeout = 600,

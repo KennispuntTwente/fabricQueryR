@@ -422,6 +422,34 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
   expect_equal(result$bytes, sum(result$part_bytes))
 })
 
+test_that("Eventhouse writer rejects unsafe multi-file idempotency", {
+  skip_if_not_installed("arrow")
+  upload_calls <- 0L
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration(max_blobs = 3)
+    },
+    onelake_upload_target = function(...) {
+      upload_calls <<- upload_calls + 1L
+    }
+  )
+
+  expect_snapshot(
+    error = TRUE,
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1:3),
+      database = "Telemetry",
+      ingest_if_not_exists = "batch-1",
+      skip_batching = TRUE,
+      max_rows_per_file = 1,
+      token = "test-token"
+    )
+  )
+  expect_equal(upload_calls, 0L)
+})
+
 test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
   skip_if_not_installed("arrow")
   emitted <- 0L

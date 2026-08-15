@@ -32,7 +32,9 @@ table results into R as typed R objects.
 * `fabric_kql_ingest()`, `fabric_kql_write_table()`, and `fabric_kql_export()`
 load existing files or R and Arrow data into Eventhouse, monitor the load, and
 export large query results to OneLake or other supported storage. A
-destination table can be created when needed.
+destination table can be created when needed. `fabric_kql_write_table()` now
+rejects multi-file writes that combine per-blob ingestion with one shared
+idempotency key, preventing successful tracking results with omitted parts.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R
