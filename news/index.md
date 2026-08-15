@@ -4,25 +4,35 @@
 
 ### New
 
-- Since 0.2.1, new beginner-first vignettes introduce the package and
-  compare the main ways to bring Fabric data into R or send R and Arrow
-  data to Fabric. The expanded article set covers OneLake files,
-  Lakehouse tables, SQL, KQL, DAX, GraphQL, Warehouse ingestion, Spark,
-  jobs, semantic-model refreshes, and User Data Functions, with basic
-  workflows before advanced details.
-
-- [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+- [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
+  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
+  and type-specific functions such as
+  [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   and
-  [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
-  bring Eventhouse query and table results into R as typed R objects.
+  [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  discover common Fabric resources. Their results can be passed directly
+  to other fabricQueryR functions, avoiding copied IDs and endpoints in
+  most workflows.
 
-- [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md),
-  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md),
+- [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
   and
-  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
-  load existing files or R and Arrow data into Eventhouse, monitor the
-  load, and export large query results to OneLake or other supported
-  storage. A destination table can be created when needed.
+  [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
+  add reusable Spark sessions and standalone batch jobs.
+  [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
+  remains the simplest option for running one piece of Spark code.
+
+- [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
+  [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
+  [`fabric_onelake_download()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+  and
+  [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  move files and Parquet, CSV, or Arrow data between R, local storage,
+  and OneLake.
+  [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+  [`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+  and
+  [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  list, inspect, and delete files.
 
 - [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
   [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md),
@@ -40,42 +50,25 @@
   Tables can be created, appended to, overwritten, or recreated as
   requested.
 
-- [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
-  [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
-  [`fabric_onelake_download()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+- [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   and
-  [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-  move files and Parquet, CSV, or Arrow data between R, local storage,
-  and OneLake.
-  [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
-  [`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
+  [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
+  bring Eventhouse query and table results into R as typed R objects.
+
+- [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md),
+  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md),
   and
-  [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-  list, inspect, and delete files.
+  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  load existing files or R and Arrow data into Eventhouse, monitor the
+  load, and export large query results to OneLake or other supported
+  storage. A destination table can be created when needed.
 
 - `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect
   its schema, work through paginated results, and collect the result
   into tidy R objects.
 
-- [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
-  [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
-  and type-specific functions such as
-  [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
-  and
-  [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
-  discover common Fabric resources. Their results can be passed directly
-  to other fabricQueryR functions, avoiding copied IDs and endpoints in
-  most workflows.
-
 - [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
   calls published Fabric User Data Functions from R.
-
-- [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
-  and
-  [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
-  add reusable Spark sessions and standalone batch jobs.
-  [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
-  remains the simplest option for running one piece of Spark code.
 
 - [`fabric_onelake_shortcuts()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   and `fabric_onelake_shortcut_*()` functions inspect, create, update,
@@ -96,9 +89,12 @@
 
 ### Changed
 
-- [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
-  now gives Eventhouse the canonical OneLake DFS source URL when staging
-  through a regional OneLake API endpoint.
+- Authenticated functions now consistently accept an AzureAuth token, a
+  bearer token, or a function that supplies refreshed tokens through
+  `token`; `auth_args` controls AzureAuth sign-in. The older
+  `access_token` argument for SQL and Livy is deprecated. Requests also
+  check service addresses more carefully and give clearer retry,
+  timeout, and error messages.
 
 - [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   and
@@ -112,6 +108,12 @@
   [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   for other SQL work.
 
+- [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
+  now accepts discovered semantic models or direct IDs, can test results
+  for a user under row-level security, and reports incomplete Power BI
+  results instead of silently returning them. An optional Arrow mode
+  provides typed tibbles or streams for models that support it.
+
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   now reads current or historical Lakehouse and compatible Warehouse
   tables through an optional Python Delta reader. It supports selected
@@ -119,27 +121,9 @@
   The `dest_dir` argument has been removed; tables using unsupported
   Delta features should be read through SQL or Spark instead.
 
-- [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
-  now accepts discovered semantic models or direct IDs, can test results
-  for a user under row-level security, and reports incomplete Power BI
-  results instead of silently returning them. An optional Arrow mode
-  provides typed tibbles or streams for models that support it.
-
-- `fabric_sql_*()`, `fabric_livy_*()`, `fabric_onelake_*()`, and other
-  authenticated functions now consistently accept an AzureAuth token, a
-  bearer token, or a function that supplies refreshed tokens through
-  `token`; `auth_args` controls AzureAuth sign-in. The older
-  `access_token` argument for SQL and Livy is deprecated. Requests also
-  check service addresses more carefully and give clearer retry,
-  timeout, and error messages.
-
 - [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   table results now follow the declared Spark schema and preserve large
   whole numbers and decimals exactly.
-
-- `fabric_job_*()`, `fabric_pbi_refresh_*()`, and `fabric_kql_*()`
-  functions now provide more consistent console messages, progress
-  displays, and summaries for long-running tasks.
 
 ## fabricQueryR 0.2.1
 
