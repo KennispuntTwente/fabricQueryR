@@ -6,53 +6,21 @@
 `fabric_lakehouses()` and `fabric_semantic_models()` discover common Fabric
 resources. Their results can be passed directly to other fabricQueryR
 functions, avoiding copied IDs and endpoints in most workflows.
-WarehouseSnapshot discovery now obtains the parent Warehouse's workspace-private
-SQL hostname when a private Fabric API endpoint is in use.
 
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
 option for running one piece of Spark code.
-`FabricLivySession$wait()` now continues polling an active session whose result
-is `Uncertain`, using terminal session state to decide failure.
-KQL management requests now canonicalize mixed-case query-route suffixes before
-switching to `/v1/rest/mgmt`.
-Enhanced semantic-model refresh validation now accounts for Power BI's default
-five-hour attempt timeout when checking the 24-hour retry limit.
-`fabric_function_invoke()` now applies `max_response_bytes` at the transport
-layer as well as validating response headers and the completed body.
-Warehouse table helpers now reject `/` and `\\` in schema and table names, as
-required by Fabric's current T-SQL surface-area limitations.
-Non-recursive `fabric_onelake_list()` calls now reject multi-level `begin_from`
-paths locally instead of sending a request that ADLS rejects.
-Supplied workspace records now require a canonical workspace GUID and reject
-records whose declared type identifies a different Fabric item.
-`FabricLivySession$statements()` now follows Livy's `from`/`size` pages so
-sessions with more than one response page are not silently truncated.
-`fabric_kql_export()` now accepts multiple complete storage destinations, which
-lets Kusto distribute export work across storage accounts or paths.
-Warehouse Parquet loads no longer emit CSV-only field ordinals in `COPY INTO`;
-they use Fabric's required exact source and target column-name matching.
-`fabric_delta_config(initialize = FALSE)` no longer performs potentially slow
-Python-interpreter discovery when Python has not already been initialized.
-Job documentation now explains and tests how advanced `execution_data` keeps
-one-element custom fields as JSON arrays by wrapping them in `I()`.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and
 Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 `fabric_onelake_list()`, `fabric_onelake_metadata()`, and
 `fabric_onelake_delete()` list, inspect, and delete files.
-Object-file and Lakehouse-table wrappers now preserve discovered private or
-regional OneLake endpoints when `dfs_base` is omitted.
 
 * `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,
 `fabric_lakehouse_load_table()`, and `fabric_lakehouse_write_table()` discover
 and read Lakehouse tables, load CSV or Parquet files, and write data frames or
 Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
-Load Table paths now enforce Fabric's case-sensitive `relativePath` grammar and
-accept its valid `Files` root-folder form.
-CSV delimiters now follow the published 0-to-8-character schema, including
-space and tab delimiters while rejecting the documented punctuation.
 
 * `fabric_warehouse_read_table()` and `fabric_warehouse_write_table()` read and
 bulk-write Warehouse tables using data frames or Arrow data. Tables can be
@@ -67,10 +35,6 @@ export large query results to OneLake or other supported storage. A
 destination table can be created when needed. `fabric_kql_write_table()` now
 rejects multi-file writes that combine per-blob ingestion with one shared
 idempotency key, preventing successful tracking results with omitted parts.
-Generated Parquet writes no longer report compressed file sizes as Kusto's
-uncompressed `rawSize`; the service derives this optional value instead.
-Fixed Kusto tokens can now be paired with `storage_token` for the OneLake
-staging steps; otherwise the writer requires an audience-aware token provider.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R
@@ -81,8 +45,6 @@ objects.
 * `fabric_onelake_shortcuts()` and `fabric_onelake_shortcut_*()` functions
 inspect, create, update, and delete OneLake shortcuts, which link Fabric items
 to data stored elsewhere.
-`fabric_onelake_shortcut_create()` now supports `GenerateUniqueName` and
-`OverwriteOnly` in addition to the existing conflict policies.
 
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes, including refreshes limited
@@ -91,15 +53,9 @@ to selected tables or partitions.
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item
 jobs. They also inspect run history and manage recurring schedules.
-`fabric_job_wait()` now subtracts time already elapsed from the submission
-`Retry-After` delay, preventing stale handles from timing out before polling.
-Repeated `fabric_job_status()` calls now also preserve and honor the latest
-response `Retry-After` value.
 
 * `fabric_operation_*()` functions resume, monitor, and retrieve the results of
 longer-running Fabric tasks such as Lakehouse loads.
-Non-idempotent operation submissions now refresh and retry once after an
-authentication 401, while still never replaying transport or service failures.
 
 ## Changed
 
@@ -115,19 +71,11 @@ SQL Databases. Queries can use parameters and return a tibble or Arrow stream.
 The default `database = NULL` infers the database when possible;
 `fabric_sql_query()` is now limited to one read-only statement, so use
 `fabric_sql_connect()` for other SQL work.
-SQL Arrow results are documented as Arrow-native rather than bounded-memory:
-current DBI/ADBI drivers may fetch the complete result before returning a stream.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
 provides typed tibbles or streams for models that support it.
-Arrow decimal columns, including Power BI Currency, are returned as exact
-character values in tibbles instead of being rounded through R doubles.
-
-* `fabric_pbi_refresh_start()` now sends `applyRefreshPolicy = false` when
-`commit_mode = "PartialBatch"`, as required by the Power BI enhanced refresh
-API.
 
 * `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
 and compatible Warehouse tables through an optional Python Delta reader. It
