@@ -264,6 +264,55 @@ test_that("workspace-private Lakehouses resolve SQL Endpoint hostnames", {
   expect_match(calls[[2L]], "privateLinkType=Workspace")
 })
 
+test_that("workspace-private snapshots use their parent Warehouse hostname", {
+  calls <- character()
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      calls <<- c(calls, req$url)
+      if (grepl("/connectionString", req$url, fixed = TRUE)) {
+        return(list(
+          connectionString = paste0(
+            "workspace-parent.z13.datawarehouse.fabric.microsoft.com"
+          )
+        ))
+      }
+      list(
+        id = "snapshot-id",
+        workspaceId = "workspace-id",
+        type = "WarehouseSnapshot",
+        displayName = "Sales at month end",
+        properties = list(
+          connectionString = "public.datawarehouse.fabric.microsoft.com",
+          parentWarehouseId = "parent-warehouse-id"
+        )
+      )
+    }
+  )
+
+  snapshot <- fabric_enrich_item(
+    list(
+      id = "snapshot-id",
+      workspaceId = "workspace-id",
+      type = "WarehouseSnapshot",
+      displayName = "Sales at month end"
+    ),
+    fabric_credential(token = "token"),
+    "https://workspace.z13.api.fabric.microsoft.com/v1"
+  )
+
+  expect_identical(
+    snapshot$sql_server,
+    "workspace-parent.z13.datawarehouse.fabric.microsoft.com"
+  )
+  expect_identical(snapshot$sql_database, "Sales at month end")
+  expect_identical(snapshot$sql_private_link_type, "Workspace")
+  expect_match(
+    calls[[2L]],
+    "/warehouses/parent-warehouse-id/connectionString"
+  )
+  expect_match(calls[[2L]], "privateLinkType=Workspace")
+})
+
 test_that("workspace-specific API endpoints are validated", {
   expect_equal(
     fabric_workspace_api_base(

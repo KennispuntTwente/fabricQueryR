@@ -1152,6 +1152,9 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
   if (identical(type, "warehouse")) {
     route <- "warehouses"
     item_id <- record$id
+  } else if (identical(type, "warehousesnapshot")) {
+    route <- "warehouses"
+    item_id <- record$properties$parentWarehouseId
   } else if (identical(type, "lakehouse")) {
     route <- "sqlEndpoints"
     item_id <- record$properties$sqlEndpointProperties$id
@@ -1198,7 +1201,7 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
 
   # Add the private connection target while the source context is still available
 
-  if (identical(type, "warehouse")) {
+  if (type %in% c("warehouse", "warehousesnapshot")) {
     record$properties$connectionString <- connection_string
   } else {
     record$properties$sqlEndpointProperties$connectionString <- connection_string

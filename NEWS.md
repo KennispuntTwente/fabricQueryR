@@ -6,6 +6,8 @@
 `fabric_lakehouses()` and `fabric_semantic_models()` discover common Fabric
 resources. Their results can be passed directly to other fabricQueryR
 functions, avoiding copied IDs and endpoints in most workflows.
+WarehouseSnapshot discovery now obtains the parent Warehouse's workspace-private
+SQL hostname when a private Fabric API endpoint is in use.
 
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
