@@ -420,7 +420,7 @@ FabricLivySession <- R6::R6Class(
           state %in%
             .fabric_livy_session_terminal_states ||
             fabric_state %in% c("error", "cancelled", "canceled") ||
-            result %in% c("uncertain", "failed", "cancelled", "canceled")
+            result %in% c("failed", "cancelled", "canceled")
         ) {
           fabric_livy_abort_session(response)
         }

@@ -12,6 +12,8 @@ SQL hostname when a private Fabric API endpoint is in use.
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
 option for running one piece of Spark code.
+`FabricLivySession$wait()` now continues polling an active session whose result
+is `Uncertain`, using terminal session state to decide failure.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

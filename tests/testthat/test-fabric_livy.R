@@ -1286,5 +1286,31 @@ test_that("session waits stop on all documented terminal states", {
   check_terminal("Deleting", high_concurrency = TRUE)
   check_terminal("starting", result = "Failed")
   check_terminal("unrecognized", result = "Cancelled")
-  check_terminal("running", result = "Uncertain")
+})
+
+test_that("session wait continues through an Uncertain intermediate result", {
+  responses <- list(
+    list(id = "uncertain-session", state = "starting"),
+    list(id = "uncertain-session", state = "running", result = "Uncertain"),
+    list(id = "uncertain-session", state = "idle", result = "Uncertain")
+  )
+  local_mocked_bindings(
+    fabric_livy_json = function(...) {
+      response <- responses[[1L]]
+      responses <<- responses[-1L]
+      response
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+
+  expect_invisible(session$wait(timeout = 1, poll_interval = 0))
+  expect_identical(session$state, "idle")
+  expect_length(responses, 0L)
+  session$close()
 })
