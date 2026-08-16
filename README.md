@@ -13,13 +13,8 @@ run Spark code, and start or monitor Fabric jobs.
 
 ## Installation
 
-Install the latest release from CRAN:
-
-``` r
-install.packages("fabricQueryR")
-```
-
-Or install the development version from GitHub:
+This README documents the development version, including APIs that are not yet
+in the CRAN release. Install that version from GitHub:
 
 ``` r
 if (!requireNamespace("remotes", quietly = TRUE)) {
@@ -27,6 +22,13 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 }
 
 remotes::install_github("kennispunttwente/fabricQueryR")
+```
+
+Install the latest stable release from CRAN when you only need its published
+API:
+
+``` r
+install.packages("fabricQueryR")
 ```
 
 ## Getting started
