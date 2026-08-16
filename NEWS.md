@@ -28,6 +28,8 @@ Supplied workspace records now require a canonical workspace GUID and reject
 records whose declared type identifies a different Fabric item.
 `FabricLivySession$statements()` now follows Livy's `from`/`size` pages so
 sessions with more than one response page are not silently truncated.
+`fabric_kql_export()` now accepts multiple complete storage destinations, which
+lets Kusto distribute export work across storage accounts or paths.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

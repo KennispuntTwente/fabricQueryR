@@ -328,6 +328,43 @@ test_that("KQL export validates destinations and format-specific properties", {
   ))
   expect_false(grepl(unnamed_secret, destination$display, fixed = TRUE))
   expect_equal(destination$display, "https://storage.test/container/export")
+  multiple <- kusto_export_destination(c(
+    "https://storage-one.test/container/export;impersonate",
+    "https://storage-two.test/container/export;impersonate"
+  ))
+  expect_length(multiple$connection, 2L)
+  command <- kusto_export_command(
+    "Events | take 1",
+    multiple$connection,
+    kusto_export_properties(
+      "parquet",
+      TRUE,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      "per_shard",
+      100 * 1024^2,
+      NULL,
+      NULL
+    )
+  )
+  expect_match(
+    command,
+    paste0(
+      'h@"https://storage-one.test/container/export;impersonate", ',
+      'h@"https://storage-two.test/container/export;impersonate"'
+    ),
+    fixed = TRUE
+  )
+  expect_error(
+    kusto_export_destination(
+      c("https://storage.test/one", "relative/two")
+    ),
+    "must all be complete",
+    fixed = TRUE
+  )
   status <- kusto_export_status_text(paste0(
     "failed at https://storage.test/container;",
     unnamed_secret

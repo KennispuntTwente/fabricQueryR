@@ -464,6 +464,15 @@ test_that("server-side KQL export writes readable Parquet artifacts to OneLake",
     "-",
     Sys.getpid()
   )
+  destinations <- paste0(
+    "https://onelake.dfs.fabric.microsoft.com/",
+    manifest$workspace_id,
+    "/",
+    lakehouse$id,
+    "/",
+    root,
+    c("/primary", "/secondary")
+  )
   removed <- FALSE
   on.exit(
     if (!removed) {
@@ -488,9 +497,7 @@ test_that("server-side KQL export writes readable Parquet artifacts to OneLake",
       database$tables$events,
       "| project id, name, category, amount"
     ),
-    destination = lakehouse,
-    workspace = manifest$workspace_id,
-    path = root,
+    destination = destinations,
     format = "parquet",
     name_prefix = "events",
     compression_type = "snappy",
@@ -500,6 +507,7 @@ test_that("server-side KQL export writes readable Parquet artifacts to OneLake",
   )
   expect_s3_class(exported, "fabric_kql_export_result")
   expect_equal(exported$state, "Completed")
+  expect_length(exported$destination, 2L)
   expect_gte(exported$file_count, 1L)
   expect_equal(as.numeric(exported$records), 3)
 

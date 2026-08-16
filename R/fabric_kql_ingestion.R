@@ -2737,8 +2737,9 @@ kusto_write_result <- function(
 #'   A KQLDatabase record also supplies `database`.
 #' @param query One non-empty KQL query. The first result set is exported.
 #' @param destination A discovered Fabric item, item name or ID, complete
-#'   OneLake path, or complete HTTPS/ABFSS Kusto storage connection string. For
-#'   an item, also supply `path` and optionally `workspace`.
+#'   OneLake path, or complete HTTPS/ABFSS Kusto storage connection string. A
+#'   character vector of complete paths distributes export work across multiple
+#'   destinations. For an item, also supply `path` and optionally `workspace`.
 #' @param database KQL database display name. Omit for a discovered KQLDatabase.
 #' @param workspace Workspace containing an item supplied as `destination`.
 #'   Omit when the discovered item contains its workspace ID.
@@ -3101,6 +3102,30 @@ kusto_export_destination <- function(
   path = NULL,
   item_type = NULL
 ) {
+  multiple <- is.character(destination) && length(destination) > 1L
+  if (multiple) {
+    if (
+      anyNA(destination) ||
+        any(!grepl("^(?:https|abfss)://", destination, ignore.case = TRUE))
+    ) {
+      .fabric_abort(
+        "Multiple export destinations must all be complete HTTPS/ABFSS paths"
+      )
+    }
+    if (!is.null(workspace) || !is.null(path) || !is.null(item_type)) {
+      .fabric_abort(
+        paste0(
+          "workspace, path, and item_type must be omitted when destination ",
+          "contains complete storage paths"
+        )
+      )
+    }
+    resolved <- lapply(destination, kusto_export_destination)
+    return(list(
+      connection = vapply(resolved, `[[`, character(1), "connection"),
+      display = vapply(resolved, `[[`, character(1), "display")
+    ))
+  }
   complete <- is.character(destination) &&
     length(destination) == 1L &&
     !is.na(destination) &&
@@ -3331,7 +3356,15 @@ kusto_export_command <- function(query, destination, properties) {
     " to ",
     properties$format,
     " (",
-    kusto_export_literal(destination, hidden = TRUE),
+    paste(
+      vapply(
+        destination,
+        kusto_export_literal,
+        character(1),
+        hidden = TRUE
+      ),
+      collapse = ", "
+    ),
     ") with (",
     paste(encoded, collapse = ", "),
     ") <| ",
