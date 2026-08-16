@@ -387,6 +387,45 @@ test_that("non-idempotent initiation is attempted exactly once", {
   expect_equal(calls, 1L)
 })
 
+test_that("non-idempotent initiation refreshes once after a 401", {
+  calls <- 0L
+  refreshes <- logical()
+  credential <- fabric_credential(token = function(
+    audience,
+    force_refresh = FALSE
+  ) {
+    refreshes <<- c(refreshes, force_refresh)
+    if (force_refresh) "fresh-token" else "stale-token"
+  })
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    if (calls == 1L) {
+      return(operation_test_response(status = 401L, url = req$url))
+    }
+    operation_test_response(
+      status = 202L,
+      headers = list(
+        Location = paste0(
+          "https://api.fabric.microsoft.com/v1/operations/",
+          operation_test_id
+        ),
+        `Retry-After` = "2"
+      ),
+      url = req$url
+    )
+  })
+
+  operation <- .fabric_operation_submit(
+    operation_test_request(),
+    credential,
+    idempotent = FALSE
+  )
+
+  expect_s3_class(operation, "fabric_operation")
+  expect_equal(calls, 2L)
+  expect_identical(refreshes, c(FALSE, TRUE))
+})
+
 test_that("operation headers can independently provide Location or ID", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

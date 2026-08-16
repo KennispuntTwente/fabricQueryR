@@ -388,15 +388,16 @@ fabric_operation_result <- function(
 
   # 2 Perform the initiating request once ----------------------------------------------------------
 
-  # Non-idempotent initiation gets exactly one transport attempt. Later polling
-  # repeats only safe GET requests and never retains this request for replay
+  # Non-idempotent initiation gets no transport or service-error replay. A
+  # second attempt is reserved for a refreshable credential rejected with 401;
+  # that request was not authorized or accepted by the service.
 
   response <- .httr2_perform(
     request,
     credential = credential,
     audience = .fabric_audience$fabric,
     idempotent = idempotent,
-    max_tries = if (isTRUE(idempotent)) 4L else 1L
+    max_tries = if (isTRUE(idempotent)) 4L else 2L
   )
   status <- httr2::resp_status(response)
   if (!status %in% c(200L, 201L, 202L)) {

@@ -70,6 +70,8 @@ response `Retry-After` value.
 
 * `fabric_operation_*()` functions resume, monitor, and retrieve the results of
 longer-running Fabric tasks such as Lakehouse loads.
+Non-idempotent operation submissions now refresh and retry once after an
+authentication 401, while still never replaying transport or service failures.
 
 ## Changed
 
