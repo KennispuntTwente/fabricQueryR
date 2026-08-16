@@ -14,6 +14,8 @@ sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
 option for running one piece of Spark code.
 `FabricLivySession$wait()` now continues polling an active session whose result
 is `Uncertain`, using terminal session state to decide failure.
+KQL management requests now canonicalize mixed-case query-route suffixes before
+switching to `/v1/rest/mgmt`.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

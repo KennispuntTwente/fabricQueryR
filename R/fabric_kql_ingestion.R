@@ -3351,7 +3351,12 @@ kusto_export_management <- function(
   client_request_id <- .kusto_next_ingestion_request_id(
     paste0("Export", operation)
   )
-  url <- sub("/v2/rest/query$", "/v1/rest/mgmt", target$url)
+  url <- sub(
+    "/v2/rest/query$",
+    "/v1/rest/mgmt",
+    target$url,
+    ignore.case = TRUE
+  )
   properties <- as.character(jsonlite::toJSON(
     list(ClientRequestId = client_request_id),
     auto_unbox = TRUE

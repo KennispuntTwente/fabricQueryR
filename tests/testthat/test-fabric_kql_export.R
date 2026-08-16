@@ -56,7 +56,7 @@ test_that("KQL export submits once, polls, and returns authoritative details", {
       type = "KQLDatabase",
       displayName = "Telemetry",
       query_service_uri = paste0(
-        "https://cluster.z1.kusto.fabric.microsoft.com"
+        "https://cluster.z1.kusto.fabric.microsoft.com/V2/REST/QUERY"
       )
     ),
     query = "Events | project id, observed_at",
@@ -98,7 +98,12 @@ test_that("KQL export submits once, polls, and returns authoritative details", {
   )))
   expect_true(all(vapply(
     calls,
-    function(call) endsWith(call$request$url, "/v1/rest/mgmt"),
+    function(call) {
+      identical(
+        call$request$url,
+        "https://cluster.z1.kusto.fabric.microsoft.com/v1/rest/mgmt"
+      )
+    },
     logical(1)
   )))
   command <- calls[[1L]]$request$body$data$csl
