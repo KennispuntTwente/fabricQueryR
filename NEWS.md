@@ -22,6 +22,8 @@ five-hour attempt timeout when checking the 24-hour retry limit.
 layer as well as validating response headers and the completed body.
 Warehouse table helpers now reject `/` and `\\` in schema and table names, as
 required by Fabric's current T-SQL surface-area limitations.
+Non-recursive `fabric_onelake_list()` calls now reject multi-level `begin_from`
+paths locally instead of sending a request that ADLS rejects.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

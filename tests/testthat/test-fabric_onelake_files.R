@@ -595,6 +595,18 @@ test_that("OneLake listing can begin from a lexicographic path", {
     "unsafe segment",
     fixed = TRUE
   )
+  expect_error(
+    fabric_onelake_list(
+      "Analytics",
+      "Curated.Lakehouse",
+      path = "Files",
+      recursive = FALSE,
+      token = "token",
+      begin_from = "nested/file.csv"
+    ),
+    "one path level",
+    fixed = TRUE
+  )
 })
 
 test_that("OneLake metadata exposes properties and ETags", {

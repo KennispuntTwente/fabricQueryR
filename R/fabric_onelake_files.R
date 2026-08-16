@@ -49,7 +49,8 @@
 #' @param page_size Maximum paths requested from OneLake per API call, from 1 to
 #'   5000. Smaller values reduce each response size but require more requests
 #' @param begin_from Optional path at which to begin a listing. Use this to
-#'   resume a long, alphabetically ordered scan
+#'   resume a long, alphabetically ordered scan. Non-recursive listings accept
+#'   only a single path level
 #' @param item_type Optional Fabric item type appended to an item name unless
 #'   that name already ends in the same suffix, for example `"Lakehouse"`
 #'   Usually unnecessary for a discovered item or a name such as
@@ -1242,6 +1243,11 @@ onelake_list_target <- function(
 
   if (!is.null(begin_from)) {
     begin_from <- onelake_normalize_path(begin_from)
+    if (!isTRUE(recursive) && grepl("/", begin_from, fixed = TRUE)) {
+      .fabric_abort(
+        "begin_from must contain one path level when recursive = FALSE"
+      )
+    }
   }
 
   directory <- paste(

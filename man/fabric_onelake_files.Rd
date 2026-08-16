@@ -111,7 +111,8 @@ deletion, whether a non-empty directory may be removed}
 5000. Smaller values reduce each response size but require more requests}
 
 \item{begin_from}{Optional path at which to begin a listing. Use this to
-resume a long, alphabetically ordered scan}
+resume a long, alphabetically ordered scan. Non-recursive listings accept
+only a single path level}
 
 \item{item_type}{Optional Fabric item type appended to an item name unless
 that name already ends in the same suffix, for example \code{"Lakehouse"}
