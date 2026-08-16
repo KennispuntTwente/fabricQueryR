@@ -212,6 +212,33 @@ test_that("refresh payload validation enforces Power BI contracts", {
     ),
     "24 hours"
   )
+  expect_error(
+    .pbi_refresh_payload(
+      "enhanced",
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      4L,
+      NULL
+    ),
+    "24 hours"
+  )
+  expect_no_error(.pbi_refresh_payload(
+    "enhanced",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    3L,
+    NULL
+  ))
   expect_error(.pbi_refresh_timeout("24:00:00"), "HH:MM:SS")
   expect_error(.pbi_refresh_timeout("1:2:03"), "HH:MM:SS")
   expect_error(.pbi_refresh_objects(list(list(partition = "p"))), "table")

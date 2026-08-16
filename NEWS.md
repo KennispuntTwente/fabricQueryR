@@ -16,6 +16,8 @@ option for running one piece of Spark code.
 is `Uncertain`, using terminal session state to decide failure.
 KQL management requests now canonicalize mixed-case query-route suffixes before
 switching to `/v1/rest/mgmt`.
+Enhanced semantic-model refresh validation now accounts for Power BI's default
+five-hour attempt timeout when checking the 24-hour retry limit.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and
