@@ -452,7 +452,22 @@ fabric_job_wait <- function(
   )
   started <- .now()
   last <- NULL
-  retry_after <- job$retry_after
+  next_poll_at <- job$next_poll_at
+  if (
+    is.null(next_poll_at) &&
+      !is.null(job$submitted_at) &&
+      !is.null(job$retry_after)
+  ) {
+    next_poll_at <- job$submitted_at + job$retry_after
+  }
+  retry_after <- if (is.null(next_poll_at)) {
+    job$retry_after
+  } else {
+    max(
+      0,
+      as.numeric(difftime(next_poll_at, started, units = "secs"))
+    )
+  }
 
   # 3 Poll until the job finishes ------------------------------------------------------------------
 

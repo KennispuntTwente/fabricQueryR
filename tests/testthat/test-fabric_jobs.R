@@ -857,6 +857,42 @@ test_that("wait honors Retry-After and returns a completed result", {
   expect_equal(index, 2L)
 })
 
+test_that("wait only sleeps the unelapsed submission Retry-After", {
+  requested <- 0L
+  elapsed <- 0
+  submitted <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC")
+  job <- job_test_handle(retry_after = 60)
+  job$submitted_at <- submitted
+  job$next_poll_at <- submitted + 60
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      requested <<- requested + 1L
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "job",
+          status = "Completed",
+          properties = list(exitValue = "done")
+        )
+      )
+    }
+  )
+
+  result <- fabric_job_wait(
+    job,
+    timeout = 30,
+    .sleep = function(seconds) {
+      elapsed <<- elapsed + seconds
+    },
+    .now = function() submitted + 50 + elapsed
+  )
+
+  expect_equal(result$status, "Completed")
+  expect_equal(elapsed, 10)
+  expect_equal(requested, 1L)
+})
+
 test_that("manual status honors the submission Retry-After delay", {
   requested <- FALSE
   slept <- numeric()
