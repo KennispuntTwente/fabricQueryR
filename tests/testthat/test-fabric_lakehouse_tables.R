@@ -607,7 +607,6 @@ test_that("Lakehouse table inputs fail before requests are sent", {
   expect_error(invoke(path = "Files/.hidden"), "relativePath syntax")
   expect_error(invoke(schema = "bad-name"), "schema must contain")
   expect_error(invoke(recursive = TRUE), "requires path_type")
-  expect_error(invoke(format = "csv", delimiter = " "), "delimiter must")
   expect_error(
     invoke(path_type = "folder", file_extension = "this-extension-is-too-long"),
     "file_extension must"
@@ -653,6 +652,34 @@ test_that("Lakehouse paths follow the Fabric relativePath grammar", {
     expect_error(
       .fabric_lakehouse_files_path(path, "path"),
       "relativePath syntax",
+      fixed = TRUE
+    )
+  }
+})
+
+test_that("Lakehouse CSV delimiters follow the published schema", {
+  settings <- function(delimiter) {
+    .fabric_lakehouse_load_settings(
+      table = "orders",
+      schema = NULL,
+      path = "Files/orders.csv",
+      path_type = "File",
+      format = "Csv",
+      mode = "Append",
+      recursive = FALSE,
+      header = TRUE,
+      delimiter = delimiter,
+      file_extension = NULL
+    )
+  }
+
+  for (delimiter in c("", " ", "\t", "12345678")) {
+    expect_identical(settings(delimiter)$delimiter, delimiter)
+  }
+  for (delimiter in c("123456789", "(", ")", "[", "]", "{", "}", "'", '"')) {
+    expect_error(
+      settings(delimiter),
+      "delimiter must be 0 to 8 characters",
       fixed = TRUE
     )
   }

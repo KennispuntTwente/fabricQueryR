@@ -29,6 +29,8 @@ and read Lakehouse tables, load CSV or Parquet files, and write data frames or
 Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
 Load Table paths now enforce Fabric's case-sensitive `relativePath` grammar and
 accept its valid `Files` root-folder form.
+CSV delimiters now follow the published 0-to-8-character schema, including
+space and tab delimiters while rejecting the documented punctuation.
 
 * `fabric_warehouse_read_table()` and `fabric_warehouse_write_table()` read and
 bulk-write Warehouse tables using data frames or Arrow data. Tables can be

@@ -46,8 +46,8 @@
 #'   alternative.
 #' @param recursive Whether a folder load should include descendant folders.
 #' @param header Whether the first CSV row contains column names.
-#' @param delimiter CSV delimiter of 1 to 8 non-whitespace characters. Fabric
-#'   does not allow parentheses, brackets, braces, or quotes in a delimiter.
+#' @param delimiter CSV delimiter of 0 to 8 characters. Spaces and tabs are
+#'   allowed; Fabric excludes parentheses, brackets, braces, and quotes.
 #' @param file_extension Optional extension used to filter a folder load,
 #'   without a leading dot.
 #' @param data A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
@@ -1201,12 +1201,14 @@ fabric_lakehouse_write_table <- function(
     format <- .fabric_lakehouse_choice(format, c("Parquet", "Csv"), "format")
   }
   if (identical(format, "Csv")) {
-    .fabric_lakehouse_nonempty(delimiter, "delimiter")
-    invalid_delimiter <- nchar(delimiter) > 8L ||
-      grepl("[()\\[\\]{}'\"[:space:]]", delimiter, perl = TRUE)
+    invalid_delimiter <- !is.character(delimiter) ||
+      length(delimiter) != 1L ||
+      is.na(delimiter) ||
+      nchar(delimiter) > 8L ||
+      grepl("[()\\[\\]{}'\"]", delimiter, perl = TRUE)
     if (invalid_delimiter) {
       .fabric_abort(
-        "delimiter must be 1 to 8 characters without whitespace, brackets, braces, parentheses, or quotes"
+        "delimiter must be 0 to 8 characters without brackets, braces, parentheses, or quotes"
       )
     }
   }
