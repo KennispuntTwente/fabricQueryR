@@ -25,7 +25,7 @@ currently in preview.
 Start with a discovered KQL database. Its record contains both the query URI
 used by `fabric_kql_query()` and the ingestion URI used here:
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 database <- fabric_kql_databases("Telemetry workspace")[[1]]
@@ -37,7 +37,7 @@ database$ingestion_service_uri
 Supply a destination table and an ordinary data frame or tibble. Use a new test
 table while learning:
 
-```{r}
+```{r, eval = FALSE}
 written <- fabric_kql_write_table(
   database,
   table = "Events",
@@ -76,7 +76,7 @@ Arrow Tables and RecordBatches work without an R data-frame conversion. For
 data larger than memory, pass a lazy Dataset, Scanner, Arrow dplyr query,
 RecordBatchReader, or an Arrow-compatible stream returned by a package query:
 
-```{r}
+```{r, eval = FALSE}
 dataset <- arrow::open_dataset("local-parquet-directory")
 
 written <- fabric_kql_write_table(
@@ -114,7 +114,7 @@ For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate a named
 ingestion mapping in Fabric before submission. A OneLake source can use the
 workspace and item GUIDs with caller impersonation:
 
-```{r}
+```{r, eval = FALSE}
 source <- paste0(
   "https://onelake.dfs.fabric.microsoft.com/",
   "00000000-0000-0000-0000-000000000001/",
@@ -132,7 +132,7 @@ endpoint even though returned objects redact recognized secrets.
 Supply the source format and the predefined mapping. Source GUIDs are generated
 when omitted and exposed on the returned handle:
 
-```{r}
+```{r, eval = FALSE}
 ingestion <- fabric_kql_ingest(
   database,
   table = "Events",
@@ -165,7 +165,7 @@ The preview route accepts at most 20 blobs per request and up to 6 GB of
 uncompressed data. Structured records expose known sizes without parallel
 vectors:
 
-```{r}
+```{r, eval = FALSE}
 sources <- tibble::tibble(
   url = c(source_a, source_b),
   source_id = c(source_a_id, source_b_id),
@@ -190,7 +190,7 @@ successfully downloaded source and requires corresponding storage permission.
 
 One status snapshot is useful for a scheduler that persists operation IDs:
 
-```{r}
+```{r, eval = FALSE}
 snapshot <- fabric_kql_ingestion_status(ingestion)
 snapshot$state
 snapshot$counts
@@ -198,7 +198,7 @@ snapshot$counts
 
 For an interactive or single-process batch, poll with a client-side deadline:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_kql_ingestion_status(
   ingestion,
   wait = TRUE,
@@ -220,7 +220,7 @@ batches have their own states. By default terminal problems raise a typed
 condition containing `last_status` and the failed-source details. To handle all
 states as data:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_kql_ingestion_status(
   ingestion,
   wait = TRUE,
@@ -238,7 +238,7 @@ Retry a `Transient` source only after considering whether it might already have
 committed. A `Permanent` failure such as a missing mapping or malformed input
 requires a configuration or data fix. Query the destination after success:
 
-```{r}
+```{r, eval = FALSE}
 loaded <- fabric_kql_query(
   database,
   query = "Events | where ingestion_time() > ago(1h) | take 100"
@@ -259,7 +259,7 @@ the result is too large for the client-result channel or should remain in
 Fabric, `fabric_kql_export()` runs Kusto's service-side export and writes the
 first result set directly to storage:
 
-```{r}
+```{r, eval = FALSE}
 lakehouse <- fabric_lakehouses("Telemetry workspace")[[1]]
 
 exported <- fabric_kql_export(

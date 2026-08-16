@@ -22,7 +22,7 @@ pagination, and collection into a tibble.
 
 Start with a discovered API so its endpoint and workspace travel together:
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 api <- fabric_graphql_apis("Analytics workspace")[[1]]
@@ -39,7 +39,7 @@ A GraphQL document is one character string. The field names depend on how the
 Fabric API was configured, so replace `products`, `id`, and `name` with fields
 from your API:
 
-```{r}
+```{r, eval = FALSE}
 response <- fabric_graphql_query(
   api,
   query = "{ products { items { id name } } }"
@@ -59,7 +59,7 @@ Microsoft Fabric disables runtime introspection by default. Only a workspace
 admin can enable it under **API Settings > Introspection**. Once enabled, the
 standard introspection response is available as a nested R list:
 
-```{r}
+```{r, eval = FALSE}
 schema <- fabric_graphql_schema(api)
 
 schema$queryType$name
@@ -78,7 +78,7 @@ Fabric normally represents a generated collection with `items`,
 `hasNextPage`, and `endCursor`. Request all three pieces needed by the workflow
 and use a stable explicit ordering when pages must be repeatable:
 
-```{r}
+```{r, eval = FALSE}
 pages <- fabric_graphql_paginate(
   api,
   query = paste(
@@ -110,7 +110,7 @@ does not interpret the value.
 
 Select the row array explicitly relative to each page's `data` field:
 
-```{r}
+```{r, eval = FALSE}
 products <- fabric_graphql_collect(pages, c("products", "items"))
 
 products
@@ -123,7 +123,7 @@ Scalar fields become ordinary columns. A field that first appears on a later
 page is added to the union of columns, with typed `NA` values in earlier rows.
 Nested objects and arrays remain list-columns rather than being flattened:
 
-```{r}
+```{r, eval = FALSE}
 products$category[[1]]
 products$tags[[1]]
 ```
@@ -148,7 +148,7 @@ those pages are passed to `fabric_graphql_collect()`, collection raises a
 `fabric_graphql_collection_error` instead of returning an apparently complete
 tibble:
 
-```{r}
+```{r, eval = FALSE}
 tryCatch(
   fabric_graphql_collect(incomplete_pages, c("products", "items")),
   fabric_graphql_collection_error = function(error) {

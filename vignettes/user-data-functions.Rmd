@@ -30,7 +30,7 @@ response does not expose enough information to derive each public URL safely.
 
 Store the copied URL in configuration rather than source code:
 
-```{r}
+```{r, eval = FALSE}
 function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 ```
 
@@ -46,7 +46,7 @@ credentials; use `audience` only for a custom identity provider.
 Parameter names must match the published Python function. For a function with
 `customerName` and `priority` inputs:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_function_invoke(
   function_url,
   parameters = list(
@@ -68,7 +68,7 @@ code around it.
 The request body is one named JSON object. Its names must match the published
 function's camelCase parameters:
 
-```{r}
+```{r, eval = FALSE}
 structured_result <- fabric_function_invoke(
   function_url,
   parameters = list(
@@ -87,7 +87,7 @@ clearest control over nested JSON shapes.
 
 The result is deliberately inspectable:
 
-```{r}
+```{r, eval = FALSE}
 structured_result$function_name
 structured_result$invocation_id
 structured_result$status
@@ -117,7 +117,7 @@ A function can write data or call another service, so invocation POSTs are not
 retried by default. If a function is read-only or implements its own durable
 idempotency key, opt in explicitly:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_function_invoke(
   function_url,
   parameters = list(requestId = "stable-business-key"),

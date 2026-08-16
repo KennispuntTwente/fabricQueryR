@@ -31,7 +31,7 @@ own temporary Parquet staging.
 
 ## Prepare a small R object
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 orders <- data.frame(
@@ -49,7 +49,7 @@ makes column names, inferred types, and replacement behavior easy to inspect.
 
 ## Write a Lakehouse table
 
-```{r}
+```{r, eval = FALSE}
 write_result <- fabric_lakehouse_write_table(
   lakehouse,
   table = "orders_from_r",
@@ -67,7 +67,7 @@ create the destination table; Fabric infers its columns from the source.
 
 Read back a few rows to verify the result:
 
-```{r}
+```{r, eval = FALSE}
 check <- fabric_lakehouse_read_table(
   lakehouse,
   table = "orders_from_r",
@@ -85,7 +85,7 @@ managed load behavior.
 A file is different from a managed table. Choose this route when another
 process expects a specific file or when the content is not tabular:
 
-```{r}
+```{r, eval = FALSE}
 fabric_onelake_write_file(
   workspace,
   lakehouse,
@@ -97,7 +97,7 @@ fabric_onelake_write_file(
 `fabric_onelake_write_file()` serializes supported R or Arrow objects. Use
 `fabric_onelake_upload()` when a file already exists on local disk:
 
-```{r}
+```{r, eval = FALSE}
 fabric_onelake_upload(
   workspace,
   lakehouse,
@@ -115,7 +115,7 @@ writer.
 A Warehouse writer uses a Lakehouse `Files/` directory for temporary staging,
 then asks the Warehouse to load it efficiently:
 
-```{r}
+```{r, eval = FALSE}
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
 warehouse_result <- fabric_warehouse_write_table(
@@ -138,7 +138,7 @@ choices, transactions, and larger Arrow inputs.
 
 Use Eventhouse for event or time-series data that will be queried with KQL:
 
-```{r}
+```{r, eval = FALSE}
 kql_database <- fabric_kql_databases(workspace)[[1L]]
 
 kql_result <- fabric_kql_write_table(
@@ -162,7 +162,7 @@ failure recovery.
 If CSV or Parquet data already exists below the same Lakehouse's `Files/` area,
 you can load it without downloading it to R:
 
-```{r}
+```{r, eval = FALSE}
 operation <- fabric_lakehouse_load_table(
   lakehouse,
   table = "orders_from_file",
@@ -199,7 +199,7 @@ The Lakehouse, Warehouse, and Eventhouse writers accept Arrow Tables and
 RecordBatches. They can also consume lazy Arrow Datasets, Scanners, queries,
 and streams in batches, without collecting the full input as an R data frame:
 
-```{r}
+```{r, eval = FALSE}
 dataset <- arrow::open_dataset("local-parquet-directory")
 
 fabric_lakehouse_write_table(

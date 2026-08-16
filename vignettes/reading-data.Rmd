@@ -43,7 +43,7 @@ want one table and do not need joins or grouping.
 The examples use discovered objects. They carry the IDs and connection details
 needed by the read functions:
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 workspace <- fabric_workspaces()[["Analytics workspace"]]
@@ -61,7 +61,7 @@ source used by your workflow.
 Use `fabric_sql_query()` for one read-only `SELECT` query. It opens and closes
 the connection for you and returns a tibble:
 
-```{r}
+```{r, eval = FALSE}
 recent_orders <- fabric_sql_query(
   warehouse,
   sql = paste(
@@ -80,7 +80,7 @@ Put changing values in `params` rather than pasting them into the SQL text.
 This handles quoting safely. Use `fabric_sql_connect()` and normal `DBI`
 functions when several queries should share one connection:
 
-```{r}
+```{r, eval = FALSE}
 con <- fabric_sql_connect(warehouse)
 on.exit(DBI::dbDisconnect(con), add = TRUE)
 
@@ -96,7 +96,7 @@ The default SQL backend uses Microsoft ODBC Driver 18 for SQL Server. See
 Lakehouse and Warehouse table readers accept a table name and can limit the
 data before it enters R:
 
-```{r}
+```{r, eval = FALSE}
 lakehouse_rows <- fabric_lakehouse_read_table(
   lakehouse,
   table = "orders",
@@ -120,7 +120,7 @@ tables or schemas are available.
 An Eventhouse is optimized for event, log, and time-series data. Its query
 language is KQL. Read a whole table by name for a simple start:
 
-```{r}
+```{r, eval = FALSE}
 events <- fabric_kql_read_table(
   kql_database,
   table = "Events",
@@ -130,7 +130,7 @@ events <- fabric_kql_read_table(
 
 Use a KQL query when Fabric should filter or summarize the events first:
 
-```{r}
+```{r, eval = FALSE}
 daily_events <- fabric_kql_query(
   kql_database,
   query = paste(
@@ -147,7 +147,7 @@ daily_events <- fabric_kql_query(
 A semantic model is a dataset ready for reporting, commonly used in PowerBi.
 Semantic models can be queried with DAX (Data Analysis Expressions):
 
-```{r}
+```{r, eval = FALSE}
 sales_by_region <- fabric_pbi_dax_query(
   model,
   dax = paste(
@@ -168,7 +168,7 @@ things you can do with semantic models, like refreshing their data.
 Use the file reader when the file itself is the data contract. Paths in a
 Lakehouse usually begin with `Files/`:
 
-```{r}
+```{r, eval = FALSE}
 orders_file <- fabric_onelake_read_file(
   workspace,
   lakehouse,
@@ -185,7 +185,7 @@ not a file reader, for managed data below `Tables/`.
 GraphQL is useful when a Fabric API item exposes a purpose-built selection of
 fields:
 
-```{r}
+```{r, eval = FALSE}
 api <- fabric_graphql_apis(workspace)[[1L]]
 
 response <- fabric_graphql_query(
@@ -201,7 +201,7 @@ and pagination.
 Spark is the later choice for distributed transformations, Spark-only data
 formats, or logic already written for Spark:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_livy_query(
   lakehouse,
   kind = "sql",
@@ -221,7 +221,7 @@ you may need to stream the data into R rather than reading it all at once.
 Several readers accept `result = "arrow_stream"`. This can be used with the
 'arrow' R package to read the data in batches:
 
-```{r}
+```{r, eval = FALSE}
 stream <- fabric_lakehouse_read_table(
   lakehouse,
   table = "large_orders",
@@ -233,4 +233,3 @@ reader <- arrow::as_record_batch_reader(stream)
 
 See the [Arrow R package](https://arrow.apache.org/docs/r/) for more information 
 on working with Arrow streams and record batches.
-

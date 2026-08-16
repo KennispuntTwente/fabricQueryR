@@ -24,7 +24,7 @@ files underneath `Tables/` directly.
 
 ## Find a Lakehouse
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 workspace <- fabric_workspaces()[["Analytics workspace"]]
@@ -40,7 +40,7 @@ item IDs, and service addresses.
 
 Start by listing a small folder:
 
-```{r}
+```{r, eval = FALSE}
 files <- fabric_onelake_list(
   workspace,
   lakehouse,
@@ -52,7 +52,7 @@ files[c("path", "is_directory", "content_length")]
 
 Read a supported tabular file directly into R:
 
-```{r}
+```{r, eval = FALSE}
 orders <- fabric_onelake_read_file(
   workspace,
   lakehouse,
@@ -71,7 +71,7 @@ as bytes or be saved to local disk.
 `fabric_onelake_write_file()` turns an R or Arrow object into CSV, Parquet, or
 Arrow IPC content based on the path or explicit format:
 
-```{r}
+```{r, eval = FALSE}
 fabric_onelake_write_file(
   workspace,
   lakehouse,
@@ -86,7 +86,7 @@ fabric_onelake_write_file(
 If the file already exists on your computer, upload it without first parsing
 it in R:
 
-```{r}
+```{r, eval = FALSE}
 fabric_onelake_upload(
   workspace,
   lakehouse,
@@ -101,14 +101,14 @@ shared data.
 
 ## Discover and read managed tables
 
-```{r}
+```{r, eval = FALSE}
 tables <- fabric_lakehouse_tables(lakehouse)
 tables[c("schema", "name", "type", "format")]
 ```
 
 Select a discovered row or supply the table name:
 
-```{r}
+```{r, eval = FALSE}
 table <- tables[1L, ]
 
 rows <- fabric_lakehouse_read_table(
@@ -125,7 +125,7 @@ against the Lakehouse SQL analytics endpoint instead.
 
 ## Write an R object as a managed table
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_lakehouse_write_table(
   lakehouse,
   table = "orders_from_r",
@@ -150,7 +150,7 @@ separately schema-controlled process when inference is not suitable.
 When CSV or Parquet files already exist in the Lakehouse, ask Fabric to load
 them directly:
 
-```{r}
+```{r, eval = FALSE}
 operation <- fabric_lakehouse_load_table(
   lakehouse,
   table = "orders_from_csv",
@@ -172,7 +172,7 @@ Lakehouse's `Files/` area.
 
 Use an Arrow stream when the selected data may not fit comfortably in memory:
 
-```{r}
+```{r, eval = FALSE}
 stream <- fabric_lakehouse_read_table(
   lakehouse,
   table = "large_orders",
@@ -184,7 +184,7 @@ reader <- arrow::as_record_batch_reader(stream)
 The stream is disk-backed and single-use. `version` can select an earlier Delta
 table version when that history is still available:
 
-```{r}
+```{r, eval = FALSE}
 older_rows <- fabric_lakehouse_read_table(
   lakehouse,
   table = "orders",
@@ -202,7 +202,7 @@ normal discovered-table workflow.
 A OneLake shortcut makes data stored elsewhere appear at a path in the current
 item. It is a link, not a second copy:
 
-```{r}
+```{r, eval = FALSE}
 lakehouses <- fabric_lakehouses(workspace)
 destination <- lakehouses[[1L]]
 source <- lakehouses[[2L]]

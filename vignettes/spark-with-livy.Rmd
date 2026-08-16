@@ -28,7 +28,7 @@ Lakehouse and access the data used by the code.
 
 Discovering the Lakehouse is normally enough; its record carries the endpoint:
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 workspace <- fabric_workspaces()[["Analytics workspace"]]
@@ -44,7 +44,7 @@ pass that URL instead.
 `fabric_livy_query()` is the simplest helper. It starts a temporary session,
 runs one statement, waits, and closes the session:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_livy_query(
   lakehouse,
   kind = "sql",
@@ -70,7 +70,7 @@ The `kind` argument tells Livy how to interpret `code`:
 
 For example, SparkR code can use the active Spark session and Lakehouse:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_livy_query(
   lakehouse,
   kind = "sparkr",
@@ -92,7 +92,7 @@ deliberately and do not insert untrusted text into it.
 Starting Spark can take time. Use `fabric_livy_session()` when sequential
 statements need to share variables or cached data:
 
-```{r}
+```{r, eval = FALSE}
 session <- fabric_livy_session(lakehouse)
 on.exit(session$close(), add = TRUE)
 
@@ -114,7 +114,7 @@ underlying compute; it is not needed for a few statements in order.
 Use a Livy batch when the work is a repeatable Python, R, or Java/Scala script
 stored in OneLake or ADLS:
 
-```{r}
+```{r, eval = FALSE}
 batch <- fabric_livy_batch_submit(
   lakehouse,
   file = paste0(
@@ -142,7 +142,7 @@ A published Fabric Environment can hold Spark settings and libraries shared by
 several runs. Discover it and pass its ID when the workload depends on that
 configuration:
 
-```{r}
+```{r, eval = FALSE}
 environment <- fabric_environments(workspace)[[1L]]
 
 result <- fabric_livy_query(

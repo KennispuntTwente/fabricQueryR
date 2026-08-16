@@ -45,7 +45,7 @@ schema evolution, and transactional consistency.
 Install and load the package, 
 then set your organization's Microsoft Entra tenant ID:
 
-```{r}
+```{r, eval = FALSE}
 install.packages("fabricQueryR")
 
 library(fabricQueryR)
@@ -68,7 +68,7 @@ the different ways to authenticate in more detail.
 
 Start by listing the workspaces that your account can access:
 
-```{r}
+```{r, eval = FALSE}
 # List all workspaces you can access
 workspaces <- fabric_workspaces()
 ```
@@ -77,7 +77,7 @@ The result is a list of workspaces you have access to.
 If the list is empty, check that your account has been granted access to a workspace in the Fabric portal.
 If the list is not empty, select a specific workspace:
 
-```{r}
+```{r, eval = FALSE}
 # Select the first workspace in the list
 workspace <- workspaces[[1L]]
 workspace$displayName
@@ -86,14 +86,14 @@ workspace$displayName
 For a script that will run repeatedly,
 selecting by exact name is more robust:
 
-```{r}
+```{r, eval = FALSE}
 # Select a workspace by name
 workspace <- fabric_workspaces()[["Analytics workspace"]]
 ```
 
 Now list all items in the workspace, or ask directly for items of a specific type:
 
-```{r}
+```{r, eval = FALSE}
 # List all items in the workspace
 items <- fabric_items(workspace)
 items
@@ -112,7 +112,7 @@ You can pass the discovered item to other functions of this package (see below).
 If the workspace contains a Lakehouse, 
 reading one managed table is a simple first workflow:
 
-```{r}
+```{r, eval = FALSE}
 # List the tables in the Lakehouse
 tables <- fabric_lakehouse_tables(lakehouse)
 tables[c("schema", "name", "type")]
@@ -148,4 +148,3 @@ Continue with one of the following vignettes:
   explains Lakehouse files and tables in more detail
 - [Working with Livy (Spark)](spark-with-livy.html) introduces remote Spark work
   after the simpler read and write paths
-

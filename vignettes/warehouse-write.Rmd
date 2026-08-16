@@ -28,7 +28,7 @@ removed after a confirmed successful write.
 
 Discover both items so their IDs and connection details travel with them:
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 workspace <- fabric_workspaces()[["Analytics"]]
@@ -40,7 +40,7 @@ staging_lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
 Start with a test table whose definition already matches the R columns:
 
-```{r}
+```{r, eval = FALSE}
 written <- fabric_warehouse_write_table(
   warehouse,
   table = "orders",
@@ -70,7 +70,7 @@ retains supported 64-bit integers, dates, timestamps, decimals, and nulls.
 
 To create a missing target and load it in the same transaction:
 
-```{r}
+```{r, eval = FALSE}
 created <- fabric_warehouse_write_table(
   warehouse,
   table = "orders_from_r",
@@ -101,7 +101,7 @@ Arrow Datasets, Scanners, dplyr queries, RecordBatchReaders, Tables, and
 Arrow-compatible streams use the same function. They are consumed one record
 batch at a time rather than collected into an R data frame:
 
-```{r}
+```{r, eval = FALSE}
 dataset <- arrow::open_dataset("local-parquet-directory")
 
 written <- fabric_warehouse_write_table(
@@ -120,7 +120,7 @@ inside Fabric's documented 100 MB to 1 GB performance range. Use
 
 ## Choose truncate or drop replacement
 
-```{r}
+```{r, eval = FALSE}
 replaced <- fabric_warehouse_write_table(
   warehouse,
   table = "orders",
@@ -135,7 +135,7 @@ The default truncate path preserves the existing definition, executes
 `COPY INTO`, and commits only after the load succeeds. Use drop replacement
 when the target definition should instead be inferred again:
 
-```{r}
+```{r, eval = FALSE}
 recreated <- fabric_warehouse_write_table(
   warehouse,
   table = "orders",

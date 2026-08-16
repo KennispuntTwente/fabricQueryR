@@ -22,7 +22,7 @@ the more specialized controls used for production models.
 This guide uses a discovered model so its workspace and dataset IDs travel
 together:
 
-```{r}
+```{r, eval = FALSE}
 library(fabricQueryR)
 
 model <- fabric_semantic_models("Analytics workspace")[[1]]
@@ -35,7 +35,7 @@ normally begins with `EVALUATE` and returns a table. If you are new to DAX,
 create and test a query in the model's **DAX query view** in Fabric, then use the
 same text from R:
 
-```{r}
+```{r, eval = FALSE}
 rows <- fabric_pbi_dax_query(
   model,
   dax = "EVALUATE TOPN(100, 'Customers')"
@@ -51,7 +51,7 @@ fit.
 
 For example, a DAX measure can be grouped by a model column:
 
-```{r}
+```{r, eval = FALSE}
 sales <- fabric_pbi_dax_query(
   model,
   dax = paste(
@@ -84,7 +84,7 @@ service-principal refresh request.
 
 A standard refresh processes the complete model using Power BI defaults:
 
-```{r}
+```{r, eval = FALSE}
 refresh <- fabric_pbi_refresh(model)
 completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
 
@@ -101,7 +101,7 @@ in another R process.
 For example, a data-load workflow can refresh only after the source update has
 committed successfully:
 
-```{r}
+```{r, eval = FALSE}
 load <- fabric_lakehouse_write_table(
   lakehouse,
   "dbo.Sales",
@@ -127,7 +127,7 @@ Enhanced refresh requires Power BI Premium, Premium per user, Embedded, or
 Fabric capacity. Supplying an enhanced option selects enhanced mode
 automatically, or set `mode = "enhanced"` explicitly:
 
-```{r}
+```{r, eval = FALSE}
 refresh <- fabric_pbi_refresh(
   model,
   mode = "enhanced",
@@ -163,7 +163,7 @@ Execution details retain the service's general and extended states. The
 normalized `state` distinguishes `Queued`, `InProgress`, `Completed`,
 `CompletedWithWarnings`, `Failed`, `TimedOut`, `Cancelled`, and `Disabled`.
 
-```{r}
+```{r, eval = FALSE}
 status <- fabric_pbi_refresh_status(refresh)
 
 status$state
@@ -188,7 +188,7 @@ By default, wait raises typed R conditions for service failures, cancellation,
 service timeouts, and disabled refreshes. Keep the terminal detail instead when
 building a monitoring table:
 
-```{r}
+```{r, eval = FALSE}
 result <- fabric_pbi_refresh_wait(
   refresh,
   error_on_failure = FALSE
@@ -202,7 +202,7 @@ if (result$state != "Completed") result$details_url
 Power BI retains between 20 and 60 recent history entries depending on their
 age. OneDrive synchronization history is separate and is not returned here.
 
-```{r}
+```{r, eval = FALSE}
 history <- fabric_pbi_refresh_history(model, top = 10L)
 
 history[[1]]$refresh_type
@@ -217,7 +217,7 @@ Cancel a running Import or Composite model refresh when the model is on
 Premium, PPU, Embedded, or Fabric capacity. Microsoft requires Contributor,
 Member, or Admin access to the workspace:
 
-```{r}
+```{r, eval = FALSE}
 fabric_pbi_refresh_cancel(refresh)
 ```
 
