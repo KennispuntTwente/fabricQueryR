@@ -109,6 +109,9 @@ test_that("package objects use one cli summary layout", {
 })
 
 test_that("package code does not bypass the presentation layer", {
+  if (nzchar(Sys.getenv("R_COVR"))) {
+    skip("covr instruments direct condition calls in package source")
+  }
   source_dir <- test_path("..", "..", "R")
   if (!dir.exists(source_dir)) {
     skip("Package source is not available in installed test runs")

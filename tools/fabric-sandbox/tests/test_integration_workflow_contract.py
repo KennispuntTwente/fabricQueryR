@@ -194,6 +194,19 @@ def test_locked_delta_bridge_runs_on_every_release_platform():
     assert "FABRIC_DELTA_RS_ORACLE_TESTS" in workflow
 
 
+def test_unit_coverage_has_an_enforced_ci_floor():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/test-coverage.yaml"
+    ).read_text()
+
+    assert "covr::package_coverage(type = \"tests\"" in workflow
+    assert "covr::percent_coverage(coverage)" in workflow
+    assert "if (percent < 88)" in workflow
+    assert "needs: coverage" in workflow
+    assert "pull_request:" in workflow
+
+
 def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
     repository_root = Path(__file__).parents[3]
     workflow = (
