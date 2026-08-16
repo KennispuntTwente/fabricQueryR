@@ -178,9 +178,10 @@ fabric_pbi_refresh_cancel(
 - timeout:
 
   In `fabric_pbi_refresh()`, an optional `HH:MM:SS` limit for each
-  enhanced attempt; the service limits all attempts to 24 hours. In
-  `fabric_pbi_refresh_wait()`, the maximum number of seconds to wait on
-  the client before raising a separate client-side timeout
+  enhanced attempt; Power BI defaults to five hours per attempt and
+  limits all attempts to 24 hours. In `fabric_pbi_refresh_wait()`, the
+  maximum number of seconds to wait on the client before raising a
+  separate client-side timeout
 
 - tenant_id:
 
