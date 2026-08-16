@@ -350,7 +350,8 @@ test_that("job POST requests preserve one-element schema arrays", {
     payload = list(
       executionData = list(
         additionalLibraryUris = "abfss://account/library.zip",
-        computeConfiguration = list(jars = "abfss://account/library.jar")
+        computeConfiguration = list(jars = "abfss://account/library.jar"),
+        customExtension = list(values = I("only"))
       ),
       parameters = list(list(name = "mode", type = "Text", value = "test"))
     ),
@@ -365,12 +366,14 @@ test_that("job POST requests preserve one-element schema arrays", {
   parsed <- jsonlite::fromJSON(body, simplifyVector = FALSE)
   expect_length(parsed$executionData$additionalLibraryUris, 1L)
   expect_length(parsed$executionData$computeConfiguration$jars, 1L)
+  expect_length(parsed$executionData$customExtension$values, 1L)
   expect_length(parsed$parameters, 1L)
   expect_match(
     body,
     '"additionalLibraryUris":\\["abfss://account/library.zip"\\]'
   )
   expect_match(body, '"jars":\\["abfss://account/library.jar"\\]')
+  expect_match(body, '"values":\\["only"\\]')
 })
 
 test_that("Spark job definition execution data uses its typed route", {

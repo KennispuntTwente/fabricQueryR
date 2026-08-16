@@ -34,6 +34,8 @@ Warehouse Parquet loads no longer emit CSV-only field ordinals in `COPY INTO`;
 they use Fabric's required exact source and target column-name matching.
 `fabric_delta_config(initialize = FALSE)` no longer performs potentially slow
 Python-interpreter discovery when Python has not already been initialized.
+Job documentation now explains and tests how advanced `execution_data` keeps
+one-element custom fields as JSON arrays by wrapping them in `I()`.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

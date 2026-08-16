@@ -46,7 +46,8 @@
 #'   only when R's inferred type is not the type expected in Fabric
 #' @param execution_data Optional advanced job settings in the format documented
 #'   for the Fabric item type. Use the simpler arguments below for common
-#'   notebook settings
+#'   notebook settings. In custom payload fields, wrap a one-element atomic
+#'   vector in [I()] (or use an unnamed list) when it must remain a JSON array
 #' @param default_lakehouse Optional Lakehouse GUID or discovered record used to
 #'   set the notebook's default Lakehouse for this run. This changes the run
 #'   context, not the notebook's saved default
