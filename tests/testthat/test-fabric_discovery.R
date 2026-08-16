@@ -1,15 +1,3 @@
-discovery_response <- function(
-  body,
-  url = "https://api.fabric.microsoft.com/v1"
-) {
-  httr2::response(
-    status_code = 200L,
-    url = url,
-    headers = list("content-type" = "application/json"),
-    body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
-  )
-}
-
 test_that("fabric_workspaces follows pagination and returns workspace lists", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {

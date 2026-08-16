@@ -1,38 +1,3 @@
-graphql_test_response <- function(
-  body,
-  status = 200L,
-  url = "https://api.fabric.microsoft.com/graphql"
-) {
-  if (!is.raw(body)) {
-    body <- charToRaw(jsonlite::toJSON(
-      body,
-      auto_unbox = TRUE,
-      null = "null"
-    ))
-  }
-  httr2::response(
-    status_code = status,
-    url = url,
-    headers = list("content-type" = "application/json"),
-    body = body
-  )
-}
-
-graphql_fake_azure_token <- function() {
-  class <- R6::R6Class(
-    "GraphQLFakeAzureToken",
-    inherit = AzureAuth::AzureToken,
-    public = list(
-      initialize = function() {
-        self$credentials <- list(access_token = "azure-token")
-      },
-      validate = function() TRUE,
-      refresh = function() invisible(self)
-    )
-  )
-  class$new()
-}
-
 test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
   workspace_id <- "cfafbeb1-8037-4d0c-896e-a46fb27ff229"
   api_id <- "5b218778-e7a5-4d73-8187-f10824047715"

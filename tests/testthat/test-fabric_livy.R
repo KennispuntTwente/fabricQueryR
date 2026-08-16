@@ -1,7 +1,3 @@
-livy_test_credential <- function() {
-  fabric_credential(token = "token")
-}
-
 test_that("Livy selects identity-aware OAuth audiences", {
   expect_identical(
     fabric_livy_audience(NULL, NULL, list(auth_type = "device_code")),

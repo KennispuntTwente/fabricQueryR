@@ -1,37 +1,3 @@
-job_test_item <- function(type = "Notebook") {
-  list(
-    id = "11111111-1111-1111-1111-111111111111",
-    workspaceId = "22222222-2222-2222-2222-222222222222",
-    type = type,
-    displayName = "Job fixture"
-  )
-}
-
-job_test_handle <- function(
-  status_result = NULL,
-  item_type = "Notebook",
-  retry_after = NULL
-) {
-  structure(
-    list(
-      id = "33333333-3333-3333-3333-333333333333",
-      workspace_id = "22222222-2222-2222-2222-222222222222",
-      item_id = "11111111-1111-1111-1111-111111111111",
-      item_type = item_type,
-      job_type = if (item_type == "Notebook") "RunNotebook" else "Pipeline",
-      location = "/jobs/instances/33333333-3333-3333-3333-333333333333",
-      retry_after = retry_after,
-      submitted_at = as.POSIXct("2026-01-01", tz = "UTC"),
-      api_base = "https://api.fabric.test/v1",
-      allow_custom_endpoint = TRUE,
-      route = if (item_type == "Notebook") "notebook" else "core",
-      credential = fabric_credential(token = "test-token"),
-      status_result = status_result
-    ),
-    class = "fabric_job"
-  )
-}
-
 test_that("job submission rejects a contradictory explicit workspace", {
   expect_error(
     fabric_job_run(

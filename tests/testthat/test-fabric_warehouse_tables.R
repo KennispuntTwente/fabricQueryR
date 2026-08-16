@@ -1,38 +1,3 @@
-warehouse_write_test_workspace_id <- "11111111-1111-4111-8111-111111111111"
-warehouse_write_test_warehouse_id <- "22222222-2222-4222-8222-222222222222"
-warehouse_write_test_lakehouse_id <- "33333333-3333-4333-8333-333333333333"
-
-warehouse_write_test_warehouse <- function() {
-  structure(
-    list(
-      id = warehouse_write_test_warehouse_id,
-      workspaceId = warehouse_write_test_workspace_id,
-      displayName = "TestWarehouse",
-      type = "Warehouse",
-      sql_server = "test.datawarehouse.fabric.microsoft.com",
-      sql_database = "TestWarehouse"
-    ),
-    class = c("fabric_item", "list")
-  )
-}
-
-warehouse_write_test_lakehouse <- function() {
-  structure(
-    list(
-      id = warehouse_write_test_lakehouse_id,
-      workspaceId = warehouse_write_test_workspace_id,
-      displayName = "TestLakehouse",
-      type = "Lakehouse",
-      workspaceOneLakeDfsEndpoint = paste0(
-        "https://",
-        warehouse_write_test_workspace_id,
-        ".z12.dfs.fabric.microsoft.com"
-      )
-    ),
-    class = c("fabric_item", "list")
-  )
-}
-
 test_that("Warehouse table reader resolves and safely quotes its query", {
   resolved <- NULL
   queried <- NULL

@@ -1,39 +1,3 @@
-pbi_refresh_workspace_id <- "11111111-1111-4111-8111-111111111111"
-pbi_refresh_dataset_id <- "22222222-2222-4222-8222-222222222222"
-pbi_refresh_id <- "33333333-3333-4333-8333-333333333333"
-
-pbi_refresh_test_model <- function() {
-  structure(
-    list(
-      id = pbi_refresh_dataset_id,
-      workspaceId = pbi_refresh_workspace_id,
-      type = "SemanticModel",
-      displayName = "Refresh fixture"
-    ),
-    class = c("fabric_item", "list")
-  )
-}
-
-pbi_refresh_test_handle <- function(
-  mode = "enhanced",
-  retry_after = NULL,
-  my_workspace = FALSE
-) {
-  .pbi_refresh_handle(
-    refresh_id = pbi_refresh_id,
-    target = list(
-      workspace_id = if (my_workspace) NULL else pbi_refresh_workspace_id,
-      dataset_id = pbi_refresh_dataset_id,
-      my_workspace = my_workspace
-    ),
-    credential = fabric_credential(token = "test-token"),
-    api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE,
-    retry_after = retry_after,
-    mode = mode
-  )
-}
-
 test_that("standard refresh submission returns a reusable handle", {
   call <- NULL
   local_mocked_bindings(

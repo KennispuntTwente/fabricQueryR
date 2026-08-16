@@ -1,36 +1,3 @@
-kusto_test_response <- function(
-  body,
-  status = 200L,
-  url = "https://cluster.test"
-) {
-  if (!is.raw(body)) {
-    body <- charToRaw(jsonlite::toJSON(
-      body,
-      auto_unbox = TRUE,
-      null = "null",
-      digits = 22
-    ))
-  }
-  httr2::response(
-    status_code = status,
-    url = url,
-    headers = list("content-type" = "application/json"),
-    body = body
-  )
-}
-
-kusto_test_completion <- function(has_errors = FALSE, errors = NULL) {
-  out <- list(
-    FrameType = "DataSetCompletion",
-    HasErrors = has_errors,
-    Cancelled = FALSE
-  )
-  if (!is.null(errors)) {
-    out$OneApiErrors <- errors
-  }
-  out
-}
-
 test_that("KQL table reader delegates a safely parameterized projection", {
   captured <- NULL
   expected <- tibble::tibble(id = 1L, `display name` = "alpha")

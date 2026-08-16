@@ -1,21 +1,3 @@
-onelake_test_response <- function(
-  status = 200L,
-  body = raw(),
-  headers = list(),
-  url = "https://onelake.dfs.fabric.microsoft.com"
-) {
-  if (is.list(body)) {
-    body <- charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
-    headers[["content-type"]] <- "application/json"
-  }
-  httr2::response(
-    status_code = status,
-    url = url,
-    headers = headers,
-    body = body
-  )
-}
-
 test_that("OneLake object writer serializes supported Arrow formats", {
   skip_if_not_installed("arrow")
   data <- data.frame(id = 1:3, label = c("a", "b", NA))

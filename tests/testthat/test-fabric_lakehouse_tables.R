@@ -1,20 +1,3 @@
-lakehouse_table_test_workspace <- "11111111-2222-3333-4444-555555555555"
-lakehouse_table_test_id <- "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-lakehouse_table_test_operation <- "99999999-8888-7777-6666-555555555555"
-
-lakehouse_table_test_item <- function(default_schema = "dbo") {
-  structure(
-    list(
-      id = lakehouse_table_test_id,
-      workspaceId = lakehouse_table_test_workspace,
-      displayName = "Curated",
-      type = "Lakehouse",
-      properties = list(defaultSchema = default_schema)
-    ),
-    class = "fabric_item"
-  )
-}
-
 test_that("Lakehouse reader resolves discovered item and table records", {
   captured <- NULL
   item <- lakehouse_table_test_item(default_schema = "sales")
@@ -97,39 +80,6 @@ test_that("Lakehouse reader rejects ambiguous and non-Lakehouse targets", {
   )
 })
 
-lakehouse_table_test_response <- function(
-  body = NULL,
-  status = 200L,
-  headers = list(),
-  url = "https://onelake.table.fabric.microsoft.com/test"
-) {
-  headers[["content-type"]] <- "application/json"
-  raw_body <- if (is.null(body)) {
-    raw()
-  } else {
-    charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE, null = "null"))
-  }
-  httr2::response(
-    status_code = status,
-    url = url,
-    headers = headers,
-    body = raw_body
-  )
-}
-
-lakehouse_table_test_clock <- function() {
-  clock <- new.env(parent = emptyenv())
-  clock$time <- as.POSIXct("2026-08-13 12:00:00", tz = "UTC")
-  clock$delays <- numeric()
-  list(
-    now = function() clock$time,
-    sleep = function(seconds) {
-      clock$delays <- c(clock$delays, seconds)
-      clock$time <- clock$time + seconds
-    },
-    delays = function() clock$delays
-  )
-}
 
 test_that("Lakehouse table discovery follows schema and table pages", {
   calls <- character()

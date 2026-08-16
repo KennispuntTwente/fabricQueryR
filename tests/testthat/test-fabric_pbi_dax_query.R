@@ -1,8 +1,3 @@
-# pbi_parse_connstr() -----------------------------------------------------
-
-pbi_test_workspace_id <- "11111111-1111-4111-8111-111111111111"
-pbi_test_dataset_id <- "22222222-2222-4222-8222-222222222222"
-
 test_that("pbi_parse_connstr parses full conn str", {
   conn <- "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace%20Name;Initial Catalog=Dataset One;"
   p <- fabricQueryR:::pbi_parse_connstr(conn)

@@ -1,38 +1,3 @@
-fabric_test_delta_runtime_python <- function(root) {
-  relative <- if (.Platform$OS.type == "windows") {
-    file.path(".venv", "Scripts", "python.exe")
-  } else {
-    file.path(".venv", "bin", "python")
-  }
-  python <- file.path(root, relative)
-  # On Unix, the venv executable is commonly a symlink to the base Python
-  # Resolving that final component makes reticulate bypass the venv packages
-  file.path(
-    normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
-    basename(python)
-  )
-}
-
-fabric_test_select_delta_runtime <- function() {
-  oracle <- fabric_test_require_delta_oracle()
-  python <- fabric_test_delta_runtime_python(oracle$root)
-  expect_true(startsWith(python, paste0(oracle$root, "/.venv/")))
-  if (reticulate::py_available(initialize = FALSE)) {
-    selected <- normalizePath(
-      reticulate::py_config()$python,
-      winslash = "/",
-      mustWork = TRUE
-    )
-    fabric_test_skip_or_fail(
-      !identical(tolower(selected), tolower(python)),
-      "reticulate was initialized with a different Python interpreter"
-    )
-  } else {
-    Sys.setenv(RETICULATE_PYTHON = python)
-  }
-  oracle
-}
-
 test_that("fabric_delta_config reports the initialized locked runtime", {
   fabric_test_select_delta_runtime()
 
