@@ -230,10 +230,17 @@ may receive the Fabric bearer token}
 \if{html}{\out{<a id="method-FabricLivySession-statements"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricLivySession-statements}{}}}
 \subsection{\code{FabricLivySession$statements()}}{
-  List statements in this execution context
+  List every statement in this execution context
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivySession$statements()}
+    \preformatted{FabricLivySession$statements(page_size = 100L)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{page_size}}{Positive number of statements requested per Livy page}
+    }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{

@@ -26,6 +26,8 @@ Non-recursive `fabric_onelake_list()` calls now reject multi-level `begin_from`
 paths locally instead of sending a request that ADLS rejects.
 Supplied workspace records now require a canonical workspace GUID and reject
 records whose declared type identifies a different Fabric item.
+`FabricLivySession$statements()` now follows Livy's `from`/`size` pages so
+sessions with more than one response page are not silently truncated.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

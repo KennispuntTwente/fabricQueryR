@@ -214,8 +214,12 @@ test_that("submit returns an inspectable and cancellable statement", {
       if (method == "POST" && grepl("/cancel$", url)) {
         return(list(msg = "canceled"))
       }
-      if (method == "GET" && grepl("/statements$", url)) {
-        return(list(statements = list(list(id = 9L, state = "waiting"))))
+      if (method == "GET" && grepl("/statements\\?", url)) {
+        return(list(
+          from = 0L,
+          total = 1L,
+          statements = list(list(id = 9L, state = "waiting"))
+        ))
       }
       rlang::abort("Unexpected mocked call")
     },
@@ -241,6 +245,45 @@ test_that("submit returns an inspectable and cancellable statement", {
   expect_equal(statement$cancel()$msg, "canceled")
   expect_match(calls[[3L]]$url, "/statements/9/cancel$")
   expect_length(session$statements()$statements, 1L)
+  session$close()
+})
+
+test_that("session statement listing follows Livy offset pages", {
+  urls <- character()
+  local_mocked_bindings(
+    fabric_livy_json = function(method, url, ...) {
+      if (method == "POST") {
+        return(list(id = "session", state = "idle"))
+      }
+      urls <<- c(urls, url)
+      offset <- as.integer(httr2::url_parse(url)$query$from)
+      list(
+        from = offset,
+        total = 3L,
+        statements = lapply(
+          seq.int(offset + 1L, min(offset + 2L, 3L)),
+          function(id) list(id = id, state = "available")
+        )
+      )
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "token",
+    verbose = FALSE,
+    allow_custom_endpoint = TRUE
+  )
+
+  result <- session$statements(page_size = 2L)
+
+  expect_identical(result$from, 0L)
+  expect_identical(result$total, 3L)
+  expect_equal(vapply(result$statements, `[[`, integer(1), "id"), 1:3)
+  expect_length(urls, 2L)
+  expect_match(urls[[1L]], "from=0")
+  expect_match(urls[[2L]], "from=2")
+  expect_error(session$statements(page_size = 1.5), "positive whole number")
   session$close()
 })
 
