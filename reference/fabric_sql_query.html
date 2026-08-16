@@ -106,9 +106,9 @@ correctly than building a query with <code><a href="https://rdrr.io/r/base/paste
 
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
 <dd><p>Return a <code>"tibble"</code> for ordinary R analysis, or a single-use
-<code>"arrow_stream"</code> when a large result should be processed without first
-collecting it into an R data frame. The native Arrow path uses the ADBC
-backend</p></dd>
+<code>"arrow_stream"</code> to avoid data-frame conversion and retain Arrow-native
+batches. The ADBC/DBI driver may fetch the complete result before returning
+the stream, so this option does not guarantee bounded-memory retrieval</p></dd>
 
 
 <dt id="arg-database">database<a class="anchor" aria-label="anchor" href="#arg-database"></a></dt>
@@ -244,7 +244,7 @@ driver-converted column types. With <code>result = "arrow_stream"</code>, a sing
 <span class="r-in"><span><span class="co"># Run the resulting read-only query and collect a tibble</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">fabric_sql_query</span><span class="op">(</span><span class="va">warehouse</span>, <span class="va">sql</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Stream a larger result through Arrow instead of collecting it at once</span></span></span>
+<span class="r-in"><span><span class="co"># Return Arrow-native batches instead of converting to a data frame</span></span></span>
 <span class="r-in"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu">fabric_sql_query</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">warehouse</span>,</span></span>
 <span class="r-in"><span>  <span class="va">sql</span>,</span></span>

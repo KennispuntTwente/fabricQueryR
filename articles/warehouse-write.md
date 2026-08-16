@@ -23,7 +23,10 @@ them:
 
 library(fabricQueryR)
 
-workspace <- fabric_workspaces()[["Analytics"]]
+workspaces <- fabric_workspaces()
+matches <- Filter(\(x) identical(x$displayName, "Analytics"), workspaces)
+stopifnot(length(matches) == 1L)
+workspace <- matches[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 staging_lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```

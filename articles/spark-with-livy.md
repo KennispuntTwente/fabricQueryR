@@ -23,7 +23,13 @@ endpoint:
 
 library(fabricQueryR)
 
-workspace <- fabric_workspaces()[["Analytics workspace"]]
+workspaces <- fabric_workspaces()
+matches <- Filter(
+  \(x) identical(x$displayName, "Analytics workspace"),
+  workspaces
+)
+stopifnot(length(matches) == 1L)
+workspace <- matches[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 

@@ -93,6 +93,9 @@
   and `fabric_onelake_shortcut_*()` functions inspect, create, update,
   and delete OneLake shortcuts, which link Fabric items to data stored
   elsewhere.
+  [`fabric_onelake_shortcut_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  now supports `GenerateUniqueName` and `OverwriteOnly` in addition to
+  the existing conflict policies.
 
 - `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel,
   and inspect the history of semantic-model refreshes, including
@@ -135,7 +138,9 @@
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   is now limited to one read-only statement, so use
   [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-  for other SQL work.
+  for other SQL work. SQL Arrow results are documented as Arrow-native
+  rather than bounded-memory: current DBI/ADBI drivers may fetch the
+  complete result before returning a stream.
 
 - [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
   now accepts discovered semantic models or direct IDs, can test results

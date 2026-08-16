@@ -88,7 +88,8 @@ in Fabric without copying data into R.</p>
 <span>  target_workspace <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  target_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  target_item_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  conflict_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Abort"</span>, <span class="st">"CreateOrOverwrite"</span><span class="op">)</span>,</span>
+<span>  conflict_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Abort"</span>, <span class="st">"GenerateUniqueName"</span>, <span class="st">"CreateOrOverwrite"</span>,</span>
+<span>    <span class="st">"OverwriteOnly"</span><span class="op">)</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
@@ -202,7 +203,9 @@ OneLake target supplied by name.</p></dd>
 
 <dt id="arg-conflict-policy">conflict_policy<a class="anchor" aria-label="anchor" href="#arg-conflict-policy"></a></dt>
 <dd><p><code>"Abort"</code> preserves an existing shortcut with the
-same path and name. <code>"CreateOrOverwrite"</code> creates or updates it.</p></dd>
+same path and name. <code>"GenerateUniqueName"</code> creates a uniquely named
+shortcut, <code>"CreateOrOverwrite"</code> creates or updates it, and
+<code>"OverwriteOnly"</code> updates an existing shortcut without creating one.</p></dd>
 
 
 <dt id="arg-confirm">confirm<a class="anchor" aria-label="anchor" href="#arg-confirm"></a></dt>

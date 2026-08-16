@@ -122,10 +122,14 @@ evolution, and transactional consistency.</p>
 <div class="section level2">
 <h2 id="sign-in">Sign in<a class="anchor" aria-label="anchor" href="#sign-in"></a>
 </h2>
-<p>Install and load the package, then set your organization’s Microsoft
-Entra tenant ID:</p>
+<p>This development guide uses APIs that may not yet be in the CRAN
+release. Install the development version, load it, and set your
+organization’s Microsoft Entra tenant ID:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"fabricQueryR"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"kennispunttwente/fabricQueryR"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"&lt;your-tenant-id&gt;"</span><span class="op">)</span></span>
@@ -160,7 +164,13 @@ workspace:</p>
 more robust:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Select a workspace by name</span></span>
-<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"Analytics workspace"</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">matches</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter</a></span><span class="op">(</span></span>
+<span>  \<span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">displayName</span>, <span class="st">"Analytics workspace"</span><span class="op">)</span>,</span>
+<span>  <span class="va">workspaces</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>Now list all items in the workspace, or ask directly for items of a
 specific type:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">

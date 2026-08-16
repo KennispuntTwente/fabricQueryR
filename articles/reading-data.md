@@ -36,7 +36,13 @@ details needed by the read functions:
 
 library(fabricQueryR)
 
-workspace <- fabric_workspaces()[["Analytics workspace"]]
+workspaces <- fabric_workspaces()
+matches <- Filter(
+  \(x) identical(x$displayName, "Analytics workspace"),
+  workspaces
+)
+stopifnot(length(matches) == 1L)
+workspace <- matches[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 kql_database <- fabric_kql_databases(workspace)[[1L]]

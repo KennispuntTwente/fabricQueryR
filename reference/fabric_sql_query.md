@@ -70,9 +70,10 @@ fabric_sql_query(
 - result:
 
   Return a `"tibble"` for ordinary R analysis, or a single-use
-  `"arrow_stream"` when a large result should be processed without first
-  collecting it into an R data frame. The native Arrow path uses the
-  ADBC backend
+  `"arrow_stream"` to avoid data-frame conversion and retain
+  Arrow-native batches. The ADBC/DBI driver may fetch the complete
+  result before returning the stream, so this option does not guarantee
+  bounded-memory retrieval
 
 - database:
 
@@ -207,7 +208,7 @@ sql <- paste("SELECT TOP 100 * FROM", table)
 # Run the resulting read-only query and collect a tibble
 result <- fabric_sql_query(warehouse, sql)
 
-# Stream a larger result through Arrow instead of collecting it at once
+# Return Arrow-native batches instead of converting to a data frame
 stream <- fabric_sql_query(
   warehouse,
   sql,

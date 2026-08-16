@@ -47,7 +47,8 @@ fabric_onelake_shortcut_create(
   target_workspace = NULL,
   target_path = NULL,
   target_item_type = NULL,
-  conflict_policy = c("Abort", "CreateOrOverwrite"),
+  conflict_policy = c("Abort", "GenerateUniqueName", "CreateOrOverwrite",
+    "OverwriteOnly"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -160,7 +161,9 @@ fabric_onelake_shortcut_delete(
 - conflict_policy:
 
   `"Abort"` preserves an existing shortcut with the same path and name.
-  `"CreateOrOverwrite"` creates or updates it.
+  `"GenerateUniqueName"` creates a uniquely named shortcut,
+  `"CreateOrOverwrite"` creates or updates it, and `"OverwriteOnly"`
+  updates an existing shortcut without creating one.
 
 - confirm:
 

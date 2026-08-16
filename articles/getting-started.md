@@ -32,12 +32,16 @@ consistency.
 
 ## Sign in
 
-Install and load the package, then set your organization’s Microsoft
-Entra tenant ID:
+This development guide uses APIs that may not yet be in the CRAN
+release. Install the development version, load it, and set your
+organization’s Microsoft Entra tenant ID:
 
 ``` r
 
-install.packages("fabricQueryR")
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes")
+}
+remotes::install_github("kennispunttwente/fabricQueryR")
 
 library(fabricQueryR)
 Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
@@ -86,7 +90,13 @@ robust:
 ``` r
 
 # Select a workspace by name
-workspace <- fabric_workspaces()[["Analytics workspace"]]
+workspaces <- fabric_workspaces()
+matches <- Filter(
+  \(x) identical(x$displayName, "Analytics workspace"),
+  workspaces
+)
+stopifnot(length(matches) == 1L)
+workspace <- matches[[1L]]
 ```
 
 Now list all items in the workspace, or ask directly for items of a

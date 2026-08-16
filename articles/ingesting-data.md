@@ -30,7 +30,13 @@ orders <- data.frame(
   amount = c(10.50, 20, 30.25)
 )
 
-workspace <- fabric_workspaces()[["Analytics workspace"]]
+workspaces <- fabric_workspaces()
+matches <- Filter(
+  \(x) identical(x$displayName, "Analytics workspace"),
+  workspaces
+)
+stopifnot(length(matches) == 1L)
+workspace <- matches[[1L]]
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
