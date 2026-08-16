@@ -16,6 +16,8 @@ option for running one piece of Spark code.
 Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 `fabric_onelake_list()`, `fabric_onelake_metadata()`, and
 `fabric_onelake_delete()` list, inspect, and delete files.
+Object-file and Lakehouse-table wrappers now preserve discovered private or
+regional OneLake endpoints when `dfs_base` is omitted.
 
 * `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,
 `fabric_lakehouse_load_table()`, and `fabric_lakehouse_write_table()` discover

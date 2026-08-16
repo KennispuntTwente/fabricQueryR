@@ -290,6 +290,7 @@ fabric_lakehouse_read_table <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   lakehouse_record <- fabric_as_record(lakehouse)
   if (!is.null(lakehouse_record)) {
     type <- tolower(fabric_record_value(lakehouse_record, "type") %||% "")
@@ -340,7 +341,7 @@ fabric_lakehouse_read_table <- function(
     auth_args = auth_args,
     version = version,
     verbose = verbose,
-    dfs_base = dfs_base,
+    dfs_base = if (dfs_base_supplied) dfs_base else NULL,
     columns = columns,
     limit = limit,
     result = result

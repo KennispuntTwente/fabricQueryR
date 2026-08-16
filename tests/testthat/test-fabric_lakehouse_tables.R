@@ -49,6 +49,7 @@ test_that("Lakehouse reader resolves discovered item and table records", {
   expect_identical(captured$result, "tibble")
   expect_false(captured$verbose)
   expect_identical(captured$token, "storage-token")
+  expect_null(captured$dfs_base)
 })
 
 test_that("Lakehouse reader accepts names and explicit schema", {

@@ -244,6 +244,7 @@ fabric_onelake_read_file <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   format_path <- if (
     is.character(path) && length(path) == 1L && !is.na(path) && nzchar(path)
   ) {
@@ -278,7 +279,7 @@ fabric_onelake_read_file <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
-    dfs_base = dfs_base
+    dfs_base = if (dfs_base_supplied) dfs_base else NULL
   )
 
   if (identical(result, "tibble")) {
@@ -331,6 +332,7 @@ fabric_onelake_write_file <- function(
   allow_managed_tables = FALSE,
   chunk_size = getOption("fabricqueryr.onelake.chunk_size", 8 * 1024^2)
 ) {
+  dfs_base_supplied <- !missing(dfs_base)
   if (missing(data)) {
     .fabric_abort("data is required")
   }
@@ -385,7 +387,7 @@ fabric_onelake_write_file <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
-    dfs_base = dfs_base,
+    dfs_base = if (dfs_base_supplied) dfs_base else NULL,
     allow_managed_tables = allow_managed_tables,
     chunk_size = chunk_size
   )

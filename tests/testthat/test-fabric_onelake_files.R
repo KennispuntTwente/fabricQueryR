@@ -153,6 +153,90 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   }
 })
 
+test_that("OneLake object wrappers retain discovered DFS endpoints", {
+  skip_if_not_installed("arrow")
+  workspace_id <- "11111111-1111-1111-1111-111111111111"
+  item_id <- "22222222-2222-2222-2222-222222222222"
+  private_dfs <- paste0(
+    "https://",
+    workspace_id,
+    ".z12.dfs.fabric.microsoft.com"
+  )
+  workspace <- list(
+    id = workspace_id,
+    oneLakeEndpoints = list(dfsEndpoint = private_dfs)
+  )
+  item <- list(
+    id = item_id,
+    workspaceId = workspace_id,
+    type = "Lakehouse"
+  )
+  fixture <- tempfile(fileext = ".parquet")
+  on.exit(unlink(fixture, force = TRUE), add = TRUE)
+  arrow::write_parquet(data.frame(id = 1L), fixture)
+  endpoints <- list()
+  local_mocked_bindings(
+    fabric_onelake_download = function(
+      workspace,
+      item,
+      path,
+      dest,
+      item_type,
+      dfs_base,
+      ...
+    ) {
+      target <- onelake_resolve_target(
+        workspace,
+        item,
+        path,
+        item_type,
+        dfs_base
+      )
+      endpoints$read <<- target$dfs_base
+      file.copy(fixture, dest)
+      invisible(dest)
+    },
+    fabric_onelake_upload = function(
+      workspace,
+      item,
+      path,
+      source,
+      item_type,
+      dfs_base,
+      ...
+    ) {
+      target <- onelake_resolve_target(
+        workspace,
+        item,
+        path,
+        item_type,
+        dfs_base
+      )
+      endpoints$write <<- target$dfs_base
+      tibble::tibble(path = path)
+    }
+  )
+
+  read <- fabric_onelake_read_file(
+    workspace,
+    item,
+    "Files/input.parquet",
+    token = "token"
+  )
+  write <- fabric_onelake_write_file(
+    workspace,
+    item,
+    "Files/output.parquet",
+    data.frame(id = 1L),
+    token = "token"
+  )
+
+  expect_equal(read$id, 1L)
+  expect_equal(write$path, "Files/output.parquet")
+  expect_identical(endpoints$read, private_dfs)
+  expect_identical(endpoints$write, private_dfs)
+})
+
 test_that("OneLake object file formats are explicit and validated", {
   expect_identical(
     .fabric_onelake_object_format("Files/data.PQ", "auto"),
