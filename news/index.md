@@ -35,7 +35,15 @@
   by Fabric’s current T-SQL surface-area limitations. Non-recursive
   [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   calls now reject multi-level `begin_from` paths locally instead of
-  sending a request that ADLS rejects.
+  sending a request that ADLS rejects. Supplied workspace records now
+  require a canonical workspace GUID and reject records whose declared
+  type identifies a different Fabric item.
+  `FabricLivySession$statements()` now follows Livy’s `from`/`size`
+  pages so sessions with more than one response page are not silently
+  truncated.
+  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  now accepts multiple complete storage destinations, which lets Kusto
+  distribute export work across storage accounts or paths.
 
 - [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
   [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),

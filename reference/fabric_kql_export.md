@@ -56,8 +56,10 @@ fabric_kql_export(
 - destination:
 
   A discovered Fabric item, item name or ID, complete OneLake path, or
-  complete HTTPS/ABFSS Kusto storage connection string. For an item,
-  also supply `path` and optionally `workspace`.
+  complete HTTPS/ABFSS Kusto storage connection string. A character
+  vector of complete paths distributes export work across multiple
+  destinations. For an item, also supply `path` and optionally
+  `workspace`.
 
 - database:
 

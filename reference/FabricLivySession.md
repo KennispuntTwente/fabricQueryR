@@ -267,11 +267,17 @@ A `fabric_livy_statement_result` list
 
 ### `FabricLivySession$statements()`
 
-List statements in this execution context
+List every statement in this execution context
 
 #### Usage
 
-    FabricLivySession$statements()
+    FabricLivySession$statements(page_size = 100L)
+
+#### Arguments
+
+- `page_size`:
+
+  Positive number of statements requested per Livy page
 
 #### Returns
 
