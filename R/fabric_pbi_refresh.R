@@ -849,6 +849,12 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       "apply_refresh_policy = TRUE requires commit_mode = \"Transactional\""
     )
   }
+  if (
+    identical(commit_mode, "PartialBatch") &&
+      is.null(apply_refresh_policy)
+  ) {
+    apply_refresh_policy <- FALSE
+  }
   effective_date <- .pbi_refresh_effective_date(effective_date)
   if (!is.null(max_parallelism)) {
     .pbi_refresh_whole_number(

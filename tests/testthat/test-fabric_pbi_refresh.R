@@ -277,6 +277,20 @@ test_that("refresh payload validation enforces Power BI contracts", {
     NULL
   )
   expect_equal(defaults$payload, list(type = "Automatic"))
+
+  partial_batch <- .pbi_refresh_payload(
+    "enhanced",
+    NULL,
+    NULL,
+    "PartialBatch",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+  )
+  expect_identical(partial_batch$payload$applyRefreshPolicy, FALSE)
 })
 
 test_that("refresh response IDs are validated and reconciled", {
