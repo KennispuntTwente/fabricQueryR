@@ -22,6 +22,9 @@
   add reusable Spark sessions and standalone batch jobs.
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   remains the simplest option for running one piece of Spark code.
+  `FabricLivySession$wait()` now continues polling an active session
+  whose result is `Uncertain`, using terminal session state to decide
+  failure.
 
 - [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
   [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
@@ -45,7 +48,9 @@
   [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
   discover and read Lakehouse tables, load CSV or Parquet files, and
   write data frames or Arrow data. Both ordinary and schema-enabled
-  Lakehouses are supported.
+  Lakehouses are supported. Load Table paths now enforce Fabric’s
+  case-sensitive `relativePath` grammar and accept its valid `Files`
+  root-folder form.
 
 - [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
   and
@@ -71,7 +76,9 @@
   shared idempotency key, preventing successful tracking results with
   omitted parts. Generated Parquet writes no longer report compressed
   file sizes as Kusto’s uncompressed `rawSize`; the service derives this
-  optional value instead.
+  optional value instead. Fixed Kusto tokens can now be paired with
+  `storage_token` for the OneLake staging steps; otherwise the writer
+  requires an audience-aware token provider.
 
 - `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect
   its schema, work through paginated results, and collect the result
@@ -96,9 +103,16 @@
   [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
   now subtracts time already elapsed from the submission `Retry-After`
   delay, preventing stale handles from timing out before polling.
+  Repeated
+  [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+  calls now also preserve and honor the latest response `Retry-After`
+  value.
 
 - `fabric_operation_*()` functions resume, monitor, and retrieve the
   results of longer-running Fabric tasks such as Lakehouse loads.
+  Non-idempotent operation submissions now refresh and retry once after
+  an authentication 401, while still never replaying transport or
+  service failures.
 
 ### Changed
 
@@ -125,7 +139,10 @@
   now accepts discovered semantic models or direct IDs, can test results
   for a user under row-level security, and reports incomplete Power BI
   results instead of silently returning them. An optional Arrow mode
-  provides typed tibbles or streams for models that support it.
+  provides typed tibbles or streams for models that support it. Arrow
+  decimal columns, including Power BI Currency, are returned as exact
+  character values in tibbles instead of being rounded through R
+  doubles.
 
 - `fabric_pbi_refresh_start()` now sends `applyRefreshPolicy = false`
   when `commit_mode = "PartialBatch"`, as required by the Power BI

@@ -161,8 +161,9 @@ fabric_lakehouse_write_table(
 
 - path:
 
-  Existing item-relative OneLake source path beginning with `Files/`,
-  for example `"Files/incoming/orders.parquet"`.
+  Existing item-relative OneLake source path equal to `"Files"` or
+  beginning with `Files/`, for example
+  `"Files/incoming/orders.parquet"`.
 
 - path_type:
 

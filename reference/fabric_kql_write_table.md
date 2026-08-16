@@ -32,6 +32,7 @@ fabric_kql_write_table(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
+  storage_token = NULL,
   auth_args = list(),
   allow_custom_endpoint = FALSE,
   create_if_missing = FALSE,
@@ -146,7 +147,13 @@ fabric_kql_write_table(
 
 - token:
 
-  Optional access token or audience-aware token-provider function.
+  Optional access token or audience-aware token-provider function. A
+  fixed token must target Kusto and be paired with `storage_token`.
+
+- storage_token:
+
+  Optional separate Azure Storage access token or token provider.
+  Required when `token` cannot acquire a different audience.
 
 - auth_args:
 
@@ -192,8 +199,9 @@ values. This function provides the higher-level one-call workflow: it
 reads the ingestion service's preview configuration, chooses a trusted
 OneLake lake folder, creates a unique `fabricqueryr-staging` path,
 uploads bounded Parquet parts, and submits them with a storage-audience
-access token when an audience-aware credential is available. Static
-credentials retain caller impersonation. `staging_folder` can override
+access token. An audience-aware credential obtains both required tokens.
+When `token` is a fixed bearer token or `AzureToken`, supply the
+separate Storage-audience `storage_token`. `staging_folder` can override
 the advertised folder with a trusted OneLake `Files/` URI.
 
 The caller therefore needs Kusto Table Ingestor and Database User
