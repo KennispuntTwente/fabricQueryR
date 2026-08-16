@@ -43,7 +43,12 @@
   truncated.
   [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
   now accepts multiple complete storage destinations, which lets Kusto
-  distribute export work across storage accounts or paths.
+  distribute export work across storage accounts or paths. Warehouse
+  Parquet loads no longer emit CSV-only field ordinals in `COPY INTO`;
+  they use Fabric’s required exact source and target column-name
+  matching. `fabric_delta_config(initialize = FALSE)` no longer performs
+  potentially slow Python-interpreter discovery when Python has not
+  already been initialized.
 
 - [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
   [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
