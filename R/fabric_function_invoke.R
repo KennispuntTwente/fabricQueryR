@@ -188,13 +188,34 @@ fabric_function_invoke <- function(
   request <- httr2::request(endpoint) |>
     httr2::req_headers(Accept = "application/json") |>
     httr2::req_body_raw(payload_bytes, type = "application/json") |>
-    httr2::req_timeout(timeout)
-  response <- .httr2_perform(
-    request,
-    credential = credential,
-    audience = audience,
-    idempotent = idempotent,
-    return_error_response = TRUE
+    httr2::req_timeout(timeout) |>
+    httr2::req_options(maxfilesize_large = max_response_bytes)
+  response <- tryCatch(
+    .httr2_perform(
+      request,
+      credential = credential,
+      audience = audience,
+      idempotent = idempotent,
+      return_error_response = TRUE
+    ),
+    error = function(error) {
+      if (
+        grepl(
+          "maximum file size|filesize exceeded|file size exceeded",
+          conditionMessage(error),
+          ignore.case = TRUE
+        )
+      ) {
+        .fabric_abort(
+          "Function response exceeded max_response_bytes during transfer",
+          class = "fabric_function_response_too_large",
+          response_bytes = NA_real_,
+          max_response_bytes = max_response_bytes,
+          parent = error
+        )
+      }
+      rlang::cnd_signal(error)
+    }
   )
 
   function_parse_response(

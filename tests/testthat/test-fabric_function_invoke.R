@@ -320,6 +320,28 @@ test_that("function response limits check headers and actual body bytes", {
   expect_gt(body_error$response_bytes, 100)
 })
 
+test_that("function response size is bounded during transport", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      request <<- req
+      stop("Maximum file size exceeded")
+    }
+  )
+
+  error <- expect_error(
+    fabric_function_invoke(
+      function_test_url,
+      token = "token",
+      max_response_bytes = 1024
+    ),
+    class = "fabric_function_response_too_large"
+  )
+  expect_identical(request$options$maxfilesize_large, 1024)
+  expect_true(is.na(error$response_bytes))
+  expect_identical(error$max_response_bytes, 1024)
+})
+
 test_that("function results and conditions redact bearer tokens and secrets", {
   secret <- "function-super-secret"
   httr2::local_mocked_responses(function(req) {
