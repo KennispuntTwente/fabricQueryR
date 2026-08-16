@@ -64,6 +64,49 @@ test_that("semantic-model refresh completes with history and execution details",
   expect_identical(as.numeric(rows[["[row_count]"]]), 3)
 })
 
+test_that("an enhanced semantic-model refresh can be cancelled", {
+  manifest <- fabric_test_manifest()
+  semantic_model <- fabric_test_manifest_item(
+    manifest,
+    "TestArrowSemanticModel"
+  )
+  token <- fabric_test_token_provider()
+
+  refresh <- fabric_pbi_refresh(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    mode = "enhanced",
+    type = "Full",
+    commit_mode = "Transactional",
+    objects = "Facts",
+    max_parallelism = 1L,
+    timeout = "00:10:00",
+    token = token
+  )
+  cleanup_needed <- TRUE
+  on.exit(
+    if (cleanup_needed) {
+      try(fabric_pbi_refresh_cancel(refresh), silent = TRUE)
+    },
+    add = TRUE
+  )
+
+  accepted <- fabric_pbi_refresh_cancel(refresh)
+  expect_identical(accepted, TRUE)
+
+  detail <- fabric_pbi_refresh_wait(
+    refresh,
+    poll_interval = 1,
+    timeout = 300,
+    error_on_failure = FALSE
+  )
+  cleanup_needed <- FALSE
+
+  expect_s3_class(detail, "fabric_pbi_refresh_detail")
+  expect_identical(detail$id, refresh$id)
+  expect_identical(detail$state, "Cancelled")
+})
+
 test_that("fabric_pbi_dax_query resolves and queries a semantic model", {
   manifest <- fabric_test_manifest()
   semantic_model <- manifest$items$TestSemanticModel
