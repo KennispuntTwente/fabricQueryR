@@ -730,6 +730,25 @@ test_that("Arrow DAX parser decodes tables and streams native dictionaries", {
   )
 })
 
+test_that("Arrow DAX tibbles preserve decimal values exactly", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  expected <- c("123456789012345.6789", "-0.0100", NA_character_)
+  currency <- arrow::Array$create(expected)$cast(arrow::decimal128(19, 4))
+  table <- arrow::arrow_table(currency = currency)
+  path <- tempfile(fileext = ".arrows")
+  on.exit(unlink(path), add = TRUE)
+  arrow::write_ipc_stream(table, path)
+  payload <- readBin(path, "raw", n = file.info(path)$size)
+
+  result <- pbi_parse_dax_arrow_response(payload)
+  stream <- pbi_parse_dax_arrow_response(payload, "arrow_stream")
+  streamed <- arrow::as_record_batch_reader(stream)$read_table()
+
+  expect_identical(result$currency, expected)
+  expect_s3_class(streamed$schema$fields[[1L]]$type, "Decimal128Type")
+})
+
 test_that("Arrow DAX responses can be parsed from disk", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")

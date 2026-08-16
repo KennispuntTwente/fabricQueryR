@@ -90,6 +90,8 @@ The default `database = NULL` infers the database when possible;
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
 provides typed tibbles or streams for models that support it.
+Arrow decimal columns, including Power BI Currency, are returned as exact
+character values in tibbles instead of being rounded through R doubles.
 
 * `fabric_pbi_refresh_start()` now sends `applyRefreshPolicy = false` when
 `commit_mode = "PartialBatch"`, as required by the Power BI enhanced refresh

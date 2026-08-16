@@ -23,6 +23,8 @@
 #' Use `api = "arrow"` when exact semantic-model types matter, when a query has
 #' several `EVALUATE` statements, or when you want an Arrow stream. It requires
 #' the optional \pkg{arrow} package and a model on Premium or Fabric capacity.
+#' Decimal128 and Decimal256 columns are returned as exact character values in
+#' a tibble; `result = "arrow_stream"` retains their native Arrow decimal types.
 #' The Power BI administrator must enable both **Dataset Execute Queries REST
 #' API** under Developer settings and **Allow XMLA endpoints and Analyze in
 #' Excel with on-premises semantic models** under Integration settings.
@@ -1068,7 +1070,7 @@ pbi_parse_dax_arrow_response <- function(
     })
   } else {
     rowsets <- lapply(data_tables, function(table) {
-      tibble::as_tibble(as.data.frame(table))
+      pbi_dax_arrow_tibble(table)
     })
   }
   value <- if (length(rowsets) == 1L) {
@@ -1081,6 +1083,32 @@ pbi_parse_dax_arrow_response <- function(
     attr(value, "execution_metrics") <- metrics
   }
   value
+}
+
+# Convert one Arrow DAX table without rounding fixed-precision decimals
+pbi_dax_arrow_tibble <- function(table) {
+  fields <- table$schema$fields
+  decimal <- vapply(
+    fields,
+    function(field) inherits(field$type, "DecimalType"),
+    logical(1)
+  )
+  if (any(decimal)) {
+    fields[decimal] <- lapply(fields[decimal], function(field) {
+      arrow::field(
+        field$name,
+        arrow::utf8(),
+        nullable = field$nullable,
+        metadata = field$metadata
+      )
+    })
+    target <- do.call(arrow::schema, fields)
+    if (length(table$schema$metadata)) {
+      target <- target$WithMetadata(table$schema$metadata)
+    }
+    table <- table$cast(target)
+  }
+  tibble::as_tibble(as.data.frame(table))
 }
 
 #' Decode dictionary columns before exposing Arrow DAX results to R
