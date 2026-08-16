@@ -24,6 +24,8 @@ Warehouse table helpers now reject `/` and `\\` in schema and table names, as
 required by Fabric's current T-SQL surface-area limitations.
 Non-recursive `fabric_onelake_list()` calls now reject multi-level `begin_from`
 paths locally instead of sending a request that ADLS rejects.
+Supplied workspace records now require a canonical workspace GUID and reject
+records whose declared type identifies a different Fabric item.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

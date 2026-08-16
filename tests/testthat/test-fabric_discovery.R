@@ -70,6 +70,36 @@ test_that("name discovery requires an exact or unique match", {
   )
 })
 
+test_that("supplied workspace records validate identity and type", {
+  credential <- fabric_credential(token = "token")
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  resolved <- fabric_resolve_workspace(
+    list(id = workspace_id, type = "Workspace", displayName = "Analytics"),
+    credential,
+    .fabric_api_base
+  )
+  expect_identical(resolved$id, workspace_id)
+
+  expect_error(
+    fabric_resolve_workspace(
+      list(id = "not-a-guid", type = "Workspace"),
+      credential,
+      .fabric_api_base
+    ),
+    "canonical GUID",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_resolve_workspace(
+      list(id = workspace_id, type = "Notebook"),
+      credential,
+      .fabric_api_base
+    ),
+    "not 'Workspace' or 'Personal'",
+    fixed = TRUE
+  )
+})
+
 test_that("workspace-specific API endpoints route item discovery", {
   workspace <- structure(
     list(

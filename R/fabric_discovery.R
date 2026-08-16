@@ -949,8 +949,33 @@ fabric_resolve_workspace <- function(
 
   supplied <- fabric_as_record(workspace)
   if (!is.null(supplied)) {
+    supplied_id <- fabric_record_value(supplied, "id")
+    supplied_type <- fabric_record_value(supplied, "type", "workspaceType")
+    if (
+      !is.character(supplied_id) ||
+        length(supplied_id) != 1L ||
+        is.na(supplied_id) ||
+        !fabric_is_guid(supplied_id)
+    ) {
+      .fabric_abort(
+        "A supplied workspace record must contain a canonical GUID `id`"
+      )
+    }
+    if (
+      !is.null(supplied_type) &&
+        (!is.character(supplied_type) ||
+          length(supplied_type) != 1L ||
+          is.na(supplied_type) ||
+          !tolower(supplied_type) %in% c("workspace", "personal"))
+    ) {
+      .fabric_abort(paste0(
+        "A supplied workspace record has type '",
+        supplied_type,
+        "', not 'Workspace' or 'Personal'"
+      ))
+    }
     return(list(
-      id = supplied$id,
+      id = supplied_id,
       displayName = supplied$displayName %||%
         supplied$workspaceDisplayName %||%
         NA_character_,
