@@ -28,6 +28,11 @@
   query-route suffixes before switching to `/v1/rest/mgmt`. Enhanced
   semantic-model refresh validation now accounts for Power BI’s default
   five-hour attempt timeout when checking the 24-hour retry limit.
+  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  now applies `max_response_bytes` at the transport layer as well as
+  validating response headers and the completed body. Warehouse table
+  helpers now reject `/` and `\\` in schema and table names, as required
+  by Fabric’s current T-SQL surface-area limitations.
 
 - [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
   [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
