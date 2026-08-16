@@ -312,10 +312,14 @@ fabric_job_status <- function(
     .fabric_abort("`respect_retry_after` must be TRUE or FALSE")
   }
 
-  if (isTRUE(respect_retry_after) && inherits(job, "fabric_job")) {
+  if (
+    isTRUE(respect_retry_after) &&
+      (inherits(job, "fabric_job") || inherits(job, "fabric_job_instance"))
+  ) {
     next_poll_at <- job$next_poll_at
     if (
-      is.null(next_poll_at) &&
+      inherits(job, "fabric_job") &&
+        is.null(next_poll_at) &&
         !is.null(job$submitted_at) &&
         !is.null(job$retry_after)
     ) {
@@ -360,7 +364,14 @@ fabric_job_status <- function(
 
   # Read and return status once so later checks use a consistent view
 
-  .fabric_job_get_status(context, allow_not_found = FALSE)
+  instance <- .fabric_job_get_status(context, allow_not_found = FALSE)
+  observed_at <- .now()
+  instance$next_poll_at <- if (is.null(instance$retry_after)) {
+    observed_at
+  } else {
+    observed_at + instance$retry_after
+  }
+  instance
 }
 
 #' @param poll_interval Minimum seconds between status checks. `NULL` follows

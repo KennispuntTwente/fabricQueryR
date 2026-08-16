@@ -65,6 +65,8 @@ Notebooks, data pipelines, Spark job definitions, and other supported item
 jobs. They also inspect run history and manage recurring schedules.
 `fabric_job_wait()` now subtracts time already elapsed from the submission
 `Retry-After` delay, preventing stale handles from timing out before polling.
+Repeated `fabric_job_status()` calls now also preserve and honor the latest
+response `Retry-After` value.
 
 * `fabric_operation_*()` functions resume, monitor, and retrieve the results of
 longer-running Fabric tasks such as Lakehouse loads.

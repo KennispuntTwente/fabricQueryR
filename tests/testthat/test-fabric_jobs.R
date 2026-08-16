@@ -932,6 +932,51 @@ test_that("manual status honors the submission Retry-After delay", {
   expect_length(slept, 0L)
 })
 
+test_that("manual status preserves the latest response Retry-After", {
+  responses <- list(
+    list(
+      status_code = 200L,
+      retry_after = 20,
+      body = list(id = "job", status = "InProgress")
+    ),
+    list(
+      status_code = 200L,
+      retry_after = NULL,
+      body = list(id = "job", status = "InProgress")
+    )
+  )
+  requested <- 0L
+  slept <- numeric()
+  now <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC")
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      requested <<- requested + 1L
+      response <- responses[[1L]]
+      responses <<- responses[-1L]
+      response
+    }
+  )
+  job <- job_test_handle(item_type = "DataPipeline")
+
+  first <- fabric_job_status(
+    job,
+    respect_retry_after = FALSE,
+    .now = function() now
+  )
+  second <- fabric_job_status(
+    first,
+    .now = function() now + 5,
+    .sleep = function(seconds) {
+      slept <<- c(slept, seconds)
+    }
+  )
+
+  expect_equal(first$next_poll_at, now + 20)
+  expect_equal(second$status, "InProgress")
+  expect_equal(slept, 15)
+  expect_equal(requested, 2L)
+})
+
 test_that("wait retains a positive polling floor", {
   responses <- list(
     list(
