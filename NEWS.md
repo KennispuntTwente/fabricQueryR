@@ -32,6 +32,8 @@ sessions with more than one response page are not silently truncated.
 lets Kusto distribute export work across storage accounts or paths.
 Warehouse Parquet loads no longer emit CSV-only field ordinals in `COPY INTO`;
 they use Fabric's required exact source and target column-name matching.
+`fabric_delta_config(initialize = FALSE)` no longer performs potentially slow
+Python-interpreter discovery when Python has not already been initialized.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

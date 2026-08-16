@@ -671,6 +671,28 @@ test_that("Delta runtime requirements are declared without forcing initializatio
   expect_error(fabric_delta_config(initialize = NA), "TRUE or FALSE")
 })
 
+test_that("Delta configuration avoids interpreter discovery when uninitialized", {
+  config_calls <- 0L
+  local_mocked_bindings(
+    py_require = function(...) {
+      list(python_version = ">=3.10", packages = "deltalake==1.6.2")
+    },
+    py_available = function(initialize = FALSE) FALSE,
+    py_config = function(...) {
+      config_calls <<- config_calls + 1L
+      stop("must not initialize Python")
+    },
+    .package = "reticulate"
+  )
+
+  config <- fabric_delta_config(initialize = FALSE)
+
+  expect_false(config$initialized)
+  expect_null(config$python)
+  expect_null(config$python_version)
+  expect_identical(config_calls, 0L)
+})
+
 test_that("Delta runtime configuration initializes and reports missing modules", {
   local_mocked_bindings(
     py_require = function(...) {

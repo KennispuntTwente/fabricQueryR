@@ -289,8 +289,10 @@ fabric_delta_config <- function(initialize = FALSE) {
   initialized <- reticulate::py_available(initialize = FALSE)
   discovered <- if (isTRUE(initialize)) {
     tryCatch(reticulate::py_config(), error = identity)
+  } else if (initialized) {
+    reticulate::py_config()
   } else {
-    reticulate::py_discover_config()
+    NULL
   }
 
   if (inherits(discovered, "error")) {
