@@ -27,7 +27,9 @@
 #' @param target_item_type Optional Fabric item type used to disambiguate a
 #'   OneLake target supplied by name.
 #' @param conflict_policy `"Abort"` preserves an existing shortcut with the
-#'   same path and name. `"CreateOrOverwrite"` creates or updates it.
+#'   same path and name. `"GenerateUniqueName"` creates a uniquely named
+#'   shortcut, `"CreateOrOverwrite"` creates or updates it, and
+#'   `"OverwriteOnly"` updates an existing shortcut without creating one.
 #' @param confirm Logical. Deletion is disabled unless explicitly set to
 #'   `TRUE`. Deleting a shortcut does not delete its destination data.
 #' @inheritParams fabric_workspaces
@@ -182,7 +184,12 @@ fabric_onelake_shortcut_create <- function(
   target_workspace = NULL,
   target_path = NULL,
   target_item_type = NULL,
-  conflict_policy = c("Abort", "CreateOrOverwrite"),
+  conflict_policy = c(
+    "Abort",
+    "GenerateUniqueName",
+    "CreateOrOverwrite",
+    "OverwriteOnly"
+  ),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",
@@ -197,7 +204,12 @@ fabric_onelake_shortcut_create <- function(
   .fabric_shortcut_segment(name, "name")
   conflict_policy <- .fabric_shortcut_choice(
     conflict_policy,
-    c("Abort", "CreateOrOverwrite"),
+    c(
+      "Abort",
+      "GenerateUniqueName",
+      "CreateOrOverwrite",
+      "OverwriteOnly"
+    ),
     "conflict_policy"
   )
   context <- .fabric_shortcut_context(
@@ -227,7 +239,7 @@ fabric_onelake_shortcut_create <- function(
       name = name,
       target = shortcut_target
     ))
-  if (identical(conflict_policy, "CreateOrOverwrite")) {
+  if (!identical(conflict_policy, "Abort")) {
     request <- httr2::req_url_query(
       request,
       shortcutConflictPolicy = conflict_policy

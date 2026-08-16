@@ -59,6 +59,8 @@ objects.
 * `fabric_onelake_shortcuts()` and `fabric_onelake_shortcut_*()` functions
 inspect, create, update, and delete OneLake shortcuts, which link Fabric items
 to data stored elsewhere.
+`fabric_onelake_shortcut_create()` now supports `GenerateUniqueName` and
+`OverwriteOnly` in addition to the existing conflict policies.
 
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes, including refreshes limited

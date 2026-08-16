@@ -198,6 +198,49 @@ test_that("shortcut create builds a discovered OneLake target", {
   expect_equal(result$target_type, "OneLake")
 })
 
+test_that("shortcut create emits every non-default conflict policy", {
+  request_urls <- character()
+  httr2::local_mocked_responses(function(req) {
+    request_urls <<- c(request_urls, utils::URLdecode(req$url))
+    shortcut_test_response(
+      shortcut_test_onelake_record(),
+      status = 201L,
+      url = req$url
+    )
+  })
+  policies <- c(
+    "Abort",
+    "GenerateUniqueName",
+    "CreateOrOverwrite",
+    "OverwriteOnly"
+  )
+
+  for (policy in policies) {
+    fabric_onelake_shortcut_create(
+      shortcut_test_item(),
+      path = "Files/shared",
+      name = "orders",
+      target = shortcut_test_target(),
+      target_path = "Tables/dbo/orders",
+      conflict_policy = policy,
+      token = "test-token"
+    )
+  }
+
+  expect_false(grepl(
+    "shortcutConflictPolicy",
+    request_urls[[1L]],
+    fixed = TRUE
+  ))
+  for (index in 2:4) {
+    expect_match(
+      request_urls[[index]],
+      paste0("shortcutConflictPolicy=", policies[[index]]),
+      fixed = TRUE
+    )
+  }
+})
+
 test_that("shortcut create accepts documented connection-backed targets", {
   request <- NULL
   httr2::local_mocked_responses(function(req) {

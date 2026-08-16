@@ -46,7 +46,8 @@ fabric_onelake_shortcut_create(
   target_workspace = NULL,
   target_path = NULL,
   target_item_type = NULL,
-  conflict_policy = c("Abort", "CreateOrOverwrite"),
+  conflict_policy = c("Abort", "GenerateUniqueName", "CreateOrOverwrite",
+    "OverwriteOnly"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -123,7 +124,9 @@ target. Required when \code{target} is an item and unused for a raw target list.
 OneLake target supplied by name.}
 
 \item{conflict_policy}{\code{"Abort"} preserves an existing shortcut with the
-same path and name. \code{"CreateOrOverwrite"} creates or updates it.}
+same path and name. \code{"GenerateUniqueName"} creates a uniquely named
+shortcut, \code{"CreateOrOverwrite"} creates or updates it, and
+\code{"OverwriteOnly"} updates an existing shortcut without creating one.}
 
 \item{confirm}{Logical. Deletion is disabled unless explicitly set to
 \code{TRUE}. Deleting a shortcut does not delete its destination data.}
