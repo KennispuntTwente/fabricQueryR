@@ -256,6 +256,15 @@ fabric_test_optional_environment <- function(variable, purpose) {
   value
 }
 
+fabric_test_required_environment <- function(variable, purpose) {
+  value <- Sys.getenv(variable)
+  fabric_test_skip_or_fail(
+    !nzchar(value),
+    paste(purpose, "requires", variable)
+  )
+  value
+}
+
 fabric_test_require_package <- function(package) {
   fabric_test_skip_or_fail(
     !requireNamespace(package, quietly = TRUE),

@@ -40,6 +40,28 @@ test_that("required Fabric integration mode fails instead of skipping", {
   )
 })
 
+test_that("required live fixtures fail when CI configuration is incomplete", {
+  withr::local_envvar(c(
+    FABRIC_INTEGRATION_REQUIRED = "true",
+    FABRICQUERYR_TEST_MISSING_FIXTURE = NA
+  ))
+
+  error <- tryCatch(
+    fabric_test_required_environment(
+      "FABRICQUERYR_TEST_MISSING_FIXTURE",
+      "Live fixture"
+    ),
+    error = identity
+  )
+
+  expect_s3_class(error, "error")
+  expect_match(
+    conditionMessage(error),
+    "Live fixture requires FABRICQUERYR_TEST_MISSING_FIXTURE",
+    fixed = TRUE
+  )
+})
+
 test_that("live token providers acquire by audience and cache until refresh", {
   calls <- character()
   provider <- fabric_test_token_provider(function(audience) {

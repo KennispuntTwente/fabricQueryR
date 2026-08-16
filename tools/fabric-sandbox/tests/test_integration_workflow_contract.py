@@ -93,6 +93,28 @@ def test_live_workflow_gates_package_changes_at_the_test_revision():
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
 
 
+def test_user_function_lane_requires_all_live_fixture_urls():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+    function_tests = (
+        repository_root
+        / "tests/testthat/test-integration-fabric-functions.R"
+    ).read_text()
+
+    variables = {
+        "FABRIC_TEST_FUNCTION_SCALAR_URL",
+        "FABRIC_TEST_FUNCTION_STRUCTURED_URL",
+        "FABRIC_TEST_FUNCTION_ERROR_URL",
+    }
+    for variable in variables:
+        assert f"{variable}: ${{{{ secrets.{variable} }}}}" in workflow
+        assert f'"{variable}"' in function_tests
+    assert function_tests.count("fabric_test_required_environment(") == 3
+    assert "fabric_test_optional_environment(" not in function_tests
+
+
 def test_live_workflow_skips_protected_teardown_for_fork_pull_requests():
     repository_root = Path(__file__).parents[3]
     workflow = (
