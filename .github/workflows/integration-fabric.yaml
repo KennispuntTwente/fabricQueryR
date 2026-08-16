@@ -329,6 +329,10 @@ jobs:
           LIMITED_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_LIMITED_CLIENT_SECRET }}
           LIMITED_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
         run: |
+          if [[ -z "$LIMITED_CLIENT_ID" || -z "$LIMITED_CLIENT_SECRET" ]]; then
+            echo "::notice::Least-privilege coverage is opt-in; configure FABRIC_TEST_LIMITED_CLIENT_ID and FABRIC_TEST_LIMITED_CLIENT_SECRET to enable it"
+            exit 0
+          fi
           response="$(curl -fsS -X POST \
             "https://login.microsoftonline.com/${LIMITED_TENANT_ID}/oauth2/v2.0/token" \
             --data-urlencode "client_id=${LIMITED_CLIENT_ID}" \

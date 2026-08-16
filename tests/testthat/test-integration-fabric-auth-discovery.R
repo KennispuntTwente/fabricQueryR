@@ -315,11 +315,11 @@ test_that("the default AzureAuth flow works with a delegated identity", {
 })
 
 test_that("a valid least-privilege identity returns a typed 403", {
-  limited_token <- fabric_test_required_environment(
+  limited_token <- fabric_test_optional_environment(
     "FABRIC_TEST_LIMITED_API_TOKEN",
     "Least-privilege Fabric API coverage"
   )
-  denied_workspace <- fabric_test_required_environment(
+  denied_workspace <- fabric_test_optional_environment(
     "FABRIC_TEST_DENIED_WORKSPACE_ID",
     "Least-privilege Fabric API coverage"
   )

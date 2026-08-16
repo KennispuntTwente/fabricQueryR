@@ -62,6 +62,24 @@ test_that("required live fixtures fail when CI configuration is incomplete", {
   )
 })
 
+test_that("opt-in live fixtures skip even in required integration mode", {
+  withr::local_envvar(c(
+    FABRIC_INTEGRATION_REQUIRED = "true",
+    FABRICQUERYR_TEST_MISSING_FIXTURE = NA
+  ))
+
+  condition <- tryCatch(
+    fabric_test_optional_environment(
+      "FABRICQUERYR_TEST_MISSING_FIXTURE",
+      "Opt-in fixture"
+    ),
+    skip = identity
+  )
+
+  expect_s3_class(condition, "skip")
+  expect_match(condition$message, "Opt-in fixture is opt-in")
+})
+
 test_that("live token providers acquire by audience and cache until refresh", {
   calls <- character()
   provider <- fabric_test_token_provider(function(audience) {
