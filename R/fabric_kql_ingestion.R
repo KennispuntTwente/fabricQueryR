@@ -3106,7 +3106,7 @@ kusto_export_destination <- function(
   if (multiple) {
     if (
       anyNA(destination) ||
-        any(!grepl("^(?:https|abfss)://", destination, ignore.case = TRUE))
+        !all(grepl("^(?:https|abfss)://", destination, ignore.case = TRUE))
     ) {
       .fabric_abort(
         "Multiple export destinations must all be complete HTTPS/ABFSS paths"
