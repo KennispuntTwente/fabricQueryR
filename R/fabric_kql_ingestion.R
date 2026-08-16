@@ -2000,7 +2000,7 @@ fabric_kql_write_table <- function(
   )
   staging_path <- onelake_path_url(storage_directory)
 
-  # 3 Stream to bounded local Parquet parts and enforce advertised limits -------------------------
+  # 3 Stream to bounded local Parquet parts -------------------------------------------------------
 
   parquet_directory <- tempfile("fabricqueryr-kql-")
   dir.create(parquet_directory)
@@ -2018,18 +2018,9 @@ fabric_kql_write_table <- function(
     caller = "fabric_kql_write_table()",
     error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
   )
-  if (serialized$total_bytes > configuration$max_data_size) {
-    .fabric_abort(
-      paste0(
-        "The staged Parquet batch is ",
-        format(serialized$total_bytes, scientific = FALSE, trim = TRUE),
-        " bytes, exceeding the ingestion service limit of ",
-        format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
-        " bytes"
-      ),
-      class = c("fabric_kql_size_error", "fabric_kql_write_error")
-    )
-  }
+  # Kusto defines rawSize as the blob size before compression. The local file
+  # sizes are compressed Parquet bytes, so they are neither submitted as
+  # rawSize nor compared with the service's uncompressed data-size limit.
   if (
     serialized$file_count > 1L &&
       isTRUE(skip_batching) &&
@@ -2105,7 +2096,7 @@ fabric_kql_write_table <- function(
       database = database,
       format = "parquet",
       source_ids = source_ids,
-      raw_sizes = serialized$bytes,
+      raw_sizes = NULL,
       mapping = mapping,
       tags = tags,
       ingest_if_not_exists = ingest_if_not_exists,

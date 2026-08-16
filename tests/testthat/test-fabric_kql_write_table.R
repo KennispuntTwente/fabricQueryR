@@ -199,7 +199,7 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
     )
   )
   expect_equal(submitted$format, "parquet")
-  expect_equal(submitted$raw_sizes, uploaded$bytes)
+  expect_null(submitted$raw_sizes)
   expect_equal(submitted$mapping, "RawParquet")
   expect_equal(submitted$tags, "r-object")
   expect_equal(submitted$ingest_if_not_exists, "batch-1")
@@ -415,7 +415,7 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
     c(2L, 2L, 1L)
   )
   expect_equal(unlist(lapply(uploads, function(x) x$data$id)), 1:5)
-  expect_equal(submitted$raw_sizes, vapply(uploads, `[[`, numeric(1), "bytes"))
+  expect_null(submitted$raw_sizes)
   expect_equal(submitted$sources, paste0(result$staging_paths, ";impersonate"))
   expect_length(submitted$source_ids, 3L)
   expect_length(unique(submitted$source_ids), 3L)
@@ -494,28 +494,36 @@ test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
   expect_null(reader$read_next_batch())
 })
 
-test_that("Eventhouse writer enforces configured size before upload", {
+test_that("Eventhouse writer does not report compressed bytes as raw size", {
   skip_if_not_installed("arrow")
   upload_calls <- 0L
+  submitted <- NULL
   local_mocked_bindings(
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(max_data_size = 1)
     },
     onelake_upload_target = function(...) {
       upload_calls <<- upload_calls + 1L
-    }
+      tibble::tibble()
+    },
+    fabric_kql_ingest = function(...) {
+      submitted <<- list(...)
+      kql_write_test_ingestion()
+    },
+    fabric_kql_ingestion_status = function(...) kql_write_test_status(),
+    .fabric_onelake_remove_staging = function(...) TRUE
   )
-  expect_error(
-    fabric_kql_write_table(
-      "https://ingest-cluster.kusto.fabric.microsoft.com",
-      "Raw",
-      data.frame(id = 1L),
-      database = "Telemetry",
-      token = "test-token"
-    ),
-    class = "fabric_kql_size_error"
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(value = rep("compressible", 1000)),
+    database = "Telemetry",
+    token = "test-token"
   )
-  expect_equal(upload_calls, 0L)
+
+  expect_equal(upload_calls, 1L)
+  expect_null(submitted$raw_sizes)
+  expect_gt(result$bytes, 0)
 })
 
 test_that("Eventhouse writer enforces the advertised blob count", {
