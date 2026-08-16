@@ -177,9 +177,10 @@ test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
   expect_equal(length(statements), 1L)
   expect_match(
     statements,
-    "COPY INTO [dbo].[sales]]orders] ([id] 1, [display name] 2)",
+    "COPY INTO [dbo].[sales]]orders] ([id], [display name])",
     fixed = TRUE
   )
+  expect_false(grepl("[id] 1", statements, fixed = TRUE))
   expect_match(
     statements,
     paste0(

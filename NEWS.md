@@ -30,6 +30,8 @@ records whose declared type identifies a different Fabric item.
 sessions with more than one response page are not silently truncated.
 `fabric_kql_export()` now accepts multiple complete storage destinations, which
 lets Kusto distribute export work across storage accounts or paths.
+Warehouse Parquet loads no longer emit CSV-only field ordinals in `COPY INTO`;
+they use Fabric's required exact source and target column-name matching.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

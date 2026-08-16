@@ -758,11 +758,7 @@ fabric_warehouse_write_table <- function(
 # Build one COPY statement with quoted identifiers and an internal OneLake URL
 .fabric_warehouse_copy_sql <- function(table_sql, columns, target) {
   column_sql <- paste(
-    paste0(
-      vapply(columns, .fabric_warehouse_quote_identifier, character(1)),
-      " ",
-      seq_along(columns)
-    ),
+    vapply(columns, .fabric_warehouse_quote_identifier, character(1)),
     collapse = ", "
   )
   source <- .fabric_warehouse_source_url(target)
