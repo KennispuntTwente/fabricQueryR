@@ -127,7 +127,9 @@ fabric_job_cancel(
 
   Optional advanced job settings in the format documented for the Fabric
   item type. Use the simpler arguments below for common notebook
-  settings
+  settings. In custom payload fields, wrap a one-element atomic vector
+  in [`I()`](https://rdrr.io/r/base/AsIs.html) (or use an unnamed list)
+  when it must remain a JSON array
 
 - default_lakehouse:
 

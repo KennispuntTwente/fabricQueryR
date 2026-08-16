@@ -166,7 +166,8 @@ only when R's inferred type is not the type expected in Fabric</p></dd>
 <dt id="arg-execution-data">execution_data<a class="anchor" aria-label="anchor" href="#arg-execution-data"></a></dt>
 <dd><p>Optional advanced job settings in the format documented
 for the Fabric item type. Use the simpler arguments below for common
-notebook settings</p></dd>
+notebook settings. In custom payload fields, wrap a one-element atomic
+vector in <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code> (or use an unnamed list) when it must remain a JSON array</p></dd>
 
 
 <dt id="arg-default-lakehouse">default_lakehouse<a class="anchor" aria-label="anchor" href="#arg-default-lakehouse"></a></dt>
