@@ -83,11 +83,17 @@ each public URL safely.</p>
 <p>The caller needs Execute permission on the item. Interactive app
 registrations need the Power BI delegated permission
 <code>UserDataFunction.Execute.All</code> or
-<code>Item.Execute.All</code>. Application credentials need the
-corresponding application permission and item access. fabricQueryR
+<code>Item.Execute.All</code>. Application credentials require the
+relevant service-principal tenant setting and item access. fabricQueryR
 chooses the narrow delegated scope for interactive authentication and
 the Power BI <code>.default</code> audience for client credentials; use
 <code>audience</code> only for a custom identity provider.</p>
+<p>The caller identity for the public endpoint and the connections used
+inside the function are separate concerns. Microsoft currently does not
+support using a service principal through UDF-managed connections to
+access Fabric items or data sources. An application can therefore be
+allowed to invoke a function whose own managed data connection remains
+unsupported for that identity.</p>
 </div>
 <div class="section level2">
 <h2 id="make-a-first-call">Make a first call<a class="anchor" aria-label="anchor" href="#make-a-first-call"></a>

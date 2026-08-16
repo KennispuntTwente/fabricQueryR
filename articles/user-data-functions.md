@@ -29,10 +29,17 @@ function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 The caller needs Execute permission on the item. Interactive app
 registrations need the Power BI delegated permission
 `UserDataFunction.Execute.All` or `Item.Execute.All`. Application
-credentials need the corresponding application permission and item
-access. fabricQueryR chooses the narrow delegated scope for interactive
-authentication and the Power BI `.default` audience for client
-credentials; use `audience` only for a custom identity provider.
+credentials require the relevant service-principal tenant setting and
+item access. fabricQueryR chooses the narrow delegated scope for
+interactive authentication and the Power BI `.default` audience for
+client credentials; use `audience` only for a custom identity provider.
+
+The caller identity for the public endpoint and the connections used
+inside the function are separate concerns. Microsoft currently does not
+support using a service principal through UDF-managed connections to
+access Fabric items or data sources. An application can therefore be
+allowed to invoke a function whose own managed data connection remains
+unsupported for that identity.
 
 ## Make a first call
 

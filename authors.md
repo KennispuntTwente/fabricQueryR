@@ -11,12 +11,12 @@
 Source:
 [`DESCRIPTION`](https://github.com/kennispunttwente/fabricQueryR/blob/master/DESCRIPTION)
 
-Koning L (2026). *fabricQueryR: Query Data in 'Microsoft Fabric'*. R
-package version 0.2.1.9000,
+Koning L (2026). *fabricQueryR: Access and Manage 'Microsoft Fabric'
+from R*. R package version 0.2.1.9000,
 <https://github.com/kennispunttwente/fabricQueryR>.
 
     @Manual{,
-      title = {fabricQueryR: Query Data in 'Microsoft Fabric'},
+      title = {fabricQueryR: Access and Manage 'Microsoft Fabric' from R},
       author = {Luka Koning},
       year = {2026},
       note = {R package version 0.2.1.9000},

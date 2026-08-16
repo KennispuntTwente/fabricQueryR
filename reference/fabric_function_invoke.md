@@ -115,10 +115,18 @@ around a one-element value when it must remain a JSON array.
 Interactive authentication requires the Power BI delegated permission
 `UserDataFunction.Execute.All` or `Item.Execute.All`, plus Execute
 permission on the user data functions item. Service-to-service callers
-can use an application credential with the corresponding application
-permission and item access. Most users can leave `audience = NULL`;
-fabricQueryR selects the documented delegated scope or application
-audience for the authentication flow.
+can use an application credential with the Power BI `.default` audience
+and the required tenant and item access. Most users can leave
+`audience = NULL`; fabricQueryR selects the documented delegated scope
+or application audience for the authentication flow.
+
+Application authentication for the public invocation endpoint is
+distinct from authentication used by connections inside the function.
+Microsoft currently does not support using a service principal through
+connections managed by user data functions to access Fabric items or
+data sources. A service principal can therefore invoke a compatible
+function while a function that relies on an unsupported managed
+connection can still fail.
 
 The function URL is a credential boundary. By default, tokens are sent
 only to an HTTPS Microsoft Fabric API host and only when the URL has the
