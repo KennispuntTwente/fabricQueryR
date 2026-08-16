@@ -12,7 +12,9 @@
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   discover common Fabric resources. Their results can be passed directly
   to other fabricQueryR functions, avoiding copied IDs and endpoints in
-  most workflows.
+  most workflows. WarehouseSnapshot discovery now obtains the parent
+  Warehouse’s workspace-private SQL hostname when a private Fabric API
+  endpoint is in use.
 
 - [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
   and
@@ -32,7 +34,9 @@
   [`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md),
   and
   [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-  list, inspect, and delete files.
+  list, inspect, and delete files. Object-file and Lakehouse-table
+  wrappers now preserve discovered private or regional OneLake endpoints
+  when `dfs_base` is omitted.
 
 - [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
   [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md),
@@ -65,7 +69,9 @@
   [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
   now rejects multi-file writes that combine per-blob ingestion with one
   shared idempotency key, preventing successful tracking results with
-  omitted parts.
+  omitted parts. Generated Parquet writes no longer report compressed
+  file sizes as Kusto’s uncompressed `rawSize`; the service derives this
+  optional value instead.
 
 - `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect
   its schema, work through paginated results, and collect the result
@@ -87,6 +93,9 @@
   Notebooks, data pipelines, Spark job definitions, and other supported
   item jobs. They also inspect run history and manage recurring
   schedules.
+  [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+  now subtracts time already elapsed from the submission `Retry-After`
+  delay, preventing stale handles from timing out before polling.
 
 - `fabric_operation_*()` functions resume, monitor, and retrieve the
   results of longer-running Fabric tasks such as Lakehouse loads.
@@ -117,6 +126,10 @@
   for a user under row-level security, and reports incomplete Power BI
   results instead of silently returning them. An optional Arrow mode
   provides typed tibbles or streams for models that support it.
+
+- `fabric_pbi_refresh_start()` now sends `applyRefreshPolicy = false`
+  when `commit_mode = "PartialBatch"`, as required by the Power BI
+  enhanced refresh API.
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   now reads current or historical Lakehouse and compatible Warehouse
