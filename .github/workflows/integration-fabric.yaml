@@ -242,6 +242,7 @@ jobs:
       FABRIC_INTEGRATION_REQUIRED: "true"
       FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      FABRIC_TEST_DENIED_WORKSPACE_ID: ${{ vars.FABRIC_TEST_DENIED_WORKSPACE_ID }}
       FABRIC_TEST_FUNCTION_SCALAR_URL: ${{ secrets.FABRIC_TEST_FUNCTION_SCALAR_URL }}
       FABRIC_TEST_FUNCTION_STRUCTURED_URL: ${{ secrets.FABRIC_TEST_FUNCTION_STRUCTURED_URL }}
       FABRIC_TEST_FUNCTION_ERROR_URL: ${{ secrets.FABRIC_TEST_FUNCTION_ERROR_URL }}
@@ -320,6 +321,23 @@ jobs:
             echo "FABRIC_TEST_PBI_TOKEN=$pbi_token"
             echo "FABRIC_TEST_KUSTO_TOKEN=$kusto_token"
           } >> "$GITHUB_ENV"
+
+      - name: Acquire least-privilege Fabric token
+        if: matrix.filter == 'integration-fabric-auth-discovery'
+        env:
+          LIMITED_CLIENT_ID: ${{ vars.FABRIC_TEST_LIMITED_CLIENT_ID }}
+          LIMITED_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_LIMITED_CLIENT_SECRET }}
+          LIMITED_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+        run: |
+          response="$(curl -fsS -X POST \
+            "https://login.microsoftonline.com/${LIMITED_TENANT_ID}/oauth2/v2.0/token" \
+            --data-urlencode "client_id=${LIMITED_CLIENT_ID}" \
+            --data-urlencode "client_secret=${LIMITED_CLIENT_SECRET}" \
+            --data-urlencode "scope=https://api.fabric.microsoft.com/.default" \
+            --data-urlencode "grant_type=client_credentials")"
+          limited_token="$(jq -er '.access_token' <<< "$response")"
+          echo "::add-mask::$limited_token"
+          echo "FABRIC_TEST_LIMITED_API_TOKEN=$limited_token" >> "$GITHUB_ENV"
 
       - name: Run Fabric integration tests
         env:

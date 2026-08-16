@@ -14,7 +14,8 @@
 # FABRIC_TEST_PERSONAL_DATASET_ID to also query a semantic model in My
 # Workspace. A separate valid low-privilege token plus a workspace it cannot
 # access can be supplied through FABRIC_TEST_LIMITED_API_TOKEN and
-# FABRIC_TEST_DENIED_WORKSPACE_ID to exercise typed permission failures
+# FABRIC_TEST_DENIED_WORKSPACE_ID to exercise typed permission failures. The
+# runner requires delegated coverage whenever its selected identity is a user
 
 .fabric_local_script <- tryCatch(
   normalizePath(
@@ -721,7 +722,8 @@ run_fabric_integration_tests <- function(
     "FABRIC_WORKSPACE_ID",
     "FABRIC_WORKSPACE_NAME",
     "FABRIC_TEST_MANIFEST",
-    "FABRIC_INTEGRATION_REQUIRED"
+    "FABRIC_INTEGRATION_REQUIRED",
+    "FABRIC_DELEGATED_INTEGRATION_REQUIRED"
   )
   old_environment <- Sys.getenv(managed_variables, unset = NA_character_)
   old_provider <- getOption("fabricQueryR.integration_token_provider")
@@ -756,7 +758,14 @@ run_fabric_integration_tests <- function(
       repository_root,
       ".fabric-test-manifest.json"
     ),
-    FABRIC_INTEGRATION_REQUIRED = "true"
+    FABRIC_INTEGRATION_REQUIRED = "true",
+    FABRIC_DELEGATED_INTEGRATION_REQUIRED = if (
+      fabric_local_uses_client_credentials(auth_args)
+    ) {
+      "false"
+    } else {
+      "true"
+    }
   )
   options(fabricQueryR.integration_token_provider = provider)
   options(

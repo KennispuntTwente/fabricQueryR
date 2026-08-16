@@ -163,6 +163,24 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert all(resource in integration for resource in resources)
 
 
+def test_auth_lane_acquires_a_required_least_privilege_identity():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+    auth_tests = (
+        repository_root
+        / "tests/testthat/test-integration-fabric-auth-discovery.R"
+    ).read_text()
+
+    assert "Acquire least-privilege Fabric token" in workflow
+    assert "FABRIC_TEST_LIMITED_CLIENT_ID" in workflow
+    assert "FABRIC_TEST_LIMITED_CLIENT_SECRET" in workflow
+    assert "FABRIC_TEST_DENIED_WORKSPACE_ID" in workflow
+    assert "FABRIC_TEST_LIMITED_API_TOKEN=$limited_token" in workflow
+    assert auth_tests.count("fabric_test_required_environment(") == 2
+
+
 def test_delta_matrices_install_the_locked_delta_rs_oracle():
     repository_root = Path(__file__).parents[3]
     workflow = (

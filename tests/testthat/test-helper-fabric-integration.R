@@ -159,6 +159,32 @@ test_that("local AzureAuth context enables the acquisition integration test", {
   expect_identical(fabric_test_azure_auth_config(), expected)
 })
 
+test_that("required delegated coverage rejects application authentication", {
+  withr::local_envvar(FABRIC_DELEGATED_INTEGRATION_REQUIRED = "true")
+  withr::local_options(
+    fabricQueryR.integration_auth_config = list(
+      tenant_id = "tenant-id",
+      client_id = "client-id",
+      auth_args = list(
+        auth_type = "client_credentials",
+        password = "secret"
+      )
+    )
+  )
+
+  error <- tryCatch(
+    fabric_test_delegated_auth_config(),
+    error = identity
+  )
+
+  expect_s3_class(error, "error")
+  expect_match(
+    conditionMessage(error),
+    "Delegated Fabric integration requires an interactive user identity",
+    fixed = TRUE
+  )
+})
+
 test_that("required integration mode rejects missing AzureAuth credentials", {
   old_required <- Sys.getenv("FABRIC_INTEGRATION_REQUIRED", unset = NA)
   old_secret <- Sys.getenv("FABRIC_TEST_AUTH_CLIENT_SECRET", unset = NA)

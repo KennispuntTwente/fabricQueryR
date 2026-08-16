@@ -238,6 +238,14 @@ fabric_test_delegated_auth_config <- function() {
     is.null(config$auth_args$password) &&
     is.null(config$auth_args$certificate)
   if (!delegated) {
+    if (
+      tolower(Sys.getenv("FABRIC_DELEGATED_INTEGRATION_REQUIRED")) %in%
+        c("1", "true", "yes")
+    ) {
+      rlang::abort(
+        "Delegated Fabric integration requires an interactive user identity"
+      )
+    }
     testthat::skip(
       paste(
         "Delegated identity coverage is opt-in; run through",
