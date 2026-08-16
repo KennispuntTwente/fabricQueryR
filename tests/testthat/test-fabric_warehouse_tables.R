@@ -68,6 +68,20 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
   expect_identical(queried$result, "tibble")
 })
 
+test_that("Warehouse schema and table names reject unsupported separators", {
+  expect_error(
+    .fabric_warehouse_identifier("sales/archive", "table"),
+    "without / or \\",
+    fixed = TRUE
+  )
+  expect_error(
+    .fabric_warehouse_identifier("sales\\archive", "schema"),
+    "without / or \\",
+    fixed = TRUE
+  )
+  expect_no_error(.fabric_warehouse_identifier("order/archive", "column"))
+})
+
 test_that("Warehouse table reader validates before target resolution", {
   calls <- 0L
   local_mocked_bindings(

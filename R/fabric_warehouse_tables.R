@@ -855,18 +855,22 @@ fabric_warehouse_write_table <- function(
 }
 
 .fabric_warehouse_identifier <- function(value, name) {
+  warehouse_object <- name %in% c("schema", "table")
   if (
     !is.character(value) ||
       length(value) != 1L ||
       is.na(value) ||
       !nzchar(value) ||
       nchar(value) > 128L ||
-      grepl("[[:cntrl:]]", value)
+      grepl("[[:cntrl:]]", value) ||
+      (warehouse_object && grepl("[/\\\\]", value))
   ) {
     .fabric_abort(paste0(
       "`",
       name,
-      "` must be one non-empty identifier of at most 128 characters"
+      "` must be one non-empty Fabric Warehouse identifier of at most ",
+      "128 characters",
+      if (warehouse_object) " without / or \\" else ""
     ))
   }
   invisible(value)
