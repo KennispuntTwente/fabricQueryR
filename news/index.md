@@ -50,7 +50,9 @@
   write data frames or Arrow data. Both ordinary and schema-enabled
   Lakehouses are supported. Load Table paths now enforce Fabric’s
   case-sensitive `relativePath` grammar and accept its valid `Files`
-  root-folder form.
+  root-folder form. CSV delimiters now follow the published
+  0-to-8-character schema, including space and tab delimiters while
+  rejecting the documented punctuation.
 
 - [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
   and

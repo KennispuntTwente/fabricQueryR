@@ -192,8 +192,8 @@ fabric_lakehouse_write_table(
 
 - delimiter:
 
-  CSV delimiter of 1 to 8 non-whitespace characters. Fabric does not
-  allow parentheses, brackets, braces, or quotes in a delimiter.
+  CSV delimiter of 0 to 8 characters. Spaces and tabs are allowed;
+  Fabric excludes parentheses, brackets, braces, and quotes.
 
 - file_extension:
 
