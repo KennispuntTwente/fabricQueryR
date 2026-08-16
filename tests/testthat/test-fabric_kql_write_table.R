@@ -209,6 +209,21 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   expect_false(status_args$error_on_failure)
 })
 
+test_that("Eventhouse writer requires a Storage credential for fixed tokens", {
+  skip_if_not_installed("arrow")
+
+  expect_snapshot(
+    error = TRUE,
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1L),
+      database = "Telemetry",
+      token = "kusto-token"
+    )
+  )
+})
+
 test_that("Eventhouse writer creates a missing table before staging", {
   skip_if_not_installed("arrow")
   calls <- character()
@@ -262,6 +277,7 @@ test_that("Eventhouse writer creates a missing table before staging", {
     create_if_missing = TRUE,
     cleanup = FALSE,
     token = "test-token",
+    storage_token = "storage-token",
     .now = function() now
   )
 
@@ -343,7 +359,8 @@ test_that("KQL table creation fails before staging or upload", {
       data.frame(id = 1L),
       database = "Telemetry",
       create_if_missing = TRUE,
-      token = "test-token"
+      token = "test-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_kql_table_create_error"
   )
@@ -405,7 +422,8 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
     data.frame(id = 1:5),
     database = "Telemetry",
     max_rows_per_file = 2,
-    token = "test-token"
+    token = "test-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(result$file_count, 3L)
@@ -416,7 +434,10 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
   )
   expect_equal(unlist(lapply(uploads, function(x) x$data$id)), 1:5)
   expect_null(submitted$raw_sizes)
-  expect_equal(submitted$sources, paste0(result$staging_paths, ";impersonate"))
+  expect_equal(
+    submitted$sources,
+    paste0(result$staging_paths, ";token=storage-token")
+  )
   expect_length(submitted$source_ids, 3L)
   expect_length(unique(submitted$source_ids), 3L)
   expect_equal(result$bytes, sum(result$part_bytes))
@@ -444,7 +465,8 @@ test_that("Eventhouse writer rejects unsafe multi-file idempotency", {
       ingest_if_not_exists = "batch-1",
       skip_batching = TRUE,
       max_rows_per_file = 1,
-      token = "test-token"
+      token = "test-token",
+      storage_token = "storage-token"
     )
   )
   expect_equal(upload_calls, 0L)
@@ -484,7 +506,8 @@ test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
     stream,
     database = "Telemetry",
     cleanup = FALSE,
-    token = "test-token"
+    token = "test-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(result$rows, 5)
@@ -518,7 +541,8 @@ test_that("Eventhouse writer does not report compressed bytes as raw size", {
     "Raw",
     data.frame(value = rep("compressible", 1000)),
     database = "Telemetry",
-    token = "test-token"
+    token = "test-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(upload_calls, 1L)
@@ -544,7 +568,8 @@ test_that("Eventhouse writer enforces the advertised blob count", {
       data.frame(id = 1:3),
       database = "Telemetry",
       max_rows_per_file = 1,
-      token = "test-token"
+      token = "test-token",
+      storage_token = "storage-token"
     ),
     "allowed 2 files",
     class = "fabric_kql_arrow_error"
@@ -569,7 +594,8 @@ test_that("an ambiguous OneLake upload reports its inspectable path", {
       "Raw",
       data.frame(id = 1L),
       database = "Telemetry",
-      token = "test-token"
+      token = "test-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_kql_upload_error"
   )
@@ -603,7 +629,8 @@ test_that("ambiguous submission retains the complete staging file", {
       "Raw",
       data.frame(id = 1L),
       database = "Telemetry",
-      token = "test-token"
+      token = "test-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_kql_write_ambiguous"
   )
@@ -636,7 +663,8 @@ test_that("confirmed failure follows the staging retention policy", {
     database = "Telemetry",
     keep_staging_on_failure = FALSE,
     error_on_failure = FALSE,
-    token = "test-token"
+    token = "test-token",
+    storage_token = "storage-token"
   )
   expect_equal(result$status$state, "Failed")
   expect_false(result$staging_retained)
@@ -649,7 +677,8 @@ test_that("confirmed failure follows the staging retention policy", {
       data.frame(id = 1L),
       database = "Telemetry",
       error_on_failure = TRUE,
-      token = "test-token"
+      token = "test-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_kql_write_failure"
   )

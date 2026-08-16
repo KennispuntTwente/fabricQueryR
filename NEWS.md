@@ -41,6 +41,8 @@ rejects multi-file writes that combine per-blob ingestion with one shared
 idempotency key, preventing successful tracking results with omitted parts.
 Generated Parquet writes no longer report compressed file sizes as Kusto's
 uncompressed `rawSize`; the service derives this optional value instead.
+Fixed Kusto tokens can now be paired with `storage_token` for the OneLake
+staging steps; otherwise the writer requires an audience-aware token provider.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R

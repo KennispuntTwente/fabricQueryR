@@ -1683,9 +1683,10 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' values. This function provides the higher-level one-call workflow: it reads
 #' the ingestion service's preview configuration, chooses a trusted OneLake
 #' lake folder, creates a unique `fabricqueryr-staging` path, uploads bounded
-#' Parquet parts, and submits them with a storage-audience access token when an
-#' audience-aware credential is available. Static credentials retain caller
-#' impersonation. `staging_folder` can override the advertised folder with a
+#' Parquet parts, and submits them with a storage-audience access token. An
+#' audience-aware credential obtains both required tokens. When `token` is a
+#' fixed bearer token or `AzureToken`, supply the separate Storage-audience
+#' `storage_token`. `staging_folder` can override the advertised folder with a
 #' trusted OneLake `Files/` URI.
 #'
 #' The caller therefore needs Kusto Table Ingestor and Database User access,
@@ -1776,6 +1777,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param tenant_id Microsoft Entra tenant ID.
 #' @param client_id Microsoft Entra application/client ID.
 #' @param token Optional access token or audience-aware token-provider function.
+#'   A fixed token must target Kusto and be paired with `storage_token`.
+#' @param storage_token Optional separate Azure Storage access token or token
+#'   provider. Required when `token` cannot acquire a different audience.
 #' @param auth_args Additional options passed to [AzureAuth::get_azure_token()].
 #' @param allow_custom_endpoint Permit a trusted non-Microsoft Kusto origin.
 #' @param .sleep,.now Internal deterministic polling hooks.
@@ -1847,6 +1851,7 @@ fabric_kql_write_table <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
+  storage_token = NULL,
   auth_args = list(),
   allow_custom_endpoint = FALSE,
   create_if_missing = FALSE,
@@ -1944,6 +1949,20 @@ fabric_kql_write_table <- function(
     token = token,
     auth_args = auth_args
   )
+  storage_credential <- if (!is.null(storage_token)) {
+    fabric_credential(token = storage_token)
+  } else {
+    if (!credential$type %in% c("AzureAuth", "callback")) {
+      .fabric_abort(
+        paste0(
+          "fabric_kql_write_table() requires an audience-aware token ",
+          "provider or a separate storage_token"
+        ),
+        class = c("fabric_kql_auth_error", "fabric_kql_write_error")
+      )
+    }
+    credential
+  }
   if (isTRUE(create_if_missing)) {
     management_target <- kusto_write_management_target(
       cluster,
@@ -2056,7 +2075,7 @@ fabric_kql_write_table <- function(
     for (index in seq_along(storage_targets)) {
       onelake_upload_target(
         storage_targets[[index]],
-        credential,
+        storage_credential,
         source = serialized$paths[[index]],
         overwrite = FALSE,
         if_match = NULL,
@@ -2092,7 +2111,10 @@ fabric_kql_write_table <- function(
     fabric_kql_ingest(
       cluster,
       table = table,
-      sources = kusto_write_storage_sources(staging_paths, credential),
+      sources = kusto_write_storage_sources(
+        staging_paths,
+        storage_credential
+      ),
       database = database,
       format = "parquet",
       source_ids = source_ids,
@@ -2147,7 +2169,7 @@ fabric_kql_write_table <- function(
   if (succeeded && isTRUE(cleanup)) {
     staging_retained <- !.fabric_onelake_remove_staging(
       storage_target,
-      credential
+      storage_credential
     )
     if (staging_retained) {
       .fabric_warn(
@@ -2161,7 +2183,7 @@ fabric_kql_write_table <- function(
   } else if (!succeeded && !isTRUE(keep_staging_on_failure)) {
     staging_retained <- !.fabric_onelake_remove_staging(
       storage_target,
-      credential
+      storage_credential
     )
   }
   result <- kusto_write_result(
@@ -2589,7 +2611,7 @@ kusto_ingestion_staging_folder <- function(configuration, override = NULL) {
 }
 
 # Canonicalize and authenticate staged sources for Eventhouse retrieval
-kusto_write_storage_sources <- function(paths, credential) {
+kusto_write_storage_sources <- function(paths, storage_credential) {
   paths <- vapply(
     paths,
     function(path) {
@@ -2599,14 +2621,10 @@ kusto_write_storage_sources <- function(paths, credential) {
     },
     character(1)
   )
-  suffix <- if (credential$type %in% c("AzureAuth", "callback")) {
-    paste0(
-      ";token=",
-      fabric_get_token(credential, .fabric_audience$storage)
-    )
-  } else {
-    ";impersonate"
-  }
+  suffix <- paste0(
+    ";token=",
+    fabric_get_token(storage_credential, .fabric_audience$storage)
+  )
   paste0(paths, suffix)
 }
 

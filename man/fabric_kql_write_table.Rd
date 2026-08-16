@@ -28,6 +28,7 @@ fabric_kql_write_table(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
+  storage_token = NULL,
   auth_args = list(),
   allow_custom_endpoint = FALSE,
   create_if_missing = FALSE,
@@ -95,7 +96,11 @@ disposition.}
 
 \item{client_id}{Microsoft Entra application/client ID.}
 
-\item{token}{Optional access token or audience-aware token-provider function.}
+\item{token}{Optional access token or audience-aware token-provider function.
+A fixed token must target Kusto and be paired with \code{storage_token}.}
+
+\item{storage_token}{Optional separate Azure Storage access token or token
+provider. Required when \code{token} cannot acquire a different audience.}
 
 \item{auth_args}{Additional options passed to \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
@@ -133,9 +138,10 @@ The queued-ingestion REST API accepts storage blobs rather than inline R
 values. This function provides the higher-level one-call workflow: it reads
 the ingestion service's preview configuration, chooses a trusted OneLake
 lake folder, creates a unique \code{fabricqueryr-staging} path, uploads bounded
-Parquet parts, and submits them with a storage-audience access token when an
-audience-aware credential is available. Static credentials retain caller
-impersonation. \code{staging_folder} can override the advertised folder with a
+Parquet parts, and submits them with a storage-audience access token. An
+audience-aware credential obtains both required tokens. When \code{token} is a
+fixed bearer token or \code{AzureToken}, supply the separate Storage-audience
+\code{storage_token}. \code{staging_folder} can override the advertised folder with a
 trusted OneLake \verb{Files/} URI.
 
 The caller therefore needs Kusto Table Ingestor and Database User access,
