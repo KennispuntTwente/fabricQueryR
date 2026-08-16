@@ -27,6 +27,8 @@ regional OneLake endpoints when `dfs_base` is omitted.
 `fabric_lakehouse_load_table()`, and `fabric_lakehouse_write_table()` discover
 and read Lakehouse tables, load CSV or Parquet files, and write data frames or
 Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
+Load Table paths now enforce Fabric's case-sensitive `relativePath` grammar and
+accept its valid `Files` root-folder form.
 
 * `fabric_warehouse_read_table()` and `fabric_warehouse_write_table()` read and
 bulk-write Warehouse tables using data frames or Arrow data. Tables can be

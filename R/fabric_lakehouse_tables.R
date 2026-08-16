@@ -34,8 +34,8 @@
 #' @param table Destination Delta table name. Fabric's Load Table API permits
 #'   1 to 256 ASCII letters, numbers, and underscores and requires at least one
 #'   letter or underscore.
-#' @param path Existing item-relative OneLake source path beginning with
-#'   `Files/`, for example `"Files/incoming/orders.parquet"`.
+#' @param path Existing item-relative OneLake source path equal to `"Files"` or
+#'   beginning with `Files/`, for example `"Files/incoming/orders.parquet"`.
 #' @param path_type Whether `path` names one `"File"` or a `"Folder"`.
 #' @param format Source format, `"Parquet"` or `"Csv"`. For a file, `NULL`
 #'   infers the format from its extension. A folder should specify the format.
@@ -1397,13 +1397,16 @@ fabric_lakehouse_write_table <- function(
   .fabric_lakehouse_nonempty(value, name)
   normalized <- onelake_normalize_path(value)
   if (
-    !startsWith(tolower(normalized), "files/") ||
-      identical(tolower(normalized), "files/")
+    !grepl(
+      "^Files(/[\\p{L}\\w]([ \\p{L}\\w.-]*[\\p{L}\\w.-])?)*$",
+      normalized,
+      perl = TRUE
+    )
   ) {
     .fabric_abort(paste0(
       "`",
       name,
-      "` must begin with Files/ and name a file or folder"
+      "` must be Files or begin with Files/ and match Fabric relativePath syntax"
     ))
   }
   normalized

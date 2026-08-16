@@ -601,7 +601,10 @@ test_that("Lakehouse table inputs fail before requests are sent", {
 
   expect_error(invoke(table = "123"), "table must contain")
   expect_error(invoke(table = "orders-bad"), "table must contain")
-  expect_error(invoke(path = "Tables/orders.csv"), "must begin with Files/")
+  expect_error(invoke(path = "Tables/orders.csv"), "must be Files or begin")
+  expect_error(invoke(path = "files/orders.csv"), "relativePath syntax")
+  expect_error(invoke(path = "Files/orders?.csv"), "relativePath syntax")
+  expect_error(invoke(path = "Files/.hidden"), "relativePath syntax")
   expect_error(invoke(schema = "bad-name"), "schema must contain")
   expect_error(invoke(recursive = TRUE), "requires path_type")
   expect_error(invoke(format = "csv", delimiter = " "), "delimiter must")
@@ -626,6 +629,33 @@ test_that("Lakehouse table inputs fail before requests are sent", {
     "1 to 100"
   )
   expect_equal(calls, 0L)
+})
+
+test_that("Lakehouse paths follow the Fabric relativePath grammar", {
+  valid <- c(
+    "Files",
+    "Files/a",
+    "Files/incoming/orders 2026-08.csv",
+    "Files/数据/échantillon.parquet",
+    "Files/a-b_c."
+  )
+  for (path in valid) {
+    expect_identical(.fabric_lakehouse_files_path(path, "path"), path)
+  }
+
+  invalid <- c(
+    "files/a.csv",
+    "Files/a?b.csv",
+    "Files/-leading.csv",
+    "Files/ leading.csv"
+  )
+  for (path in invalid) {
+    expect_error(
+      .fabric_lakehouse_files_path(path, "path"),
+      "relativePath syntax",
+      fixed = TRUE
+    )
+  }
 })
 
 test_that("Lakehouse writer serializes, loads, and cleans up after success", {

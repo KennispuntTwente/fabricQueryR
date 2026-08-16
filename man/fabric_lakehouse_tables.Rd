@@ -113,8 +113,8 @@ base is a non-Microsoft HTTPS endpoint that you trust to receive a token.}
 1 to 256 ASCII letters, numbers, and underscores and requires at least one
 letter or underscore.}
 
-\item{path}{Existing item-relative OneLake source path beginning with
-\verb{Files/}, for example \code{"Files/incoming/orders.parquet"}.}
+\item{path}{Existing item-relative OneLake source path equal to \code{"Files"} or
+beginning with \verb{Files/}, for example \code{"Files/incoming/orders.parquet"}.}
 
 \item{path_type}{Whether \code{path} names one \code{"File"} or a \code{"Folder"}.}
 
