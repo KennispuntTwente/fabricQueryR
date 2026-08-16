@@ -22,8 +22,10 @@
 #'
 #' @section Large results:
 #' Use `backend = "adbc"` with `result = "arrow_stream"` for a native Arrow
-#' result path that can be consumed without first collecting the complete table
-#' in an R data frame. The external ADBC `mssql` driver must be installed.
+#' result path that avoids conversion to an R data frame. The current DBI/ADBI
+#' path may fetch the complete result before returning the stream, so use a
+#' selective query or `limit` when the result may exceed memory. The external
+#' ADBC `mssql` driver must be installed.
 #'
 #' `limit` uses T-SQL `TOP` and does not define row order. Use
 #' [fabric_sql_query()] with an explicit `ORDER BY` when deterministic row
@@ -54,7 +56,7 @@
 #'   limit = 1000
 #' )
 #'
-#' # Keep a larger read out of R memory with an Arrow stream
+#' # Keep the result Arrow-native rather than converting it to a data frame
 #' stream <- fabric_warehouse_read_table(
 #'   warehouse,
 #'   table,

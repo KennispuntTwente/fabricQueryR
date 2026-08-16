@@ -93,6 +93,8 @@ SQL Databases. Queries can use parameters and return a tibble or Arrow stream.
 The default `database = NULL` infers the database when possible;
 `fabric_sql_query()` is now limited to one read-only statement, so use
 `fabric_sql_connect()` for other SQL work.
+SQL Arrow results are documented as Arrow-native rather than bounded-memory:
+current DBI/ADBI drivers may fetch the complete result before returning a stream.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete

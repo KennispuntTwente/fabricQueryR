@@ -474,9 +474,9 @@ fabric_sql_connect <- function(
 #'   are sent separately from the SQL text, which is safer and easier to quote
 #'   correctly than building a query with `paste()`
 #' @param result Return a `"tibble"` for ordinary R analysis, or a single-use
-#'   `"arrow_stream"` when a large result should be processed without first
-#'   collecting it into an R data frame. The native Arrow path uses the ADBC
-#'   backend
+#'   `"arrow_stream"` to avoid data-frame conversion and retain Arrow-native
+#'   batches. The ADBC/DBI driver may fetch the complete result before returning
+#'   the stream, so this option does not guarantee bounded-memory retrieval
 #' @param idempotent Logical. Set to `TRUE` only if running the entire statement
 #'   a second time has no unwanted effect (usually a plain `SELECT`). This
 #'   permits a retry when it is unclear whether Fabric executed the first
@@ -503,7 +503,7 @@ fabric_sql_connect <- function(
 #' # Run the resulting read-only query and collect a tibble
 #' result <- fabric_sql_query(warehouse, sql)
 #'
-#' # Stream a larger result through Arrow instead of collecting it at once
+#' # Return Arrow-native batches instead of converting to a data frame
 #' stream <- fabric_sql_query(
 #'   warehouse,
 #'   sql,

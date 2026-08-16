@@ -44,9 +44,9 @@ supply its schema when this argument is omitted.}
 \item{limit}{Optional non-negative maximum number of rows to return.}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
-\code{"arrow_stream"} when a large result should be processed without first
-collecting it into an R data frame. The native Arrow path uses the ADBC
-backend}
+\code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
+batches. The ADBC/DBI driver may fetch the complete result before returning
+the stream, so this option does not guarantee bounded-memory retrieval}
 
 \item{backend}{SQL connection backend, \code{"odbc"} or \code{"adbc"}.}
 
@@ -94,8 +94,10 @@ function for filters, ordering, joins, aggregations, or other T-SQL.
 \section{Large results}{
 
 Use \code{backend = "adbc"} with \code{result = "arrow_stream"} for a native Arrow
-result path that can be consumed without first collecting the complete table
-in an R data frame. The external ADBC \code{mssql} driver must be installed.
+result path that avoids conversion to an R data frame. The current DBI/ADBI
+path may fetch the complete result before returning the stream, so use a
+selective query or \code{limit} when the result may exceed memory. The external
+ADBC \code{mssql} driver must be installed.
 
 \code{limit} uses T-SQL \code{TOP} and does not define row order. Use
 \code{\link[=fabric_sql_query]{fabric_sql_query()}} with an explicit \verb{ORDER BY} when deterministic row
@@ -121,7 +123,7 @@ orders <- fabric_warehouse_read_table(
   limit = 1000
 )
 
-# Keep a larger read out of R memory with an Arrow stream
+# Keep the result Arrow-native rather than converting it to a data frame
 stream <- fabric_warehouse_read_table(
   warehouse,
   table,
