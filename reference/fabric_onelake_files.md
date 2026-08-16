@@ -137,7 +137,8 @@ fabric_onelake_delete(
 - begin_from:
 
   Optional path at which to begin a listing. Use this to resume a long,
-  alphabetically ordered scan
+  alphabetically ordered scan. Non-recursive listings accept only a
+  single path level
 
 - item_type:
 

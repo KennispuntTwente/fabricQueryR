@@ -32,7 +32,10 @@
   now applies `max_response_bytes` at the transport layer as well as
   validating response headers and the completed body. Warehouse table
   helpers now reject `/` and `\\` in schema and table names, as required
-  by Fabric’s current T-SQL surface-area limitations.
+  by Fabric’s current T-SQL surface-area limitations. Non-recursive
+  [`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  calls now reject multi-level `begin_from` paths locally instead of
+  sending a request that ADLS rejects.
 
 - [`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
   [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md),
