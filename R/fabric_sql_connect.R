@@ -1610,7 +1610,10 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   result = c("tibble", "arrow_stream")
 ) {
   result <- match.arg(result)
-  if (!is.null(params) && inherits(con, "AdbiConnection")) {
+  if (
+    !is.null(params) &&
+      (inherits(con, "AdbiConnection") || identical(result, "arrow_stream"))
+  ) {
     query_result <- .fabric_sql_db_send_query(con, sql, result)
     on.exit(.fabric_sql_db_clear_result(query_result), add = TRUE)
     .fabric_sql_db_bind(query_result, params)
