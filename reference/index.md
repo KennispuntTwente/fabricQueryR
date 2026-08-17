@@ -70,16 +70,7 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
 - [`FabricLivyBatch`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md)
   : A Microsoft Fabric Livy batch job
 
-## Warehouse tables
-
-Discover, load, and read Warehouse tables in Fabric
-
-- [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
-  : Read a Microsoft Fabric Warehouse table
-- [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
-  : Write an R or Arrow object to a Fabric Warehouse table
-
-## LakeHouse tables / Delta Lake tables
+## LakeHouse tables (Delta Lake tables)
 
 Discover, load, and read Delta Lake tables in OneLake
 
@@ -113,7 +104,16 @@ List, inspect, download, upload, and delete files in OneLake
   [`fabric_onelake_shortcut_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   : Manage OneLake shortcuts
 
-## KQL
+## Warehouse tables
+
+Discover, load, and read Warehouse tables in Fabric
+
+- [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
+  : Read a Microsoft Fabric Warehouse table
+- [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
+  : Write an R or Arrow object to a Fabric Warehouse table
+
+## KQL (Eventhouse)
 
 Query Eventhouse data, ingest storage or R objects, and export results
 
