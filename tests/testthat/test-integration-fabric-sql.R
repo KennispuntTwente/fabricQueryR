@@ -190,6 +190,22 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(streamed$id, c(1L, 2L, 3L), info = backend)
     expect_equal(streamed$name, c("alpha", "beta", "gamma"), info = backend)
 
+    bound_stream <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = "SELECT CAST(? AS int) AS bound_value",
+      params = list(42L),
+      backend = backend,
+      result = "arrow_stream",
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_s3_class(bound_stream, "nanoarrow_array_stream")
+    bound_result <- as.data.frame(
+      nanoarrow::collect_array_stream(bound_stream)
+    )
+    expect_equal(bound_result$bound_value, 42L, info = backend)
+
     arrow_stream <- fabric_sql_query(
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,

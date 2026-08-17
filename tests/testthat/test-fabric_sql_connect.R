@@ -760,6 +760,50 @@ test_that("ADBC bind failures clear the result before disconnecting", {
   expect_true(cleared)
 })
 
+test_that("ADBC bound Arrow queries fetch before clearing their result", {
+  connection <- structure(list(), class = "AdbiConnection")
+  query_result <- structure(list(), class = "test_result")
+  stream <- structure(list(), class = "nanoarrow_array_stream")
+  events <- character()
+  params <- list("@p1" = 42L)
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(con, sql, result) {
+      expect_identical(con, connection)
+      expect_identical(sql, "SELECT @p1 AS value")
+      expect_identical(result, "arrow_stream")
+      events <<- c(events, "send")
+      query_result
+    },
+    .fabric_sql_db_bind = function(result, values) {
+      expect_identical(result, query_result)
+      expect_identical(values, params)
+      events <<- c(events, "bind")
+      invisible(result)
+    },
+    .fabric_sql_db_fetch = function(result, shape) {
+      expect_identical(result, query_result)
+      expect_identical(shape, "arrow_stream")
+      events <<- c(events, "fetch")
+      stream
+    },
+    .fabric_sql_db_clear_result = function(result) {
+      expect_identical(result, query_result)
+      events <<- c(events, "clear")
+      invisible(TRUE)
+    }
+  )
+
+  result <- .fabric_sql_db_get_query(
+    connection,
+    "SELECT @p1 AS value",
+    params = params,
+    result = "arrow_stream"
+  )
+
+  expect_identical(result, stream)
+  expect_identical(events, c("send", "bind", "fetch", "clear"))
+})
+
 test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {
   skip_if_not_installed("arrow")
   connection <- structure(list(), class = "test_connection")
