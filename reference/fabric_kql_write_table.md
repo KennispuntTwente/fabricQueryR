@@ -1,9 +1,9 @@
 # Write an R or Arrow object to an Eventhouse table
 
-Serializes an R or Arrow object to Parquet, uploads it to the OneLake
-staging folder advertised by the Kusto ingestion service, submits
-tracked queued ingestion, waits for the terminal per-file result, and
-removes staging only after a confirmed success.
+Serializes an R or Arrow object to Parquet, uploads it using the storage
+container or OneLake folder preferred by the Kusto ingestion service,
+submits tracked queued ingestion, waits for the terminal per-file
+result, and removes staging only after a confirmed success.
 
 ## Usage
 
@@ -196,18 +196,20 @@ ingestion status, tracking handle, source IDs, and staging disposition.
 
 The queued-ingestion REST API accepts storage blobs rather than inline R
 values. This function provides the higher-level one-call workflow: it
-reads the ingestion service's preview configuration, chooses a trusted
-OneLake lake folder, creates a unique `fabricqueryr-staging` path,
-uploads bounded Parquet parts, and submits them with a storage-audience
-access token. An audience-aware credential obtains both required tokens.
-When `token` is a fixed bearer token or `AzureToken`, supply the
-separate Storage-audience `storage_token`. `staging_folder` can override
-the advertised folder with a trusted OneLake `Files/` URI.
+reads the ingestion service's preview configuration, honors its
+preferred upload method, creates a unique `fabricqueryr-staging` path,
+and uploads bounded Parquet parts. Service-provided Storage containers
+use their short-lived SAS credentials. OneLake staging uses a
+Storage-audience access token, so an audience-aware credential obtains
+both required tokens. When `token` is a fixed bearer token or
+`AzureToken` and OneLake is selected, supply the separate
+`storage_token`. `staging_folder` explicitly selects OneLake and
+overrides the advertised upload preference with a trusted `Files/` URI.
 
 The caller therefore needs Kusto Table Ingestor and Database User
-access, plus write/delete access to the selected OneLake folder. The
-Eventhouse ingestion service must be able to read those files as the
-caller.
+access, plus write/delete access when OneLake is selected. Advertised
+Storage containers carry the service-managed SAS access needed for
+staging.
 
 ## R and Arrow inputs
 

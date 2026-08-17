@@ -82,6 +82,7 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
 <span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  respect_retry_after <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -100,6 +101,7 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
 <span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -244,6 +246,14 @@ supply it together with a <code>fabric_job</code> handle</p></dd>
 <dt id="arg-respect-retry-after">respect_retry_after<a class="anchor" aria-label="anchor" href="#arg-respect-retry-after"></a></dt>
 <dd><p>Whether to wait for Fabric's recommended first
 status-check time. Keep <code>TRUE</code> for normal use</p></dd>
+
+
+<dt id="arg-notebook-details">notebook_details<a class="anchor" aria-label="anchor" href="#arg-notebook-details"></a></dt>
+<dd><p>For Notebook jobs, whether to query the beta Notebook
+status endpoint for exit values and compute details. The default preserves
+the richer result. Set to <code>FALSE</code> to use only the stable Core Job Scheduler
+status endpoint; <code>exit_value</code> and workload-specific <code>properties</code> may then
+be unavailable</p></dd>
 
 
 <dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>

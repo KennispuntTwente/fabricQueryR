@@ -44,6 +44,7 @@ fabric_job_status(
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
+  notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -62,6 +63,7 @@ fabric_job_wait(
   auth_args = list(),
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
+  notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -206,6 +208,14 @@ fabric_job_cancel(
 
   Whether to wait for Fabric's recommended first status-check time. Keep
   `TRUE` for normal use
+
+- notebook_details:
+
+  For Notebook jobs, whether to query the beta Notebook status endpoint
+  for exit values and compute details. The default preserves the richer
+  result. Set to `FALSE` to use only the stable Core Job Scheduler
+  status endpoint; `exit_value` and workload-specific `properties` may
+  then be unavailable
 
 - .sleep, .now:
 

@@ -13,6 +13,8 @@ fabric_items(
   detail = FALSE,
   detail_errors = c("record", "abort"),
   recursive = TRUE,
+  root_folder_id = NULL,
+  include = NULL,
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -56,6 +58,18 @@ fabric_items(
 
   Logical. `TRUE` includes items inside workspace folders; `FALSE` lists
   only items at the workspace root
+
+- root_folder_id:
+
+  Optional Fabric folder GUID used as the root of the listing. With
+  `recursive = FALSE`, only direct children are returned; with `TRUE`,
+  nested folders are included
+
+- include:
+
+  Optional character vector of additional item properties to request.
+  Fabric currently documents `"DefaultIdentity"`; values are sent as the
+  API's comma-separated `include` query parameter
 
 - personal_workspace_tenant_id:
 
