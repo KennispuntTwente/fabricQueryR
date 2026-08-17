@@ -21,6 +21,7 @@ articles:
     contents:
       - job-automation
       - user-data-functions
+
 reference:
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
@@ -45,11 +46,9 @@ reference:
   - title: SQL connectivity
     desc: Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
     contents:
-      - fabric_sql_connection_info
-      - fabric_sql_connect
       - fabric_sql_query
-      - fabric_warehouse_read_table
-      - fabric_warehouse_write_table
+      - fabric_sql_connect
+      - fabric_sql_connection_info
 
   - title: Semantic models and DAX
     desc: Query and refresh Fabric and Power BI semantic models
@@ -58,56 +57,6 @@ reference:
       - fabric_pbi_refresh
       - print.fabric_pbi_refresh
       - print.fabric_pbi_refresh_detail
-
-  - title: OneLake files
-    desc: List, inspect, download, upload, and delete files in OneLake
-    contents:
-      - fabric_onelake_list
-      - fabric_onelake_metadata
-      - fabric_onelake_download
-      - fabric_onelake_upload
-      - fabric_onelake_read_file
-      - fabric_onelake_write_file
-      - fabric_onelake_delete
-      - fabric_onelake_shortcuts
-
-  - title: Delta tables
-    desc: Discover, load, and read Delta Lake tables in OneLake
-    contents:
-      - fabric_lakehouse_tables
-      - fabric_lakehouse_read_table
-      - fabric_lakehouse_load_table
-      - fabric_lakehouse_write_table
-      - fabric_onelake_read_delta_table
-      - fabric_delta_config
-
-  - title: KQL
-    desc: Query Eventhouse data, ingest storage or R objects, and export results
-    contents:
-      - fabric_kql_query
-      - fabric_kql_read_table
-      - fabric_kql_ingest
-      - fabric_kql_write_table
-      - fabric_kql_export
-      - print.fabric_kql_ingestion
-      - print.fabric_kql_ingestion_status
-      - print.fabric_kql_write_result
-      - print.fabric_kql_export_result
-
-  - title: GraphQL
-    desc: Explore schemas, execute operations, and collect cursor-based pages
-    contents:
-      - fabric_graphql_schema
-      - fabric_graphql_query
-      - fabric_graphql_paginate
-      - fabric_graphql_cursor
-      - fabric_graphql_collect
-      - print.fabric_graphql_rows
-
-  - title: User Data Functions
-    desc: Invoke published Fabric business logic through trusted public URLs
-    contents:
-      - fabric_function_invoke
 
   - title: Livy and Spark
     desc: Run Spark statements, reusable sessions, and batch jobs through Livy
@@ -118,6 +67,62 @@ reference:
       - FabricLivySession
       - FabricLivyStatement
       - FabricLivyBatch
+
+  - title: LakeHouse tables (Delta Lake tables)
+    desc: Discover, load, and read Delta Lake tables in OneLake
+    contents:
+      - fabric_lakehouse_tables
+      - fabric_lakehouse_read_table
+      - fabric_lakehouse_load_table
+      - fabric_lakehouse_write_table
+      - fabric_onelake_read_delta_table
+      - fabric_delta_config
+
+  - title: OneLake files
+    desc: List, inspect, download, upload, and delete files in OneLake
+    contents:
+      - fabric_onelake_list
+      - fabric_onelake_metadata
+      - fabric_onelake_read_file
+      - fabric_onelake_write_file
+      - fabric_onelake_download
+      - fabric_onelake_upload
+      - fabric_onelake_delete
+      - fabric_onelake_shortcuts
+
+  - title: Warehouse tables
+    desc: Discover, load, and read Warehouse tables in Fabric
+    contents:
+      - fabric_warehouse_read_table
+      - fabric_warehouse_write_table
+
+  - title: KQL (Eventhouse)
+    desc: Query Eventhouse data, ingest storage or R objects, and export results
+    contents:
+      - fabric_kql_query
+      - fabric_kql_read_table
+      - fabric_kql_write_table
+      - fabric_kql_ingest
+      - fabric_kql_export
+      - print.fabric_kql_ingestion
+      - print.fabric_kql_ingestion_status
+      - print.fabric_kql_write_result
+      - print.fabric_kql_export_result
+
+  - title: GraphQL
+    desc: Explore schemas, execute operations, and collect cursor-based pages
+    contents:
+      - fabric_graphql_query
+      - fabric_graphql_schema
+      - fabric_graphql_paginate
+      - fabric_graphql_cursor
+      - fabric_graphql_collect
+      - print.fabric_graphql_rows
+
+  - title: User Data Functions
+    desc: Invoke published Fabric business logic through trusted public URLs
+    contents:
+      - fabric_function_invoke
 
   - title: Item jobs
     desc: Run, monitor, schedule, and inspect Fabric item jobs
