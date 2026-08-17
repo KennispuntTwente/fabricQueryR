@@ -138,6 +138,12 @@ fabric_workspaces <- function(
 #'   with the affected item; `"abort"` stops the call
 #' @param recursive Logical. `TRUE` includes items inside workspace folders;
 #'   `FALSE` lists only items at the workspace root
+#' @param root_folder_id Optional Fabric folder GUID used as the root of the
+#'   listing. With `recursive = FALSE`, only direct children are returned;
+#'   with `TRUE`, nested folders are included
+#' @param include Optional character vector of additional item properties to
+#'   request. Fabric currently documents `"DefaultIdentity"`; values are sent
+#'   as the API's comma-separated `include` query parameter
 #' @param personal_workspace_tenant_id Optional Microsoft Entra tenant ID used
 #'   to build the XMLA endpoint for a Personal workspace
 #' @param personal_workspace_owner Optional owner UPN or Entra object ID used
@@ -192,6 +198,8 @@ fabric_items <- function(
   detail = FALSE,
   detail_errors = c("record", "abort"),
   recursive = TRUE,
+  root_folder_id = NULL,
+  include = NULL,
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -225,6 +233,29 @@ fabric_items <- function(
   detail_errors <- match.arg(detail_errors)
   if (!is.logical(recursive) || length(recursive) != 1L || is.na(recursive)) {
     .fabric_abort("recursive must be TRUE or FALSE")
+  }
+  if (!is.null(root_folder_id)) {
+    if (
+      !is.character(root_folder_id) ||
+        length(root_folder_id) != 1L ||
+        is.na(root_folder_id) ||
+        !fabric_is_guid(root_folder_id)
+    ) {
+      .fabric_abort("root_folder_id must be NULL or a Fabric folder GUID")
+    }
+  }
+  if (!is.null(include)) {
+    valid_include <- is.character(include) &&
+      length(include) > 0L &&
+      !anyNA(include) &&
+      all(grepl("^[A-Za-z][A-Za-z0-9]*$", include)) &&
+      !anyDuplicated(tolower(include))
+    if (!valid_include) {
+      .fabric_abort(
+        "include must be NULL or a unique vector of property names"
+      )
+    }
+    include <- paste(include, collapse = ",")
   }
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
@@ -261,7 +292,9 @@ fabric_items <- function(
   req <- httr2::req_url_query(
     req,
     type = type,
-    recursive = if (recursive) "true" else "false"
+    recursive = if (recursive) "true" else "false",
+    rootFolderId = root_folder_id,
+    include = include
   )
   records <- .httr2_collection(
     req$url,

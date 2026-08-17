@@ -894,6 +894,63 @@ test_that("typed helpers strictly filter records and preserve future fields", {
   )
 })
 
+test_that("item listing forwards folder and include options safely", {
+  requested_url <- NULL
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(id = "11111111-1111-4111-8111-111111111111")
+    },
+    .httr2_collection = function(url, ...) {
+      requested_url <<- url
+      list()
+    }
+  )
+  folder_id <- "22222222-2222-4222-8222-222222222222"
+
+  result <- fabric_items(
+    "Workspace",
+    recursive = FALSE,
+    root_folder_id = folder_id,
+    include = "DefaultIdentity",
+    token = "token"
+  )
+
+  expect_length(result, 0L)
+  parsed <- httr2::url_parse(requested_url)
+  expect_identical(parsed$query$recursive, "false")
+  expect_identical(parsed$query$rootFolderId, folder_id)
+  expect_identical(parsed$query$include, "DefaultIdentity")
+})
+
+test_that("item folder options validate before authentication", {
+  auth_calls <- 0L
+  token <- function(...) {
+    auth_calls <<- auth_calls + 1L
+    stop("must not authenticate")
+  }
+  expect_error(
+    fabric_items(
+      "Workspace",
+      root_folder_id = "../not-a-folder-guid",
+      token = token
+    ),
+    "root_folder_id must be NULL or a Fabric folder GUID",
+    fixed = TRUE
+  )
+  for (value in list(
+    character(),
+    c("DefaultIdentity", "defaultidentity"),
+    "x,y"
+  )) {
+    expect_error(
+      fabric_items("Workspace", include = value, token = token),
+      "include must be NULL or a unique vector of property names",
+      fixed = TRUE
+    )
+  }
+  expect_equal(auth_calls, 0L)
+})
+
 test_that("typed helpers reject unsafe forwarded arguments before auth", {
   token <- function(...) stop("must not authenticate")
   expect_error(

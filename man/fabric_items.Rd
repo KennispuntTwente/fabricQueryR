@@ -10,6 +10,8 @@ fabric_items(
   detail = FALSE,
   detail_errors = c("record", "abort"),
   recursive = TRUE,
+  root_folder_id = NULL,
+  include = NULL,
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -40,6 +42,14 @@ with the affected item; \code{"abort"} stops the call}
 
 \item{recursive}{Logical. \code{TRUE} includes items inside workspace folders;
 \code{FALSE} lists only items at the workspace root}
+
+\item{root_folder_id}{Optional Fabric folder GUID used as the root of the
+listing. With \code{recursive = FALSE}, only direct children are returned;
+with \code{TRUE}, nested folders are included}
+
+\item{include}{Optional character vector of additional item properties to
+request. Fabric currently documents \code{"DefaultIdentity"}; values are sent
+as the API's comma-separated \code{include} query parameter}
 
 \item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
 to build the XMLA endpoint for a Personal workspace}

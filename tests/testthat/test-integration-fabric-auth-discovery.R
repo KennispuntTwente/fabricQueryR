@@ -71,6 +71,15 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     detail = TRUE,
     token = token
   )
+  identity_items <- fabric_items(
+    workspace,
+    include = "DefaultIdentity",
+    token = token
+  )
+  expect_setequal(
+    purrr::map_chr(identity_items, "id"),
+    purrr::map_chr(items, "id")
+  )
   expected_items <- c(
     "TestLakehouse",
     "SeedFixtures",
