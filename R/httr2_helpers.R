@@ -265,6 +265,16 @@
           remaining = remaining
         )
       }
+
+      if (is.null(retry_after) && delay > remaining) {
+        .fabric_abort(
+          "The client retry delay exceeds the HTTP request deadline",
+          class = "fabric_http_deadline_error",
+          parent = last_failure,
+          retry_delay = delay,
+          remaining = remaining
+        )
+      }
     }
 
     if (!is.null(retry_after) && retry_after > max_retry_delay) {

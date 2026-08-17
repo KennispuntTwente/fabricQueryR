@@ -413,6 +413,7 @@ test_that("streamed downloads retry transport errors using the same path", {
 
 test_that("transport backoff respects the overall HTTP deadline", {
   calls <- 0L
+  slept <- numeric()
   now <- as.POSIXct("2026-01-01", tz = "UTC")
   local_mocked_bindings(
     req_perform = function(req, path = NULL) {
@@ -429,6 +430,7 @@ test_that("transport backoff respects the overall HTTP deadline", {
       deadline = now + 0.25,
       .now = function() now,
       .sleep = function(delay) {
+        slept <<- c(slept, delay)
         now <<- now + delay
       },
       .runif = function(...) 1
@@ -441,6 +443,10 @@ test_that("transport backoff respects the overall HTTP deadline", {
     fixed = TRUE
   )
   expect_identical(calls, 1L)
+  expect_length(slept, 0L)
+  expect_equal(error$retry_delay, 0.5)
+  expect_equal(error$remaining, 0.25)
+  expect_identical(now, as.POSIXct("2026-01-01", tz = "UTC"))
 })
 
 test_that("HTTP retries honor Fabric isRetriable decisions", {
