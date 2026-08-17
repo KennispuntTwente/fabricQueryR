@@ -29,9 +29,11 @@
 #'   already includes the item type and workspace ID
 #' @param workspace Workspace GUID, exact display name, or a workspace record
 #'   Omit it when `item` is a discovered record containing `workspaceId`
-#' @param job_type Fabric job type. fabricQueryR knows the usual values for
-#'   notebooks, `"Pipeline"` for data pipelines, and `"SparkJob"` for Spark job
-#'   definitions, so normally omit this unless running another item type
+#' @param job_type Fabric job type. fabricQueryR uses the current typed
+#'   `"Execute"` operation for data pipelines and knows the usual values for
+#'   notebooks and Spark job definitions, so normally omit this unless running
+#'   another item type. Set `job_type = "Pipeline"` for a data pipeline only when
+#'   explicitly using Fabric's legacy core job endpoint
 #' @param item_type Optional Fabric item type when `item` is a GUID. A discovered
 #'   item supplies this automatically. Examples are `"Notebook"`,
 #'   `"DataPipeline"`, and `"SparkJobDefinition"`
@@ -1021,11 +1023,22 @@ print.fabric_job_instance <- function(x, ...) {
     return(list(route = "spark_job_definition", job_type = "SparkJob"))
   }
 
-  if (normalized %in% c("datapipeline", "pipeline")) {
-    if (!is.null(job_type) && !identical(tolower(job_type), "pipeline")) {
+  if (identical(normalized, "datapipeline")) {
+    if (is.null(job_type) || identical(tolower(job_type), "execute")) {
+      return(list(route = "data_pipeline", job_type = "Execute"))
+    }
+    if (!identical(tolower(job_type), "pipeline")) {
       .fabric_abort(
-        "DataPipeline jobs use job_type = \"Pipeline\""
+        paste0(
+          "DataPipeline jobs use job_type = \"Execute\"; use \"Pipeline\" ",
+          "only for the legacy core endpoint"
+        )
       )
+    }
+    expected <- "Pipeline"
+  } else if (identical(normalized, "pipeline")) {
+    if (!is.null(job_type) && !identical(tolower(job_type), "pipeline")) {
+      .fabric_abort("Pipeline jobs use job_type = \"Pipeline\"")
     }
     expected <- "Pipeline"
   } else {
@@ -1062,6 +1075,12 @@ print.fabric_job_instance <- function(x, ...) {
       "/sparkJobDefinitions/",
       target$item_id,
       "/jobs/sparkjob/instances"
+    ),
+    data_pipeline = paste0(
+      prefix,
+      "/dataPipelines/",
+      target$item_id,
+      "/jobs/execute/instances"
     ),
     core = paste0(
       prefix,
@@ -1273,10 +1292,8 @@ print.fabric_job_instance <- function(x, ...) {
     }
 
     if (!is.null(execution_data)) {
-      if (identical(route$route, "core")) {
-        .fabric_job_named_list(execution_data, "execution_data")
-      } else {
-        .fabric_job_named_list(execution_data, "execution_data")
+      .fabric_job_named_list(execution_data, "execution_data")
+      if (identical(route$route, "spark_job_definition")) {
         .fabric_job_validate_spark_definition(execution_data)
       }
     }

@@ -89,9 +89,11 @@ already includes the item type and workspace ID}
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
 Omit it when \code{item} is a discovered record containing \code{workspaceId}}
 
-\item{job_type}{Fabric job type. fabricQueryR knows the usual values for
-notebooks, \code{"Pipeline"} for data pipelines, and \code{"SparkJob"} for Spark job
-definitions, so normally omit this unless running another item type}
+\item{job_type}{Fabric job type. fabricQueryR uses the current typed
+\code{"Execute"} operation for data pipelines and knows the usual values for
+notebooks and Spark job definitions, so normally omit this unless running
+another item type. Set \code{job_type = "Pipeline"} for a data pipeline only when
+explicitly using Fabric's legacy core job endpoint}
 
 \item{item_type}{Optional Fabric item type when \code{item} is a GUID. A discovered
 item supplies this automatically. Examples are \code{"Notebook"},

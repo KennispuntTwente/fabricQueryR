@@ -108,7 +108,11 @@ test_that("job item-name lookup uses the workspace-specific endpoint", {
   )
   expect_match(
     run_url,
-    "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+    paste0(
+      "https://workspace.z13.api.fabric.microsoft.com/v1/workspaces/",
+      "22222222-2222-2222-2222-222222222222/dataPipelines/",
+      "11111111-1111-1111-1111-111111111111/jobs/execute/instances"
+    ),
     fixed = TRUE
   )
 })
@@ -233,7 +237,7 @@ test_that("notebook run preserves configured compute without overrides", {
   expect_null(payload)
 })
 
-test_that("pipeline run uses current core path without a JSON payload", {
+test_that("data pipeline run uses current typed path without a JSON payload", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -268,6 +272,50 @@ test_that("pipeline run uses current core path without a JSON payload", {
     allow_custom_endpoint = TRUE
   )
 
+  expect_equal(job$job_type, "Execute")
+  expect_equal(job$route, "data_pipeline")
+  expect_match(
+    call$url,
+    paste0(
+      "/dataPipelines/11111111-1111-1111-1111-111111111111/",
+      "jobs/execute/instances"
+    ),
+    fixed = TRUE
+  )
+  expect_null(call$payload)
+  expect_false(call$idempotent)
+})
+
+test_that("data pipeline run retains explicit legacy core contract", {
+  call <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      ...
+    ) {
+      call <<- list(method = method, url = url, payload = payload)
+      list(
+        status_code = 202L,
+        location = paste0(
+          "/jobs/instances/",
+          "33333333-3333-3333-3333-333333333333"
+        ),
+        retry_after = NULL
+      )
+    }
+  )
+
+  job <- fabric_job_run(
+    job_test_item("DataPipeline"),
+    job_type = "Pipeline",
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1",
+    allow_custom_endpoint = TRUE
+  )
+
   expect_equal(job$job_type, "Pipeline")
   expect_equal(job$route, "core")
   expect_match(
@@ -276,7 +324,6 @@ test_that("pipeline run uses current core path without a JSON payload", {
     fixed = TRUE
   )
   expect_null(call$payload)
-  expect_false(call$idempotent)
 })
 
 test_that("job submission rejects missing or malformed Location headers", {
@@ -457,7 +504,7 @@ test_that("job payload fields follow the selected route contract", {
     call$payload$executionData,
     list(executeOption = "ApplyChangesIfNeeded")
   )
-  expect_match(call$url, "/jobs/Pipeline/instances", fixed = TRUE)
+  expect_match(call$url, "/jobs/execute/instances", fixed = TRUE)
 
   expect_error(
     fabric_job_run(
