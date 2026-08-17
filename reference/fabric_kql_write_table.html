@@ -282,10 +282,12 @@ types. Supply a named <code>column_types</code> vector to override every column 
     <h2 id="failure-and-cleanup-safety">Failure and cleanup safety<a class="anchor" aria-label="anchor" href="#failure-and-cleanup-safety"></a></h2>
 
 
-<p>A successful tracked ingestion is cleaned up by default. A submission error,
-polling timeout, or other ambiguous result always retains staging because
-Kusto may still be reading it. A confirmed terminal ingestion failure retains
-staging by default and can remove it with
+<p>A successful tracked ingestion is cleaned up by default. Kusto removes blobs
+uploaded to its service-owned Storage container; OneLake staging is removed
+after the tracked success is confirmed. A submission error, polling timeout,
+or other ambiguous result always retains staging because Kusto may still be
+reading it. A confirmed terminal ingestion failure retains staging by default
+and can remove it with
 <code>keep_staging_on_failure = FALSE</code>. The retained full OneLake path is carried
 by <code>fabric_kql_write_error</code> conditions.
 A transport failure during OneLake's final atomic rename can also leave the

@@ -242,8 +242,10 @@ to override every column type.
 
 ## Failure and cleanup safety
 
-A successful tracked ingestion is cleaned up by default. A submission
-error, polling timeout, or other ambiguous result always retains staging
+A successful tracked ingestion is cleaned up by default. Kusto removes
+blobs uploaded to its service-owned Storage container; OneLake staging
+is removed after the tracked success is confirmed. A submission error,
+polling timeout, or other ambiguous result always retains staging
 because Kusto may still be reading it. A confirmed terminal ingestion
 failure retains staging by default and can remove it with
 `keep_staging_on_failure = FALSE`. The retained full OneLake path is
