@@ -80,6 +80,18 @@ test_that("supplied workspace records validate identity and type", {
   )
   expect_identical(resolved$id, workspace_id)
 
+  admin <- fabric_resolve_workspace(
+    list(
+      id = workspace_id,
+      type = "AdminWorkspace",
+      displayName = "Admin monitoring"
+    ),
+    credential,
+    .fabric_api_base
+  )
+  expect_identical(admin$id, workspace_id)
+  expect_identical(admin$raw$type, "AdminWorkspace")
+
   expect_error(
     fabric_resolve_workspace(
       list(id = "not-a-guid", type = "Workspace"),
@@ -95,7 +107,7 @@ test_that("supplied workspace records validate identity and type", {
       credential,
       .fabric_api_base
     ),
-    "not 'Workspace' or 'Personal'",
+    "not 'Workspace', 'Personal', or 'AdminWorkspace'",
     fixed = TRUE
   )
 })

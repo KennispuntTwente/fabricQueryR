@@ -966,12 +966,13 @@ fabric_resolve_workspace <- function(
         (!is.character(supplied_type) ||
           length(supplied_type) != 1L ||
           is.na(supplied_type) ||
-          !tolower(supplied_type) %in% c("workspace", "personal"))
+          !tolower(supplied_type) %in%
+            c("workspace", "personal", "adminworkspace"))
     ) {
       .fabric_abort(paste0(
         "A supplied workspace record has type '",
         supplied_type,
-        "', not 'Workspace' or 'Personal'"
+        "', not 'Workspace', 'Personal', or 'AdminWorkspace'"
       ))
     }
     return(list(

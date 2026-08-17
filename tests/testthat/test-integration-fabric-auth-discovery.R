@@ -38,6 +38,19 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     ~ .x$id == manifest$workspace_id
   )[[1L]]
   expect_equal(workspace$displayName, manifest$workspace_name)
+  credential <- fabric_credential(token = token)
+  admin_monitoring <- Filter(
+    function(value) identical(value$type, "AdminWorkspace"),
+    workspaces
+  )
+  for (admin_workspace in admin_monitoring) {
+    resolved_admin <- fabric_resolve_workspace(
+      admin_workspace,
+      credential,
+      .fabric_api_base
+    )
+    expect_identical(resolved_admin$id, admin_workspace$id)
+  }
 
   admin_workspaces <- fabric_workspaces(
     roles = "Admin",
