@@ -396,13 +396,16 @@ kql_write_test_folder <- paste0(
 kql_write_test_configuration <- function(
   max_data_size = 6442450944,
   max_blobs = 20,
-  lake_folder = kql_write_test_folder
+  lake_folder = kql_write_test_folder,
+  storage_containers = character(),
+  preferred_upload_method = "Lake"
 ) {
   list(
     lake_folders = lake_folder,
+    storage_containers = storage_containers,
     max_data_size = max_data_size,
     max_blobs = max_blobs,
-    preferred_upload_method = "Lake",
+    preferred_upload_method = preferred_upload_method,
     preferred_ingestion_method = "REST"
   )
 }

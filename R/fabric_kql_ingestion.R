@@ -1673,25 +1673,26 @@ kusto_ingestion_time_vector <- function(records, field) {
 
 #' Write an R or Arrow object to an Eventhouse table
 #'
-#' Serializes an R or Arrow object to Parquet, uploads it to the OneLake staging
-#' folder advertised by the Kusto ingestion service, submits tracked queued
-#' ingestion, waits for the terminal per-file result, and removes staging only
-#' after a confirmed success.
+#' Serializes an R or Arrow object to Parquet, uploads it using the storage
+#' container or OneLake folder preferred by the Kusto ingestion service,
+#' submits tracked queued ingestion, waits for the terminal per-file result,
+#' and removes staging only after a confirmed success.
 #'
 #' @section One-call staging workflow:
 #' The queued-ingestion REST API accepts storage blobs rather than inline R
 #' values. This function provides the higher-level one-call workflow: it reads
-#' the ingestion service's preview configuration, chooses a trusted OneLake
-#' lake folder, creates a unique `fabricqueryr-staging` path, uploads bounded
-#' Parquet parts, and submits them with a storage-audience access token. An
+#' the ingestion service's preview configuration, honors its preferred upload
+#' method, creates a unique `fabricqueryr-staging` path, and uploads bounded
+#' Parquet parts. Service-provided Storage containers use their short-lived SAS
+#' credentials. OneLake staging uses a Storage-audience access token, so an
 #' audience-aware credential obtains both required tokens. When `token` is a
-#' fixed bearer token or `AzureToken`, supply the separate Storage-audience
-#' `storage_token`. `staging_folder` can override the advertised folder with a
-#' trusted OneLake `Files/` URI.
+#' fixed bearer token or `AzureToken` and OneLake is selected, supply the
+#' separate `storage_token`. `staging_folder` explicitly selects OneLake and
+#' overrides the advertised upload preference with a trusted `Files/` URI.
 #'
 #' The caller therefore needs Kusto Table Ingestor and Database User access,
-#' plus write/delete access to the selected OneLake folder. The Eventhouse
-#' ingestion service must be able to read those files as the caller.
+#' plus write/delete access when OneLake is selected. Advertised Storage
+#' containers carry the service-managed SAS access needed for staging.
 #'
 #' @section R and Arrow inputs:
 #' Data frames and tibbles are converted through Arrow. Factors become strings;
@@ -1949,20 +1950,6 @@ fabric_kql_write_table <- function(
     token = token,
     auth_args = auth_args
   )
-  storage_credential <- if (!is.null(storage_token)) {
-    fabric_credential(token = storage_token)
-  } else {
-    if (!credential$type %in% c("AzureAuth", "callback")) {
-      .fabric_abort(
-        paste0(
-          "fabric_kql_write_table() requires an audience-aware token ",
-          "provider or a separate storage_token"
-        ),
-        class = c("fabric_kql_auth_error", "fabric_kql_write_error")
-      )
-    }
-    credential
-  }
   if (isTRUE(create_if_missing)) {
     management_target <- kusto_write_management_target(
       cluster,
@@ -2006,18 +1993,43 @@ fabric_kql_write_table <- function(
     credential,
     timeout = min(timeout, 60)
   )
-  folder <- kusto_ingestion_staging_folder(
+  staging <- kusto_ingestion_staging_destination(
     configuration,
     override = staging_folder
   )
-  storage_directory <- folder
-  storage_directory$path <- paste(
-    folder$path,
-    staging_root,
-    .fabric_lakehouse_staging_id(),
-    sep = "/"
-  )
-  staging_path <- onelake_path_url(storage_directory)
+  staging_id <- .fabric_lakehouse_staging_id()
+  storage_credential <- NULL
+  if (identical(staging$method, "Lake")) {
+    storage_credential <- if (!is.null(storage_token)) {
+      fabric_credential(token = storage_token)
+    } else {
+      if (!credential$type %in% c("AzureAuth", "callback")) {
+        .fabric_abort(
+          paste0(
+            "OneLake staging requires an audience-aware token provider or ",
+            "a separate storage_token"
+          ),
+          class = c("fabric_kql_auth_error", "fabric_kql_write_error")
+        )
+      }
+      credential
+    }
+    storage_directory <- staging$target
+    storage_directory$path <- paste(
+      staging$target$path,
+      staging_root,
+      staging_id,
+      sep = "/"
+    )
+    staging_path <- onelake_path_url(storage_directory)
+  } else {
+    storage_directory <- paste(staging_root, staging_id, sep = "/")
+    staging_path <- kusto_storage_blob_url(
+      staging$container,
+      storage_directory,
+      include_credentials = FALSE
+    )
+  }
 
   # 3 Stream to bounded local Parquet parts -------------------------------------------------------
 
@@ -2072,36 +2084,67 @@ fabric_kql_write_table <- function(
       .format = TRUE
     )
   }
-  storage_targets <- lapply(basename(serialized$paths), function(name) {
-    target <- storage_directory
-    target$path <- paste(storage_directory$path, name, sep = "/")
-    target
-  })
-  storage_target <- storage_targets[[1L]]
-  staging_paths <- vapply(storage_targets, onelake_path_url, character(1))
+  if (identical(staging$method, "Lake")) {
+    storage_targets <- lapply(basename(serialized$paths), function(name) {
+      target <- storage_directory
+      target$path <- paste(storage_directory$path, name, sep = "/")
+      target
+    })
+    source_paths <- vapply(storage_targets, onelake_path_url, character(1))
+    staging_paths <- source_paths
+  } else {
+    storage_targets <- NULL
+    relative_paths <- paste(
+      storage_directory,
+      basename(serialized$paths),
+      sep = "/"
+    )
+    source_paths <- vapply(
+      relative_paths,
+      function(path) kusto_storage_blob_url(staging$container, path),
+      character(1),
+      USE.NAMES = FALSE
+    )
+    staging_paths <- vapply(
+      relative_paths,
+      function(path) {
+        kusto_storage_blob_url(
+          staging$container,
+          path,
+          include_credentials = FALSE
+        )
+      },
+      character(1),
+      USE.NAMES = FALSE
+    )
+  }
 
   # 4 Upload every complete file atomically -------------------------------------------------------
 
   tryCatch(
-    for (index in seq_along(storage_targets)) {
-      onelake_upload_target(
-        storage_targets[[index]],
-        storage_credential,
-        source = serialized$paths[[index]],
-        overwrite = FALSE,
-        if_match = NULL,
-        chunk_size = getOption(
-          "fabricqueryr.onelake.chunk_size",
-          8 * 1024^2
-        ),
-        content_type = "application/vnd.apache.parquet",
-        create_parents = TRUE
-      )
+    for (index in seq_along(serialized$paths)) {
+      if (identical(staging$method, "Lake")) {
+        onelake_upload_target(
+          storage_targets[[index]],
+          storage_credential,
+          source = serialized$paths[[index]],
+          overwrite = FALSE,
+          if_match = NULL,
+          chunk_size = getOption(
+            "fabricqueryr.onelake.chunk_size",
+            8 * 1024^2
+          ),
+          content_type = "application/vnd.apache.parquet",
+          create_parents = TRUE
+        )
+      } else {
+        kusto_storage_upload(source_paths[[index]], serialized$paths[[index]])
+      }
     },
     error = function(error) {
       .fabric_abort(
         paste0(
-          "Could not confirm the Parquet upload to OneLake; the unique ",
+          "Could not confirm the Parquet upload to staging; the unique ",
           "staging path may exist and should be inspected before cleanup"
         ),
         class = c("fabric_kql_upload_error", "fabric_kql_write_error"),
@@ -2122,10 +2165,11 @@ fabric_kql_write_table <- function(
     fabric_kql_ingest(
       cluster,
       table = table,
-      sources = kusto_write_storage_sources(
-        staging_paths,
-        storage_credential
-      ),
+      sources = if (identical(staging$method, "Lake")) {
+        kusto_write_storage_sources(source_paths, storage_credential)
+      } else {
+        source_paths
+      },
       database = database,
       format = "parquet",
       source_ids = source_ids,
@@ -2178,8 +2222,10 @@ fabric_kql_write_table <- function(
   succeeded <- identical(status$state, "Succeeded") && isTRUE(status$complete)
   staging_retained <- TRUE
   if (succeeded && isTRUE(cleanup)) {
-    staging_retained <- !.fabric_onelake_remove_staging(
-      storage_target,
+    staging_retained <- !kusto_remove_staging(
+      staging$method,
+      storage_targets,
+      source_paths,
       storage_credential
     )
     if (staging_retained) {
@@ -2192,8 +2238,10 @@ fabric_kql_write_table <- function(
       )
     }
   } else if (!succeeded && !isTRUE(keep_staging_on_failure)) {
-    staging_retained <- !.fabric_onelake_remove_staging(
-      storage_target,
+    staging_retained <- !kusto_remove_staging(
+      staging$method,
+      storage_targets,
+      source_paths,
       storage_credential
     )
   }
@@ -2530,28 +2578,52 @@ kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
       "Kusto ingestion configuration contains invalid service limits"
     )
   }
+  preferred_upload_method <- payload$containerSettings$preferredUploadMethod %||%
+    "Default"
+  if (
+    !is.character(preferred_upload_method) ||
+      length(preferred_upload_method) != 1L ||
+      is.na(preferred_upload_method) ||
+      !tolower(preferred_upload_method) %in% c("storage", "lake", "default")
+  ) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion configuration contains an invalid preferredUploadMethod"
+    )
+  }
+  preferred_upload_method <- c(
+    storage = "Storage",
+    lake = "Lake",
+    default = "Default"
+  )[[tolower(preferred_upload_method)]]
   list(
     lake_folders = kusto_ingestion_configuration_paths(
-      payload$containerSettings$lakeFolders
+      payload$containerSettings$lakeFolders,
+      "lakeFolders"
+    ),
+    storage_containers = kusto_ingestion_configuration_paths(
+      payload$containerSettings$containers,
+      "containers"
     ),
     max_data_size = max_data_size,
     max_blobs = max_blobs,
-    preferred_upload_method = payload$containerSettings$preferredUploadMethod %||%
-      NA_character_,
+    preferred_upload_method = preferred_upload_method,
     preferred_ingestion_method = payload$ingestionSettings$preferredIngestionMethod %||%
       NA_character_,
     raw = .httr2_redact_object(payload)
   )
 }
 
-# Extract optional path records without retaining SAS-bearing container paths
-kusto_ingestion_configuration_paths <- function(value) {
+# Extract and validate optional path records from ingestion configuration
+kusto_ingestion_configuration_paths <- function(
+  value,
+  setting = "lakeFolders"
+) {
   if (is.null(value)) {
     return(character())
   }
   if (!is.list(value)) {
     kusto_ingestion_protocol_error(
-      "Kusto ingestion configuration lakeFolders must be an array"
+      paste0("Kusto ingestion configuration ", setting, " must be an array")
     )
   }
   paths <- vapply(
@@ -2565,7 +2637,11 @@ kusto_ingestion_configuration_paths <- function(value) {
           !nzchar(path)
       ) {
         kusto_ingestion_protocol_error(
-          "Kusto ingestion configuration contains an invalid lake folder"
+          paste0(
+            "Kusto ingestion configuration contains an invalid ",
+            setting,
+            " path"
+          )
         )
       }
       path
@@ -2573,6 +2649,154 @@ kusto_ingestion_configuration_paths <- function(value) {
     character(1)
   )
   unique(paths)
+}
+
+# Honor the service's upload preference while allowing an explicit OneLake
+# override. Returns either a validated OneLake target or a SAS container URL
+kusto_ingestion_staging_destination <- function(
+  configuration,
+  override = NULL
+) {
+  if (!is.null(override)) {
+    return(list(
+      method = "Lake",
+      target = kusto_ingestion_staging_folder(configuration, override)
+    ))
+  }
+
+  preferred <- configuration$preferred_upload_method %||% "Default"
+  methods <- switch(
+    preferred,
+    Storage = c("Storage", "Lake"),
+    Lake = c("Lake", "Storage"),
+    Default = c("Lake", "Storage"),
+    c("Lake", "Storage")
+  )
+  for (method in methods) {
+    if (identical(method, "Lake") && length(configuration$lake_folders)) {
+      target <- try(
+        kusto_ingestion_staging_folder(configuration),
+        silent = TRUE
+      )
+      if (!inherits(target, "try-error")) {
+        return(list(method = "Lake", target = target))
+      }
+    }
+    if (
+      identical(method, "Storage") && length(configuration$storage_containers)
+    ) {
+      for (container in configuration$storage_containers) {
+        valid <- try(kusto_storage_validate_container(container), silent = TRUE)
+        if (!inherits(valid, "try-error")) {
+          return(list(method = "Storage", container = valid))
+        }
+      }
+    }
+  }
+  .fabric_abort(
+    paste0(
+      "Kusto returned no usable staging destination; expected a valid ",
+      "preferred Storage container or OneLake lake folder"
+    ),
+    class = c(
+      "fabric_kql_staging_configuration_error",
+      "fabric_kql_write_error"
+    )
+  )
+}
+
+# Validate a service-provided SAS container without exposing it in errors
+kusto_storage_validate_container <- function(container) {
+  parsed <- try(httr2::url_parse(container), silent = TRUE)
+  invalid <- inherits(parsed, "try-error") ||
+    !identical(tolower(parsed$scheme %||% ""), "https") ||
+    !nzchar(parsed$hostname %||% "") ||
+    !nzchar(parsed$path %||% "") ||
+    nzchar(parsed$username %||% "") ||
+    nzchar(parsed$password %||% "") ||
+    nzchar(parsed$fragment %||% "") ||
+    !length(parsed$query)
+  if (invalid) {
+    .fabric_abort(
+      "Kusto returned an invalid credentialed Storage container",
+      class = c(
+        "fabric_kql_staging_configuration_error",
+        "fabric_kql_write_error"
+      )
+    )
+  }
+  container
+}
+
+# Add a safe relative blob name before the container's SAS query string
+kusto_storage_blob_url <- function(
+  container,
+  path,
+  include_credentials = TRUE
+) {
+  container <- kusto_storage_validate_container(container)
+  path <- onelake_normalize_path(path)
+  encoded_path <- paste(
+    vapply(
+      strsplit(path, "/", fixed = TRUE)[[1L]],
+      utils::URLencode,
+      character(1),
+      reserved = TRUE
+    ),
+    collapse = "/"
+  )
+  marker <- regexpr("?", container, fixed = TRUE)[[1L]]
+  base <- substr(container, 1L, marker - 1L)
+  query <- substr(container, marker + 1L, nchar(container))
+  url <- paste0(sub("/+$", "", base), "/", encoded_path)
+  if (isTRUE(include_credentials)) paste0(url, "?", query) else url
+}
+
+# Upload one complete Parquet file through a service-owned SAS container
+kusto_storage_upload <- function(url, source) {
+  request <- httr2::request(url) |>
+    httr2::req_method("PUT") |>
+    httr2::req_headers(
+      `x-ms-version` = "2023-11-03",
+      `x-ms-blob-type` = "BlockBlob"
+    ) |>
+    httr2::req_body_file(
+      source,
+      type = "application/vnd.apache.parquet"
+    )
+  .httr2_perform(request, idempotent = TRUE)
+  invisible(TRUE)
+}
+
+# Best-effort removal for either selected staging backend
+kusto_remove_staging <- function(
+  method,
+  storage_targets,
+  source_paths,
+  storage_credential
+) {
+  if (identical(method, "Lake")) {
+    return(.fabric_onelake_remove_staging(
+      storage_targets[[1L]],
+      storage_credential
+    ))
+  }
+  isTRUE(tryCatch(
+    {
+      for (url in source_paths) {
+        request <- httr2::request(url) |>
+          httr2::req_method("DELETE") |>
+          httr2::req_headers(`x-ms-version` = "2023-11-03")
+        .httr2_perform(
+          request,
+          idempotent = TRUE,
+          accepted_status = 404L
+        )
+      }
+      TRUE
+    },
+    error = function(error) FALSE
+  ))
 }
 
 # Choose a trusted OneLake folder from configuration or an explicit Files URI

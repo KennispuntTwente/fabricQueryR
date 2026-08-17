@@ -40,6 +40,10 @@ test_that("ingestion configuration uses the documented Kusto contract", {
   )
 
   expect_equal(result$lake_folders, kql_write_test_folder)
+  expect_equal(
+    result$storage_containers,
+    "https://storage.test/container?sig=do-not-retain"
+  )
   expect_equal(result$max_data_size, 6442450944)
   expect_equal(result$max_blobs, 20)
   expect_equal(result$preferred_upload_method, "Lake")
@@ -55,6 +59,117 @@ test_that("ingestion configuration uses the documented Kusto contract", {
     jsonlite::toJSON(result$raw, auto_unbox = TRUE),
     fixed = TRUE
   ))
+})
+
+test_that("Eventhouse writer honors preferred Storage container staging", {
+  skip_if_not_installed("arrow")
+  container <- paste0(
+    "https://account.blob.core.windows.net/ingest?",
+    "sv=2023-11-03&sp=rwd&sig=storage-secret"
+  )
+  uploads <- list()
+  submitted <- NULL
+  cleanup <- NULL
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "storage-fixed",
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration(
+        storage_containers = container,
+        preferred_upload_method = "Storage"
+      )
+    },
+    kusto_storage_upload = function(url, source) {
+      uploads[[length(uploads) + 1L]] <<- list(
+        url = url,
+        rows = nrow(as.data.frame(arrow::read_parquet(source)))
+      )
+      invisible(TRUE)
+    },
+    onelake_upload_target = function(...) {
+      stop("OneLake must not be selected")
+    },
+    fabric_kql_ingest = function(...) {
+      submitted <<- list(...)
+      kql_write_test_ingestion()
+    },
+    fabric_kql_ingestion_status = function(...) kql_write_test_status(),
+    kusto_remove_staging = function(
+      method,
+      storage_targets,
+      source_paths,
+      storage_credential
+    ) {
+      cleanup <<- list(
+        method = method,
+        targets = storage_targets,
+        paths = source_paths,
+        credential = storage_credential
+      )
+      TRUE
+    }
+  )
+
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1:2),
+    database = "Telemetry",
+    token = "kusto-token"
+  )
+
+  expect_length(uploads, 1L)
+  expect_equal(uploads[[1L]]$rows, 2L)
+  expect_match(
+    uploads[[1L]]$url,
+    "/ingest/fabricqueryr-staging/storage-fixed/part-00001.parquet?",
+    fixed = TRUE
+  )
+  expect_match(uploads[[1L]]$url, "sig=storage-secret", fixed = TRUE)
+  expect_identical(submitted$sources, uploads[[1L]]$url)
+  expect_identical(cleanup$method, "Storage")
+  expect_null(cleanup$targets)
+  expect_null(cleanup$credential)
+  expect_false(result$staging_retained)
+  expect_false(any(grepl("storage-secret", result$staging_paths, fixed = TRUE)))
+  expect_false(grepl("storage-secret", result$staging_path, fixed = TRUE))
+})
+
+test_that("Storage staging constructs authenticated blob requests safely", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      request <<- req
+      httr2::response(status_code = 201L)
+    }
+  )
+  source <- tempfile(fileext = ".parquet")
+  writeBin(charToRaw("parquet"), source)
+  withr::defer(unlink(source))
+  container <- paste0(
+    "https://account.blob.core.windows.net/ingest?",
+    "sv=2023-11-03&sp=rwd&sig=secret"
+  )
+  url <- kusto_storage_blob_url(container, "safe path/part.parquet")
+
+  expect_match(url, "/safe%20path/part.parquet?", fixed = TRUE)
+  expect_equal(
+    kusto_storage_blob_url(
+      container,
+      "safe path/part.parquet",
+      include_credentials = FALSE
+    ),
+    "https://account.blob.core.windows.net/ingest/safe%20path/part.parquet"
+  )
+  kusto_storage_upload(url, source)
+  expect_equal(request$method, "PUT")
+  expect_equal(request$headers[["x-ms-blob-type"]], "BlockBlob")
+  expect_equal(request$headers[["x-ms-version"]], "2023-11-03")
+  expect_equal(request$body$content_type, "application/vnd.apache.parquet")
+
+  expect_error(
+    kusto_storage_validate_container("https://storage.example/no-sas"),
+    class = "fabric_kql_staging_configuration_error"
+  )
 })
 
 test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
@@ -156,6 +271,11 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
 
 test_that("Eventhouse writer requires a Storage credential for fixed tokens", {
   skip_if_not_installed("arrow")
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration()
+    }
+  )
 
   expect_snapshot(
     error = TRUE,

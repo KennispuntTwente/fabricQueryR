@@ -127,26 +127,27 @@ normalized ingestion status, tracking handle, source IDs, and staging
 disposition.
 }
 \description{
-Serializes an R or Arrow object to Parquet, uploads it to the OneLake staging
-folder advertised by the Kusto ingestion service, submits tracked queued
-ingestion, waits for the terminal per-file result, and removes staging only
-after a confirmed success.
+Serializes an R or Arrow object to Parquet, uploads it using the storage
+container or OneLake folder preferred by the Kusto ingestion service,
+submits tracked queued ingestion, waits for the terminal per-file result,
+and removes staging only after a confirmed success.
 }
 \section{One-call staging workflow}{
 
 The queued-ingestion REST API accepts storage blobs rather than inline R
 values. This function provides the higher-level one-call workflow: it reads
-the ingestion service's preview configuration, chooses a trusted OneLake
-lake folder, creates a unique \code{fabricqueryr-staging} path, uploads bounded
-Parquet parts, and submits them with a storage-audience access token. An
+the ingestion service's preview configuration, honors its preferred upload
+method, creates a unique \code{fabricqueryr-staging} path, and uploads bounded
+Parquet parts. Service-provided Storage containers use their short-lived SAS
+credentials. OneLake staging uses a Storage-audience access token, so an
 audience-aware credential obtains both required tokens. When \code{token} is a
-fixed bearer token or \code{AzureToken}, supply the separate Storage-audience
-\code{storage_token}. \code{staging_folder} can override the advertised folder with a
-trusted OneLake \verb{Files/} URI.
+fixed bearer token or \code{AzureToken} and OneLake is selected, supply the
+separate \code{storage_token}. \code{staging_folder} explicitly selects OneLake and
+overrides the advertised upload preference with a trusted \verb{Files/} URI.
 
 The caller therefore needs Kusto Table Ingestor and Database User access,
-plus write/delete access to the selected OneLake folder. The Eventhouse
-ingestion service must be able to read those files as the caller.
+plus write/delete access when OneLake is selected. Advertised Storage
+containers carry the service-managed SAS access needed for staging.
 }
 
 \section{R and Arrow inputs}{

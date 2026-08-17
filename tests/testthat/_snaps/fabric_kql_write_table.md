@@ -5,7 +5,7 @@
         "Raw", data.frame(id = 1L), database = "Telemetry", token = "kusto-token")
     Condition
       Error in `fabric_kql_write_table()`:
-      ! fabric_kql_write_table() requires an audience-aware token provider or a separate storage_token
+      ! OneLake staging requires an audience-aware token provider or a separate storage_token
 
 # Eventhouse writer rejects unsafe multi-file idempotency
 
