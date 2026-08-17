@@ -362,6 +362,30 @@ test_that("Warehouse writer loads R and lazy Arrow data through OneLake", {
     )
   )
 
+  mismatched <- tryCatch(
+    fabric_warehouse_write_table(
+      warehouse,
+      table,
+      data.frame(
+        Id = 99L,
+        label = "must-not-load",
+        amount = 99
+      ),
+      staging_lakehouse = staging_lakehouse,
+      keep_staging_on_failure = FALSE,
+      backend = "odbc",
+      token = token,
+      verbose = FALSE
+    ),
+    error = identity
+  )
+  expect_s3_class(mismatched, "fabric_warehouse_write_error")
+  expect_s3_class(mismatched$parent, "fabric_warehouse_column_error")
+  expect_equal(
+    DBI::dbGetQuery(con, paste("SELECT COUNT(*) AS n FROM", table_sql))$n,
+    0
+  )
+
   appended <- fabric_warehouse_write_table(
     warehouse,
     table,

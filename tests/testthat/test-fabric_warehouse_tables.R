@@ -138,6 +138,9 @@ test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
       connect_args <<- list(...)
       connection
     },
+    .fabric_warehouse_query = function(...) {
+      data.frame(column_name = c("id", "display name"))
+    },
     .fabric_warehouse_execute = function(connection, sql) {
       statements <<- c(statements, sql)
       3L
@@ -220,6 +223,9 @@ test_that("Warehouse writer uploads bounded Parquet parts", {
       tibble::tibble(path = target$path)
     },
     .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_query = function(...) {
+      data.frame(column_name = "id")
+    },
     .fabric_warehouse_execute = function(connection, sql) {
       statement <<- sql
       5L
@@ -256,6 +262,9 @@ test_that("Warehouse overwrite is one explicit transaction", {
     .fabric_warehouse_staging_id = function() "overwrite-load",
     onelake_upload_target = function(...) tibble::tibble(),
     .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_query = function(...) {
+      data.frame(column_name = "id")
+    },
     .fabric_warehouse_begin = function(...) {
       events <<- c(events, "begin")
       TRUE
@@ -408,6 +417,87 @@ test_that("Warehouse table discovery uses escaped catalog literals", {
   expect_match(sql, "[t].[name] = N'orders'", fixed = TRUE)
 })
 
+test_that("Warehouse writer requires exact destination column names", {
+  sql <- NULL
+  local_mocked_bindings(
+    .fabric_warehouse_query = function(connection, statement) {
+      sql <<- statement
+      data.frame(column_name = c("Id", "label", "created_at"))
+    }
+  )
+
+  expect_no_error(
+    .fabric_warehouse_validate_destination_columns(
+      list(),
+      "sales'ops",
+      "orders",
+      c("Id", "label")
+    )
+  )
+  error <- tryCatch(
+    .fabric_warehouse_validate_destination_columns(
+      list(),
+      "sales'ops",
+      "orders",
+      c("id", "amount")
+    ),
+    error = identity
+  )
+
+  expect_s3_class(error, "fabric_warehouse_column_error")
+  expect_match(conditionMessage(error), "Missing: id, amount", fixed = TRUE)
+  expect_match(
+    conditionMessage(error),
+    "catalog matches include: Id",
+    fixed = TRUE
+  )
+  expect_match(sql, "[s].[name] = N'sales''ops'", fixed = TRUE)
+  expect_match(sql, "ORDER BY [c].[column_id]", fixed = TRUE)
+})
+
+test_that("Warehouse writer stops before COPY when destination names differ", {
+  skip_if_not_installed("arrow")
+  sql_calls <- 0L
+  cleanup_calls <- 0L
+  local_mocked_bindings(
+    .fabric_warehouse_staging_id = function() "column-mismatch",
+    onelake_upload_target = function(...) tibble::tibble(),
+    .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_query = function(...) {
+      data.frame(column_name = c("Id", "label"))
+    },
+    .fabric_warehouse_execute = function(...) {
+      sql_calls <<- sql_calls + 1L
+      0L
+    },
+    .fabric_warehouse_disconnect = function(...) TRUE,
+    .fabric_warehouse_remove_staging = function(...) {
+      cleanup_calls <<- cleanup_calls + 1L
+      TRUE
+    }
+  )
+
+  error <- tryCatch(
+    fabric_warehouse_write_table(
+      warehouse_write_test_warehouse(),
+      "orders",
+      data.frame(id = 1L, label = "one"),
+      staging_lakehouse = warehouse_write_test_lakehouse(),
+      keep_staging_on_failure = FALSE,
+      token = "test-token",
+      verbose = FALSE
+    ),
+    error = identity
+  )
+
+  expect_s3_class(error, "fabric_warehouse_write_error")
+  expect_s3_class(error$parent, "fabric_warehouse_column_error")
+  expect_false(error$ambiguous)
+  expect_false(error$staging_retained)
+  expect_identical(sql_calls, 0L)
+  expect_identical(cleanup_calls, 1L)
+})
+
 test_that("Warehouse writer rolls back and retains ambiguous SQL staging", {
   skip_if_not_installed("arrow")
   events <- character()
@@ -416,6 +506,9 @@ test_that("Warehouse writer rolls back and retains ambiguous SQL staging", {
     .fabric_warehouse_staging_id = function() "failed-copy",
     onelake_upload_target = function(...) tibble::tibble(),
     .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_query = function(...) {
+      data.frame(column_name = "id")
+    },
     .fabric_warehouse_begin = function(...) {
       events <<- c(events, "begin")
       TRUE
@@ -516,6 +609,9 @@ test_that("Warehouse writer streams a lazy Arrow Dataset", {
       tibble::tibble()
     },
     .fabric_warehouse_connect = function(...) list(),
+    .fabric_warehouse_query = function(...) {
+      data.frame(column_name = c("id", "label"))
+    },
     .fabric_warehouse_execute = function(...) 4L,
     .fabric_warehouse_disconnect = function(...) TRUE,
     .fabric_warehouse_remove_staging = function(...) TRUE

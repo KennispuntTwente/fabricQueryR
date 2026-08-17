@@ -128,7 +128,9 @@ data frame.
 }
 \details{
 Existing-table writes map input fields by ordinal position to quoted
-destination columns with the same names as \code{data}. With
+destination columns whose names must exactly match the names in \code{data},
+including letter case. The writer checks the Warehouse catalog before any
+destructive SQL is issued. With
 \code{create_if_missing = TRUE}, a missing table is created and populated by a
 single CTAS statement; Fabric infers its names and types from the staged
 Parquet files.

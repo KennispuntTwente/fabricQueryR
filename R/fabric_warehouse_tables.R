@@ -247,7 +247,9 @@ fabric_warehouse_read_table <- function(
 #'   staging identifiers, row and byte counts, part paths, and cleanup state.
 #' @details
 #' Existing-table writes map input fields by ordinal position to quoted
-#' destination columns with the same names as `data`. With
+#' destination columns whose names must exactly match the names in `data`,
+#' including letter case. The writer checks the Warehouse catalog before any
+#' destructive SQL is issued. With
 #' `create_if_missing = TRUE`, a missing table is created and populated by a
 #' single CTAS statement; Fabric infers its names and types from the staged
 #' Parquet files.
@@ -513,6 +515,26 @@ fabric_warehouse_write_table <- function(
   create_with_ctas <- isTRUE(create_if_missing) &&
     !table_exists ||
     identical(mode, "Overwrite") && identical(overwrite_method, "Drop")
+  if (!create_with_ctas) {
+    tryCatch(
+      .fabric_warehouse_validate_destination_columns(
+        connection,
+        schema,
+        table,
+        prepared$names
+      ),
+      error = function(error) {
+        .fabric_warehouse_write_abort(
+          error,
+          storage_target,
+          credential,
+          staging_path,
+          keep_staging_on_failure,
+          ambiguous = FALSE
+        )
+      }
+    )
+  }
   affected <- tryCatch(
     {
       if (identical(mode, "Overwrite") || create_with_ctas) {
@@ -1021,6 +1043,67 @@ fabric_warehouse_write_table <- function(
     .fabric_abort("Warehouse returned an invalid table-existence value")
   }
   as.character(flag) %in% c("1", "TRUE")
+}
+
+# Require exact destination names before COPY INTO. SQL identifier lookup can
+# be case-insensitive while Parquet field mapping is positional, so accepting a
+# case-folded match can silently associate values with the wrong field.
+.fabric_warehouse_validate_destination_columns <- function(
+  connection,
+  schema,
+  table,
+  columns
+) {
+  sql <- paste0(
+    "SELECT [c].[name] AS [column_name] ",
+    "FROM sys.columns AS [c] ",
+    "INNER JOIN sys.tables AS [t] ON [t].[object_id] = [c].[object_id] ",
+    "INNER JOIN sys.schemas AS [s] ON [s].[schema_id] = [t].[schema_id] ",
+    "WHERE [s].[name] = ",
+    .fabric_warehouse_string_literal(schema, unicode = TRUE),
+    " AND [t].[name] = ",
+    .fabric_warehouse_string_literal(table, unicode = TRUE),
+    " ORDER BY [c].[column_id]"
+  )
+  value <- .fabric_warehouse_query(connection, sql)
+  if (
+    !is.data.frame(value) ||
+      ncol(value) < 1L ||
+      !is.character(value[[1L]]) ||
+      anyNA(value[[1L]])
+  ) {
+    .fabric_abort(
+      "Warehouse returned invalid destination-column metadata",
+      class = c("fabric_warehouse_column_error", "fabric_warehouse_error")
+    )
+  }
+  destination <- value[[1L]]
+  missing <- columns[!columns %in% destination]
+  if (length(missing) > 0L) {
+    case_matches <- destination[
+      tolower(destination) %in% tolower(missing)
+    ]
+    detail <- if (length(case_matches) > 0L) {
+      paste0(
+        " Destination names are case-sensitive for this operation; catalog ",
+        "matches include: ",
+        paste(case_matches, collapse = ", "),
+        "."
+      )
+    } else {
+      ""
+    }
+    .fabric_abort(
+      paste0(
+        "Input column names must exactly match destination columns. Missing: ",
+        paste(missing, collapse = ", "),
+        ".",
+        detail
+      ),
+      class = c("fabric_warehouse_column_error", "fabric_warehouse_error")
+    )
+  }
+  invisible(destination)
 }
 
 .fabric_warehouse_query <- function(connection, sql) {
