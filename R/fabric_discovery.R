@@ -678,7 +678,7 @@ fabric_typed_item_list <- function(workspace, .type, .detail, ...) {
   dot_names <- names(dots)
   if (
     length(dots) &&
-      (is.null(dot_names) || any(is.na(dot_names)) || any(!nzchar(dot_names)))
+      (is.null(dot_names) || anyNA(dot_names) || !all(nzchar(dot_names)))
   ) {
     .fabric_abort("All arguments forwarded through `...` must be named")
   }
