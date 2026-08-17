@@ -342,26 +342,29 @@ test_that("function response size is bounded during transport", {
   expect_identical(error$max_response_bytes, 1024)
 })
 
-test_that("function results and conditions redact bearer tokens and secrets", {
-  secret <- "function-super-secret"
+test_that("function output is preserved while conditions redact secrets", {
+  domain_value <- "function-domain-token"
   httr2::local_mocked_responses(function(req) {
     function_test_response(function_success_body(
       output = list(
-        token = secret,
+        token = domain_value,
+        password = "legitimate-output-field",
         nested = list(
           safe = "visible",
-          message = paste("Bearer", secret)
+          message = paste("Bearer", domain_value)
         )
       )
     ))
   })
 
   result <- fabric_function_invoke(function_test_url, token = "request-token")
-  expect_identical(result$output$token, "<redacted>")
+  expect_identical(result$output$token, domain_value)
+  expect_identical(result$output$password, "legitimate-output-field")
   expect_identical(result$output$nested$safe, "visible")
-  expect_identical(result$output$nested$message, "Bearer <redacted>")
-  expect_false(grepl(secret, paste(capture.output(str(result)), collapse = "")))
+  expect_identical(result$output$nested$message, paste("Bearer", domain_value))
+  expect_identical(result$response$output, result$output)
 
+  secret <- "function-super-secret"
   httr2::local_mocked_responses(function(req) {
     function_test_response(
       list(

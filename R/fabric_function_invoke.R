@@ -96,9 +96,10 @@
 #'
 #' @return A `fabric_function_result` list with `function_name`,
 #'   `invocation_id`, `status`, `output`, `errors`, `http_status`, and
-#'   `response`. `response` retains the complete redacted service envelope,
-#'   including unknown future fields. Inspect `status` and `errors`; receiving
-#'   a result does not by itself mean the function succeeded.
+#'   `response`. Function `output` is returned unchanged because field names
+#'   such as `token` can be legitimate domain data. The rest of `response` is
+#'   redacted and retains unknown future fields. Inspect `status` and `errors`;
+#'   receiving a result does not by itself mean the function succeeded.
 #' @references
 #' [Invoke user data functions from a Python application](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app)
 #'
@@ -394,7 +395,9 @@ function_parse_response <- function(
     )
   }
 
+  output <- payload$output
   payload <- .httr2_redact_object(payload)
+  payload$output <- output
   errors <- payload$errors
   if (
     length(errors) &&
@@ -421,7 +424,7 @@ function_parse_response <- function(
       function_name = payload$functionName,
       invocation_id = payload$invocationId,
       status = payload$status,
-      output = payload$output,
+      output = output,
       errors = errors,
       http_status = status_code,
       response = payload

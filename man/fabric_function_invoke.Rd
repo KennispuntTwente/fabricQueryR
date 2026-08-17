@@ -61,9 +61,10 @@ endpoint, so enable this only for an origin you trust.}
 \value{
 A \code{fabric_function_result} list with \code{function_name},
 \code{invocation_id}, \code{status}, \code{output}, \code{errors}, \code{http_status}, and
-\code{response}. \code{response} retains the complete redacted service envelope,
-including unknown future fields. Inspect \code{status} and \code{errors}; receiving
-a result does not by itself mean the function succeeded.
+\code{response}. Function \code{output} is returned unchanged because field names
+such as \code{token} can be legitimate domain data. The rest of \code{response} is
+redacted and retains unknown future fields. Inspect \code{status} and \code{errors};
+receiving a result does not by itself mean the function succeeded.
 }
 \description{
 Calls the public REST endpoint for one published Microsoft Fabric user data
