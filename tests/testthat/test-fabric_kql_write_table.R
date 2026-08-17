@@ -462,10 +462,10 @@ test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
   expect_null(reader$read_next_batch())
 })
 
-test_that("Eventhouse writer does not report compressed bytes as raw size", {
+test_that("Eventhouse writer enforces the advertised data-size limit", {
   skip_if_not_installed("arrow")
   upload_calls <- 0L
-  submitted <- NULL
+  submitted <- 0L
   local_mocked_bindings(
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(max_data_size = 1)
@@ -475,24 +475,29 @@ test_that("Eventhouse writer does not report compressed bytes as raw size", {
       tibble::tibble()
     },
     fabric_kql_ingest = function(...) {
-      submitted <<- list(...)
+      submitted <<- submitted + 1L
       kql_write_test_ingestion()
     },
     fabric_kql_ingestion_status = function(...) kql_write_test_status(),
     .fabric_onelake_remove_staging = function(...) TRUE
   )
-  result <- fabric_kql_write_table(
-    "https://ingest-cluster.kusto.fabric.microsoft.com",
-    "Raw",
-    data.frame(value = rep("compressible", 1000)),
-    database = "Telemetry",
-    token = "test-token",
-    storage_token = "storage-token"
+  error <- tryCatch(
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(value = rep("compressible", 1000)),
+      database = "Telemetry",
+      token = "test-token",
+      storage_token = "storage-token"
+    ),
+    error = identity
   )
 
-  expect_equal(upload_calls, 1L)
-  expect_null(submitted$raw_sizes)
-  expect_gt(result$bytes, 0)
+  expect_s3_class(error, "fabric_kql_size_error")
+  expect_gt(error$bytes, error$max_data_size)
+  expect_identical(error$max_data_size, 1)
+  expect_identical(upload_calls, 0L)
+  expect_identical(submitted, 0L)
 })
 
 test_that("Eventhouse writer enforces the advertised blob count", {

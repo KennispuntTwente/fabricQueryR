@@ -2037,9 +2037,20 @@ fabric_kql_write_table <- function(
     caller = "fabric_kql_write_table()",
     error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
   )
-  # Kusto defines rawSize as the blob size before compression. The local file
-  # sizes are compressed Parquet bytes, so they are neither submitted as
-  # rawSize nor compared with the service's uncompressed data-size limit.
+  if (serialized$total_bytes > configuration$max_data_size) {
+    .fabric_abort(
+      paste0(
+        "The staged Parquet payload is ",
+        format(serialized$total_bytes, scientific = FALSE, trim = TRUE),
+        " bytes, exceeding Kusto's advertised maxDataSize of ",
+        format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
+        " bytes"
+      ),
+      class = c("fabric_kql_size_error", "fabric_kql_write_error"),
+      bytes = serialized$total_bytes,
+      max_data_size = configuration$max_data_size
+    )
+  }
   if (
     serialized$file_count > 1L &&
       isTRUE(skip_batching) &&
