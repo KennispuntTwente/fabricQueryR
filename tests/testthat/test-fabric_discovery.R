@@ -894,6 +894,38 @@ test_that("typed helpers strictly filter records and preserve future fields", {
   )
 })
 
+test_that("typed helpers reject unsafe forwarded arguments before auth", {
+  token <- function(...) stop("must not authenticate")
+  expect_error(
+    fabric_lakehouses(
+      "Workspace",
+      type = "Warehouse",
+      token = token
+    ),
+    '`type` is fixed to "Lakehouse"',
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_lakehouses(
+      "Workspace",
+      TRUE,
+      "unexpected positional value",
+      token = token
+    ),
+    "forwarded through `...` must be named",
+    fixed = TRUE
+  )
+  duplicated <- structure(
+    list("token-a", "token-b"),
+    names = c("token", "token")
+  )
+  expect_error(
+    do.call(fabric_lakehouses, c(list("Workspace"), duplicated)),
+    "must have unique names",
+    fixed = TRUE
+  )
+})
+
 test_that("empty discovery results retain their public types", {
   workspaces <- fabric_workspace_list(list())
   items <- fabric_item_list(list())

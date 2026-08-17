@@ -640,11 +640,34 @@ fabric_graphql_apis <- function(workspace, detail = TRUE, ...) {
 
 # Request one Fabric item type and discard any mismatched service records
 # Returns the original item objects so new service fields remain available
-fabric_typed_item_list <- function(workspace, type, detail, ...) {
-  items <- fabric_items(workspace, type = type, detail = detail, ...)
+fabric_typed_item_list <- function(workspace, .type, .detail, ...) {
+  dots <- list(...)
+  dot_names <- names(dots)
+  if (
+    length(dots) &&
+      (is.null(dot_names) || any(is.na(dot_names)) || any(!nzchar(dot_names)))
+  ) {
+    .fabric_abort("All arguments forwarded through `...` must be named")
+  }
+  if (anyDuplicated(dot_names)) {
+    .fabric_abort("Arguments forwarded through `...` must have unique names")
+  }
+  if ("type" %in% dot_names) {
+    .fabric_abort(
+      paste0(
+        "`type` is fixed to \"",
+        .type,
+        "\" by this typed discovery helper"
+      )
+    )
+  }
+  items <- do.call(
+    fabric_items,
+    c(list(workspace = workspace, type = .type, detail = .detail), dots)
+  )
   items[vapply(
     items,
-    function(item) identical(fabric_record_value(item, "type"), type),
+    function(item) identical(fabric_record_value(item, "type"), .type),
     logical(1)
   )]
 }
