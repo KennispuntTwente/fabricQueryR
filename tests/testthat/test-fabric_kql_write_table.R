@@ -69,7 +69,7 @@ test_that("Eventhouse writer honors preferred Storage container staging", {
   )
   uploads <- list()
   submitted <- NULL
-  cleanup <- NULL
+  cleanup_calls <- 0L
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "storage-fixed",
     kusto_ingestion_configuration = function(...) {
@@ -99,12 +99,7 @@ test_that("Eventhouse writer honors preferred Storage container staging", {
       source_paths,
       storage_credential
     ) {
-      cleanup <<- list(
-        method = method,
-        targets = storage_targets,
-        paths = source_paths,
-        credential = storage_credential
-      )
+      cleanup_calls <<- cleanup_calls + 1L
       TRUE
     }
   )
@@ -126,9 +121,8 @@ test_that("Eventhouse writer honors preferred Storage container staging", {
   )
   expect_match(uploads[[1L]]$url, "sig=storage-secret", fixed = TRUE)
   expect_identical(submitted$sources, uploads[[1L]]$url)
-  expect_identical(cleanup$method, "Storage")
-  expect_null(cleanup$targets)
-  expect_null(cleanup$credential)
+  expect_identical(submitted$delete_after_download, TRUE)
+  expect_identical(cleanup_calls, 0L)
   expect_false(result$staging_retained)
   expect_false(any(grepl("storage-secret", result$staging_paths, fixed = TRUE)))
   expect_false(grepl("storage-secret", result$staging_path, fixed = TRUE))

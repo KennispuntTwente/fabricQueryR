@@ -1721,10 +1721,12 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' types. Supply a named `column_types` vector to override every column type.
 #'
 #' @section Failure and cleanup safety:
-#' A successful tracked ingestion is cleaned up by default. A submission error,
-#' polling timeout, or other ambiguous result always retains staging because
-#' Kusto may still be reading it. A confirmed terminal ingestion failure retains
-#' staging by default and can remove it with
+#' A successful tracked ingestion is cleaned up by default. Kusto removes blobs
+#' uploaded to its service-owned Storage container; OneLake staging is removed
+#' after the tracked success is confirmed. A submission error, polling timeout,
+#' or other ambiguous result always retains staging because Kusto may still be
+#' reading it. A confirmed terminal ingestion failure retains staging by default
+#' and can remove it with
 #' `keep_staging_on_failure = FALSE`. The retained full OneLake path is carried
 #' by `fabric_kql_write_error` conditions.
 #' A transport failure during OneLake's final atomic rename can also leave the
@@ -2179,6 +2181,8 @@ fabric_kql_write_table <- function(
       ingest_if_not_exists = ingest_if_not_exists,
       skip_batching = skip_batching,
       creation_time = creation_time,
+      delete_after_download = identical(staging$method, "Storage") &&
+        isTRUE(cleanup),
       timeout = timeout,
       token = credential,
       allow_custom_endpoint = allow_custom_endpoint
@@ -2222,12 +2226,16 @@ fabric_kql_write_table <- function(
   succeeded <- identical(status$state, "Succeeded") && isTRUE(status$complete)
   staging_retained <- TRUE
   if (succeeded && isTRUE(cleanup)) {
-    staging_retained <- !kusto_remove_staging(
-      staging$method,
-      storage_targets,
-      source_paths,
-      storage_credential
-    )
+    staging_retained <- if (identical(staging$method, "Storage")) {
+      FALSE
+    } else {
+      !kusto_remove_staging(
+        staging$method,
+        storage_targets,
+        source_paths,
+        storage_credential
+      )
+    }
     if (staging_retained) {
       .fabric_warn(
         c(
