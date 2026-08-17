@@ -186,10 +186,11 @@ staging identifiers, row and byte counts, part paths, and cleanup state.
 ## Details
 
 Existing-table writes map input fields by ordinal position to quoted
-destination columns with the same names as `data`. With
-`create_if_missing = TRUE`, a missing table is created and populated by
-a single CTAS statement; Fabric infers its names and types from the
-staged Parquet files.
+destination columns whose names must exactly match the names in `data`,
+including letter case. The writer checks the Warehouse catalog before
+any destructive SQL is issued. With `create_if_missing = TRUE`, a
+missing table is created and populated by a single CTAS statement;
+Fabric infers its names and types from the staged Parquet files.
 
 Truncate overwrite preserves the table definition. Drop overwrite
 recreates the table and therefore intentionally discards its previous

@@ -229,7 +229,9 @@ staging identifiers, row and byte counts, part paths, and cleanup state.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Existing-table writes map input fields by ordinal position to quoted
-destination columns with the same names as <code>data</code>. With
+destination columns whose names must exactly match the names in <code>data</code>,
+including letter case. The writer checks the Warehouse catalog before any
+destructive SQL is issued. With
 <code>create_if_missing = TRUE</code>, a missing table is created and populated by a
 single CTAS statement; Fabric infers its names and types from the staged
 Parquet files.</p>
