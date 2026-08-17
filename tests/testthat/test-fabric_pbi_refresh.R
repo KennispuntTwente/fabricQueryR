@@ -305,7 +305,7 @@ test_that("refresh response IDs are validated and reconciled", {
   )
 })
 
-test_that("request encoding preserves object arrays and empty standard bodies", {
+test_that("request encoding preserves arrays and omits empty standard bodies", {
   requests <- list()
   local_mocked_bindings(
     .httr2_perform = function(req, ...) {
@@ -344,7 +344,7 @@ test_that("request encoding preserves object arrays and empty standard bodies", 
   expect_match(encoded, '"objects":\\[\\{"table":"Facts"\\}\\]')
   expect_false(first$args$idempotent)
   expect_identical(first$args$audience, .fabric_audience$power_bi)
-  expect_identical(rawToChar(requests[[2L]]$req$body$data), "{}")
+  expect_null(requests[[2L]]$req$body)
 })
 
 test_that("history normalizes attempts, errors, times, and detail links", {

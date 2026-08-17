@@ -27,9 +27,10 @@
 #'   when an enhanced option is supplied and standard refresh otherwise
 #'   `"standard"` supports only `notify_option`; `"enhanced"` exposes processing
 #'   controls and requires Premium, PPU, Embedded, or Fabric capacity
-#' @param notify_option Optional standard-refresh email behavior:
+#' @param notify_option Standard-refresh email behavior for delegated calls:
 #'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. Omit this
-#'   for service-principal calls and enhanced refreshes
+#'   for service-principal calls and enhanced refreshes. Power BI requires this
+#'   field for delegated standard refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
 #'   `"Calculate"`, `"DataOnly"`, `"Automatic"`, or `"Defragment"`
 #' @param commit_mode Enhanced commit behavior. `"Transactional"` preserves the
@@ -1041,12 +1042,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       payload,
       auto_unbox = TRUE,
       null = "null"
-    )
-  } else if (identical(toupper(method), "POST")) {
-    request <- httr2::req_body_raw(
-      request,
-      charToRaw("{}"),
-      type = "application/json"
     )
   }
   response <- .httr2_perform(
