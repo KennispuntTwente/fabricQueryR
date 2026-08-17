@@ -404,16 +404,12 @@ Find Fabric workspaces, items, and workload-specific connection details
 
 Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
 
-- [`fabric_sql_connection_info()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connection_info.md)
-  : Get connection details for a Fabric SQL item
-- [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-  : Connect to a Microsoft Fabric SQL target
 - [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   : Run a parameterized query against Microsoft Fabric SQL
-- [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
-  : Read a Microsoft Fabric Warehouse table
-- [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
-  : Write an R or Arrow object to a Fabric Warehouse table
+- [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  : Connect to a Microsoft Fabric SQL target
+- [`fabric_sql_connection_info()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connection_info.md)
+  : Get connection details for a Fabric SQL item
 
 ## Semantic models and DAX
 
@@ -431,6 +427,47 @@ Query and refresh Fabric and Power BI semantic models
   : Print a submitted Power BI refresh
 - [`print(`*`<fabric_pbi_refresh_detail>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_pbi_refresh_detail.md)
   : Print Power BI refresh details
+
+## Livy and Spark
+
+Run Spark statements, reusable sessions, and batch jobs through Livy
+
+- [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
+  : Run Spark code in a temporary Microsoft Fabric Livy session
+- [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
+  : Create a Microsoft Fabric Livy session
+- [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
+  : Submit a Microsoft Fabric Livy batch job
+- [`FabricLivySession`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md)
+  : A Microsoft Fabric Livy session
+- [`FabricLivyStatement`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.md)
+  : A statement submitted to a Fabric Livy session
+- [`FabricLivyBatch`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md)
+  : A Microsoft Fabric Livy batch job
+
+## Warehouse tables
+
+Discover, load, and read Warehouse tables in Fabric
+
+- [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
+  : Read a Microsoft Fabric Warehouse table
+- [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
+  : Write an R or Arrow object to a Fabric Warehouse table
+
+## LakeHouse tables / Delta Lake tables
+
+Discover, load, and read Delta Lake tables in OneLake
+
+- [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  : Discover and load Microsoft Fabric Lakehouse tables
+- [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
+  : Read a Microsoft Fabric Lakehouse table
+- [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
+  : Read a Delta table from OneLake
+- [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
+  : Inspect the optional Python Delta runtime
 
 ## OneLake files
 
@@ -451,21 +488,6 @@ List, inspect, download, upload, and delete files in OneLake
   [`fabric_onelake_shortcut_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   : Manage OneLake shortcuts
 
-## Delta tables
-
-Discover, load, and read Delta Lake tables in OneLake
-
-- [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-  [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-  [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-  : Discover and load Microsoft Fabric Lakehouse tables
-- [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
-  : Read a Microsoft Fabric Lakehouse table
-- [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  : Read a Delta table from OneLake
-- [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
-  : Inspect the optional Python Delta runtime
-
 ## KQL
 
 Query Eventhouse data, ingest storage or R objects, and export results
@@ -474,11 +496,11 @@ Query Eventhouse data, ingest storage or R objects, and export results
   : Run a KQL query in Microsoft Fabric
 - [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
   : Read a Microsoft Fabric KQL table
+- [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  : Write an R or Arrow object to an Eventhouse table
 - [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
   [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
   : Submit and monitor tracked Eventhouse ingestion
-- [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
-  : Write an R or Arrow object to an Eventhouse table
 - [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
   : Export a KQL query directly to external storage
 - [`print(`*`<fabric_kql_ingestion>`*`)`](https://kennispunttwente.github.io/fabricQueryR/reference/print.fabric_kql_ingestion.md)
@@ -494,10 +516,10 @@ Query Eventhouse data, ingest storage or R objects, and export results
 
 Explore schemas, execute operations, and collect cursor-based pages
 
-- [`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md)
-  : Inspect a Fabric GraphQL schema
 - [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
   : Run a query against a Fabric GraphQL API
+- [`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md)
+  : Inspect a Fabric GraphQL schema
 - [`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
   : Read all pages from a Fabric GraphQL query
 - [`fabric_graphql_cursor()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_cursor.md)
@@ -513,23 +535,6 @@ Invoke published Fabric business logic through trusted public URLs
 
 - [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
   : Invoke a published Fabric user data function
-
-## Livy and Spark
-
-Run Spark statements, reusable sessions, and batch jobs through Livy
-
-- [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
-  : Run Spark code in a temporary Microsoft Fabric Livy session
-- [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
-  : Create a Microsoft Fabric Livy session
-- [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
-  : Submit a Microsoft Fabric Livy batch job
-- [`FabricLivySession`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md)
-  : A Microsoft Fabric Livy session
-- [`FabricLivyStatement`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.md)
-  : A statement submitted to a Fabric Livy session
-- [`FabricLivyBatch`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md)
-  : A Microsoft Fabric Livy batch job
 
 ## Item jobs
 

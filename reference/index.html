@@ -81,10 +81,10 @@
 
       <dl><dt>
 
-          <code><a href="fabric_sql_connection_info.html">fabric_sql_connection_info()</a></code>
+          <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>
 
         </dt>
-        <dd>Get connection details for a Fabric SQL item</dd>
+        <dd>Run a parameterized query against Microsoft Fabric SQL</dd>
 
         <dt>
 
@@ -95,24 +95,10 @@
 
         <dt>
 
-          <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>
+          <code><a href="fabric_sql_connection_info.html">fabric_sql_connection_info()</a></code>
 
         </dt>
-        <dd>Run a parameterized query against Microsoft Fabric SQL</dd>
-
-        <dt>
-
-          <code><a href="fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code>
-
-        </dt>
-        <dd>Read a Microsoft Fabric Warehouse table</dd>
-
-        <dt>
-
-          <code><a href="fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>
-
-        </dt>
-        <dd>Write an R or Arrow object to a Fabric Warehouse table</dd>
+        <dd>Get connection details for a Fabric SQL item</dd>
       </dl></div><div class="section level2">
       <h2 id="semantic-models-and-dax">Semantic models and DAX<a class="anchor" aria-label="anchor" href="#semantic-models-and-dax"></a></h2>
 
@@ -150,212 +136,6 @@
 
         </dt>
         <dd>Print Power BI refresh details</dd>
-      </dl></div><div class="section level2">
-      <h2 id="onelake-files">OneLake files<a class="anchor" aria-label="anchor" href="#onelake-files"></a></h2>
-
-      <div class="section-desc"><p>List, inspect, download, upload, and delete files in OneLake</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="fabric_onelake_files.html">fabric_onelake_list()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_metadata()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_download()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_upload()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_delete()</a></code>
-
-        </dt>
-        <dd>Work with files in Microsoft Fabric OneLake</dd>
-
-        <dt>
-
-          <code><a href="fabric_onelake_object_files.html">fabric_onelake_read_file()</a></code> <code><a href="fabric_onelake_object_files.html">fabric_onelake_write_file()</a></code>
-
-        </dt>
-        <dd>Read and write R or Arrow objects in OneLake Files</dd>
-
-        <dt>
-
-          <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcuts()</a></code> <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcut_get()</a></code> <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create()</a></code> <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcut_delete()</a></code>
-
-        </dt>
-        <dd>Manage OneLake shortcuts</dd>
-      </dl></div><div class="section level2">
-      <h2 id="delta-tables">Delta tables<a class="anchor" aria-label="anchor" href="#delta-tables"></a></h2>
-
-      <div class="section-desc"><p>Discover, load, and read Delta Lake tables in OneLake</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>
-
-        </dt>
-        <dd>Discover and load Microsoft Fabric Lakehouse tables</dd>
-
-        <dt>
-
-          <code><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>
-
-        </dt>
-        <dd>Read a Microsoft Fabric Lakehouse table</dd>
-
-        <dt>
-
-          <code><a href="fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code>
-
-        </dt>
-        <dd>Read a Delta table from OneLake</dd>
-
-        <dt>
-
-          <code><a href="fabric_delta_config.html">fabric_delta_config()</a></code>
-
-        </dt>
-        <dd>Inspect the optional Python Delta runtime</dd>
-      </dl></div><div class="section level2">
-      <h2 id="kql">KQL<a class="anchor" aria-label="anchor" href="#kql"></a></h2>
-
-      <div class="section-desc"><p>Query Eventhouse data, ingest storage or R objects, and export results</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="fabric_kql_query.html">fabric_kql_query()</a></code>
-
-        </dt>
-        <dd>Run a KQL query in Microsoft Fabric</dd>
-
-        <dt>
-
-          <code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code>
-
-        </dt>
-        <dd>Read a Microsoft Fabric KQL table</dd>
-
-        <dt>
-
-          <code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code> <code><a href="fabric_kql_ingest.html">fabric_kql_ingestion_status()</a></code>
-
-        </dt>
-        <dd>Submit and monitor tracked Eventhouse ingestion</dd>
-
-        <dt>
-
-          <code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code>
-
-        </dt>
-        <dd>Write an R or Arrow object to an Eventhouse table</dd>
-
-        <dt>
-
-          <code><a href="fabric_kql_export.html">fabric_kql_export()</a></code>
-
-        </dt>
-        <dd>Export a KQL query directly to external storage</dd>
-
-        <dt>
-
-          <code><a href="print.fabric_kql_ingestion.html">print(<i>&lt;fabric_kql_ingestion&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print a tracked Kusto ingestion handle</dd>
-
-        <dt>
-
-          <code><a href="print.fabric_kql_ingestion_status.html">print(<i>&lt;fabric_kql_ingestion_status&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print tracked Kusto ingestion status</dd>
-
-        <dt>
-
-          <code><a href="print.fabric_kql_write_result.html">print(<i>&lt;fabric_kql_write_result&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print an Eventhouse R/Arrow write result</dd>
-
-        <dt>
-
-          <code><a href="print.fabric_kql_export_result.html">print(<i>&lt;fabric_kql_export_result&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print a KQL storage export result</dd>
-      </dl></div><div class="section level2">
-      <h2 id="graphql">GraphQL<a class="anchor" aria-label="anchor" href="#graphql"></a></h2>
-
-      <div class="section-desc"><p>Explore schemas, execute operations, and collect cursor-based pages</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="fabric_graphql_schema.html">fabric_graphql_schema()</a></code>
-
-        </dt>
-        <dd>Inspect a Fabric GraphQL schema</dd>
-
-        <dt>
-
-          <code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code>
-
-        </dt>
-        <dd>Run a query against a Fabric GraphQL API</dd>
-
-        <dt>
-
-          <code><a href="fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code>
-
-        </dt>
-        <dd>Read all pages from a Fabric GraphQL query</dd>
-
-        <dt>
-
-          <code><a href="fabric_graphql_cursor.html">fabric_graphql_cursor()</a></code>
-
-        </dt>
-        <dd>Locate pagination information in a GraphQL result</dd>
-
-        <dt>
-
-          <code><a href="fabric_graphql_collect.html">fabric_graphql_collect()</a></code>
-
-        </dt>
-        <dd>Collect paged GraphQL row objects into a tibble</dd>
-
-        <dt>
-
-          <code><a href="print.fabric_graphql_rows.html">print(<i>&lt;fabric_graphql_rows&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print collected GraphQL rows</dd>
-      </dl></div><div class="section level2">
-      <h2 id="user-data-functions">User Data Functions<a class="anchor" aria-label="anchor" href="#user-data-functions"></a></h2>
-
-      <div class="section-desc"><p>Invoke published Fabric business logic through trusted public URLs</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="fabric_function_invoke.html">fabric_function_invoke()</a></code>
-
-        </dt>
-        <dd>Invoke a published Fabric user data function</dd>
       </dl></div><div class="section level2">
       <h2 id="livy-and-spark">Livy and Spark<a class="anchor" aria-label="anchor" href="#livy-and-spark"></a></h2>
 
@@ -407,6 +187,235 @@
 
         </dt>
         <dd>A Microsoft Fabric Livy batch job</dd>
+      </dl></div><div class="section level2">
+      <h2 id="warehouse-tables">Warehouse tables<a class="anchor" aria-label="anchor" href="#warehouse-tables"></a></h2>
+
+      <div class="section-desc"><p>Discover, load, and read Warehouse tables in Fabric</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code>
+
+        </dt>
+        <dd>Read a Microsoft Fabric Warehouse table</dd>
+
+        <dt>
+
+          <code><a href="fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>
+
+        </dt>
+        <dd>Write an R or Arrow object to a Fabric Warehouse table</dd>
+      </dl></div><div class="section level2">
+      <h2 id="lakehouse-tables-delta-lake-tables">LakeHouse tables / Delta Lake tables<a class="anchor" aria-label="anchor" href="#lakehouse-tables-delta-lake-tables"></a></h2>
+
+      <div class="section-desc"><p>Discover, load, and read Delta Lake tables in OneLake</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>
+
+        </dt>
+        <dd>Discover and load Microsoft Fabric Lakehouse tables</dd>
+
+        <dt>
+
+          <code><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>
+
+        </dt>
+        <dd>Read a Microsoft Fabric Lakehouse table</dd>
+
+        <dt>
+
+          <code><a href="fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code>
+
+        </dt>
+        <dd>Read a Delta table from OneLake</dd>
+
+        <dt>
+
+          <code><a href="fabric_delta_config.html">fabric_delta_config()</a></code>
+
+        </dt>
+        <dd>Inspect the optional Python Delta runtime</dd>
+      </dl></div><div class="section level2">
+      <h2 id="onelake-files">OneLake files<a class="anchor" aria-label="anchor" href="#onelake-files"></a></h2>
+
+      <div class="section-desc"><p>List, inspect, download, upload, and delete files in OneLake</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fabric_onelake_files.html">fabric_onelake_list()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_metadata()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_download()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_upload()</a></code> <code><a href="fabric_onelake_files.html">fabric_onelake_delete()</a></code>
+
+        </dt>
+        <dd>Work with files in Microsoft Fabric OneLake</dd>
+
+        <dt>
+
+          <code><a href="fabric_onelake_object_files.html">fabric_onelake_read_file()</a></code> <code><a href="fabric_onelake_object_files.html">fabric_onelake_write_file()</a></code>
+
+        </dt>
+        <dd>Read and write R or Arrow objects in OneLake Files</dd>
+
+        <dt>
+
+          <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcuts()</a></code> <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcut_get()</a></code> <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create()</a></code> <code><a href="fabric_onelake_shortcuts.html">fabric_onelake_shortcut_delete()</a></code>
+
+        </dt>
+        <dd>Manage OneLake shortcuts</dd>
+      </dl></div><div class="section level2">
+      <h2 id="kql">KQL<a class="anchor" aria-label="anchor" href="#kql"></a></h2>
+
+      <div class="section-desc"><p>Query Eventhouse data, ingest storage or R objects, and export results</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fabric_kql_query.html">fabric_kql_query()</a></code>
+
+        </dt>
+        <dd>Run a KQL query in Microsoft Fabric</dd>
+
+        <dt>
+
+          <code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code>
+
+        </dt>
+        <dd>Read a Microsoft Fabric KQL table</dd>
+
+        <dt>
+
+          <code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code>
+
+        </dt>
+        <dd>Write an R or Arrow object to an Eventhouse table</dd>
+
+        <dt>
+
+          <code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code> <code><a href="fabric_kql_ingest.html">fabric_kql_ingestion_status()</a></code>
+
+        </dt>
+        <dd>Submit and monitor tracked Eventhouse ingestion</dd>
+
+        <dt>
+
+          <code><a href="fabric_kql_export.html">fabric_kql_export()</a></code>
+
+        </dt>
+        <dd>Export a KQL query directly to external storage</dd>
+
+        <dt>
+
+          <code><a href="print.fabric_kql_ingestion.html">print(<i>&lt;fabric_kql_ingestion&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print a tracked Kusto ingestion handle</dd>
+
+        <dt>
+
+          <code><a href="print.fabric_kql_ingestion_status.html">print(<i>&lt;fabric_kql_ingestion_status&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print tracked Kusto ingestion status</dd>
+
+        <dt>
+
+          <code><a href="print.fabric_kql_write_result.html">print(<i>&lt;fabric_kql_write_result&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print an Eventhouse R/Arrow write result</dd>
+
+        <dt>
+
+          <code><a href="print.fabric_kql_export_result.html">print(<i>&lt;fabric_kql_export_result&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print a KQL storage export result</dd>
+      </dl></div><div class="section level2">
+      <h2 id="graphql">GraphQL<a class="anchor" aria-label="anchor" href="#graphql"></a></h2>
+
+      <div class="section-desc"><p>Explore schemas, execute operations, and collect cursor-based pages</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code>
+
+        </dt>
+        <dd>Run a query against a Fabric GraphQL API</dd>
+
+        <dt>
+
+          <code><a href="fabric_graphql_schema.html">fabric_graphql_schema()</a></code>
+
+        </dt>
+        <dd>Inspect a Fabric GraphQL schema</dd>
+
+        <dt>
+
+          <code><a href="fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code>
+
+        </dt>
+        <dd>Read all pages from a Fabric GraphQL query</dd>
+
+        <dt>
+
+          <code><a href="fabric_graphql_cursor.html">fabric_graphql_cursor()</a></code>
+
+        </dt>
+        <dd>Locate pagination information in a GraphQL result</dd>
+
+        <dt>
+
+          <code><a href="fabric_graphql_collect.html">fabric_graphql_collect()</a></code>
+
+        </dt>
+        <dd>Collect paged GraphQL row objects into a tibble</dd>
+
+        <dt>
+
+          <code><a href="print.fabric_graphql_rows.html">print(<i>&lt;fabric_graphql_rows&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print collected GraphQL rows</dd>
+      </dl></div><div class="section level2">
+      <h2 id="user-data-functions">User Data Functions<a class="anchor" aria-label="anchor" href="#user-data-functions"></a></h2>
+
+      <div class="section-desc"><p>Invoke published Fabric business logic through trusted public URLs</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fabric_function_invoke.html">fabric_function_invoke()</a></code>
+
+        </dt>
+        <dd>Invoke a published Fabric user data function</dd>
       </dl></div><div class="section level2">
       <h2 id="item-jobs">Item jobs<a class="anchor" aria-label="anchor" href="#item-jobs"></a></h2>
 
