@@ -1639,7 +1639,7 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 # ADBC parameter behavior behind a test seam
 .fabric_sql_db_bind <- function(result, params) {
   if (
-    inherits(result, "AdbiResult") &&
+    inherits(result, c("AdbiResult", "AdbiResultArrow")) &&
       is.list(params) &&
       !inherits(params, "data.frame")
   ) {

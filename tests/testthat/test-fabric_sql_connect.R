@@ -731,6 +731,26 @@ test_that("ADBC bind frames preserve SQL Server placeholder names", {
   expect_identical(frame[["@p3"]], I(NA_character_))
 })
 
+test_that("ADBC Arrow binding preserves SQL Server placeholder names", {
+  result <- structure(list(), class = "AdbiResultArrow")
+  params <- list("@p1" = 42L)
+  bound <- NULL
+  local_mocked_bindings(
+    dbBind = function(res, values) {
+      expect_identical(res, result)
+      bound <<- values
+      invisible(res)
+    },
+    .package = "DBI"
+  )
+
+  .fabric_sql_db_bind(result, params)
+
+  expect_s3_class(bound, "data.frame")
+  expect_identical(names(bound), "@p1")
+  expect_identical(bound[["@p1"]], I(42L))
+})
+
 test_that("ADBC bind failures clear the result before disconnecting", {
   connection <- structure(list(), class = "AdbiConnection")
   query_result <- structure(list(), class = "test_result")
