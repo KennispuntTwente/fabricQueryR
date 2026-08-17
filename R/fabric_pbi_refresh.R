@@ -479,7 +479,27 @@ fabric_pbi_refresh_wait <- function(
   )
   started <- .now()
   last <- NULL
-  retry_after <- context$refresh$retry_after
+  next_poll_at <- if (is.null(context$refresh$retry_after)) {
+    NULL
+  } else {
+    context$refresh$next_poll_at
+  }
+  if (
+    is.null(next_poll_at) &&
+      !is.null(context$refresh$submitted_at) &&
+      !is.null(context$refresh$retry_after)
+  ) {
+    next_poll_at <- context$refresh$submitted_at +
+      context$refresh$retry_after
+  }
+  retry_after <- if (is.null(next_poll_at)) {
+    context$refresh$retry_after
+  } else {
+    max(
+      0,
+      as.numeric(difftime(next_poll_at, started, units = "secs"))
+    )
+  }
 
   # 2 Poll until the service reaches a terminal state ----------------------------------------------
 

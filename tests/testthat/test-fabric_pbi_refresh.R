@@ -584,6 +584,42 @@ test_that("wait observes active attempts and returns completion", {
   expect_identical(index, 3L)
 })
 
+test_that("wait sleeps only the unelapsed submission Retry-After", {
+  requested <- 0L
+  slept <- numeric()
+  submitted <- as.POSIXct("2026-08-13 08:00:00", tz = "UTC")
+  now <- submitted + 50
+  handle <- pbi_refresh_test_handle(retry_after = 60)
+  handle$submitted_at <- submitted
+  handle$next_poll_at <- submitted + 60
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      requested <<- requested + 1L
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(status = "Completed", extendedStatus = "Completed")
+      )
+    }
+  )
+
+  result <- fabric_pbi_refresh_wait(
+    handle,
+    timeout = 20,
+    .sleep = function(seconds) {
+      slept <<- c(slept, seconds)
+      now <<- now + seconds
+    },
+    .now = function() now
+  )
+
+  expect_identical(result$state, "Completed")
+  expect_equal(slept, 10)
+  expect_identical(requested, 1L)
+})
+
 test_that("wait raises distinct service terminal conditions", {
   states <- list(
     Failed = c("Failed", "Failed", "fabric_pbi_refresh_failed"),
