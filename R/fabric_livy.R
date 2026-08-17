@@ -265,6 +265,18 @@ fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
   invisible(value)
 }
 
+# Check an optional Fabric item identifier as a canonical GUID
+fabric_livy_check_guid <- function(value, name, allow_null = TRUE) {
+  if (is.null(value) && isTRUE(allow_null)) {
+    return(invisible(value))
+  }
+  fabric_livy_check_string(value, name)
+  if (!fabric_is_guid(value)) {
+    .fabric_abort(paste0(name, " must be a GUID"))
+  }
+  invisible(value)
+}
+
 # Check numeric `value` against `minimum`. Returns invisibly for Livy timeout,
 # polling, and resource settings
 fabric_livy_check_number <- function(value, name, minimum = 0) {
@@ -406,7 +418,7 @@ fabric_livy_validate_session_fields <- function(
 fabric_livy_conf <- function(conf = NULL, environment_id = NULL) {
   conf <- fabric_livy_normalize_named_list(conf, "conf")
   if (!is.null(environment_id)) {
-    fabric_livy_check_string(environment_id, "environment_id")
+    fabric_livy_check_guid(environment_id, "environment_id")
     conf <- conf %||% list()
     conf[["spark.fabric.environmentDetails"]] <- jsonlite::toJSON(
       list(id = environment_id),

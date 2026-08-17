@@ -131,7 +131,7 @@ test_that("regular session runs multiple statements and closes", {
     "https://api.fabric.microsoft.com/livy/batches",
     token = "token",
     conf = list("spark.sql.shuffle.partitions" = "2"),
-    environment_id = "environment-id",
+    environment_id = "11111111-1111-4111-8111-111111111111",
     tags = list(owner = "unit-test"),
     verbose = FALSE
   )
@@ -150,7 +150,7 @@ test_that("regular session runs multiple statements and closes", {
   )
   expect_match(
     calls[[1L]]$payload$conf[["spark.fabric.environmentDetails"]],
-    "environment-id",
+    "11111111-1111-4111-8111-111111111111",
     fixed = TRUE
   )
   expect_equal(calls[[1L]]$payload$tags$owner, "unit-test")
@@ -735,8 +735,8 @@ test_that("batch jobs expose success logs and structured results", {
     name = "unit-batch",
     args = c("success"),
     conf = list("spark.test" = "yes"),
-    environment_id = "environment-id",
-    target_lakehouse_id = "lakehouse-id",
+    environment_id = "11111111-1111-4111-8111-111111111111",
+    target_lakehouse_id = "22222222-2222-4222-8222-222222222222",
     token = "token",
     verbose = FALSE,
     allow_custom_endpoint = TRUE
@@ -747,7 +747,7 @@ test_that("batch jobs expose success logs and structured results", {
   expect_equal(calls[[1L]]$payload$args, "success")
   expect_equal(
     calls[[1L]]$payload$conf[["spark.targetLakehouse"]],
-    "lakehouse-id"
+    "22222222-2222-4222-8222-222222222222"
   )
 
   batch$wait(timeout = 1, poll_interval = 0)
@@ -1119,6 +1119,31 @@ test_that("Livy input and endpoint validation is explicit", {
     ),
     "file must"
   )
+  auth_calls <- 0L
+  token <- function(...) {
+    auth_calls <<- auth_calls + 1L
+    stop("must not authenticate")
+  }
+  expect_error(
+    fabric_livy_session(
+      "https://api.fabric.microsoft.com/livy",
+      environment_id = "not-an-environment-guid",
+      token = token
+    ),
+    "environment_id must be a GUID",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_livy_batch_submit(
+      "https://api.fabric.microsoft.com/livy",
+      file = "abfss://workspace/lakehouse/Files/job.py",
+      target_lakehouse_id = "../not-a-lakehouse-guid",
+      token = token
+    ),
+    "target_lakehouse_id must be a GUID",
+    fixed = TRUE
+  )
+  expect_equal(auth_calls, 0L)
 })
 
 test_that("Livy wait arguments are validated before remote side effects", {

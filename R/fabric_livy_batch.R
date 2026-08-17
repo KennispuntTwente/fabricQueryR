@@ -164,7 +164,7 @@ fabric_livy_batch_submit <- function(
   tags <- fabric_livy_normalize_named_list(tags, "tags")
   conf <- fabric_livy_conf(conf, environment_id)
   if (!is.null(target_lakehouse_id)) {
-    fabric_livy_check_string(target_lakehouse_id, "target_lakehouse_id")
+    fabric_livy_check_guid(target_lakehouse_id, "target_lakehouse_id")
     conf <- conf %||% list()
     conf[["spark.targetLakehouse"]] <- target_lakehouse_id
   }
