@@ -93,7 +93,7 @@ def test_live_workflow_gates_package_changes_at_the_test_revision():
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
 
 
-def test_user_function_lane_requires_all_live_fixture_urls():
+def test_user_function_lane_accepts_all_optional_live_fixture_urls():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/integration-fabric.yaml"
@@ -111,8 +111,8 @@ def test_user_function_lane_requires_all_live_fixture_urls():
     for variable in variables:
         assert f"{variable}: ${{{{ secrets.{variable} }}}}" in workflow
         assert f'"{variable}"' in function_tests
-    assert function_tests.count("fabric_test_required_environment(") == 3
-    assert "fabric_test_optional_environment(" not in function_tests
+    assert function_tests.count("fabric_test_optional_environment(") == 3
+    assert "fabric_test_required_environment(" not in function_tests
 
 
 def test_live_workflow_skips_protected_teardown_for_fork_pull_requests():
@@ -163,7 +163,7 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert all(resource in integration for resource in resources)
 
 
-def test_auth_lane_acquires_a_required_least_privilege_identity():
+def test_auth_lane_acquires_an_optional_least_privilege_identity():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/integration-fabric.yaml"
@@ -178,7 +178,7 @@ def test_auth_lane_acquires_a_required_least_privilege_identity():
     assert "FABRIC_TEST_LIMITED_CLIENT_SECRET" in workflow
     assert "FABRIC_TEST_DENIED_WORKSPACE_ID" in workflow
     assert "FABRIC_TEST_LIMITED_API_TOKEN=$limited_token" in workflow
-    assert auth_tests.count("fabric_test_required_environment(") == 2
+    assert auth_tests.count("fabric_test_optional_environment(") == 2
 
 
 def test_delta_matrices_install_the_locked_delta_rs_oracle():
@@ -203,7 +203,12 @@ def test_locked_delta_bridge_runs_on_every_release_platform():
         repository_root / ".github/workflows/R-CMD-check.yaml"
     ).read_text()
 
-    assert "matrix.config.os == 'ubuntu-latest'" not in workflow
+    delta_steps = workflow[
+        workflow.index("- name: Set up uv for delta-rs runtime tests") :
+        workflow.index("R-4-1-compatibility:")
+    ]
+
+    assert "matrix.config.os == 'ubuntu-latest'" not in delta_steps
     assert workflow.count("if: matrix.config.r == 'release'") >= 3
     assert "matrix.config.os != 'windows-latest'" in workflow
     assert ".venv/bin/python" in workflow
@@ -269,12 +274,12 @@ def test_live_sql_matrix_installs_required_client_drivers():
 
 def test_parallel_sql_reads_ignore_graphql_mutation_sentinel():
     repository_root = Path(__file__).parents[3]
-    sql_tests = (
+    sql_fixtures = (
         repository_root
-        / "tests/testthat/test-integration-fabric-sql.R"
+        / "tests/testthat/helper-test-fixtures.R"
     ).read_text()
 
-    assert sql_tests.count('"WHERE id > 0"') == 2
+    assert sql_fixtures.count('"WHERE id > 0"') == 2
 
 
 def test_live_power_bi_suite_cancels_an_enhanced_refresh():

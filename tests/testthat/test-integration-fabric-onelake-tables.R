@@ -1,3 +1,5 @@
+# Fabric integration coverage: schema-aware table metadata and managed loads
+
 test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   fabric_test_require_package("arrow")
   fabric_test_require_package("DBI")

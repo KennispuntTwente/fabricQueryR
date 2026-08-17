@@ -1,3 +1,5 @@
+# Fabric integration coverage: OneLake files and the production delta-rs path
+
 test_that("Delta oracle differences are bounded for large tables", {
   actual <- data.frame(id = seq_len(100000L))
   expected <- actual
