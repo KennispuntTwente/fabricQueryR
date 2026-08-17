@@ -280,6 +280,11 @@ fabric_job_run <- function(
 #'   supply it together with a `fabric_job` handle
 #' @param respect_retry_after Whether to wait for Fabric's recommended first
 #'   status-check time. Keep `TRUE` for normal use
+#' @param notebook_details For Notebook jobs, whether to query the beta Notebook
+#'   status endpoint for exit values and compute details. The default preserves
+#'   the richer result. Set to `FALSE` to use only the stable Core Job Scheduler
+#'   status endpoint; `exit_value` and workload-specific `properties` may then
+#'   be unavailable
 #' @rdname fabric_job_run
 #' @export
 fabric_job_status <- function(
@@ -299,6 +304,7 @@ fabric_job_status <- function(
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
+  notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -313,6 +319,13 @@ fabric_job_status <- function(
       is.na(respect_retry_after)
   ) {
     .fabric_abort("`respect_retry_after` must be TRUE or FALSE")
+  }
+  if (
+    !is.logical(notebook_details) ||
+      length(notebook_details) != 1L ||
+      is.na(notebook_details)
+  ) {
+    .fabric_abort("`notebook_details` must be TRUE or FALSE")
   }
 
   if (
@@ -367,7 +380,11 @@ fabric_job_status <- function(
 
   # Read and return status once so later checks use a consistent view
 
-  instance <- .fabric_job_get_status(context, allow_not_found = FALSE)
+  instance <- .fabric_job_get_status(
+    context,
+    allow_not_found = FALSE,
+    notebook_details = notebook_details
+  )
   observed_at <- .now()
   instance$next_poll_at <- if (is.null(instance$retry_after)) {
     observed_at
@@ -407,6 +424,7 @@ fabric_job_wait <- function(
   auth_args = list(),
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
+  notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -448,6 +466,13 @@ fabric_job_wait <- function(
 
   if (!is.null(cancel) && !is.function(cancel)) {
     .fabric_abort("`cancel` must be a function or NULL")
+  }
+  if (
+    !is.logical(notebook_details) ||
+      length(notebook_details) != 1L ||
+      is.na(notebook_details)
+  ) {
+    .fabric_abort("`notebook_details` must be TRUE or FALSE")
   }
 
   # 2 Prepare the job context ----------------------------------------------------------------------
@@ -554,7 +579,8 @@ fabric_job_wait <- function(
 
     last <- .fabric_job_get_status(
       context,
-      allow_not_found = TRUE
+      allow_not_found = TRUE,
+      notebook_details = notebook_details
     )
     retry_after <- last$retry_after
     .fabric_poll_progress_update(progress, last$status)
@@ -1136,19 +1162,28 @@ print.fabric_job_instance <- function(x, ...) {
 
 # Read and reconcile job status from the workload and core APIs. Returns one
 # normalized job instance for public status and wait operations
-.fabric_job_get_status <- function(context, allow_not_found) {
+.fabric_job_get_status <- function(
+  context,
+  allow_not_found,
+  notebook_details = TRUE
+) {
   # 1 Read workload status -------------------------------------------------------------------------
 
   # Notebook status may briefly be unavailable from its workload route
 
-  url <- .fabric_job_status_url(context)
   notebook <- identical(context$route, "notebook")
+  detailed_notebook <- notebook && isTRUE(notebook_details)
+  url <- if (detailed_notebook) {
+    .fabric_job_status_url(context)
+  } else {
+    .fabric_job_core_status_url(context)
+  }
   result <- .fabric_job_request(
     "GET",
     url,
     context$credential,
     idempotent = TRUE,
-    accepted_status = if (notebook) {
+    accepted_status = if (detailed_notebook) {
       c(400L, 404L, 410L)
     } else if (isTRUE(allow_not_found)) {
       404L
@@ -1157,7 +1192,7 @@ print.fabric_job_instance <- function(x, ...) {
     }
   )
 
-  if (notebook && result$status_code %in% c(400L, 404L, 410L)) {
+  if (detailed_notebook && result$status_code %in% c(400L, 404L, 410L)) {
     result <- .fabric_job_request(
       "GET",
       .fabric_job_core_status_url(context),
@@ -1207,7 +1242,7 @@ print.fabric_job_instance <- function(x, ...) {
   )
 
   if (
-    notebook &&
+    detailed_notebook &&
       identical(instance$status, "Completed") &&
       is.null(instance$exit_value) &&
       !nzchar(.fabric_job_failure_text(instance$failure_reason))

@@ -804,6 +804,68 @@ test_that("notebook status falls back to the core scheduler", {
   expect_match(urls[[2L]], "/items/", fixed = TRUE)
 })
 
+test_that("notebook status can stay on the stable Core scheduler", {
+  urls <- character()
+  local_mocked_bindings(
+    .fabric_job_request = function(
+      method,
+      url,
+      ...,
+      accepted_status = integer()
+    ) {
+      urls <<- c(urls, url)
+      expect_equal(method, "GET")
+      expect_length(accepted_status, 0L)
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "33333333-3333-3333-3333-333333333333",
+          status = "Completed"
+        )
+      )
+    }
+  )
+
+  result <- fabric_job_status(
+    job_test_handle(),
+    notebook_details = FALSE,
+    respect_retry_after = FALSE
+  )
+
+  expect_equal(result$status, "Completed")
+  expect_null(result$exit_value)
+  expect_length(urls, 1L)
+  expect_match(urls[[1L]], "/items/", fixed = TRUE)
+  expect_false(grepl("beta=", urls[[1L]], fixed = TRUE))
+})
+
+test_that("notebook detail selection validates before status requests", {
+  calls <- 0L
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      calls <<- calls + 1L
+      stop("must not request")
+    }
+  )
+
+  expect_error(
+    fabric_job_status(
+      job_test_handle(),
+      notebook_details = NA,
+      respect_retry_after = FALSE
+    ),
+    "`notebook_details` must be TRUE or FALSE",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_job_wait(job_test_handle(), notebook_details = "beta"),
+    "`notebook_details` must be TRUE or FALSE",
+    fixed = TRUE
+  )
+  expect_equal(calls, 0L)
+})
+
 test_that("status represents delays in both notebook job stores", {
   calls <- 0L
   local_mocked_bindings(

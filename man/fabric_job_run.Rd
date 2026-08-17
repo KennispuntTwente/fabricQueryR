@@ -43,6 +43,7 @@ fabric_job_status(
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
+  notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -61,6 +62,7 @@ fabric_job_wait(
   auth_args = list(),
   api_base = .fabric_api_base,
   allow_custom_endpoint = FALSE,
+  notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -162,6 +164,12 @@ supply it together with a \code{fabric_job} handle}
 
 \item{respect_retry_after}{Whether to wait for Fabric's recommended first
 status-check time. Keep \code{TRUE} for normal use}
+
+\item{notebook_details}{For Notebook jobs, whether to query the beta Notebook
+status endpoint for exit values and compute details. The default preserves
+the richer result. Set to \code{FALSE} to use only the stable Core Job Scheduler
+status endpoint; \code{exit_value} and workload-specific \code{properties} may then
+be unavailable}
 
 \item{.sleep, .now}{Internal hooks for deterministic tests}
 
