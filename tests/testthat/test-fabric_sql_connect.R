@@ -254,6 +254,8 @@ test_that("ODBC passthrough attributes merge without token override", {
 test_that("SQL tokens are sent only to trusted endpoints by default", {
   acquired <- FALSE
   local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE),
+    fabric_sql_load_adbc_driver = function(...) list(),
     .fabric_sql_db_connect = function(...) {
       structure(list(), class = "test_connection")
     }
@@ -313,6 +315,45 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
       class = "fabric_sql_endpoint_error"
     )
   }
+  parser_confusion_hosts <- c(
+    "evil.example?x=.datawarehouse.fabric.microsoft.com",
+    "evil.example/path.datawarehouse.fabric.microsoft.com",
+    "evil.example#x=.database.windows.net",
+    "user@tenant.database.windows.net",
+    "tenant.database.windows.net:1433",
+    "tenant.database.windows.net\r\nattacker.example"
+  )
+  for (host in parser_confusion_hosts) {
+    expect_error(
+      fabric_sql_validate_endpoint(host, FALSE),
+      class = "fabric_sql_endpoint_error"
+    )
+    error <- tryCatch(
+      fabric_sql_connect(
+        host,
+        target_type = "warehouse",
+        backend = "adbc",
+        token = function(...) {
+          acquired <<- TRUE
+          "sql-token"
+        },
+        verbose = FALSE
+      ),
+      error = identity
+    )
+    expect_true(
+      inherits(error, "fabric_sql_endpoint_error") ||
+        inherits(error, "fabric_sql_target_error")
+    )
+    expect_identical(acquired, FALSE)
+  }
+  expect_identical(
+    fabric_sql_validate_endpoint(
+      "TENANT.DATABASE.WINDOWS.NET.",
+      FALSE
+    ),
+    "tenant.database.windows.net"
+  )
   expect_error(
     fabric_sql_validate_endpoint(
       "server.datawarehouse.fabric.microsoft.com",

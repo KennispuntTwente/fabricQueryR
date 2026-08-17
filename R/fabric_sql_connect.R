@@ -329,7 +329,10 @@ fabric_sql_connect <- function(
     target_type = target_type,
     port = port
   )
-  fabric_sql_validate_endpoint(info$server, allow_custom_endpoint)
+  info$server <- fabric_sql_validate_endpoint(
+    info$server,
+    allow_custom_endpoint
+  )
   if (is.null(token)) {
     inform(
       verbose,
@@ -1217,8 +1220,8 @@ fabric_sql_retry_settings <- function(max_tries, retry_delay) {
   invisible(TRUE)
 }
 
-# Validate SQL `server` and its trust boundary. Returns invisibly before the SQL
-# access token can be passed to a driver
+# Validate SQL `server` and its trust boundary. Returns one canonical bare
+# hostname before the SQL access token can be passed to a driver
 fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
   if (
     !is.logical(allow_custom_endpoint) ||
@@ -1227,7 +1230,44 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
   ) {
     .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
   }
+  fabric_sql_scalar(server, "server")
   host <- tolower(sub("\\.$", "", trimws(server)))
+  parsed <- try(
+    httr2::url_parse(paste0("sqlserver://", host)),
+    silent = TRUE
+  )
+  labels <- strsplit(host, ".", fixed = TRUE)[[1L]]
+  valid_label <- vapply(
+    labels,
+    function(label) {
+      grepl(
+        "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
+        label,
+        perl = TRUE
+      )
+    },
+    logical(1)
+  )
+  valid_host <- !inherits(parsed, "try-error") &&
+    identical(parsed$hostname, host) &&
+    is.null(parsed$username) &&
+    is.null(parsed$password) &&
+    is.null(parsed$port) &&
+    identical(parsed$path, "/") &&
+    is.null(parsed$query) &&
+    is.null(parsed$fragment) &&
+    nchar(host) <= 253L &&
+    length(labels) > 0L &&
+    all(valid_label)
+  if (!valid_host) {
+    .fabric_abort(
+      paste0(
+        "SQL server must be a bare DNS hostname without credentials, a port, ",
+        "a path, a query, or a fragment"
+      ),
+      class = c("fabric_sql_endpoint_error", "fabric_sql_target_error")
+    )
+  }
   trusted_suffixes <- c(
     ".datawarehouse.fabric.microsoft.com",
     ".datawarehouse.pbidedicated.microsoft.com",
@@ -1253,7 +1293,7 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
       class = c("fabric_sql_endpoint_error", "fabric_sql_target_error")
     )
   }
-  invisible(server)
+  host
 }
 
 # Separate caller ODBC connection arguments and attributes from `dots`. Returns

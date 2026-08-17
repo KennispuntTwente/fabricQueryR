@@ -2,6 +2,31 @@
 # These tests connect to seeded Lakehouse, Warehouse, and SQL Database targets
 # and verify discovery, DBI/ODBC queries, typed results, and Arrow streaming
 
+test_that("SQL integration rejects parser-confused ADBC endpoints before auth", {
+  acquired <- FALSE
+  local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE),
+    fabric_sql_load_adbc_driver = function(...) list()
+  )
+
+  error <- tryCatch(
+    fabric_sql_connect(
+      "attacker.example/path.datawarehouse.fabric.microsoft.com",
+      target_type = "warehouse",
+      backend = "adbc",
+      token = function(...) {
+        acquired <<- TRUE
+        "must-not-be-returned"
+      },
+      verbose = FALSE
+    ),
+    error = identity
+  )
+
+  expect_s3_class(error, "fabric_sql_endpoint_error")
+  expect_identical(acquired, FALSE)
+})
+
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
   backends <- fabric_test_sql_backends()
   manifest <- fabric_test_manifest()
