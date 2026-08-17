@@ -98,9 +98,11 @@ fabric_job_cancel(
 
 - job_type:
 
-  Fabric job type. fabricQueryR knows the usual values for notebooks,
-  `"Pipeline"` for data pipelines, and `"SparkJob"` for Spark job
-  definitions, so normally omit this unless running another item type
+  Fabric job type. fabricQueryR uses the current typed `"Execute"`
+  operation for data pipelines and knows the usual values for notebooks
+  and Spark job definitions, so normally omit this unless running
+  another item type. Set `job_type = "Pipeline"` for a data pipeline
+  only when explicitly using Fabric's legacy core job endpoint
 
 - item_type:
 

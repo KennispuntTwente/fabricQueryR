@@ -90,10 +90,11 @@ fabric_function_invoke(
 ## Value
 
 A `fabric_function_result` list with `function_name`, `invocation_id`,
-`status`, `output`, `errors`, `http_status`, and `response`. `response`
-retains the complete redacted service envelope, including unknown future
-fields. Inspect `status` and `errors`; receiving a result does not by
-itself mean the function succeeded.
+`status`, `output`, `errors`, `http_status`, and `response`. Function
+`output` is returned unchanged because field names such as `token` can
+be legitimate domain data. The rest of `response` is redacted and
+retains unknown future fields. Inspect `status` and `errors`; receiving
+a result does not by itself mean the function succeeded.
 
 ## Before you invoke
 

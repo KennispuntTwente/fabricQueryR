@@ -137,9 +137,11 @@ Omit it when <code>item</code> is a discovered record containing <code>workspace
 
 
 <dt id="arg-job-type">job_type<a class="anchor" aria-label="anchor" href="#arg-job-type"></a></dt>
-<dd><p>Fabric job type. fabricQueryR knows the usual values for
-notebooks, <code>"Pipeline"</code> for data pipelines, and <code>"SparkJob"</code> for Spark job
-definitions, so normally omit this unless running another item type</p></dd>
+<dd><p>Fabric job type. fabricQueryR uses the current typed
+<code>"Execute"</code> operation for data pipelines and knows the usual values for
+notebooks and Spark job definitions, so normally omit this unless running
+another item type. Set <code>job_type = "Pipeline"</code> for a data pipeline only when
+explicitly using Fabric's legacy core job endpoint</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
