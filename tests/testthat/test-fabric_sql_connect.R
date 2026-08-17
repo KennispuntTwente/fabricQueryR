@@ -299,6 +299,22 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
       "sql_analytics_endpoint"
     )
   }
+  generic_analytics_host <- "warehouse-id.contoso.fabric.microsoft.com"
+  expect_silent(fabric_sql_validate_endpoint(generic_analytics_host, FALSE))
+  expect_identical(
+    fabric_sql_connection_info(generic_analytics_host)$target_type,
+    "sql_analytics_endpoint"
+  )
+  expect_identical(
+    fabric_sql_connection_info(
+      "sql-id.database.fabric.microsoft.com"
+    )$target_type,
+    "sql_database"
+  )
+  expect_error(
+    fabric_sql_validate_endpoint("contoso.fabric.microsoft.com", FALSE),
+    class = "fabric_sql_endpoint_error"
+  )
   expect_error(
     fabric_sql_validate_endpoint("notfabric.microsoft.com", FALSE),
     class = "fabric_sql_endpoint_error"

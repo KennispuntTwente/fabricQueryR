@@ -1276,13 +1276,18 @@ fabric_sql_validate_endpoint <- function(server, allow_custom_endpoint) {
     ".database.fabric.microsoft.com",
     ".database.windows.net"
   )
-  trusted <- any(vapply(
-    trusted_suffixes,
-    function(suffix) {
-      endsWith(host, suffix) && nchar(host) > nchar(suffix)
-    },
-    logical(1)
-  ))
+  trusted <- grepl(
+    "^[^.]+\\.[^.]+\\.fabric\\.microsoft\\.com$",
+    host,
+    ignore.case = TRUE
+  ) ||
+    any(vapply(
+      trusted_suffixes,
+      function(suffix) {
+        endsWith(host, suffix) && nchar(host) > nchar(suffix)
+      },
+      logical(1)
+    ))
   if (!trusted && !isTRUE(allow_custom_endpoint)) {
     .fabric_abort(
       paste0(
@@ -1437,25 +1442,26 @@ fabric_parse_sql_connection_string <- function(server) {
 fabric_infer_sql_target <- function(server) {
   if (
     grepl(
-      paste0(
-        "(?:\\.datawarehouse\\.fabric\\.microsoft\\.com|",
-        "\\.datawarehouse\\.pbidedicated\\.microsoft\\.com|",
-        "\\.pbidedicated\\.microsoft\\.com|",
-        "\\.pbidedicated\\.windows\\.net)$"
-      ),
-      server,
-      ignore.case = TRUE
-    )
-  ) {
-    "sql_analytics_endpoint"
-  } else if (
-    grepl(
       "(?:\\.database\\.fabric\\.microsoft\\.com|\\.database\\.windows\\.net)$",
       server,
       ignore.case = TRUE
     )
   ) {
     "sql_database"
+  } else if (
+    grepl(
+      paste0(
+        "(?:\\.datawarehouse\\.fabric\\.microsoft\\.com|",
+        "\\.datawarehouse\\.pbidedicated\\.microsoft\\.com|",
+        "\\.pbidedicated\\.microsoft\\.com|",
+        "\\.pbidedicated\\.windows\\.net|",
+        "^[^.]+\\.[^.]+\\.fabric\\.microsoft\\.com)$"
+      ),
+      server,
+      ignore.case = TRUE
+    )
+  ) {
+    "sql_analytics_endpoint"
   } else {
     "auto"
   }
