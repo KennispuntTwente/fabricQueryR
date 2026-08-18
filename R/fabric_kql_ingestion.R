@@ -3705,17 +3705,6 @@ kusto_execute_management <- function(
   )
 }
 
-# Parse every v1 management table using the established Kusto type converter
-kusto_export_tables <- function(payload) {
-  kusto_management_tables(
-    payload,
-    error_class = c(
-      "fabric_kql_export_protocol_error",
-      "fabric_kql_export_error"
-    )
-  )
-}
-
 kusto_management_tables <- function(payload, error_class) {
   if (!is.list(payload) || !is.list(payload$Tables)) {
     .fabric_abort(
