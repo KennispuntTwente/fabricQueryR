@@ -51,8 +51,10 @@ details by hand
   to read them, and the Livy helpers when Spark processing is required
 
 - Use
+  [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md)
+  to discover Warehouse tables, then
   [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
-  and
+  or
   [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
   for symmetric Warehouse table transfer
 

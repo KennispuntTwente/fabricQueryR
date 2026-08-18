@@ -108,6 +108,8 @@ List, inspect, download, upload, and delete files in OneLake
 
 Discover, load, and read Warehouse tables in Fabric
 
+- [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md)
+  : Discover Microsoft Fabric Warehouse tables
 - [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
   : Read a Microsoft Fabric Warehouse table
 - [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)

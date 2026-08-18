@@ -43,12 +43,13 @@
   write data frames or Arrow data. Both ordinary and schema-enabled
   Lakehouses are supported.
 
-- [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
+- [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md),
+  [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md),
   and
   [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
-  read and bulk-write Warehouse tables using data frames or Arrow data.
-  Tables can be created, appended to, overwritten, or recreated as
-  requested.
+  discover, read, and bulk-write Warehouse tables using data frames or
+  Arrow data. Tables can be created, appended to, overwritten, or
+  recreated as requested.
 
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   and
