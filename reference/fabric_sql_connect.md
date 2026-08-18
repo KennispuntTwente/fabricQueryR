@@ -1,8 +1,8 @@
 # Connect to a Microsoft Fabric SQL target
 
 Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot,
-Lakehouse, or SQL Database. Use the connection with familiar DBI
-functions such as
+Lakehouse, mirrored database, or SQL Database. Use the connection with
+familiar DBI functions such as
 [`DBI::dbListTables()`](https://dbi.r-dbi.org/reference/dbListTables.html)
 and
 [`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html)
@@ -160,11 +160,12 @@ immediately
 The easiest input is an item returned by
 [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
 [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+[`fabric_mirrored_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
 or
 [`fabric_sql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-You can also paste a SQL connection string from Fabric. A Lakehouse's
-SQL endpoint is read-only; use Spark or another OneLake writer to change
-Lakehouse data
+You can also paste a SQL connection string from Fabric. Lakehouse and
+mirrored database SQL endpoints are read-only; use the source system,
+Spark, or another appropriate writer to change their data
 
 ## Choosing a backend
 

@@ -41,17 +41,19 @@ fabric_onelake_read_delta_table(
 
 - lakehouse_name:
 
-  Lakehouse name, ID, or discovery record. Compatible Warehouse items
-  are also accepted
+  Lakehouse name, ID, or discovery record. Compatible Warehouse and
+  mirrored database items are also accepted
 
 - schema:
 
-  Schema containing the table, or `NULL`. Warehouses default to `"dbo"`
+  Schema containing the table, or `NULL`. Warehouses and mirrored
+  databases default to `"dbo"` when discovery provides no default
 
 - item_type:
 
-  `"Lakehouse"`, `"Warehouse"`, or `NULL`. Usually inferred; specify it
-  only when using an item name without a type suffix
+  `"Lakehouse"`, `"Warehouse"`, `"MirroredDatabase"`, or `NULL`. Usually
+  inferred; specify it only when using an item name without a type
+  suffix
 
 - tenant_id:
 

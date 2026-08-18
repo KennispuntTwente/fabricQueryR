@@ -13,6 +13,7 @@ Find Fabric workspaces, items, and workload-specific connection details
 - [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_warehouse_snapshots()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  [`fabric_mirrored_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_sql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
@@ -128,6 +129,16 @@ Discover, load, and read Warehouse tables in Fabric
   : Read a Microsoft Fabric Warehouse table
 - [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
   : Write an R or Arrow object to a Fabric Warehouse table
+
+## Mirrored Database tables
+
+Discover and read replicated Delta tables in OneLake
+
+- [`fabric_mirrored_database_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
+  [`fabric_mirrored_database_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
+  [`fabric_mirrored_database_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
+  [`fabric_mirrored_database_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
+  : Work with Microsoft Fabric mirrored database tables
 
 ## KQL (Eventhouse)
 

@@ -14,6 +14,8 @@ fabric_warehouses(workspace, detail = TRUE, ...)
 
 fabric_warehouse_snapshots(workspace, detail = TRUE, ...)
 
+fabric_mirrored_databases(workspace, detail = TRUE, ...)
+
 fabric_sql_databases(workspace, detail = TRUE, ...)
 
 fabric_semantic_models(workspace, detail = TRUE, ...)
@@ -65,11 +67,11 @@ for details
 
 ## Choosing a helper
 
-- `fabric_lakehouses()`, `fabric_warehouses()`, and
-  `fabric_warehouse_snapshots()` find data stores that can be queried
-  through
+- `fabric_lakehouses()`, `fabric_warehouses()`,
+  `fabric_warehouse_snapshots()`, and `fabric_mirrored_databases()` find
+  data stores that can be queried through
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md);
-  Lakehouses can also be accessed through OneLake and Livy
+  Lakehouses and mirrored databases can also be accessed through OneLake
 
 - `fabric_sql_databases()` finds transactional Fabric SQL databases
 
@@ -138,6 +140,7 @@ workspace <- fabric_workspaces()[[1]]
 lakehouses <- fabric_lakehouses(workspace)
 warehouses <- fabric_warehouses(workspace)
 snapshots <- fabric_warehouse_snapshots(workspace)
+mirrored_databases <- fabric_mirrored_databases(workspace)
 sql_databases <- fabric_sql_databases(workspace)
 semantic_models <- fabric_semantic_models(workspace)
 eventhouses <- fabric_eventhouses(workspace)

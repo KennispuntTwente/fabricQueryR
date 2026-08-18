@@ -55,6 +55,12 @@
   tables using data frames or Arrow data. Tables can be created,
   appended to, overwritten, or recreated as requested.
 
+- [`fabric_mirrored_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+  and the `fabric_mirrored_database_*()` helpers discover mirrored
+  databases and inspect or read their OneLake Delta tables. Discovered
+  records also work with the generic SQL helpers through each mirrored
+  database’s read-only SQL analytics endpoint.
+
 - [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md),
   [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md),
   and

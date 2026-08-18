@@ -81,17 +81,18 @@ earlier table version, or return an Arrow stream for larger results</p>
 
 <dt id="arg-lakehouse-name">lakehouse_name<a class="anchor" aria-label="anchor" href="#arg-lakehouse-name"></a></dt>
 <dd><p>Lakehouse name, ID, or discovery record. Compatible
-Warehouse items are also accepted</p></dd>
+Warehouse and mirrored database items are also accepted</p></dd>
 
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
-<dd><p>Schema containing the table, or <code>NULL</code>. Warehouses default to
-<code>"dbo"</code></p></dd>
+<dd><p>Schema containing the table, or <code>NULL</code>. Warehouses and mirrored
+databases default to <code>"dbo"</code> when discovery provides no default</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
-<dd><p><code>"Lakehouse"</code>, <code>"Warehouse"</code>, or <code>NULL</code>. Usually inferred;
-specify it only when using an item name without a type suffix</p></dd>
+<dd><p><code>"Lakehouse"</code>, <code>"Warehouse"</code>, <code>"MirroredDatabase"</code>, or
+<code>NULL</code>. Usually inferred; specify it only when using an item name without a
+type suffix</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
