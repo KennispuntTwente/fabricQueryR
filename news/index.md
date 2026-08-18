@@ -107,15 +107,20 @@
   check service addresses more carefully and give clearer retry,
   timeout, and error messages.
 
-- [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+- [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
+  [`fabric_sql_views()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
+  and
+  [`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+  provide symmetric discovery and reads across Lakehouses, Warehouses,
+  Warehouse snapshots, and Fabric SQL Databases.
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   and
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-  now accept discovered items and portal connection strings, and support
-  Lakehouses, Warehouses, and Fabric SQL Databases. Queries can use
-  parameters and return a tibble or Arrow stream. The default
-  `database = NULL` infers the database when possible;
+  accept the same discovered items and portal connection strings.
+  Queries can use parameters and return a tibble or Arrow stream. The
+  default `database = NULL` infers the database when possible;
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-  is now limited to one read-only statement, so use
+  is limited to one read-only statement, so use
   [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
   for other SQL work.
 

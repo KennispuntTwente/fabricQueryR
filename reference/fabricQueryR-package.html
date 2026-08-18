@@ -54,8 +54,9 @@ most workflows, you do not need to copy IDs or connection details by hand</p>
 
 <ul><li><p>Use <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code> and the typed discovery helpers, such as
 <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code> or <code><a href="fabric_typed_items.html">fabric_semantic_models()</a></code>, to find data</p></li>
-<li><p>Use <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code> for T-SQL against a Warehouse, SQL Database, or
-Lakehouse SQL analytics endpoint</p></li>
+<li><p>Use <code><a href="fabric_sql_tables.html">fabric_sql_tables()</a></code> to discover tables and views across Warehouse,
+SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
+<code><a href="fabric_sql_tables.html">fabric_sql_read_table()</a></code> or <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code> to read them</p></li>
 <li><p>Use <code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code> for report-ready semantic models,
 <code><a href="fabric_kql_tables.html">fabric_kql_tables()</a></code> to discover Eventhouse tables,
 <code><a href="fabric_kql_query.html">fabric_kql_query()</a></code> for Eventhouse/KQL data,

@@ -29,6 +29,10 @@ Find Fabric workspaces, items, and workload-specific connection details
 
 Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
 
+- [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+  [`fabric_sql_views()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+  [`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+  : Discover and read tables through a Fabric SQL endpoint
 - [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
   : Run a parameterized query against Microsoft Fabric SQL
 - [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)

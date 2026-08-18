@@ -17,9 +17,13 @@ details by hand
   to find data
 
 - Use
+  [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+  to discover tables and views across Warehouse, SQL Database, Warehouse
+  snapshot, or Lakehouse SQL endpoints, then
+  [`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+  or
   [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-  for T-SQL against a Warehouse, SQL Database, or Lakehouse SQL
-  analytics endpoint
+  to read them
 
 - Use
   [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
