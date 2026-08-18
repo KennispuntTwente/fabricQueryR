@@ -1,3 +1,142 @@
+test_that("Warehouse table discovery follows schema and table pages", {
+  calls <- character()
+  audiences <- character()
+  provider <- function(audience, force_refresh = FALSE) {
+    audiences <<- c(audiences, audience)
+    "test-token"
+  }
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    url <- utils::URLdecode(req$url)
+    body <- if (grepl("/schemas[?]", url)) {
+      if (grepl("page_token=schema-2", url, fixed = TRUE)) {
+        list(
+          schemas = list(list(name = "sales", comment = "Sales schema")),
+          next_page_token = NULL
+        )
+      } else {
+        list(
+          schemas = list(list(name = "dbo", future_schema = "kept")),
+          next_page_token = "schema-2"
+        )
+      }
+    } else if (grepl("/tables[?]", url)) {
+      schema <- if (grepl("schema_name=sales", url, fixed = TRUE)) {
+        "sales"
+      } else {
+        "dbo"
+      }
+      name <- if (identical(schema, "sales")) "éxport_数据" else "orders"
+      list(
+        tables = list(list(
+          name = name,
+          schema_name = schema,
+          table_type = "MANAGED",
+          data_source_format = "DELTA",
+          storage_location = paste0(
+            "https://onelake.dfs.fabric.microsoft.com/workspace/warehouse/",
+            "Tables/",
+            schema,
+            "/",
+            name
+          ),
+          future_table = list(value = "kept")
+        )),
+        next_page_token = NULL
+      )
+    } else {
+      name <- if (grepl("éxport_数据", url, fixed = TRUE)) {
+        "éxport_数据"
+      } else {
+        "orders"
+      }
+      schema <- if (identical(name, "éxport_数据")) "sales" else "dbo"
+      list(
+        name = name,
+        schema_name = schema,
+        table_id = paste0("id-", name),
+        created_at = 1786622400123,
+        updated_at = 1786622460456,
+        columns = list(list(
+          name = "id",
+          type_name = "long",
+          nullable = FALSE,
+          position = 0L
+        )),
+        future_detail = "kept"
+      )
+    }
+    lakehouse_table_test_response(body, url = req$url)
+  })
+
+  tables <- fabric_warehouse_tables(
+    warehouse_write_test_warehouse(),
+    page_size = 1L,
+    token = provider
+  )
+
+  expect_s3_class(tables, "tbl_df")
+  expect_equal(tables$name, c("orders", "éxport_数据"))
+  expect_equal(tables$schema, c("dbo", "sales"))
+  expect_equal(tables$full_name, c("dbo.orders", "sales.éxport_数据"))
+  expect_equal(tables$type, rep("MANAGED", 2L))
+  expect_equal(tables$format, rep("DELTA", 2L))
+  expect_s3_class(tables$created_at, "POSIXct")
+  expect_equal(tables$columns[[1L]][[1L]]$type_name, "long")
+  expect_equal(tables$schema_metadata[[1L]]$future_schema, "kept")
+  expect_equal(tables$raw[[1L]]$future_table$value, "kept")
+  expect_equal(tables$raw[[1L]]$future_detail, "kept")
+  expect_length(tables$fabric_raw[[1L]], 0L)
+  expect_length(calls, 6L)
+  expect_equal(sum(grepl("max_results=1", calls, fixed = TRUE)), 4L)
+  expect_equal(
+    sum(grepl(warehouse_write_test_workspace_id, calls, fixed = TRUE)),
+    6L
+  )
+  expect_equal(
+    sum(grepl(warehouse_write_test_warehouse_id, calls, fixed = TRUE)),
+    6L
+  )
+  expect_equal(audiences, rep(.fabric_audience$storage, 6L))
+})
+
+test_that("Warehouse discovery can target one schema without detail", {
+  calls <- character()
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    lakehouse_table_test_response(
+      list(
+        tables = list(list(
+          name = "orders",
+          schema_name = "sales",
+          table_type = NULL,
+          data_source_format = "DELTA",
+          storage_location = paste0(
+            "https://onelake.dfs.fabric.microsoft.com/workspace/warehouse/",
+            "Tables/sales/orders"
+          )
+        )),
+        next_page_token = NULL
+      ),
+      url = req$url
+    )
+  })
+
+  tables <- fabric_warehouse_tables(
+    warehouse_write_test_warehouse(),
+    schema = "sales",
+    detail = FALSE,
+    token = "storage-token"
+  )
+
+  expect_equal(tables$name, "orders")
+  expect_equal(tables$schema, "sales")
+  expect_equal(tables$format, "DELTA")
+  expect_length(tables$columns[[1L]], 0L)
+  expect_length(calls, 1L)
+  expect_match(calls, "schema_name=sales", fixed = TRUE)
+})
+
 test_that("Warehouse table reader resolves and safely quotes its query", {
   resolved <- NULL
   queried <- NULL

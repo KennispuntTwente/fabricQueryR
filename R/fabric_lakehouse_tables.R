@@ -370,16 +370,20 @@ fabric_lakehouse_tables <- function(
   # 1 Validate options and resolve the Lakehouse --------------------------------------------------
 
   .fabric_operation_logical(detail, "detail")
-  .fabric_lakehouse_page_size(page_size)
+  .fabric_onelake_table_page_size(page_size)
   if (!is.null(schema)) {
     .fabric_lakehouse_nonempty(schema, "schema")
   }
 
   api_base_supplied <- !missing(api_base)
   base <- fabric_api_base(api_base, allow_custom_endpoint)
-  table_base <- .fabric_lakehouse_table_api_base(
+  table_base <- .fabric_onelake_table_api_base(
     table_api_base,
-    allow_custom_endpoint
+    allow_custom_endpoint,
+    error_class = c(
+      "fabric_lakehouse_endpoint_error",
+      "fabric_lakehouse_error"
+    )
   )
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -421,109 +425,20 @@ fabric_lakehouse_tables <- function(
 
   # 3 List schemas, then every OneLake metadata page ---------------------------------------------
 
-  catalog_url <- paste0(
-    table_base,
-    "/",
-    onelake_encode_path(target$workspace_id, target$lakehouse_id),
-    "/api/2.1/unity-catalog"
-  )
-  schema_records <- if (is.null(schema)) {
-    .fabric_lakehouse_table_pages(
-      paste0(catalog_url, "/schemas"),
-      field = "schemas",
-      query = list(catalog_name = target$lakehouse_id),
-      credential = credential,
-      page_size = page_size
+  .fabric_onelake_table_inventory(
+    workspace_id = target$workspace_id,
+    item_id = target$lakehouse_id,
+    schema = schema,
+    detail = detail,
+    page_size = page_size,
+    credential = credential,
+    table_base = table_base,
+    fabric_records = fabric_records,
+    error_class = c(
+      "fabric_lakehouse_protocol_error",
+      "fabric_lakehouse_error"
     )
-  } else {
-    list(list(name = schema))
-  }
-  schema_names <- vapply(
-    schema_records,
-    function(record) {
-      value <- record$name
-      if (
-        !is.character(value) ||
-          length(value) != 1L ||
-          is.na(value) ||
-          !nzchar(value)
-      ) {
-        .fabric_abort(
-          "OneLake returned schema metadata without one non-empty name",
-          class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
-        )
-      }
-      value
-    },
-    character(1)
   )
-
-  rows <- list()
-  for (schema_index in seq_along(schema_names)) {
-    schema_name <- schema_names[[schema_index]]
-    records <- .fabric_lakehouse_table_pages(
-      paste0(catalog_url, "/tables"),
-      field = "tables",
-      query = list(
-        catalog_name = target$lakehouse_id,
-        schema_name = schema_name
-      ),
-      credential = credential,
-      page_size = page_size
-    )
-
-    for (record in records) {
-      table_name <- record$name
-      if (
-        !is.character(table_name) ||
-          length(table_name) != 1L ||
-          is.na(table_name) ||
-          !nzchar(table_name)
-      ) {
-        .fabric_abort(
-          "OneLake returned table metadata without one non-empty name",
-          class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
-        )
-      }
-      table_schema <- record$schema_name %||% schema_name
-      full_name <- paste(
-        target$lakehouse_id,
-        table_schema,
-        table_name,
-        sep = "."
-      )
-      if (isTRUE(detail)) {
-        detail_url <- paste0(
-          catalog_url,
-          "/tables/",
-          utils::URLencode(full_name, reserved = TRUE)
-        )
-        detail_record <- .httr2_json(
-          httr2::req_url_query(
-            httr2::request(detail_url),
-            catalog_name = target$lakehouse_id,
-            schema_name = table_schema
-          ),
-          simplifyVector = FALSE,
-          credential = credential,
-          audience = .fabric_audience$storage
-        )
-        record <- utils::modifyList(record, detail_record)
-      }
-      rows[[length(rows) + 1L]] <- .fabric_lakehouse_table_row(
-        record,
-        schema_name = table_schema,
-        schema_record = schema_records[[schema_index]],
-        fabric_record = .fabric_lakehouse_match_fabric_table(
-          record,
-          table_schema,
-          fabric_records
-        )
-      )
-    }
-  }
-
-  .fabric_lakehouse_table_tibble(rows)
 }
 
 # Follow Fabric List Tables continuation URIs/tokens. This source is the only
@@ -872,7 +787,11 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Validate and normalize the dedicated OneLake Delta metadata endpoint
-.fabric_lakehouse_table_api_base <- function(value, allow_custom_endpoint) {
+.fabric_onelake_table_api_base <- function(
+  value,
+  allow_custom_endpoint,
+  error_class
+) {
   .fabric_operation_logical(allow_custom_endpoint, "allow_custom_endpoint")
   .fabric_lakehouse_nonempty(value, "table_api_base")
   endpoint <- sub("/+$", "", trimws(value))
@@ -899,7 +818,7 @@ fabric_lakehouse_write_table <- function(
   if (!clean) {
     .fabric_abort(
       "table_api_base must be an HTTPS origin with an optional /delta path",
-      class = c("fabric_lakehouse_endpoint_error", "fabric_lakehouse_error")
+      class = error_class
     )
   }
   if (
@@ -912,7 +831,7 @@ fabric_lakehouse_write_table <- function(
         value,
         "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
       ),
-      class = c("fabric_lakehouse_endpoint_error", "fabric_lakehouse_error")
+      class = error_class
     )
   }
   if (identical(tolower(path), "/delta")) {
@@ -922,13 +841,130 @@ fabric_lakehouse_write_table <- function(
   }
 }
 
+# List schemas and tables through OneLake's Unity Catalog-compatible metadata
+# endpoint. Lakehouse discovery can additionally merge its Fabric REST table
+# inventory; other OneLake item types leave fabric_records empty.
+.fabric_onelake_table_inventory <- function(
+  workspace_id,
+  item_id,
+  schema,
+  detail,
+  page_size,
+  credential,
+  table_base,
+  fabric_records = list(),
+  error_class
+) {
+  catalog_url <- paste0(
+    table_base,
+    "/",
+    onelake_encode_path(workspace_id, item_id),
+    "/api/2.1/unity-catalog"
+  )
+  schema_records <- if (is.null(schema)) {
+    .fabric_onelake_table_pages(
+      paste0(catalog_url, "/schemas"),
+      field = "schemas",
+      query = list(catalog_name = item_id),
+      credential = credential,
+      page_size = page_size,
+      error_class = error_class
+    )
+  } else {
+    list(list(name = schema))
+  }
+  schema_names <- vapply(
+    schema_records,
+    function(record) {
+      value <- record$name
+      if (
+        !is.character(value) ||
+          length(value) != 1L ||
+          is.na(value) ||
+          !nzchar(value)
+      ) {
+        .fabric_abort(
+          "OneLake returned schema metadata without one non-empty name",
+          class = error_class
+        )
+      }
+      value
+    },
+    character(1)
+  )
+
+  rows <- list()
+  for (schema_index in seq_along(schema_names)) {
+    schema_name <- schema_names[[schema_index]]
+    records <- .fabric_onelake_table_pages(
+      paste0(catalog_url, "/tables"),
+      field = "tables",
+      query = list(
+        catalog_name = item_id,
+        schema_name = schema_name
+      ),
+      credential = credential,
+      page_size = page_size,
+      error_class = error_class
+    )
+
+    for (record in records) {
+      table_name <- record$name
+      if (
+        !is.character(table_name) ||
+          length(table_name) != 1L ||
+          is.na(table_name) ||
+          !nzchar(table_name)
+      ) {
+        .fabric_abort(
+          "OneLake returned table metadata without one non-empty name",
+          class = error_class
+        )
+      }
+      table_schema <- record$schema_name %||% schema_name
+      full_name <- paste(item_id, table_schema, table_name, sep = ".")
+      if (isTRUE(detail)) {
+        detail_url <- paste0(
+          catalog_url,
+          "/tables/",
+          utils::URLencode(full_name, reserved = TRUE)
+        )
+        detail_record <- .httr2_json(
+          httr2::req_url_query(
+            httr2::request(detail_url),
+            catalog_name = item_id,
+            schema_name = table_schema
+          ),
+          simplifyVector = FALSE,
+          credential = credential,
+          audience = .fabric_audience$storage
+        )
+        record <- utils::modifyList(record, detail_record)
+      }
+      rows[[length(rows) + 1L]] <- .fabric_onelake_table_row(
+        record,
+        schema_name = table_schema,
+        schema_record = schema_records[[schema_index]],
+        fabric_record = .fabric_lakehouse_match_fabric_table(
+          record,
+          table_schema,
+          fabric_records
+        )
+      )
+    }
+  }
+
+  .fabric_onelake_table_tibble(rows)
+}
+
 # Follow Unity Catalog-compatible page tokens for a schema or table collection
-.fabric_lakehouse_table_pages <- function(
+.fabric_onelake_table_pages <- function(
   url,
   field,
   query,
   credential,
-  page_size
+  page_size,
+  error_class
 ) {
   records <- list()
   page_token <- NULL
@@ -957,7 +993,7 @@ fabric_lakehouse_write_table <- function(
     if (!is.list(values)) {
       .fabric_abort(
         paste0("OneLake returned an invalid `", field, "` collection"),
-        class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
+        class = error_class
       )
     }
     records <- c(records, values)
@@ -970,7 +1006,7 @@ fabric_lakehouse_write_table <- function(
     ) {
       .fabric_abort(
         "OneLake returned an invalid next_page_token",
-        class = c("fabric_lakehouse_protocol_error", "fabric_lakehouse_error")
+        class = error_class
       )
     }
     if (!nzchar(page_token)) break
@@ -979,7 +1015,7 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Build the normalized row while preserving columns and all unknown raw fields
-.fabric_lakehouse_table_row <- function(
+.fabric_onelake_table_row <- function(
   record,
   schema_name,
   schema_record,
@@ -1017,8 +1053,8 @@ fabric_lakehouse_write_table <- function(
     ),
     comment = as.character(record$comment %||% NA_character_),
     table_id = as.character(record$table_id %||% NA_character_),
-    created_at = .fabric_lakehouse_epoch_ms(record$created_at),
-    updated_at = .fabric_lakehouse_epoch_ms(record$updated_at),
+    created_at = .fabric_onelake_epoch_ms(record$created_at),
+    updated_at = .fabric_onelake_epoch_ms(record$updated_at),
     columns = record$columns %||% list(),
     schema_metadata = schema_record,
     raw = record,
@@ -1087,7 +1123,7 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Bind normalized table rows into a stable tibble, including empty list columns
-.fabric_lakehouse_table_tibble <- function(rows) {
+.fabric_onelake_table_tibble <- function(rows) {
   empty <- tibble::tibble(
     name = character(),
     schema = character(),
@@ -1134,7 +1170,7 @@ fabric_lakehouse_write_table <- function(
 }
 
 # Convert Unity Catalog epoch milliseconds to UTC POSIXct, retaining missingness
-.fabric_lakehouse_epoch_ms <- function(value) {
+.fabric_onelake_epoch_ms <- function(value) {
   number <- suppressWarnings(as.numeric(value %||% NA_real_))
   if (length(number) != 1L || is.na(number) || !is.finite(number)) {
     return(as.POSIXct(NA_real_, origin = "1970-01-01", tz = "UTC"))
@@ -1468,7 +1504,7 @@ fabric_lakehouse_write_table <- function(
   invisible(value)
 }
 
-.fabric_lakehouse_page_size <- function(value) {
+.fabric_onelake_table_page_size <- function(value) {
   if (is.null(value)) {
     return(invisible(NULL))
   }

@@ -1,3 +1,131 @@
+#' Discover Microsoft Fabric Warehouse tables
+#'
+#' Lists schemas and Delta-backed tables in a Fabric Warehouse through the
+#' read-only OneLake table metadata API. Set `detail = TRUE` to retrieve column
+#' metadata for every table. A returned row can be passed directly to
+#' [fabric_warehouse_read_table()].
+#'
+#' @param warehouse Warehouse GUID, exact display name, or one Warehouse record
+#'   returned by [fabric_warehouses()]. A discovered record is recommended
+#'   because it contains the workspace and item IDs.
+#' @param workspace Workspace GUID, exact display name, or discovered workspace.
+#'   Omit it when `warehouse` is a record containing `workspaceId`.
+#' @param schema Optional Warehouse schema. When omitted, every schema is
+#'   listed.
+#' @param detail Whether to retrieve per-table column metadata.
+#' @param page_size Optional maximum records requested per OneLake metadata
+#'   page, from 1 to 100. All continuation tokens are followed.
+#' @param tenant_id Entra tenant ID. Defaults to
+#'   `FABRICQUERYR_TENANT_ID`.
+#' @param client_id Entra application ID. Defaults to
+#'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
+#' @param token Optional access token or audience-aware token-provider function.
+#'   Warehouse lookup can require a Fabric-audience token; table metadata uses
+#'   a Storage-audience token.
+#' @param auth_args Additional sign-in options passed to
+#'   [AzureAuth::get_azure_token()] when no token source is supplied.
+#' @param api_base Fabric REST API base URL used when a Warehouse name or GUID
+#'   must be resolved. Most users should keep the default.
+#' @param table_api_base OneLake Delta table API base URL. Most users should
+#'   keep the default.
+#' @param allow_custom_endpoint Logical. Set to `TRUE` only when a supplied API
+#'   base is a non-Microsoft HTTPS endpoint that you trust to receive a token.
+#'
+#' @return A tibble with table `name`, `schema`, `full_name`, `type`, `format`,
+#'   `location`, timestamps, list-column `columns`, `schema_metadata`, and the
+#'   unmodified OneLake `raw` record. `fabric_raw` is an empty list-column
+#'   because Fabric does not expose a Warehouse counterpart to the Lakehouse
+#'   List Tables REST route. Unknown future OneLake metadata remains available
+#'   in `raw`.
+#'
+#' @section Permissions:
+#' The OneLake table API uses the Azure Storage token audience and requires the
+#' calling identity to have permission to read tables in the Warehouse through
+#' OneLake. This permission is separate from Warehouse T-SQL `ReadData`
+#' permission.
+#'
+#' @references
+#' [Explore tables with OneLake catalog APIs](https://learn.microsoft.com/en-us/rest/api/fabric/articles/onelakecatalog/overview#explore-tables-within-an-item)
+#'
+#' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
+#'
+#' [Warehouse permissions](https://learn.microsoft.com/en-us/fabric/data-warehouse/share-warehouse-manage-permissions)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' workspace <- fabric_workspaces()[[1L]]
+#' warehouse <- fabric_warehouses(workspace)[[1L]]
+#'
+#' tables <- fabric_warehouse_tables(warehouse)
+#' orders <- fabric_warehouse_read_table(warehouse, tables[1L, ])
+#' }
+fabric_warehouse_tables <- function(
+  warehouse,
+  workspace = NULL,
+  schema = NULL,
+  detail = TRUE,
+  page_size = NULL,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base,
+  table_api_base = .fabric_onelake_table_base,
+  allow_custom_endpoint = FALSE
+) {
+  .fabric_operation_logical(detail, "detail")
+  .fabric_onelake_table_page_size(page_size)
+  if (!is.null(schema)) {
+    .fabric_lakehouse_nonempty(schema, "schema")
+  }
+
+  api_base_supplied <- !missing(api_base)
+  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  table_base <- .fabric_onelake_table_api_base(
+    table_api_base,
+    allow_custom_endpoint,
+    error_class = c(
+      "fabric_warehouse_endpoint_error",
+      "fabric_warehouse_error"
+    )
+  )
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  target <- .fabric_warehouse_resolve_item(
+    warehouse,
+    workspace,
+    expected_type = "Warehouse",
+    credential = credential,
+    api_base = base,
+    api_base_supplied = api_base_supplied,
+    allow_custom_endpoint = allow_custom_endpoint,
+    require_sql = FALSE,
+    argument = "warehouse"
+  )
+
+  .fabric_onelake_table_inventory(
+    workspace_id = target$workspace_id,
+    item_id = target$item_id,
+    schema = schema,
+    detail = detail,
+    page_size = page_size,
+    credential = credential,
+    table_base = table_base,
+    error_class = c(
+      "fabric_warehouse_protocol_error",
+      "fabric_warehouse_error"
+    )
+  )
+}
+
 #' Read a Microsoft Fabric Warehouse table
 #'
 #' Provides the table-oriented read counterpart to

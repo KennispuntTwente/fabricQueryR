@@ -231,6 +231,70 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
   }
 })
 
+test_that("fabric_warehouse_tables discovers seeded Warehouse metadata", {
+  fabric_test_require_package("DBI")
+  fabric_test_require_package("odbc")
+  manifest <- fabric_test_manifest()
+  provisioned <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  target <- fabric_item(
+    manifest$workspace_id,
+    provisioned$id,
+    type = "Warehouse",
+    token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+  )
+  token <- fabric_test_token_provider()
+  expected_table <- provisioned$tables$types
+
+  discovered <- fabric_test_eventually(function() {
+    tables <- fabric_warehouse_tables(
+      target,
+      schema = "dbo",
+      detail = TRUE,
+      page_size = 1L,
+      token = token
+    )
+    row <- tables[tables$name == expected_table, , drop = FALSE]
+    if (nrow(row) != 1L || !length(row$columns[[1L]])) {
+      return(NULL)
+    }
+    row
+  })
+
+  expect_s3_class(discovered, "tbl_df")
+  expect_equal(discovered$name, expected_table)
+  expect_equal(discovered$schema, "dbo")
+  expect_equal(toupper(discovered$format), "DELTA")
+  expect_match(discovered$location, "/Tables/dbo/", fixed = TRUE)
+  expect_equal(discovered$schema_metadata[[1L]]$name, "dbo")
+  expect_equal(
+    vapply(discovered$columns[[1L]], `[[`, character(1), "name"),
+    c(
+      "id",
+      "name",
+      "category",
+      "amount",
+      "active",
+      "event_date",
+      "loaded_at",
+      "nullable_value"
+    )
+  )
+  expect_length(discovered$fabric_raw[[1L]], 0L)
+
+  rows <- fabric_warehouse_read_table(
+    target,
+    discovered,
+    columns = c("id", "name"),
+    limit = 1L,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  expect_s3_class(rows, "tbl_df")
+  expect_named(rows, c("id", "name"))
+  expect_equal(nrow(rows), 1L)
+})
+
 test_that("fabric_warehouse_read_table returns projected rows and streams", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestWarehouse")

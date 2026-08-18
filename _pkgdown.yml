@@ -93,6 +93,7 @@ reference:
   - title: Warehouse tables
     desc: Discover, load, and read Warehouse tables in Fabric
     contents:
+      - fabric_warehouse_tables
       - fabric_warehouse_read_table
       - fabric_warehouse_write_table
 

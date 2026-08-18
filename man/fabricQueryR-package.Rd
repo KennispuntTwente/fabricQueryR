@@ -31,8 +31,9 @@ User Data Function's explicit public URL
 \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover or load managed Delta tables,
 \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read them, and the Livy helpers when
 Spark processing is required
-\item Use \code{\link[=fabric_warehouse_read_table]{fabric_warehouse_read_table()}} and
-\code{\link[=fabric_warehouse_write_table]{fabric_warehouse_write_table()}} for symmetric Warehouse table transfer
+\item Use \code{\link[=fabric_warehouse_tables]{fabric_warehouse_tables()}} to discover Warehouse tables, then
+\code{\link[=fabric_warehouse_read_table]{fabric_warehouse_read_table()}} or \code{\link[=fabric_warehouse_write_table]{fabric_warehouse_write_table()}} for
+symmetric Warehouse table transfer
 \item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and
 \code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive

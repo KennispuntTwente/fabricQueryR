@@ -22,9 +22,10 @@ Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 and read Lakehouse tables, load CSV or Parquet files, and write data frames or
 Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
 
-* `fabric_warehouse_read_table()` and `fabric_warehouse_write_table()` read and
-bulk-write Warehouse tables using data frames or Arrow data. Tables can be
-created, appended to, overwritten, or recreated as requested.
+* `fabric_warehouse_tables()`, `fabric_warehouse_read_table()`, and
+`fabric_warehouse_write_table()` discover, read, and bulk-write Warehouse
+tables using data frames or Arrow data. Tables can be created, appended to,
+overwritten, or recreated as requested.
 
 * `fabric_kql_query()` and `fabric_kql_read_table()` bring Eventhouse query and
 table results into R as typed R objects.
