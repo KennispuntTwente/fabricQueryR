@@ -300,7 +300,7 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
       token = token,
       verbose = FALSE
     )
-    expect_s3_class(rows, "tbl_df", info = name)
+    expect_s3_class(rows, "tbl_df")
     expect_lte(nrow(rows), 1L, info = name)
 
     if (!is.null(case$view)) {
