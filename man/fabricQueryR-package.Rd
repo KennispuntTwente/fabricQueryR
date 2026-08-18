@@ -16,8 +16,9 @@ most workflows, you do not need to copy IDs or connection details by hand
 \itemize{
 \item Use \code{\link[=fabric_workspaces]{fabric_workspaces()}} and the typed discovery helpers, such as
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}, to find data
-\item Use \code{\link[=fabric_sql_query]{fabric_sql_query()}} for T-SQL against a Warehouse, SQL Database, or
-Lakehouse SQL analytics endpoint
+\item Use \code{\link[=fabric_sql_tables]{fabric_sql_tables()}} to discover tables and views across Warehouse,
+SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
+\code{\link[=fabric_sql_read_table]{fabric_sql_read_table()}} or \code{\link[=fabric_sql_query]{fabric_sql_query()}} to read them
 \item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
 \code{\link[=fabric_kql_tables]{fabric_kql_tables()}} to discover Eventhouse tables,
 \code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data,

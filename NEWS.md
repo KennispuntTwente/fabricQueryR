@@ -70,11 +70,13 @@ token, or a function that supplies refreshed tokens through `token`;
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
-* `fabric_sql_connect()` and `fabric_sql_query()` now accept discovered items
-and portal connection strings, and support Lakehouses, Warehouses, and Fabric
-SQL Databases. Queries can use parameters and return a tibble or Arrow stream.
-The default `database = NULL` infers the database when possible;
-`fabric_sql_query()` is now limited to one read-only statement, so use
+* `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
+provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
+snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and
+`fabric_sql_query()` accept the same discovered items and portal connection
+strings. Queries can use parameters and return a tibble or Arrow stream. The
+default `database = NULL` infers the database when possible;
+`fabric_sql_query()` is limited to one read-only statement, so use
 `fabric_sql_connect()` for other SQL work.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,

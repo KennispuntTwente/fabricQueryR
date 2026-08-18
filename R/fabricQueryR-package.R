@@ -8,8 +8,9 @@
 #' @section Where to start:
 #' - Use [fabric_workspaces()] and the typed discovery helpers, such as
 #'   [fabric_lakehouses()] or [fabric_semantic_models()], to find data
-#' - Use [fabric_sql_query()] for T-SQL against a Warehouse, SQL Database, or
-#'   Lakehouse SQL analytics endpoint
+#' - Use [fabric_sql_tables()] to discover tables and views across Warehouse,
+#'   SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
+#'   [fabric_sql_read_table()] or [fabric_sql_query()] to read them
 #' - Use [fabric_pbi_dax_query()] for report-ready semantic models,
 #'   [fabric_kql_tables()] to discover Eventhouse tables,
 #'   [fabric_kql_query()] for Eventhouse/KQL data,

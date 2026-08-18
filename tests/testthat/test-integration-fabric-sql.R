@@ -231,6 +231,93 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
   }
 })
 
+test_that("generic SQL helpers discover and read every seeded SQL surface", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  cases <- list(
+    Lakehouse = list(
+      item = fabric_test_manifest_item(manifest, "TestLakehouse"),
+      type = "Lakehouse",
+      table = "fabricqueryr_basic"
+    ),
+    Warehouse = list(
+      item = fabric_test_manifest_item(manifest, "TestWarehouse"),
+      type = "Warehouse",
+      table = fabric_test_manifest_item(manifest, "TestWarehouse")$tables$types
+    ),
+    WarehouseSnapshot = list(
+      item = fabric_test_manifest_item(manifest, "TestWarehouseSnapshot"),
+      type = "WarehouseSnapshot",
+      table = fabric_test_manifest_item(manifest, "TestWarehouse")$tables$types
+    ),
+    SQLDatabase = list(
+      item = fabric_test_manifest_item(manifest, "TestSQLDatabase"),
+      type = "SQLDatabase",
+      table = fabric_test_manifest_item(
+        manifest,
+        "TestSQLDatabase"
+      )$tables$types
+    )
+  )
+
+  for (name in names(cases)) {
+    case <- cases[[name]]
+    target <- fabric_item(
+      manifest$workspace_id,
+      case$item$id,
+      type = case$type,
+      token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+    )
+    table <- fabric_test_eventually(function() {
+      tables <- fabric_sql_tables(
+        target,
+        schema = "dbo",
+        detail = TRUE,
+        backend = "odbc",
+        token = token,
+        verbose = FALSE
+      )
+      row <- tables[tables$name == case$table, , drop = FALSE]
+      if (nrow(row) != 1L || !length(row$columns[[1L]])) {
+        return(NULL)
+      }
+      row
+    })
+    expect_equal(table$name, case$table, info = name)
+    expect_equal(table$schema, "dbo", info = name)
+    expect_true(length(table$columns[[1L]]) > 0L, info = name)
+
+    rows <- fabric_sql_read_table(
+      target,
+      table,
+      limit = 1L,
+      backend = "odbc",
+      token = token,
+      verbose = FALSE
+    )
+    expect_s3_class(rows, "tbl_df", info = name)
+    expect_lte(nrow(rows), 1L, info = name)
+  }
+
+  views <- fabric_sql_views(
+    fabric_item(
+      manifest$workspace_id,
+      cases$Warehouse$item$id,
+      type = "Warehouse",
+      token = fabric_test_token("FABRIC_TEST_API_TOKEN")
+    ),
+    detail = FALSE,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  expect_s3_class(views, "tbl_df")
+  expect_named(
+    views,
+    c("name", "schema", "full_name", "type", "definition", "columns", "raw")
+  )
+})
+
 test_that("fabric_warehouse_tables discovers seeded Warehouse metadata", {
   fabric_test_require_package("DBI")
   fabric_test_require_package("odbc")

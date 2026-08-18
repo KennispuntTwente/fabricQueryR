@@ -46,6 +46,9 @@ reference:
   - title: SQL connectivity
     desc: Connect to and query Lakehouse, Warehouse, and SQL Database endpoints
     contents:
+      - fabric_sql_tables
+      - fabric_sql_views
+      - fabric_sql_read_table
       - fabric_sql_query
       - fabric_sql_connect
       - fabric_sql_connection_info
