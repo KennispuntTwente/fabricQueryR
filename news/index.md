@@ -113,6 +113,10 @@
   check service addresses more carefully and give clearer retry,
   timeout, and error messages.
 
+- [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)
+  now reports the requested database display name even when Fabric’s
+  table metadata identifies the database by its internal ID.
+
 - [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
   [`fabric_sql_views()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
   and
