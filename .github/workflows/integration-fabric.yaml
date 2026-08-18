@@ -135,6 +135,7 @@ jobs:
           echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
           echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+          echo "FABRIC_MIRRORED_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw mirrored_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"

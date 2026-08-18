@@ -390,6 +390,25 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
                 },
             }
 
+        def get_mirrored_database(self, workspace_id, database_id):
+            return {
+                "id": database_id,
+                "workspaceId": workspace_id,
+                "properties": {
+                    "defaultSchema": "dbo",
+                    "oneLakeTablesPath": "https://onelake/Tables",
+                    "sqlEndpointProperties": {
+                        "id": "mirrored-endpoint-id",
+                        "connectionString": "mirrored.sql.test",
+                        "provisioningStatus": "Success",
+                    },
+                },
+            }
+
+        def wait_for_mirroring_running(self, workspace_id, database_id):
+            calls.append(("wait_for_mirroring", workspace_id, database_id))
+            return {"status": "Running"}
+
         def wait_for_sql_endpoint_table(
             self,
             workspace_id,
@@ -467,6 +486,13 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         ),
     )
     monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.upload_open_mirroring_fixture",
+        lambda workspace_id, database_id, *, credential: calls.append(
+            ("upload_mirror", workspace_id, database_id, credential)
+        )
+        or "mirrored-id/Files/LandingZone/dbo.schema/table/fixture.parquet",
+    )
+    monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.fixture_revision",
         lambda settings, runtime_contract: (
             calls.append(("fixture_hash_runtime", runtime_contract))
@@ -501,6 +527,12 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "fabricqueryr_sandbox.seed.seed_sql_fixture",
         lambda connection_string, database, token, *, mutate=False: calls.append(
             ("seed_sql", connection_string, database, token, mutate)
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.wait_for_sql_fixture",
+        lambda connection_string, database, token, table: calls.append(
+            ("wait_for_sql_fixture", connection_string, database, token, table)
         ),
     )
     monkeypatch.setattr(
@@ -572,6 +604,17 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "TestLakehouse-id",
         cached_credential,
     ) in calls
+    assert (
+        "wait_for_mirroring",
+        "workspace-id",
+        "TestMirroredDatabase-id",
+    ) in calls
+    assert (
+        "upload_mirror",
+        "workspace-id",
+        "TestMirroredDatabase-id",
+        cached_credential,
+    ) in calls
     revision_calls = [
         call for call in calls if call[0] == "fixture_revision"
     ]
@@ -630,10 +673,15 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     assert [call[3] for call in delta_log_calls] == [
         "fabricqueryr_sql_types",
         "fabricqueryr_sql_mutations",
+        "fabricqueryr_mirror_types",
     ]
     assert all(
         call[1:3] == ("workspace-id", "TestWarehouse-id")
-        for call in delta_log_calls
+        for call in delta_log_calls[:2]
+    )
+    assert delta_log_calls[2][1:3] == (
+        "workspace-id",
+        "TestMirroredDatabase-id",
     )
     assert all(call[4].tzinfo is not None for call in delta_log_calls)
     assert all(call[5] == 3 for call in delta_log_calls)
@@ -647,6 +695,13 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             True,
         )
     )
+    assert (
+        "wait_for_sql_fixture",
+        "mirrored.sql.test",
+        "TestMirroredDatabase",
+        "token-for-https://database.windows.net/.default",
+        "fabricqueryr_mirror_types",
+    ) in calls
     assert calls.index(graphql_call) > max(
         index for index, call in enumerate(calls) if call[0] == "seed_sql"
     )

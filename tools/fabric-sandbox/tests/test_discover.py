@@ -87,6 +87,21 @@ class FakeFabricApi:
             },
         }
 
+    def get_mirrored_database(self, workspace_id, database_id):
+        return {
+            "id": database_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "defaultSchema": "dbo",
+                "oneLakeTablesPath": "https://onelake/Tables",
+                "sqlEndpointProperties": {
+                    "id": "mirrored-endpoint-id",
+                    "connectionString": "mirrored.sql.test",
+                    "provisioningStatus": "Success",
+                },
+            },
+        }
+
     def get_kql_database(self, workspace_id, database_id):
         return {
             "id": database_id,
@@ -169,6 +184,7 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         "TestLakehouse",
         "TestLakehouseNoSchemas",
         "TestWarehouse",
+        "TestMirroredDatabase",
     }
     assert manifest.fixture_revision == "fixture-revision"
     assert manifest.runtime["lane"] == "core"
@@ -179,6 +195,16 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
     assert manifest.items["TestWarehouse"]["tables"] == {
         "types": "fabricqueryr_sql_types",
         "mutations": "fabricqueryr_sql_mutations",
+    }
+    assert manifest.items["TestWarehouse"]["views"] == {
+        "types": "fabricqueryr_sql_types_view"
+    }
+    assert manifest.items["TestMirroredDatabase"] == {
+        "id": "TestMirroredDatabase-id",
+        "type": "MirroredDatabase",
+        "display_name": "TestMirroredDatabase",
+        "schema": "dbo",
+        "tables": {"types": "fabricqueryr_mirror_types"},
     }
     assert "schema" not in manifest.items["TestLakehouseNoSchemas"]
     assert (
@@ -241,6 +267,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "TestPipeline",
         "TestSparkJob",
         "TestWarehouse",
+        "TestMirroredDatabase",
         "TestWarehouseSnapshot",
         "TestSQLDatabase",
         "TestEventhouse",
@@ -289,6 +316,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
             "types": "fabricqueryr_sql_types",
             "mutations": "fabricqueryr_sql_mutations",
         },
+        "views": {"types": "fabricqueryr_sql_types_view"},
     }
     assert manifest.items["TestWarehouseSnapshot"] == {
         "id": "TestWarehouseSnapshot-id",
@@ -310,6 +338,18 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "server_fqdn": "database.sql.test,1433",
         "database_name": "TestSQLDatabase-internal",
         "tables": {"types": "fabricqueryr_sql_types"},
+        "views": {"types": "fabricqueryr_sql_types_view"},
+    }
+    assert manifest.items["TestMirroredDatabase"] == {
+        "id": "TestMirroredDatabase-id",
+        "type": "MirroredDatabase",
+        "display_name": "TestMirroredDatabase",
+        "connection_string": "mirrored.sql.test",
+        "database_name": "TestMirroredDatabase",
+        "schema": "dbo",
+        "one_lake_tables_path": "https://onelake/Tables",
+        "sql_endpoint_id": "mirrored-endpoint-id",
+        "tables": {"types": "fabricqueryr_mirror_types"},
     }
     assert fabric_api.refreshed == [("workspace-id", "endpoint-id")]
     assert manifest.items["TestEventhouse"] == {
@@ -509,6 +549,44 @@ def test_lakehouse_sql_endpoint_readiness_retries_until_success():
         api,
         "workspace-id",
         "lakehouse-id",
+    )
+
+    endpoint = result["properties"]["sqlEndpointProperties"]
+    assert endpoint["provisioningStatus"] == "Success"
+    assert calls == 2
+    assert api.sleeps == [10]
+
+
+def test_mirrored_database_readiness_requires_a_successful_sql_endpoint():
+    api = FakeFabricApi()
+    calls = 0
+
+    def get_mirrored_database(workspace_id, database_id):
+        nonlocal calls
+        calls += 1
+        return {
+            "id": database_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "defaultSchema": "dbo",
+                "oneLakeTablesPath": "https://onelake/Tables",
+                "sqlEndpointProperties": {
+                    "id": "endpoint-id",
+                    "connectionString": "mirrored.sql.test",
+                    "provisioningStatus": (
+                        "InProgress" if calls == 1 else "Success"
+                    ),
+                },
+            },
+        }
+
+    api.get_mirrored_database = get_mirrored_database
+
+    result = _wait_for_sql_properties(
+        api,
+        "workspace-id",
+        "mirrored-id",
+        item_type="MirroredDatabase",
     )
 
     endpoint = result["properties"]["sqlEndpointProperties"]

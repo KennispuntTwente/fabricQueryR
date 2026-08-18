@@ -255,6 +255,9 @@ def test_get_workload_items_uses_typed_routes():
             "workspace-id", "snapshot-id"
         )
         sql_database = api.get_sql_database("workspace-id", "database-id")
+        mirrored_database = api.get_mirrored_database(
+            "workspace-id", "mirrored-database-id"
+        )
         eventhouse = api.get_eventhouse("workspace-id", "eventhouse-id")
         kql_database = api.get_kql_database("workspace-id", "kql-database-id")
         graphql_api = api.get_graphql_api("workspace-id", "graphql-api-id")
@@ -262,6 +265,7 @@ def test_get_workload_items_uses_typed_routes():
     assert warehouse["id"] == "warehouse-id"
     assert warehouse_snapshot["id"] == "snapshot-id"
     assert sql_database["id"] == "database-id"
+    assert mirrored_database["id"] == "mirrored-database-id"
     assert eventhouse["id"] == "eventhouse-id"
     assert kql_database["id"] == "kql-database-id"
     assert graphql_api["id"] == "graphql-api-id"
@@ -269,10 +273,42 @@ def test_get_workload_items_uses_typed_routes():
         "/v1/workspaces/workspace-id/warehouses/warehouse-id",
         "/v1/workspaces/workspace-id/warehouseSnapshots/snapshot-id",
         "/v1/workspaces/workspace-id/sqlDatabases/database-id",
+        (
+            "/v1/workspaces/workspace-id/mirroredDatabases/"
+            "mirrored-database-id"
+        ),
         "/v1/workspaces/workspace-id/eventhouses/eventhouse-id",
         "/v1/workspaces/workspace-id/kqlDatabases/kql-database-id",
         "/v1/workspaces/workspace-id/graphQLApis/graphql-api-id",
     ]
+
+
+def test_wait_for_mirroring_running_starts_and_polls_until_ready():
+    statuses = iter(["Initialized", "Starting", "Running"])
+    requests = []
+    sleeps = []
+
+    def handler(request):
+        requests.append(request.url.path)
+        if request.url.path.endswith("/getMirroringStatus"):
+            return httpx.Response(200, json={"status": next(statuses)})
+        assert request.url.path.endswith("/startMirroring")
+        return httpx.Response(200)
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        result = api.wait_for_mirroring_running(
+            "workspace-id",
+            "mirrored-database-id",
+        )
+
+    assert result == {"status": "Running"}
+    assert sum(path.endswith("/startMirroring") for path in requests) == 1
+    assert sum(path.endswith("/getMirroringStatus") for path in requests) == 3
+    assert sleeps == [10, 10]
 
 
 def test_update_graphql_definition_encodes_supported_public_definition():

@@ -28,6 +28,10 @@ from .graphql_api import (
     graphql_definition,
 )
 from .kusto_api import KUSTO_SCOPE, KustoApi, SEED_TABLE
+from .open_mirroring import (
+    MIRRORED_FIXTURE_TABLE,
+    upload_open_mirroring_fixture,
+)
 from .power_bi_api import (
     POWER_BI_SCOPE,
     prepare_arrow_test_semantic_model,
@@ -39,6 +43,7 @@ from .sql_api import (
     SQL_FIXTURE_TABLE,
     SQL_MUTATION_TABLE,
     seed_sql_fixture,
+    wait_for_sql_fixture,
 )
 
 
@@ -94,7 +99,7 @@ def wait_for_delta_log_publication(
     credential: TokenCredential | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> str:
-    """Wait for Fabric's background Warehouse Delta-log publication."""
+    """Wait for Fabric's background OneLake Delta-log publication."""
     if attempts < 1:
         raise ValueError("attempts must be positive")
     if not_before.tzinfo is None:
@@ -161,7 +166,7 @@ def wait_for_delta_log_publication(
         if attempt < attempts:
             sleep(retry_delay)
     raise RuntimeError(
-        "Warehouse Delta log was not published and readable after "
+        "OneLake Delta log was not published and readable after "
         f"{attempts} attempts: {log_path}"
     ) from last_error
 
@@ -250,6 +255,11 @@ def seed(settings: SandboxSettings) -> None:
             "TestSQLDatabase",
             "SQLDatabase",
         )
+        mirrored_database_item = api.find_item(
+            workspace_id,
+            "TestMirroredDatabase",
+            "MirroredDatabase",
+        )
         kql_database = _wait_for_kql_properties(
             api,
             workspace_id,
@@ -268,6 +278,23 @@ def seed(settings: SandboxSettings) -> None:
             sql_database_item["id"],
             item_type="SQLDatabase",
         )
+        mirrored_database = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            mirrored_database_item["id"],
+            item_type="MirroredDatabase",
+        )
+        api.wait_for_mirroring_running(
+            workspace_id,
+            mirrored_database_item["id"],
+        )
+        mirrored_publication_start = datetime.now(timezone.utc)
+        mirrored_remote_path = upload_open_mirroring_fixture(
+            workspace_id,
+            mirrored_database_item["id"],
+            credential=credential,
+        )
+        print(f"Open mirroring fixture uploaded: {mirrored_remote_path}")
         upload_fixtures(
             settings,
             workspace_id,
@@ -326,6 +353,27 @@ def seed(settings: SandboxSettings) -> None:
                     "Warehouse Delta log published and readable: "
                     f"{published}"
                 )
+
+    mirrored_published = wait_for_delta_log_publication(
+        workspace_id,
+        mirrored_database_item["id"],
+        MIRRORED_FIXTURE_TABLE,
+        not_before=mirrored_publication_start,
+        expected_rows=3,
+        credential=credential,
+    )
+    print(
+        "Mirrored Database Delta log published and readable: "
+        f"{mirrored_published}"
+    )
+    mirrored_sql = mirrored_database["properties"]["sqlEndpointProperties"]
+    sql_token = credential.get_token(SQL_AUDIENCE).token
+    wait_for_sql_fixture(
+        mirrored_sql["connectionString"],
+        mirrored_database_item["displayName"],
+        sql_token,
+        MIRRORED_FIXTURE_TABLE,
+    )
 
     with FabricApi(credential) as api:
         api.update_graphql_definition(

@@ -15,13 +15,14 @@ from .graphql_api import (
     GRAPHQL_ROOT_FIELD,
 )
 from .manifest import SandboxManifest
+from .open_mirroring import MIRRORED_FIXTURE_SCHEMA, MIRRORED_FIXTURE_TABLE
 from .power_bi_api import (
     ARROW_SEMANTIC_MODEL_NAME,
     PowerBiApi,
     SEMANTIC_MODEL_NAME,
 )
 from .settings import SandboxSettings
-from .sql_api import SQL_FIXTURE_TABLE, SQL_MUTATION_TABLE
+from .sql_api import SQL_FIXTURE_TABLE, SQL_FIXTURE_VIEW, SQL_MUTATION_TABLE
 
 
 ONELAKE_LAKEHOUSE_TABLES = {
@@ -115,6 +116,11 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
             workspace_id, "TestLakehouseNoSchemas", "Lakehouse"
         )
         warehouse_item = api.find_item(workspace_id, "TestWarehouse", "Warehouse")
+        mirrored_database_item = api.find_item(
+            workspace_id,
+            "TestMirroredDatabase",
+            "MirroredDatabase",
+        )
         lakehouse = api.get_lakehouse(workspace_id, lakehouse_item["id"])
 
     revision = verify_fixture_revision(
@@ -151,6 +157,14 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
                     "types": SQL_FIXTURE_TABLE,
                     "mutations": SQL_MUTATION_TABLE,
                 },
+                "views": {"types": SQL_FIXTURE_VIEW},
+            },
+            "TestMirroredDatabase": {
+                "id": mirrored_database_item["id"],
+                "type": "MirroredDatabase",
+                "display_name": mirrored_database_item["displayName"],
+                "schema": MIRRORED_FIXTURE_SCHEMA,
+                "tables": {"types": MIRRORED_FIXTURE_TABLE},
             },
             "TestLakehouseNoSchemas": {
                 "id": non_schema_lakehouse_item["id"],
@@ -193,6 +207,7 @@ def _wait_for_sql_properties(
         "Warehouse": "get_warehouse",
         "WarehouseSnapshot": "get_warehouse_snapshot",
         "SQLDatabase": "get_sql_database",
+        "MirroredDatabase": "get_mirrored_database",
     }
     required_properties = {
         "Warehouse": ("connectionString",),
@@ -202,6 +217,11 @@ def _wait_for_sql_properties(
             "snapshotDateTime",
         ),
         "SQLDatabase": ("connectionString", "serverFqdn", "databaseName"),
+        "MirroredDatabase": (
+            "defaultSchema",
+            "oneLakeTablesPath",
+            "sqlEndpointProperties",
+        ),
     }
     getter = getattr(api, getter_names[item_type])
     required = required_properties[item_type]
@@ -209,7 +229,15 @@ def _wait_for_sql_properties(
     while time.monotonic() < deadline:
         item = getter(workspace_id, item_id)
         properties = item.get("properties", {})
-        if all(properties.get(name) for name in required):
+        ready = all(properties.get(name) for name in required)
+        if item_type == "MirroredDatabase":
+            sql = properties.get("sqlEndpointProperties", {})
+            ready = ready and all(
+                sql.get(name)
+                for name in ("connectionString", "id", "provisioningStatus")
+            )
+            ready = ready and sql["provisioningStatus"] == "Success"
+        if ready:
             return item
         api.sleep(10)
     raise TimeoutError(
@@ -268,6 +296,11 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         sql_database_item = api.find_item(
             workspace_id, "TestSQLDatabase", "SQLDatabase"
         )
+        mirrored_database_item = api.find_item(
+            workspace_id,
+            "TestMirroredDatabase",
+            "MirroredDatabase",
+        )
         eventhouse_item = api.find_item(
             workspace_id, "TestEventhouse", "Eventhouse"
         )
@@ -298,6 +331,12 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             sql_database_item["id"],
             item_type="SQLDatabase",
         )
+        mirrored_database = _wait_for_sql_properties(
+            api,
+            workspace_id,
+            mirrored_database_item["id"],
+            item_type="MirroredDatabase",
+        )
         eventhouse = _wait_for_kql_properties(
             api,
             workspace_id,
@@ -318,6 +357,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     warehouse_properties = warehouse["properties"]
     warehouse_snapshot_properties = warehouse_snapshot["properties"]
     sql_database_properties = sql_database["properties"]
+    mirrored_database_properties = mirrored_database["properties"]
     eventhouse_properties = eventhouse["properties"]
     kql_database_properties = kql_database["properties"]
     with PowerBiApi(get_credential()) as power_bi:
@@ -519,6 +559,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "types": SQL_FIXTURE_TABLE,
                     "mutations": SQL_MUTATION_TABLE,
                 },
+                "views": {"types": SQL_FIXTURE_VIEW},
             },
             "TestWarehouseSnapshot": {
                 "id": warehouse_snapshot_item["id"],
@@ -545,6 +586,24 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "tables": {
                     "types": SQL_FIXTURE_TABLE,
                 },
+                "views": {"types": SQL_FIXTURE_VIEW},
+            },
+            "TestMirroredDatabase": {
+                "id": mirrored_database_item["id"],
+                "type": "MirroredDatabase",
+                "display_name": mirrored_database_item["displayName"],
+                "connection_string": mirrored_database_properties[
+                    "sqlEndpointProperties"
+                ]["connectionString"],
+                "database_name": mirrored_database_item["displayName"],
+                "schema": mirrored_database_properties["defaultSchema"],
+                "one_lake_tables_path": mirrored_database_properties[
+                    "oneLakeTablesPath"
+                ],
+                "sql_endpoint_id": mirrored_database_properties[
+                    "sqlEndpointProperties"
+                ]["id"],
+                "tables": {"types": MIRRORED_FIXTURE_TABLE},
             },
             "TestEventhouse": {
                 "id": eventhouse_item["id"],

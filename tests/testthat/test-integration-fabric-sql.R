@@ -243,7 +243,8 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
     Warehouse = list(
       item = fabric_test_manifest_item(manifest, "TestWarehouse"),
       type = "Warehouse",
-      table = fabric_test_manifest_item(manifest, "TestWarehouse")$tables$types
+      table = fabric_test_manifest_item(manifest, "TestWarehouse")$tables$types,
+      view = fabric_test_manifest_item(manifest, "TestWarehouse")$views$types
     ),
     WarehouseSnapshot = list(
       item = fabric_test_manifest_item(manifest, "TestWarehouseSnapshot"),
@@ -256,7 +257,11 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
       table = fabric_test_manifest_item(
         manifest,
         "TestSQLDatabase"
-      )$tables$types
+      )$tables$types,
+      view = fabric_test_manifest_item(
+        manifest,
+        "TestSQLDatabase"
+      )$views$types
     )
   )
 
@@ -297,25 +302,48 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
     )
     expect_s3_class(rows, "tbl_df", info = name)
     expect_lte(nrow(rows), 1L, info = name)
-  }
 
-  views <- fabric_sql_views(
-    fabric_item(
-      manifest$workspace_id,
-      cases$Warehouse$item$id,
-      type = "Warehouse",
-      token = fabric_test_token("FABRIC_TEST_API_TOKEN")
-    ),
-    detail = FALSE,
-    backend = "odbc",
-    token = token,
-    verbose = FALSE
-  )
-  expect_s3_class(views, "tbl_df")
-  expect_named(
-    views,
-    c("name", "schema", "full_name", "type", "definition", "columns", "raw")
-  )
+    if (!is.null(case$view)) {
+      view <- fabric_test_eventually(function() {
+        views <- fabric_sql_views(
+          target,
+          schema = "dbo",
+          detail = TRUE,
+          backend = "odbc",
+          token = token,
+          verbose = FALSE
+        )
+        row <- views[views$name == case$view, , drop = FALSE]
+        if (nrow(row) != 1L || !length(row$columns[[1L]])) {
+          return(NULL)
+        }
+        row
+      })
+      expect_equal(view$name, case$view, info = name)
+      expect_equal(view$schema, "dbo", info = name)
+      expect_equal(view$type, "VIEW", info = name)
+      expect_match(view$definition, case$table, fixed = TRUE, info = name)
+      expect_equal(
+        vapply(view$columns[[1L]], `[[`, character(1), "name"),
+        c("id", "name", "amount"),
+        info = name
+      )
+
+      view_rows <- fabric_sql_read_table(
+        target,
+        view,
+        columns = c("id", "name", "amount"),
+        limit = 3L,
+        backend = "odbc",
+        token = token,
+        verbose = FALSE
+      )
+      view_rows <- view_rows[order(view_rows$id), ]
+      expect_equal(view_rows$id, 1:3, info = name)
+      expect_equal(view_rows$name, c("alpha", "beta", "gamma"), info = name)
+      expect_equal(as.numeric(view_rows$amount), c(10.5, 20, NA), info = name)
+    }
+  }
 })
 
 test_that("fabric_warehouse_tables discovers seeded Warehouse metadata", {

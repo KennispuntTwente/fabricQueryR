@@ -1,0 +1,16 @@
+{
+  "properties": {
+    "source": {
+      "type": "GenericMirror",
+      "typeProperties": {}
+    },
+    "target": {
+      "type": "MountedRelationalDatabase",
+      "typeProperties": {
+        "defaultSchema": "dbo",
+        "format": "Delta",
+        "retentionInDays": 1
+      }
+    }
+  }
+}

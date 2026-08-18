@@ -231,6 +231,70 @@ class FabricApi:
             f"/workspaces/{workspace_id}/sqlDatabases/{sql_database_id}",
         ).json()
 
+    def get_mirrored_database(
+        self, workspace_id: str, mirrored_database_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            f"/workspaces/{workspace_id}/mirroredDatabases/"
+            f"{mirrored_database_id}",
+        ).json()
+
+    def get_mirroring_status(
+        self, workspace_id: str, mirrored_database_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "POST",
+            f"/workspaces/{workspace_id}/mirroredDatabases/"
+            f"{mirrored_database_id}/getMirroringStatus",
+        ).json()
+
+    def start_mirroring(
+        self, workspace_id: str, mirrored_database_id: str
+    ) -> None:
+        self.request(
+            "POST",
+            f"/workspaces/{workspace_id}/mirroredDatabases/"
+            f"{mirrored_database_id}/startMirroring",
+        )
+
+    def wait_for_mirroring_running(
+        self,
+        workspace_id: str,
+        mirrored_database_id: str,
+        *,
+        timeout: int = 900,
+    ) -> dict[str, Any]:
+        deadline = time.monotonic() + timeout
+        start_requested = False
+        last_status: dict[str, Any] | None = None
+        while time.monotonic() < deadline:
+            last_status = self.get_mirroring_status(
+                workspace_id,
+                mirrored_database_id,
+            )
+            status = str(last_status.get("status", ""))
+            if status == "Running":
+                return last_status
+            if last_status.get("error"):
+                raise RuntimeError(
+                    "mirrored database reported an error while starting: "
+                    f"{last_status['error']!r}"
+                )
+            if status in {"Initialized", "Paused", "Stopped"}:
+                if not start_requested:
+                    self.start_mirroring(workspace_id, mirrored_database_id)
+                    start_requested = True
+            elif status not in {"Initializing", "Starting", "Stopping"}:
+                raise RuntimeError(
+                    f"mirrored database returned unknown status {status!r}"
+                )
+            self.sleep(10)
+        raise TimeoutError(
+            "mirrored database did not reach Running status in time; "
+            f"last status: {last_status!r}"
+        )
+
     def get_eventhouse(
         self, workspace_id: str, eventhouse_id: str
     ) -> dict[str, Any]:

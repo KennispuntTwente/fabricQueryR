@@ -32,6 +32,7 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
         package_dir / "fixture_revision.py",
         package_dir / "graphql_api.py",
         package_dir / "kusto_api.py",
+        package_dir / "open_mirroring.py",
         package_dir / "power_bi_api.py",
         package_dir / "seed.py",
         package_dir / "sql_api.py",
@@ -48,7 +49,7 @@ def _fixture_inputs(settings: SandboxSettings) -> list[Path]:
         for path in (
             settings.repository_root / "infra" / "fabric" / "terraform"
         ).rglob("*")
-        if path.is_file() and path.suffix in {".tf", ".tftpl"}
+        if path.is_file() and path.suffix in {".json", ".tf", ".tftpl"}
     )
     fixture_files = sorted(
         path for path in settings.fixture_dir.rglob("*") if path.is_file()

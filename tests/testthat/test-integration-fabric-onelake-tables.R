@@ -223,6 +223,131 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   expect_true(length(single$columns[[1L]]) > 0L)
 })
 
+test_that("mirrored database discovery and table helpers work end to end", {
+  fabric_test_require_package("DBI")
+  fabric_test_require_package("odbc")
+  manifest <- fabric_test_manifest()
+  fabric_test_use_table_delta_runtime()
+  provisioned <- fabric_test_manifest_item(
+    manifest,
+    "TestMirroredDatabase"
+  )
+  token <- fabric_test_token_provider()
+
+  databases <- fabric_mirrored_databases(
+    manifest$workspace_id,
+    detail = TRUE,
+    token = token
+  )
+  matches <- Filter(
+    function(database) identical(database$id, provisioned$id),
+    databases
+  )
+  expect_length(matches, 1L)
+  target <- matches[[1L]]
+  expect_equal(target$type, "MirroredDatabase")
+  expect_equal(target$default_schema, provisioned$schema)
+  expect_match(target$one_lake_tables_path, provisioned$id, fixed = TRUE)
+  expect_true(nzchar(target$sql_server))
+
+  schemas <- fabric_test_eventually(function() {
+    value <- fabric_mirrored_database_schemas(
+      target,
+      page_size = 1L,
+      token = token
+    )
+    if (!provisioned$schema %in% value$name) {
+      return(NULL)
+    }
+    value
+  })
+  expect_true(provisioned$schema %in% schemas$name)
+
+  table <- fabric_test_eventually(function() {
+    tables <- fabric_mirrored_database_tables(
+      target,
+      schema = provisioned$schema,
+      detail = TRUE,
+      page_size = 1L,
+      token = token
+    )
+    row <- tables[
+      tables$name == provisioned$tables$types,
+      ,
+      drop = FALSE
+    ]
+    if (nrow(row) != 1L || !length(row$columns[[1L]])) {
+      return(NULL)
+    }
+    row
+  })
+  expect_equal(table$schema, provisioned$schema)
+  expect_equal(toupper(table$format), "DELTA")
+  expect_equal(
+    vapply(table$columns[[1L]], `[[`, character(1), "name"),
+    c("id", "name", "amount")
+  )
+
+  single <- fabric_mirrored_database_table(
+    target,
+    provisioned$tables$types,
+    schema = provisioned$schema,
+    token = token
+  )
+  expect_equal(single$name, table$name)
+  expect_equal(single$schema, table$schema)
+  expect_equal(
+    vapply(single$columns[[1L]], `[[`, character(1), "name"),
+    vapply(table$columns[[1L]], `[[`, character(1), "name")
+  )
+
+  rows <- fabric_mirrored_database_read_table(
+    target,
+    single,
+    columns = c("id", "name", "amount"),
+    token = token,
+    verbose = FALSE
+  )
+  rows <- rows[order(rows$id), ]
+  expect_s3_class(rows, "tbl_df")
+  expect_equal(rows$id, 1:3)
+  expect_equal(rows$name, c("alpha", "beta", "gamma"))
+  expect_equal(rows$amount, c(10.5, 20, NA))
+
+  sql_table <- fabric_test_eventually(function() {
+    tables <- fabric_sql_tables(
+      target,
+      schema = provisioned$schema,
+      detail = TRUE,
+      backend = "odbc",
+      token = token,
+      verbose = FALSE
+    )
+    row <- tables[
+      tables$name == provisioned$tables$types,
+      ,
+      drop = FALSE
+    ]
+    if (nrow(row) != 1L || !length(row$columns[[1L]])) {
+      return(NULL)
+    }
+    row
+  })
+  sql_rows <- fabric_sql_read_table(
+    target,
+    sql_table,
+    columns = c("id", "name", "amount"),
+    limit = 3L,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  sql_rows <- sql_rows[order(sql_rows$id), ]
+  expect_equal(sql_rows$id, 1:3)
+  expect_equal(sql_rows$name, c("alpha", "beta", "gamma"))
+  expect_equal(as.numeric(sql_rows$amount), c(10.5, 20, NA))
+})
+
 test_that("Lakehouse writer retains a recoverable staging path on failure", {
   fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()

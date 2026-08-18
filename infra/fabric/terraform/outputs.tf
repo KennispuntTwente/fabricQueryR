@@ -43,6 +43,11 @@ output "sql_database_id" {
   value       = fabric_sql_database.test.id
 }
 
+output "mirrored_database_id" {
+  description = "ID of the open mirrored database exercised by integration tests."
+  value       = fabric_mirrored_database.test.id
+}
+
 output "eventhouse_id" {
   description = "ID of the Eventhouse exercised by KQL integration tests."
   value       = fabric_eventhouse.test.id

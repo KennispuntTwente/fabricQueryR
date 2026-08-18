@@ -2,8 +2,8 @@
 
 This directory contains the real-service test environment for `fabricQueryR`.
 Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse,
-Warehouse snapshot, SQL Database, Eventhouse, KQL database, GraphQL API, and
-access assignments. `fabric-cicd`
+Warehouse snapshot, SQL Database, open mirrored database, Eventhouse, KQL
+database, GraphQL API, and access assignments. `fabric-cicd`
 publishes the source-controlled seed notebook. The Python package uploads fixture
 files, runs the notebook, seeds the KQL database, and writes the manifest
 consumed by R.
@@ -20,6 +20,7 @@ supported by the Microsoft Fabric Terraform provider.
 - A Fabric capacity ID
 - A capacity/region that supports Warehouse, Warehouse snapshot preview, and
   SQL Database items
+- A capacity/region and tenant configuration that supports open mirroring
 - A capacity/region that supports Eventhouse and KQL Database items
 - A capacity/region that supports API for GraphQL items
 - A capacity/region that supports Fabric Spark Runtime 1.3; the preview Delta
@@ -49,6 +50,7 @@ export FABRIC_NON_SCHEMA_LAKEHOUSE_ID="$(terraform -chdir=infra/fabric/terraform
 export FABRIC_WAREHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_id)"
 export FABRIC_WAREHOUSE_SNAPSHOT_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_snapshot_id)"
 export FABRIC_SQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw sql_database_id)"
+export FABRIC_MIRRORED_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw mirrored_database_id)"
 export FABRIC_EVENTHOUSE_ID="$(terraform -chdir=infra/fabric/terraform output -raw eventhouse_id)"
 export FABRIC_KQL_DATABASE_ID="$(terraform -chdir=infra/fabric/terraform output -raw kql_database_id)"
 export FABRIC_GRAPHQL_API_ID="$(terraform -chdir=infra/fabric/terraform output -raw graphql_api_id)"
@@ -296,7 +298,7 @@ installation is operating-system specific.
 ## Current fixture scope
 
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestWarehouseSnapshot`,
-`TestSQLDatabase`,
+`TestSQLDatabase`, `TestMirroredDatabase`,
 `TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, `SeedFixtures`,
 `JobFixtures`, `TestPipeline`, and `TestSparkJob`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. Its
@@ -309,14 +311,16 @@ DV mutations, V2 sidecars, absolute OneLake AddFile paths, and current reader
 features. The OneLake suite also reads the Warehouse Delta export, checks exact
 Warehouse values, and enforces an explicit assertion disposition for every
 discovered Delta fixture. The sandbox creates
-matching deterministic typed SQL tables in the Warehouse and SQL Database,
-  plus deterministic typed Kusto query and queued-ingestion tables. The
+matching deterministic typed SQL tables and views in the Warehouse and SQL
+Database, plus an idempotent open-mirroring upsert fixture that is verified
+through both OneLake Delta and the mirrored SQL endpoint. It also creates
+deterministic typed Kusto query and queued-ingestion tables. The
   ingestion table has a predefined CSV mapping and consumes the staged
   `Files/fixtures/basic.csv` fixture in the live ingestion round trip.
 
-Warehouse Delta-log publication is asynchronous after a SQL commit. Seeding
+Warehouse and open-mirroring Delta-log publication is asynchronous. Seeding
 therefore polls OneLake until a log file modified after the fixture rebuild is
-visible before allowing integration tests to start.
+visible and readable before allowing integration tests to start.
 
 After the seed table is available, the sandbox refreshes the SQL analytics
 endpoint and requires a successful per-table sync status before applying the
@@ -339,3 +343,7 @@ null values, collected tibbles, and Arrow streams that remain consumable after
 the one-shot helper closes its connection. ODBC and ADBC results are normalized
 and compared for the writable SQL items. The stream checks cover both nanoarrow
 collection and conversion to an `arrow::RecordBatchReader`.
+
+The OneLake portion also discovers the provisioned mirrored database and its
+schemas/tables, reads the replicated Delta table directly, and verifies the
+same table through the generic SQL discovery and read helpers.

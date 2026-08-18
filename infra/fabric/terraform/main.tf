@@ -91,6 +91,26 @@ resource "fabric_sql_database" "test" {
   }
 }
 
+resource "fabric_mirrored_database" "test" {
+  display_name = "TestMirroredDatabase"
+  description  = "Ephemeral open mirrored database for fabricQueryR integration tests"
+  workspace_id = fabric_workspace.sandbox.id
+  format       = "Default"
+
+  definition = {
+    "mirroring.json" = {
+      source          = "${path.module}/definitions/open-mirroring.json"
+      processing_mode = "None"
+    }
+  }
+
+  timeouts = {
+    create = "20m"
+    update = "15m"
+    delete = "20m"
+  }
+}
+
 resource "fabric_eventhouse" "test" {
   display_name = "TestEventhouse"
   description  = "Ephemeral integration-test Eventhouse for fabricQueryR"

@@ -99,6 +99,7 @@ def make_settings(root: Path) -> SandboxSettings:
         "fixture_revision.py",
         "graphql_api.py",
         "kusto_api.py",
+        "open_mirroring.py",
         "power_bi_api.py",
         "seed.py",
         "sql_api.py",

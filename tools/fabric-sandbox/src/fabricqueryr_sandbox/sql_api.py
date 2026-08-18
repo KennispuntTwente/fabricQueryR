@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import struct
 import time
 from collections.abc import Callable
@@ -12,6 +13,7 @@ import pyodbc
 SQL_AUDIENCE = "https://database.windows.net/.default"
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 SQL_FIXTURE_TABLE = "fabricqueryr_sql_types"
+SQL_FIXTURE_VIEW = "fabricqueryr_sql_types_view"
 SQL_MUTATION_TABLE = "fabricqueryr_sql_mutations"
 
 
@@ -62,6 +64,76 @@ def _odbc_access_token(token: str) -> bytes:
     return struct.pack(f"<I{len(encoded)}s", len(encoded), encoded)
 
 
+def _odbc_connection_settings(
+    connection_string: str,
+    database: str,
+    token: str,
+) -> tuple[str, dict[int, bytes]]:
+    """Build reusable ODBC settings for a Fabric SQL endpoint."""
+    server, database = _sql_target(connection_string, database)
+    odbc_connection_string = (
+        "Driver={ODBC Driver 18 for SQL Server};"
+        f"Server={server};"
+        f"Database={database};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "MARS_Connection=no;"
+        "Connection Timeout=30"
+    )
+    return odbc_connection_string, {
+        SQL_COPT_SS_ACCESS_TOKEN: _odbc_access_token(token),
+    }
+
+
+def wait_for_sql_fixture(
+    connection_string: str,
+    database: str,
+    token: str,
+    table: str,
+    *,
+    connect: Callable[..., pyodbc.Connection] | None = None,
+    attempts: int = 60,
+    retry_delay: float = 10,
+) -> None:
+    """Wait until a seeded fixture is queryable through a SQL endpoint."""
+    if attempts < 1:
+        raise ValueError("attempts must be positive")
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table) is None:
+        raise ValueError("table must be an unquoted SQL identifier")
+    odbc_connection_string, attributes = _odbc_connection_settings(
+        connection_string,
+        database,
+        token,
+    )
+    connect = connect or pyodbc.connect
+    last_error: pyodbc.Error | None = None
+    for attempt in range(1, attempts + 1):
+        connection = None
+        try:
+            connection = connect(
+                odbc_connection_string,
+                attrs_before=attributes,
+                autocommit=True,
+            )
+            row = connection.cursor().execute(
+                f"SELECT COUNT(*), SUM(amount) FROM dbo.{table}"
+            ).fetchone()
+            if row is not None and row[0] == 3 and float(row[1]) == 30.5:
+                return
+        except pyodbc.Error as error:
+            last_error = error
+        finally:
+            if connection is not None:
+                connection.close()
+        if attempt < attempts:
+            time.sleep(retry_delay)
+
+    raise RuntimeError(
+        f"SQL fixture dbo.{table} in {database} was not ready after "
+        f"{attempts} attempts"
+    ) from last_error
+
+
 def seed_sql_fixture(
     connection_string: str,
     database: str,
@@ -75,20 +147,13 @@ def seed_sql_fixture(
     """Create a small typed table in a Warehouse or SQL Database."""
     if attempts < 1:
         raise ValueError("attempts must be positive")
-    server, database = _sql_target(connection_string, database)
-    connect = connect or pyodbc.connect
-    odbc_connection_string = (
-        "Driver={ODBC Driver 18 for SQL Server};"
-        f"Server={server};"
-        f"Database={database};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-        "MARS_Connection=no;"
-        "Connection Timeout=30"
+    odbc_connection_string, attributes = _odbc_connection_settings(
+        connection_string,
+        database,
+        token,
     )
-    attributes = {
-        SQL_COPT_SS_ACCESS_TOKEN: _odbc_access_token(token),
-    }
+    connect = connect or pyodbc.connect
+
     def create_statement(table: str) -> str:
         return (
             f"CREATE TABLE dbo.{table} ("
@@ -119,9 +184,14 @@ def seed_sql_fixture(
         )
 
     statements = [
+        f"DROP VIEW IF EXISTS dbo.{SQL_FIXTURE_VIEW}",
         f"DROP TABLE IF EXISTS dbo.{SQL_FIXTURE_TABLE}",
         create_statement(SQL_FIXTURE_TABLE),
         insert_statement(SQL_FIXTURE_TABLE),
+        (
+            f"CREATE VIEW dbo.{SQL_FIXTURE_VIEW} AS "
+            f"SELECT id, name, amount FROM dbo.{SQL_FIXTURE_TABLE}"
+        ),
     ]
     if mutate:
         statements.extend(
@@ -163,6 +233,18 @@ def seed_sql_fixture(
             if row is None or row[0] != 3 or float(row[1]) != 30.5:
                 raise RuntimeError(
                     f"SQL fixture verification failed for {database}"
+                )
+            view_row = cursor.execute(
+                f"SELECT COUNT(*), SUM(amount) "
+                f"FROM dbo.{SQL_FIXTURE_VIEW}"
+            ).fetchone()
+            if (
+                view_row is None
+                or view_row[0] != 3
+                or float(view_row[1]) != 30.5
+            ):
+                raise RuntimeError(
+                    f"SQL view fixture verification failed for {database}"
                 )
             if mutate:
                 mutation_row = cursor.execute(
