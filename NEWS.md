@@ -17,15 +17,18 @@ Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 `fabric_onelake_list()`, `fabric_onelake_metadata()`, and
 `fabric_onelake_delete()` list, inspect, and delete files.
 
-* `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,
+* `fabric_lakehouse_schemas()`, `fabric_lakehouse_table()`,
+`fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,
 `fabric_lakehouse_load_table()`, and `fabric_lakehouse_write_table()` discover
-and read Lakehouse tables, load CSV or Parquet files, and write data frames or
-Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
+Lakehouse schemas and tables, read them, load CSV or Parquet files, and write
+data frames or Arrow data. Both ordinary and schema-enabled Lakehouses are
+supported.
 
-* `fabric_warehouse_tables()`, `fabric_warehouse_read_table()`, and
-`fabric_warehouse_write_table()` discover, read, and bulk-write Warehouse
-tables using data frames or Arrow data. Tables can be created, appended to,
-overwritten, or recreated as requested.
+* `fabric_warehouse_schemas()`, `fabric_warehouse_table()`,
+`fabric_warehouse_tables()`, `fabric_warehouse_read_table()`, and
+`fabric_warehouse_write_table()` discover schemas and tables, read them, and
+bulk-write Warehouse tables using data frames or Arrow data. Tables can be
+created, appended to, overwritten, or recreated as requested.
 
 * `fabric_kql_tables()`, `fabric_kql_query()`, and `fabric_kql_read_table()`
 discover Eventhouse tables and bring query or table results into R as typed R

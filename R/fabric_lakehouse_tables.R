@@ -401,26 +401,10 @@ fabric_lakehouse_tables <- function(
 
   # 2 Read Fabric's paginated inventory for authoritative type and location ----------------------
 
-  fabric_records <- tryCatch(
-    .fabric_lakehouse_fabric_table_pages(
-      target,
-      credential,
-      page_size
-    ),
-    fabric_http_error = function(error) {
-      if (
-        identical(
-          error$error_code,
-          "UnsupportedOperationForSchemasEnabledLakehouse"
-        )
-      ) {
-        return(list())
-      }
-      .fabric_abort(
-        "Could not list tables in the Lakehouse",
-        parent = error
-      )
-    }
+  fabric_records <- .fabric_lakehouse_fabric_inventory(
+    target,
+    credential,
+    page_size
   )
 
   # 3 List schemas, then every OneLake metadata page ---------------------------------------------
@@ -438,6 +422,30 @@ fabric_lakehouse_tables <- function(
       "fabric_lakehouse_protocol_error",
       "fabric_lakehouse_error"
     )
+  )
+}
+
+.fabric_lakehouse_fabric_inventory <- function(
+  target,
+  credential,
+  page_size
+) {
+  tryCatch(
+    .fabric_lakehouse_fabric_table_pages(target, credential, page_size),
+    fabric_http_error = function(error) {
+      if (
+        identical(
+          error$error_code,
+          "UnsupportedOperationForSchemasEnabledLakehouse"
+        )
+      ) {
+        return(list())
+      }
+      .fabric_abort(
+        "Could not list tables in the Lakehouse",
+        parent = error
+      )
+    }
   )
 }
 

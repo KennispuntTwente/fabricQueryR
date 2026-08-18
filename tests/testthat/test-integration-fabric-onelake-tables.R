@@ -13,6 +13,9 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   csv_table <- "fabricqueryr_csv_load"
   parquet_table <- "fabricqueryr_r_load"
 
+  schemas <- fabric_lakehouse_schemas(target, page_size = 1L, token = token)
+  expect_true(schema %in% schemas$name)
+
   # Force multiple metadata pages and retain the schema record associated with
   # every table row
   initial <- fabric_lakehouse_tables(
@@ -209,6 +212,15 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
     ]) ==
       "DELTA"
   ))
+  single <- fabric_lakehouse_table(
+    target,
+    parquet_table,
+    schema = schema,
+    token = token
+  )
+  expect_equal(single$name, parquet_table)
+  expect_equal(single$schema, schema)
+  expect_true(length(single$columns[[1L]]) > 0L)
 })
 
 test_that("Lakehouse writer retains a recoverable staging path on failure", {

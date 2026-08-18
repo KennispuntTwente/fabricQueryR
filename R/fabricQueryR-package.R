@@ -21,10 +21,12 @@
 #' - Use [fabric_function_invoke()] to call published business logic through a
 #'   User Data Function's explicit public URL
 #' - Use [fabric_onelake_files] for ordinary files,
-#'   [fabric_lakehouse_tables()] to discover or load managed Delta tables,
+#'   [fabric_lakehouse_schemas()] and [fabric_lakehouse_tables()] to discover or
+#'   load managed Delta tables,
 #'   [fabric_onelake_read_delta_table()] to read them, and the Livy helpers when
 #'   Spark processing is required
-#' - Use [fabric_warehouse_tables()] to discover Warehouse tables, then
+#' - Use [fabric_warehouse_schemas()] and [fabric_warehouse_tables()] to discover
+#'   Warehouse tables, then
 #'   [fabric_warehouse_read_table()] or [fabric_warehouse_write_table()] for
 #'   symmetric Warehouse table transfer
 #' - Use [fabric_job_run()], [fabric_job_status()], [fabric_job_wait()], and

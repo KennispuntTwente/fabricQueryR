@@ -71,6 +71,8 @@ reference:
   - title: LakeHouse tables (Delta Lake tables)
     desc: Discover, load, and read Delta Lake tables in OneLake
     contents:
+      - fabric_lakehouse_schemas
+      - fabric_lakehouse_table
       - fabric_lakehouse_tables
       - fabric_lakehouse_read_table
       - fabric_lakehouse_load_table
@@ -93,6 +95,8 @@ reference:
   - title: Warehouse tables
     desc: Discover, load, and read Warehouse tables in Fabric
     contents:
+      - fabric_warehouse_schemas
+      - fabric_warehouse_table
       - fabric_warehouse_tables
       - fabric_warehouse_read_table
       - fabric_warehouse_write_table

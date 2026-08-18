@@ -1,3 +1,124 @@
+test_that("Lakehouse schema discovery follows OneLake metadata pages", {
+  calls <- character()
+  audiences <- character()
+  provider <- function(audience, force_refresh = FALSE) {
+    audiences <<- c(audiences, audience)
+    "storage-token"
+  }
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    second <- grepl("page_token=next-schema", req$url, fixed = TRUE)
+    body <- if (second) {
+      list(
+        schemas = list(list(
+          name = "sales",
+          catalog_name = lakehouse_table_test_id,
+          full_name = paste(lakehouse_table_test_id, "sales", sep = "."),
+          owner = "data-team",
+          schema_id = "schema-sales"
+        )),
+        next_page_token = NULL
+      )
+    } else {
+      list(
+        schemas = list(list(
+          name = "dbo",
+          catalog_name = lakehouse_table_test_id,
+          comment = "Default schema",
+          created_at = 1786622400123,
+          future_schema = "kept"
+        )),
+        next_page_token = "next-schema"
+      )
+    }
+    lakehouse_table_test_response(body, url = req$url)
+  })
+
+  schemas <- fabric_lakehouse_schemas(
+    lakehouse_table_test_item(),
+    page_size = 1L,
+    token = provider
+  )
+
+  expect_s3_class(schemas, "tbl_df")
+  expect_equal(schemas$name, c("dbo", "sales"))
+  expect_equal(schemas$catalog, rep(lakehouse_table_test_id, 2L))
+  expect_equal(
+    schemas$full_name,
+    paste(lakehouse_table_test_id, c("dbo", "sales"), sep = ".")
+  )
+  expect_equal(schemas$comment[[1L]], "Default schema")
+  expect_equal(schemas$owner[[2L]], "data-team")
+  expect_s3_class(schemas$created_at, "POSIXct")
+  expect_equal(schemas$raw[[1L]]$future_schema, "kept")
+  expect_length(calls, 2L)
+  expect_true(all(grepl("max_results=1", calls, fixed = TRUE)))
+  expect_equal(audiences, rep(.fabric_audience$storage, 2L))
+})
+
+test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
+  calls <- character()
+  audiences <- character()
+  provider <- function(audience, force_refresh = FALSE) {
+    audiences <<- c(audiences, audience)
+    "audience-token"
+  }
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    if (grepl("api.fabric.microsoft.com", req$url, fixed = TRUE)) {
+      return(lakehouse_table_test_response(
+        list(
+          data = list(list(
+            name = "sales.éxport_数据",
+            type = "External",
+            format = "Delta",
+            location = paste0(
+              "abfss://workspace@onelake.dfs.fabric.microsoft.com/lakehouse/",
+              "Tables/sales/éxport_数据"
+            ),
+            future_fabric = "kept"
+          )),
+          continuationToken = NULL
+        ),
+        url = req$url
+      ))
+    }
+    lakehouse_table_test_response(
+      list(
+        name = "éxport_数据",
+        schema_name = "sales",
+        table_id = "table-export",
+        columns = list(list(name = "id", type_name = "long")),
+        storage_location = paste0(
+          "https://onelake.dfs.fabric.microsoft.com/workspace/lakehouse/",
+          "Tables/sales/éxport_数据"
+        ),
+        future_detail = "kept"
+      ),
+      url = req$url
+    )
+  })
+
+  table <- fabric_lakehouse_table(
+    lakehouse_table_test_item(),
+    tibble::tibble(name = "éxport_数据", schema = "sales"),
+    token = provider
+  )
+
+  expect_equal(table$name, "éxport_数据")
+  expect_equal(table$schema, "sales")
+  expect_equal(table$full_name, "sales.éxport_数据")
+  expect_equal(table$type, "External")
+  expect_equal(table$format, "Delta")
+  expect_equal(table$columns[[1L]][[1L]]$name, "id")
+  expect_equal(table$schema_metadata[[1L]]$name, "sales")
+  expect_equal(table$raw[[1L]]$future_detail, "kept")
+  expect_equal(table$fabric_raw[[1L]]$future_fabric, "kept")
+  expect_length(calls, 2L)
+  expect_match(utils::URLdecode(calls[[2L]]), "éxport_数据", fixed = TRUE)
+  expect_equal(audiences, c(.fabric_audience$fabric, .fabric_audience$storage))
+})
+
 test_that("Lakehouse reader resolves discovered item and table records", {
   captured <- NULL
   item <- lakehouse_table_test_item(default_schema = "sales")

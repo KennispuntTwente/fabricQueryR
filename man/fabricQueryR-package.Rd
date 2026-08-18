@@ -29,10 +29,12 @@ Lakehouse SQL analytics endpoint
 \item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
 User Data Function's explicit public URL
 \item Use \link{fabric_onelake_files} for ordinary files,
-\code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover or load managed Delta tables,
+\code{\link[=fabric_lakehouse_schemas]{fabric_lakehouse_schemas()}} and \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover or
+load managed Delta tables,
 \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read them, and the Livy helpers when
 Spark processing is required
-\item Use \code{\link[=fabric_warehouse_tables]{fabric_warehouse_tables()}} to discover Warehouse tables, then
+\item Use \code{\link[=fabric_warehouse_schemas]{fabric_warehouse_schemas()}} and \code{\link[=fabric_warehouse_tables]{fabric_warehouse_tables()}} to discover
+Warehouse tables, then
 \code{\link[=fabric_warehouse_read_table]{fabric_warehouse_read_table()}} or \code{\link[=fabric_warehouse_write_table]{fabric_warehouse_write_table()}} for
 symmetric Warehouse table transfer
 \item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and

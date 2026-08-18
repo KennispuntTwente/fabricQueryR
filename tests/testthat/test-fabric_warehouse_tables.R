@@ -1,3 +1,76 @@
+test_that("Warehouse schema discovery retains an empty stable shape", {
+  calls <- character()
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    lakehouse_table_test_response(
+      list(schemas = list(), next_page_token = NULL),
+      url = req$url
+    )
+  })
+
+  schemas <- fabric_warehouse_schemas(
+    warehouse_write_test_warehouse(),
+    token = "storage-token"
+  )
+
+  expect_s3_class(schemas, "tbl_df")
+  expect_named(
+    schemas,
+    c(
+      "name",
+      "catalog",
+      "full_name",
+      "comment",
+      "owner",
+      "schema_id",
+      "created_at",
+      "updated_at",
+      "raw"
+    )
+  )
+  expect_equal(nrow(schemas), 0L)
+  expect_length(calls, 1L)
+  expect_match(calls, "/schemas", fixed = TRUE)
+})
+
+test_that("Warehouse singular discovery requests one detailed table", {
+  calls <- character()
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    lakehouse_table_test_response(
+      list(
+        name = "orders",
+        schema_name = "sales",
+        table_type = "MANAGED",
+        data_source_format = "DELTA",
+        table_id = "table-orders",
+        columns = list(list(name = "id", type_name = "long")),
+        future_detail = "kept"
+      ),
+      url = req$url
+    )
+  })
+
+  table <- fabric_warehouse_table(
+    warehouse_write_test_warehouse(),
+    "orders",
+    schema = "sales",
+    token = "storage-token"
+  )
+
+  expect_equal(table$name, "orders")
+  expect_equal(table$schema, "sales")
+  expect_equal(table$full_name, "sales.orders")
+  expect_equal(table$type, "MANAGED")
+  expect_equal(table$format, "DELTA")
+  expect_equal(table$columns[[1L]][[1L]]$type_name, "long")
+  expect_equal(table$raw[[1L]]$future_detail, "kept")
+  expect_length(table$fabric_raw[[1L]], 0L)
+  expect_length(calls, 1L)
+  expect_match(utils::URLdecode(calls), "sales.orders", fixed = TRUE)
+  expect_match(calls, "schema_name=sales", fixed = TRUE)
+})
+
 test_that("Warehouse table discovery follows schema and table pages", {
   calls <- character()
   audiences <- character()

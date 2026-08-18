@@ -245,6 +245,9 @@ test_that("fabric_warehouse_tables discovers seeded Warehouse metadata", {
   token <- fabric_test_token_provider()
   expected_table <- provisioned$tables$types
 
+  schemas <- fabric_warehouse_schemas(target, page_size = 1L, token = token)
+  expect_true("dbo" %in% schemas$name)
+
   discovered <- fabric_test_eventually(function() {
     tables <- fabric_warehouse_tables(
       target,
@@ -280,6 +283,19 @@ test_that("fabric_warehouse_tables discovers seeded Warehouse metadata", {
     )
   )
   expect_length(discovered$fabric_raw[[1L]], 0L)
+
+  single <- fabric_warehouse_table(
+    target,
+    expected_table,
+    schema = "dbo",
+    token = token
+  )
+  expect_equal(single$name, expected_table)
+  expect_equal(single$schema, "dbo")
+  expect_equal(
+    vapply(single$columns[[1L]], `[[`, character(1), "name"),
+    vapply(discovered$columns[[1L]], `[[`, character(1), "name")
+  )
 
   rows <- fabric_warehouse_read_table(
     target,
