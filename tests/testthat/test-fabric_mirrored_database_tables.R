@@ -1,28 +1,3 @@
-mirrored_database_test_workspace <- "11111111-1111-4111-8111-111111111111"
-mirrored_database_test_id <- "22222222-2222-4222-8222-222222222222"
-
-mirrored_database_test_item <- function(default_schema = "sales") {
-  structure(
-    list(
-      id = mirrored_database_test_id,
-      workspaceId = mirrored_database_test_workspace,
-      displayName = "OperationalReplica",
-      type = "MirroredDatabase",
-      default_schema = default_schema,
-      one_lake_tables_path = paste0(
-        "https://onelake.dfs.fabric.microsoft.com/",
-        mirrored_database_test_workspace,
-        "/",
-        mirrored_database_test_id,
-        "/Tables"
-      ),
-      sql_server = "mirror.datawarehouse.fabric.microsoft.com",
-      sql_database = "OperationalReplica"
-    ),
-    class = c("fabric_item", "list")
-  )
-}
-
 test_that("mirrored database table discovery follows OneLake metadata", {
   calls <- character()
   audiences <- character()
