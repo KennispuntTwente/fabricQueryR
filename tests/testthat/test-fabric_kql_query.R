@@ -13,8 +13,13 @@ test_that("KQL table discovery returns listing and schema metadata", {
       DocString = "String"
     ),
     list(
-      list("Events", "Telemetry", "Production", "Event stream"),
-      list("Metrics", "Telemetry", "", "")
+      list(
+        "Events",
+        "11111111-1111-4111-8111-111111111111",
+        "Production",
+        "Event stream"
+      ),
+      list("Metrics", "11111111-1111-4111-8111-111111111111", "", "")
     )
   )
   schema <- function(name, type) {
@@ -60,6 +65,10 @@ test_that("KQL table discovery returns listing and schema metadata", {
   expect_equal(tables$columns[[1L]][[1L]]$Name, "id")
   expect_equal(tables$columns[[2L]][[1L]]$Type, "System.Double")
   expect_equal(tables$raw[[1L]]$TableName, "Events")
+  expect_equal(
+    tables$raw[[1L]]$DatabaseName,
+    "11111111-1111-4111-8111-111111111111"
+  )
   expect_equal(
     commands,
     c(

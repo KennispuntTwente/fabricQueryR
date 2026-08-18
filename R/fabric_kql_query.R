@@ -85,6 +85,7 @@ fabric_kql_tables <- function(
     error_class
   )
   result <- kusto_table_inventory(table)
+  result$database <- rep(target$database, nrow(result))
 
   if (isTRUE(detail) && nrow(result)) {
     for (index in seq_len(nrow(result))) {
