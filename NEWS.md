@@ -27,8 +27,9 @@ Arrow data. Both ordinary and schema-enabled Lakehouses are supported.
 tables using data frames or Arrow data. Tables can be created, appended to,
 overwritten, or recreated as requested.
 
-* `fabric_kql_query()` and `fabric_kql_read_table()` bring Eventhouse query and
-table results into R as typed R objects.
+* `fabric_kql_tables()`, `fabric_kql_query()`, and `fabric_kql_read_table()`
+discover Eventhouse tables and bring query or table results into R as typed R
+objects.
 
 * `fabric_kql_ingest()`, `fabric_kql_write_table()`, and `fabric_kql_export()`
 load existing files or R and Arrow data into Eventhouse, monitor the load, and

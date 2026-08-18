@@ -3624,8 +3624,33 @@ kusto_export_management <- function(
   idempotent,
   operation
 ) {
+  kusto_execute_management(
+    target = target,
+    command = command,
+    credential = credential,
+    deadline = deadline,
+    idempotent = idempotent,
+    operation = operation,
+    request_prefix = "Export",
+    error_class = c(
+      "fabric_kql_export_protocol_error",
+      "fabric_kql_export_error"
+    )
+  )
+}
+
+kusto_execute_management <- function(
+  target,
+  command,
+  credential,
+  deadline,
+  idempotent,
+  operation,
+  request_prefix,
+  error_class
+) {
   client_request_id <- .kusto_next_ingestion_request_id(
-    paste0("Export", operation)
+    paste0(request_prefix, operation)
   )
   url <- sub(
     "/v2/rest/query$",
@@ -3668,16 +3693,13 @@ kusto_export_management <- function(
     error = function(error) {
       .fabric_abort(
         "Kusto returned invalid management response JSON",
-        class = c(
-          "fabric_kql_export_protocol_error",
-          "fabric_kql_export_error"
-        ),
+        class = error_class,
         parent = error
       )
     }
   )
   list(
-    tables = kusto_export_tables(payload),
+    tables = kusto_management_tables(payload, error_class),
     request_id = httr2::resp_header(response, "x-ms-request-id") %||%
       client_request_id
   )
@@ -3685,13 +3707,20 @@ kusto_export_management <- function(
 
 # Parse every v1 management table using the established Kusto type converter
 kusto_export_tables <- function(payload) {
+  kusto_management_tables(
+    payload,
+    error_class = c(
+      "fabric_kql_export_protocol_error",
+      "fabric_kql_export_error"
+    )
+  )
+}
+
+kusto_management_tables <- function(payload, error_class) {
   if (!is.list(payload) || !is.list(payload$Tables)) {
     .fabric_abort(
       "Kusto management response has no Tables array",
-      class = c(
-        "fabric_kql_export_protocol_error",
-        "fabric_kql_export_error"
-      )
+      class = error_class
     )
   }
   tables <- payload$Tables
@@ -3703,10 +3732,7 @@ kusto_export_tables <- function(payload) {
     ) {
       .fabric_abort(
         "Kusto management response contains a malformed table",
-        class = c(
-          "fabric_kql_export_protocol_error",
-          "fabric_kql_export_error"
-        )
+        class = error_class
       )
     }
     kusto_parse_table(table)
@@ -3715,6 +3741,17 @@ kusto_export_tables <- function(payload) {
 
 # Find the first management table containing all requested fields
 kusto_export_table <- function(tables, fields) {
+  kusto_management_table(
+    tables,
+    fields,
+    error_class = c(
+      "fabric_kql_export_protocol_error",
+      "fabric_kql_export_error"
+    )
+  )
+}
+
+kusto_management_table <- function(tables, fields, error_class) {
   for (table in tables) {
     if (all(tolower(fields) %in% tolower(names(table)))) {
       return(table)
@@ -3725,10 +3762,7 @@ kusto_export_table <- function(tables, fields) {
       "Kusto management response is missing columns: ",
       paste(fields, collapse = ", ")
     ),
-    class = c(
-      "fabric_kql_export_protocol_error",
-      "fabric_kql_export_error"
-    )
+    class = error_class
   )
 }
 

@@ -11,6 +11,7 @@
 #' - Use [fabric_sql_query()] for T-SQL against a Warehouse, SQL Database, or
 #'   Lakehouse SQL analytics endpoint
 #' - Use [fabric_pbi_dax_query()] for report-ready semantic models,
+#'   [fabric_kql_tables()] to discover Eventhouse tables,
 #'   [fabric_kql_query()] for Eventhouse/KQL data,
 #'   [fabric_kql_read_table()] for table-oriented Eventhouse reads,
 #'   [fabric_kql_ingest()] for tracked storage ingestion,

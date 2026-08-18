@@ -1,3 +1,114 @@
+test_that("KQL table discovery returns listing and schema metadata", {
+  commands <- character()
+  audiences <- character()
+  provider <- function(audience, force_refresh = FALSE) {
+    audiences <<- c(audiences, audience)
+    "kusto-token"
+  }
+  listing <- kusto_export_test_table(
+    c(
+      TableName = "String",
+      DatabaseName = "String",
+      Folder = "String",
+      DocString = "String"
+    ),
+    list(
+      list("Events", "Telemetry", "Production", "Event stream"),
+      list("Metrics", "Telemetry", "", "")
+    )
+  )
+  schema <- function(name, type) {
+    kusto_export_test_table(
+      c(TableName = "String", Schema = "String"),
+      list(list(
+        name,
+        as.character(jsonlite::toJSON(
+          list(OrderedColumns = list(list(Name = "id", Type = type))),
+          auto_unbox = TRUE
+        ))
+      ))
+    )
+  }
+  httr2::local_mocked_responses(function(req) {
+    command <- req$body$data$csl
+    commands <<- c(commands, command)
+    table <- if (identical(command, ".show tables")) {
+      listing
+    } else if (grepl("Events", command, fixed = TRUE)) {
+      schema("Events", "System.Int32")
+    } else {
+      schema("Metrics", "System.Double")
+    }
+    kusto_export_test_response(table)
+  })
+
+  tables <- fabric_kql_tables(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      type = "KQLDatabase",
+      displayName = "Telemetry",
+      query_service_uri = "https://cluster.kusto.fabric.microsoft.com"
+    ),
+    token = provider
+  )
+
+  expect_s3_class(tables, "tbl_df")
+  expect_equal(tables$name, c("Events", "Metrics"))
+  expect_equal(tables$database, rep("Telemetry", 2L))
+  expect_equal(tables$folder, c("Production", ""))
+  expect_equal(tables$description, c("Event stream", ""))
+  expect_equal(tables$columns[[1L]][[1L]]$Name, "id")
+  expect_equal(tables$columns[[2L]][[1L]]$Type, "System.Double")
+  expect_equal(tables$raw[[1L]]$TableName, "Events")
+  expect_equal(
+    commands,
+    c(
+      ".show tables",
+      ".show table ['Events'] schema as json",
+      ".show table ['Metrics'] schema as json"
+    )
+  )
+  expect_equal(audiences, rep(.fabric_audience$kusto, 3L))
+})
+
+test_that("KQL table discovery can skip detail and retain an empty shape", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    kusto_export_test_response(kusto_export_test_table(
+      c(
+        TableName = "String",
+        DatabaseName = "String",
+        Folder = "String",
+        DocString = "String"
+      )
+    ))
+  })
+
+  tables <- fabric_kql_tables(
+    "https://cluster.kusto.fabric.microsoft.com",
+    database = "Telemetry",
+    detail = FALSE,
+    token = "kusto-token"
+  )
+
+  expect_s3_class(tables, "tbl_df")
+  expect_named(
+    tables,
+    c(
+      "name",
+      "database",
+      "folder",
+      "description",
+      "columns",
+      "schema_metadata",
+      "raw"
+    )
+  )
+  expect_equal(nrow(tables), 0L)
+  expect_equal(calls, 1L)
+})
+
 test_that("KQL table reader delegates a safely parameterized projection", {
   captured <- NULL
   expected <- tibble::tibble(id = 1L, `display name` = "alpha")

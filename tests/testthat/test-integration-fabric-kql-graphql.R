@@ -90,6 +90,39 @@ test_that("fabric_kql_read_table reads projected seeded Eventhouse data", {
   expect_equal(rows$amount, c(10.5, 20, NA_real_))
 })
 
+test_that("fabric_kql_tables discovers seeded Eventhouse metadata", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  tables <- fabric_kql_tables(
+    database$query_service_uri,
+    database = database$database_name,
+    detail = TRUE,
+    token = fabric_test_token_provider()
+  )
+  discovered <- tables[
+    tables$name == database$tables$events,
+    ,
+    drop = FALSE
+  ]
+
+  expect_s3_class(discovered, "tbl_df")
+  expect_equal(nrow(discovered), 1L)
+  expect_equal(discovered$database, database$database_name)
+  expect_equal(
+    vapply(discovered$columns[[1L]], `[[`, character(1), "Name"),
+    c(
+      "id",
+      "name",
+      "category",
+      "amount",
+      "observed_at",
+      "active",
+      "correlation_id",
+      "metadata"
+    )
+  )
+})
+
 test_that("fabric_kql_query discovers targets and binds safe parameters", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestKQLDatabase")

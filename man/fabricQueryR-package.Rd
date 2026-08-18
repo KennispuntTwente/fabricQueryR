@@ -19,6 +19,7 @@ most workflows, you do not need to copy IDs or connection details by hand
 \item Use \code{\link[=fabric_sql_query]{fabric_sql_query()}} for T-SQL against a Warehouse, SQL Database, or
 Lakehouse SQL analytics endpoint
 \item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
+\code{\link[=fabric_kql_tables]{fabric_kql_tables()}} to discover Eventhouse tables,
 \code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data,
 \code{\link[=fabric_kql_read_table]{fabric_kql_read_table()}} for table-oriented Eventhouse reads,
 \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}} for tracked storage ingestion,

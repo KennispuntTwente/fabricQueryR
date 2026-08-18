@@ -1,3 +1,178 @@
+#' Discover Microsoft Fabric KQL tables
+#'
+#' Lists tables in a Fabric KQL database through Kusto's management endpoint.
+#' With `detail = TRUE`, retrieves each table's JSON schema and exposes its
+#' ordered columns while retaining the complete metadata response.
+#'
+#' @inheritParams fabric_kql_query
+#' @param detail Whether to retrieve the JSON schema for every table. Set to
+#'   `FALSE` to issue only the database-level table-list command.
+#'
+#' @return A tibble with table `name`, `database`, `folder`, `description`,
+#'   list-column `columns`, parsed `schema_metadata`, and the unmodified listing
+#'   row in `raw`.
+#'
+#' @references
+#' [Kusto `.show tables` command](https://learn.microsoft.com/en-us/kusto/management/show-tables-command?view=microsoft-fabric)
+#'
+#' [Kusto `.show table schema` command](https://learn.microsoft.com/en-us/kusto/management/show-table-schema-command?view=microsoft-fabric)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' workspace <- fabric_workspaces()[[1L]]
+#' database <- fabric_kql_databases(workspace)[[1L]]
+#'
+#' tables <- fabric_kql_tables(database)
+#' events <- fabric_kql_read_table(database, tables[1L, ], limit = 1000)
+#' }
+fabric_kql_tables <- function(
+  cluster,
+  database = NULL,
+  detail = TRUE,
+  timeout = 60,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  allow_custom_endpoint = FALSE
+) {
+  .fabric_operation_logical(detail, "detail")
+  if (
+    !is.numeric(timeout) ||
+      length(timeout) != 1L ||
+      is.na(timeout) ||
+      !is.finite(timeout) ||
+      timeout <= 0
+  ) {
+    .fabric_abort(
+      "timeout must be one positive number of seconds",
+      class = "fabric_kql_tables_error"
+    )
+  }
+  target <- kusto_resolve_target(
+    cluster,
+    database,
+    allow_custom_endpoint = allow_custom_endpoint
+  )
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  error_class <- c(
+    "fabric_kql_tables_protocol_error",
+    "fabric_kql_tables_error"
+  )
+  deadline <- Sys.time() + timeout
+  response <- kusto_execute_management(
+    target = target,
+    command = ".show tables",
+    credential = credential,
+    deadline = deadline,
+    idempotent = TRUE,
+    operation = "ListTables",
+    request_prefix = "Tables",
+    error_class = error_class
+  )
+  table <- kusto_management_table(
+    response$tables,
+    c("TableName", "DatabaseName", "Folder", "DocString"),
+    error_class
+  )
+  result <- kusto_table_inventory(table)
+
+  if (isTRUE(detail) && nrow(result)) {
+    for (index in seq_len(nrow(result))) {
+      identifier <- kusto_entity_identifier(
+        result$name[[index]],
+        "table",
+        error_class
+      )
+      schema_response <- kusto_execute_management(
+        target = target,
+        command = paste(
+          ".show table",
+          identifier,
+          "schema as json"
+        ),
+        credential = credential,
+        deadline = deadline,
+        idempotent = TRUE,
+        operation = "GetTable",
+        request_prefix = "Tables",
+        error_class = error_class
+      )
+      schema_table <- kusto_management_table(
+        schema_response$tables,
+        c("TableName", "Schema"),
+        error_class
+      )
+      schema_text <- as.character(
+        kusto_export_column(schema_table, "Schema")[[1L]]
+      )
+      metadata <- kusto_table_schema_metadata(schema_text, error_class)
+      result$columns[[index]] <- metadata$OrderedColumns %||%
+        metadata$orderedColumns %||%
+        list()
+      result$schema_metadata[[index]] <- metadata
+    }
+  }
+
+  result
+}
+
+kusto_table_inventory <- function(table) {
+  count <- nrow(table)
+  if (!count) {
+    return(tibble::tibble(
+      name = character(),
+      database = character(),
+      folder = character(),
+      description = character(),
+      columns = list(),
+      schema_metadata = list(),
+      raw = list()
+    ))
+  }
+  tibble::tibble(
+    name = as.character(kusto_export_column(table, "TableName")),
+    database = as.character(kusto_export_column(table, "DatabaseName")),
+    folder = as.character(kusto_export_column(table, "Folder")),
+    description = as.character(kusto_export_column(table, "DocString")),
+    columns = rep(list(list()), count),
+    schema_metadata = rep(list(list()), count),
+    raw = lapply(seq_len(count), function(index) {
+      lapply(table, `[[`, index)
+    })
+  )
+}
+
+kusto_table_schema_metadata <- function(value, error_class) {
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    .fabric_abort("Kusto returned an empty table schema", class = error_class)
+  }
+  tryCatch(
+    jsonlite::fromJSON(value, simplifyVector = FALSE),
+    error = function(error) {
+      .fabric_abort(
+        "Kusto returned invalid table schema JSON",
+        class = error_class,
+        parent = error
+      )
+    }
+  )
+}
+
 #' Read a Microsoft Fabric KQL table
 #'
 #' Provides the table-oriented read counterpart to [fabric_kql_write_table()].
