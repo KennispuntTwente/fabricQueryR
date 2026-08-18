@@ -508,10 +508,10 @@ fabric_item <- function(
 #' `detail = FALSE` when you only need names and IDs
 #'
 #' @section Choosing a helper:
-#' - `fabric_lakehouses()`, `fabric_warehouses()`, and
-#'   `fabric_warehouse_snapshots()` find data stores that can be queried through
-#'   [fabric_sql_query()]; Lakehouses can also be accessed through OneLake and
-#'   Livy
+#' - `fabric_lakehouses()`, `fabric_warehouses()`,
+#'   `fabric_warehouse_snapshots()`, and `fabric_mirrored_databases()` find data
+#'   stores that can be queried through [fabric_sql_query()]; Lakehouses and
+#'   mirrored databases can also be accessed through OneLake
 #' - `fabric_sql_databases()` finds transactional Fabric SQL databases
 #' - `fabric_semantic_models()` finds the business models queried with DAX via
 #'   [fabric_pbi_dax_query()]
@@ -563,6 +563,7 @@ fabric_item <- function(
 #' lakehouses <- fabric_lakehouses(workspace)
 #' warehouses <- fabric_warehouses(workspace)
 #' snapshots <- fabric_warehouse_snapshots(workspace)
+#' mirrored_databases <- fabric_mirrored_databases(workspace)
 #' sql_databases <- fabric_sql_databases(workspace)
 #' semantic_models <- fabric_semantic_models(workspace)
 #' eventhouses <- fabric_eventhouses(workspace)
@@ -609,6 +610,12 @@ fabric_warehouses <- function(workspace, detail = TRUE, ...) {
 #' @export
 fabric_warehouse_snapshots <- function(workspace, detail = TRUE, ...) {
   fabric_typed_item_list(workspace, "WarehouseSnapshot", detail, ...)
+}
+
+#' @rdname fabric_typed_items
+#' @export
+fabric_mirrored_databases <- function(workspace, detail = TRUE, ...) {
+  fabric_typed_item_list(workspace, "MirroredDatabase", detail, ...)
 }
 
 #' @rdname fabric_typed_items
@@ -1131,6 +1138,7 @@ fabric_item_route <- function(type) {
     lakehouse = "lakehouses",
     warehouse = "warehouses",
     warehousesnapshot = "warehouseSnapshots",
+    mirroreddatabase = "mirroredDatabases",
     sqldatabase = "sqlDatabases",
     semanticmodel = "semanticModels",
     eventhouse = "eventhouses",
@@ -1237,7 +1245,7 @@ fabric_enrich_private_sql_target <- function(record, credential, api_base) {
   } else if (identical(type, "warehousesnapshot")) {
     route <- "warehouses"
     item_id <- record$properties$parentWarehouseId
-  } else if (identical(type, "lakehouse")) {
+  } else if (type %in% c("lakehouse", "mirroreddatabase")) {
     route <- "sqlEndpoints"
     item_id <- record$properties$sqlEndpointProperties$id
   }
@@ -1325,6 +1333,15 @@ fabric_add_derived_targets <- function(record, api_base) {
       record$id,
       "/livyapi/versions/2023-12-01/sessions"
     )
+  } else if (type == "mirroreddatabase") {
+    # Mirrored databases expose OneLake tables and a read-only SQL endpoint
+    sql <- properties$sqlEndpointProperties %||% list()
+    record$default_schema <- properties$defaultSchema
+    record$one_lake_tables_path <- properties$oneLakeTablesPath
+    record$sql_server <- sql$connectionString
+    record$sql_database <- record$displayName
+    record$sql_endpoint_id <- sql$id
+    record$sql_endpoint_status <- sql$provisioningStatus
   } else if (type %in% c("warehouse", "warehousesnapshot")) {
     # Warehouses use their display name as the SQL database
     record$sql_server <- properties$connectionString

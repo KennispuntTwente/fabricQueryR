@@ -589,6 +589,7 @@ test_that("typed routes and derived targets cover supported workloads", {
         "Lakehouse",
         "Warehouse",
         "WarehouseSnapshot",
+        "MirroredDatabase",
         "SQLDatabase",
         "SemanticModel",
         "Eventhouse",
@@ -603,6 +604,7 @@ test_that("typed routes and derived targets cover supported workloads", {
       "lakehouses",
       "warehouses",
       "warehouseSnapshots",
+      "mirroredDatabases",
       "sqlDatabases",
       "semanticModels",
       "eventhouses",
@@ -653,6 +655,36 @@ test_that("typed routes and derived targets cover supported workloads", {
     "snapshot.datawarehouse.fabric.microsoft.com"
   )
   expect_equal(snapshot$sql_database, "Sales at month end")
+
+  mirrored <- fabric_add_derived_targets(
+    list(
+      id = "mirrored-id",
+      type = "MirroredDatabase",
+      displayName = "Operational replica",
+      properties = list(
+        defaultSchema = "sales",
+        oneLakeTablesPath = paste0(
+          "https://onelake.dfs.fabric.microsoft.com/workspace/",
+          "mirrored-id/Tables"
+        ),
+        sqlEndpointProperties = list(
+          connectionString = "mirror.datawarehouse.fabric.microsoft.com",
+          id = "endpoint-id",
+          provisioningStatus = "Success"
+        )
+      )
+    ),
+    .fabric_api_base
+  )
+  expect_equal(mirrored$default_schema, "sales")
+  expect_match(mirrored$one_lake_tables_path, "/mirrored-id/Tables$")
+  expect_equal(
+    mirrored$sql_server,
+    "mirror.datawarehouse.fabric.microsoft.com"
+  )
+  expect_equal(mirrored$sql_database, "Operational replica")
+  expect_equal(mirrored$sql_endpoint_id, "endpoint-id")
+  expect_equal(mirrored$sql_endpoint_status, "Success")
 
   semantic_model <- fabric_add_derived_targets(
     list(
@@ -825,6 +857,7 @@ test_that("typed convenience helpers forward their workload types", {
     fabric_lakehouses = "Lakehouse",
     fabric_warehouses = "Warehouse",
     fabric_warehouse_snapshots = "WarehouseSnapshot",
+    fabric_mirrored_databases = "MirroredDatabase",
     fabric_sql_databases = "SQLDatabase",
     fabric_semantic_models = "SemanticModel",
     fabric_eventhouses = "Eventhouse",

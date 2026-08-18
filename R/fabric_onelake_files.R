@@ -762,6 +762,10 @@ onelake_resolve_target <- function(
         "Lakehouse"
       } else if (grepl("\\.warehouse$", item_value, ignore.case = TRUE)) {
         "Warehouse"
+      } else if (
+        grepl("\\.mirroreddatabase$", item_value, ignore.case = TRUE)
+      ) {
+        "MirroredDatabase"
       } else {
         NULL
       }

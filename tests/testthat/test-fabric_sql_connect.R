@@ -119,6 +119,30 @@ test_that("SQL connection info consumes discovered item rows", {
   expect_equal(snapshot_info$target_type, "warehouse")
   expect_equal(snapshot_info$source, "discovery")
 
+  mirrored <- structure(
+    list(
+      id = "mirrored-id",
+      displayName = "Operational replica",
+      type = "MirroredDatabase",
+      workspaceId = "workspace-id",
+      properties = list(
+        sqlEndpointProperties = list(
+          connectionString = "mirror.datawarehouse.fabric.microsoft.com"
+        )
+      ),
+      sql_server = "mirror.datawarehouse.fabric.microsoft.com"
+    ),
+    class = c("fabric_item", "list")
+  )
+  mirrored_info <- fabric_sql_connection_info(mirrored)
+  expect_equal(
+    mirrored_info$server,
+    "mirror.datawarehouse.fabric.microsoft.com"
+  )
+  expect_equal(mirrored_info$database, "Operational replica")
+  expect_equal(mirrored_info$target_type, "sql_analytics_endpoint")
+  expect_equal(mirrored_info$source, "discovery")
+
   expect_error(
     fabric_sql_connection_info(
       structure(

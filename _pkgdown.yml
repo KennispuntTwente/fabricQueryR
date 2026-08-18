@@ -32,6 +32,7 @@ reference:
       - fabric_lakehouses
       - fabric_warehouses
       - fabric_warehouse_snapshots
+      - fabric_mirrored_databases
       - fabric_sql_databases
       - fabric_semantic_models
       - fabric_eventhouses
@@ -103,6 +104,14 @@ reference:
       - fabric_warehouse_tables
       - fabric_warehouse_read_table
       - fabric_warehouse_write_table
+
+  - title: Mirrored Database tables
+    desc: Discover and read replicated Delta tables in OneLake
+    contents:
+      - fabric_mirrored_database_schemas
+      - fabric_mirrored_database_table
+      - fabric_mirrored_database_tables
+      - fabric_mirrored_database_read_table
 
   - title: KQL (Eventhouse)
     desc: Query Eventhouse data, ingest storage or R objects, and export results

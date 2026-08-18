@@ -106,14 +106,15 @@ use \code{DBI::dbDisconnect(con, force = TRUE)} to release them immediately
 }
 \description{
 Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot, Lakehouse,
-or SQL Database. Use the connection with familiar DBI functions such as
-\code{\link[DBI:dbListTables]{DBI::dbListTables()}} and \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}
+mirrored database, or SQL Database. Use the connection with familiar DBI
+functions such as \code{\link[DBI:dbListTables]{DBI::dbListTables()}} and \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}
 }
 \details{
 The easiest input is an item returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}},
-\code{\link[=fabric_lakehouses]{fabric_lakehouses()}}, or \code{\link[=fabric_sql_databases]{fabric_sql_databases()}}. You can also paste a SQL
-connection string from Fabric. A Lakehouse's SQL endpoint is read-only; use
-Spark or another OneLake writer to change Lakehouse data
+\code{\link[=fabric_lakehouses]{fabric_lakehouses()}}, \code{\link[=fabric_mirrored_databases]{fabric_mirrored_databases()}}, or
+\code{\link[=fabric_sql_databases]{fabric_sql_databases()}}. You can also paste a SQL connection string from
+Fabric. Lakehouse and mirrored database SQL endpoints are read-only; use the
+source system, Spark, or another appropriate writer to change their data
 }
 \section{Choosing a backend}{
 

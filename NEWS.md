@@ -30,6 +30,11 @@ supported.
 bulk-write Warehouse tables using data frames or Arrow data. Tables can be
 created, appended to, overwritten, or recreated as requested.
 
+* `fabric_mirrored_databases()` and the `fabric_mirrored_database_*()` helpers
+discover mirrored databases and inspect or read their OneLake Delta tables.
+Discovered records also work with the generic SQL helpers through each mirrored
+database's read-only SQL analytics endpoint.
+
 * `fabric_kql_tables()`, `fabric_kql_query()`, and `fabric_kql_read_table()`
 discover Eventhouse tables and bring query or table results into R as typed R
 objects.

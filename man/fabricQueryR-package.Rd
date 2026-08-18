@@ -38,6 +38,8 @@ Spark processing is required
 Warehouse tables, then
 \code{\link[=fabric_warehouse_read_table]{fabric_warehouse_read_table()}} or \code{\link[=fabric_warehouse_write_table]{fabric_warehouse_write_table()}} for
 symmetric Warehouse table transfer
+\item Use \code{\link[=fabric_mirrored_databases]{fabric_mirrored_databases()}} and \code{\link[=fabric_mirrored_database_tables]{fabric_mirrored_database_tables()}}
+to discover and read continuously replicated Delta tables
 \item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and
 \code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive

@@ -224,17 +224,26 @@ fabric_warehouse_table <- function(
   allow_custom_endpoint,
   argument
 ) {
-  domain <- if (identical(item_type, "Lakehouse")) "lakehouse" else "warehouse"
+  domain <- switch(
+    item_type,
+    Lakehouse = "lakehouse",
+    Warehouse = "warehouse",
+    MirroredDatabase = "mirrored_database"
+  )
   error_class <- c(
     paste0("fabric_", domain, "_protocol_error"),
     paste0("fabric_", domain, "_error")
   )
   base <- fabric_api_base(api_base, allow_custom_endpoint)
-  table_base <- .fabric_onelake_table_api_base(
-    table_api_base,
-    allow_custom_endpoint,
-    error_class = error_class
-  )
+  table_base <- if (is.null(table_api_base)) {
+    NULL
+  } else {
+    .fabric_onelake_table_api_base(
+      table_api_base,
+      allow_custom_endpoint,
+      error_class = error_class
+    )
+  }
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -253,7 +262,7 @@ fabric_warehouse_table <- function(
     .fabric_warehouse_resolve_item(
       item,
       workspace,
-      expected_type = "Warehouse",
+      expected_type = item_type,
       credential = credential,
       api_base = base,
       api_base_supplied = api_base_supplied,
@@ -265,7 +274,12 @@ fabric_warehouse_table <- function(
   list(
     workspace_id = item_target$workspace_id,
     item_id = item_target$lakehouse_id %||% item_target$item_id,
-    default_schema = item_target$default_schema,
+    default_schema = item_target$default_schema %||%
+      fabric_record_value(
+        item_target$record %||% list(),
+        "default_schema",
+        "defaultSchema"
+      ),
     table_base = table_base,
     credential = credential,
     item_target = item_target,

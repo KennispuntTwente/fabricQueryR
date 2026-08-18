@@ -74,13 +74,14 @@ fabric_sql_connection_info <- function(
           "lakehouse",
           "warehouse",
           "warehousesnapshot",
+          "mirroreddatabase",
           "sqldatabase"
         )
     ) {
       .fabric_abort(
         paste0(
           "SQL connections require a discovered Lakehouse, Warehouse, ",
-          "WarehouseSnapshot, or SQLDatabase item"
+          "WarehouseSnapshot, MirroredDatabase, or SQLDatabase item"
         ),
         class = "fabric_sql_target_error"
       )
@@ -108,7 +109,13 @@ fabric_sql_connection_info <- function(
     # Fabric SQL workloads commonly use their item name as the database
     if (
       is.null(database) &&
-        discovered_type %in% c("lakehouse", "warehouse", "warehousesnapshot")
+        discovered_type %in%
+          c(
+            "lakehouse",
+            "warehouse",
+            "warehousesnapshot",
+            "mirroreddatabase"
+          )
     ) {
       database <- fabric_record_value(record, "displayName")
     }
@@ -138,6 +145,7 @@ fabric_sql_connection_info <- function(
       lakehouse = "lakehouse",
       warehouse = "warehouse",
       warehousesnapshot = "warehouse",
+      mirroreddatabase = "sql_analytics_endpoint",
       sqldatabase = "sql_database",
       fabric_infer_sql_target(parsed$server)
     )
@@ -164,14 +172,15 @@ fabric_sql_connection_info <- function(
 #' Connect to a Microsoft Fabric SQL target
 #'
 #' Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot, Lakehouse,
-#' or SQL Database. Use the connection with familiar DBI functions such as
-#' [DBI::dbListTables()] and [DBI::dbGetQuery()]
+#' mirrored database, or SQL Database. Use the connection with familiar DBI
+#' functions such as [DBI::dbListTables()] and [DBI::dbGetQuery()]
 #'
 #' @details
 #' The easiest input is an item returned by [fabric_warehouses()],
-#' [fabric_lakehouses()], or [fabric_sql_databases()]. You can also paste a SQL
-#' connection string from Fabric. A Lakehouse's SQL endpoint is read-only; use
-#' Spark or another OneLake writer to change Lakehouse data
+#' [fabric_lakehouses()], [fabric_mirrored_databases()], or
+#' [fabric_sql_databases()]. You can also paste a SQL connection string from
+#' Fabric. Lakehouse and mirrored database SQL endpoints are read-only; use the
+#' source system, Spark, or another appropriate writer to change their data
 #'
 #' @section Choosing a backend:
 #' `backend = "odbc"` is the default and works well for ordinary DBI use. It

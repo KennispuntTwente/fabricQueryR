@@ -146,6 +146,36 @@ test_that("Delta discovery records enforce type and workspace ownership", {
   )
   expect_identical(suffixed_warehouse$target$item, "Sales.Warehouse")
 
+  mirrored <- warehouse
+  mirrored$type <- "MirroredDatabase"
+  mirrored$default_schema <- "replicated"
+  resolved_mirrored <- fabric_delta_resolve_public_target(
+    "orders",
+    workspace,
+    mirrored,
+    schema = NULL,
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  )
+  expect_identical(resolved_mirrored$item_type, "MirroredDatabase")
+  expect_identical(
+    resolved_mirrored$table_dir,
+    "Tables/replicated/orders"
+  )
+
+  named_mirrored <- fabric_delta_resolve_public_target(
+    "orders",
+    "Workspace",
+    "Replica",
+    schema = NULL,
+    dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+    item_type = "MirroredDatabase"
+  )
+  expect_identical(
+    named_mirrored$target$item,
+    "Replica.MirroredDatabase"
+  )
+  expect_identical(named_mirrored$table_dir, "Tables/dbo/orders")
+
   expect_error(
     fabric_delta_resolve_public_target(
       "table",
@@ -155,7 +185,7 @@ test_that("Delta discovery records enforce type and workspace ownership", {
       dfs_base = "https://onelake.dfs.fabric.microsoft.com",
       item_type = "Warehouse"
     ),
-    "conflicts with the .Lakehouse/.Warehouse item suffix",
+    "conflicts with the .Lakehouse/.Warehouse/.MirroredDatabase item suffix",
     fixed = TRUE
   )
 
@@ -225,7 +255,7 @@ test_that("Delta discovery records enforce type and workspace ownership", {
       schema = "dbo",
       dfs_base = "https://onelake.dfs.fabric.microsoft.com"
     ),
-    "must be a Lakehouse or Warehouse"
+    "must be a Lakehouse, Warehouse, or MirroredDatabase"
   )
 })
 

@@ -5,6 +5,7 @@
 \alias{fabric_lakehouses}
 \alias{fabric_warehouses}
 \alias{fabric_warehouse_snapshots}
+\alias{fabric_mirrored_databases}
 \alias{fabric_sql_databases}
 \alias{fabric_semantic_models}
 \alias{fabric_eventhouses}
@@ -22,6 +23,8 @@ fabric_lakehouses(workspace, detail = TRUE, ...)
 fabric_warehouses(workspace, detail = TRUE, ...)
 
 fabric_warehouse_snapshots(workspace, detail = TRUE, ...)
+
+fabric_mirrored_databases(workspace, detail = TRUE, ...)
 
 fabric_sql_databases(workspace, detail = TRUE, ...)
 
@@ -69,10 +72,10 @@ results can usually be passed straight to the next fabricQueryR call. Set
 \section{Choosing a helper}{
 
 \itemize{
-\item \code{fabric_lakehouses()}, \code{fabric_warehouses()}, and
-\code{fabric_warehouse_snapshots()} find data stores that can be queried through
-\code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses can also be accessed through OneLake and
-Livy
+\item \code{fabric_lakehouses()}, \code{fabric_warehouses()},
+\code{fabric_warehouse_snapshots()}, and \code{fabric_mirrored_databases()} find data
+stores that can be queried through \code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses and
+mirrored databases can also be accessed through OneLake
 \item \code{fabric_sql_databases()} finds transactional Fabric SQL databases
 \item \code{fabric_semantic_models()} finds the business models queried with DAX via
 \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}
@@ -112,6 +115,7 @@ workspace <- fabric_workspaces()[[1]]
 lakehouses <- fabric_lakehouses(workspace)
 warehouses <- fabric_warehouses(workspace)
 snapshots <- fabric_warehouse_snapshots(workspace)
+mirrored_databases <- fabric_mirrored_databases(workspace)
 sql_databases <- fabric_sql_databases(workspace)
 semantic_models <- fabric_semantic_models(workspace)
 eventhouses <- fabric_eventhouses(workspace)

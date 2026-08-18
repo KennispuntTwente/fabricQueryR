@@ -74,11 +74,12 @@
 #' @param workspace_name Workspace name, ID, or a record returned by
 #'   [fabric_workspaces()]
 #' @param lakehouse_name Lakehouse name, ID, or discovery record. Compatible
-#'   Warehouse items are also accepted
-#' @param schema Schema containing the table, or `NULL`. Warehouses default to
-#'   `"dbo"`
-#' @param item_type `"Lakehouse"`, `"Warehouse"`, or `NULL`. Usually inferred;
-#'   specify it only when using an item name without a type suffix
+#'   Warehouse and mirrored database items are also accepted
+#' @param schema Schema containing the table, or `NULL`. Warehouses and mirrored
+#'   databases default to `"dbo"` when discovery provides no default
+#' @param item_type `"Lakehouse"`, `"Warehouse"`, `"MirroredDatabase"`, or
+#'   `NULL`. Usually inferred; specify it only when using an item name without a
+#'   type suffix
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -381,7 +382,10 @@ fabric_delta_resolve_public_target <- function(
       tolower(item_type),
       lakehouse = "Lakehouse",
       warehouse = "Warehouse",
-      .fabric_abort('item_type must be "Lakehouse" or "Warehouse"')
+      mirroreddatabase = "MirroredDatabase",
+      .fabric_abort(
+        'item_type must be "Lakehouse", "Warehouse", or "MirroredDatabase"'
+      )
     )
   }
 
@@ -393,6 +397,10 @@ fabric_delta_resolve_public_target <- function(
   ) {
     if (grepl("\\.warehouse$", lakehouse_name, ignore.case = TRUE)) {
       "Warehouse"
+    } else if (
+      grepl("\\.mirroreddatabase$", lakehouse_name, ignore.case = TRUE)
+    ) {
+      "MirroredDatabase"
     } else if (grepl("\\.lakehouse$", lakehouse_name, ignore.case = TRUE)) {
       "Lakehouse"
     } else {
@@ -408,7 +416,10 @@ fabric_delta_resolve_public_target <- function(
       !identical(requested_item_type, suffix_type)
   ) {
     .fabric_abort(
-      "item_type conflicts with the .Lakehouse/.Warehouse item suffix"
+      paste0(
+        "item_type conflicts with the ",
+        ".Lakehouse/.Warehouse/.MirroredDatabase item suffix"
+      )
     )
   }
 
@@ -421,17 +432,21 @@ fabric_delta_resolve_public_target <- function(
       fabric_record_value(lakehouse_record, "type") %||% ""
     )
 
-    if (!record_type %in% c("lakehouse", "warehouse")) {
+    if (!record_type %in% c("lakehouse", "warehouse", "mirroreddatabase")) {
       .fabric_abort(
-        "lakehouse_name discovery record must be a Lakehouse or Warehouse item"
+        paste0(
+          "lakehouse_name discovery record must be a Lakehouse, Warehouse, ",
+          "or MirroredDatabase item"
+        )
       )
     }
 
-    record_item_type <- if (identical(record_type, "warehouse")) {
-      "Warehouse"
-    } else {
+    record_item_type <- switch(
+      record_type,
+      warehouse = "Warehouse",
+      mirroreddatabase = "MirroredDatabase",
       "Lakehouse"
-    }
+    )
 
     if (
       !is.null(requested_item_type) &&
@@ -450,8 +465,11 @@ fabric_delta_resolve_public_target <- function(
       )
   }
 
-  # Warehouses use dbo unless the caller or discovery supplied a schema
-  if (is.null(schema) && identical(item_type, "Warehouse")) {
+  # Warehouses and mirrored databases use dbo without a discovered default
+  if (
+    is.null(schema) &&
+      item_type %in% c("Warehouse", "MirroredDatabase")
+  ) {
     schema <- "dbo"
   }
 

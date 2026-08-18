@@ -30,6 +30,8 @@
 #'   Warehouse tables, then
 #'   [fabric_warehouse_read_table()] or [fabric_warehouse_write_table()] for
 #'   symmetric Warehouse table transfer
+#' - Use [fabric_mirrored_databases()] and [fabric_mirrored_database_tables()]
+#'   to discover and read continuously replicated Delta tables
 #' - Use [fabric_job_run()], [fabric_job_status()], [fabric_job_wait()], and
 #'   [fabric_job_cancel()] to control supported on-demand item jobs
 #' - See `vignette("authentication", package = "fabricQueryR")` for interactive

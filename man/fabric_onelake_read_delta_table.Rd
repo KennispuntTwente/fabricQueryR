@@ -30,13 +30,14 @@ fabric_onelake_read_delta_table(
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}}
 
 \item{lakehouse_name}{Lakehouse name, ID, or discovery record. Compatible
-Warehouse items are also accepted}
+Warehouse and mirrored database items are also accepted}
 
-\item{schema}{Schema containing the table, or \code{NULL}. Warehouses default to
-\code{"dbo"}}
+\item{schema}{Schema containing the table, or \code{NULL}. Warehouses and mirrored
+databases default to \code{"dbo"} when discovery provides no default}
 
-\item{item_type}{\code{"Lakehouse"}, \code{"Warehouse"}, or \code{NULL}. Usually inferred;
-specify it only when using an item name without a type suffix}
+\item{item_type}{\code{"Lakehouse"}, \code{"Warehouse"}, \code{"MirroredDatabase"}, or
+\code{NULL}. Usually inferred; specify it only when using an item name without a
+type suffix}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}
