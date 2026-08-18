@@ -74,6 +74,11 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
 
 Discover, load, and read Delta Lake tables in OneLake
 
+- [`fabric_lakehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  [`fabric_warehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  [`fabric_lakehouse_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  [`fabric_warehouse_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  : Discover OneLake schemas and individual tables
 - [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
   [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
   [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
@@ -108,6 +113,11 @@ List, inspect, download, upload, and delete files in OneLake
 
 Discover, load, and read Warehouse tables in Fabric
 
+- [`fabric_lakehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  [`fabric_warehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  [`fabric_lakehouse_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  [`fabric_warehouse_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
+  : Discover OneLake schemas and individual tables
 - [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md)
   : Discover Microsoft Fabric Warehouse tables
 - [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
@@ -119,6 +129,8 @@ Discover, load, and read Warehouse tables in Fabric
 
 Query Eventhouse data, ingest storage or R objects, and export results
 
+- [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)
+  : Discover Microsoft Fabric KQL tables
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   : Run a KQL query in Microsoft Fabric
 - [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)

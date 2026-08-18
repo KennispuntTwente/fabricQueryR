@@ -34,27 +34,33 @@
   [`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
   list, inspect, and delete files.
 
-- [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
+- [`fabric_lakehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md),
+  [`fabric_lakehouse_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md),
+  [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
   [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md),
   [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md),
   and
   [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-  discover and read Lakehouse tables, load CSV or Parquet files, and
-  write data frames or Arrow data. Both ordinary and schema-enabled
-  Lakehouses are supported.
+  discover Lakehouse schemas and tables, read them, load CSV or Parquet
+  files, and write data frames or Arrow data. Both ordinary and
+  schema-enabled Lakehouses are supported.
 
-- [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md),
+- [`fabric_warehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md),
+  [`fabric_warehouse_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md),
+  [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md),
   [`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md),
   and
   [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
-  discover, read, and bulk-write Warehouse tables using data frames or
-  Arrow data. Tables can be created, appended to, overwritten, or
-  recreated as requested.
+  discover schemas and tables, read them, and bulk-write Warehouse
+  tables using data frames or Arrow data. Tables can be created,
+  appended to, overwritten, or recreated as requested.
 
-- [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+- [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md),
+  [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md),
   and
   [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
-  bring Eventhouse query and table results into R as typed R objects.
+  discover Eventhouse tables and bring query or table results into R as
+  typed R objects.
 
 - [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md),
   [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md),
