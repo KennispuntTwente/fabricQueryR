@@ -167,9 +167,101 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+  prepare_r:
+    name: Prepare shared R runtime
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      r_prefix: ${{ steps.r_runtime.outputs.r_prefix }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record base runner packages
+        run: |
+          dpkg-query -W -f='${binary:Package}\n' | sort > "$RUNNER_TEMP/base-packages.txt"
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Configure portable R library
+        id: r_runtime
+        run: |
+          r_home="$(R RHOME)"
+          r_prefix="$(dirname "$(dirname "$r_home")")"
+          case "$r_prefix" in
+            /opt/R/*) ;;
+            *)
+              echo "::error::Unexpected R installation prefix: $r_prefix"
+              exit 1
+              ;;
+          esac
+          echo "R_LIBS_USER=$r_home/site-library" >> "$GITHUB_ENV"
+          echo "R_LIBS_SITE=$r_home/site-library" >> "$GITHUB_ENV"
+          echo "r_prefix=$r_prefix" >> "$GITHUB_OUTPUT"
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: 'c("Depends", "Imports", "LinkingTo")'
+          extra-packages: >-
+            any::adbcdrivermanager,
+            any::adbi,
+            any::arrow,
+            any::DBI,
+            any::odbc,
+            any::purrr,
+            any::testthat,
+            any::vctrs,
+            any::waldo,
+            any::withr
+          cache: always
+          install-pandoc: false
+          install-quarto: false
+
+      - name: Bundle R runtime and package library
+        run: |
+          r_prefix="${{ steps.r_runtime.outputs.r_prefix }}"
+          r_home="$r_prefix/lib/R"
+          runtime_path="${r_prefix#/}"
+          system_library="$r_home/system-library"
+          mkdir -p "$system_library"
+
+          dpkg-query -W -f='${binary:Package}\n' | sort > "$RUNNER_TEMP/r-packages.txt"
+          comm -13 "$RUNNER_TEMP/base-packages.txt" "$RUNNER_TEMP/r-packages.txt" |
+            while IFS= read -r package; do
+              dpkg-query -L "$package"
+            done |
+            sort -u |
+            while IFS= read -r library; do
+              case "$library" in
+                *.so|*.so.*)
+                  if [[ -f "$library" ]]; then
+                    cp -L "$library" "$system_library/$(basename "$library")"
+                  fi
+                  ;;
+              esac
+            done
+
+          sudo tar --zstd -C / -cf "$RUNNER_TEMP/fabric-r-runtime.tar.zst" "$runtime_path"
+
+      - name: Share R runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-r-runtime
+          path: ${{ runner.temp }}/fabric-r-runtime.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
   integration:
     name: Test ${{ matrix.label }}
-    needs: provision
+    needs:
+      - provision
+      - prepare_r
     runs-on: ubuntu-latest
     environment: fabric-integration
     timeout-minutes: 110
@@ -259,6 +351,31 @@ jobs:
           name: fabric-test-manifest-${{ matrix.lane }}
           path: .
 
+      - name: Download shared R runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: fabric-r-runtime
+          path: ${{ runner.temp }}/fabric-r-runtime
+
+      - name: Restore shared R runtime
+        run: |
+          r_prefix="${{ needs.prepare_r.outputs.r_prefix }}"
+          r_home="$r_prefix/lib/R"
+          sudo tar --zstd -C / -xf "$RUNNER_TEMP/fabric-r-runtime/fabric-r-runtime.tar.zst"
+          echo "$r_prefix/bin" >> "$GITHUB_PATH"
+          echo "R_HOME=$r_home" >> "$GITHUB_ENV"
+          echo "R_LIBS_USER=$r_home/site-library" >> "$GITHUB_ENV"
+          echo "R_LIBS_SITE=$r_home/site-library" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$r_home/system-library${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          export LD_LIBRARY_PATH="$r_home/system-library${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          missing_libraries="$(find "$r_home/site-library" -type f -name '*.so' -exec ldd {} \; | grep 'not found' || true)"
+          if [[ -n "$missing_libraries" ]]; then
+            echo "::error::The shared R runtime has unresolved system libraries"
+            echo "$missing_libraries"
+            exit 1
+          fi
+          "$r_prefix/bin/Rscript" -e 'stopifnot(requireNamespace("testthat", quietly = TRUE))'
+
       - name: Install Microsoft ODBC driver
         if: matrix.odbc
         run: |
@@ -286,15 +403,6 @@ jobs:
       - name: Select the locked delta-rs Python environment
         if: matrix.filter == 'integration-fabric-onelake' || matrix.delta
         run: echo "RETICULATE_PYTHON=$GITHUB_WORKSPACE/tools/fabric-sandbox/.venv/bin/python" >> "$GITHUB_ENV"
-
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          use-public-rspm: true
-
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::devtools
-          needs: check
 
       - name: Sign in to Azure with OIDC
         uses: azure/login@v3
@@ -348,7 +456,7 @@ jobs:
         env:
           FABRIC_TEST_AUTH_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_AUTH_CLIENT_SECRET }}
           FABRIC_TEST_FILTER: ${{ matrix.filter }}
-        run: Rscript -e 'devtools::test(filter = Sys.getenv("FABRIC_TEST_FILTER"), stop_on_failure = TRUE)'
+        run: Rscript -e 'testthat::test_local(filter = Sys.getenv("FABRIC_TEST_FILTER"), stop_on_failure = TRUE)'
 
   teardown:
     name: Destroy ${{ matrix.lane }} runtime sandbox
