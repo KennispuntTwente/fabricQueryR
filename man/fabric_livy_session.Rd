@@ -31,8 +31,7 @@ fabric_livy_session(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  verbose = TRUE,
-  allow_custom_endpoint = FALSE
+  verbose = TRUE
 )
 }
 \arguments{
@@ -97,10 +96,6 @@ to let fabricQueryR use its normal sign-in flow}
 set it only for a custom token provider or identity flow}
 
 \item{verbose}{Logical. Show session lifecycle messages}
-
-\item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
-Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
-as a test emulator; the Fabric bearer token is sent to this endpoint}
 }
 \value{
 A newly created \link{FabricLivySession}. It may still be starting; call

@@ -29,8 +29,7 @@ test_that("standard refresh submission returns a reusable handle", {
     pbi_refresh_test_model(),
     notify_option = "mailonfailure",
     token = "test-token",
-    api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE
+    api_base = "https://powerbi.test/v1.0/myorg"
   )
 
   expect_s3_class(refresh, "fabric_pbi_refresh")
@@ -90,8 +89,7 @@ test_that("enhanced refresh builds documented processing controls", {
     retry_count = 2L,
     timeout = "02:00:00",
     token = "test-token",
-    api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE
+    api_base = "https://powerbi.test/v1.0/myorg"
   )
 
   expect_identical(refresh$mode, "enhanced")
@@ -134,8 +132,7 @@ test_that("automatic mode infers enhanced and My Workspace routes", {
     my_workspace = TRUE,
     objects = c("Facts", "Calendar"),
     token = "test-token",
-    api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE
+    api_base = "https://powerbi.test/v1.0/myorg"
   )
 
   expect_identical(refresh$mode, "enhanced")
@@ -394,8 +391,7 @@ test_that("history normalizes attempts, errors, times, and detail links", {
     pbi_refresh_test_model(),
     top = 5L,
     token = "test-token",
-    api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE
+    api_base = "https://powerbi.test/v1.0/myorg"
   )
 
   expect_s3_class(history, "fabric_pbi_refresh_history")
@@ -494,7 +490,6 @@ test_that("status accepts handles and raw request IDs", {
     dataset_id = pbi_refresh_dataset_id,
     token = "override-token",
     api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE,
     .sleep = function(seconds) NULL
   )
 

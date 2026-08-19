@@ -37,8 +37,7 @@ fabric_kql_tables <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
-  auth_args = list(),
-  allow_custom_endpoint = FALSE
+  auth_args = list()
 ) {
   .fabric_operation_logical(detail, "detail")
   if (
@@ -55,8 +54,7 @@ fabric_kql_tables <- function(
   }
   target <- kusto_resolve_target(
     cluster,
-    database,
-    allow_custom_endpoint = allow_custom_endpoint
+    database
   )
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -239,8 +237,7 @@ fabric_kql_read_table <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
-  auth_args = list(),
-  allow_custom_endpoint = FALSE
+  auth_args = list()
 ) {
   table_record <- fabric_as_record(table)
   if (is.null(table_record) && is.list(table)) {
@@ -289,8 +286,7 @@ fabric_kql_read_table <- function(
     tenant_id = tenant_id,
     client_id = client_id,
     token = token,
-    auth_args = auth_args,
-    allow_custom_endpoint = allow_custom_endpoint
+    auth_args = auth_args
   )
 }
 
@@ -421,9 +417,6 @@ kusto_read_identifier <- function(value) {
 #'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
-#' @param allow_custom_endpoint Logical. Permit a non-Microsoft Kusto HTTPS
-#'   origin. Keep `FALSE` unless the endpoint is trusted; credentials are sent
-#'   to the supplied origin
 #'
 #' @return A typed tibble for one primary result, a `fabric_kql_tables` list for
 #'   multiple primary results (one named element per table), or an empty tibble
@@ -469,8 +462,7 @@ fabric_kql_query <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
-  auth_args = list(),
-  allow_custom_endpoint = FALSE
+  auth_args = list()
 ) {
   # 1 Validate and normalize inputs ----------------------------------------------------------------
 
@@ -486,8 +478,7 @@ fabric_kql_query <- function(
   }
   target <- kusto_resolve_target(
     cluster,
-    database,
-    allow_custom_endpoint = allow_custom_endpoint
+    database
   )
   parameters <- kusto_encode_parameters(parameters)
   request_properties <- kusto_named_list(
@@ -538,20 +529,12 @@ fabric_kql_query <- function(
 # v2 query endpoint and database name for `fabric_kql_query()`
 kusto_resolve_target <- function(
   cluster,
-  database = NULL,
-  allow_custom_endpoint = FALSE
+  database = NULL
 ) {
   # 1 Read and validate target inputs --------------------------------------------------------------
 
   # A discovered KQL database supplies both its query URL and display name
 
-  if (
-    !is.logical(allow_custom_endpoint) ||
-      length(allow_custom_endpoint) != 1L ||
-      is.na(allow_custom_endpoint)
-  ) {
-    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
-  }
   record <- fabric_as_record(cluster)
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
@@ -593,9 +576,9 @@ kusto_resolve_target <- function(
     )
   }
 
-  # 2 Validate the endpoint trust boundary ---------------------------------------------------------
+  # 2 Validate the endpoint ------------------------------------------------------------------------
 
-  # Check the endpoint trust boundary now so later code can rely on safe input
+  # Check the endpoint now so later code can rely on normalized input
 
   # Parse the endpoint once and reject URL parts that could redirect a token
   cluster <- sub("/+$", "", trimws(cluster))
@@ -614,23 +597,6 @@ kusto_resolve_target <- function(
     .fabric_abort(paste0(
       "cluster must be a valid HTTPS query-service URI using the ",
       "default port (443)"
-    ))
-  }
-
-  # Known Microsoft suffixes are trusted without an explicit override
-  trusted <- any(vapply(
-    c(
-      "kusto.fabric.microsoft.com",
-      "kusto.windows.net",
-      "kusto.data.microsoft.com"
-    ),
-    function(suffix) fabric_host_matches(parsed$hostname, suffix),
-    logical(1)
-  ))
-  if (!trusted && !allow_custom_endpoint) {
-    .fabric_abort(paste0(
-      "cluster must use a Microsoft Kusto endpoint; set ",
-      "allow_custom_endpoint = TRUE only for a trusted custom origin"
     ))
   }
 

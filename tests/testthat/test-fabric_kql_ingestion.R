@@ -47,21 +47,11 @@ test_that("queued-ingestion targets use discovered ingestion coordinates", {
     "cluster must be",
     fixed = TRUE
   )
-  expect_error(
-    kusto_resolve_ingestion_target(
-      "https://attacker.example",
-      "Events",
-      "Raw"
-    ),
-    "Microsoft Kusto ingestion endpoint",
-    fixed = TRUE
-  )
   expect_equal(
     kusto_resolve_ingestion_target(
       "https://trusted.example",
       "Events",
-      "Raw",
-      allow_custom_endpoint = TRUE
+      "Raw"
     )$url,
     "https://trusted.example"
   )

@@ -28,8 +28,6 @@
 #'   resolved. Most users should keep the default.
 #' @param table_api_base OneLake Delta table API base URL. Most users should
 #'   keep the default.
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when a supplied API
-#'   base is a non-Microsoft HTTPS endpoint that you trust to receive a token.
 #' @param version Specific Delta table version to read, or `NULL` for latest.
 #' @param verbose Whether to show authentication and read progress.
 #' @param dfs_base OneLake service address. Most users should keep the default;
@@ -82,8 +80,7 @@ fabric_mirrored_database_schemas <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   .fabric_onelake_table_page_size(page_size)
   context <- .fabric_mirrored_database_catalog_context(
@@ -95,8 +92,7 @@ fabric_mirrored_database_schemas <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base,
-    allow_custom_endpoint
+    table_api_base
   )
   .fabric_onelake_schema_inventory(context, page_size)
 }
@@ -117,8 +113,7 @@ fabric_mirrored_database_tables <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   .fabric_operation_logical(detail, "detail")
   .fabric_onelake_table_page_size(page_size)
@@ -134,8 +129,7 @@ fabric_mirrored_database_tables <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base,
-    allow_custom_endpoint
+    table_api_base
   )
   .fabric_onelake_table_inventory(
     workspace_id = context$workspace_id,
@@ -164,8 +158,7 @@ fabric_mirrored_database_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   context <- .fabric_mirrored_database_catalog_context(
     mirrored_database,
@@ -176,8 +169,7 @@ fabric_mirrored_database_table <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base,
-    allow_custom_endpoint
+    table_api_base
   )
   table_target <- .fabric_onelake_table_target(
     table,
@@ -207,8 +199,7 @@ fabric_mirrored_database_read_table <- function(
   columns = NULL,
   limit = NULL,
   result = c("tibble", "arrow_stream"),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   context <- .fabric_mirrored_database_catalog_context(
     mirrored_database,
@@ -219,8 +210,7 @@ fabric_mirrored_database_read_table <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base = NULL,
-    allow_custom_endpoint
+    table_api_base = NULL
   )
   table_target <- .fabric_onelake_table_target(
     table,
@@ -255,8 +245,7 @@ fabric_mirrored_database_read_table <- function(
   auth_args,
   api_base,
   api_base_supplied,
-  table_api_base,
-  allow_custom_endpoint
+  table_api_base
 ) {
   .fabric_onelake_catalog_context(
     item = mirrored_database,
@@ -269,7 +258,6 @@ fabric_mirrored_database_read_table <- function(
     api_base = api_base,
     api_base_supplied = api_base_supplied,
     table_api_base = table_api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     argument = "mirrored_database"
   )
 }

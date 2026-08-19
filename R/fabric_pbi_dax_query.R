@@ -72,8 +72,6 @@
 #'   override it only for a test service that implements the same endpoint and
 #'   authentication contract. Sovereign Microsoft clouds are not currently
 #'   supported by this helper
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
-#'   a non-Microsoft HTTPS origin that you trust to receive a Power BI token
 #' @param token Optional access token or token-provider function. Leave `NULL`
 #'   to let fabricQueryR use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
@@ -151,7 +149,6 @@ fabric_pbi_dax_query <- function(
   auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
@@ -164,7 +161,7 @@ fabric_pbi_dax_query <- function(
 
   api <- match.arg(api)
   result <- match.arg(result)
-  api_base <- pbi_api_base(api_base, allow_custom_endpoint)
+  api_base <- pbi_api_base(api_base)
 
   # Check the query and simple flags before resolving a semantic model
   if (!is.character(dax) || length(dax) != 1L || is.na(dax) || !nzchar(dax)) {
@@ -374,20 +371,12 @@ fabric_pbi_dax_query <- function(
   )
 }
 
-# Validate and normalize the Power BI `api_base`. Returns a trusted myorg URL
+# Validate and normalize the Power BI `api_base`. Returns a myorg URL
 # before any Power BI token is sent
-pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
+pbi_api_base <- function(api_base) {
   # 1 Validate the endpoint ------------------------------------------------------------------------
 
   # Check the endpoint now so later code can rely on safe input
-
-  if (
-    !is.logical(allow_custom_endpoint) ||
-      length(allow_custom_endpoint) != 1L ||
-      is.na(allow_custom_endpoint)
-  ) {
-    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
-  }
 
   if (
     !is.character(api_base) ||
@@ -425,21 +414,7 @@ pbi_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     )
   }
 
-  # Custom hosts require an explicit trust decision from the caller
-  if (
-    !fabric_host_matches(host, "api.powerbi.com") &&
-      !isTRUE(allow_custom_endpoint)
-  ) {
-    .fabric_abort(
-      paste0(
-        "Refusing to send a Power BI token to untrusted api_base '",
-        api_base,
-        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
-      ),
-      class = "fabric_pbi_endpoint_error"
-    )
-  }
-
+  # Supplying a custom host is the caller's explicit endpoint choice
   # 2 Return the normalized API base ---------------------------------------------------------------
 
   # Return the normalized API base in the stable form expected by the caller

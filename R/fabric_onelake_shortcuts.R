@@ -101,8 +101,7 @@ fabric_onelake_shortcuts <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   if (!is.null(parent_path)) {
     parent_path <- .fabric_shortcut_path(parent_path, "parent_path")
@@ -116,7 +115,6 @@ fabric_onelake_shortcuts <- function(
     token,
     auth_args,
     api_base,
-    allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   request <- httr2::request(.fabric_shortcut_collection_url(context))
@@ -146,8 +144,7 @@ fabric_onelake_shortcut_get <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   path <- .fabric_shortcut_path(path, "path")
   .fabric_shortcut_segment(name, "name")
@@ -160,7 +157,6 @@ fabric_onelake_shortcut_get <- function(
     token,
     auth_args,
     api_base,
-    allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   body <- .httr2_json(
@@ -197,8 +193,7 @@ fabric_onelake_shortcut_create <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   path <- .fabric_shortcut_path(path, "path")
   .fabric_shortcut_segment(name, "name")
@@ -221,7 +216,6 @@ fabric_onelake_shortcut_create <- function(
     token,
     auth_args,
     api_base,
-    allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   shortcut_target <- .fabric_shortcut_create_target(
@@ -271,8 +265,7 @@ fabric_onelake_shortcut_delete <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   path <- .fabric_shortcut_path(path, "path")
   .fabric_shortcut_segment(name, "name")
@@ -290,7 +283,6 @@ fabric_onelake_shortcut_delete <- function(
     token,
     auth_args,
     api_base,
-    allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   request <- httr2::request(
@@ -316,7 +308,6 @@ fabric_onelake_shortcut_delete <- function(
   token,
   auth_args,
   api_base,
-  allow_custom_endpoint,
   use_workspace_endpoint
 ) {
   credential <- fabric_credential(
@@ -325,7 +316,7 @@ fabric_onelake_shortcut_delete <- function(
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   destination <- .fabric_job_target(
     item,
     workspace,

@@ -229,8 +229,7 @@ test_that("submit returns an inspectable and cancellable statement", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   statement <- session$submit(
     "1 + 1",
@@ -271,8 +270,7 @@ test_that("session statement listing follows Livy offset pages", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
 
   result <- session$statements(page_size = 2L)
@@ -314,8 +312,7 @@ test_that("statement errors preserve output and traceback", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   statement <- session$submit("spark.table('missing')", "pyspark")
   error <- expect_error(
@@ -550,8 +547,7 @@ test_that("session finalizer does not perform network cleanup", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   rm(session)
   gc()
@@ -601,8 +597,7 @@ test_that("high-concurrency sessions use HC and REPL endpoints", {
     artifact_name = "TestLakehouse",
     tags = list(run = "42"),
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   expect_equal(calls[[1L]]$payload$sessionTag, "packed-work")
   expect_equal(calls[[1L]]$payload$artifactName, "TestLakehouse")
@@ -636,8 +631,7 @@ test_that("session reset timeout uses its documented endpoint", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   expect_identical(session$reset_timeout(), session)
   expect_equal(reset_url, paste0(session$url, "/reset-timeout"))
@@ -657,8 +651,7 @@ test_that("closing an auto-terminated Livy session accepts 404", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
 
   expect_true(session$close())
@@ -684,8 +677,7 @@ test_that("fabric_livy_query closes temporary session after failure", {
       "https://example.test/livy/sessions",
       "raise Exception()",
       token = "token",
-      verbose = FALSE,
-      allow_custom_endpoint = TRUE
+      verbose = FALSE
     ),
     "spark failed",
     fixed = TRUE
@@ -738,8 +730,7 @@ test_that("batch jobs expose success logs and structured results", {
     environment_id = "11111111-1111-4111-8111-111111111111",
     target_lakehouse_id = "22222222-2222-4222-8222-222222222222",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   expect_s3_class(batch, "FabricLivyBatch")
   expect_match(calls[[1L]]$url, "/batches$")
@@ -824,8 +815,7 @@ test_that("batch failures and cancellation preserve service details", {
     "https://example.test/livy/batches",
     file = "abfss://workspace/lakehouse/Files/failure.py",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   error <- expect_error(
     batch$wait(timeout = 1, poll_interval = 0),
@@ -862,8 +852,7 @@ test_that("batch timeout can request cancellation", {
     "https://example.test/livy/batches",
     file = "abfss://workspace/lakehouse/Files/slow.py",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   error <- expect_error(
     batch$wait(
@@ -900,8 +889,7 @@ test_that("batch timeout retains a bounded cleanup cancellation failure", {
     "https://example.test/livy/batches",
     file = "job.py",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
 
   error <- expect_error(
@@ -938,8 +926,7 @@ test_that("statement wait polls through cancelling until cancelled", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   statement <- session$submit("print(1)", "pyspark")
   statement$wait(
@@ -980,8 +967,7 @@ test_that("top-level batch waiting cancels on timeout and exposes its handle", {
       verbose = FALSE,
       wait = TRUE,
       timeout = 0,
-      poll_interval = 0,
-      allow_custom_endpoint = TRUE
+      poll_interval = 0
     ),
     class = "fabric_livy_timeout_error"
   )
@@ -1014,26 +1000,20 @@ test_that("Livy input and endpoint validation is explicit", {
   expect_equal(
     fabric_livy_endpoint(
       "https://example.test/base/sessions/",
-      "batches",
-      allow_custom_endpoint = TRUE
+      "batches"
     ),
     "https://example.test/base/batches"
   )
   expect_equal(
     fabric_livy_endpoint(
       "https://example.test/base/batches",
-      "highConcurrencySessions",
-      allow_custom_endpoint = TRUE
+      "highConcurrencySessions"
     ),
     "https://example.test/base/highConcurrencySessions"
   )
   expect_error(
     fabric_livy_endpoint("http://api.fabric.microsoft.com/livy", "sessions"),
     "valid HTTPS endpoint"
-  )
-  expect_error(
-    fabric_livy_endpoint("https://attacker.example/livy", "sessions"),
-    "not a Microsoft Fabric API host"
   )
   for (url in c(
     "https://api.fabric.microsoft.com/livy?token=value",
@@ -1057,8 +1037,7 @@ test_that("Livy input and endpoint validation is explicit", {
   expect_equal(
     fabric_livy_endpoint(
       "https://example.test:8443/livy",
-      "sessions",
-      allow_custom_endpoint = TRUE
+      "sessions"
     ),
     "https://example.test:8443/livy/sessions"
   )
@@ -1160,8 +1139,7 @@ test_that("Livy wait arguments are validated before remote side effects", {
       "https://example.test/livy/sessions",
       code = "print(1)",
       timeout = NA_real_,
-      token = "token",
-      allow_custom_endpoint = TRUE
+      token = "token"
     ),
     "timeout"
   )
@@ -1173,8 +1151,7 @@ test_that("Livy wait arguments are validated before remote side effects", {
       file = "job.py",
       wait = TRUE,
       poll_interval = -1,
-      token = "token",
-      allow_custom_endpoint = TRUE
+      token = "token"
     ),
     "poll_interval"
   )
@@ -1195,8 +1172,7 @@ test_that("session run validates polling before submitting a statement", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   expect_identical(posts, 1L)
 
@@ -1224,8 +1200,7 @@ test_that("batch result validates error_on_failure before refresh", {
     "https://example.test/livy/batches",
     file = "job.py",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
 
   expect_error(batch$result(error_on_failure = NA), "must be TRUE or FALSE")
@@ -1277,8 +1252,7 @@ test_that("Livy handles print concise summaries without credentials", {
   session <- fabric_livy_session(
     "https://example.test/livy/sessions",
     token = "never-print-this-token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
   statement <- FabricLivyStatement$new(
     session = session,
@@ -1336,8 +1310,7 @@ test_that("session waits stop on all documented terminal states", {
       "https://example.test/livy",
       high_concurrency = high_concurrency,
       token = "token",
-      verbose = FALSE,
-      allow_custom_endpoint = TRUE
+      verbose = FALSE
     )
     expect_error(
       session$wait(timeout = 1, poll_interval = 0),
@@ -1369,8 +1342,7 @@ test_that("session wait continues through an Uncertain intermediate result", {
   session <- fabric_livy_session(
     "https://example.test/livy",
     token = "token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
 
   expect_invisible(session$wait(timeout = 1, poll_interval = 0))

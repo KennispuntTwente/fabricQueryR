@@ -28,8 +28,6 @@
 #'   must be resolved. Most users should keep the default.
 #' @param table_api_base OneLake Delta table API base URL. Most users should
 #'   keep the default.
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when a supplied API
-#'   base is a non-Microsoft HTTPS endpoint that you trust to receive a token.
 #'
 #' @return A tibble with table `name`, `schema`, `full_name`, `type`, `format`,
 #'   `location`, timestamps, list-column `columns`, `schema_metadata`, and the
@@ -74,8 +72,7 @@ fabric_warehouse_tables <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   .fabric_operation_logical(detail, "detail")
   .fabric_onelake_table_page_size(page_size)
@@ -84,10 +81,9 @@ fabric_warehouse_tables <- function(
   }
 
   api_base_supplied <- !missing(api_base)
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   table_base <- .fabric_onelake_table_api_base(
     table_api_base,
-    allow_custom_endpoint,
     error_class = c(
       "fabric_warehouse_endpoint_error",
       "fabric_warehouse_error"
@@ -106,7 +102,6 @@ fabric_warehouse_tables <- function(
     credential = credential,
     api_base = base,
     api_base_supplied = api_base_supplied,
-    allow_custom_endpoint = allow_custom_endpoint,
     require_sql = FALSE,
     argument = "warehouse"
   )
@@ -210,7 +205,6 @@ fabric_warehouse_read_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   verbose = TRUE,
   timeout = 30L,
   max_tries = 3L,
@@ -279,7 +273,7 @@ fabric_warehouse_read_table <- function(
   )
 
   api_base_supplied <- !missing(api_base)
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -293,7 +287,6 @@ fabric_warehouse_read_table <- function(
     credential = credential,
     api_base = base,
     api_base_supplied = api_base_supplied,
-    allow_custom_endpoint = allow_custom_endpoint,
     require_sql = TRUE,
     argument = "warehouse"
   )
@@ -310,7 +303,6 @@ fabric_warehouse_read_table <- function(
     auth_args = list(),
     timeout = timeout,
     read_only = TRUE,
-    allow_custom_endpoint = allow_custom_endpoint,
     verbose = verbose,
     max_tries = max_tries,
     retry_delay = retry_delay,
@@ -451,7 +443,6 @@ fabric_warehouse_write_table <- function(
   auth_args = list(),
   api_base = .fabric_api_base,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-  allow_custom_endpoint = FALSE,
   verbose = TRUE
 ) {
   # 1 Validate and serialize without collecting lazy Arrow inputs --------------------------------
@@ -497,7 +488,7 @@ fabric_warehouse_write_table <- function(
 
   api_base_supplied <- !missing(api_base)
   dfs_base_supplied <- !missing(dfs_base)
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -511,7 +502,6 @@ fabric_warehouse_write_table <- function(
     credential = credential,
     api_base = base,
     api_base_supplied = api_base_supplied,
-    allow_custom_endpoint = allow_custom_endpoint,
     require_sql = TRUE,
     argument = "warehouse"
   )
@@ -528,7 +518,6 @@ fabric_warehouse_write_table <- function(
     credential = credential,
     api_base = base,
     api_base_supplied = api_base_supplied,
-    allow_custom_endpoint = allow_custom_endpoint,
     require_sql = FALSE,
     argument = "staging_lakehouse"
   )
@@ -586,7 +575,6 @@ fabric_warehouse_write_table <- function(
       backend = backend,
       token = credential,
       read_only = FALSE,
-      allow_custom_endpoint = allow_custom_endpoint,
       verbose = verbose
     ),
     error = function(error) {
@@ -776,7 +764,6 @@ fabric_warehouse_write_table <- function(
   credential,
   api_base,
   api_base_supplied,
-  allow_custom_endpoint,
   require_sql,
   argument
 ) {
@@ -866,8 +853,7 @@ fabric_warehouse_write_table <- function(
       workspace = workspace_value,
       item = value,
       type = expected_type,
-      token = credential,
-      allow_custom_endpoint = allow_custom_endpoint
+      token = credential
     )
     if (isTRUE(api_base_supplied)) {
       args$api_base <- api_base

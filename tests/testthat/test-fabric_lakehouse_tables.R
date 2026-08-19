@@ -682,13 +682,12 @@ test_that("Lakehouse table inputs fail before requests are sent", {
     invoke(path_type = "folder", file_extension = "this-extension-is-too-long"),
     "file_extension must"
   )
-  expect_error(
-    fabric_lakehouse_tables(
-      lakehouse_table_test_item(),
-      table_api_base = "https://attacker.example/delta",
-      token = "test-token"
+  expect_equal(
+    .fabric_onelake_table_api_base(
+      "https://custom.example/delta",
+      error_class = "fabric_lakehouse_endpoint_error"
     ),
-    class = "fabric_lakehouse_endpoint_error"
+    "https://custom.example/delta"
   )
   expect_error(
     fabric_lakehouse_tables(

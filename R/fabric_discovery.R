@@ -22,8 +22,6 @@
 #'   [AzureAuth::get_azure_token()]
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
 #'   different Fabric cloud or a test service
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
-#'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token
 #'
 #' @return A list with one workspace record per visible workspace. Each record
 #'   includes its ID and display name, together with other details returned by
@@ -58,8 +56,7 @@ fabric_workspaces <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
@@ -87,7 +84,7 @@ fabric_workspaces <- function(
 
   # Use one shared credential for every page returned by Fabric
 
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -209,8 +206,7 @@ fabric_items <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
@@ -266,7 +262,7 @@ fabric_items <- function(
 
   # A discovered workspace record can provide a workspace-specific API base
 
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -408,8 +404,7 @@ fabric_item <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   # 1 Resolve authentication and workspace ---------------------------------------------------------
 
@@ -420,7 +415,7 @@ fabric_item <- function(
     personal_workspace_tenant_id,
     personal_workspace_owner
   )
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -816,20 +811,12 @@ fabric_validate_item_workspace <- function(item, workspace_id) {
   invisible(TRUE)
 }
 
-# Normalize and validate `api_base`. Returns a trusted Fabric v1 base URL used
+# Normalize and validate `api_base`. Returns a Fabric v1 base URL used
 # by all discovery requests
-fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
+fabric_api_base <- function(api_base) {
   # 1 Parse the endpoint ---------------------------------------------------------------------------
 
   # Only a complete HTTPS URL can safely receive an access token
-
-  if (
-    !is.logical(allow_custom_endpoint) ||
-      length(allow_custom_endpoint) != 1L ||
-      is.na(allow_custom_endpoint)
-  ) {
-    .fabric_abort("allow_custom_endpoint must be TRUE or FALSE")
-  }
 
   if (
     !is.character(api_base) ||
@@ -870,21 +857,7 @@ fabric_api_base <- function(api_base, allow_custom_endpoint = FALSE) {
     )
   }
 
-  # Custom hosts require an explicit trust decision from the caller
-  if (
-    !fabric_host_matches(host, "api.fabric.microsoft.com") &&
-      !isTRUE(allow_custom_endpoint)
-  ) {
-    .fabric_abort(
-      paste0(
-        "Refusing to send a Fabric token to untrusted api_base '",
-        api_base,
-        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
-      ),
-      class = "fabric_api_endpoint_error"
-    )
-  }
-
+  # Supplying a custom host is the caller's explicit endpoint choice
   # 2 Normalize the API version --------------------------------------------------------------------
 
   # Normalize the API version so later branches do not repeat the same conversion

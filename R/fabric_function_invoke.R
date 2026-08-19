@@ -37,10 +37,8 @@
 #' service principal can therefore invoke a compatible function while a
 #' function that relies on an unsupported managed connection can still fail.
 #'
-#' The function URL is a credential boundary. By default, tokens are sent only
-#' to an HTTPS Microsoft Fabric API host and only when the URL has the
-#' documented public-function route. Set `allow_custom_endpoint = TRUE` only
-#' after independently trusting a custom origin. URLs containing credentials,
+#' The function URL is a credential boundary. Tokens are sent to the explicitly
+#' supplied HTTPS endpoint. URLs containing credentials,
 #' query parameters, fragments, or nonstandard ports are rejected.
 #'
 #' @section Results, retries, and limits:
@@ -90,9 +88,6 @@
 #' @param audience OAuth audience/scope passed to the credential. `NULL`
 #'   selects the documented scope from the authentication flow. Set this only
 #'   for a custom token provider or unusual identity flow.
-#' @param allow_custom_endpoint Logical. Permit a public-function URL outside
-#'   the Microsoft Fabric API origin. Credentials are sent to the supplied
-#'   endpoint, so enable this only for an origin you trust.
 #'
 #' @return A `fabric_function_result` list with `function_name`,
 #'   `invocation_id`, `status`, `output`, `errors`, `http_status`, and
@@ -146,21 +141,13 @@ fabric_function_invoke <- function(
   ),
   token = NULL,
   auth_args = list(),
-  audience = NULL,
-  allow_custom_endpoint = FALSE
+  audience = NULL
 ) {
   function_validate_logical(idempotent, "idempotent")
-  function_validate_logical(
-    allow_custom_endpoint,
-    "allow_custom_endpoint"
-  )
   function_validate_positive_number(timeout, "timeout")
   function_validate_byte_limit(max_response_bytes, "max_response_bytes")
 
-  endpoint <- function_validate_url(
-    function_url,
-    allow_custom_endpoint = allow_custom_endpoint
-  )
+  endpoint <- function_validate_url(function_url)
   payload <- function_serialize_parameters(parameters)
   payload_bytes <- charToRaw(enc2utf8(payload))
   if (length(payload_bytes) > .fabric_function_request_limit) {
@@ -227,14 +214,7 @@ fabric_function_invoke <- function(
 
 # Validate a copied public function URL and its credential boundary. Returns a
 # normalized URL suitable for an authenticated POST request
-function_validate_url <- function(
-  function_url,
-  allow_custom_endpoint = FALSE
-) {
-  function_validate_logical(
-    allow_custom_endpoint,
-    "allow_custom_endpoint"
-  )
+function_validate_url <- function(function_url) {
   function_url <- function_required_string(function_url, "function_url")
   function_url <- sub("/+$", "", trimws(function_url))
   parsed <- try(httr2::url_parse(function_url), silent = TRUE)
@@ -267,15 +247,6 @@ function_validate_url <- function(
     )
   }
 
-  if (
-    !fabric_host_matches(parsed$hostname, "api.fabric.microsoft.com") &&
-      !allow_custom_endpoint
-  ) {
-    .fabric_abort(paste0(
-      "function_url must use a Microsoft Fabric endpoint; set ",
-      "allow_custom_endpoint = TRUE only for a trusted custom origin"
-    ))
-  }
   function_url
 }
 

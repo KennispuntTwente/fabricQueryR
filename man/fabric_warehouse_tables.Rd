@@ -16,8 +16,7 @@ fabric_warehouse_tables(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 }
 \arguments{
@@ -54,9 +53,6 @@ must be resolved. Most users should keep the default.}
 
 \item{table_api_base}{OneLake Delta table API base URL. Most users should
 keep the default.}
-
-\item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when a supplied API
-base is a non-Microsoft HTTPS endpoint that you trust to receive a token.}
 }
 \value{
 A tibble with table \code{name}, \code{schema}, \code{full_name}, \code{type}, \code{format},

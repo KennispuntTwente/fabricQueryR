@@ -275,8 +275,7 @@ test_that("ODBC passthrough attributes merge without token override", {
   )
 })
 
-test_that("SQL tokens are sent only to trusted endpoints by default", {
-  acquired <- FALSE
+test_that("SQL accepts an explicitly supplied custom endpoint", {
   local_mocked_bindings(
     fabric_sql_require_backend = function(...) invisible(TRUE),
     fabric_sql_load_adbc_driver = function(...) list(),
@@ -285,46 +284,29 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
     }
   )
 
-  expect_error(
-    fabric_sql_connect(
-      "sql.example.test",
-      token = function(...) {
-        acquired <<- TRUE
-        "sql-token"
-      },
-      verbose = FALSE
-    ),
-    class = "fabric_sql_endpoint_error"
-  )
-  expect_false(acquired)
-
   expect_s3_class(
     fabric_sql_connect(
       "sql.example.test",
       token = "sql-token",
-      allow_custom_endpoint = TRUE,
       verbose = FALSE
     ),
     "test_connection"
   )
-  expect_silent(fabric_sql_validate_endpoint(
-    "tenant.database.windows.net",
-    FALSE
-  ))
+  expect_silent(fabric_sql_validate_endpoint("tenant.database.windows.net"))
   legacy_warehouse_hosts <- c(
     "tenant.datawarehouse.pbidedicated.microsoft.com",
     "tenant.pbidedicated.microsoft.com",
     "tenant.pbidedicated.windows.net"
   )
   for (host in legacy_warehouse_hosts) {
-    expect_silent(fabric_sql_validate_endpoint(host, FALSE))
+    expect_silent(fabric_sql_validate_endpoint(host))
     expect_equal(
       fabric_sql_connection_info(host)$target_type,
       "sql_analytics_endpoint"
     )
   }
   generic_analytics_host <- "warehouse-id.contoso.fabric.microsoft.com"
-  expect_silent(fabric_sql_validate_endpoint(generic_analytics_host, FALSE))
+  expect_silent(fabric_sql_validate_endpoint(generic_analytics_host))
   expect_identical(
     fabric_sql_connection_info(generic_analytics_host)$target_type,
     "sql_analytics_endpoint"
@@ -335,26 +317,10 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
     )$target_type,
     "sql_database"
   )
-  expect_error(
-    fabric_sql_validate_endpoint("contoso.fabric.microsoft.com", FALSE),
-    class = "fabric_sql_endpoint_error"
+  expect_equal(
+    fabric_sql_validate_endpoint("custom.example.test"),
+    "custom.example.test"
   )
-  expect_error(
-    fabric_sql_validate_endpoint("notfabric.microsoft.com", FALSE),
-    class = "fabric_sql_endpoint_error"
-  )
-  lookalike_hosts <- c(
-    "tenantdatawarehousepbidedicated.microsoft.com",
-    "tenantpbidedicated.microsoft.com",
-    "tenantpbidedicated.windows.net",
-    "tenant.pbidedicated.microsoft.com.evil.test"
-  )
-  for (host in lookalike_hosts) {
-    expect_error(
-      fabric_sql_validate_endpoint(host, FALSE),
-      class = "fabric_sql_endpoint_error"
-    )
-  }
   parser_confusion_hosts <- c(
     "evil.example?x=.datawarehouse.fabric.microsoft.com",
     "evil.example/path.datawarehouse.fabric.microsoft.com",
@@ -364,8 +330,9 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
     "tenant.database.windows.net\r\nattacker.example"
   )
   for (host in parser_confusion_hosts) {
+    acquired <- FALSE
     expect_error(
-      fabric_sql_validate_endpoint(host, FALSE),
+      fabric_sql_validate_endpoint(host),
       class = "fabric_sql_endpoint_error"
     )
     error <- tryCatch(
@@ -388,19 +355,8 @@ test_that("SQL tokens are sent only to trusted endpoints by default", {
     expect_identical(acquired, FALSE)
   }
   expect_identical(
-    fabric_sql_validate_endpoint(
-      "TENANT.DATABASE.WINDOWS.NET.",
-      FALSE
-    ),
+    fabric_sql_validate_endpoint("TENANT.DATABASE.WINDOWS.NET."),
     "tenant.database.windows.net"
-  )
-  expect_error(
-    fabric_sql_validate_endpoint(
-      "server.datawarehouse.fabric.microsoft.com",
-      NA
-    ),
-    "must be TRUE or FALSE",
-    fixed = TRUE
   )
 })
 

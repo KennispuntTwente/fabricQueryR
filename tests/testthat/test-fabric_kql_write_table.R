@@ -431,15 +431,13 @@ test_that("KQL table creation protects management endpoint and identifiers", {
   target <- kusto_resolve_ingestion_target(
     "https://ingest.example.test",
     "Telemetry",
-    "Raw",
-    allow_custom_endpoint = TRUE
+    "Raw"
   )
   expect_error(
     kusto_write_management_target(
       "https://ingest.example.test",
       target,
-      query_cluster = NULL,
-      allow_custom_endpoint = TRUE
+      query_cluster = NULL
     ),
     "query_cluster is required",
     class = "fabric_kql_table_create_error"

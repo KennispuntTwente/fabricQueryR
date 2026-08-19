@@ -27,8 +27,6 @@
 #'   resolved. Most users should keep the default.
 #' @param table_api_base OneLake Delta table API base URL. Most users should
 #'   keep the default.
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when a supplied API
-#'   base is a non-Microsoft HTTPS endpoint that you trust to receive a token.
 #'
 #' @return The schema functions return a tibble with `name`, `catalog`,
 #'   `full_name`, `comment`, `owner`, `schema_id`, timestamps, and the unmodified
@@ -69,8 +67,7 @@ fabric_lakehouse_schemas <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   .fabric_onelake_table_page_size(page_size)
   context <- .fabric_onelake_catalog_context(
@@ -84,7 +81,6 @@ fabric_lakehouse_schemas <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     argument = "lakehouse"
   )
   .fabric_onelake_schema_inventory(context, page_size)
@@ -104,8 +100,7 @@ fabric_warehouse_schemas <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   .fabric_onelake_table_page_size(page_size)
   context <- .fabric_onelake_catalog_context(
@@ -119,7 +114,6 @@ fabric_warehouse_schemas <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     argument = "warehouse"
   )
   .fabric_onelake_schema_inventory(context, page_size)
@@ -140,8 +134,7 @@ fabric_lakehouse_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   context <- .fabric_onelake_catalog_context(
     item = lakehouse,
@@ -154,7 +147,6 @@ fabric_lakehouse_table <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     argument = "lakehouse"
   )
   table_target <- .fabric_onelake_table_target(
@@ -185,8 +177,7 @@ fabric_warehouse_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   context <- .fabric_onelake_catalog_context(
     item = warehouse,
@@ -199,7 +190,6 @@ fabric_warehouse_table <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     argument = "warehouse"
   )
   table_target <- .fabric_onelake_table_target(
@@ -221,7 +211,6 @@ fabric_warehouse_table <- function(
   api_base,
   api_base_supplied,
   table_api_base,
-  allow_custom_endpoint,
   argument
 ) {
   domain <- switch(
@@ -234,13 +223,12 @@ fabric_warehouse_table <- function(
     paste0("fabric_", domain, "_protocol_error"),
     paste0("fabric_", domain, "_error")
   )
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   table_base <- if (is.null(table_api_base)) {
     NULL
   } else {
     .fabric_onelake_table_api_base(
       table_api_base,
-      allow_custom_endpoint,
       error_class = error_class
     )
   }
@@ -266,7 +254,6 @@ fabric_warehouse_table <- function(
       credential = credential,
       api_base = base,
       api_base_supplied = api_base_supplied,
-      allow_custom_endpoint = allow_custom_endpoint,
       require_sql = FALSE,
       argument = argument
     )

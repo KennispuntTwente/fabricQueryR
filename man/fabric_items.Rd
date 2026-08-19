@@ -19,8 +19,7 @@ fabric_items(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 )
 }
 \arguments{
@@ -75,9 +74,6 @@ to let fabricQueryR use its normal sign-in flow}
 \item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 \code{api_base} is supplied explicitly}
-
-\item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token}
 }
 \value{
 A list with one item record per match. Every record includes common

@@ -19,7 +19,6 @@ fabric_warehouse_read_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   verbose = TRUE,
   timeout = 30L,
   max_tries = 3L,
@@ -64,11 +63,6 @@ to let fabricQueryR use its normal sign-in flow}
 
 \item{api_base}{Fabric REST API base used when a Warehouse name or GUID must
 be discovered.}
-
-\item{allow_custom_endpoint}{Logical. Fabric SQL and Microsoft SQL Database
-hostnames are trusted by default. Set to \code{TRUE} only when deliberately
-sending the SQL access token to another hostname, such as a controlled
-proxy or test server}
 
 \item{verbose}{Whether to report SQL connection progress.}
 

@@ -191,8 +191,7 @@ test_that("workspace-specific API endpoints route item discovery", {
   fabric_items(
     workspace,
     token = "token",
-    api_base = "https://explicit.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://explicit.test/v1"
   )
   expect_match(urls[[2L]], "https://explicit.test/v1/workspaces/", fixed = TRUE)
 })
@@ -430,8 +429,7 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
   result <- fabric_lakehouses(
     "Analytics",
     token = "token",
-    api_base = "https://fabric.test/v1/",
-    allow_custom_endpoint = TRUE
+    api_base = "https://fabric.test/v1/"
   )
   lakehouse <- result[[1L]]
 
@@ -1157,7 +1155,7 @@ test_that("GraphQL discovery derives an executable endpoint", {
   expect_equal(items[[1L]]$graphql_endpoint, record$graphql_endpoint)
 })
 
-test_that("Fabric REST API bases require a trusted HTTPS origin", {
+test_that("Fabric REST API bases accept explicit custom HTTPS origins", {
   expect_equal(
     fabric_api_base("https://api.fabric.microsoft.com"),
     "https://api.fabric.microsoft.com/v1"
@@ -1172,12 +1170,8 @@ test_that("Fabric REST API bases require a trusted HTTPS origin", {
     fabric_api_base("https://api.fabric.microsoft.com:443"),
     "https://api.fabric.microsoft.com:443/v1"
   )
-  expect_error(
-    fabric_api_base("https://fabric.test/v1"),
-    class = "fabric_api_endpoint_error"
-  )
   expect_equal(
-    fabric_api_base("https://fabric.test/v1", TRUE),
+    fabric_api_base("https://fabric.test/v1"),
     "https://fabric.test/v1"
   )
 
@@ -1191,7 +1185,7 @@ test_that("Fabric REST API bases require a trusted HTTPS origin", {
   )
   for (endpoint in invalid) {
     expect_error(
-      fabric_api_base(endpoint, TRUE),
+      fabric_api_base(endpoint),
       class = "fabric_api_endpoint_error",
       info = endpoint
     )

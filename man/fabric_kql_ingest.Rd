@@ -28,8 +28,7 @@ fabric_kql_ingest(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
-  auth_args = list(),
-  allow_custom_endpoint = FALSE
+  auth_args = list()
 )
 
 fabric_kql_ingestion_status(
@@ -47,7 +46,6 @@ fabric_kql_ingestion_status(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -120,9 +118,6 @@ reuse an in-process handle credential unless authentication is overridden}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
-
-\item{allow_custom_endpoint}{Logical. Permit a trusted non-Microsoft Kusto
-HTTPS origin to receive credentials}
 
 \item{ingestion}{A \code{fabric_kql_ingestion} handle or a non-empty operation ID}
 

@@ -14,7 +14,6 @@ fabric_operation_status(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -31,7 +30,6 @@ fabric_operation_wait(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -47,7 +45,6 @@ fabric_operation_result(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -70,10 +67,6 @@ supplied explicitly}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}} when no token source is supplied}
 
 \item{api_base}{Fabric REST API base URL. Most users should keep the default}
-
-\item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} or
-the supplied operation URL is a non-Microsoft HTTPS origin that you trust
-to receive a Fabric token}
 
 \item{respect_retry_after}{Whether to wait until Fabric's recommended next
 status-check time before making the request}

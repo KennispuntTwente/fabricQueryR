@@ -990,17 +990,13 @@ test_that("Arrow DAX parser returns multiple data rowsets in order", {
   expect_equal(as.data.frame(second)$second, c("a", "b"))
 })
 
-test_that("Power BI API bases require a trusted HTTPS origin", {
+test_that("Power BI API bases accept explicit custom HTTPS origins", {
   expect_equal(
     pbi_api_base("https://api.powerbi.com/v1.0/myorg/"),
     "https://api.powerbi.com/v1.0/myorg"
   )
-  expect_error(
-    pbi_api_base("https://powerbi.test/v1.0/myorg"),
-    class = "fabric_pbi_endpoint_error"
-  )
   expect_equal(
-    pbi_api_base("https://powerbi.test/v1.0/myorg", TRUE),
+    pbi_api_base("https://powerbi.test/v1.0/myorg"),
     "https://powerbi.test/v1.0/myorg"
   )
 
@@ -1014,7 +1010,7 @@ test_that("Power BI API bases require a trusted HTTPS origin", {
   )
   for (endpoint in invalid) {
     expect_error(
-      pbi_api_base(endpoint, TRUE),
+      pbi_api_base(endpoint),
       class = "fabric_pbi_endpoint_error",
       info = endpoint
     )

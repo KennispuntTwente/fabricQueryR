@@ -273,16 +273,10 @@ test_that("KQL targets normalize direct and discovered coordinates", {
     "service root",
     fixed = TRUE
   )
-  expect_error(
-    kusto_resolve_target("https://attacker.example", "Events"),
-    "Microsoft Kusto endpoint",
-    fixed = TRUE
-  )
   expect_equal(
     kusto_resolve_target(
       "https://trusted.example",
-      "Events",
-      allow_custom_endpoint = TRUE
+      "Events"
     )$url,
     "https://trusted.example/v2/rest/query"
   )

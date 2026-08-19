@@ -88,8 +88,7 @@ test_that("public function URLs enforce the documented trusted route", {
         "trusted.example",
         function_test_url,
         fixed = TRUE
-      ),
-      allow_custom_endpoint = TRUE
+      )
     ),
     sub(
       "api.fabric.microsoft.com",
@@ -109,15 +108,19 @@ test_that("public function URLs enforce the documented trusted route", {
     "valid HTTPS",
     fixed = TRUE
   )
-  expect_error(
+  expect_identical(
     function_validate_url(sub(
       "api.fabric.microsoft.com",
       "api.fabric.microsoft.com.attacker.example",
       function_test_url,
       fixed = TRUE
     )),
-    "Microsoft Fabric endpoint",
-    fixed = TRUE
+    sub(
+      "api.fabric.microsoft.com",
+      "api.fabric.microsoft.com.attacker.example",
+      function_test_url,
+      fixed = TRUE
+    )
   )
   expect_error(
     function_validate_url(paste0(function_test_url, "?token=secret")),

@@ -86,8 +86,6 @@
 #' @param dfs_base OneLake DFS service address used for the staging upload.
 #'   A workspace-specific endpoint from a discovered record is preferred when
 #'   this argument is not supplied.
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when a supplied API
-#'   base is a non-Microsoft HTTPS endpoint that you trust to receive a token.
 #'
 #' @section Preview status and permissions:
 #' Microsoft marks Fabric's List Tables and Load Table routes as preview or
@@ -364,8 +362,7 @@ fabric_lakehouse_tables <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 ) {
   # 1 Validate options and resolve the Lakehouse --------------------------------------------------
 
@@ -376,10 +373,9 @@ fabric_lakehouse_tables <- function(
   }
 
   api_base_supplied <- !missing(api_base)
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   table_base <- .fabric_onelake_table_api_base(
     table_api_base,
-    allow_custom_endpoint,
     error_class = c(
       "fabric_lakehouse_endpoint_error",
       "fabric_lakehouse_error"
@@ -497,13 +493,12 @@ fabric_lakehouse_load_table <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   # 1 Resolve the destination and authentication --------------------------------------------------
 
   api_base_supplied <- !missing(api_base)
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -536,8 +531,7 @@ fabric_lakehouse_load_table <- function(
   .fabric_lakehouse_load_submit(
     target,
     settings,
-    credential,
-    allow_custom_endpoint = allow_custom_endpoint
+    credential
   )
 }
 
@@ -566,8 +560,7 @@ fabric_lakehouse_write_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-  allow_custom_endpoint = FALSE
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   # 1 Validate local inputs before authentication or network I/O ---------------------------------
 
@@ -619,7 +612,7 @@ fabric_lakehouse_write_table <- function(
 
   api_base_supplied <- !missing(api_base)
   dfs_base_supplied <- !missing(dfs_base)
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -688,8 +681,7 @@ fabric_lakehouse_write_table <- function(
     .fabric_lakehouse_load_submit(
       target,
       settings,
-      credential,
-      allow_custom_endpoint = allow_custom_endpoint
+      credential
     ),
     error = function(error) {
       .fabric_lakehouse_write_abort(
@@ -797,10 +789,8 @@ fabric_lakehouse_write_table <- function(
 # Validate and normalize the dedicated OneLake Delta metadata endpoint
 .fabric_onelake_table_api_base <- function(
   value,
-  allow_custom_endpoint,
   error_class
 ) {
-  .fabric_operation_logical(allow_custom_endpoint, "allow_custom_endpoint")
   .fabric_lakehouse_nonempty(value, "table_api_base")
   endpoint <- sub("/+$", "", trimws(value))
   parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
@@ -826,19 +816,6 @@ fabric_lakehouse_write_table <- function(
   if (!clean) {
     .fabric_abort(
       "table_api_base must be an HTTPS origin with an optional /delta path",
-      class = error_class
-    )
-  }
-  if (
-    !identical(host, "onelake.table.fabric.microsoft.com") &&
-      !isTRUE(allow_custom_endpoint)
-  ) {
-    .fabric_abort(
-      paste0(
-        "Refusing to send a Storage token to untrusted table_api_base '",
-        value,
-        "'; set allow_custom_endpoint = TRUE only for an endpoint you trust"
-      ),
       class = error_class
     )
   }
@@ -1274,8 +1251,7 @@ fabric_lakehouse_write_table <- function(
 .fabric_lakehouse_load_submit <- function(
   target,
   settings,
-  credential,
-  allow_custom_endpoint
+  credential
 ) {
   base_url <- paste0(
     target$api_base,
@@ -1325,7 +1301,6 @@ fabric_lakehouse_write_table <- function(
     request,
     credential,
     api_base = target$api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     idempotent = FALSE
   )
   operation$workspace_id <- target$workspace_id

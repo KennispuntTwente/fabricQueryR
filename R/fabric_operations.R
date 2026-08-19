@@ -20,9 +20,6 @@
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied
 #' @param api_base Fabric REST API base URL. Most users should keep the default
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` or
-#'   the supplied operation URL is a non-Microsoft HTTPS origin that you trust
-#'   to receive a Fabric token
 #' @param respect_retry_after Whether to wait until Fabric's recommended next
 #'   status-check time before making the request
 #' @param .sleep,.now Internal hooks for deterministic tests
@@ -109,7 +106,6 @@ fabric_operation_status <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -127,7 +123,6 @@ fabric_operation_status <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     api_base_supplied = !missing(api_base),
     override_auth = !missing(tenant_id) ||
       !missing(client_id) ||
@@ -170,7 +165,6 @@ fabric_operation_wait <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -194,7 +188,6 @@ fabric_operation_wait <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     api_base_supplied = !missing(api_base),
     override_auth = !missing(tenant_id) ||
       !missing(client_id) ||
@@ -235,7 +228,6 @@ fabric_operation_result <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -260,7 +252,6 @@ fabric_operation_result <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     api_base_supplied = !missing(api_base),
     override_auth = !missing(tenant_id) ||
       !missing(client_id) ||
@@ -367,13 +358,12 @@ fabric_operation_result <- function(
   request,
   credential,
   api_base = NULL,
-  allow_custom_endpoint = FALSE,
   idempotent = FALSE,
   .now = Sys.time
 ) {
   # 1 Validate the initiating request --------------------------------------------------------------
 
-  # Derive a trusted API base from the request unless its caller already has a
+  # Derive a validated API base from the request unless its caller already has a
   # normalized base, which is needed when only an operation ID is returned
 
   .fabric_operation_logical(idempotent, "idempotent")
@@ -381,9 +371,9 @@ fabric_operation_result <- function(
     .fabric_abort("`request` must be an httr2 request")
   }
   base <- if (is.null(api_base)) {
-    .fabric_operation_api_base(request$url, allow_custom_endpoint)
+    .fabric_operation_api_base(request$url)
   } else {
-    fabric_api_base(api_base, allow_custom_endpoint)
+    fabric_api_base(api_base)
   }
 
   # 2 Perform the initiating request once ----------------------------------------------------------
@@ -428,7 +418,6 @@ fabric_operation_result <- function(
         submitted_at = submitted_at,
         next_poll_at = NULL,
         api_base = base,
-        allow_custom_endpoint = allow_custom_endpoint,
         immediate = TRUE,
         .result = .fabric_operation_decode_result(response, .now = .now),
         credential = credential_reference$reference,
@@ -450,8 +439,7 @@ fabric_operation_result <- function(
     operation_id = operation_id,
     location = location,
     current_url = request$url,
-    api_base = base,
-    allow_custom_endpoint = allow_custom_endpoint
+    api_base = base
   )
   retry_after <- .httr2_retry_after(response)
   structure(
@@ -468,7 +456,6 @@ fabric_operation_result <- function(
         submitted_at + retry_after
       },
       api_base = base,
-      allow_custom_endpoint = allow_custom_endpoint,
       immediate = FALSE,
       .result = NULL,
       credential = credential_reference$reference,
@@ -485,7 +472,6 @@ fabric_operation_result <- function(
   request,
   credential,
   api_base = NULL,
-  allow_custom_endpoint = FALSE,
   idempotent = FALSE,
   poll_interval = NULL,
   timeout = 300,
@@ -496,7 +482,6 @@ fabric_operation_result <- function(
     request,
     credential,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     idempotent = idempotent,
     .now = .now
   )
@@ -779,11 +764,9 @@ fabric_operation_result <- function(
   token,
   auth_args,
   api_base,
-  allow_custom_endpoint,
   api_base_supplied,
   override_auth
 ) {
-  .fabric_operation_logical(allow_custom_endpoint, "allow_custom_endpoint")
   if (inherits(operation, "fabric_operation_state")) {
     operation <- operation$operation
   }
@@ -805,11 +788,7 @@ fabric_operation_result <- function(
       .fabric_operation_credential(operation)
     }
     handle <- operation
-    custom <- operation$allow_custom_endpoint %||% allow_custom_endpoint
-    handle$api_base <- fabric_api_base(
-      operation$api_base %||% api_base,
-      custom
-    )
+    handle$api_base <- fabric_api_base(operation$api_base %||% api_base)
     if (isTRUE(override_auth)) {
       reference <- .fabric_operation_credential_reference(credential)
       handle$credential <- reference$reference
@@ -838,9 +817,9 @@ fabric_operation_result <- function(
 
   is_id <- fabric_is_guid(operation)
   base <- if (!is_id && !isTRUE(api_base_supplied)) {
-    .fabric_operation_api_base(operation, allow_custom_endpoint)
+    .fabric_operation_api_base(operation)
   } else {
-    fabric_api_base(api_base, allow_custom_endpoint)
+    fabric_api_base(api_base)
   }
   urls <- if (is_id) {
     list(
@@ -854,8 +833,7 @@ fabric_operation_result <- function(
       operation_id = NULL,
       location = operation,
       current_url = base,
-      api_base = base,
-      allow_custom_endpoint = allow_custom_endpoint
+      api_base = base
     )
   }
   reference <- .fabric_operation_credential_reference(credential)
@@ -869,7 +847,6 @@ fabric_operation_result <- function(
       submitted_at = NULL,
       next_poll_at = NULL,
       api_base = base,
-      allow_custom_endpoint = allow_custom_endpoint,
       immediate = FALSE,
       .result = NULL,
       credential = reference$reference,
@@ -887,8 +864,7 @@ fabric_operation_result <- function(
   operation_id,
   location,
   current_url,
-  api_base,
-  allow_custom_endpoint
+  api_base
 ) {
   if (!is.null(operation_id)) {
     operation_id <- trimws(operation_id)
@@ -904,8 +880,7 @@ fabric_operation_result <- function(
     .fabric_operation_parse_location(
       location,
       current_url,
-      api_base,
-      allow_custom_endpoint
+      api_base
     )
   }
   id <- operation_id %||% parsed$id
@@ -951,8 +926,7 @@ fabric_operation_result <- function(
 .fabric_operation_parse_location <- function(
   location,
   current_url,
-  api_base,
-  allow_custom_endpoint
+  api_base
 ) {
   candidate <- try(
     httr2::url_modify_relative(current_url, location),
@@ -1019,7 +993,7 @@ fabric_operation_result <- function(
     length(parsed$query %||% list()) == 0L &&
     !nzchar(parsed$fragment %||% "") &&
     length(match) >= 2L &&
-    (official || (isTRUE(allow_custom_endpoint) && same_custom_origin))
+    (official || same_custom_origin)
   if (!valid) {
     .fabric_operation_abort_protocol(
       "Fabric returned an invalid or untrusted operation Location header"
@@ -1055,8 +1029,7 @@ fabric_operation_result <- function(
     operation_id = operation_id,
     location = location,
     current_url = operation$status_url,
-    api_base = operation$api_base,
-    allow_custom_endpoint = operation$allow_custom_endpoint
+    api_base = operation$api_base
   )
   if (!identical(tolower(urls$id), tolower(operation$id))) {
     .fabric_operation_abort_protocol(
@@ -1073,7 +1046,7 @@ fabric_operation_result <- function(
 
 # Derive and validate an API base from a complete Fabric request or Location URL
 # Returns an HTTPS v1 base suitable for ID-only operation endpoints
-.fabric_operation_api_base <- function(url, allow_custom_endpoint) {
+.fabric_operation_api_base <- function(url) {
   parsed <- try(httr2::url_parse(url), silent = TRUE)
   if (inherits(parsed, "try-error")) {
     .fabric_abort("The operation URL is not a valid URL")
@@ -1088,7 +1061,7 @@ fabric_operation_result <- function(
     parsed$hostname,
     if (nzchar(port)) paste0(":", port) else ""
   )
-  fabric_api_base(origin, allow_custom_endpoint)
+  fabric_api_base(origin)
 }
 
 # Choose the token audience required by one validated operation endpoint

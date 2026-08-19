@@ -75,8 +75,7 @@ session$close()
   credential,
   payload,
   high_concurrency = FALSE,
-  verbose = TRUE,
-  allow_custom_endpoint = FALSE
+  verbose = TRUE
 )}
     \if{html}{\out{</div>}}
   }
@@ -88,8 +87,6 @@ session$close()
       \item{\code{payload}}{Session creation request body}
       \item{\code{high_concurrency}}{Whether to acquire an HC session}
       \item{\code{verbose}}{Whether to emit lifecycle messages}
-      \item{\code{allow_custom_endpoint}}{Whether a trusted non-Fabric HTTPS endpoint
-may receive the Fabric bearer token}
     }
     \if{html}{\out{</div>}}
   }

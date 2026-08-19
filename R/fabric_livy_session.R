@@ -45,9 +45,6 @@
 #' @param audience Optional sign-in scope. Most users should leave this `NULL`;
 #'   set it only for a custom token provider or identity flow
 #' @param verbose Logical. Show session lifecycle messages
-#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
-#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
-#'   as a test emulator; the Fabric bearer token is sent to this endpoint
 #'
 #' @return A newly created [FabricLivySession]. It may still be starting; call
 #'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished
@@ -126,8 +123,7 @@ fabric_livy_session <- function(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  verbose = TRUE,
-  allow_custom_endpoint = FALSE
+  verbose = TRUE
 ) {
   # 1 Validate session options ---------------------------------------------------------------------
 
@@ -135,7 +131,6 @@ fabric_livy_session <- function(
   # whole unsupported group instead of failing later in Fabric
 
   fabric_livy_check_flag(high_concurrency, "high_concurrency")
-  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
   fabric_livy_validate_session_fields(
     name = name,
     archives = archives,
@@ -221,15 +216,11 @@ fabric_livy_session <- function(
     audience
   )
   FabricLivySession$new(
-    livy_url = fabric_livy_resolve_url(
-      livy_url,
-      allow_custom_endpoint = allow_custom_endpoint
-    ),
+    livy_url = fabric_livy_resolve_url(livy_url),
     credential = credential,
     payload = payload,
     high_concurrency = high_concurrency,
-    verbose = verbose,
-    allow_custom_endpoint = allow_custom_endpoint
+    verbose = verbose
   )
 }
 
@@ -285,16 +276,13 @@ FabricLivySession <- R6::R6Class(
     #' @param payload Session creation request body
     #' @param high_concurrency Whether to acquire an HC session
     #' @param verbose Whether to emit lifecycle messages
-    #' @param allow_custom_endpoint Whether a trusted non-Fabric HTTPS endpoint
-    #'   may receive the Fabric bearer token
     #' @returns A new session object
     initialize = function(
       livy_url,
       credential,
       payload,
       high_concurrency = FALSE,
-      verbose = TRUE,
-      allow_custom_endpoint = FALSE
+      verbose = TRUE
     ) {
       rlang::check_installed(
         c("httr2", "jsonlite"),
@@ -310,11 +298,7 @@ FabricLivySession <- R6::R6Class(
       } else {
         "sessions"
       }
-      private$collection_url <- fabric_livy_endpoint(
-        livy_url,
-        type,
-        allow_custom_endpoint = allow_custom_endpoint
-      )
+      private$collection_url <- fabric_livy_endpoint(livy_url, type)
       inform(verbose, "Creating Fabric Livy session")
       response <- fabric_livy_json(
         "POST",

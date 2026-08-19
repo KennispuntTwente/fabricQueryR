@@ -24,8 +24,7 @@ fabric_job_run(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 )
 
 fabric_job_status(
@@ -41,7 +40,6 @@ fabric_job_status(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
   notebook_details = TRUE,
   .sleep = Sys.sleep,
@@ -61,7 +59,6 @@ fabric_job_wait(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -79,8 +76,7 @@ fabric_job_cancel(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 )
 }
 \arguments{
@@ -150,9 +146,6 @@ A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
 \item{api_base}{Fabric REST API base URL. Most users should keep the default
 A discovered workspace-specific endpoint is used unless this argument is
 supplied explicitly}
-
-\item{allow_custom_endpoint}{Logical. Set to \code{TRUE} only when \code{api_base} is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token}
 
 \item{job}{A \code{fabric_job} returned by \code{\link[=fabric_job_run]{fabric_job_run()}}, or a job instance
 GUID. When a GUID is supplied, also provide \code{workspace}, \code{item}, and

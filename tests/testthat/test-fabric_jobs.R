@@ -4,8 +4,7 @@ test_that("job submission rejects a contradictory explicit workspace", {
       job_test_item(),
       workspace = "99999999-9999-9999-9999-999999999999",
       token = "test-token",
-      api_base = "https://api.fabric.test/v1",
-      allow_custom_endpoint = TRUE
+      api_base = "https://api.fabric.test/v1"
     ),
     "belongs to a different workspace",
     fixed = TRUE
@@ -56,8 +55,7 @@ test_that("job submission uses workspace-specific API endpoints", {
     job_test_item(),
     workspace = workspace,
     token = "test-token",
-    api_base = "https://explicit.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://explicit.test/v1"
   )
   expect_match(call$url, "https://explicit.test/v1/workspaces/", fixed = TRUE)
 })
@@ -163,8 +161,7 @@ test_that("notebook run builds typed release payload and job handle", {
     ),
     session_tag = "fabricqueryr_tests",
     token = "test-token",
-    api_base = "https://api.fabric.test/v1/",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1/"
   )
 
   expect_s3_class(job, "fabric_job")
@@ -230,8 +227,7 @@ test_that("notebook run preserves configured compute without overrides", {
   fabric_job_run(
     job_test_item(),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1"
   )
 
   expect_null(payload)
@@ -268,8 +264,7 @@ test_that("data pipeline run uses current typed path without a JSON payload", {
   job <- fabric_job_run(
     job_test_item("DataPipeline"),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1"
   )
 
   expect_equal(job$job_type, "Execute")
@@ -312,8 +307,7 @@ test_that("data pipeline run retains explicit legacy core contract", {
     job_test_item("DataPipeline"),
     job_type = "Pipeline",
     token = "test-token",
-    api_base = "https://api.fabric.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1"
   )
 
   expect_equal(job$job_type, "Pipeline")
@@ -336,8 +330,7 @@ test_that("job submission rejects missing or malformed Location headers", {
     fabric_job_run(
       job_test_item(),
       token = "test-token",
-      api_base = "https://api.fabric.test/v1",
-      allow_custom_endpoint = TRUE
+      api_base = "https://api.fabric.test/v1"
     ),
     class = "fabric_job_protocol_error"
   )
@@ -348,8 +341,7 @@ test_that("job submission rejects missing or malformed Location headers", {
     fabric_job_run(
       job_test_item(),
       token = "test-token",
-      api_base = "https://api.fabric.test/v1",
-      allow_custom_endpoint = TRUE
+      api_base = "https://api.fabric.test/v1"
     ),
     class = "fabric_job_protocol_error"
   )
@@ -461,8 +453,7 @@ test_that("Spark job definition execution data uses its typed route", {
       defaultLakehouseId = reference
     ),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1"
   )
 
   expect_equal(job$route, "spark_job_definition")
@@ -497,8 +488,7 @@ test_that("job payload fields follow the selected route contract", {
     job_test_item("DataPipeline"),
     execution_data = list(executeOption = "ApplyChangesIfNeeded"),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1"
   )
   expect_equal(
     call$payload$executionData,
@@ -511,8 +501,7 @@ test_that("job payload fields follow the selected route contract", {
       job_test_item("SparkJobDefinition"),
       parameters = list(mode = "test"),
       token = "test-token",
-      api_base = "https://api.fabric.test/v1",
-      allow_custom_endpoint = TRUE
+      api_base = "https://api.fabric.test/v1"
     ),
     "do not support `parameters`",
     fixed = TRUE
@@ -658,8 +647,7 @@ test_that("status reconstructs context from a raw job instance ID", {
     item_type = "DataPipeline",
     job_type = "Pipeline",
     token = "test-token",
-    api_base = "https://api.fabric.test/v1",
-    allow_custom_endpoint = TRUE
+    api_base = "https://api.fabric.test/v1"
   )
 
   expect_s3_class(result, "fabric_job_instance")

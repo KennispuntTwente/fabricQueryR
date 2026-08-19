@@ -79,8 +79,6 @@
 #'   [AzureAuth::get_azure_token()]
 #' @param api_base Power BI REST API base URL. The commercial-cloud default is
 #'   normally correct
-#' @param allow_custom_endpoint Set `TRUE` only when `api_base` is a trusted,
-#'   non-Microsoft HTTPS origin that may receive a Power BI token
 #' @param .sleep,.now Internal hooks for deterministic polling tests
 #'
 #' @section Standard and enhanced refresh:
@@ -201,15 +199,14 @@ fabric_pbi_refresh <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE
+  api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   # 1 Resolve the semantic model -------------------------------------------------------------------
 
   # Reuse the DAX target rules so query and refresh workflows accept the same inputs
 
   mode <- match.arg(mode)
-  api_base <- pbi_api_base(api_base, allow_custom_endpoint)
+  api_base <- pbi_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -261,7 +258,6 @@ fabric_pbi_refresh <- function(
     target = target,
     credential = credential,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     location = response$location,
     retry_after = response$retry_after,
     mode = request$mode
@@ -283,8 +279,7 @@ fabric_pbi_refresh_history <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE
+  api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   # 1 Resolve and validate inputs ------------------------------------------------------------------
 
@@ -294,7 +289,7 @@ fabric_pbi_refresh_history <- function(
     .pbi_refresh_whole_number(top, "top", minimum = 1)
     top <- as.integer(top)
   }
-  api_base <- pbi_api_base(api_base, allow_custom_endpoint)
+  api_base <- pbi_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -345,7 +340,6 @@ fabric_pbi_refresh_history <- function(
       target = target,
       credential = credential,
       api_base = api_base,
-      allow_custom_endpoint = allow_custom_endpoint,
       mode = if (identical(value$refreshType, "ViaEnhancedApi")) {
         "enhanced"
       } else {
@@ -374,7 +368,6 @@ fabric_pbi_refresh_status <- function(
   token = NULL,
   auth_args = list(),
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -398,7 +391,6 @@ fabric_pbi_refresh_status <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     override_auth = override_auth
   )
 
@@ -438,7 +430,6 @@ fabric_pbi_refresh_wait <- function(
   token = NULL,
   auth_args = list(),
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -475,7 +466,6 @@ fabric_pbi_refresh_wait <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     override_auth = override_auth
   )
   started <- .now()
@@ -605,8 +595,7 @@ fabric_pbi_refresh_cancel <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE
+  api_base = "https://api.powerbi.com/v1.0/myorg"
 ) {
   # 1 Resolve the refresh --------------------------------------------------------------------------
 
@@ -628,7 +617,6 @@ fabric_pbi_refresh_cancel <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     override_auth = override_auth
   )
 
@@ -931,7 +919,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   token = NULL,
   auth_args = list(),
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   override_auth = !is.null(token) || length(auth_args) > 0L
 ) {
   if (inherits(refresh, "fabric_pbi_refresh_detail")) {
@@ -971,8 +958,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       handle$credential <- reference$reference
       handle$.credential_key <- reference$key
     }
-    custom <- handle$allow_custom_endpoint %||% allow_custom_endpoint
-    base <- pbi_api_base(handle$api_base %||% api_base, custom)
+    base <- pbi_api_base(handle$api_base %||% api_base)
     return(list(
       id = handle$id,
       target = list(
@@ -991,7 +977,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   if (is.null(id)) {
     .fabric_abort("Supply a refresh handle or refresh_id")
   }
-  base <- pbi_api_base(api_base, allow_custom_endpoint)
+  base <- pbi_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,
@@ -1011,7 +997,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     target = target,
     credential = credential,
     api_base = base,
-    allow_custom_endpoint = allow_custom_endpoint,
     mode = "unknown"
   )
   list(
@@ -1112,7 +1097,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   target,
   credential,
   api_base,
-  allow_custom_endpoint,
   location = NULL,
   retry_after = NULL,
   mode
@@ -1135,7 +1119,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       },
       mode = mode,
       api_base = api_base,
-      allow_custom_endpoint = allow_custom_endpoint,
       credential = reference$reference,
       .credential_key = reference$key
     ),

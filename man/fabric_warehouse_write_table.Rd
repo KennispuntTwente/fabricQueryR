@@ -29,7 +29,6 @@ fabric_warehouse_write_table(
   auth_args = list(),
   api_base = .fabric_api_base,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-  allow_custom_endpoint = FALSE,
   verbose = TRUE
 )
 }
@@ -105,11 +104,6 @@ Lakehouse name or GUID must be discovered.}
 
 \item{dfs_base}{OneLake service address. Most users should keep the default;
 a workspace-specific address discovered from Fabric is used when available}
-
-\item{allow_custom_endpoint}{Logical. Fabric SQL and Microsoft SQL Database
-hostnames are trusted by default. Set to \code{TRUE} only when deliberately
-sending the SQL access token to another hostname, such as a controlled
-proxy or test server}
 
 \item{verbose}{Whether to report SQL connection progress.}
 }

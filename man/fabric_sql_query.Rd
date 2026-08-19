@@ -25,7 +25,6 @@ fabric_sql_query(
   trust_server_certificate = "no",
   timeout = 30L,
   read_only = FALSE,
-  allow_custom_endpoint = FALSE,
   verbose = TRUE,
   max_tries = 3L,
   retry_delay = 5,
@@ -99,11 +98,6 @@ unless diagnosing a controlled test environment}
 
 \item{read_only}{Whether to ask the driver for a read-only connection. This
 is a connection hint, not a replacement for Fabric or SQL permissions}
-
-\item{allow_custom_endpoint}{Logical. Fabric SQL and Microsoft SQL Database
-hostnames are trusted by default. Set to \code{TRUE} only when deliberately
-sending the SQL access token to another hostname, such as a controlled
-proxy or test server}
 
 \item{verbose}{Logical. Show authentication, retry, and connection progress}
 

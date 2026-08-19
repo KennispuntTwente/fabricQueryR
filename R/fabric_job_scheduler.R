@@ -64,8 +64,7 @@ fabric_job_instances <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   context <- .fabric_job_scheduler_context(
     item = item,
@@ -77,7 +76,6 @@ fabric_job_instances <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base),
     require_job_type = FALSE
   )
@@ -312,8 +310,7 @@ fabric_job_schedules <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   context <- .fabric_job_scheduler_context(
     item = item,
@@ -325,7 +322,6 @@ fabric_job_schedules <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   records <- .httr2_collection(
@@ -354,8 +350,7 @@ fabric_job_schedule_create <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   .fabric_schedule_flag(enabled, "enabled")
   configuration <- .fabric_job_schedule_configuration(configuration)
@@ -372,7 +367,6 @@ fabric_job_schedule_create <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   payload <- list(enabled = enabled, configuration = configuration)
@@ -407,8 +401,7 @@ fabric_job_schedule_update <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   execution_data_supplied <- !missing(execution_data) &&
     !is.null(execution_data)
@@ -425,7 +418,6 @@ fabric_job_schedule_update <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   id <- .fabric_job_schedule_id(schedule_id)
@@ -477,8 +469,7 @@ fabric_job_schedule_delete <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   if (!isTRUE(confirm) || length(confirm) != 1L) {
     .fabric_abort(
@@ -499,7 +490,6 @@ fabric_job_schedule_delete <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = missing(api_base)
   )
   id <- .fabric_job_schedule_id(schedule_id)
@@ -551,7 +541,6 @@ print.fabric_job_schedule <- function(x, ...) {
   token,
   auth_args,
   api_base,
-  allow_custom_endpoint,
   use_workspace_endpoint,
   require_job_type = TRUE
 ) {
@@ -561,7 +550,7 @@ print.fabric_job_schedule <- function(x, ...) {
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   target <- .fabric_job_target(
     item,
     workspace,
@@ -585,7 +574,6 @@ print.fabric_job_schedule <- function(x, ...) {
     job_type = schedule_job_type,
     route = .fabric_job_route_name(target$item_type),
     api_base = target$api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     credential = credential
   )
 }
@@ -628,7 +616,6 @@ print.fabric_job_schedule <- function(x, ...) {
       item_type = context$item_type,
       job_type = job_type,
       api_base = context$api_base,
-      allow_custom_endpoint = context$allow_custom_endpoint,
       route = context$route,
       credential = credential_reference$reference,
       .credential_key = credential_reference$key

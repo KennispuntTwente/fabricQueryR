@@ -30,7 +30,6 @@ fabric_kql_export(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -98,10 +97,6 @@ to let fabricQueryR use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
-
-\item{allow_custom_endpoint}{Logical. Permit a non-Microsoft Kusto HTTPS
-origin. Keep \code{FALSE} unless the endpoint is trusted; credentials are sent
-to the supplied origin}
 
 \item{.sleep, .now}{Internal hooks for deterministic polling tests.}
 }

@@ -226,7 +226,6 @@ job_test_handle <- function(
       retry_after = retry_after,
       submitted_at = as.POSIXct("2026-01-01", tz = "UTC"),
       api_base = "https://api.fabric.test/v1",
-      allow_custom_endpoint = TRUE,
       route = if (item_type == "Notebook") "notebook" else "core",
       credential = fabric_credential(token = "test-token"),
       status_result = status_result
@@ -679,7 +678,6 @@ pbi_refresh_test_handle <- function(
     ),
     credential = fabric_credential(token = "test-token"),
     api_base = "https://powerbi.test/v1.0/myorg",
-    allow_custom_endpoint = TRUE,
     retry_after = retry_after,
     mode = mode
   )

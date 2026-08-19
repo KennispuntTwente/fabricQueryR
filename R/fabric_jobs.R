@@ -75,8 +75,6 @@
 #' @param api_base Fabric REST API base URL. Most users should keep the default
 #'   A discovered workspace-specific endpoint is used unless this argument is
 #'   supplied explicitly
-#' @param allow_custom_endpoint Logical. Set to `TRUE` only when `api_base` is
-#'   a non-Microsoft HTTPS origin that you trust to receive a Fabric token
 #' @section Typical workflow:
 #' Start a job with `fabric_job_run()`, then pass the returned handle to
 #' `fabric_job_wait()`. The handle keeps the workspace, item, job type, and
@@ -152,8 +150,7 @@ fabric_job_run <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   # 1 Resolve authentication and job target --------------------------------------------------------
 
@@ -167,7 +164,7 @@ fabric_job_run <- function(
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   target <- .fabric_job_target(
     item,
     workspace,
@@ -263,7 +260,6 @@ fabric_job_run <- function(
       submitted_at = submitted_at,
       next_poll_at = next_poll_at,
       api_base = base,
-      allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
       credential = credential_reference$reference,
       .credential_key = credential_reference$key
@@ -302,7 +298,6 @@ fabric_job_status <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   respect_retry_after = TRUE,
   notebook_details = TRUE,
   .sleep = Sys.sleep,
@@ -371,7 +366,6 @@ fabric_job_status <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = !api_base_supplied,
     override_auth = override_auth
   )
@@ -423,7 +417,6 @@ fabric_job_wait <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   notebook_details = TRUE,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -486,7 +479,6 @@ fabric_job_wait <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     override_auth = override_auth
   )
   started <- .now()
@@ -623,8 +615,7 @@ fabric_job_cancel <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 ) {
   # 1 Resolve the job context ----------------------------------------------------------------------
 
@@ -647,7 +638,6 @@ fabric_job_cancel <- function(
     token = token,
     auth_args = auth_args,
     api_base = api_base,
-    allow_custom_endpoint = allow_custom_endpoint,
     use_workspace_endpoint = !api_base_supplied,
     override_auth = override_auth
   )
@@ -2079,7 +2069,6 @@ print.fabric_job_instance <- function(x, ...) {
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   use_workspace_endpoint = TRUE,
   override_auth = !is.null(token) || length(auth_args) > 0L
 ) {
@@ -2127,12 +2116,7 @@ print.fabric_job_instance <- function(x, ...) {
     context <- unclass(handle)
     context$job <- handle
     context$credential <- credential
-    custom_endpoint <- job$allow_custom_endpoint %||% allow_custom_endpoint
-    context$api_base <- fabric_api_base(
-      job$api_base %||% api_base,
-      custom_endpoint
-    )
-    context$allow_custom_endpoint <- custom_endpoint
+    context$api_base <- fabric_api_base(job$api_base %||% api_base)
     return(context)
   }
 
@@ -2154,7 +2138,7 @@ print.fabric_job_instance <- function(x, ...) {
     token = token,
     auth_args = auth_args
   )
-  base <- fabric_api_base(api_base, allow_custom_endpoint)
+  base <- fabric_api_base(api_base)
   target <- .fabric_job_target(
     item,
     workspace,
@@ -2174,7 +2158,6 @@ print.fabric_job_instance <- function(x, ...) {
       item_type = target$item_type,
       job_type = route$job_type,
       api_base = base,
-      allow_custom_endpoint = allow_custom_endpoint,
       route = route$route,
       credential = credential_reference$reference,
       .credential_key = credential_reference$key

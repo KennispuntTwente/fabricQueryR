@@ -27,6 +27,19 @@ test_that("legacy access_token is accepted only through dots", {
   )
 })
 
+test_that("endpoint functions do not expose a redundant custom-endpoint flag", {
+  namespace <- asNamespace("fabricQueryR")
+  objects <- mget(ls(namespace, all.names = TRUE), namespace)
+  functions <- objects[vapply(objects, is.function, logical(1))]
+  offenders <- names(functions)[vapply(
+    functions,
+    \(fn) "allow_custom_endpoint" %in% names(formals(fn)),
+    logical(1)
+  )]
+
+  expect_length(offenders, 0L)
+})
+
 test_that("fabric_livy_query consumes named access_token from dots", {
   captured <- NULL
   closed <- FALSE
@@ -48,8 +61,7 @@ test_that("fabric_livy_query consumes named access_token from dots", {
     "https://example.test/livy/sessions",
     "1 + 1",
     access_token = "legacy-token",
-    verbose = FALSE,
-    allow_custom_endpoint = TRUE
+    verbose = FALSE
   )
 
   expect_identical(captured$token, "legacy-token")
@@ -60,8 +72,7 @@ test_that("fabric_livy_query consumes named access_token from dots", {
       "https://example.test/livy/sessions",
       "1 + 1",
       unexpected = TRUE,
-      verbose = FALSE,
-      allow_custom_endpoint = TRUE
+      verbose = FALSE
     ),
     "unused arguments"
   )

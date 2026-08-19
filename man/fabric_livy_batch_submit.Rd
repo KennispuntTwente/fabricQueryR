@@ -33,8 +33,7 @@ fabric_livy_batch_submit(
   wait = FALSE,
   timeout = 1200,
   poll_interval = 5,
-  cancel_on_timeout = TRUE,
-  allow_custom_endpoint = FALSE
+  cancel_on_timeout = TRUE
 )
 }
 \arguments{
@@ -112,10 +111,6 @@ cancellation if the local timeout expires. Defaults to \code{TRUE}, so a timed
 out call does not normally leave Spark compute running unattended. The
 structured timeout condition always contains the submitted object in its
 \code{batch} field, including when cancellation fails or is disabled}
-
-\item{allow_custom_endpoint}{Logical. Keep \code{FALSE} to require a Microsoft
-Fabric API host. Set \code{TRUE} only for a trusted custom HTTPS service, such
-as a test emulator; the Fabric bearer token is sent to this endpoint}
 }
 \value{
 A \link{FabricLivyBatch} R6 object. Inspect its \verb{$state}, call

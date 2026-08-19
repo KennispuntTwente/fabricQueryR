@@ -55,9 +55,6 @@
 #'   out call does not normally leave Spark compute running unattended. The
 #'   structured timeout condition always contains the submitted object in its
 #'   `batch` field, including when cancellation fails or is disabled
-#' @param allow_custom_endpoint Logical. Keep `FALSE` to require a Microsoft
-#'   Fabric API host. Set `TRUE` only for a trusted custom HTTPS service, such
-#'   as a test emulator; the Fabric bearer token is sent to this endpoint
 #'
 #' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
 #'   `$result()` for structured metadata and logs, and call `$wait()` later when
@@ -132,8 +129,7 @@ fabric_livy_batch_submit <- function(
   wait = FALSE,
   timeout = 1200,
   poll_interval = 5,
-  cancel_on_timeout = TRUE,
-  allow_custom_endpoint = FALSE
+  cancel_on_timeout = TRUE
 ) {
   # 1 Validate batch options -----------------------------------------------------------------------
 
@@ -143,7 +139,6 @@ fabric_livy_batch_submit <- function(
   fabric_livy_check_string(file, "file")
   fabric_livy_check_flag(wait, "wait")
   fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
-  fabric_livy_check_flag(allow_custom_endpoint, "allow_custom_endpoint")
   fabric_livy_check_flag(verbose, "verbose")
   fabric_livy_check_number(timeout, "timeout")
   fabric_livy_check_number(poll_interval, "poll_interval")
@@ -204,12 +199,8 @@ fabric_livy_batch_submit <- function(
   )
 
   collection <- fabric_livy_endpoint(
-    fabric_livy_resolve_url(
-      livy_url,
-      allow_custom_endpoint = allow_custom_endpoint
-    ),
-    "batches",
-    allow_custom_endpoint = allow_custom_endpoint
+    fabric_livy_resolve_url(livy_url),
+    "batches"
   )
 
   # 3 Submit the application -----------------------------------------------------------------------

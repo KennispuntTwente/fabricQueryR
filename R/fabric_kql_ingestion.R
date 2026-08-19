@@ -136,8 +136,6 @@
 #'   reuse an in-process handle credential unless authentication is overridden
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
-#' @param allow_custom_endpoint Logical. Permit a trusted non-Microsoft Kusto
-#'   HTTPS origin to receive credentials
 #' @param .sleep,.now Internal hooks for deterministic polling tests
 #'
 #' @return `fabric_kql_ingest()` returns a `fabric_kql_ingestion` handle with
@@ -225,8 +223,7 @@ fabric_kql_ingest <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
-  auth_args = list(),
-  allow_custom_endpoint = FALSE
+  auth_args = list()
 ) {
   # 1 Validate the target and request metadata -----------------------------------------------------
 
@@ -244,8 +241,7 @@ fabric_kql_ingest <- function(
   target <- kusto_resolve_ingestion_target(
     cluster,
     database,
-    table,
-    allow_custom_endpoint = allow_custom_endpoint
+    table
   )
   format <- kusto_ingestion_format(format)
   blobs <- kusto_ingestion_sources(sources, source_ids, raw_sizes)
@@ -370,7 +366,6 @@ fabric_kql_ingestion_status <- function(
   ),
   token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -401,7 +396,6 @@ fabric_kql_ingestion_status <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args,
-    allow_custom_endpoint = allow_custom_endpoint,
     override_auth = override_auth
   )
   started <- .now()
@@ -520,10 +514,8 @@ print.fabric_kql_ingestion_status <- function(x, ...) {
 kusto_resolve_ingestion_target <- function(
   cluster,
   database,
-  table,
-  allow_custom_endpoint = FALSE
+  table
 ) {
-  kusto_ingestion_flag(allow_custom_endpoint, "allow_custom_endpoint")
   record <- fabric_as_record(cluster)
   if (!is.null(record)) {
     type <- tolower(fabric_record_value(record, "type") %||% "")
@@ -569,26 +561,10 @@ kusto_resolve_ingestion_target <- function(
       "the default port (443)"
     ))
   }
-  trusted <- any(vapply(
-    c(
-      "kusto.fabric.microsoft.com",
-      "kusto.windows.net",
-      "kusto.data.microsoft.com"
-    ),
-    function(suffix) fabric_host_matches(parsed$hostname, suffix),
-    logical(1)
-  ))
-  if (!trusted && !allow_custom_endpoint) {
-    .fabric_abort(paste0(
-      "cluster must use a Microsoft Kusto ingestion endpoint; set ",
-      "allow_custom_endpoint = TRUE only for a trusted custom origin"
-    ))
-  }
   list(
     url = endpoint,
     database = database,
-    table = table,
-    allow_custom_endpoint = isTRUE(allow_custom_endpoint)
+    table = table
   )
 }
 
@@ -938,7 +914,6 @@ kusto_ingestion_handle <- function(
       id = operation_id,
       operation_id = operation_id,
       endpoint = target$url,
-      allow_custom_endpoint = target$allow_custom_endpoint,
       database = target$database,
       table = target$table,
       source_count = length(blobs),
@@ -966,7 +941,6 @@ kusto_ingestion_context <- function(
   client_id,
   token,
   auth_args,
-  allow_custom_endpoint,
   override_auth
 ) {
   if (inherits(ingestion, "fabric_kql_ingestion_status")) {
@@ -988,12 +962,10 @@ kusto_ingestion_context <- function(
     } else {
       kusto_ingestion_credential(ingestion)
     }
-    custom <- ingestion$allow_custom_endpoint %||% allow_custom_endpoint
     target <- kusto_resolve_ingestion_target(
       ingestion$endpoint,
       ingestion$database,
-      ingestion$table,
-      allow_custom_endpoint = custom
+      ingestion$table
     )
     return(list(
       id = ingestion$id,
@@ -1011,8 +983,7 @@ kusto_ingestion_context <- function(
   target <- kusto_resolve_ingestion_target(
     cluster,
     database,
-    table,
-    allow_custom_endpoint = allow_custom_endpoint
+    table
   )
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -1784,7 +1755,6 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param storage_token Optional separate Azure Storage access token or token
 #'   provider. Required when `token` cannot acquire a different audience.
 #' @param auth_args Additional options passed to [AzureAuth::get_azure_token()].
-#' @param allow_custom_endpoint Permit a trusted non-Microsoft Kusto origin.
 #' @param .sleep,.now Internal deterministic polling hooks.
 #'
 #' @return A `fabric_kql_write_result` containing row/byte/file counts,
@@ -1856,7 +1826,6 @@ fabric_kql_write_table <- function(
   token = NULL,
   storage_token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   create_if_missing = FALSE,
   column_types = NULL,
   query_cluster = NULL,
@@ -1871,8 +1840,7 @@ fabric_kql_write_table <- function(
   target <- kusto_resolve_ingestion_target(
     cluster,
     database,
-    table,
-    allow_custom_endpoint = allow_custom_endpoint
+    table
   )
   mapping <- kusto_ingestion_optional_text(mapping, "mapping")
   tags <- kusto_ingestion_text_vector(tags, "tags")
@@ -1956,8 +1924,7 @@ fabric_kql_write_table <- function(
     management_target <- kusto_write_management_target(
       cluster,
       target,
-      query_cluster,
-      allow_custom_endpoint
+      query_cluster
     )
     command <- kusto_write_create_table_command(
       table,
@@ -2184,8 +2151,7 @@ fabric_kql_write_table <- function(
       delete_after_download = identical(staging$method, "Storage") &&
         isTRUE(cleanup),
       timeout = timeout,
-      token = credential,
-      allow_custom_endpoint = allow_custom_endpoint
+      token = credential
     ),
     error = function(error) {
       kusto_write_ambiguous_error(
@@ -2318,25 +2284,32 @@ print.fabric_kql_write_result <- function(x, ...) {
 kusto_write_management_target <- function(
   cluster,
   ingestion_target,
-  query_cluster,
-  allow_custom_endpoint
+  query_cluster
 ) {
   if (!is.null(query_cluster)) {
     return(kusto_resolve_target(
       query_cluster,
-      ingestion_target$database,
-      allow_custom_endpoint = allow_custom_endpoint
+      ingestion_target$database
     ))
   }
   record <- fabric_as_record(cluster)
   if (!is.null(record)) {
     return(kusto_resolve_target(
       record,
-      ingestion_target$database,
-      allow_custom_endpoint = allow_custom_endpoint
+      ingestion_target$database
     ))
   }
-  if (isTRUE(allow_custom_endpoint)) {
+  parsed <- httr2::url_parse(ingestion_target$url)
+  trusted <- any(vapply(
+    c(
+      "kusto.fabric.microsoft.com",
+      "kusto.windows.net",
+      "kusto.data.microsoft.com"
+    ),
+    function(suffix) fabric_host_matches(parsed$hostname, suffix),
+    logical(1)
+  ))
+  if (!trusted) {
     .fabric_abort(
       "query_cluster is required to create a table through a custom endpoint",
       class = c("fabric_kql_table_create_error", "fabric_kql_write_error")
@@ -2348,11 +2321,7 @@ kusto_write_management_target <- function(
     ingestion_target$url,
     ignore.case = TRUE
   )
-  kusto_resolve_target(
-    query_uri,
-    ingestion_target$database,
-    allow_custom_endpoint = FALSE
-  )
+  kusto_resolve_target(query_uri, ingestion_target$database)
 }
 
 # Build an idempotent Kusto creation command. `.create table` returns an
@@ -3071,7 +3040,6 @@ fabric_kql_export <- function(
   ),
   token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -3085,11 +3053,7 @@ fabric_kql_export <- function(
   ) {
     .fabric_abort("query must be one non-empty character value")
   }
-  target <- kusto_resolve_target(
-    cluster,
-    database,
-    allow_custom_endpoint = allow_custom_endpoint
-  )
+  target <- kusto_resolve_target(cluster, database)
   destination <- kusto_export_destination(
     destination,
     workspace = workspace,

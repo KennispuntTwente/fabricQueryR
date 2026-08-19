@@ -30,7 +30,6 @@ fabric_kql_write_table(
   token = NULL,
   storage_token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   create_if_missing = FALSE,
   column_types = NULL,
   query_cluster = NULL,
@@ -103,8 +102,6 @@ A fixed token must target Kusto and be paired with \code{storage_token}.}
 provider. Required when \code{token} cannot acquire a different audience.}
 
 \item{auth_args}{Additional options passed to \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
-
-\item{allow_custom_endpoint}{Permit a trusted non-Microsoft Kusto origin.}
 
 \item{create_if_missing}{Whether to create a missing KQL table from the
 Arrow schema before staging. Existing tables are left unchanged.}

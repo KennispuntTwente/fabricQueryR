@@ -29,8 +29,7 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
         workspaceId = workspace_id,
         graphql_endpoint = "https://custom.test/graphql/"
       ),
-      workspace_id = toupper(workspace_id),
-      allow_custom_endpoint = TRUE
+      workspace_id = toupper(workspace_id)
     ),
     "https://custom.test/graphql"
   )
@@ -42,8 +41,7 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
         workspaceId = workspace_id,
         graphql_endpoint = "https://custom.test/graphql/"
       ),
-      workspace_id = "00000000-0000-0000-0000-000000000000",
-      allow_custom_endpoint = TRUE
+      workspace_id = "00000000-0000-0000-0000-000000000000"
     ),
     "conflicts with the api discovery record workspaceId",
     fixed = TRUE
@@ -67,16 +65,8 @@ test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
     "valid HTTPS",
     fixed = TRUE
   )
-  expect_error(
-    graphql_resolve_endpoint("https://attacker.example/graphql"),
-    "Microsoft Fabric endpoint",
-    fixed = TRUE
-  )
   expect_equal(
-    graphql_resolve_endpoint(
-      "https://trusted.example/graphql",
-      allow_custom_endpoint = TRUE
-    ),
+    graphql_resolve_endpoint("https://trusted.example/graphql"),
     "https://trusted.example/graphql"
   )
   expect_equal(
@@ -610,7 +600,7 @@ test_that("GraphQL pagination prevents loops and enforces max_pages", {
   )
 })
 
-test_that("GraphQL pagination forwards trusted custom endpoint opt-in", {
+test_that("GraphQL pagination accepts an explicitly supplied custom endpoint", {
   httr2::local_mocked_responses(function(req) {
     graphql_test_response(
       list(data = list(products = list(hasNextPage = FALSE))),
@@ -622,8 +612,7 @@ test_that("GraphQL pagination forwards trusted custom endpoint opt-in", {
     "https://trusted.example/graphql",
     query = "{ products { hasNextPage } }",
     next_cursor = fabric_graphql_cursor("products"),
-    token = "token",
-    allow_custom_endpoint = TRUE
+    token = "token"
   )
 
   expect_true(pages$complete)
