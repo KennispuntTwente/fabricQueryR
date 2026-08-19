@@ -259,13 +259,6 @@ jobs:
           name: fabric-test-manifest-${{ matrix.lane }}
           path: .
 
-      - name: Sign in to Azure with OIDC
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
       - name: Install Microsoft ODBC driver
         if: matrix.odbc
         run: |
@@ -302,6 +295,13 @@ jobs:
         with:
           extra-packages: any::devtools
           needs: check
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Acquire short-lived test tokens
         run: |
