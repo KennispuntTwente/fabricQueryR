@@ -1357,19 +1357,6 @@ graphql_validate_endpoint <- function(endpoint) {
   endpoint
 }
 
-# Check that `value` is one non-missing logical. Returns invisibly for GraphQL
-# public and endpoint option validation
-graphql_validate_logical <- function(value, name) {
-  if (
-    !is.logical(value) ||
-      length(value) != 1L ||
-      is.na(value)
-  ) {
-    .fabric_abort(paste0(name, " must be TRUE or FALSE"))
-  }
-  invisible(TRUE)
-}
-
 # Check GraphQL `variables` as a uniquely named list. Returns the same list for
 # single-page and pagination requests
 graphql_validate_variables <- function(variables) {
