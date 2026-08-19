@@ -19,27 +19,27 @@ most workflows, you do not need to copy IDs or connection details by hand
 \item Use \code{\link[=fabric_sql_tables]{fabric_sql_tables()}} to discover tables and views across Warehouse,
 SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
 \code{\link[=fabric_sql_read_table]{fabric_sql_read_table()}} or \code{\link[=fabric_sql_query]{fabric_sql_query()}} to read them
-\item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models,
-\code{\link[=fabric_kql_tables]{fabric_kql_tables()}} to discover Eventhouse tables,
-\code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data,
-\code{\link[=fabric_kql_read_table]{fabric_kql_read_table()}} for table-oriented Eventhouse reads,
-\code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}} for tracked storage ingestion,
-\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} for R/Arrow-to-Eventhouse writes,
-\code{\link[=fabric_kql_export]{fabric_kql_export()}} for tracked server-side exports to storage, and
-\code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item
-\item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
-User Data Function's explicit public URL
-\item Use \link{fabric_onelake_files} for ordinary files,
-\code{\link[=fabric_lakehouse_schemas]{fabric_lakehouse_schemas()}} and \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover or
-load managed Delta tables,
-\code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to read them, and the Livy helpers when
-Spark processing is required
+\item Use \code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}} for report-ready semantic models
+\item Use the Livy helpers when Spark processing is required
+\item Use \code{\link[=fabric_lakehouse_schemas]{fabric_lakehouse_schemas()}} and \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover
+or load managed Delta tables, and \code{\link[=fabric_onelake_read_delta_table]{fabric_onelake_read_delta_table()}} to
+read them
+\item Use \link{fabric_onelake_files} for ordinary files
 \item Use \code{\link[=fabric_warehouse_schemas]{fabric_warehouse_schemas()}} and \code{\link[=fabric_warehouse_tables]{fabric_warehouse_tables()}} to discover
 Warehouse tables, then
 \code{\link[=fabric_warehouse_read_table]{fabric_warehouse_read_table()}} or \code{\link[=fabric_warehouse_write_table]{fabric_warehouse_write_table()}} for
 symmetric Warehouse table transfer
 \item Use \code{\link[=fabric_mirrored_databases]{fabric_mirrored_databases()}} and \code{\link[=fabric_mirrored_database_tables]{fabric_mirrored_database_tables()}}
 to discover and read continuously replicated Delta tables
+\item Use \code{\link[=fabric_kql_tables]{fabric_kql_tables()}} to discover Eventhouse tables,
+\code{\link[=fabric_kql_query]{fabric_kql_query()}} for Eventhouse/KQL data,
+\code{\link[=fabric_kql_read_table]{fabric_kql_read_table()}} for table-oriented Eventhouse reads,
+\code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}} for tracked storage ingestion,
+\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}} for R/Arrow-to-Eventhouse writes, and
+\code{\link[=fabric_kql_export]{fabric_kql_export()}} for tracked server-side exports to storage
+\item Use \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} for an API for GraphQL item
+\item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
+User Data Function's explicit public URL
 \item Use \code{\link[=fabric_job_run]{fabric_job_run()}}, \code{\link[=fabric_job_status]{fabric_job_status()}}, \code{\link[=fabric_job_wait]{fabric_job_wait()}}, and
 \code{\link[=fabric_job_cancel]{fabric_job_cancel()}} to control supported on-demand item jobs
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive
