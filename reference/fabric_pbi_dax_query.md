@@ -21,7 +21,6 @@ fabric_pbi_dax_query(
   auth_args = list(),
   include_nulls = TRUE,
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
@@ -99,11 +98,6 @@ fabric_pbi_dax_query(
   cloud; override it only for a test service that implements the same
   endpoint and authentication contract. Sovereign Microsoft clouds are
   not currently supported by this helper
-
-- allow_custom_endpoint:
-
-  Logical. Set to `TRUE` only when `api_base` is a non-Microsoft HTTPS
-  origin that you trust to receive a Power BI token
 
 - impersonated_user:
 

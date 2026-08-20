@@ -66,8 +66,7 @@ record returned by <code><a href="fabric_typed_items.html">fabric_semantic_model
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_pbi_refresh_history</span><span class="op">(</span></span>
@@ -81,8 +80,7 @@ record returned by <code><a href="fabric_typed_items.html">fabric_semantic_model
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_pbi_refresh_status</span><span class="op">(</span></span>
@@ -98,7 +96,6 @@ record returned by <code><a href="fabric_typed_items.html">fabric_semantic_model
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -116,7 +113,6 @@ record returned by <code><a href="fabric_typed_items.html">fabric_semantic_model
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -133,8 +129,7 @@ record returned by <code><a href="fabric_typed_items.html">fabric_semantic_model
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -246,11 +241,6 @@ in-process credential unless new authentication arguments are supplied</p></dd>
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Power BI REST API base URL. The commercial-cloud default is
 normally correct</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Set <code>TRUE</code> only when <code>api_base</code> is a trusted,
-non-Microsoft HTTPS origin that may receive a Power BI token</p></dd>
 
 
 <dt id="arg-top">top<a class="anchor" aria-label="anchor" href="#arg-top"></a></dt>

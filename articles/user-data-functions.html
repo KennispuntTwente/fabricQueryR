@@ -183,12 +183,11 @@ repeating arbitrary Python code is safe.</p>
 <h2 id="trust-boundary-limits-and-redaction">Trust boundary, limits, and redaction<a class="anchor" aria-label="anchor" href="#trust-boundary-limits-and-redaction"></a>
 </h2>
 <p>Bearer tokens are sent only after the URL passes validation. The
-default allows HTTPS Microsoft Fabric API hosts on the documented
+default allows HTTPS endpoints on the documented
 <code>/v1/workspaces/.../userDataFunctions/.../functions/.../invoke</code>
-route. A custom origin requires
-<code>allow_custom_endpoint = TRUE</code>; enable it only after
-verifying the endpoint independently. Embedded credentials, query
-strings, fragments, and nonstandard ports are rejected.</p>
+route. Verify custom origins independently before supplying them.
+Embedded credentials, query strings, fragments, and nonstandard ports
+are rejected.</p>
 <p>Microsoft currently limits the combined request parameters to 4 MB,
 execution through a public endpoint to 100 seconds, and the function
 return value to 30 MB. fabricQueryR rejects oversized requests before

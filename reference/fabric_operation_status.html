@@ -57,7 +57,6 @@ operation ID or the <code>Location</code> URL returned by Fabric</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  respect_retry_after <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
@@ -74,7 +73,6 @@ operation ID or the <code>Location</code> URL returned by Fabric</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -90,7 +88,6 @@ operation ID or the <code>Location</code> URL returned by Fabric</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -128,12 +125,6 @@ supplied explicitly</p></dd>
 
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Fabric REST API base URL. Most users should keep the default</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Set to <code>TRUE</code> only when <code>api_base</code> or
-the supplied operation URL is a non-Microsoft HTTPS origin that you trust
-to receive a Fabric token</p></dd>
 
 
 <dt id="arg-respect-retry-after">respect_retry_after<a class="anchor" aria-label="anchor" href="#arg-respect-retry-after"></a></dt>

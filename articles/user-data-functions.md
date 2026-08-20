@@ -140,11 +140,11 @@ code is safe.
 ## Trust boundary, limits, and redaction
 
 Bearer tokens are sent only after the URL passes validation. The default
-allows HTTPS Microsoft Fabric API hosts on the documented
-`/v1/workspaces/.../userDataFunctions/.../functions/.../invoke` route. A
-custom origin requires `allow_custom_endpoint = TRUE`; enable it only
-after verifying the endpoint independently. Embedded credentials, query
-strings, fragments, and nonstandard ports are rejected.
+allows HTTPS endpoints on the documented
+`/v1/workspaces/.../userDataFunctions/.../functions/.../invoke` route.
+Verify custom origins independently before supplying them. Embedded
+credentials, query strings, fragments, and nonstandard ports are
+rejected.
 
 Microsoft currently limits the combined request parameters to 4 MB,
 execution through a public endpoint to 100 seconds, and the function

@@ -60,8 +60,7 @@ helper's scope.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  audience <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -122,12 +121,6 @@ to let fabricQueryR use its normal sign-in flow.</p></dd>
 selects the documented scope from the authentication flow. Set this only
 for a custom token provider or unusual identity flow.</p></dd>
 
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Permit a public-function URL outside
-the Microsoft Fabric API origin. Credentials are sent to the supplied
-endpoint, so enable this only for an origin you trust.</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -170,10 +163,8 @@ currently does not support using a service principal through connections
 managed by user data functions to access Fabric items or data sources. A
 service principal can therefore invoke a compatible function while a
 function that relies on an unsupported managed connection can still fail.</p>
-<p>The function URL is a credential boundary. By default, tokens are sent only
-to an HTTPS Microsoft Fabric API host and only when the URL has the
-documented public-function route. Set <code>allow_custom_endpoint = TRUE</code> only
-after independently trusting a custom origin. URLs containing credentials,
+<p>The function URL is a credential boundary. Tokens are sent to the explicitly
+supplied HTTPS endpoint. URLs containing credentials,
 query parameters, fragments, or nonstandard ports are rejected.</p>
     </div>
     <div class="section level2">

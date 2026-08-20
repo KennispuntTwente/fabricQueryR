@@ -59,8 +59,7 @@ API; the reader uses the mirrored Delta log.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_mirrored_database_tables</span><span class="op">(</span></span>
@@ -75,8 +74,7 @@ API; the reader uses the mirrored Delta log.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_mirrored_database_table</span><span class="op">(</span></span>
@@ -90,8 +88,7 @@ API; the reader uses the mirrored Delta log.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_mirrored_database_read_table</span><span class="op">(</span></span>
@@ -110,8 +107,7 @@ API; the reader uses the mirrored Delta log.</p>
 <span>  columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tibble"</span>, <span class="st">"arrow_stream"</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -161,11 +157,6 @@ resolved. Most users should keep the default.</p></dd>
 <dt id="arg-table-api-base">table_api_base<a class="anchor" aria-label="anchor" href="#arg-table-api-base"></a></dt>
 <dd><p>OneLake Delta table API base URL. Most users should
 keep the default.</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Set to <code>TRUE</code> only when a supplied API
-base is a non-Microsoft HTTPS endpoint that you trust to receive a token.</p></dd>
 
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>

@@ -20,8 +20,7 @@ fabric_job_instances(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 )
 ```
 
@@ -70,11 +69,6 @@ fabric_job_instances(
   Fabric REST API base URL. Most users should keep the default A
   discovered workspace-specific endpoint is used unless this argument is
   supplied explicitly
-
-- allow_custom_endpoint:
-
-  Logical. Set to `TRUE` only when `api_base` is a non-Microsoft HTTPS
-  origin that you trust to receive a Fabric token
 
 ## Value
 

@@ -28,8 +28,7 @@ fabric_pbi_refresh(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE
+  api_base = "https://api.powerbi.com/v1.0/myorg"
 )
 
 fabric_pbi_refresh_history(
@@ -43,8 +42,7 @@ fabric_pbi_refresh_history(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE
+  api_base = "https://api.powerbi.com/v1.0/myorg"
 )
 
 fabric_pbi_refresh_status(
@@ -60,7 +58,6 @@ fabric_pbi_refresh_status(
   token = NULL,
   auth_args = list(),
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -78,7 +75,6 @@ fabric_pbi_refresh_wait(
   token = NULL,
   auth_args = list(),
   api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -95,8 +91,7 @@ fabric_pbi_refresh_cancel(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg",
-  allow_custom_endpoint = FALSE
+  api_base = "https://api.powerbi.com/v1.0/myorg"
 )
 ```
 
@@ -208,11 +203,6 @@ fabric_pbi_refresh_cancel(
 
   Power BI REST API base URL. The commercial-cloud default is normally
   correct
-
-- allow_custom_endpoint:
-
-  Set `TRUE` only when `api_base` is a trusted, non-Microsoft HTTPS
-  origin that may receive a Power BI token
 
 - top:
 

@@ -36,7 +36,6 @@ fabric_kql_export(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -153,12 +152,6 @@ fabric_kql_export(
 
   Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-
-- allow_custom_endpoint:
-
-  Logical. Permit a non-Microsoft Kusto HTTPS origin. Keep `FALSE`
-  unless the endpoint is trusted; credentials are sent to the supplied
-  origin
 
 - .sleep, .now:
 

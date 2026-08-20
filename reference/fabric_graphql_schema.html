@@ -60,8 +60,7 @@ API without assuming how Fabric named its generated objects</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -120,12 +119,6 @@ for a custom token provider or unusual identity flow</p></dd>
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Fabric REST API base URL used to derive endpoints from IDs
 Most users should keep the default</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Permit a GraphQL endpoint outside the
-Microsoft Fabric API origin. Keep <code>FALSE</code> unless the origin is trusted;
-credentials are sent to the supplied endpoint</p></dd>
 
 </dl></div>
     <div class="section level2">

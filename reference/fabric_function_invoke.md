@@ -19,8 +19,7 @@ fabric_function_invoke(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  audience = NULL,
-  allow_custom_endpoint = FALSE
+  audience = NULL
 )
 ```
 
@@ -81,12 +80,6 @@ fabric_function_invoke(
   documented scope from the authentication flow. Set this only for a
   custom token provider or unusual identity flow.
 
-- allow_custom_endpoint:
-
-  Logical. Permit a public-function URL outside the Microsoft Fabric API
-  origin. Credentials are sent to the supplied endpoint, so enable this
-  only for an origin you trust.
-
 ## Value
 
 A `fabric_function_result` list with `function_name`, `invocation_id`,
@@ -129,12 +122,9 @@ data sources. A service principal can therefore invoke a compatible
 function while a function that relies on an unsupported managed
 connection can still fail.
 
-The function URL is a credential boundary. By default, tokens are sent
-only to an HTTPS Microsoft Fabric API host and only when the URL has the
-documented public-function route. Set `allow_custom_endpoint = TRUE`
-only after independently trusting a custom origin. URLs containing
-credentials, query parameters, fragments, or nonstandard ports are
-rejected.
+The function URL is a credential boundary. Tokens are sent to the
+explicitly supplied HTTPS endpoint. URLs containing credentials, query
+parameters, fragments, or nonstandard ports are rejected.
 
 ## Results, retries, and limits
 

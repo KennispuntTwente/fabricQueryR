@@ -27,7 +27,6 @@ fabric_warehouse_read_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE,
   verbose = TRUE,
   timeout = 30L,
   max_tries = 3L,
@@ -103,13 +102,6 @@ fabric_warehouse_read_table(
 
   Fabric REST API base used when a Warehouse name or GUID must be
   discovered.
-
-- allow_custom_endpoint:
-
-  Logical. Fabric SQL and Microsoft SQL Database hostnames are trusted
-  by default. Set to `TRUE` only when deliberately sending the SQL
-  access token to another hostname, such as a controlled proxy or test
-  server
 
 - verbose:
 

@@ -22,8 +22,7 @@ fabric_graphql_query(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 )
 ```
 
@@ -106,12 +105,6 @@ fabric_graphql_query(
 
   Fabric REST API base URL used to derive endpoints from IDs Most users
   should keep the default
-
-- allow_custom_endpoint:
-
-  Logical. Permit a GraphQL endpoint outside the Microsoft Fabric API
-  origin. Keep `FALSE` unless the origin is trusted; credentials are
-  sent to the supplied endpoint
 
 ## Value
 

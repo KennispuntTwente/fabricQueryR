@@ -57,27 +57,27 @@ most workflows, you do not need to copy IDs or connection details by hand</p>
 <li><p>Use <code><a href="fabric_sql_tables.html">fabric_sql_tables()</a></code> to discover tables and views across Warehouse,
 SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
 <code><a href="fabric_sql_tables.html">fabric_sql_read_table()</a></code> or <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code> to read them</p></li>
-<li><p>Use <code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code> for report-ready semantic models,
-<code><a href="fabric_kql_tables.html">fabric_kql_tables()</a></code> to discover Eventhouse tables,
-<code><a href="fabric_kql_query.html">fabric_kql_query()</a></code> for Eventhouse/KQL data,
-<code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code> for table-oriented Eventhouse reads,
-<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code> for tracked storage ingestion,
-<code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code> for R/Arrow-to-Eventhouse writes,
-<code><a href="fabric_kql_export.html">fabric_kql_export()</a></code> for tracked server-side exports to storage, and
-<code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code> for an API for GraphQL item</p></li>
-<li><p>Use <code><a href="fabric_function_invoke.html">fabric_function_invoke()</a></code> to call published business logic through a
-User Data Function's explicit public URL</p></li>
-<li><p>Use <a href="fabric_onelake_files.html">fabric_onelake_files</a> for ordinary files,
-<code><a href="fabric_onelake_catalog.html">fabric_lakehouse_schemas()</a></code> and <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> to discover or
-load managed Delta tables,
-<code><a href="fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> to read them, and the Livy helpers when
-Spark processing is required</p></li>
+<li><p>Use <code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code> for report-ready semantic models</p></li>
+<li><p>Use the Livy helpers when Spark processing is required</p></li>
+<li><p>Use <code><a href="fabric_onelake_catalog.html">fabric_lakehouse_schemas()</a></code> and <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> to discover
+or load managed Delta tables, and <code><a href="fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> to
+read them</p></li>
+<li><p>Use <a href="fabric_onelake_files.html">fabric_onelake_files</a> for ordinary files</p></li>
 <li><p>Use <code><a href="fabric_onelake_catalog.html">fabric_warehouse_schemas()</a></code> and <code><a href="fabric_warehouse_tables.html">fabric_warehouse_tables()</a></code> to discover
 Warehouse tables, then
 <code><a href="fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code> or <code><a href="fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code> for
 symmetric Warehouse table transfer</p></li>
 <li><p>Use <code><a href="fabric_typed_items.html">fabric_mirrored_databases()</a></code> and <code><a href="fabric_mirrored_database_tables.html">fabric_mirrored_database_tables()</a></code>
 to discover and read continuously replicated Delta tables</p></li>
+<li><p>Use <code><a href="fabric_kql_tables.html">fabric_kql_tables()</a></code> to discover Eventhouse tables,
+<code><a href="fabric_kql_query.html">fabric_kql_query()</a></code> for Eventhouse/KQL data,
+<code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code> for table-oriented Eventhouse reads,
+<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code> for tracked storage ingestion,
+<code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code> for R/Arrow-to-Eventhouse writes, and
+<code><a href="fabric_kql_export.html">fabric_kql_export()</a></code> for tracked server-side exports to storage</p></li>
+<li><p>Use <code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code> for an API for GraphQL item</p></li>
+<li><p>Use <code><a href="fabric_function_invoke.html">fabric_function_invoke()</a></code> to call published business logic through a
+User Data Function's explicit public URL</p></li>
 <li><p>Use <code><a href="fabric_job_run.html">fabric_job_run()</a></code>, <code><a href="fabric_job_run.html">fabric_job_status()</a></code>, <code><a href="fabric_job_run.html">fabric_job_wait()</a></code>, and
 <code><a href="fabric_job_run.html">fabric_job_cancel()</a></code> to control supported on-demand item jobs</p></li>
 <li><p>See <code><a href="../articles/authentication.html">vignette("authentication", package = "fabricQueryR")</a></code> for interactive

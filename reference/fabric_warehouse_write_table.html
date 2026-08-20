@@ -83,7 +83,6 @@ data frame.</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
 <span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -208,13 +207,6 @@ Lakehouse name or GUID must be discovered.</p></dd>
 <dt id="arg-dfs-base">dfs_base<a class="anchor" aria-label="anchor" href="#arg-dfs-base"></a></dt>
 <dd><p>OneLake service address. Most users should keep the default;
 a workspace-specific address discovered from Fabric is used when available</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Fabric SQL and Microsoft SQL Database
-hostnames are trusted by default. Set to <code>TRUE</code> only when deliberately
-sending the SQL access token to another hostname, such as a controlled
-proxy or test server</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>

@@ -27,36 +27,21 @@ details by hand
 
 - Use
   [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
-  for report-ready semantic models,
-  [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)
-  to discover Eventhouse tables,
-  [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
-  for Eventhouse/KQL data,
-  [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
-  for table-oriented Eventhouse reads,
-  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
-  for tracked storage ingestion,
-  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
-  for R/Arrow-to-Eventhouse writes,
-  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
-  for tracked server-side exports to storage, and
-  [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
-  for an API for GraphQL item
+  for report-ready semantic models
+
+- Use the Livy helpers when Spark processing is required
 
 - Use
-  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
-  to call published business logic through a User Data Function's
-  explicit public URL
-
-- Use
-  [fabric_onelake_files](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-  for ordinary files,
   [`fabric_lakehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
   and
   [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-  to discover or load managed Delta tables,
+  to discover or load managed Delta tables, and
   [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
-  to read them, and the Livy helpers when Spark processing is required
+  to read them
+
+- Use
+  [fabric_onelake_files](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+  for ordinary files
 
 - Use
   [`fabric_warehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
@@ -73,6 +58,29 @@ details by hand
   and
   [`fabric_mirrored_database_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
   to discover and read continuously replicated Delta tables
+
+- Use
+  [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)
+  to discover Eventhouse tables,
+  [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  for Eventhouse/KQL data,
+  [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)
+  for table-oriented Eventhouse reads,
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  for tracked storage ingestion,
+  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  for R/Arrow-to-Eventhouse writes, and
+  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  for tracked server-side exports to storage
+
+- Use
+  [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+  for an API for GraphQL item
+
+- Use
+  [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
+  to call published business logic through a User Data Function's
+  explicit public URL
 
 - Use
   [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),

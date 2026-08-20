@@ -75,7 +75,6 @@ and removes staging only after a confirmed success.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  storage_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  column_types <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  query_cluster <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -199,10 +198,6 @@ provider. Required when <code>token</code> cannot acquire a different audience.<
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
 <dd><p>Additional options passed to <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code>.</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Permit a trusted non-Microsoft Kusto origin.</p></dd>
 
 
 <dt id="arg-create-if-missing">create_if_missing<a class="anchor" aria-label="anchor" href="#arg-create-if-missing"></a></dt>

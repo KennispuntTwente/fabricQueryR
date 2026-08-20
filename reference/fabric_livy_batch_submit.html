@@ -78,8 +78,7 @@ variables and Spark state</p>
 <span>  wait <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">1200</span>,</span>
 <span>  poll_interval <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -210,12 +209,6 @@ cancellation if the local timeout expires. Defaults to <code>TRUE</code>, so a t
 out call does not normally leave Spark compute running unattended. The
 structured timeout condition always contains the submitted object in its
 <code>batch</code> field, including when cancellation fails or is disabled</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Keep <code>FALSE</code> to require a Microsoft
-Fabric API host. Set <code>TRUE</code> only for a trusted custom HTTPS service, such
-as a test emulator; the Fabric bearer token is sent to this endpoint</p></dd>
 
 </dl></div>
     <div class="section level2">

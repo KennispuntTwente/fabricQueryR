@@ -18,8 +18,7 @@ fabric_lakehouse_schemas(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 
 fabric_warehouse_schemas(
@@ -32,8 +31,7 @@ fabric_warehouse_schemas(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 
 fabric_lakehouse_table(
@@ -47,8 +45,7 @@ fabric_lakehouse_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 
 fabric_warehouse_table(
@@ -62,8 +59,7 @@ fabric_warehouse_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 ```
 
@@ -110,11 +106,6 @@ fabric_warehouse_table(
 - table_api_base:
 
   OneLake Delta table API base URL. Most users should keep the default.
-
-- allow_custom_endpoint:
-
-  Logical. Set to `TRUE` only when a supplied API base is a
-  non-Microsoft HTTPS endpoint that you trust to receive a token.
 
 - warehouse:
 

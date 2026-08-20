@@ -34,7 +34,6 @@ fabric_kql_write_table(
   token = NULL,
   storage_token = NULL,
   auth_args = list(),
-  allow_custom_endpoint = FALSE,
   create_if_missing = FALSE,
   column_types = NULL,
   query_cluster = NULL,
@@ -159,10 +158,6 @@ fabric_kql_write_table(
 
   Additional options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
-
-- allow_custom_endpoint:
-
-  Permit a trusted non-Microsoft Kusto origin.
 
 - create_if_missing:
 

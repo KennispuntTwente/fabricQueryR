@@ -18,8 +18,7 @@ fabric_mirrored_database_schemas(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 
 fabric_mirrored_database_tables(
@@ -34,8 +33,7 @@ fabric_mirrored_database_tables(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 
 fabric_mirrored_database_table(
@@ -49,8 +47,7 @@ fabric_mirrored_database_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base,
-  allow_custom_endpoint = FALSE
+  table_api_base = .fabric_onelake_table_base
 )
 
 fabric_mirrored_database_read_table(
@@ -69,8 +66,7 @@ fabric_mirrored_database_read_table(
   columns = NULL,
   limit = NULL,
   result = c("tibble", "arrow_stream"),
-  api_base = .fabric_api_base,
-  allow_custom_endpoint = FALSE
+  api_base = .fabric_api_base
 )
 ```
 
@@ -118,11 +114,6 @@ fabric_mirrored_database_read_table(
 - table_api_base:
 
   OneLake Delta table API base URL. Most users should keep the default.
-
-- allow_custom_endpoint:
-
-  Logical. Set to `TRUE` only when a supplied API base is a
-  non-Microsoft HTTPS endpoint that you trust to receive a token.
 
 - schema:
 

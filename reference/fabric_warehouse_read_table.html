@@ -67,7 +67,6 @@ function for filters, ordering, joins, aggregations, or other T-SQL.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">30L</span>,</span>
 <span>  max_tries <span class="op">=</span> <span class="fl">3L</span>,</span>
@@ -141,13 +140,6 @@ to let fabricQueryR use its normal sign-in flow</p></dd>
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Fabric REST API base used when a Warehouse name or GUID must
 be discovered.</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Fabric SQL and Microsoft SQL Database
-hostnames are trusted by default. Set to <code>TRUE</code> only when deliberately
-sending the SQL access token to another hostname, such as a controlled
-proxy or test server</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>

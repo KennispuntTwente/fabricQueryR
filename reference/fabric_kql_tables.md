@@ -17,8 +17,7 @@ fabric_kql_tables(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
-  auth_args = list(),
-  allow_custom_endpoint = FALSE
+  auth_args = list()
 )
 ```
 
@@ -68,12 +67,6 @@ fabric_kql_tables(
 
   Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-
-- allow_custom_endpoint:
-
-  Logical. Permit a non-Microsoft Kusto HTTPS origin. Keep `FALSE`
-  unless the endpoint is trusted; credentials are sent to the supplied
-  origin
 
 ## Value
 

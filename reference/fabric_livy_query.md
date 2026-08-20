@@ -23,7 +23,6 @@ fabric_livy_query(
   verbose = TRUE,
   poll_interval = 2,
   timeout = 600,
-  allow_custom_endpoint = FALSE,
   ...
 )
 ```
@@ -100,12 +99,6 @@ fabric_livy_query(
 
   Maximum seconds to wait for session readiness and, separately,
   statement completion
-
-- allow_custom_endpoint:
-
-  Logical. Keep `FALSE` to require a Microsoft Fabric API host. Set
-  `TRUE` only for a trusted custom HTTPS service, such as a test
-  emulator; the Fabric bearer token is sent to this endpoint
 
 - ...:
 

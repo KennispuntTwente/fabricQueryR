@@ -39,8 +39,7 @@ fabric_livy_batch_submit(
   wait = FALSE,
   timeout = 1200,
   poll_interval = 5,
-  cancel_on_timeout = TRUE,
-  allow_custom_endpoint = FALSE
+  cancel_on_timeout = TRUE
 )
 ```
 
@@ -165,12 +164,6 @@ fabric_livy_batch_submit(
   not normally leave Spark compute running unattended. The structured
   timeout condition always contains the submitted object in its `batch`
   field, including when cancellation fails or is disabled
-
-- allow_custom_endpoint:
-
-  Logical. Keep `FALSE` to require a Microsoft Fabric API host. Set
-  `TRUE` only for a trusted custom HTTPS service, such as a test
-  emulator; the Fabric bearer token is sent to this endpoint
 
 ## Value
 

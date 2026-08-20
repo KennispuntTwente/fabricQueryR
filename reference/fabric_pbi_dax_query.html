@@ -59,7 +59,6 @@ including tables, relationships, measures, and business calculations</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  include_nulls <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  impersonated_user <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  api <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"json"</span>, <span class="st">"arrow"</span><span class="op">)</span>,</span>
 <span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tibble"</span>, <span class="st">"arrow_stream"</span><span class="op">)</span>,</span>
@@ -136,11 +135,6 @@ nulls explicitly</p></dd>
 override it only for a test service that implements the same endpoint and
 authentication contract. Sovereign Microsoft clouds are not currently
 supported by this helper</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Set to <code>TRUE</code> only when <code>api_base</code> is
-a non-Microsoft HTTPS origin that you trust to receive a Power BI token</p></dd>
 
 
 <dt id="arg-impersonated-user">impersonated_user<a class="anchor" aria-label="anchor" href="#arg-impersonated-user"></a></dt>

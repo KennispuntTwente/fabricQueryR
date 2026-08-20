@@ -63,8 +63,7 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_job_status</span><span class="op">(</span></span>
@@ -80,7 +79,6 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  respect_retry_after <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
@@ -100,7 +98,6 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
@@ -118,8 +115,7 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  allow_custom_endpoint <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -224,11 +220,6 @@ A <code>fabric_job</code> handle reuses its stored credential unless <code>tenan
 <dd><p>Fabric REST API base URL. Most users should keep the default
 A discovered workspace-specific endpoint is used unless this argument is
 supplied explicitly</p></dd>
-
-
-<dt id="arg-allow-custom-endpoint">allow_custom_endpoint<a class="anchor" aria-label="anchor" href="#arg-allow-custom-endpoint"></a></dt>
-<dd><p>Logical. Set to <code>TRUE</code> only when <code>api_base</code> is
-a non-Microsoft HTTPS origin that you trust to receive a Fabric token</p></dd>
 
 
 <dt id="arg-job">job<a class="anchor" aria-label="anchor" href="#arg-job"></a></dt>
