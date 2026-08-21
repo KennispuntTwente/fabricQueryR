@@ -20,6 +20,9 @@
 #'   shortcut target list. A raw target must contain exactly one documented
 #'   key such as `oneLake`, `adlsGen2`, `amazonS3`, `azureBlobStorage`,
 #'   `googleCloudStorage`, `oneDriveSharePoint`, `s3Compatible`, or `dataverse`.
+#'   Connection-backed targets must include the documented connection and
+#'   location fields, use an existing Fabric connection ID, and must not embed
+#'   credentials. Type-specific fields are validated before a request is sent.
 #' @param target_workspace Workspace containing a OneLake `target`. May be
 #'   omitted when a discovered target contains `workspaceId`.
 #' @param target_path Item-relative `Files` or `Tables` path for a OneLake
@@ -452,7 +455,7 @@ fabric_onelake_shortcut_delete <- function(
   }
   name <- allowed[[index]]
   details <- target[[1L]]
-  if (!is.list(details) || is.null(names(details))) {
+  if (!is.list(details) || (length(details) && is.null(names(details)))) {
     .fabric_abort(
       "Raw shortcut target details must be a named list",
       class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
@@ -470,10 +473,6 @@ fabric_onelake_shortcut_delete <- function(
       class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
     )
   }
-  connection_id <- details$connectionId
-  if (!is.null(connection_id)) {
-    .fabric_job_guid(connection_id, "shortcut connection ID")
-  }
   if (identical(name, "oneLake")) {
     required <- c("workspaceId", "itemId", "path")
     if (!all(required %in% names(details))) {
@@ -485,8 +484,122 @@ fabric_onelake_shortcut_delete <- function(
     .fabric_job_guid(details$workspaceId, "OneLake target workspace ID")
     .fabric_job_guid(details$itemId, "OneLake target item ID")
     details$path <- .fabric_shortcut_path(details$path, "target path")
+  } else {
+    details <- .fabric_shortcut_external_target(details, name)
   }
   stats::setNames(list(details), name)
+}
+
+.fabric_shortcut_external_target <- function(details, type) {
+  required <- switch(
+    type,
+    adlsGen2 = c("connectionId", "location"),
+    amazonS3 = c("connectionId", "location"),
+    azureBlobStorage = c("connectionId", "location"),
+    googleCloudStorage = c("connectionId", "location"),
+    oneDriveSharePoint = c("connectionId", "location"),
+    s3Compatible = c("connectionId", "location", "bucket"),
+    dataverse = c(
+      "connectionId",
+      "deltaLakeFolder",
+      "environmentDomain",
+      "tableName"
+    )
+  )
+  missing <- setdiff(required, names(details))
+  if (length(missing)) {
+    .fabric_abort(
+      paste0(
+        "A raw ",
+        type,
+        " target requires ",
+        paste(required, collapse = ", ")
+      ),
+      class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
+    )
+  }
+
+  .fabric_job_guid(details$connectionId, "shortcut connection ID")
+  if (identical(type, "dataverse")) {
+    details$deltaLakeFolder <- .fabric_shortcut_target_string(
+      details$deltaLakeFolder,
+      "Dataverse deltaLakeFolder"
+    )
+    details$environmentDomain <- .fabric_shortcut_target_url(
+      details$environmentDomain,
+      "Dataverse environmentDomain"
+    )
+    details$tableName <- .fabric_shortcut_target_string(
+      details$tableName,
+      "Dataverse tableName"
+    )
+    return(details)
+  }
+
+  details$location <- .fabric_shortcut_target_url(
+    details$location,
+    paste0(type, " location")
+  )
+  if (!is.null(details$subpath)) {
+    details$subpath <- .fabric_shortcut_target_string(
+      details$subpath,
+      paste0(type, " subpath"),
+      allow_empty = TRUE
+    )
+  }
+  if (identical(type, "s3Compatible")) {
+    details$bucket <- .fabric_shortcut_target_string(
+      details$bucket,
+      "s3Compatible bucket"
+    )
+  }
+  if (
+    identical(type, "oneDriveSharePoint") &&
+      !is.null(details$updateFabricItemSensitivity) &&
+      (!is.logical(details$updateFabricItemSensitivity) ||
+        length(details$updateFabricItemSensitivity) != 1L ||
+        is.na(details$updateFabricItemSensitivity))
+  ) {
+    .fabric_abort(
+      "oneDriveSharePoint updateFabricItemSensitivity must be TRUE or FALSE",
+      class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
+    )
+  }
+  details
+}
+
+.fabric_shortcut_target_string <- function(value, label, allow_empty = FALSE) {
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      (!allow_empty && !nzchar(value))
+  ) {
+    .fabric_abort(
+      paste0(label, " must be a single non-missing character value"),
+      class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
+    )
+  }
+  value
+}
+
+.fabric_shortcut_target_url <- function(value, label) {
+  value <- .fabric_shortcut_target_string(value, label)
+  parsed <- try(httr2::url_parse(value), silent = TRUE)
+  invalid <- inherits(parsed, "try-error") ||
+    !identical(tolower(parsed$scheme %||% ""), "https") ||
+    !nzchar(parsed$hostname %||% "") ||
+    nzchar(parsed$username %||% "") ||
+    nzchar(parsed$password %||% "") ||
+    length(parsed$query %||% list()) > 0L ||
+    nzchar(parsed$fragment %||% "")
+  if (invalid) {
+    .fabric_abort(
+      paste0(label, " must be an HTTPS URL without credentials or query data"),
+      class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
+    )
+  }
+  value
 }
 
 # Normalize service records into a stable tibble while preserving raw fields

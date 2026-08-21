@@ -105,7 +105,10 @@ be created.}
 \item{target}{A discovered Fabric item, its name or GUID, or a raw named
 shortcut target list. A raw target must contain exactly one documented
 key such as \code{oneLake}, \code{adlsGen2}, \code{amazonS3}, \code{azureBlobStorage},
-\code{googleCloudStorage}, \code{oneDriveSharePoint}, \code{s3Compatible}, or \code{dataverse}.}
+\code{googleCloudStorage}, \code{oneDriveSharePoint}, \code{s3Compatible}, or \code{dataverse}.
+Connection-backed targets must include the documented connection and
+location fields, use an existing Fabric connection ID, and must not embed
+credentials. Type-specific fields are validated before a request is sent.}
 
 \item{target_workspace}{Workspace containing a OneLake \code{target}. May be
 omitted when a discovered target contains \code{workspaceId}.}

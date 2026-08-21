@@ -54,7 +54,8 @@ objects.
 
 * `fabric_onelake_shortcuts()` and `fabric_onelake_shortcut_*()` functions
 inspect, create, update, and delete OneLake shortcuts, which link Fabric items
-to data stored elsewhere.
+to data stored elsewhere. Raw connection-backed targets now validate their
+documented connection, location, and type-specific fields locally.
 
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes, including refreshes limited

@@ -344,6 +344,75 @@ test_that("shortcut validation stops unsafe requests locally", {
     "must not contain credential fields"
   )
   expect_error(
+    invoke(
+      target = list(adlsGen2 = list()),
+      target_path = NULL
+    ),
+    "requires connectionId, location"
+  )
+  expect_error(
+    invoke(
+      target = list(
+        amazonS3 = list(
+          connectionId = "not-a-guid",
+          location = "https://bucket.s3.example.com"
+        )
+      ),
+      target_path = NULL
+    ),
+    "shortcut connection ID"
+  )
+  expect_error(
+    invoke(
+      target = list(
+        azureBlobStorage = list(
+          connectionId = shortcut_test_connection_id,
+          location = "http://account.blob.core.windows.net"
+        )
+      ),
+      target_path = NULL
+    ),
+    "must be an HTTPS URL"
+  )
+  expect_error(
+    invoke(
+      target = list(
+        s3Compatible = list(
+          connectionId = shortcut_test_connection_id,
+          location = "https://storage.example.com"
+        )
+      ),
+      target_path = NULL
+    ),
+    "requires connectionId, location, bucket"
+  )
+  expect_error(
+    invoke(
+      target = list(
+        oneDriveSharePoint = list(
+          connectionId = shortcut_test_connection_id,
+          location = "https://example.sharepoint.com",
+          updateFabricItemSensitivity = "yes"
+        )
+      ),
+      target_path = NULL
+    ),
+    "must be TRUE or FALSE"
+  )
+  expect_error(
+    invoke(
+      target = list(
+        dataverse = list(
+          connectionId = shortcut_test_connection_id,
+          environmentDomain = "https://org.crm.dynamics.com",
+          tableName = "account"
+        )
+      ),
+      target_path = NULL
+    ),
+    "requires connectionId, deltaLakeFolder, environmentDomain, tableName"
+  )
+  expect_error(
     .fabric_shortcut_tibble(list(list(name = "missing path"))),
     class = "fabric_shortcut_protocol_error"
   )
