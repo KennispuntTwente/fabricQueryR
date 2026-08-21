@@ -183,8 +183,8 @@ test_that("fabric_kql_ingest sends the documented tracked payload", {
     ),
     table = "Raw Events",
     sources = paste0(
-      "https://account.blob.core.windows.net/container/events.csv?",
-      "sv=1&sig=source-secret"
+      "https://account.blob.core.windows.net/container/events.csv;",
+      "source-secret"
     ),
     format = "CSV",
     source_ids = source_id,
@@ -309,20 +309,33 @@ test_that("submission permission failures retain HTTP diagnostics", {
   )
 })
 
-test_that("ingestion status normalizes details and redacts source secrets", {
+test_that("ingestion status redacts every storage credential suffix", {
   source_id <- "11111111-1111-4111-8111-111111111111"
+  secret_urls <- c(
+    "https://account.blob.core.windows.net/c/a.csv;bare-account-key",
+    paste0(
+      "https://account.blob.core.windows.net/c/b.csv?",
+      "sv=1&sig=sas-secret"
+    ),
+    "https://account.blob.core.windows.net/c/c.csv;sharedkey=shared-secret",
+    "https://account.blob.core.windows.net/c/d.csv;token=bearer-secret",
+    "https://account.blob.core.windows.net/c/e.csv;managed_identity=client-id",
+    paste0(
+      "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
+      "item/Files/f.csv;impersonate"
+    )
+  )
   response <- kusto_ingestion_test_status(
-    succeeded = 1L,
-    details = list(list(
-      sourceId = source_id,
-      url = paste0(
-        "https://account.blob.core.windows.net/c/a.csv?",
-        "sv=1&sig=status-secret"
-      ),
-      status = "Succeeded",
-      startTime = "2026-08-14T10:00:00Z",
-      lastUpdated = "2026-08-14T10:01:00Z"
-    ))
+    succeeded = length(secret_urls),
+    details = lapply(seq_along(secret_urls), function(index) {
+      list(
+        sourceId = source_id,
+        url = secret_urls[[index]],
+        status = paste("Succeeded from", secret_urls[[index]]),
+        startTime = "2026-08-14T10:00:00Z",
+        lastUpdated = "2026-08-14T10:01:00Z"
+      )
+    })
   )
   captured <- NULL
   audiences <- character()
@@ -349,15 +362,22 @@ test_that("ingestion status normalizes details and redacts source secrets", {
   expect_s3_class(status, "fabric_kql_ingestion_status")
   expect_equal(status$state, "Succeeded")
   expect_true(status$complete)
-  expect_equal(status$succeeded, 1)
+  expect_equal(status$succeeded, length(secret_urls))
   expect_s3_class(status$start_time, "POSIXct")
-  expect_equal(status$details$source_id, source_id)
-  expect_false(grepl("status-secret", status$details$url, fixed = TRUE))
-  expect_false(grepl(
-    "status-secret",
-    jsonlite::toJSON(status$raw, auto_unbox = TRUE),
-    fixed = TRUE
-  ))
+  expect_equal(status$details$source_id, rep(source_id, length(secret_urls)))
+  displayed <- paste(status$details$url, status$details$status, collapse = " ")
+  raw <- jsonlite::toJSON(status$raw, auto_unbox = TRUE)
+  secrets <- c(
+    "bare-account-key",
+    "sas-secret",
+    "shared-secret",
+    "bearer-secret",
+    "client-id",
+    "impersonate"
+  )
+  expect_false(any(vapply(secrets, grepl, logical(1), displayed, fixed = TRUE)))
+  expect_false(any(vapply(secrets, grepl, logical(1), raw, fixed = TRUE)))
+  expect_true(all(grepl("<redacted>", status$details$url, fixed = TRUE)))
   expect_equal(status$request_id, "status-request-id")
   expect_equal(audiences, "https://api.kusto.windows.net/.default")
   expect_match(captured$url, "operation%3B123", fixed = TRUE)

@@ -900,7 +900,7 @@ kusto_ingestion_handle <- function(
     source_id = vapply(blobs, `[[`, character(1), "source_id"),
     url = vapply(
       blobs,
-      function(blob) .httr2_redact(blob$url),
+      function(blob) kusto_storage_redact_text(blob$url),
       character(1)
     ),
     raw_size = vapply(
@@ -1109,7 +1109,7 @@ kusto_ingestion_status_record <- function(
     payload$details,
     requested = details_requested
   )
-  safe_payload <- .httr2_redact_object(payload)
+  safe_payload <- kusto_storage_redact_object(payload)
   structure(
     list(
       operation_id = context$id,
@@ -1188,7 +1188,7 @@ kusto_ingestion_details <- function(value, requested) {
         field
       ))
     }
-    .httr2_redact(item)
+    kusto_storage_redact_text(item)
   }
   tibble::tibble(
     source_id = vapply(value, text, character(1), "sourceId"),
@@ -2586,7 +2586,7 @@ kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
     preferred_upload_method = preferred_upload_method,
     preferred_ingestion_method = payload$ingestionSettings$preferredIngestionMethod %||%
       NA_character_,
-    raw = .httr2_redact_object(payload)
+    raw = kusto_storage_redact_object(payload)
   )
 }
 
@@ -3810,8 +3810,10 @@ kusto_export_status <- function(tables, operation_id) {
   )
 }
 
-# Redact named secrets and complete credential suffixes embedded in status text
-kusto_export_status_text <- function(value) {
+# Redact named secrets and every documented storage credential suffix. Kusto
+# accepts unnamed account keys after a semicolon, which the generic redactor
+# cannot distinguish from ordinary text without the preceding storage URL.
+kusto_storage_redact_text <- function(value) {
   value <- .httr2_redact(value)
   gsub(
     paste0(
@@ -3822,6 +3824,26 @@ kusto_export_status_text <- function(value) {
     value,
     perl = TRUE
   )
+}
+
+# Apply storage-specific redaction recursively while retaining payload shape.
+kusto_storage_redact_object <- function(value) {
+  value <- .httr2_redact_object(value)
+  if (is.character(value)) {
+    return(kusto_storage_redact_text(value))
+  }
+  if (!is.list(value)) {
+    return(value)
+  }
+  for (index in seq_along(value)) {
+    value[index] <- list(kusto_storage_redact_object(value[[index]]))
+  }
+  value
+}
+
+# Redact credentials that may be embedded in export status text.
+kusto_export_status_text <- function(value) {
+  kusto_storage_redact_text(value)
 }
 
 # Normalize successful detail output while preserving exact Kusto long counts

@@ -75,6 +75,10 @@ token, or a function that supplies refreshed tokens through `token`;
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
+* `fabric_kql_ingest()` and its status helpers now redact every documented
+storage credential suffix, including unnamed Azure Blob account keys, before
+retaining or returning service data.
+
 * `fabric_kql_tables()` now reports the requested database display name even
 when Fabric's table metadata identifies the database by its internal ID.
 
