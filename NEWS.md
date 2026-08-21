@@ -75,6 +75,10 @@ token, or a function that supplies refreshed tokens through `token`;
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
+* `fabric_operation_result()` no longer invents a `/result` URL for core or
+workload-scoped operations that expose completion only in their state payload.
+Save the complete service `Location` when resuming a scoped operation later.
+
 * `fabric_kql_export()` now applies its OneLake `Files/` safety boundary to
 complete destination URLs even when they contain authentication suffixes or
 query credentials.

@@ -54,6 +54,13 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   )
   csv_overwrite_state <- fabric_operation_wait(csv_overwrite, timeout = 900)
   expect_equal(csv_overwrite_state$status, "Succeeded")
+  csv_overwrite_result <- fabric_operation_result(
+    csv_overwrite_state,
+    wait = FALSE
+  )
+  expect_s3_class(csv_overwrite_result, "fabric_operation_result")
+  expect_true(is.list(csv_overwrite_result$value))
+  expect_null(csv_overwrite_result$operation$result_url)
 
   csv_append <- fabric_lakehouse_load_table(
     target,

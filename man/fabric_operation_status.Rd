@@ -96,8 +96,9 @@ decoded as lists, binary results are raw vectors, and empty results have a
 \description{
 Check, wait for, and retrieve the result of a Fabric operation that continues
 after its initiating request returns. Pass the operation handle returned by a
-fabricQueryR function when possible. To resume work later, pass either the
-operation ID or the \code{Location} URL returned by Fabric
+fabricQueryR function when possible. To resume work later, save the complete
+\code{Location} URL returned by Fabric. A bare operation ID can reconstruct only
+the core \verb{/operations/\{id\}} route, not workload-scoped routes
 }
 \section{Typical workflow}{
 
@@ -106,8 +107,9 @@ A package function that starts asynchronous work may return a
 finish and \code{fabric_operation_result()} to retrieve its output. Result
 retrieval waits by default, so it is enough for the common case
 
-If the R process restarts, save the handle's \code{id} or the service-provided
-\code{location} and pass that value with fresh authentication arguments
+If the R process restarts, save the service-provided \code{location} and pass it
+with fresh authentication arguments. A bare ID is sufficient only for core
+operations
 }
 
 \section{Results and failures}{

@@ -5,8 +5,9 @@
 #'
 #' Check, wait for, and retrieve the result of a Fabric operation that continues
 #' after its initiating request returns. Pass the operation handle returned by a
-#' fabricQueryR function when possible. To resume work later, pass either the
-#' operation ID or the `Location` URL returned by Fabric
+#' fabricQueryR function when possible. To resume work later, save the complete
+#' `Location` URL returned by Fabric. A bare operation ID can reconstruct only
+#' the core `/operations/{id}` route, not workload-scoped routes
 #'
 #' @param operation A `fabric_operation` handle, Fabric operation GUID, or
 #'   operation state/result URL returned in a `Location` header
@@ -30,8 +31,9 @@
 #' finish and `fabric_operation_result()` to retrieve its output. Result
 #' retrieval waits by default, so it is enough for the common case
 #'
-#' If the R process restarts, save the handle's `id` or the service-provided
-#' `location` and pass that value with fresh authentication arguments
+#' If the R process restarts, save the service-provided `location` and pass it
+#' with fresh authentication arguments. A bare ID is sufficient only for core
+#' operations
 #'
 #' @section Results and failures:
 #' `fabric_operation_status()` preserves Fabric's status, progress, timestamps,
@@ -826,7 +828,7 @@ fabric_operation_result <- function(
       id = operation,
       location = NULL,
       status_url = paste0(base, "/operations/", operation),
-      result_url = paste0(base, "/operations/", operation, "/result")
+      result_url = NULL
     )
   } else {
     .fabric_operation_urls(
@@ -906,12 +908,10 @@ fabric_operation_result <- function(
   } else {
     default_status
   }
-  result_url <- if (!is.null(parsed) && identical(parsed$kind, "state_only")) {
-    NULL
-  } else if (!is.null(parsed) && isTRUE(parsed$is_result)) {
+  result_url <- if (!is.null(parsed) && isTRUE(parsed$is_result)) {
     parsed$url
   } else {
-    paste0(sub("/+$", "", status_url), "/result")
+    NULL
   }
   list(
     id = id,
