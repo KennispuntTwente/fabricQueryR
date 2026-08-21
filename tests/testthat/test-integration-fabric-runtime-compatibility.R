@@ -3,7 +3,7 @@
 # preview runtime and the full Livy tests on the core runtime
 
 test_that("delta-rs reads a Fabric table on the core Spark runtime", {
-  skip_if_not(identical(Sys.getenv("FABRIC_SPARK_RUNTIME_LANE"), "core"))
+  fabric_test_runtime_lane("core")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
 
@@ -21,7 +21,7 @@ test_that("delta-rs reads a Fabric table on the core Spark runtime", {
 })
 
 test_that("Livy executes PySpark on the preview Spark runtime", {
-  skip_if_not(identical(Sys.getenv("FABRIC_SPARK_RUNTIME_LANE"), "preview"))
+  fabric_test_runtime_lane("preview")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()

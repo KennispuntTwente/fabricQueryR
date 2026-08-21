@@ -80,6 +80,21 @@ test_that("opt-in live fixtures skip even in required integration mode", {
   expect_match(condition$message, "Opt-in fixture is opt-in")
 })
 
+test_that("required runtime lanes reject missing or inconsistent configuration", {
+  withr::local_envvar(c(
+    FABRIC_INTEGRATION_REQUIRED = "true",
+    FABRIC_SPARK_RUNTIME_LANE = "typo",
+    FABRIC_SPARK_RUNTIME_VERSION = "1.3"
+  ))
+  expect_error(fabric_test_runtime_lane("core"), "must be 'core' or 'preview'")
+
+  withr::local_envvar(c(
+    FABRIC_SPARK_RUNTIME_LANE = "preview",
+    FABRIC_SPARK_RUNTIME_VERSION = "1.3"
+  ))
+  expect_error(fabric_test_runtime_lane("preview"), "requires version 2.0")
+})
+
 test_that("live token providers acquire by audience and cache until refresh", {
   calls <- character()
   provider <- fabric_test_token_provider(function(audience) {

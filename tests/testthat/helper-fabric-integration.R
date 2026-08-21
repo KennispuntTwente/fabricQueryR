@@ -273,6 +273,40 @@ fabric_test_required_environment <- function(variable, purpose) {
   value
 }
 
+fabric_test_runtime_lane <- function(expected) {
+  lane <- fabric_test_required_environment(
+    "FABRIC_SPARK_RUNTIME_LANE",
+    "Spark runtime compatibility coverage"
+  )
+  version <- fabric_test_required_environment(
+    "FABRIC_SPARK_RUNTIME_VERSION",
+    "Spark runtime compatibility coverage"
+  )
+  versions <- c(core = "1.3", preview = "2.0")
+  if (!lane %in% names(versions)) {
+    rlang::abort(paste0(
+      "FABRIC_SPARK_RUNTIME_LANE must be 'core' or 'preview', not '",
+      lane,
+      "'"
+    ))
+  }
+  fabric_test_skip_or_fail(
+    !identical(version, unname(versions[[lane]])),
+    paste0(
+      "Spark runtime lane '",
+      lane,
+      "' requires version ",
+      versions[[lane]],
+      ", not ",
+      version
+    )
+  )
+  if (!identical(lane, expected)) {
+    testthat::skip(paste("Test belongs to Spark runtime lane", expected))
+  }
+  invisible(TRUE)
+}
+
 fabric_test_require_package <- function(package) {
   fabric_test_skip_or_fail(
     !requireNamespace(package, quietly = TRUE),

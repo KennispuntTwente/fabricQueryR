@@ -107,8 +107,7 @@ load <- fabric_lakehouse_write_table(
   lakehouse,
   "dbo.Sales",
   new_sales,
-  mode = "overwrite",
-  wait = TRUE
+  mode = "overwrite"
 )
 
 refresh <- fabric_pbi_refresh(model)

@@ -34,6 +34,6 @@ jobs:
           print(coverage)
           cat(sprintf("## Unit-test coverage: %.2f%%\n", percent),
               file = Sys.getenv("GITHUB_STEP_SUMMARY"), append = TRUE)
-          if (percent < 88) {
-            stop(sprintf("Coverage %.2f%% is below the 88%% floor", percent))
+          if (percent < 88.5) {
+            stop(sprintf("Coverage %.2f%% is below the 88.5%% floor", percent))
           }

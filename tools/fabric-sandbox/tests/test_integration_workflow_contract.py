@@ -245,7 +245,7 @@ def test_unit_coverage_has_an_enforced_ci_floor():
 
     assert "covr::package_coverage(type = \"tests\"" in workflow
     assert "covr::percent_coverage(coverage)" in workflow
-    assert "if (percent < 88)" in workflow
+    assert "if (percent < 88.5)" in workflow
     assert "needs: coverage" in workflow
     assert "pull_request:" in workflow
 
