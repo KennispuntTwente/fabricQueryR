@@ -28,9 +28,10 @@
 #'   `"standard"` supports only `notify_option`; `"enhanced"` exposes processing
 #'   controls and requires Premium, PPU, Embedded, or Fabric capacity
 #' @param notify_option Standard-refresh email behavior for delegated calls:
-#'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. Omit this
-#'   for service-principal calls and enhanced refreshes. Power BI requires this
-#'   field for delegated standard refreshes
+#'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
+#'   omitted, standard refresh defaults to `"MailOnFailure"`. Pass `NULL`
+#'   explicitly for a service-principal standard refresh. Omit this for
+#'   enhanced refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
 #'   `"Calculate"`, `"DataOnly"`, `"Automatic"`, or `"Defragment"`
 #' @param commit_mode Enhanced commit behavior. `"Transactional"` preserves the
@@ -205,6 +206,7 @@ fabric_pbi_refresh <- function(
 
   # Reuse the DAX target rules so query and refresh workflows accept the same inputs
 
+  notify_option_missing <- missing(notify_option)
   mode <- match.arg(mode)
   api_base <- pbi_api_base(api_base)
   credential <- fabric_credential(
@@ -236,7 +238,8 @@ fabric_pbi_refresh <- function(
     effective_date = effective_date,
     max_parallelism = max_parallelism,
     retry_count = retry_count,
-    refresh_timeout = timeout
+    refresh_timeout = timeout,
+    notify_option_missing = notify_option_missing
   )
   url <- .pbi_refresh_collection_url(api_base, target)
 
@@ -792,7 +795,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   effective_date,
   max_parallelism,
   retry_count,
-  refresh_timeout
+  refresh_timeout,
+  notify_option_missing = FALSE
 ) {
   mode <- match.arg(mode, c("automatic", "standard", "enhanced"))
   enhanced_values <- list(
@@ -816,6 +820,9 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   }
   if (identical(mode, "enhanced") && !is.null(notify_option)) {
     .fabric_abort("notify_option cannot be used with an enhanced refresh")
+  }
+  if (identical(mode, "standard") && isTRUE(notify_option_missing)) {
+    notify_option <- "MailOnFailure"
   }
 
   notify_option <- .pbi_refresh_choice(

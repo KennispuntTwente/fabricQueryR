@@ -113,6 +113,10 @@ supports selected columns, row limits, and Arrow streams for large or nested
 results. The `dest_dir` argument has been removed; tables using unsupported
 Delta features should be read through SQL or Spark instead.
 
+* `fabric_pbi_refresh()` now sends the required `MailOnFailure` notification
+option for a delegated standard refresh when `notify_option` is omitted. Pass
+`notify_option = NULL` explicitly for service-principal standard refreshes.
+
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.
 

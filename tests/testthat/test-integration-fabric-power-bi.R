@@ -340,3 +340,26 @@ test_that("delegated DAX queries can target My Workspace", {
   expect_s3_class(result, "tbl_df")
   expect_identical(as.numeric(result[["[fabricQueryR]"]]), 1)
 })
+
+test_that("delegated default standard refresh satisfies the Power BI contract", {
+  fabric_test_delegated_auth_config()
+  dataset_id <- fabric_test_optional_environment(
+    "FABRIC_TEST_PERSONAL_DATASET_ID",
+    "My Workspace delegated refresh coverage"
+  )
+  token <- fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+
+  refresh <- fabric_pbi_refresh(
+    dataset_id = dataset_id,
+    my_workspace = TRUE,
+    token = token
+  )
+  completed <- fabric_pbi_refresh_wait(
+    refresh,
+    poll_interval = 2,
+    timeout = 600
+  )
+
+  expect_identical(refresh$mode, "standard")
+  expect_true(completed$state %in% c("Completed", "CompletedWithWarnings"))
+})

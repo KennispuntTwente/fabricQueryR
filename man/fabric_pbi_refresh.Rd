@@ -113,9 +113,10 @@ when an enhanced option is supplied and standard refresh otherwise
 controls and requires Premium, PPU, Embedded, or Fabric capacity}
 
 \item{notify_option}{Standard-refresh email behavior for delegated calls:
-\code{"NoNotification"}, \code{"MailOnFailure"}, or \code{"MailOnCompletion"}. Omit this
-for service-principal calls and enhanced refreshes. Power BI requires this
-field for delegated standard refreshes}
+\code{"NoNotification"}, \code{"MailOnFailure"}, or \code{"MailOnCompletion"}. When
+omitted, standard refresh defaults to \code{"MailOnFailure"}. Pass \code{NULL}
+explicitly for a service-principal standard refresh. Omit this for
+enhanced refreshes}
 
 \item{type}{Enhanced processing type: \code{"Full"}, \code{"ClearValues"},
 \code{"Calculate"}, \code{"DataOnly"}, \code{"Automatic"}, or \code{"Defragment"}}
