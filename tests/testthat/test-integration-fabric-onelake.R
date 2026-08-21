@@ -766,6 +766,7 @@ test_that("every discovered Delta fixture has an integration-test disposition", 
   exact_values <- c(
     "runtime",
     "basic",
+    "non_default_basic",
     "empty",
     "typed_partitions",
     "binary_partitions",
