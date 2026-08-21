@@ -234,6 +234,23 @@ test_that("KQL targets normalize direct and discovered coordinates", {
   )
   expect_match(upgraded$url, "/v2/rest/query$", perl = TRUE)
 
+  complete_with_slash <- kusto_resolve_target(
+    "https://cluster.kusto.fabric.microsoft.com/v2/rest/query/",
+    "Telemetry"
+  )
+  expect_equal(
+    complete_with_slash$url,
+    "https://cluster.kusto.fabric.microsoft.com/v2/rest/query"
+  )
+  upgraded_with_slash <- kusto_resolve_target(
+    "https://cluster.kusto.fabric.microsoft.com/v1/rest/query/",
+    "Telemetry"
+  )
+  expect_equal(
+    upgraded_with_slash$url,
+    "https://cluster.kusto.fabric.microsoft.com/v2/rest/query"
+  )
+
   discovered <- kusto_resolve_target(list(
     id = "database-id",
     type = "KQLDatabase",
