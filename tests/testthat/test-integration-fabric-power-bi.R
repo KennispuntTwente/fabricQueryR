@@ -277,8 +277,10 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
   expect_equal(rows$category, c("A", "B"))
   expect_equal(as.numeric(rows$amount), c(10.5, 20))
   metrics <- attr(rows, "execution_metrics")
-  expect_type(metrics, "list")
-  expect_true(length(metrics) > 0L)
+  # The preview endpoint can omit its optional requested metrics rowset
+  if (!is.null(metrics)) {
+    expect_s3_class(metrics, "tbl_df")
+  }
   stream <- fabric_pbi_dax_query(
     workspace_id = manifest$workspace_id,
     dataset_id = semantic_model$id,
