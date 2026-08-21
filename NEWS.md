@@ -73,70 +73,11 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
-* HTTP transport errors now expose credential-free package conditions instead
-of retaining authenticated request objects that could contain SAS URLs or
-request-body tokens.
-
-* `fabric_kql_query()` now serializes real and timespan parameters with KQL's
-`.` decimal separator even when R's `OutDec` option uses a comma.
-
-* `fabric_pbi_refresh()` now sends the required `MailOnFailure` option for an
-opaque caller-supplied token by default. Known client-credential flows omit the
-option; callers supplying their own service-principal token must pass
-`notify_option = NULL` explicitly.
-
-* `fabric_job_schedules()` and the schedule create, update, and delete helpers
-now infer the documented `Execute` job type for Data Pipelines and Data Build
-Tool Jobs and `ApplyChanges` for Dataflows instead of relying on legacy or
-generic job-type values.
-
-* `fabric_job_run()` now rejects `parameters` and `execution_data` on the typed
-DataPipeline `Execute` endpoint, whose published contract has no request body.
-Callers that require a compatible legacy payload can explicitly select
-`job_type = "Pipeline"`.
-
-* `fabric_workspaces(prefer_workspace_endpoints = TRUE)` now hydrates each
-workspace through Get Workspace so discovered records carry both the
-workspace-specific Fabric API endpoint and the corresponding OneLake DFS/blob
-endpoints.
-
 * Authenticated functions now consistently accept an AzureAuth token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls AzureAuth sign-in. The older `access_token` argument for
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
-
-* `fabric_operation_result()` no longer invents a `/result` URL for core or
-workload-scoped operations that expose completion only in their state payload.
-Save the complete service `Location` when resuming a scoped operation later.
-
-* `fabric_onelake_shortcut_*()` now reject `%`, `+`, and non-ASCII characters
-in shortcut names, parent paths, and OneLake target paths, matching current
-OneLake limitations.
-
-* `fabric_kql_export()` now applies its OneLake `Files/` safety boundary to
-complete destination URLs even when they contain authentication suffixes or
-query credentials.
-
-* `fabric_kql_ingest()` and its status helpers now redact every documented
-storage credential suffix, including unnamed Azure Blob account keys, before
-retaining or returning service data.
-
-* `fabric_kql_write_table()` now rejects Arrow time and duration columns before
-staging because Kusto's Parquet mapping cannot convert them to `timespan`.
-
-* `fabric_kql_tables()` now reports the requested database display name even
-when Fabric's table metadata identifies the database by its internal ID.
-
-* `fabric_lakehouse_tables()` now omits tables that disappear between OneLake
-list and detail requests instead of failing the entire inventory.
-
-* `fabric_lakehouse_read_table()` now prefers a discovered table row's schema
-over the Lakehouse default schema while still honoring an explicit `schema`.
-
-* `fabric_lakehouse_read_table()` and
-`fabric_mirrored_database_read_table()` now use catalog storage locations to
-distinguish physical schema directories from compatibility-only `dbo` values.
 
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
