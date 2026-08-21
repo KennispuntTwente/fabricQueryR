@@ -295,13 +295,17 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
     rows <- fabric_sql_read_table(
       target,
       table,
-      limit = 1L,
+      columns = c("id", "name", "amount"),
+      limit = 3L,
       backend = "odbc",
       token = token,
       verbose = FALSE
     )
     expect_s3_class(rows, "tbl_df")
-    expect_lte(nrow(rows), 1L, info = name)
+    rows <- rows[order(rows$id), ]
+    expect_equal(rows$id, 1:3, info = name)
+    expect_equal(rows$name, c("alpha", "beta", "gamma"), info = name)
+    expect_equal(as.numeric(rows$amount), c(10.5, 20, NA), info = name)
 
     if (!is.null(case$view)) {
       view <- fabric_test_eventually(function() {
