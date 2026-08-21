@@ -269,7 +269,7 @@ def test_unit_coverage_has_an_enforced_ci_floor():
     assert "pull_request:" in workflow
 
 
-def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
+def test_r_4_1_lane_runs_a_complete_package_check():
     repository_root = Path(__file__).parents[3]
     workflow = (
         repository_root / ".github/workflows/R-CMD-check.yaml"
@@ -284,16 +284,14 @@ def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
 
     assert "r: '4.1'" not in check_matrix
     assert "r-version: '4.1'" in compatibility
-    assert "dependencies: '\"hard\"'" in compatibility
+    assert "needs: check" in compatibility
     assert "cache: false" in compatibility
-    assert "install-pandoc: false" in compatibility
     assert "install-quarto: false" in compatibility
-    assert "R CMD INSTALL ." in compatibility
-    assert 'getFromNamespace(' in compatibility
-    assert '".fabric_job_parameters"' in compatibility
-    assert 'inherits(scalar, "POSIXlt")' in compatibility
-    assert "length(as.POSIXct(scalar)) == 1L" in compatibility
-    assert "length(scalar) == 9L" not in compatibility
+    assert "r-lib/actions/setup-pandoc@v2" in compatibility
+    assert "r-lib/actions/check-r-package@v2" in compatibility
+    assert "any::rcmdcheck" in compatibility
+    assert "dependencies: '\"hard\"'" not in compatibility
+    assert "R CMD INSTALL ." not in compatibility
 
 
 def test_live_sql_matrix_installs_required_client_drivers():
