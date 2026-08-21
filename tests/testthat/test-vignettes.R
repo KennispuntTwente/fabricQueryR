@@ -128,3 +128,15 @@ test_that("semantic-model refresh separates Lakehouse schema and table", {
   expect_match(source, 'schema = "dbo"', fixed = TRUE)
   expect_equal(grepl('"dbo.Sales"', source, fixed = TRUE), FALSE)
 })
+
+test_that("Livy vignette documents current access prerequisites", {
+  path <- test_path("..", "..", "vignettes", "spark-with-livy.Rmd")
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+
+  expect_match(source, "tenant admin setting", fixed = TRUE)
+  expect_match(source, "Contributor", fixed = TRUE)
+  expect_match(source, "Lakehouse.Execute.All", fixed = TRUE)
+  expect_match(source, "Lakehouse.Read.All", fixed = TRUE)
+  expect_match(source, "Code.AccessFabric.All", fixed = TRUE)
+  expect_match(source, "Code.AccessStorage.All", fixed = TRUE)
+})

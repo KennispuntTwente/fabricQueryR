@@ -22,9 +22,20 @@ starts faster.
 
 ## Before the first call
 
-You need a Fabric workspace on supported capacity and a Lakehouse with a Livy
-endpoint. The signed-in account must be allowed to read and execute the
-Lakehouse and access the data used by the code.
+You need a Fabric workspace on supported capacity, a Lakehouse with a Livy
+endpoint, and the **tenant admin setting for the Livy API enabled**. A delegated
+caller needs all four of these Microsoft Entra scopes:
+
+- `Lakehouse.Execute.All`
+- `Lakehouse.Read.All`
+- `Code.AccessFabric.All`
+- `Code.AccessStorage.All`
+
+The signed-in user must be a **Contributor** in the workspace containing the
+Livy endpoint and data-source items. For unattended authentication, add the
+service principal to the workspace as a Contributor. `fabricQueryR` requests
+the four delegated scopes automatically for its normal interactive sign-in;
+client-credentials authentication uses the Fabric `.default` audience.
 
 Discovering the Lakehouse is normally enough; its record carries the endpoint:
 
@@ -44,6 +55,12 @@ lakehouse <- fabric_lakehouses(workspace)[[1L]]
 If discovery cannot retrieve the endpoint in your environment, copy the
 session-job connection string from **Lakehouse settings > Livy endpoint** and
 pass that URL instead.
+
+If Fabric returns HTTP 403, check the tenant setting, the workspace Contributor
+role, and—when using delegated authentication—the four scopes above before
+changing the endpoint or Spark code. See Microsoft's
+[Livy API setup and authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy)
+for the current requirements.
 
 ## Run one piece of Spark code
 

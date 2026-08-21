@@ -85,15 +85,17 @@ reads from a Lakehouse or Warehouse, SQL is often faster to start
 }
 \section{Before you run code}{
 
-Fabric needs a workspace on supported capacity and a Lakehouse. In
-the Fabric portal, open the Lakehouse settings, find \strong{Livy endpoint}, and
-copy the session-job connection string. For several statements that reuse
-variables and Spark state, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}. To run a complete
-Python, Scala/Java, or R application file, use
-\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
+Fabric needs a workspace on supported capacity, a Lakehouse, and the tenant
+admin setting for the Livy API enabled. In the Fabric portal, open the
+Lakehouse settings, find \strong{Livy endpoint}, and copy the session-job
+connection string. For several statements that reuse variables and Spark
+state, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}. To run a complete Python, Scala/Java, or
+R application file, use \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
 
-The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role
+A delegated caller needs the \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
+\code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All} scopes and must be a
+Contributor in the workspace. A service principal must also be added to the
+workspace as a Contributor
 
 Spark long and decimal columns are returned as character values when needed
 to preserve them exactly. Dates and timestamps with a time zone use R
@@ -136,5 +138,5 @@ fabric_livy_query_example <- function() {
 }
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview}{Microsoft Fabric Livy API overview},
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session}{session jobs and Fabric setup}
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy}{Livy API setup and authorization}
 }
