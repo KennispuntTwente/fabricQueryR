@@ -113,9 +113,29 @@
   check service addresses more carefully and give clearer retry,
   timeout, and error messages.
 
+- [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
+  now applies its OneLake `Files/` safety boundary to complete
+  destination URLs even when they contain authentication suffixes or
+  query credentials.
+
+- [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
+  and its status helpers now redact every documented storage credential
+  suffix, including unnamed Azure Blob account keys, before retaining or
+  returning service data.
+
 - [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)
   now reports the requested database display name even when Fabric’s
   table metadata identifies the database by its internal ID.
+
+- [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
+  now prefers a discovered table row’s schema over the Lakehouse default
+  schema while still honoring an explicit `schema`.
+
+- [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
+  and
+  [`fabric_mirrored_database_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
+  now use catalog storage locations to distinguish physical schema
+  directories from compatibility-only `dbo` values.
 
 - [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
   [`fabric_sql_views()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
