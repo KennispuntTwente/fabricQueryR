@@ -151,7 +151,7 @@ fabric_lakehouse_write_table(
 Use
 [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
 when the source CSV or Parquet data already exists under `Files/` in the
-same Lakehouse. See [Working with Fabric LakeHouses and
+same Lakehouse. See [Working with Fabric Lakehouses and
 OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html)
 for the distinction between ordinary files and managed Delta tables,
 table loading, larger reads, and shortcuts.
@@ -180,7 +180,7 @@ orders <- fabric_onelake_read_file(
 ```
 
 The same function group also lists, inspects, downloads, uploads, and
-deletes OneLake files. The [Fabric LakeHouses and OneLake
+deletes OneLake files. The [Fabric Lakehouses and OneLake
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html)
 continues with file discovery, uploads, managed tables, and safe
 deletion.
@@ -207,7 +207,7 @@ fabric_warehouse_write_table(
 ```
 
 See [Working with Fabric
-WareHouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html)
+Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html)
 for staging, table creation, overwrite behavior, schema matching, and
 large Arrow inputs.
 
@@ -234,7 +234,7 @@ fabric_kql_write_table(
 ```
 
 For tracked ingestion from existing storage files and server-side export
-to OneLake, see [Working with Fabric EventHouses (real-time
+to OneLake, see [Working with Fabric Eventhouses (real-time
 data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html).
 
 ### 9. Query a Fabric GraphQL API

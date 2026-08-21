@@ -149,7 +149,9 @@ arguments are rejected</p></dd>
     <p>Invisibly, a <code>fabric_livy_statement_result</code> list. The most useful
 component is <code>output$parsed</code>: a tibble for tabular output, an R object for
 JSON, or a character vector for text. The result also keeps status, timing,
-submitted code, errors, and the original response</p>
+submitted code, errors, and the original response. A successful statement
+is still returned when session cleanup fails, with a
+<code>fabric_livy_cleanup_warning</code> identifying the retained session</p>
     </div>
     <div class="section level2">
     <h2 id="before-you-run-code">Before you run code<a class="anchor" aria-label="anchor" href="#before-you-run-code"></a></h2>

@@ -13,11 +13,11 @@
   R](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md):
 - [Bring R data into Microsoft
   Fabric](https://kennispunttwente.github.io/fabricQueryR/articles/ingesting-data.md):
-- [Working with Fabric LakeHouses and
+- [Working with Fabric Lakehouses and
   OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md):
 - [Working with Fabric
-  WareHouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md):
-- [Working with Fabric EventHouses (real-time
+  Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md):
+- [Working with Fabric Eventhouses (real-time
   data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md):
 - [Working with Semantic Models (DAX
   queries)](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.md):

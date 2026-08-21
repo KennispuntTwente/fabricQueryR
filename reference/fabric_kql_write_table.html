@@ -209,7 +209,9 @@ Arrow schema before staging. Existing tables are left unchanged.</p></dd>
 <dd><p>Optional named character vector giving one Kusto scalar
 type for every data column when <code>create_if_missing = TRUE</code>. Supported
 canonical types are <code>bool</code>, <code>datetime</code>, <code>decimal</code>, <code>dynamic</code>, <code>guid</code>,
-<code>int</code>, <code>long</code>, <code>real</code>, <code>string</code>, and <code>timespan</code>. <code>NULL</code> infers them.</p></dd>
+<code>int</code>, <code>long</code>, <code>real</code>, and <code>string</code>. <code>NULL</code> infers them. Arrow time and
+duration columns must be converted because Kusto's Parquet mapping cannot
+ingest them as <code>timespan</code>.</p></dd>
 
 
 <dt id="arg-query-cluster">query_cluster<a class="anchor" aria-label="anchor" href="#arg-query-cluster"></a></dt>
@@ -225,7 +227,8 @@ Supply this explicitly for a trusted custom ingestion endpoint.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>fabric_kql_write_result</code> containing row/byte/file counts,
+    <p>A <code>fabric_kql_write_result</code> containing row/file counts, compressed
+Parquet <code>bytes</code>/<code>part_bytes</code>, uncompressed <code>raw_bytes</code>/<code>part_raw_bytes</code>,
 normalized ingestion status, tracking handle, source IDs, and staging
 disposition.</p>
     </div>
@@ -267,6 +270,10 @@ staging produces multiple Parquet files. Kusto then ingests each file
 independently, so the shared idempotency tag can suppress later files in the
 same logical write. Use normal batching, stage one file, or omit the
 idempotency key.</p>
+<p>The service's advertised <code>maxDataSize</code> applies to uncompressed data. The
+writer measures Arrow buffer bytes for every staged part, validates their
+total before upload, and submits each value as the source <code>rawSize</code>. The
+compressed Parquet file sizes remain available separately in the result.</p>
 <p>Set <code>create_if_missing = TRUE</code> to issue Kusto's idempotent <code>.create table</code>
 command before staging. A missing table is created from the Arrow schema; an
 existing table is returned unchanged, so this option never alters an

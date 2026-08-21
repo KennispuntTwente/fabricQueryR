@@ -262,6 +262,11 @@ failure. Otherwise, have the notebook report its outcome with
 remains backward compatible but Microsoft recommends migrating because
 it will be retired
 
+Notebook submission uses the current Core Job Scheduler `RunNotebook`
+route. The richer workload-specific status endpoint is still queried by
+default for notebook exit values, with the stable Core status endpoint
+as its fallback.
+
 ## Permissions and status handling
 
 Running and cancelling need an item execute permission. Checking or

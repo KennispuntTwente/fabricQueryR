@@ -10,6 +10,10 @@ do not need to call this R6 class directly
 
 An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
+## Value
+
+The `FabricLivyBatch` R6 generator.
+
 ## Public fields
 
 - `id`:

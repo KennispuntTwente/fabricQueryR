@@ -158,7 +158,7 @@ the following vignettes:
 - [Bring R data into Microsoft
   Fabric](https://kennispunttwente.github.io/fabricQueryR/articles/ingesting-data.md)
   compares ways to send an R object or an existing file to Fabric
-- [Working with Fabric LakeHouses and
+- [Working with Fabric Lakehouses and
   OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md)
   explains Lakehouse files and tables in more detail
 - [Working with Livy

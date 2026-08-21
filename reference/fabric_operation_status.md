@@ -3,8 +3,9 @@
 Check, wait for, and retrieve the result of a Fabric operation that
 continues after its initiating request returns. Pass the operation
 handle returned by a fabricQueryR function when possible. To resume work
-later, pass either the operation ID or the `Location` URL returned by
-Fabric
+later, save the complete `Location` URL returned by Fabric. A bare
+operation ID can reconstruct only the core `/operations/{id}` route, not
+workload-scoped routes
 
 ## Usage
 
@@ -131,9 +132,9 @@ A package function that starts asynchronous work may return a
 to finish and `fabric_operation_result()` to retrieve its output. Result
 retrieval waits by default, so it is enough for the common case
 
-If the R process restarts, save the handle's `id` or the
-service-provided `location` and pass that value with fresh
-authentication arguments
+If the R process restarts, save the service-provided `location` and pass
+it with fresh authentication arguments. A bare ID is sufficient only for
+core operations
 
 ## Results and failures
 

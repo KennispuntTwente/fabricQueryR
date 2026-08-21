@@ -130,9 +130,10 @@ fabric_pbi_refresh_cancel(
 - notify_option:
 
   Standard-refresh email behavior for delegated calls:
-  `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. Omit
-  this for service-principal calls and enhanced refreshes. Power BI
-  requires this field for delegated standard refreshes
+  `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
+  omitted, standard refresh defaults to `"MailOnFailure"`. Pass `NULL`
+  explicitly for a service-principal standard refresh. Omit this for
+  enhanced refreshes
 
 - type:
 

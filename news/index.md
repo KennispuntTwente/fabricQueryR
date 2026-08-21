@@ -113,6 +113,12 @@
   check service addresses more carefully and give clearer retry,
   timeout, and error messages.
 
+- [`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+  no longer invents a `/result` URL for core or workload-scoped
+  operations that expose completion only in their state payload. Save
+  the complete service `Location` when resuming a scoped operation
+  later.
+
 - [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
   now applies its OneLake `Files/` safety boundary to complete
   destination URLs even when they contain authentication suffixes or
@@ -122,6 +128,10 @@
   and its status helpers now redact every documented storage credential
   suffix, including unnamed Azure Blob account keys, before retaining or
   returning service data.
+
+- [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)
+  now rejects Arrow time and duration columns before staging because
+  Kusto’s Parquet mapping cannot convert them to `timespan`.
 
 - [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)
   now reports the requested database display name even when Fabric’s
@@ -166,6 +176,12 @@
   columns, row limits, and Arrow streams for large or nested results.
   The `dest_dir` argument has been removed; tables using unsupported
   Delta features should be read through SQL or Spark instead.
+
+- [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  now sends the required `MailOnFailure` notification option for a
+  delegated standard refresh when `notify_option` is omitted. Pass
+  `notify_option = NULL` explicitly for service-principal standard
+  refreshes.
 
 - [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   table results now follow the declared Spark schema and preserve large

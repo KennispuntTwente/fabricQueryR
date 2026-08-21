@@ -111,7 +111,9 @@ fabric_livy_query(
 Invisibly, a `fabric_livy_statement_result` list. The most useful
 component is `output$parsed`: a tibble for tabular output, an R object
 for JSON, or a character vector for text. The result also keeps status,
-timing, submitted code, errors, and the original response
+timing, submitted code, errors, and the original response. A successful
+statement is still returned when session cleanup fails, with a
+`fabric_livy_cleanup_warning` identifying the retained session
 
 ## Before you run code
 

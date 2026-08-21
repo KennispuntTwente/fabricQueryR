@@ -75,7 +75,7 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
 - [`FabricLivyBatch`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md)
   : A Microsoft Fabric Livy batch job
 
-## LakeHouse tables (Delta Lake tables)
+## Lakehouse tables (Delta Lake tables)
 
 Discover, load, and read Delta Lake tables in OneLake
 

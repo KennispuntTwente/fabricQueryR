@@ -140,11 +140,11 @@ code is safe.
 ## Trust boundary, limits, and redaction
 
 Bearer tokens are sent only after the URL passes validation. The default
-allows HTTPS endpoints on the documented
+allows Microsoft-owned HTTPS endpoints on the documented
 `/v1/workspaces/.../userDataFunctions/.../functions/.../invoke` route.
-Verify custom origins independently before supplying them. Embedded
-credentials, query strings, fragments, and nonstandard ports are
-rejected.
+Verify custom origins independently before opting in with
+`allow_custom_endpoint = TRUE`. Embedded credentials, query strings,
+fragments, and nonstandard ports are rejected.
 
 Microsoft currently limits the combined request parameters to 4 MB,
 execution through a public endpoint to 100 seconds, and the function
@@ -154,11 +154,12 @@ its own timeout envelope, and caps the complete response at 32 MiB to
 leave room around a valid 30 MB output.
 
 Returned values and errors can otherwise become logs or persisted
-objects. fabricQueryR therefore redacts secret-named fields such as
-`token`, `authorization`, `password`, and `apiKey`, as well as
-bearer-token text, recursively from the result and all attached
-conditions. Do not use a user data function response as a
-secret-delivery mechanism.
+objects. fabricQueryR redacts secret-named fields such as `token`,
+`authorization`, `password`, and `apiKey`, as well as bearer-token text,
+from errors, response metadata, and attached conditions. Function
+`output` is returned unchanged because those names can be legitimate
+domain data. Treat output as untrusted application data and do not use a
+user data function as a secret-delivery mechanism.
 
 For the current service contract, see Microsoft’s [external invocation
 tutorial](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app),

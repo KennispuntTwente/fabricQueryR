@@ -183,11 +183,11 @@ repeating arbitrary Python code is safe.</p>
 <h2 id="trust-boundary-limits-and-redaction">Trust boundary, limits, and redaction<a class="anchor" aria-label="anchor" href="#trust-boundary-limits-and-redaction"></a>
 </h2>
 <p>Bearer tokens are sent only after the URL passes validation. The
-default allows HTTPS endpoints on the documented
+default allows Microsoft-owned HTTPS endpoints on the documented
 <code>/v1/workspaces/.../userDataFunctions/.../functions/.../invoke</code>
-route. Verify custom origins independently before supplying them.
-Embedded credentials, query strings, fragments, and nonstandard ports
-are rejected.</p>
+route. Verify custom origins independently before opting in with
+<code>allow_custom_endpoint = TRUE</code>. Embedded credentials, query
+strings, fragments, and nonstandard ports are rejected.</p>
 <p>Microsoft currently limits the combined request parameters to 4 MB,
 execution through a public endpoint to 100 seconds, and the function
 return value to 30 MB. fabricQueryR rejects oversized requests before
@@ -195,11 +195,13 @@ authentication, waits up to 110 seconds by default so Fabric can return
 its own timeout envelope, and caps the complete response at 32 MiB to
 leave room around a valid 30 MB output.</p>
 <p>Returned values and errors can otherwise become logs or persisted
-objects. fabricQueryR therefore redacts secret-named fields such as
+objects. fabricQueryR redacts secret-named fields such as
 <code>token</code>, <code>authorization</code>, <code>password</code>,
-and <code>apiKey</code>, as well as bearer-token text, recursively from
-the result and all attached conditions. Do not use a user data function
-response as a secret-delivery mechanism.</p>
+and <code>apiKey</code>, as well as bearer-token text, from errors,
+response metadata, and attached conditions. Function <code>output</code>
+is returned unchanged because those names can be legitimate domain data.
+Treat output as untrusted application data and do not use a user data
+function as a secret-delivery mechanism.</p>
 <p>For the current service contract, see Microsoft’s <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">external
 invocation tutorial</a>, <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/python-programming-model" class="external-link">programming
 model</a>, and <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-service-limits" class="external-link">service

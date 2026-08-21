@@ -402,6 +402,14 @@ used by the function:</p>
 <td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
 </tr>
 <tr class="odd">
+<td>User data functions as a delegated user</td>
+<td><code>https://analysis.windows.net/powerbi/api/UserDataFunction.Execute.All</code></td>
+</tr>
+<tr class="even">
+<td>User data functions as a service principal</td>
+<td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
+</tr>
+<tr class="odd">
 <td>OneLake files and Delta tables</td>
 <td><code>https://storage.azure.com/.default</code></td>
 </tr>
@@ -427,6 +435,12 @@ used by the function:</p>
 </tr>
 </tbody>
 </table>
+<p>Microsoft’s current Livy batch documentation is internally
+inconsistent: it includes a service-principal walkthrough while also
+warning that batch jobs do not support service principals. fabricQueryR
+retains the documented client-credential audience, but production batch
+automation should be verified in the target tenant and delegated
+authentication remains the conservative baseline.</p>
 <p>For a GraphQL service principal acquired by the package, the Fabric
 API audience is selected automatically:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">

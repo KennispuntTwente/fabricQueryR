@@ -166,9 +166,10 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity</p></dd>
 
 <dt id="arg-notify-option">notify_option<a class="anchor" aria-label="anchor" href="#arg-notify-option"></a></dt>
 <dd><p>Standard-refresh email behavior for delegated calls:
-<code>"NoNotification"</code>, <code>"MailOnFailure"</code>, or <code>"MailOnCompletion"</code>. Omit this
-for service-principal calls and enhanced refreshes. Power BI requires this
-field for delegated standard refreshes</p></dd>
+<code>"NoNotification"</code>, <code>"MailOnFailure"</code>, or <code>"MailOnCompletion"</code>. When
+omitted, standard refresh defaults to <code>"MailOnFailure"</code>. Pass <code>NULL</code>
+explicitly for a service-principal standard refresh. Omit this for
+enhanced refreshes</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>

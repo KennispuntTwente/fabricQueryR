@@ -72,7 +72,9 @@ permission for refresh history.
 
 Service principals are supported when tenant settings and model or
 workspace access allow them. Do not set an email notification option for
-a service-principal refresh request.
+a service-principal refresh request: pass `notify_option = NULL`
+explicitly for a standard refresh. Delegated standard refreshes default
+to `MailOnFailure`.
 
 ## Refresh after an upstream update
 
@@ -102,8 +104,7 @@ load <- fabric_lakehouse_write_table(
   lakehouse,
   "dbo.Sales",
   new_sales,
-  mode = "overwrite",
-  wait = TRUE
+  mode = "overwrite"
 )
 
 refresh <- fabric_pbi_refresh(model)

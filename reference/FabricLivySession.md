@@ -11,6 +11,10 @@ directly
 
 An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
+## Value
+
+The `FabricLivySession` R6 generator.
+
 ## Public fields
 
 - `id`:

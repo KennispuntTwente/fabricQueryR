@@ -120,7 +120,9 @@ Status and history use <code>Dataset.Read.All</code> or
 model Write permission for refresh history.</p>
 <p>Service principals are supported when tenant settings and model or
 workspace access allow them. Do not set an email notification option for
-a service-principal refresh request.</p>
+a service-principal refresh request: pass
+<code>notify_option = NULL</code> explicitly for a standard refresh.
+Delegated standard refreshes default to <code>MailOnFailure</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="refresh-after-an-upstream-update">Refresh after an upstream update<a class="anchor" aria-label="anchor" href="#refresh-after-an-upstream-update"></a>
@@ -145,8 +147,7 @@ update has committed successfully:</p>
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  <span class="st">"dbo.Sales"</span>,</span>
 <span>  <span class="va">new_sales</span>,</span>
-<span>  mode <span class="op">=</span> <span class="st">"overwrite"</span>,</span>
-<span>  wait <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  mode <span class="op">=</span> <span class="st">"overwrite"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>

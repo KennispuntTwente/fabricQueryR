@@ -137,7 +137,7 @@ warehouse_result <- fabric_warehouse_write_table(
 For a missing table, Fabric can infer a basic definition. Pre-create the
 table when exact SQL types, lengths, constraints, or grants matter.
 [Working with Fabric
-WareHouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md)
+Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md)
 explains overwrite choices, transactions, and larger Arrow inputs.
 
 ## Write an Eventhouse table
@@ -161,7 +161,7 @@ kql_result$status$state
 
 The high-level writer stages the R object, submits tracked ingestion,
 waits, and cleans up after confirmed success. [Working with Fabric
-EventHouses (real-time
+Eventhouses (real-time
 data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md)
 covers predefined mappings, existing storage files, idempotency keys,
 and failure recovery.

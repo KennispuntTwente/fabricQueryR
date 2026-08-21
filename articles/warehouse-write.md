@@ -1,4 +1,4 @@
-# Working with Fabric WareHouses
+# Working with Fabric Warehouses
 
 A Fabric Warehouse stores relational tables that you can query with SQL.
 Use

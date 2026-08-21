@@ -151,7 +151,7 @@
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Use <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Working with Fabric LakeHouses and OneLake</a> for the distinction between ordinary files and managed Delta tables, table loading, larger reads, and shortcuts.</p>
+<p>Use <code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code> when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Working with Fabric Lakehouses and OneLake</a> for the distinction between ordinary files and managed Delta tables, table loading, larger reads, and shortcuts.</p>
 </div>
 <div class="section level3">
 <h3 id="id_6-work-with-onelake-files">6. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_6-work-with-onelake-files"></a>
@@ -172,7 +172,7 @@
 <span>  <span class="va">lakehouse</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The same function group also lists, inspects, downloads, uploads, and deletes OneLake files. The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Fabric LakeHouses and OneLake vignette</a> continues with file discovery, uploads, managed tables, and safe deletion.</p>
+<p>The same function group also lists, inspects, downloads, uploads, and deletes OneLake files. The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Fabric Lakehouses and OneLake vignette</a> continues with file discovery, uploads, managed tables, and safe deletion.</p>
 </div>
 <div class="section level3">
 <h3 id="id_7-read-and-write-warehouse-tables">7. Read and write Warehouse tables<a class="anchor" aria-label="anchor" href="#id_7-read-and-write-warehouse-tables"></a>
@@ -190,7 +190,7 @@
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html">Working with Fabric WareHouses</a> for staging, table creation, overwrite behavior, schema matching, and large Arrow inputs.</p>
+<p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html">Working with Fabric Warehouses</a> for staging, table creation, overwrite behavior, schema matching, and large Arrow inputs.</p>
 </div>
 <div class="section level3">
 <h3 id="id_8-query-and-write-eventhouse-data">8. Query and write Eventhouse data<a class="anchor" aria-label="anchor" href="#id_8-query-and-write-eventhouse-data"></a>
@@ -210,7 +210,7 @@
 <span>  data <span class="op">=</span> <span class="va">events</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>For tracked ingestion from existing storage files and server-side export to OneLake, see <a href="https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html">Working with Fabric EventHouses (real-time data)</a>.</p>
+<p>For tracked ingestion from existing storage files and server-side export to OneLake, see <a href="https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.html">Working with Fabric Eventhouses (real-time data)</a>.</p>
 </div>
 <div class="section level3">
 <h3 id="id_9-query-a-fabric-graphql-api">9. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_9-query-a-fabric-graphql-api"></a>

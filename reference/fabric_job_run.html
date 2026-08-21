@@ -304,6 +304,9 @@ Omit the tag when job status must reliably signal notebook failure. Otherwise,
 have the notebook report its outcome with <code>notebookutils.notebook.exit()</code>.
 The former <code>mssparkutils</code> namespace remains backward compatible but Microsoft
 recommends migrating because it will be retired</p>
+<p>Notebook submission uses the current Core Job Scheduler <code>RunNotebook</code> route.
+The richer workload-specific status endpoint is still queried by default for
+notebook exit values, with the stable Core status endpoint as its fallback.</p>
     </div>
     <div class="section level2">
     <h2 id="permissions-and-status-handling">Permissions and status handling<a class="anchor" aria-label="anchor" href="#permissions-and-status-handling"></a></h2>
