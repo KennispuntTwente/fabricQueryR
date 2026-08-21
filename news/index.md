@@ -137,6 +137,10 @@
   now reports the requested database display name even when Fabric’s
   table metadata identifies the database by its internal ID.
 
+- [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+  now omits tables that disappear between OneLake list and detail
+  requests instead of failing the entire inventory.
+
 - [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
   now prefers a discovered table row’s schema over the Lakehouse default
   schema while still honoring an explicit `schema`.
