@@ -1743,7 +1743,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param column_types Optional named character vector giving one Kusto scalar
 #'   type for every data column when `create_if_missing = TRUE`. Supported
 #'   canonical types are `bool`, `datetime`, `decimal`, `dynamic`, `guid`,
-#'   `int`, `long`, `real`, `string`, and `timespan`. `NULL` infers them.
+#'   `int`, `long`, `real`, and `string`. `NULL` infers them. Arrow time and
+#'   duration columns must be converted because Kusto's Parquet mapping cannot
+#'   ingest them as `timespan`.
 #' @param query_cluster Optional Kusto query-service URI or discovery record
 #'   used for table creation. A discovered `cluster` already carries this URI;
 #'   a standard Microsoft ingestion URI is converted to its paired query URI.
@@ -2388,8 +2390,7 @@ kusto_write_column_types <- function(schema, columns, column_types = NULL) {
     "int",
     "long",
     "real",
-    "string",
-    "timespan"
+    "string"
   )
   if (is.null(column_types)) {
     return(vapply(
@@ -2444,6 +2445,19 @@ kusto_write_arrow_type <- function(type, column) {
     return(kusto_write_arrow_type(type$value_type, column))
   }
   arrow_type <- tolower(type$ToString())
+  if (grepl("^(time(32|64)|duration)", arrow_type)) {
+    .fabric_abort(
+      paste0(
+        "Cannot ingest data column '",
+        column,
+        "' with Arrow type '",
+        arrow_type,
+        "' through Kusto Parquet mapping; convert it to a supported string, ",
+        "integer, or datetime representation before writing"
+      ),
+      class = c("fabric_kql_schema_error", "fabric_kql_write_error")
+    )
+  }
   inferred <- if (grepl("^bool$", arrow_type)) {
     "bool"
   } else if (grepl("^(u?int(8|16)|int32)$", arrow_type)) {
@@ -2458,8 +2472,6 @@ kusto_write_arrow_type <- function(type, column) {
     "decimal"
   } else if (grepl("^(timestamp|date(32|64))", arrow_type)) {
     "datetime"
-  } else if (grepl("^(time(32|64)|duration)", arrow_type)) {
-    "timespan"
   } else if (grepl("^(string|large_string|string_view)$", arrow_type)) {
     "string"
   } else if (

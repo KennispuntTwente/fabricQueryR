@@ -87,6 +87,9 @@ query credentials.
 storage credential suffix, including unnamed Azure Blob account keys, before
 retaining or returning service data.
 
+* `fabric_kql_write_table()` now rejects Arrow time and duration columns before
+staging because Kusto's Parquet mapping cannot convert them to `timespan`.
+
 * `fabric_kql_tables()` now reports the requested database display name even
 when Fabric's table metadata identifies the database by its internal ID.
 

@@ -393,6 +393,35 @@ test_that("KQL table creation accepts exact type overrides", {
     "Cannot infer",
     class = "fabric_kql_schema_error"
   )
+  expect_error(
+    kusto_write_create_table_command(
+      "Events",
+      arrow::schema(elapsed = arrow::duration("ms")),
+      "elapsed",
+      c(elapsed = "timespan")
+    ),
+    "unsupported Kusto types",
+    class = "fabric_kql_schema_error"
+  )
+})
+
+test_that("KQL table creation rejects unsupported Parquet temporal mappings", {
+  skip_if_not_installed("arrow")
+  unsupported <- list(
+    arrow::time32("ms"),
+    arrow::time64("us"),
+    arrow::duration("ms")
+  )
+
+  for (type in unsupported) {
+    error <- tryCatch(
+      kusto_write_arrow_type(type, "elapsed"),
+      error = identity
+    )
+    expect_s3_class(error, "fabric_kql_schema_error")
+    expect_match(conditionMessage(error), "Kusto Parquet mapping", fixed = TRUE)
+    expect_match(conditionMessage(error), "convert it", fixed = TRUE)
+  }
 })
 
 test_that("KQL table creation fails before staging or upload", {

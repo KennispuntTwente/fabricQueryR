@@ -109,7 +109,9 @@ Arrow schema before staging. Existing tables are left unchanged.}
 \item{column_types}{Optional named character vector giving one Kusto scalar
 type for every data column when \code{create_if_missing = TRUE}. Supported
 canonical types are \code{bool}, \code{datetime}, \code{decimal}, \code{dynamic}, \code{guid},
-\code{int}, \code{long}, \code{real}, \code{string}, and \code{timespan}. \code{NULL} infers them.}
+\code{int}, \code{long}, \code{real}, and \code{string}. \code{NULL} infers them. Arrow time and
+duration columns must be converted because Kusto's Parquet mapping cannot
+ingest them as \code{timespan}.}
 
 \item{query_cluster}{Optional Kusto query-service URI or discovery record
 used for table creation. A discovered \code{cluster} already carries this URI;
