@@ -3346,17 +3346,18 @@ kusto_export_destination <- function(
         )
       )
     }
-    parsed <- try(httr2::url_parse(destination), silent = TRUE)
+    parts <- kusto_storage_connection_parts(destination)
+    parsed <- try(httr2::url_parse(parts$resource), silent = TRUE)
     onelake <- !inherits(parsed, "try-error") &&
       fabric_host_matches(
         parsed$hostname %||% "",
         "onelake.dfs.fabric.microsoft.com"
-      ) &&
-      !grepl("[;?]", destination)
+      )
     if (onelake) {
-      target <- onelake_resolve_target(destination)
+      target <- onelake_resolve_target(parts$resource)
       kusto_export_onelake_target(target)
-      connection <- paste0(onelake_path_url(target), ";impersonate")
+      suffix <- if (nzchar(parts$suffix)) parts$suffix else ";impersonate"
+      connection <- paste0(onelake_path_url(target), suffix)
     } else {
       connection <- kusto_ingestion_source_url(destination)
     }
@@ -3387,6 +3388,19 @@ kusto_export_destination <- function(
   list(
     connection = connection,
     display = kusto_export_storage_display(connection)
+  )
+}
+
+# Separate the storage resource from a Kusto authentication suffix without
+# decoding or rebuilding the caller's credential text.
+kusto_storage_connection_parts <- function(value) {
+  delimiter <- regexpr("[;?]", value, perl = TRUE)[[1L]]
+  if (delimiter < 0L) {
+    return(list(resource = value, suffix = ""))
+  }
+  list(
+    resource = substr(value, 1L, delimiter - 1L),
+    suffix = substr(value, delimiter, nchar(value))
   )
 }
 

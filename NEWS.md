@@ -75,6 +75,10 @@ token, or a function that supplies refreshed tokens through `token`;
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
+* `fabric_kql_export()` now applies its OneLake `Files/` safety boundary to
+complete destination URLs even when they contain authentication suffixes or
+query credentials.
+
 * `fabric_kql_ingest()` and its status helpers now redact every documented
 storage credential suffix, including unnamed Azure Blob account keys, before
 retaining or returning service data.

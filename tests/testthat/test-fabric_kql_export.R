@@ -250,12 +250,65 @@ test_that("KQL export treats a missing tracking ID as ambiguous", {
 })
 
 test_that("KQL export validates destinations and format-specific properties", {
+  onelake_base <- paste0(
+    "https://onelake.dfs.fabric.microsoft.com/",
+    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/",
+    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/"
+  )
   expect_error(
     kusto_export_destination(
       kusto_export_test_target(),
       path = "Tables/not-safe"
     ),
     "below Tables",
+    fixed = TRUE
+  )
+  unsafe_onelake <- c(
+    paste0(
+      onelake_base,
+      "Tables/dbo/not-safe;impersonate"
+    ),
+    paste0(
+      onelake_base,
+      "Tables/dbo/not-safe;managed_identity=client-id"
+    ),
+    paste0(
+      onelake_base,
+      "Tables/dbo/not-safe?sv=1&sig=secret"
+    ),
+    paste0(
+      "abfss://bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb@",
+      "onelake.dfs.fabric.microsoft.com/",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/",
+      "Tables/dbo/not-safe;impersonate"
+    )
+  )
+  for (destination in unsafe_onelake) {
+    expect_error(
+      kusto_export_destination(destination),
+      "below Tables",
+      fixed = TRUE
+    )
+  }
+  expect_error(
+    kusto_export_destination(c(
+      paste0(
+        onelake_base,
+        "Files/safe;impersonate"
+      ),
+      unsafe_onelake[[1L]]
+    )),
+    "below Tables",
+    fixed = TRUE
+  )
+  safe_onelake <- paste0(
+    onelake_base,
+    "Files/export;managed_identity=client-id"
+  )
+  safe <- kusto_export_destination(safe_onelake)
+  expect_match(
+    safe$connection,
+    "Files/export;managed_identity=client-id",
     fixed = TRUE
   )
   expect_error(
