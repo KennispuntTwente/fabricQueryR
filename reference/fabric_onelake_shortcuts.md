@@ -132,7 +132,10 @@ fabric_onelake_shortcut_delete(
   target list. A raw target must contain exactly one documented key such
   as `oneLake`, `adlsGen2`, `amazonS3`, `azureBlobStorage`,
   `googleCloudStorage`, `oneDriveSharePoint`, `s3Compatible`, or
-  `dataverse`.
+  `dataverse`. Connection-backed targets must include the documented
+  connection and location fields, use an existing Fabric connection ID,
+  and must not embed credentials. Type-specific fields are validated
+  before a request is sent.
 
 - target_workspace:
 
@@ -169,6 +172,10 @@ return the same one-row shape. `fabric_onelake_shortcut_delete()`
 returns `TRUE` invisibly after success.
 
 ## Details
+
+Shortcut names, parent paths, and OneLake target paths follow Fabric's
+current shortcut limits: `%`, `+`, and non-ASCII characters are
+rejected.
 
 Listing follows Fabric continuation links and tokens until every
 shortcut below `parent_path` is returned. Unknown target details and

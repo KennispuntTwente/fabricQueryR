@@ -174,7 +174,10 @@ be created.</p></dd>
 <dd><p>A discovered Fabric item, its name or GUID, or a raw named
 shortcut target list. A raw target must contain exactly one documented
 key such as <code>oneLake</code>, <code>adlsGen2</code>, <code>amazonS3</code>, <code>azureBlobStorage</code>,
-<code>googleCloudStorage</code>, <code>oneDriveSharePoint</code>, <code>s3Compatible</code>, or <code>dataverse</code>.</p></dd>
+<code>googleCloudStorage</code>, <code>oneDriveSharePoint</code>, <code>s3Compatible</code>, or <code>dataverse</code>.
+Connection-backed targets must include the documented connection and
+location fields, use an existing Fabric connection ID, and must not embed
+credentials. Type-specific fields are validated before a request is sent.</p></dd>
 
 
 <dt id="arg-target-workspace">target_workspace<a class="anchor" aria-label="anchor" href="#arg-target-workspace"></a></dt>
@@ -213,7 +216,9 @@ shortcut. <code>fabric_onelake_shortcut_get()</code> and
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Listing follows Fabric continuation links and tokens until every shortcut
+    <p>Shortcut names, parent paths, and OneLake target paths follow Fabric's
+current shortcut limits: <code>%</code>, <code>+</code>, and non-ASCII characters are rejected.</p>
+<p>Listing follows Fabric continuation links and tokens until every shortcut
 below <code>parent_path</code> is returned. Unknown target details and transform fields
 are preserved in list columns for forward compatibility.</p>
 <p>Create is deliberately not replayed automatically because its POST outcome

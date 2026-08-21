@@ -113,7 +113,9 @@ component is `output$parsed`: a tibble for tabular output, an R object
 for JSON, or a character vector for text. The result also keeps status,
 timing, submitted code, errors, and the original response. A successful
 statement is still returned when session cleanup fails, with a
-`fabric_livy_cleanup_warning` identifying the retained session
+`fabric_livy_cleanup_warning` identifying the retained session. When
+both execution and cleanup fail, a `fabric_livy_execution_cleanup_error`
+retains the execution error and safe cleanup diagnostics
 
 ## Before you run code
 

@@ -153,7 +153,8 @@ item supplies this automatically. Examples are <code>"Notebook"</code>,
 <code>list(run_date = as.Date("2026-01-31"), full_load = FALSE)</code>, infers types
 from R and is appropriate for most runs. Names must match the parameters
 configured in Fabric. Advanced callers can instead supply records with
-<code>name</code>, <code>value</code>, and <code>type</code></p></dd>
+<code>name</code>, <code>value</code>, and <code>type</code>. The typed DataPipeline <code>Execute</code> endpoint does
+not accept parameters</p></dd>
 
 
 <dt id="arg-parameter-types">parameter_types<a class="anchor" aria-label="anchor" href="#arg-parameter-types"></a></dt>
@@ -167,7 +168,8 @@ only when R's inferred type is not the type expected in Fabric</p></dd>
 <dd><p>Optional advanced job settings in the format documented
 for the Fabric item type. Use the simpler arguments below for common
 notebook settings. In custom payload fields, wrap a one-element atomic
-vector in <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code> (or use an unnamed list) when it must remain a JSON array</p></dd>
+vector in <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code> (or use an unnamed list) when it must remain a JSON array.
+The typed DataPipeline <code>Execute</code> endpoint does not accept a request body</p></dd>
 
 
 <dt id="arg-default-lakehouse">default_lakehouse<a class="anchor" aria-label="anchor" href="#arg-default-lakehouse"></a></dt>
@@ -304,10 +306,10 @@ Omit the tag when job status must reliably signal notebook failure. Otherwise,
 have the notebook report its outcome with <code>notebookutils.notebook.exit()</code>.
 The former <code>mssparkutils</code> namespace remains backward compatible but Microsoft
 recommends migrating because it will be retired</p>
-<p>Notebook submission uses the released workload-specific route so Fabric
-applies per-run parameters and compute settings. The richer workload-specific
-status endpoint is still queried by default for notebook exit values, with
-the stable Core status endpoint as its fallback.</p>
+<p>Notebook submission uses the current workload-specific <code>RunNotebook</code> job
+contract so Fabric applies per-run parameters and compute settings. The
+richer workload-specific status endpoint is still queried by default for
+notebook exit values, with the stable Core status endpoint as its fallback.</p>
     </div>
     <div class="section level2">
     <h2 id="permissions-and-status-handling">Permissions and status handling<a class="anchor" aria-label="anchor" href="#permissions-and-status-handling"></a></h2>
@@ -321,7 +323,6 @@ Fabric reports an unfamiliar state instead of waiting indefinitely</p>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/" class="external-link">Core Job Scheduler REST API</a></p>
-<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook" class="external-link">Run an on-demand notebook</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api" class="external-link">Manage and execute notebooks with public APIs</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler" class="external-link">Fabric job scheduler</a></p>
     </div>

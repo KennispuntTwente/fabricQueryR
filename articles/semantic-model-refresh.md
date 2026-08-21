@@ -73,9 +73,10 @@ permission for refresh history.
 Service principals are supported when tenant settings and model or
 workspace access allow them. Email notification options do not apply to
 service-principal refresh requests. fabricQueryR omits the option for
-known client-credential flows and caller-supplied tokens. Standard
-refreshes for delegated tokens acquired by fabricQueryR default to
-`MailOnFailure`.
+known client-credential flows. Caller-supplied tokens default to
+delegated behavior because their identity cannot be inferred; pass
+`notify_option = NULL` explicitly with a caller-supplied
+service-principal token.
 
 ## Refresh after an upstream update
 

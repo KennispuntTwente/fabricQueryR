@@ -167,10 +167,10 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity</p></dd>
 <dt id="arg-notify-option">notify_option<a class="anchor" aria-label="anchor" href="#arg-notify-option"></a></dt>
 <dd><p>Standard-refresh email behavior for delegated calls:
 <code>"NoNotification"</code>, <code>"MailOnFailure"</code>, or <code>"MailOnCompletion"</code>. When
-omitted, standard refresh defaults to <code>"MailOnFailure"</code> only when
-fabricQueryR acquires a delegated token. It is omitted for known
-client-credential flows and caller-supplied tokens, whose identity cannot
-be inferred. Omit this for enhanced refreshes</p></dd>
+omitted, standard refresh defaults to <code>"MailOnFailure"</code> unless
+fabricQueryR knows that it is using client credentials. For a
+caller-supplied service-principal token, pass <code>NULL</code> explicitly because
+its identity cannot be inferred. Omit this for enhanced refreshes</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>

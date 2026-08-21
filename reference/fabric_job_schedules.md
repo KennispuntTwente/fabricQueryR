@@ -85,13 +85,14 @@ fabric_job_schedule_delete(
 
 - job_type:
 
-  Schedule job type. Data pipelines, Dataflows, and Data Build Tool Jobs
-  default to `"Execute"`, as required by their workload schedule
-  contracts. Other item types default to `"DefaultJob"`, as shown in the
-  Core Job Scheduler examples. Supply an explicit value for another
-  workload-specific schedule job type. When passing one of these item
-  types as a GUID instead of a discovered item, also supply `item_type`
-  or set `job_type = "Execute"` explicitly.
+  Schedule job type. Data pipelines and Data Build Tool Jobs default to
+  `"Execute"`; Dataflows default to `"ApplyChanges"`, as required by
+  their workload schedule contracts. Other item types default to
+  `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
+  explicit value for another workload-specific schedule job type. When
+  passing one of these item types as a GUID instead of a discovered
+  item, also supply `item_type` or set the documented `job_type`
+  explicitly.
 
 - item_type:
 
@@ -187,8 +188,8 @@ API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 [Schedule a Data
 Pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute)
 
-[Schedule a
-Dataflow](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute)
+[Schedule Dataflow Apply
+Changes](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes)
 
 [Schedule a Data Build Tool
 Job](https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job)

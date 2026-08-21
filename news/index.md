@@ -90,7 +90,8 @@
 - [`fabric_onelake_shortcuts()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   and `fabric_onelake_shortcut_*()` functions inspect, create, update,
   and delete OneLake shortcuts, which link Fabric items to data stored
-  elsewhere.
+  elsewhere. Raw connection-backed targets now validate their documented
+  connection, location, and type-specific fields locally.
 
 - `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel,
   and inspect the history of semantic-model refreshes, including
@@ -99,29 +100,40 @@
 - `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
   Notebooks, data pipelines, Spark job definitions, and other supported
   item jobs. They also inspect run history and manage recurring
-  schedules. Notebook runs use the workload endpoint that applies
-  per-run parameters and compute settings.
+  schedules. Notebook runs use the current `RunNotebook` workload
+  contract that applies per-run parameters and compute settings, rather
+  than the retiring `beta=false` compatibility contract.
 
 - `fabric_operation_*()` functions resume, monitor, and retrieve the
   results of longer-running Fabric tasks such as Lakehouse loads.
 
 ### Changed
 
+- HTTP transport errors now expose credential-free package conditions
+  instead of retaining authenticated request objects that could contain
+  SAS URLs or request-body tokens.
+
 - [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
   now serializes real and timespan parameters with KQL’s `.` decimal
   separator even when R’s `OutDec` option uses a comma.
 
 - [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
-  now omits `notifyOption` by default for service-principal client
-  credentials and caller-supplied tokens, matching the Power BI refresh
-  contract. Package-acquired delegated refreshes retain the
-  `MailOnFailure` default.
+  now sends the required `MailOnFailure` option for an opaque
+  caller-supplied token by default. Known client-credential flows omit
+  the option; callers supplying their own service-principal token must
+  pass `notify_option = NULL` explicitly.
 
 - [`fabric_job_schedules()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
   and the schedule create, update, and delete helpers now infer the
-  documented `Execute` job type for Data Pipelines, Dataflows, and Data
-  Build Tool Jobs instead of relying on legacy or generic job-type
-  values.
+  documented `Execute` job type for Data Pipelines and Data Build Tool
+  Jobs and `ApplyChanges` for Dataflows instead of relying on legacy or
+  generic job-type values.
+
+- [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+  now rejects `parameters` and `execution_data` on the typed
+  DataPipeline `Execute` endpoint, whose published contract has no
+  request body. Callers that require a compatible legacy payload can
+  explicitly select `job_type = "Pipeline"`.
 
 - `fabric_workspaces(prefer_workspace_endpoints = TRUE)` now hydrates
   each workspace through Get Workspace so discovered records carry both
@@ -140,6 +152,10 @@
   operations that expose completion only in their state payload. Save
   the complete service `Location` when resuming a scoped operation
   later.
+
+- `fabric_onelake_shortcut_*()` now reject `%`, `+`, and non-ASCII
+  characters in shortcut names, parent paths, and OneLake target paths,
+  matching current OneLake limitations.
 
 - [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md)
   now applies its OneLake `Files/` safety boundary to complete
@@ -203,15 +219,14 @@
   The `dest_dir` argument has been removed; tables using unsupported
   Delta features should be read through SQL or Spark instead.
 
-- [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
-  now sends the required `MailOnFailure` notification option for a
-  delegated standard refresh when `notify_option` is omitted. Pass
-  `notify_option = NULL` explicitly for service-principal standard
-  refreshes.
-
 - [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   table results now follow the declared Spark schema and preserve large
   whole numbers and decimals exactly.
+
+- [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
+  now bounds temporary-session cleanup with a separate deadline and
+  reports both errors when statement execution and session deletion fail
+  together.
 
 ## fabricQueryR 0.2.1
 

@@ -121,9 +121,10 @@ model Write permission for refresh history.</p>
 <p>Service principals are supported when tenant settings and model or
 workspace access allow them. Email notification options do not apply to
 service-principal refresh requests. fabricQueryR omits the option for
-known client-credential flows and caller-supplied tokens. Standard
-refreshes for delegated tokens acquired by fabricQueryR default to
-<code>MailOnFailure</code>.</p>
+known client-credential flows. Caller-supplied tokens default to
+delegated behavior because their identity cannot be inferred; pass
+<code>notify_option = NULL</code> explicitly with a caller-supplied
+service-principal token.</p>
 </div>
 <div class="section level2">
 <h2 id="refresh-after-an-upstream-update">Refresh after an upstream update<a class="anchor" aria-label="anchor" href="#refresh-after-an-upstream-update"></a>

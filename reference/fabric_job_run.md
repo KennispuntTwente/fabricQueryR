@@ -114,7 +114,8 @@ fabric_job_cancel(
   `list(run_date = as.Date("2026-01-31"), full_load = FALSE)`, infers
   types from R and is appropriate for most runs. Names must match the
   parameters configured in Fabric. Advanced callers can instead supply
-  records with `name`, `value`, and `type`
+  records with `name`, `value`, and `type`. The typed DataPipeline
+  `Execute` endpoint does not accept parameters
 
 - parameter_types:
 
@@ -129,7 +130,8 @@ fabric_job_cancel(
   item type. Use the simpler arguments below for common notebook
   settings. In custom payload fields, wrap a one-element atomic vector
   in [`I()`](https://rdrr.io/r/base/AsIs.html) (or use an unnamed list)
-  when it must remain a JSON array
+  when it must remain a JSON array. The typed DataPipeline `Execute`
+  endpoint does not accept a request body
 
 - default_lakehouse:
 
@@ -262,9 +264,9 @@ failure. Otherwise, have the notebook report its outcome with
 remains backward compatible but Microsoft recommends migrating because
 it will be retired
 
-Notebook submission uses the released workload-specific route so Fabric
-applies per-run parameters and compute settings. The richer
-workload-specific status endpoint is still queried by default for
+Notebook submission uses the current workload-specific `RunNotebook` job
+contract so Fabric applies per-run parameters and compute settings. The
+richer workload-specific status endpoint is still queried by default for
 notebook exit values, with the stable Core status endpoint as its
 fallback.
 
@@ -280,9 +282,6 @@ waiting indefinitely
 
 [Core Job Scheduler REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
-
-[Run an on-demand
-notebook](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook)
 
 [Manage and execute notebooks with public
 APIs](https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api)

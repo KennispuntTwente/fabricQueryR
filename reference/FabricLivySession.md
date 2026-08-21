@@ -303,7 +303,13 @@ Release this session or high-concurrency context
 
 #### Usage
 
-    FabricLivySession$close()
+    FabricLivySession$close(deadline = NULL)
+
+#### Arguments
+
+- `deadline`:
+
+  Internal wall-clock deadline for the cleanup request
 
 #### Returns
 
