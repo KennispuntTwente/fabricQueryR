@@ -96,10 +96,17 @@ test_that("standard refresh defaults follow the known authentication flow", {
     token = "opaque-token",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
+  fabric_pbi_refresh(
+    pbi_refresh_test_model(),
+    notify_option = NULL,
+    token = "opaque-service-principal-token",
+    api_base = "https://powerbi.test/v1.0/myorg"
+  )
 
   expect_equal(payloads[[1L]], list(notifyOption = "MailOnFailure"))
   expect_length(payloads[[2L]], 0L)
-  expect_length(payloads[[3L]], 0L)
+  expect_equal(payloads[[3L]], list(notifyOption = "MailOnFailure"))
+  expect_length(payloads[[4L]], 0L)
 })
 
 test_that("enhanced refresh builds documented processing controls", {

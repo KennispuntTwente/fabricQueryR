@@ -29,10 +29,10 @@
 #'   controls and requires Premium, PPU, Embedded, or Fabric capacity
 #' @param notify_option Standard-refresh email behavior for delegated calls:
 #'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
-#'   omitted, standard refresh defaults to `"MailOnFailure"` only when
-#'   fabricQueryR acquires a delegated token. It is omitted for known
-#'   client-credential flows and caller-supplied tokens, whose identity cannot
-#'   be inferred. Omit this for enhanced refreshes
+#'   omitted, standard refresh defaults to `"MailOnFailure"` unless
+#'   fabricQueryR knows that it is using client credentials. For a
+#'   caller-supplied service-principal token, pass `NULL` explicitly because
+#'   its identity cannot be inferred. Omit this for enhanced refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
 #'   `"Calculate"`, `"DataOnly"`, `"Automatic"`, or `"Defragment"`
 #' @param commit_mode Enhanced commit behavior. `"Transactional"` preserves the
@@ -216,9 +216,7 @@ fabric_pbi_refresh <- function(
     token = token,
     auth_args = auth_args
   )
-  default_notify_option <- if (
-    is.null(token) && !fabric_uses_client_credentials(auth_args)
-  ) {
+  default_notify_option <- if (!fabric_uses_client_credentials(auth_args)) {
     "MailOnFailure"
   } else {
     NULL

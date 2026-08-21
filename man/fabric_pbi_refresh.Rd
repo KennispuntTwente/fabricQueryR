@@ -114,10 +114,10 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity}
 
 \item{notify_option}{Standard-refresh email behavior for delegated calls:
 \code{"NoNotification"}, \code{"MailOnFailure"}, or \code{"MailOnCompletion"}. When
-omitted, standard refresh defaults to \code{"MailOnFailure"} only when
-fabricQueryR acquires a delegated token. It is omitted for known
-client-credential flows and caller-supplied tokens, whose identity cannot
-be inferred. Omit this for enhanced refreshes}
+omitted, standard refresh defaults to \code{"MailOnFailure"} unless
+fabricQueryR knows that it is using client credentials. For a
+caller-supplied service-principal token, pass \code{NULL} explicitly because
+its identity cannot be inferred. Omit this for enhanced refreshes}
 
 \item{type}{Enhanced processing type: \code{"Full"}, \code{"ClearValues"},
 \code{"Calculate"}, \code{"DataOnly"}, \code{"Automatic"}, or \code{"Defragment"}}

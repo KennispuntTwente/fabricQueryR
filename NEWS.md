@@ -78,10 +78,10 @@ request-body tokens.
 * `fabric_kql_query()` now serializes real and timespan parameters with KQL's
 `.` decimal separator even when R's `OutDec` option uses a comma.
 
-* `fabric_pbi_refresh()` now omits `notifyOption` by default for
-service-principal client credentials and caller-supplied tokens, matching the
-Power BI refresh contract. Package-acquired delegated refreshes retain the
-`MailOnFailure` default.
+* `fabric_pbi_refresh()` now sends the required `MailOnFailure` option for an
+opaque caller-supplied token by default. Known client-credential flows omit the
+option; callers supplying their own service-principal token must pass
+`notify_option = NULL` explicitly.
 
 * `fabric_job_schedules()` and the schedule create, update, and delete helpers
 now infer the documented `Execute` job type for Data Pipelines, Dataflows, and
@@ -145,10 +145,6 @@ and compatible Warehouse tables through an optional Python Delta reader. It
 supports selected columns, row limits, and Arrow streams for large or nested
 results. The `dest_dir` argument has been removed; tables using unsupported
 Delta features should be read through SQL or Spark instead.
-
-* `fabric_pbi_refresh()` now sends the required `MailOnFailure` notification
-option for a delegated standard refresh when `notify_option` is omitted. Pass
-`notify_option = NULL` explicitly for service-principal standard refreshes.
 
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.
