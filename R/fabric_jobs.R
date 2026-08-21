@@ -88,6 +88,10 @@
 #' The former `mssparkutils` namespace remains backward compatible but Microsoft
 #' recommends migrating because it will be retired
 #'
+#' Notebook submission uses the current Core Job Scheduler `RunNotebook` route.
+#' The richer workload-specific status endpoint is still queried by default for
+#' notebook exit values, with the stable Core status endpoint as its fallback.
+#'
 #' @section Permissions and status handling:
 #' Running and cancelling need an item execute permission. Checking or waiting
 #' also needs an item read permission. fabricQueryR reconciles notebook status
@@ -1082,9 +1086,11 @@ print.fabric_job_instance <- function(x, ...) {
     route$route,
     notebook = paste0(
       prefix,
-      "/notebooks/",
+      "/items/",
       target$item_id,
-      "/jobs/execute/instances?beta=false"
+      "/jobs/",
+      route$job_type,
+      "/instances"
     ),
     spark_job_definition = paste0(
       prefix,

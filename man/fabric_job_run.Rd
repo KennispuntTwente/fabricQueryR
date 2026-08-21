@@ -210,6 +210,10 @@ Omit the tag when job status must reliably signal notebook failure. Otherwise,
 have the notebook report its outcome with \code{notebookutils.notebook.exit()}.
 The former \code{mssparkutils} namespace remains backward compatible but Microsoft
 recommends migrating because it will be retired
+
+Notebook submission uses the current Core Job Scheduler \code{RunNotebook} route.
+The richer workload-specific status endpoint is still queried by default for
+notebook exit values, with the stable Core status endpoint as its fallback.
 }
 
 \section{Permissions and status handling}{
