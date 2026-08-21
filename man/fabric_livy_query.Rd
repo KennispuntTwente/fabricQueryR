@@ -74,7 +74,9 @@ arguments are rejected}
 Invisibly, a \code{fabric_livy_statement_result} list. The most useful
 component is \code{output$parsed}: a tibble for tabular output, an R object for
 JSON, or a character vector for text. The result also keeps status, timing,
-submitted code, errors, and the original response
+submitted code, errors, and the original response. A successful statement
+is still returned when session cleanup fails, with a
+\code{fabric_livy_cleanup_warning} identifying the retained session
 }
 \description{
 Starts Spark, runs one piece of code, returns its output, and closes the Spark

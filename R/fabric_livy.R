@@ -41,7 +41,9 @@
 #' @return Invisibly, a `fabric_livy_statement_result` list. The most useful
 #'   component is `output$parsed`: a tibble for tabular output, an R object for
 #'   JSON, or a character vector for text. The result also keeps status, timing,
-#'   submitted code, errors, and the original response
+#'   submitted code, errors, and the original response. A successful statement
+#'   is still returned when session cleanup fails, with a
+#'   `fabric_livy_cleanup_warning` identifying the retained session
 #' @section Before you run code:
 #' Fabric needs a workspace on supported capacity and a Lakehouse. In
 #' the Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and
@@ -120,7 +122,29 @@ fabric_livy_query <- function(
     conf = conf,
     verbose = verbose
   )
-  on.exit(try(session$close(), silent = TRUE), add = TRUE)
+  completed <- FALSE
+  on.exit(
+    {
+      cleanup_error <- tryCatch(
+        {
+          session$close()
+          NULL
+        },
+        error = identity
+      )
+      if (!is.null(cleanup_error) && completed) {
+        .fabric_warn(
+          paste0(
+            "The Livy statement succeeded, but its temporary session could ",
+            "not be closed; Fabric may retain compute until idle timeout"
+          ),
+          class = "fabric_livy_cleanup_warning",
+          parent = cleanup_error
+        )
+      }
+    },
+    add = TRUE
+  )
 
   # 3 Run the statement ----------------------------------------------------------------------------
 
@@ -130,12 +154,14 @@ fabric_livy_query <- function(
     poll_interval = poll_interval,
     timeout = timeout
   )
-  invisible(session$run(
+  result <- session$run(
     code = code,
     kind = kind,
     poll_interval = poll_interval,
     timeout = timeout
-  ))
+  )
+  completed <- TRUE
+  invisible(result)
 }
 
 # Shared Fabric Livy helpers -----------------------------------------------------------------------
@@ -470,7 +496,8 @@ fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
   if (
     is.null(token) &&
       fabric_uses_client_credentials(auth_args) &&
-      length(audience) != 1L
+      (length(audience) != 1L ||
+        !grepl("/[.]default$", audience, ignore.case = TRUE))
   ) {
     .fabric_abort(
       "Client-credentials authentication requires one .default audience"

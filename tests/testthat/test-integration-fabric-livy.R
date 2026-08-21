@@ -8,7 +8,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
   table_name <- fabric_test_spark_table(manifest, lakehouse)
   auth <- fabric_test_azure_auth_config()
 
-  result <- fabric_livy_query(
+  result <- expect_no_warning(fabric_livy_query(
     livy_url = lakehouse$livy_url,
     code = sprintf(
       paste0(
@@ -25,7 +25,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
     auth_args = auth$auth_args,
     conf = list("spark.sql.shuffle.partitions" = "2"),
     verbose = FALSE
-  )
+  ))
 
   expect_equal(result$state, "available")
   expect_equal(result$output$status, "ok")

@@ -25,6 +25,15 @@ test_that("Livy selects identity-aware OAuth audiences", {
     fixed = TRUE
   )
   expect_error(
+    fabric_livy_audience(
+      "https://api.fabric.microsoft.com/Lakehouse.Execute.All",
+      NULL,
+      list(auth_type = "client_credentials", password = "secret")
+    ),
+    "requires one .default audience",
+    fixed = TRUE
+  )
+  expect_error(
     fabric_livy_audience(c("scope", "scope"), "token"),
     "without duplicates",
     fixed = TRUE
@@ -683,6 +692,30 @@ test_that("fabric_livy_query closes temporary session after failure", {
     fixed = TRUE
   )
   expect_true(closed)
+})
+
+test_that("fabric_livy_query warns without losing a successful result", {
+  result <- structure(list(state = "available"), class = "livy-result")
+  fake_session <- new.env(parent = emptyenv())
+  fake_session$wait <- function(...) invisible(fake_session)
+  fake_session$run <- function(...) result
+  fake_session$close <- function() rlang::abort("delete failed")
+  local_mocked_bindings(
+    fabric_livy_session = function(...) fake_session
+  )
+
+  returned <- NULL
+  expect_warning(
+    returned <- fabric_livy_query(
+      "https://api.fabric.microsoft.com/livy/sessions",
+      "print(1)",
+      token = "token",
+      verbose = FALSE
+    ),
+    class = "fabric_livy_cleanup_warning"
+  )
+
+  expect_identical(returned, result)
 })
 
 test_that("batch jobs expose success logs and structured results", {
