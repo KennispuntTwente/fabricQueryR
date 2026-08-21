@@ -183,6 +183,25 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert all(resource in integration for resource in resources)
 
 
+def test_warehouse_snapshot_is_recreated_after_seeded_objects():
+    repository_root = Path(__file__).parents[3]
+    workflows = [
+        repository_root / ".github/workflows/integration-fabric.yaml",
+        repository_root / ".github/workflows/fabric-sandbox.yaml",
+    ]
+
+    for path in workflows:
+        workflow = path.read_text()
+        seed = workflow.index("Seed test data")
+        snapshot = workflow.index("Recreate Warehouse snapshot after seeding")
+        discover = workflow.index("Discover Fabric endpoints")
+        snapshot_step = workflow[snapshot:discover]
+
+        assert seed < snapshot < discover
+        assert "-replace=fabric_warehouse_snapshot.test" in snapshot_step
+        assert "FABRIC_WAREHOUSE_SNAPSHOT_ID=" in snapshot_step
+
+
 def test_auth_lane_acquires_an_optional_least_privilege_identity():
     repository_root = Path(__file__).parents[3]
     workflow = (

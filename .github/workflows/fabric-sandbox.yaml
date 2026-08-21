@@ -143,6 +143,13 @@ jobs:
         if: inputs.action == 'rebuild'
         run: uv --directory tools/fabric-sandbox run fabric-sandbox seed
 
+      - name: Recreate Warehouse snapshot after seeding
+        if: inputs.action == 'rebuild'
+        run: |
+          terraform -chdir="$TF_DIR" apply -auto-approve -input=false \
+            -replace=fabric_warehouse_snapshot.test
+          echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
+
       - name: Discover Fabric endpoints
         if: inputs.action == 'rebuild'
         run: uv --directory tools/fabric-sandbox run fabric-sandbox discover

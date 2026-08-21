@@ -60,6 +60,9 @@ uv --directory tools/fabric-sandbox run pytest
 uv --directory tools/fabric-sandbox run fabric-sandbox doctor
 uv --directory tools/fabric-sandbox run fabric-sandbox deploy
 uv --directory tools/fabric-sandbox run fabric-sandbox seed
+terraform -chdir=infra/fabric/terraform apply -auto-approve -input=false \
+  -replace=fabric_warehouse_snapshot.test
+export FABRIC_WAREHOUSE_SNAPSHOT_ID="$(terraform -chdir=infra/fabric/terraform output -raw warehouse_snapshot_id)"
 uv --directory tools/fabric-sandbox run fabric-sandbox discover
 
 # Install the external ADBC driver once per test machine.
