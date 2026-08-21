@@ -27,17 +27,28 @@ test_that("legacy access_token is accepted only through dots", {
   )
 })
 
-test_that("endpoint functions do not expose a redundant custom-endpoint flag", {
+test_that("only token-bearing endpoint APIs expose the custom-host opt-in", {
   namespace <- asNamespace("fabricQueryR")
-  objects <- mget(ls(namespace, all.names = TRUE), namespace)
+  objects <- mget(getNamespaceExports("fabricQueryR"), namespace)
   functions <- objects[vapply(objects, is.function, logical(1))]
-  offenders <- names(functions)[vapply(
+  opted_in <- names(functions)[vapply(
     functions,
     \(fn) "allow_custom_endpoint" %in% names(formals(fn)),
     logical(1)
   )]
 
-  expect_length(offenders, 0L)
+  expect_setequal(
+    opted_in,
+    c(
+      "fabric_function_invoke",
+      "fabric_graphql_paginate",
+      "fabric_graphql_query",
+      "fabric_graphql_schema",
+      "fabric_livy_batch_submit",
+      "fabric_livy_query",
+      "fabric_livy_session"
+    )
+  )
 })
 
 test_that("fabric_livy_query consumes named access_token from dots", {
@@ -61,6 +72,7 @@ test_that("fabric_livy_query consumes named access_token from dots", {
     "https://example.test/livy/sessions",
     "1 + 1",
     access_token = "legacy-token",
+    allow_custom_endpoint = TRUE,
     verbose = FALSE
   )
 
@@ -72,6 +84,7 @@ test_that("fabric_livy_query consumes named access_token from dots", {
       "https://example.test/livy/sessions",
       "1 + 1",
       unexpected = TRUE,
+      allow_custom_endpoint = TRUE,
       verbose = FALSE
     ),
     "unused arguments"
