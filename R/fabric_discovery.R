@@ -10,8 +10,9 @@
 #'   `"Contributor"`, `"Member"`, or `"Admin"`. Leave `NULL` to return every
 #'   visible workspace
 #' @param prefer_workspace_endpoints Whether to request workspace-specific
-#'   endpoints. Keep `FALSE` unless your organization uses workspace-level
-#'   private links
+#'   API and OneLake endpoints. When `TRUE`, each listed workspace is hydrated
+#'   with Get Workspace because List Workspaces returns only the API endpoint.
+#'   Keep `FALSE` unless your organization uses workspace-level private links
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -31,6 +32,8 @@
 #' Fabric API and requires `Workspace.Read.All` or `Workspace.ReadWrite.All`
 #' @references
 #' [List workspaces REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
+#'
+#' [Get workspace REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/get-workspace)
 #'
 #' [Workspace roles](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)
 #' @examples
@@ -107,6 +110,16 @@ fabric_workspaces <- function(
     credential = credential,
     audience = .fabric_audience$fabric
   )
+  if (isTRUE(prefer_workspace_endpoints)) {
+    records <- lapply(records, function(record) {
+      fabric_workspace_details(
+        record,
+        credential,
+        base,
+        prefer_workspace_endpoints = TRUE
+      )
+    })
+  }
 
   # 3 Return discovery records ---------------------------------------------------------------------
 
@@ -722,6 +735,36 @@ fabric_add_workspace_endpoints <- function(record, workspace) {
   record
 }
 
+# Hydrate one List Workspaces record through Get Workspace. The detail route is
+# the only workspace API that returns OneLake endpoints
+fabric_workspace_details <- function(
+  record,
+  credential,
+  api_base,
+  prefer_workspace_endpoints = FALSE
+) {
+  id <- fabric_record_value(record, "id")
+  if (!is.character(id) || length(id) != 1L || !fabric_is_guid(id)) {
+    .fabric_abort("A workspace record must contain a canonical GUID `id`")
+  }
+
+  request <- httr2::request(paste0(api_base, "/workspaces/", id))
+  if (isTRUE(prefer_workspace_endpoints)) {
+    request <- httr2::req_url_query(
+      request,
+      preferWorkspaceSpecificEndpoints = "true"
+    )
+  }
+  details <- .httr2_json(
+    request,
+    simplifyVector = FALSE,
+    credential = credential,
+    audience = .fabric_audience$fabric
+  )
+  record[names(details)] <- details
+  record
+}
+
 # Check that optional `value` is one non-empty string. Returns invisibly and is
 # used for personal-workspace identity fields
 fabric_discovery_optional_string <- function(value, name) {
@@ -1041,19 +1084,34 @@ fabric_resolve_workspace <- function(
   }
 
   if (fabric_is_guid(workspace)) {
-    record <- .httr2_json(
-      httr2::request(paste0(api_base, "/workspaces/", workspace)),
-      simplifyVector = FALSE,
-      credential = credential,
-      audience = .fabric_audience$fabric
+    record <- fabric_workspace_details(
+      list(id = workspace),
+      credential,
+      api_base,
+      prefer_workspace_endpoints = isTRUE(use_workspace_endpoint)
     )
   } else {
+    request <- httr2::request(paste0(api_base, "/workspaces"))
+    if (isTRUE(use_workspace_endpoint)) {
+      request <- httr2::req_url_query(
+        request,
+        preferWorkspaceSpecificEndpoints = "true"
+      )
+    }
     records <- .httr2_collection(
-      paste0(api_base, "/workspaces"),
+      request$url,
       credential = credential,
       audience = .fabric_audience$fabric
     )
     record <- fabric_unique_name(records, workspace, "workspace")
+    if (isTRUE(use_workspace_endpoint)) {
+      record <- fabric_workspace_details(
+        record,
+        credential,
+        api_base,
+        prefer_workspace_endpoints = TRUE
+      )
+    }
   }
 
   # 3 Build workspace context ----------------------------------------------------------------------

@@ -21,8 +21,9 @@ fabric_workspaces(
 visible workspace}
 
 \item{prefer_workspace_endpoints}{Whether to request workspace-specific
-endpoints. Keep \code{FALSE} unless your organization uses workspace-level
-private links}
+API and OneLake endpoints. When \code{TRUE}, each listed workspace is hydrated
+with Get Workspace because List Workspaces returns only the API endpoint.
+Keep \code{FALSE} unless your organization uses workspace-level private links}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}
@@ -68,6 +69,8 @@ items <- fabric_items(workspace)
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces}{List workspaces REST API}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/get-workspace}{Get workspace REST API}
 
 \href{https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces}{Workspace roles}
 }

@@ -2,7 +2,35 @@ test_that("fabric_workspaces follows pagination and returns workspace lists", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {
     calls <<- c(calls, req$url)
-    if (length(calls) == 1L) {
+    if (grepl("/workspaces/11111111-", req$url, fixed = TRUE)) {
+      discovery_response(
+        list(
+          id = "11111111-1111-4111-8111-111111111111",
+          displayName = "Analytics",
+          type = "Workspace",
+          apiEndpoint = "https://analytics.z13.w.api.fabric.microsoft.com",
+          oneLakeEndpoints = list(
+            dfsEndpoint = "https://analytics.z13.dfs.fabric.microsoft.com",
+            blobEndpoint = "https://analytics.z13.blob.fabric.microsoft.com"
+          )
+        ),
+        req$url
+      )
+    } else if (grepl("/workspaces/22222222-", req$url, fixed = TRUE)) {
+      discovery_response(
+        list(
+          id = "22222222-2222-4222-8222-222222222222",
+          displayName = "Research",
+          type = "Workspace",
+          apiEndpoint = "https://research.z14.w.api.fabric.microsoft.com",
+          oneLakeEndpoints = list(
+            dfsEndpoint = "https://research.z14.dfs.fabric.microsoft.com",
+            blobEndpoint = "https://research.z14.blob.fabric.microsoft.com"
+          )
+        ),
+        req$url
+      )
+    } else if (length(calls) == 1L) {
       discovery_response(
         list(
           value = list(list(
@@ -48,10 +76,59 @@ test_that("fabric_workspaces follows pagination and returns workspace lists", {
   expect_equal(result[[1L]]$description, "Primary")
   expect_equal(result[[1L]]$capacityRegion$name, "West Europe")
   expect_equal(result[[1L]]$tags$team, "analytics")
+  expect_equal(
+    result[[1L]]$oneLakeEndpoints$dfsEndpoint,
+    "https://analytics.z13.dfs.fabric.microsoft.com"
+  )
   expect_null(result[[2L]]$description)
   expect_match(calls[[1L]], "roles=Admin%2CMember")
   expect_match(calls[[1L]], "preferWorkspaceSpecificEndpoints=true")
   expect_match(calls[[2L]], "continuationToken=page%20two")
+  expect_true(all(grepl(
+    "preferWorkspaceSpecificEndpoints=true",
+    calls[3:4],
+    fixed = TRUE
+  )))
+})
+
+test_that("workspace resolution retrieves preferred OneLake endpoints", {
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  requests <- character()
+  local_mocked_bindings(
+    .httr2_json = function(req, ...) {
+      requests <<- c(requests, req$url)
+      list(
+        id = workspace_id,
+        displayName = "Private workspace",
+        type = "Workspace",
+        apiEndpoint = "https://private.z13.w.api.fabric.microsoft.com",
+        oneLakeEndpoints = list(
+          dfsEndpoint = "https://private.z13.dfs.fabric.microsoft.com",
+          blobEndpoint = "https://private.z13.blob.fabric.microsoft.com"
+        )
+      )
+    }
+  )
+
+  resolved <- fabric_resolve_workspace(
+    workspace_id,
+    fabric_credential(token = "token"),
+    .fabric_api_base
+  )
+
+  expect_match(
+    requests[[1L]],
+    "preferWorkspaceSpecificEndpoints=true",
+    fixed = TRUE
+  )
+  expect_equal(
+    resolved$raw$oneLakeEndpoints$dfsEndpoint,
+    "https://private.z13.dfs.fabric.microsoft.com"
+  )
+  expect_equal(
+    resolved$api_base,
+    "https://private.z13.w.api.fabric.microsoft.com/v1"
+  )
 })
 
 test_that("name discovery requires an exact or unique match", {
