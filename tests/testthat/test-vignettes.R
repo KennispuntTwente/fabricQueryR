@@ -122,6 +122,9 @@ test_that("vignettes do not index unnamed discovery results by display name", {
 
 test_that("semantic-model refresh separates Lakehouse schema and table", {
   path <- test_path("..", "..", "vignettes", "semantic-model-refresh.Rmd")
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
   source <- paste(readLines(path, warn = FALSE), collapse = "\n")
 
   expect_match(source, 'table = "Sales"', fixed = TRUE)
@@ -131,6 +134,9 @@ test_that("semantic-model refresh separates Lakehouse schema and table", {
 
 test_that("Livy vignette documents current access prerequisites", {
   path <- test_path("..", "..", "vignettes", "spark-with-livy.Rmd")
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
   source <- paste(readLines(path, warn = FALSE), collapse = "\n")
 
   expect_match(source, "tenant admin setting", fixed = TRUE)
