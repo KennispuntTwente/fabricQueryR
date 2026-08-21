@@ -76,7 +76,9 @@ component is \code{output$parsed}: a tibble for tabular output, an R object for
 JSON, or a character vector for text. The result also keeps status, timing,
 submitted code, errors, and the original response. A successful statement
 is still returned when session cleanup fails, with a
-\code{fabric_livy_cleanup_warning} identifying the retained session
+\code{fabric_livy_cleanup_warning} identifying the retained session. When both
+execution and cleanup fail, a \code{fabric_livy_execution_cleanup_error} retains
+the execution error and safe cleanup diagnostics
 }
 \description{
 Starts Spark, runs one piece of code, returns its output, and closes the Spark

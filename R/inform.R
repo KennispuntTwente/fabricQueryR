@@ -44,6 +44,28 @@ inform <- function(verbose, msg, type = c("info", "success")) {
   )
 }
 
+# Re-signal an existing error through the package condition layer while
+# preserving its public class and custom fields. A missing trace stays missing
+# instead of capturing the rethrowing call and its potentially sensitive input.
+.fabric_rethrow <- function(error) {
+  fields <- unclass(error)
+  fields[c("message", "call", "trace", "parent", "rlang")] <- NULL
+  arguments <- c(
+    list(message = conditionMessage(error)),
+    fields,
+    list(
+      class = setdiff(
+        class(error),
+        c("rlang_error", "error", "condition")
+      ),
+      parent = error$parent,
+      call = NULL,
+      .trace = error$trace %||% FALSE
+    )
+  )
+  do.call(.fabric_abort, arguments)
+}
+
 # Raise a formatted rlang warning while preserving the public caller and any
 # typed condition fields supplied through `...`
 .fabric_warn <- function(

@@ -33,7 +33,7 @@ test_that("fabric_livy_query consumes named access_token from dots", {
   fake_session <- new.env(parent = emptyenv())
   fake_session$wait <- function(...) invisible(fake_session)
   fake_session$run <- function(...) list(ok = TRUE)
-  fake_session$close <- function() {
+  fake_session$close <- function(deadline = NULL) {
     closed <<- TRUE
     invisible(TRUE)
   }

@@ -43,7 +43,9 @@
 #'   JSON, or a character vector for text. The result also keeps status, timing,
 #'   submitted code, errors, and the original response. A successful statement
 #'   is still returned when session cleanup fails, with a
-#'   `fabric_livy_cleanup_warning` identifying the retained session
+#'   `fabric_livy_cleanup_warning` identifying the retained session. When both
+#'   execution and cleanup fail, a `fabric_livy_execution_cleanup_error` retains
+#'   the execution error and safe cleanup diagnostics
 #' @section Before you run code:
 #' Fabric needs a workspace on supported capacity, a Lakehouse, and the tenant
 #' admin setting for the Livy API enabled. In the Fabric portal, open the
@@ -124,21 +126,30 @@ fabric_livy_query <- function(
     conf = conf,
     verbose = verbose
   )
-  completed <- FALSE
+  cleanup_pending <- TRUE
+  cleanup <- function() {
+    if (!cleanup_pending) {
+      return(NULL)
+    }
+    cleanup_pending <<- FALSE
+    tryCatch(
+      {
+        cleanup_timeout <- getOption("fabricqueryr.livy.cleanup_timeout", 30)
+        fabric_livy_check_number(cleanup_timeout, "Livy cleanup timeout")
+        session$close(deadline = Sys.time() + cleanup_timeout)
+        NULL
+      },
+      error = .fabric_livy_cleanup_condition
+    )
+  }
   on.exit(
     {
-      cleanup_error <- tryCatch(
-        {
-          session$close()
-          NULL
-        },
-        error = identity
-      )
-      if (!is.null(cleanup_error) && completed) {
+      cleanup_error <- cleanup()
+      if (!is.null(cleanup_error)) {
         .fabric_warn(
           paste0(
-            "The Livy statement succeeded, but its temporary session could ",
-            "not be closed; Fabric may retain compute until idle timeout"
+            "The temporary Livy session could not be closed while leaving ",
+            "fabric_livy_query(); Fabric may retain compute until idle timeout"
           ),
           class = "fabric_livy_cleanup_warning",
           parent = cleanup_error
@@ -152,18 +163,64 @@ fabric_livy_query <- function(
 
   # Run the statement only after its target and options are ready
 
-  session$wait(
-    poll_interval = poll_interval,
-    timeout = timeout
+  execution <- tryCatch(
+    {
+      session$wait(
+        poll_interval = poll_interval,
+        timeout = timeout
+      )
+      list(
+        result = session$run(
+          code = code,
+          kind = kind,
+          poll_interval = poll_interval,
+          timeout = timeout
+        ),
+        error = NULL
+      )
+    },
+    error = function(error) list(result = NULL, error = error)
   )
-  result <- session$run(
-    code = code,
-    kind = kind,
-    poll_interval = poll_interval,
-    timeout = timeout
+  cleanup_error <- cleanup()
+  if (!is.null(execution$error)) {
+    if (!is.null(cleanup_error)) {
+      .fabric_abort(
+        paste0(
+          "The Livy statement failed and its temporary session could not be ",
+          "closed; Fabric may retain compute until idle timeout"
+        ),
+        class = "fabric_livy_execution_cleanup_error",
+        parent = execution$error,
+        cleanup_error = cleanup_error,
+        session_url = .httr2_redact(session$url %||% "")
+      )
+    }
+    .fabric_rethrow(execution$error)
+  }
+  if (!is.null(cleanup_error)) {
+    .fabric_warn(
+      paste0(
+        "The Livy statement succeeded, but its temporary session could not ",
+        "be closed; Fabric may retain compute until idle timeout"
+      ),
+      class = "fabric_livy_cleanup_warning",
+      parent = cleanup_error
+    )
+  }
+  invisible(execution$result)
+}
+
+# Convert arbitrary cleanup failures into a condition that cannot retain the
+# authenticated DELETE request while preserving useful diagnostic text
+.fabric_livy_cleanup_condition <- function(error) {
+  structure(
+    list(
+      message = .httr2_redact(conditionMessage(error)),
+      call = NULL,
+      original_class = class(error)
+    ),
+    class = c("fabric_livy_cleanup_error", "error", "condition")
   )
-  completed <- TRUE
-  invisible(result)
 }
 
 # Shared Fabric Livy helpers -----------------------------------------------------------------------

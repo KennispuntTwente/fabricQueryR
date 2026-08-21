@@ -270,7 +270,14 @@ session$close()
   Release this session or high-concurrency context
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivySession$close()}
+    \preformatted{FabricLivySession$close(deadline = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deadline}}{Internal wall-clock deadline for the cleanup request}
+    }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{

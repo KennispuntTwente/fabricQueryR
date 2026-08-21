@@ -108,6 +108,20 @@ test_that("package objects use one cli summary layout", {
   )
 })
 
+test_that("condition rethrows preserve class and custom fields", {
+  original <- structure(
+    list(message = "original failure", call = NULL, marker = 42L),
+    class = c("fabric_test_error", "error", "condition")
+  )
+
+  error <- tryCatch(.fabric_rethrow(original), error = identity)
+
+  expect_s3_class(error, "fabric_test_error")
+  expect_identical(conditionMessage(error), "original failure")
+  expect_identical(error$marker, 42L)
+  expect_false(is.data.frame(error$trace))
+})
+
 test_that("package code does not bypass the presentation layer", {
   if (nzchar(Sys.getenv("R_COVR"))) {
     skip("covr instruments direct condition calls in package source")

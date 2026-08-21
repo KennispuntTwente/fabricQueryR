@@ -125,7 +125,8 @@ test_that("regular session runs multiple statements and closes", {
       credential,
       payload = NULL,
       idempotent = NULL,
-      accepted_status = integer()
+      accepted_status = integer(),
+      deadline = NULL
     ) {
       calls[[length(calls) + 1L]] <<- list(
         method = method,
@@ -649,11 +650,13 @@ test_that("session reset timeout uses its documented endpoint", {
 
 test_that("closing an auto-terminated Livy session accepts 404", {
   accepted <- NULL
+  received_deadline <- NULL
   local_mocked_bindings(
     fabric_livy_json = function(...) list(id = "expired", state = "idle"),
-    fabric_livy_ok = function(method, accepted_status, ...) {
+    fabric_livy_ok = function(method, accepted_status, deadline = NULL, ...) {
       expect_identical(method, "DELETE")
       accepted <<- accepted_status
+      received_deadline <<- deadline
       TRUE
     }
   )
@@ -663,8 +666,10 @@ test_that("closing an auto-terminated Livy session accepts 404", {
     verbose = FALSE
   )
 
-  expect_true(session$close())
+  deadline <- Sys.time() + 5
+  expect_true(session$close(deadline = deadline))
   expect_identical(accepted, 404L)
+  expect_identical(received_deadline, deadline)
   expect_true(session$closed)
 })
 
@@ -673,7 +678,7 @@ test_that("fabric_livy_query closes temporary session after failure", {
   fake_session <- new.env(parent = emptyenv())
   fake_session$wait <- function(...) invisible(fake_session)
   fake_session$run <- function(...) rlang::abort("spark failed")
-  fake_session$close <- function() {
+  fake_session$close <- function(deadline = NULL) {
     closed <<- TRUE
     TRUE
   }
@@ -699,7 +704,7 @@ test_that("fabric_livy_query warns without losing a successful result", {
   fake_session <- new.env(parent = emptyenv())
   fake_session$wait <- function(...) invisible(fake_session)
   fake_session$run <- function(...) result
-  fake_session$close <- function() rlang::abort("delete failed")
+  fake_session$close <- function(deadline = NULL) rlang::abort("delete failed")
   local_mocked_bindings(
     fabric_livy_session = function(...) fake_session
   )
@@ -716,6 +721,44 @@ test_that("fabric_livy_query warns without losing a successful result", {
   )
 
   expect_identical(returned, result)
+})
+
+test_that("fabric_livy_query retains execution and bounded cleanup failures", {
+  cleanup_deadline <- NULL
+  fake_session <- new.env(parent = emptyenv())
+  fake_session$url <- "https://api.fabric.microsoft.com/livy/sessions/42"
+  fake_session$wait <- function(...) invisible(fake_session)
+  fake_session$run <- function(...) rlang::abort("spark failed")
+  fake_session$close <- function(deadline = NULL) {
+    cleanup_deadline <<- deadline
+    rlang::abort("delete failed")
+  }
+  local_mocked_bindings(
+    fabric_livy_session = function(...) fake_session
+  )
+  withr::local_options(fabricqueryr.livy.cleanup_timeout = 5)
+
+  error <- expect_error(
+    fabric_livy_query(
+      "https://api.fabric.microsoft.com/livy/sessions",
+      "raise Exception()",
+      token = "token",
+      verbose = FALSE
+    ),
+    class = "fabric_livy_execution_cleanup_error"
+  )
+
+  expect_match(conditionMessage(error$parent), "spark failed", fixed = TRUE)
+  expect_s3_class(error$cleanup_error, "fabric_livy_cleanup_error")
+  expect_match(
+    conditionMessage(error$cleanup_error),
+    "delete failed",
+    fixed = TRUE
+  )
+  expect_s3_class(cleanup_deadline, "POSIXct")
+  expect_gt(cleanup_deadline, Sys.time())
+  expect_lte(cleanup_deadline, Sys.time() + 5)
+  expect_identical(error$session_url, fake_session$url)
 })
 
 test_that("batch jobs expose success logs and structured results", {

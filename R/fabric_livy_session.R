@@ -581,8 +581,9 @@ FabricLivySession <- R6::R6Class(
     },
 
     #' @description Release this session or high-concurrency context
+    #' @param deadline Internal wall-clock deadline for the cleanup request
     #' @returns `TRUE` when closed or `FALSE` when already closed, invisibly
-    close = function() {
+    close = function(deadline = NULL) {
       if (isTRUE(self$closed)) {
         return(invisible(FALSE))
       }
@@ -592,7 +593,8 @@ FabricLivySession <- R6::R6Class(
         self$url,
         private$credential,
         idempotent = TRUE,
-        accepted_status = 404L
+        accepted_status = 404L,
+        deadline = deadline
       )
       self$closed <- TRUE
       inform(self$verbose, "Fabric Livy session closed", type = "success")

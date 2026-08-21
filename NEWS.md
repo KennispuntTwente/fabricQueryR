@@ -158,6 +158,10 @@ Delta features should be read through SQL or Spark instead.
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.
 
+* `fabric_livy_query()` now bounds temporary-session cleanup with a separate
+deadline and reports both errors when statement execution and session deletion
+fail together.
+
 # fabricQueryR 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 
