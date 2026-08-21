@@ -173,12 +173,11 @@ test_that("notebook run builds typed release payload and job handle", {
   expect_match(
     call$url,
     paste0(
-      "/items/11111111-1111-1111-1111-111111111111/",
-      "jobs/RunNotebook/instances"
+      "/notebooks/11111111-1111-1111-1111-111111111111/",
+      "jobs/execute/instances?beta=false"
     ),
     fixed = TRUE
   )
-  expect_false(grepl("beta=", call$url, fixed = TRUE))
   expect_equal(call$payload$executionData$compute, "Spark")
   expect_equal(
     call$payload$executionData$computeConfiguration$defaultLakehouse,
