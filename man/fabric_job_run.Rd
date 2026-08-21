@@ -213,10 +213,10 @@ have the notebook report its outcome with \code{notebookutils.notebook.exit()}.
 The former \code{mssparkutils} namespace remains backward compatible but Microsoft
 recommends migrating because it will be retired
 
-Notebook submission uses the released workload-specific route so Fabric
-applies per-run parameters and compute settings. The richer workload-specific
-status endpoint is still queried by default for notebook exit values, with
-the stable Core status endpoint as its fallback.
+Notebook submission uses the current workload-specific \code{RunNotebook} job
+contract so Fabric applies per-run parameters and compute settings. The
+richer workload-specific status endpoint is still queried by default for
+notebook exit values, with the stable Core status endpoint as its fallback.
 }
 
 \section{Permissions and status handling}{
@@ -252,8 +252,6 @@ fabric_job_cancel(job_to_cancel)
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/}{Core Job Scheduler REST API}
-
-\href{https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook}{Run an on-demand notebook}
 
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api}{Manage and execute notebooks with public APIs}
 

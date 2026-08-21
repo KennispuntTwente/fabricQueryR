@@ -90,10 +90,10 @@
 #' The former `mssparkutils` namespace remains backward compatible but Microsoft
 #' recommends migrating because it will be retired
 #'
-#' Notebook submission uses the released workload-specific route so Fabric
-#' applies per-run parameters and compute settings. The richer workload-specific
-#' status endpoint is still queried by default for notebook exit values, with
-#' the stable Core status endpoint as its fallback.
+#' Notebook submission uses the current workload-specific `RunNotebook` job
+#' contract so Fabric applies per-run parameters and compute settings. The
+#' richer workload-specific status endpoint is still queried by default for
+#' notebook exit values, with the stable Core status endpoint as its fallback.
 #'
 #' @section Permissions and status handling:
 #' Running and cancelling need an item execute permission. Checking or waiting
@@ -102,8 +102,6 @@
 #' Fabric reports an unfamiliar state instead of waiting indefinitely
 #' @references
 #' [Core Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
-#'
-#' [Run an on-demand notebook](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook)
 #'
 #' [Manage and execute notebooks with public APIs](https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api)
 #'
@@ -1103,7 +1101,7 @@ print.fabric_job_instance <- function(x, ...) {
       prefix,
       "/notebooks/",
       target$item_id,
-      "/jobs/execute/instances?beta=false"
+      "/jobs/execute/instances?jobType=RunNotebook"
     ),
     spark_job_definition = paste0(
       prefix,
