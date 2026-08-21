@@ -71,6 +71,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_job_schedules()` and the schedule create, update, and delete helpers
+now infer the documented `Execute` job type for Data Pipelines, Dataflows, and
+Data Build Tool Jobs instead of relying on legacy or generic job-type values.
+
 * `fabric_workspaces(prefer_workspace_endpoints = TRUE)` now hydrates each
 workspace through Get Workspace so discovered records carry both the
 workspace-specific Fabric API endpoint and the corresponding OneLake DFS/blob

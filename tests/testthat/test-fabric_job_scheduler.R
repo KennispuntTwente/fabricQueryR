@@ -437,7 +437,7 @@ test_that("schedule deletion requires confirmation and uses the exact route", {
   expect_false(call$arguments$parse_json)
 })
 
-test_that("DataPipeline schedules infer the workload job type", {
+test_that("Execute workloads infer the documented schedule job type", {
   urls <- character()
   local_mocked_bindings(
     .httr2_collection = function(url, ...) {
@@ -455,17 +455,27 @@ test_that("DataPipeline schedules infer the workload job type", {
     token = "test-token"
   )
   fabric_job_schedules(
+    scheduler_test_item("Dataflow"),
+    token = "test-token"
+  )
+  fabric_job_schedules(
+    scheduler_test_item("DataBuildToolJob"),
+    token = "test-token"
+  )
+  fabric_job_schedules(
     scheduler_test_item("SparkJobDefinition"),
     job_type = "ScheduledSparkJob",
     token = "test-token"
   )
 
-  expect_match(urls[[1L]], "/jobs/Pipeline/schedules$", perl = TRUE)
-  expect_match(urls[[2L]], "/jobs/Pipeline/schedules$", perl = TRUE)
-  expect_match(urls[[3L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
+  expect_match(urls[[1L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[2L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[3L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[4L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[5L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
 })
 
-test_that("DataPipeline schedule creation uses and records Pipeline", {
+test_that("DataPipeline schedule creation uses and records Execute", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(method, url, credential, payload, ...) {
@@ -487,8 +497,8 @@ test_that("DataPipeline schedule creation uses and records Pipeline", {
   )
 
   expect_equal(call$method, "POST")
-  expect_match(call$url, "/jobs/Pipeline/schedules$", perl = TRUE)
-  expect_equal(schedule$job_type, "Pipeline")
+  expect_match(call$url, "/jobs/Execute/schedules$", perl = TRUE)
+  expect_equal(schedule$job_type, "Execute")
 })
 
 test_that("schedule records retain custom job types for later operations", {

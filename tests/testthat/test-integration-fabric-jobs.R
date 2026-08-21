@@ -225,7 +225,7 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   )
   created_ids <- c(created_ids, daily$id)
   expect_true(daily$enabled)
-  expect_equal(daily$job_type, "Pipeline")
+  expect_equal(daily$job_type, "Execute")
 
   disabled <- fabric_job_schedule_update(
     item,
