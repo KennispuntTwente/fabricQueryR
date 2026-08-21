@@ -437,7 +437,7 @@ test_that("schedule deletion requires confirmation and uses the exact route", {
   expect_false(call$arguments$parse_json)
 })
 
-test_that("Execute workloads infer the documented schedule job type", {
+test_that("workloads infer their documented schedule job type", {
   urls <- character()
   local_mocked_bindings(
     .httr2_collection = function(url, ...) {
@@ -470,7 +470,7 @@ test_that("Execute workloads infer the documented schedule job type", {
 
   expect_match(urls[[1L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[2L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[3L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[3L]], "/jobs/ApplyChanges/schedules$", perl = TRUE)
   expect_match(urls[[4L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[5L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
 })
@@ -499,6 +499,32 @@ test_that("DataPipeline schedule creation uses and records Execute", {
   expect_equal(call$method, "POST")
   expect_match(call$url, "/jobs/Execute/schedules$", perl = TRUE)
   expect_equal(schedule$job_type, "Execute")
+})
+
+test_that("Dataflow schedule creation uses and records ApplyChanges", {
+  call <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(method, url, credential, payload, ...) {
+      call <<- list(method = method, url = url)
+      list(
+        status_code = 201L,
+        body = scheduler_test_response(
+          configuration = payload$configuration,
+          enabled = payload$enabled
+        )
+      )
+    }
+  )
+
+  schedule <- fabric_job_schedule_create(
+    scheduler_test_item("Dataflow"),
+    scheduler_test_configuration(),
+    token = "test-token"
+  )
+
+  expect_equal(call$method, "POST")
+  expect_match(call$url, "/jobs/ApplyChanges/schedules$", perl = TRUE)
+  expect_equal(schedule$job_type, "ApplyChanges")
 })
 
 test_that("schedule records retain custom job types for later operations", {

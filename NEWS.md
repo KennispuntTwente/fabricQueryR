@@ -86,8 +86,9 @@ option; callers supplying their own service-principal token must pass
 `notify_option = NULL` explicitly.
 
 * `fabric_job_schedules()` and the schedule create, update, and delete helpers
-now infer the documented `Execute` job type for Data Pipelines, Dataflows, and
-Data Build Tool Jobs instead of relying on legacy or generic job-type values.
+now infer the documented `Execute` job type for Data Pipelines and Data Build
+Tool Jobs and `ApplyChanges` for Dataflows instead of relying on legacy or
+generic job-type values.
 
 * `fabric_job_run()` now rejects `parameters` and `execution_data` on the typed
 DataPipeline `Execute` endpoint, whose published contract has no request body.

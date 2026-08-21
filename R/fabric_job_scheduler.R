@@ -229,13 +229,13 @@ fabric_job_schedule_config <- function(
 #' in the current REST contract.
 #'
 #' @inheritParams fabric_job_instances
-#' @param job_type Schedule job type. Data pipelines, Dataflows, and Data Build
-#'   Tool Jobs default to `"Execute"`, as required by their workload schedule
-#'   contracts. Other item types default to `"DefaultJob"`, as shown in the
-#'   Core Job Scheduler examples. Supply an explicit value for another
-#'   workload-specific schedule job type. When passing one of these item types
-#'   as a GUID instead of a discovered item, also supply `item_type` or set
-#'   `job_type = "Execute"` explicitly.
+#' @param job_type Schedule job type. Data pipelines and Data Build Tool Jobs
+#'   default to `"Execute"`; Dataflows default to `"ApplyChanges"`, as required
+#'   by their workload schedule contracts. Other item types default to
+#'   `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
+#'   explicit value for another workload-specific schedule job type. When
+#'   passing one of these item types as a GUID instead of a discovered item,
+#'   also supply `item_type` or set the documented `job_type` explicitly.
 #' @param configuration A value returned by
 #'   [fabric_job_schedule_config()]. Advanced callers may pass a named list in
 #'   the documented Fabric `ScheduleConfig` shape. Known types are validated;
@@ -273,7 +273,7 @@ fabric_job_schedule_config <- function(
 #'
 #' [Schedule a Data Pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute)
 #'
-#' [Schedule a Dataflow](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute)
+#' [Schedule Dataflow Apply Changes](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes)
 #'
 #' [Schedule a Data Build Tool Job](https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job)
 #'
@@ -593,9 +593,11 @@ print.fabric_job_schedule <- function(x, ...) {
   }
 
   normalized <- gsub("[^a-z0-9]", "", tolower(item_type %||% ""))
-  if (
+  if (identical(normalized, "dataflow")) {
+    "ApplyChanges"
+  } else if (
     normalized %in%
-      c("datapipeline", "pipeline", "dataflow", "databuildtooljob")
+      c("datapipeline", "pipeline", "databuildtooljob")
   ) {
     "Execute"
   } else {

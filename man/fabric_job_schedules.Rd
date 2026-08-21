@@ -76,13 +76,13 @@ the item type and workspace ID.}
 \item{workspace}{Workspace GUID, exact display name, or a workspace record.
 Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
 
-\item{job_type}{Schedule job type. Data pipelines, Dataflows, and Data Build
-Tool Jobs default to \code{"Execute"}, as required by their workload schedule
-contracts. Other item types default to \code{"DefaultJob"}, as shown in the
-Core Job Scheduler examples. Supply an explicit value for another
-workload-specific schedule job type. When passing one of these item types
-as a GUID instead of a discovered item, also supply \code{item_type} or set
-\code{job_type = "Execute"} explicitly.}
+\item{job_type}{Schedule job type. Data pipelines and Data Build Tool Jobs
+default to \code{"Execute"}; Dataflows default to \code{"ApplyChanges"}, as required
+by their workload schedule contracts. Other item types default to
+\code{"DefaultJob"}, as shown in the Core Job Scheduler examples. Supply an
+explicit value for another workload-specific schedule job type. When
+passing one of these item types as a GUID instead of a discovered item,
+also supply \code{item_type} or set the documented \code{job_type} explicitly.}
 
 \item{item_type}{Optional Fabric item type when \code{item} is a GUID. A discovered
 item supplies this automatically.}
@@ -179,7 +179,7 @@ fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute}{Schedule a Data Pipeline}
 
-\href{https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute}{Schedule a Dataflow}
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes}{Schedule Dataflow Apply Changes}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job}{Schedule a Data Build Tool Job}
 
