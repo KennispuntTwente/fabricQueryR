@@ -248,8 +248,8 @@ run_fabric_integration_tests(filter = "integration-fabric-functions")
 ```
 
 The normal local runner supplies the Power BI token. Missing function URLs skip
-this group locally and fail the dedicated required CI lane; the offline suite
-always covers disabled public access,
+this externally provisioned group locally and in CI; configured URLs exercise
+the dedicated live lane. The offline suite always covers disabled public access,
 service and client timeouts, oversized responses, structured user errors, and
 metadata/error redaction while preserving function output.
 
