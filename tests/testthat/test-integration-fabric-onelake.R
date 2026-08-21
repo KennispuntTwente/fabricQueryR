@@ -106,7 +106,12 @@ test_that("the delta-rs reader handles schema-enabled Fabric tables", {
 
   token <- fabric_test_token_provider()
   tables <- fabric_lakehouse_tables(discovered, token = token)
-  selected <- tables[tables$name == lakehouse$tables$basic, , drop = FALSE]
+  selected <- tables[
+    tables$schema == lakehouse$schema &
+      tables$name == lakehouse$tables$basic,
+    ,
+    drop = FALSE
+  ]
   expect_equal(nrow(selected), 1L)
   expect_identical(selected$schema, "dbo")
 

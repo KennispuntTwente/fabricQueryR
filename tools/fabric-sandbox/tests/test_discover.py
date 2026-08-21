@@ -390,6 +390,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
     assert lakehouse["tables"] == {
         "runtime": "fabricqueryr_runtime",
         "basic": "fabricqueryr_basic",
+        "non_default_basic": "fabricqueryr_basic",
         "empty": "fabricqueryr_empty",
         "void": "fabricqueryr_void",
         "partitioned": "fabricqueryr_partitioned",
