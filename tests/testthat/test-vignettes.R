@@ -119,3 +119,12 @@ test_that("vignettes do not index unnamed discovery results by display name", {
     perl = TRUE
   )))
 })
+
+test_that("semantic-model refresh separates Lakehouse schema and table", {
+  path <- test_path("..", "..", "vignettes", "semantic-model-refresh.Rmd")
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+
+  expect_match(source, 'table = "Sales"', fixed = TRUE)
+  expect_match(source, 'schema = "dbo"', fixed = TRUE)
+  expect_equal(grepl('"dbo.Sales"', source, fixed = TRUE), FALSE)
+})

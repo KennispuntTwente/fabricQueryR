@@ -105,8 +105,9 @@ committed successfully:
 ```{r, eval = FALSE}
 load <- fabric_lakehouse_write_table(
   lakehouse,
-  "dbo.Sales",
-  new_sales,
+  table = "Sales",
+  data = new_sales,
+  schema = "dbo",
   mode = "overwrite"
 )
 
