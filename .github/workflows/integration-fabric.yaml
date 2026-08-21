@@ -228,7 +228,7 @@ jobs:
           r_home="$r_prefix/lib/R"
           runtime_path="${r_prefix#/}"
           system_library="$r_home/system-library"
-          mkdir -p "$system_library"
+          sudo install -d -o "$(id -u)" -g "$(id -g)" "$system_library"
 
           dpkg-query -W -f='${binary:Package}\n' | sort > "$RUNNER_TEMP/r-packages.txt"
           comm -13 "$RUNNER_TEMP/base-packages.txt" "$RUNNER_TEMP/r-packages.txt" |
