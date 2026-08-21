@@ -76,6 +76,26 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     )
 
 
+def test_shared_r_runtime_is_writable_and_smoke_checked_before_upload():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+
+    bundle = workflow.split(
+        "- name: Bundle R runtime and package library", maxsplit=1
+    )[1].split("- name: Share R runtime", maxsplit=1)[0]
+    assert 'sudo install -d -o "$(id -u)" -g "$(id -g)" "$system_library"' in bundle
+    assert 'test -s "$archive"' in bundle
+    assert 'grep -Fx "$runtime_path/bin/R"' in bundle
+    assert (
+        'grep -Fx "$runtime_path/lib/R/site-library/testthat/DESCRIPTION"'
+        in bundle
+    )
+    assert bundle.index("sudo install -d") < bundle.index("sudo tar --zstd -C")
+    assert bundle.index("test -s") > bundle.index("sudo tar --zstd -C")
+
+
 def test_live_workflow_gates_package_changes_at_the_test_revision():
     repository_root = Path(__file__).parents[3]
     workflow = (

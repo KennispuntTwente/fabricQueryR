@@ -246,7 +246,12 @@ jobs:
               esac
             done
 
-          sudo tar --zstd -C / -cf "$RUNNER_TEMP/fabric-r-runtime.tar.zst" "$runtime_path"
+          archive="$RUNNER_TEMP/fabric-r-runtime.tar.zst"
+          sudo tar --zstd -C / -cf "$archive" "$runtime_path"
+          test -s "$archive"
+          sudo tar --zstd -tf "$archive" | grep -Fx "$runtime_path/bin/R"
+          sudo tar --zstd -tf "$archive" |
+            grep -Fx "$runtime_path/lib/R/site-library/testthat/DESCRIPTION"
 
       - name: Share R runtime
         uses: actions/upload-artifact@v4
