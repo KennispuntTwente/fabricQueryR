@@ -479,6 +479,62 @@ test_that("Lakehouse discovery can target one schema without detail requests", {
   expect_length(tables$columns[[1L]], 0L)
 })
 
+test_that("Lakehouse discovery skips tables removed before detail requests", {
+  calls <- character()
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    if (grepl("api.fabric.microsoft.com", req$url, fixed = TRUE)) {
+      return(lakehouse_table_test_response(
+        list(
+          data = list(
+            list(name = "removed", type = "Managed", format = "Delta"),
+            list(name = "current", type = "Managed", format = "Delta")
+          ),
+          continuationToken = NULL
+        ),
+        url = req$url
+      ))
+    }
+    if (grepl("/tables?", req$url, fixed = TRUE)) {
+      return(lakehouse_table_test_response(
+        list(
+          tables = list(
+            list(name = "removed", schema_name = "dbo"),
+            list(name = "current", schema_name = "dbo")
+          ),
+          next_page_token = NULL
+        ),
+        url = req$url
+      ))
+    }
+    if (grepl("removed", req$url, fixed = TRUE)) {
+      return(lakehouse_table_test_response(
+        list(error = list(code = "TableNotFound", message = "Missing")),
+        status = 404L,
+        url = req$url
+      ))
+    }
+    lakehouse_table_test_response(
+      list(
+        name = "current",
+        schema_name = "dbo",
+        columns = list(list(name = "id", type_name = "long"))
+      ),
+      url = req$url
+    )
+  })
+
+  tables <- fabric_lakehouse_tables(
+    lakehouse_table_test_item(),
+    schema = "dbo",
+    token = "test-token"
+  )
+
+  expect_equal(tables$name, "current")
+  expect_equal(tables$columns[[1L]][[1L]]$name, "id")
+  expect_length(calls, 4L)
+})
+
 test_that("schema discovery falls back when Fabric rejects List Tables", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {

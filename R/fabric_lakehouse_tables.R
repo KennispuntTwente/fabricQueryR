@@ -930,16 +930,30 @@ fabric_lakehouse_write_table <- function(
           "/tables/",
           utils::URLencode(full_name, reserved = TRUE)
         )
-        detail_record <- .httr2_json(
-          httr2::req_url_query(
-            httr2::request(detail_url),
-            catalog_name = item_id,
-            schema_name = table_schema
+        detail_record <- tryCatch(
+          .httr2_json(
+            httr2::req_url_query(
+              httr2::request(detail_url),
+              catalog_name = item_id,
+              schema_name = table_schema
+            ),
+            simplifyVector = FALSE,
+            credential = credential,
+            audience = .fabric_audience$storage
           ),
-          simplifyVector = FALSE,
-          credential = credential,
-          audience = .fabric_audience$storage
+          fabric_http_error = function(error) {
+            if (
+              identical(error$status, 404L) &&
+                identical(error$error_code, "TableNotFound")
+            ) {
+              return(NULL)
+            }
+            rlang::cnd_signal(error)
+          }
         )
+        if (is.null(detail_record)) {
+          next
+        }
         record <- utils::modifyList(record, detail_record)
       }
       rows[[length(rows) + 1L]] <- .fabric_onelake_table_row(
