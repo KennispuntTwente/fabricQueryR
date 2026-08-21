@@ -147,6 +147,24 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
   )
   expect_equal(selected$id, c(1L, 3L))
 
+  localized <- withr::with_options(
+    list(OutDec = ","),
+    fabric_kql_query(
+      target,
+      query = paste(
+        "declare query_parameters(value:real, elapsed:timespan);",
+        "print value=value, elapsed_seconds=elapsed / 1s"
+      ),
+      parameters = list(
+        value = 1.5,
+        elapsed = as.difftime(1.5, units = "secs")
+      ),
+      token = kusto_token
+    )
+  )
+  expect_equal(localized$value, 1.5)
+  expect_equal(localized$elapsed_seconds, 1.5)
+
   hostile <- fabric_kql_query(
     target,
     query = paste(

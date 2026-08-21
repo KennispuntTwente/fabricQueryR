@@ -71,6 +71,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_kql_query()` now serializes real and timespan parameters with KQL's
+`.` decimal separator even when R's `OutDec` option uses a comma.
+
 * `fabric_pbi_refresh()` now omits `notifyOption` by default for
 service-principal client credentials and caller-supplied tokens, matching the
 Power BI refresh contract. Package-acquired delegated refreshes retain the

@@ -739,11 +739,7 @@ kusto_encode_parameter <- function(value) {
 
     return(paste0(
       "timespan(",
-      format(
-        seconds,
-        scientific = FALSE,
-        trim = TRUE
-      ),
+      kusto_format_number(seconds),
       "s)"
     ))
   }
@@ -762,7 +758,7 @@ kusto_encode_parameter <- function(value) {
         return(if (value > 0) "real(+inf)" else "real(-inf)")
       }
 
-      return(format(value, digits = 17L, scientific = FALSE, trim = TRUE))
+      return(kusto_format_number(value))
     }
 
     return(as.character(value))
@@ -779,6 +775,18 @@ kusto_encode_parameter <- function(value) {
     digits = NA
   )
   paste0("dynamic(", json, ")")
+}
+
+# Format a KQL number independently of R's display locale. KQL literals always
+# use a full stop as their decimal separator
+kusto_format_number <- function(value) {
+  format(
+    value,
+    digits = 17L,
+    scientific = FALSE,
+    trim = TRUE,
+    decimal.mark = "."
+  )
 }
 
 # Return a unique Kusto client request ID without inputs. The request sender uses

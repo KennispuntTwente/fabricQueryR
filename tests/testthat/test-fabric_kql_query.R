@@ -335,6 +335,16 @@ test_that("KQL parameter values are encoded without query interpolation", {
   )
 })
 
+test_that("KQL numeric parameters ignore R's output decimal option", {
+  withr::local_options(OutDec = ",")
+
+  expect_equal(kusto_encode_parameter(1.5), "1.5")
+  expect_equal(
+    kusto_encode_parameter(as.difftime(1.5, units = "secs")),
+    "timespan(1.5s)"
+  )
+})
+
 test_that("Fabric-only KQL request-property restrictions are enforced", {
   for (property in c(
     "queryconsistency",
