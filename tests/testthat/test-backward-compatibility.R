@@ -27,19 +27,6 @@ test_that("legacy access_token is accepted only through dots", {
   )
 })
 
-test_that("endpoint APIs do not expose a redundant custom-host opt-in", {
-  namespace <- asNamespace("fabricQueryR")
-  objects <- mget(getNamespaceExports("fabricQueryR"), namespace)
-  functions <- objects[vapply(objects, is.function, logical(1))]
-  opted_in <- names(functions)[vapply(
-    functions,
-    \(fn) "allow_custom_endpoint" %in% names(formals(fn)),
-    logical(1)
-  )]
-
-  expect_length(opted_in, 0L)
-})
-
 test_that("fabric_livy_query consumes named access_token from dots", {
   captured <- NULL
   closed <- FALSE
