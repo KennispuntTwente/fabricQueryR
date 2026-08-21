@@ -71,6 +71,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* HTTP transport errors now expose credential-free package conditions instead
+of retaining authenticated request objects that could contain SAS URLs or
+request-body tokens.
+
 * `fabric_kql_query()` now serializes real and timespan parameters with KQL's
 `.` decimal separator even when R's `OutDec` option uses a comma.
 

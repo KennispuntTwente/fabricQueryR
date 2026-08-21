@@ -22,6 +22,39 @@
   "shared[_. -]*access[_. -]*signature|sas[_. -]*token)"
 )
 
+# Convert a transport failure into a credential-free condition. The original
+# httr2/curl condition is deliberately not retained because it may own the
+# complete authenticated request, including SAS URLs and JSON request bodies.
+.httr2_transport_error <- function(error) {
+  message <- tryCatch(
+    conditionMessage(error),
+    error = function(...) "The HTTP request failed before receiving a response"
+  )
+  structure(
+    list(
+      message = .httr2_redact(message),
+      call = NULL,
+      transport_class = class(error)
+    ),
+    class = c(
+      "fabric_http_transport_error",
+      "fabric_http_error",
+      "error",
+      "condition"
+    )
+  )
+}
+
+.httr2_abort_transport <- function(error) {
+  .fabric_abort(
+    error$message,
+    class = setdiff(class(error), c("error", "condition")),
+    transport_class = error$transport_class,
+    call = NULL,
+    .trace = FALSE
+  )
+}
+
 # Perform authenticated `req` with bounded service-aware retries. Returns an
 # httr2 response or raises the final safe, typed error for all service helpers
 .httr2_perform <- function(
@@ -191,9 +224,9 @@
 
     # Network errors and HTTP errors use different retry decisions
     if (inherits(response, "error")) {
-      last_failure <- response
+      last_failure <- .httr2_transport_error(response)
       if (!can_retry || attempt == max_tries) {
-        rlang::cnd_signal(response)
+        .httr2_abort_transport(last_failure)
       }
     } else {
       status <- httr2::resp_status(response)
@@ -297,7 +330,7 @@
 
     .sleep(delay)
   }
-  rlang::cnd_signal(last_failure)
+  .httr2_abort_transport(last_failure)
 }
 
 # Perform `req` with shared authentication/retry behavior and decode JSON

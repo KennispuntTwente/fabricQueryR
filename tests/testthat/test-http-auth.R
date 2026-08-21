@@ -332,7 +332,7 @@ test_that("idempotent HTTP requests retry transport errors", {
   expect_identical(calls, 2L)
 })
 
-test_that("non-idempotent HTTP requests propagate the first transport error", {
+test_that("non-idempotent HTTP requests raise a safe transport error", {
   calls <- 0L
   local_mocked_bindings(
     req_perform = function(req, path = NULL) {
@@ -352,8 +352,52 @@ test_that("non-idempotent HTTP requests propagate the first transport error", {
     "socket closed",
     fixed = TRUE
   )
-  expect_s3_class(error, "simpleError")
+  expect_s3_class(error, "fabric_http_transport_error")
+  expect_identical(
+    error$transport_class,
+    c("simpleError", "error", "condition")
+  )
   expect_identical(calls, 1L)
+})
+
+test_that("transport errors never retain authenticated requests", {
+  body_secret <- "DUMMY_STORAGE_BEARER"
+  sas_secret <- "DUMMY_SAS_SIGNATURE"
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      error <- simpleError("connection closed")
+      error$request <- req
+      stop(error)
+    },
+    .package = "httr2"
+  )
+
+  error <- tryCatch(
+    .httr2_perform(
+      httr2::request(paste0(
+        "https://storage.example/container?sv=2026-01-01&sig=",
+        sas_secret
+      )) |>
+        httr2::req_method("POST") |>
+        httr2::req_body_json(list(
+          blobs = list(list(
+            url = paste0(
+              "https://onelake.example/path;token=",
+              body_secret
+            )
+          ))
+        )),
+      max_tries = 1L
+    ),
+    error = identity
+  )
+  serialized <- rawToChar(serialize(error, NULL, ascii = TRUE))
+
+  expect_s3_class(error, "fabric_http_transport_error")
+  expect_null(error$parent)
+  expect_false("request" %in% names(error))
+  expect_false(grepl(body_secret, serialized, fixed = TRUE))
+  expect_false(grepl(sas_secret, serialized, fixed = TRUE))
 })
 
 test_that("HTTP retries propagate the final transport error", {

@@ -33,12 +33,14 @@ inform <- function(verbose, msg, type = c("info", "success")) {
   ...,
   .format = FALSE,
   call = rlang::caller_env(),
-  .envir = rlang::caller_env()
+  .envir = rlang::caller_env(),
+  .trace = NULL
 ) {
   rlang::abort(
     .fabric_condition_message(message, .envir, .format),
     ...,
-    call = call
+    call = call,
+    trace = .trace
   )
 }
 
