@@ -107,6 +107,27 @@
 
 ### Changed
 
+- [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  now serializes real and timespan parameters with KQL’s `.` decimal
+  separator even when R’s `OutDec` option uses a comma.
+
+- [`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
+  now omits `notifyOption` by default for service-principal client
+  credentials and caller-supplied tokens, matching the Power BI refresh
+  contract. Package-acquired delegated refreshes retain the
+  `MailOnFailure` default.
+
+- [`fabric_job_schedules()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)
+  and the schedule create, update, and delete helpers now infer the
+  documented `Execute` job type for Data Pipelines, Dataflows, and Data
+  Build Tool Jobs instead of relying on legacy or generic job-type
+  values.
+
+- `fabric_workspaces(prefer_workspace_endpoints = TRUE)` now hydrates
+  each workspace through Get Workspace so discovered records carry both
+  the workspace-specific Fabric API endpoint and the corresponding
+  OneLake DFS/blob endpoints.
+
 - Authenticated functions now consistently accept an AzureAuth token, a
   bearer token, or a function that supplies refreshed tokens through
   `token`; `auth_args` controls AzureAuth sign-in. The older

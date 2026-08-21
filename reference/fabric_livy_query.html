@@ -157,14 +157,16 @@ is still returned when session cleanup fails, with a
     <h2 id="before-you-run-code">Before you run code<a class="anchor" aria-label="anchor" href="#before-you-run-code"></a></h2>
 
 
-<p>Fabric needs a workspace on supported capacity and a Lakehouse. In
-the Fabric portal, open the Lakehouse settings, find <strong>Livy endpoint</strong>, and
-copy the session-job connection string. For several statements that reuse
-variables and Spark state, use <code><a href="fabric_livy_session.html">fabric_livy_session()</a></code>. To run a complete
-Python, Scala/Java, or R application file, use
-<code><a href="fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code></p>
-<p>The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role</p>
+<p>Fabric needs a workspace on supported capacity, a Lakehouse, and the tenant
+admin setting for the Livy API enabled. In the Fabric portal, open the
+Lakehouse settings, find <strong>Livy endpoint</strong>, and copy the session-job
+connection string. For several statements that reuse variables and Spark
+state, use <code><a href="fabric_livy_session.html">fabric_livy_session()</a></code>. To run a complete Python, Scala/Java, or
+R application file, use <code><a href="fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code></p>
+<p>A delegated caller needs the <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>,
+<code>Code.AccessFabric.All</code>, and <code>Code.AccessStorage.All</code> scopes and must be a
+Contributor in the workspace. A service principal must also be added to the
+workspace as a Contributor</p>
 <p>Spark long and decimal columns are returned as character values when needed
 to preserve them exactly. Dates and timestamps with a time zone use R
 temporal classes; timestamps without a time zone remain wall-clock text
@@ -175,7 +177,7 @@ nested values use list-columns</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview" class="external-link">Microsoft Fabric Livy API overview</a>,
-<a href="https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session" class="external-link">session jobs and Fabric setup</a></p></div>
+<a href="https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy" class="external-link">Livy API setup and authorization</a></p></div>
     </div>
 
     <div class="section level2">

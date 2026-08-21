@@ -117,17 +117,20 @@ statement is still returned when session cleanup fails, with a
 
 ## Before you run code
 
-Fabric needs a workspace on supported capacity and a Lakehouse. In the
-Fabric portal, open the Lakehouse settings, find **Livy endpoint**, and
-copy the session-job connection string. For several statements that
-reuse variables and Spark state, use
+Fabric needs a workspace on supported capacity, a Lakehouse, and the
+tenant admin setting for the Livy API enabled. In the Fabric portal,
+open the Lakehouse settings, find **Livy endpoint**, and copy the
+session-job connection string. For several statements that reuse
+variables and Spark state, use
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
 To run a complete Python, Scala/Java, or R application file, use
 [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
 
-The signed-in identity needs Lakehouse read and execute access,
-permission for code to access Fabric and storage, and an appropriate
-workspace role
+A delegated caller needs the `Lakehouse.Execute.All`,
+`Lakehouse.Read.All`, `Code.AccessFabric.All`, and
+`Code.AccessStorage.All` scopes and must be a Contributor in the
+workspace. A service principal must also be added to the workspace as a
+Contributor
 
 Spark long and decimal columns are returned as character values when
 needed to preserve them exactly. Dates and timestamps with a time zone
@@ -140,8 +143,8 @@ Binary and nested values use list-columns
 
 [Microsoft Fabric Livy API
 overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
-[session jobs and Fabric
-setup](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session)
+[Livy API setup and
+authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy)
 
 ## Examples
 

@@ -85,12 +85,13 @@ fabric_job_schedule_delete(
 
 - job_type:
 
-  Schedule job type. Data pipelines default to `"Pipeline"`, the
-  workload job type required by Fabric. Other item types default to
-  `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
-  explicit value for another workload-specific schedule job type. When
-  passing a pipeline GUID instead of a discovered item, also supply
-  `item_type = "DataPipeline"` or `job_type = "Pipeline"`.
+  Schedule job type. Data pipelines, Dataflows, and Data Build Tool Jobs
+  default to `"Execute"`, as required by their workload schedule
+  contracts. Other item types default to `"DefaultJob"`, as shown in the
+  Core Job Scheduler examples. Supply an explicit value for another
+  workload-specific schedule job type. When passing one of these item
+  types as a GUID instead of a discovered item, also supply `item_type`
+  or set `job_type = "Execute"` explicitly.
 
 - item_type:
 
@@ -182,6 +183,15 @@ returns an explicit marker. The complete response stays available in
 
 [Fabric Job Scheduler REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+
+[Schedule a Data
+Pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute)
+
+[Schedule a
+Dataflow](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute)
+
+[Schedule a Data Build Tool
+Job](https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job)
 
 [Fabric Data Pipeline REST API
 capabilities](https://learn.microsoft.com/en-us/fabric/data-factory/pipeline-rest-api-capabilities)

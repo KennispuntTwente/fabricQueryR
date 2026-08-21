@@ -139,12 +139,13 @@ code is safe.
 
 ## Trust boundary, limits, and redaction
 
-Bearer tokens are sent only after the URL passes validation. The default
-allows Microsoft-owned HTTPS endpoints on the documented
+Bearer tokens are sent to the exact `function_url` supplied by the
+caller after the URL passes structural validation. Supplying that URL is
+the explicit trust decision, so verify custom origins independently.
+URLs must use HTTPS and the documented
 `/v1/workspaces/.../userDataFunctions/.../functions/.../invoke` route.
-Verify custom origins independently before opting in with
-`allow_custom_endpoint = TRUE`. Embedded credentials, query strings,
-fragments, and nonstandard ports are rejected.
+Embedded credentials, query strings, fragments, and nonstandard ports
+are rejected.
 
 Microsoft currently limits the combined request parameters to 4 MB,
 execution through a public endpoint to 100 seconds, and the function

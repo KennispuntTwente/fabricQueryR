@@ -70,8 +70,9 @@ visible workspace</p></dd>
 
 <dt id="arg-prefer-workspace-endpoints">prefer_workspace_endpoints<a class="anchor" aria-label="anchor" href="#arg-prefer-workspace-endpoints"></a></dt>
 <dd><p>Whether to request workspace-specific
-endpoints. Keep <code>FALSE</code> unless your organization uses workspace-level
-private links</p></dd>
+API and OneLake endpoints. When <code>TRUE</code>, each listed workspace is hydrated
+with Get Workspace because List Workspaces returns only the API endpoint.
+Keep <code>FALSE</code> unless your organization uses workspace-level private links</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>
@@ -113,6 +114,7 @@ Fabric API and requires <code>Workspace.Read.All</code> or <code>Workspace.ReadW
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces" class="external-link">List workspaces REST API</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/get-workspace" class="external-link">Get workspace REST API</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces" class="external-link">Workspace roles</a></p>
     </div>
 

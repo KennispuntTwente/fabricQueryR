@@ -71,10 +71,11 @@ permission on the model. Status and history use `Dataset.Read.All` or
 permission for refresh history.
 
 Service principals are supported when tenant settings and model or
-workspace access allow them. Do not set an email notification option for
-a service-principal refresh request: pass `notify_option = NULL`
-explicitly for a standard refresh. Delegated standard refreshes default
-to `MailOnFailure`.
+workspace access allow them. Email notification options do not apply to
+service-principal refresh requests. fabricQueryR omits the option for
+known client-credential flows and caller-supplied tokens. Standard
+refreshes for delegated tokens acquired by fabricQueryR default to
+`MailOnFailure`.
 
 ## Refresh after an upstream update
 
@@ -102,8 +103,9 @@ update has committed successfully:
 
 load <- fabric_lakehouse_write_table(
   lakehouse,
-  "dbo.Sales",
-  new_sales,
+  table = "Sales",
+  data = new_sales,
+  schema = "dbo",
   mode = "overwrite"
 )
 

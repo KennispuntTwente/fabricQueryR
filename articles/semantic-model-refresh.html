@@ -119,10 +119,11 @@ Status and history use <code>Dataset.Read.All</code> or
 <code>Dataset.ReadWrite.All</code>, although Microsoft also requires
 model Write permission for refresh history.</p>
 <p>Service principals are supported when tenant settings and model or
-workspace access allow them. Do not set an email notification option for
-a service-principal refresh request: pass
-<code>notify_option = NULL</code> explicitly for a standard refresh.
-Delegated standard refreshes default to <code>MailOnFailure</code>.</p>
+workspace access allow them. Email notification options do not apply to
+service-principal refresh requests. fabricQueryR omits the option for
+known client-credential flows and caller-supplied tokens. Standard
+refreshes for delegated tokens acquired by fabricQueryR default to
+<code>MailOnFailure</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="refresh-after-an-upstream-update">Refresh after an upstream update<a class="anchor" aria-label="anchor" href="#refresh-after-an-upstream-update"></a>
@@ -145,8 +146,9 @@ update has committed successfully:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">load</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">lakehouse</span>,</span>
-<span>  <span class="st">"dbo.Sales"</span>,</span>
-<span>  <span class="va">new_sales</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"Sales"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">new_sales</span>,</span>
+<span>  schema <span class="op">=</span> <span class="st">"dbo"</span>,</span>
 <span>  mode <span class="op">=</span> <span class="st">"overwrite"</span></span>
 <span><span class="op">)</span></span>
 <span></span>

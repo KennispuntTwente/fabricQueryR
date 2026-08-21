@@ -30,7 +30,9 @@ fabric_workspaces(
 
 - prefer_workspace_endpoints:
 
-  Whether to request workspace-specific endpoints. Keep `FALSE` unless
+  Whether to request workspace-specific API and OneLake endpoints. When
+  `TRUE`, each listed workspace is hydrated with Get Workspace because
+  List Workspaces returns only the API endpoint. Keep `FALSE` unless
   your organization uses workspace-level private links
 
 - tenant_id:
@@ -73,6 +75,9 @@ the Fabric API and requires `Workspace.Read.All` or
 
 [List workspaces REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/list-workspaces)
+
+[Get workspace REST
+API](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/get-workspace)
 
 [Workspace
 roles](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)
