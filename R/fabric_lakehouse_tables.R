@@ -289,6 +289,7 @@ fabric_lakehouse_read_table <- function(
   dfs_base = "https://onelake.dfs.fabric.microsoft.com"
 ) {
   dfs_base_supplied <- !missing(dfs_base)
+  schema_supplied <- !is.null(schema)
   default_schema <- NULL
   lakehouse_record <- fabric_as_record(lakehouse)
   if (!is.null(lakehouse_record)) {
@@ -323,16 +324,29 @@ fabric_lakehouse_read_table <- function(
 
   table_record <- fabric_as_record(table)
   table_schema <- NULL
+  storage_target <- NULL
   if (!is.null(table_record)) {
     table <- fabric_record_value(table_record, "name", "table")
     table_schema <- fabric_record_value(table_record, "schema")
+    storage_target <- .fabric_onelake_table_storage_target(table_record)
+    if (!schema_supplied && !is.null(storage_target)) {
+      table <- storage_target$table
+      schema <- storage_target$schema
+    }
   }
-  schema <- schema %||% table_schema %||% default_schema
+  if (schema_supplied || is.null(storage_target)) {
+    schema <- schema %||% table_schema %||% default_schema
+  }
+  lakehouse_target <- if (!is.null(storage_target) && is.null(schema)) {
+    fabric_record_value(lakehouse_record, "id")
+  } else {
+    lakehouse
+  }
 
   fabric_onelake_read_delta_table(
     table_path = table,
     workspace_name = workspace,
-    lakehouse_name = lakehouse,
+    lakehouse_name = lakehouse_target,
     schema = schema,
     item_type = "Lakehouse",
     tenant_id = tenant_id,

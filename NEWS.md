@@ -89,6 +89,10 @@ when Fabric's table metadata identifies the database by its internal ID.
 * `fabric_lakehouse_read_table()` now prefers a discovered table row's schema
 over the Lakehouse default schema while still honoring an explicit `schema`.
 
+* `fabric_lakehouse_read_table()` and
+`fabric_mirrored_database_read_table()` now use catalog storage locations to
+distinguish physical schema directories from compatibility-only `dbo` values.
+
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
 snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and

@@ -378,6 +378,47 @@ fabric_warehouse_table <- function(
   list(table = table, schema = schema)
 }
 
+# Recover a table's physical OneLake layout from the authoritative catalog
+# location. Schema-disabled items report a compatibility schema of dbo even
+# though their Delta directory is directly below Tables/.
+.fabric_onelake_table_storage_target <- function(table) {
+  record <- if (is.data.frame(table)) {
+    fabric_as_record(table)
+  } else if (is.list(table)) {
+    table
+  } else {
+    NULL
+  }
+  if (is.null(record)) {
+    return(NULL)
+  }
+  location <- fabric_record_value(record, "storage_location", "location")
+  if (
+    is.null(location) ||
+      !is.character(location) ||
+      length(location) != 1L ||
+      is.na(location) ||
+      !nzchar(location)
+  ) {
+    return(NULL)
+  }
+  target <- try(onelake_parse_uri(location), silent = TRUE)
+  if (inherits(target, "try-error")) {
+    return(NULL)
+  }
+  pieces <- strsplit(target$path, "/", fixed = TRUE)[[1L]]
+  if (
+    !length(pieces) %in% c(2L, 3L) ||
+      !identical(tolower(pieces[[1L]]), "tables")
+  ) {
+    return(NULL)
+  }
+  list(
+    table = pieces[[length(pieces)]],
+    schema = if (length(pieces) == 3L) pieces[[2L]] else NULL
+  )
+}
+
 .fabric_onelake_table_detail <- function(
   context,
   table_target,

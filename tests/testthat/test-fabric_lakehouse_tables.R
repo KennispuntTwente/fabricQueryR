@@ -189,6 +189,36 @@ test_that("Lakehouse reader accepts names and explicit schema", {
   expect_identical(captured$result, "arrow_stream")
 })
 
+test_that("Lakehouse reader honors a schema-disabled table location", {
+  captured <- NULL
+  item <- lakehouse_table_test_item(default_schema = "dbo")
+  item$workspaceId <- "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+  item$id <- "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  table <- tibble::tibble(
+    name = "orders",
+    schema = "dbo",
+    location = paste0(
+      "https://onelake.dfs.fabric.microsoft.com/",
+      item$workspaceId,
+      "/",
+      item$id,
+      "/",
+      "Tables/orders"
+    )
+  )
+  local_mocked_bindings(
+    fabric_onelake_read_delta_table = function(...) {
+      captured <<- list(...)
+      tibble::tibble(id = 1L)
+    }
+  )
+
+  fabric_lakehouse_read_table(item, table, token = "storage-token")
+
+  expect_identical(captured$table_path, "orders")
+  expect_null(captured$schema)
+})
+
 test_that("Lakehouse reader rejects ambiguous and non-Lakehouse targets", {
   expect_error(
     fabric_lakehouse_read_table("Curated", "orders"),

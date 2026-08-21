@@ -201,6 +201,7 @@ fabric_mirrored_database_read_table <- function(
   result = c("tibble", "arrow_stream"),
   api_base = .fabric_api_base
 ) {
+  schema_supplied <- !is.null(schema)
   context <- .fabric_mirrored_database_catalog_context(
     mirrored_database,
     workspace,
@@ -217,10 +218,19 @@ fabric_mirrored_database_read_table <- function(
     schema,
     context$default_schema
   )
+  storage_target <- .fabric_onelake_table_storage_target(table)
+  if (!schema_supplied && !is.null(storage_target)) {
+    table_target <- storage_target
+  }
+  item_target <- if (!is.null(storage_target) && is.null(table_target$schema)) {
+    context$item_id
+  } else {
+    context$item_target$record
+  }
   fabric_onelake_read_delta_table(
     table_path = table_target$table,
     workspace_name = context$workspace_id,
-    lakehouse_name = context$item_target$record,
+    lakehouse_name = item_target,
     schema = table_target$schema,
     item_type = "MirroredDatabase",
     tenant_id = tenant_id,

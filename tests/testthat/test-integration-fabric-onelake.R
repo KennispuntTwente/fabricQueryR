@@ -104,11 +104,16 @@ test_that("the delta-rs reader handles schema-enabled Fabric tables", {
     token = fabric_test_token("FABRIC_TEST_API_TOKEN")
   )
 
-  result <- fabric_onelake_read_delta_table(
-    table_path = lakehouse$tables$basic,
-    workspace_name = manifest$workspace_id,
-    lakehouse_name = discovered,
-    token = fabric_test_token_provider(),
+  token <- fabric_test_token_provider()
+  tables <- fabric_lakehouse_tables(discovered, token = token)
+  selected <- tables[tables$name == lakehouse$tables$basic, , drop = FALSE]
+  expect_equal(nrow(selected), 1L)
+  expect_identical(selected$schema, "dbo")
+
+  result <- fabric_lakehouse_read_table(
+    discovered,
+    selected,
+    token = token,
     verbose = FALSE
   )
   result <- result[order(result$id), ]

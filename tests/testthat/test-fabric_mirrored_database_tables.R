@@ -141,3 +141,34 @@ test_that("mirrored database reader resolves records and forwards Delta reads", 
   expect_null(captured$dfs_base)
   expect_s3_class(captured$token, "fabric_credential")
 })
+
+test_that("legacy mirrored tables honor their schema-less storage location", {
+  captured <- NULL
+  local_mocked_bindings(
+    fabric_onelake_read_delta_table = function(...) {
+      captured <<- list(...)
+      tibble::tibble(id = 1L)
+    }
+  )
+  table <- tibble::tibble(
+    name = "sales_orders",
+    schema = "dbo",
+    location = paste0(
+      "https://onelake.dfs.fabric.microsoft.com/",
+      mirrored_database_test_workspace,
+      "/",
+      mirrored_database_test_id,
+      "/",
+      "Tables/sales_orders"
+    )
+  )
+
+  fabric_mirrored_database_read_table(
+    mirrored_database_test_item(),
+    table,
+    token = "storage-token"
+  )
+
+  expect_identical(captured$table_path, "sales_orders")
+  expect_null(captured$schema)
+})
