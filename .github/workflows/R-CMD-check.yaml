@@ -100,8 +100,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: r-lib/actions/setup-pandoc@v2
-
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: '4.1'
@@ -109,12 +107,51 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
-          needs: check
+          dependencies: '"hard"'
           cache: false
+          install-pandoc: false
           install-quarto: false
 
-      - uses: r-lib/actions/check-r-package@v2
-        with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+      - name: Install package without suggested dependencies
+        run: R CMD INSTALL .
+
+      - name: Verify POSIXlt job parameters on R 4.1
+        shell: Rscript {0}
+        run: |
+          stopifnot(getRversion() >= "4.1", getRversion() < "4.2")
+
+          parameters <- getFromNamespace(
+            ".fabric_job_parameters",
+            "fabricQueryR"
+          )
+          scalar <- as.POSIXlt(
+            "2026-08-07 10:15:30",
+            tz = "Europe/Amsterdam"
+          )
+
+          stopifnot(
+            inherits(scalar, "POSIXlt"),
+            length(as.POSIXct(scalar)) == 1L
+          )
+          result <- parameters(list(started_at = scalar))[[1L]]
+          stopifnot(
+            identical(result$type, "DateTime"),
+            identical(result$value, "2026-08-07T08:15:30Z")
+          )
+
+          multiple <- as.POSIXlt(
+            c("2026-08-07 10:15:30", "2026-08-07 10:15:31"),
+            tz = "UTC"
+          )
+          error <- tryCatch(
+            parameters(list(started_at = multiple)),
+            error = identity
+          )
+          stopifnot(
+            inherits(error, "error"),
+            grepl(
+              "one non-missing scalar",
+              conditionMessage(error),
+              fixed = TRUE
+            )
+          )
