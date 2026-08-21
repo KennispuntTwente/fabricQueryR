@@ -464,7 +464,7 @@ test_that("Spark job definition execution data uses its typed route", {
   expect_equal(call$payload$executionData$defaultLakehouseId, reference)
 })
 
-test_that("job payload fields follow the selected route contract", {
+test_that("typed DataPipeline jobs reject undocumented request bodies", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -486,8 +486,31 @@ test_that("job payload fields follow the selected route contract", {
     }
   )
 
+  expect_error(
+    fabric_job_run(
+      job_test_item("DataPipeline"),
+      execution_data = list(executeOption = "ApplyChangesIfNeeded"),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    ),
+    "do not support `parameters` or `execution_data`",
+    fixed = TRUE
+  )
+  expect_error(
+    fabric_job_run(
+      job_test_item("DataPipeline"),
+      parameters = list(mode = "test"),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    ),
+    "do not support `parameters` or `execution_data`",
+    fixed = TRUE
+  )
+  expect_null(call)
+
   fabric_job_run(
     job_test_item("DataPipeline"),
+    job_type = "Pipeline",
     execution_data = list(executeOption = "ApplyChangesIfNeeded"),
     token = "test-token",
     api_base = "https://api.fabric.test/v1"
@@ -496,7 +519,7 @@ test_that("job payload fields follow the selected route contract", {
     call$payload$executionData,
     list(executeOption = "ApplyChangesIfNeeded")
   )
-  expect_match(call$url, "/jobs/execute/instances", fixed = TRUE)
+  expect_match(call$url, "/jobs/Pipeline/instances", fixed = TRUE)
 
   expect_error(
     fabric_job_run(

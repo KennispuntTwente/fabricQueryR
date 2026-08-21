@@ -101,7 +101,8 @@ item supplies this automatically. Examples are \code{"Notebook"},
 \code{list(run_date = as.Date("2026-01-31"), full_load = FALSE)}, infers types
 from R and is appropriate for most runs. Names must match the parameters
 configured in Fabric. Advanced callers can instead supply records with
-\code{name}, \code{value}, and \code{type}}
+\code{name}, \code{value}, and \code{type}. The typed DataPipeline \code{Execute} endpoint does
+not accept parameters}
 
 \item{parameter_types}{Optional named character vector overriding inferred
 parameter types. Supported values are \code{VariableReference}, \code{Integer},
@@ -111,7 +112,8 @@ only when R's inferred type is not the type expected in Fabric}
 \item{execution_data}{Optional advanced job settings in the format documented
 for the Fabric item type. Use the simpler arguments below for common
 notebook settings. In custom payload fields, wrap a one-element atomic
-vector in \code{\link[=I]{I()}} (or use an unnamed list) when it must remain a JSON array}
+vector in \code{\link[=I]{I()}} (or use an unnamed list) when it must remain a JSON array.
+The typed DataPipeline \code{Execute} endpoint does not accept a request body}
 
 \item{default_lakehouse}{Optional Lakehouse GUID or discovered record used to
 set the notebook's default Lakehouse for this run. This changes the run

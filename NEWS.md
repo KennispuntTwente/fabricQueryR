@@ -87,6 +87,11 @@ option; callers supplying their own service-principal token must pass
 now infer the documented `Execute` job type for Data Pipelines, Dataflows, and
 Data Build Tool Jobs instead of relying on legacy or generic job-type values.
 
+* `fabric_job_run()` now rejects `parameters` and `execution_data` on the typed
+DataPipeline `Execute` endpoint, whose published contract has no request body.
+Callers that require a compatible legacy payload can explicitly select
+`job_type = "Pipeline"`.
+
 * `fabric_workspaces(prefer_workspace_endpoints = TRUE)` now hydrates each
 workspace through Get Workspace so discovered records carry both the
 workspace-specific Fabric API endpoint and the corresponding OneLake DFS/blob

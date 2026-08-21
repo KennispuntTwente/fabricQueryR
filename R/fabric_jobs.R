@@ -41,7 +41,8 @@
 #'   `list(run_date = as.Date("2026-01-31"), full_load = FALSE)`, infers types
 #'   from R and is appropriate for most runs. Names must match the parameters
 #'   configured in Fabric. Advanced callers can instead supply records with
-#'   `name`, `value`, and `type`
+#'   `name`, `value`, and `type`. The typed DataPipeline `Execute` endpoint does
+#'   not accept parameters
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
 #'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`. Use this
@@ -49,7 +50,8 @@
 #' @param execution_data Optional advanced job settings in the format documented
 #'   for the Fabric item type. Use the simpler arguments below for common
 #'   notebook settings. In custom payload fields, wrap a one-element atomic
-#'   vector in [I()] (or use an unnamed list) when it must remain a JSON array
+#'   vector in [I()] (or use an unnamed list) when it must remain a JSON array.
+#'   The typed DataPipeline `Execute` endpoint does not accept a request body
 #' @param default_lakehouse Optional Lakehouse GUID or discovered record used to
 #'   set the notebook's default Lakehouse for this run. This changes the run
 #'   context, not the notebook's saved default
@@ -195,6 +197,18 @@ fabric_job_run <- function(
     session_tag = session_tag
   )
   parameters <- .fabric_job_parameters(parameters, parameter_types)
+  if (
+    identical(route$route, "data_pipeline") &&
+      (!is.null(execution_data) || length(parameters))
+  ) {
+    .fabric_abort(
+      paste0(
+        "Typed DataPipeline Execute jobs do not support `parameters` or ",
+        "`execution_data`; omit them or explicitly select the compatible ",
+        "core route with job_type = \"Pipeline\""
+      )
+    )
+  }
   if (identical(route$route, "spark_job_definition") && length(parameters)) {
     .fabric_abort(
       "SparkJobDefinition jobs do not support `parameters`; use `execution_data`"
