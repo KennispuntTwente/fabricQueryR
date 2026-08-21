@@ -6,6 +6,9 @@
 \format{
 An \link[R6:R6Class]{R6::R6Class} generator
 }
+\value{
+The \code{FabricLivyBatch} R6 generator.
+}
 \description{
 Represents a Spark application submitted with \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
 Use \verb{$wait()} to wait for completion, \verb{$result()} or \verb{$logs()} to inspect the

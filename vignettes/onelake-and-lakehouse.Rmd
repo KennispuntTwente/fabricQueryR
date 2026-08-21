@@ -1,8 +1,8 @@
 ---
-title: "Working with Fabric LakeHouses and OneLake"
+title: "Working with Fabric Lakehouses and OneLake"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Working with Fabric LakeHouses and OneLake}
+  %\VignetteIndexEntry{Working with Fabric Lakehouses and OneLake}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

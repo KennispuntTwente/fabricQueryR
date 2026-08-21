@@ -1,8 +1,8 @@
 ---
-title: "Working with Fabric EventHouses (real-time data)"
+title: "Working with Fabric Eventhouses (real-time data)"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Working with Fabric EventHouses (real-time data)}
+  %\VignetteIndexEntry{Working with Fabric Eventhouses (real-time data)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

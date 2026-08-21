@@ -72,7 +72,7 @@ reference:
       - FabricLivyStatement
       - FabricLivyBatch
 
-  - title: LakeHouse tables (Delta Lake tables)
+  - title: Lakehouse tables (Delta Lake tables)
     desc: Discover, load, and read Delta Lake tables in OneLake
     contents:
       - fabric_lakehouse_schemas

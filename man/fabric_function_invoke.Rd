@@ -126,7 +126,8 @@ to 4 MB, and a function's return value to 30 MB. The default 110-second
 client timeout allows the service timeout response to arrive. The 32 MiB
 client response cap leaves room for Fabric's envelope around a 30 MB output.
 Secret-named fields and bearer-token text are redacted recursively from
-returned output, errors, response metadata, and conditions.
+errors, response metadata, and conditions. Function \code{output} is domain data
+and is returned unchanged, even when it contains secret-like field names.
 }
 
 \examples{

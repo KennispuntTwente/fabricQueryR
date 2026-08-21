@@ -156,8 +156,10 @@ skipped.
 
 A repository-wide concurrency group ensures only one sandbox consumes the test
 capacity at a time. The workflow runs weekly and can also be dispatched
-manually. CI enables required integration mode, so missing manifests, tokens,
-and test dependencies fail rather than silently skipping the live suite.
+manually. CI enables required integration mode, so missing core manifests,
+tokens, dependencies, and dedicated User Data Function URLs fail instead of
+silently skipping their named live lanes. Delegated-identity and
+least-privilege scenarios remain explicitly opt-in.
 Because canceling the entire workflow cannot guarantee the teardown job runs, a
 daily janitor uses the same concurrency group and removes only workspaces
 carrying both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;`
@@ -205,7 +207,7 @@ filter. For example:
 run_fabric_integration_tests(filter = "integration-fabric-sql")
 ```
 
-User Data Function invocation has a separate opt-in live fixture because the
+User Data Function invocation has a separate pre-published live fixture because the
 current User Data Function item-management API supports delegated users but not
 the service principal that provisions the disposable CI workspace. Publish
 three public functions with these signatures:
@@ -243,9 +245,10 @@ run_fabric_integration_tests(filter = "integration-fabric-functions")
 ```
 
 The normal local runner supplies the Power BI token. Missing function URLs skip
-this opt-in group; the offline suite always covers disabled public access,
+this group locally and fail the dedicated required CI lane; the offline suite
+always covers disabled public access,
 service and client timeouts, oversized responses, structured user errors, and
-secret redaction.
+metadata/error redaction while preserving function output.
 
 The local runner:
 

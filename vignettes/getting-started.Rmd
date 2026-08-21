@@ -154,7 +154,7 @@ Continue with one of the following vignettes:
   reads
 - [Bring R data into Microsoft Fabric](ingesting-data.html) compares ways to
   send an R object or an existing file to Fabric
-- [Working with Fabric LakeHouses and OneLake](onelake-and-lakehouse.html)
+- [Working with Fabric Lakehouses and OneLake](onelake-and-lakehouse.html)
   explains Lakehouse files and tables in more detail
 - [Working with Livy (Spark)](spark-with-livy.html) introduces remote Spark work
   after the simpler read and write paths

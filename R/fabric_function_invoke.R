@@ -62,7 +62,8 @@
 #' client timeout allows the service timeout response to arrive. The 32 MiB
 #' client response cap leaves room for Fabric's envelope around a 30 MB output.
 #' Secret-named fields and bearer-token text are redacted recursively from
-#' returned output, errors, response metadata, and conditions.
+#' errors, response metadata, and conditions. Function `output` is domain data
+#' and is returned unchanged, even when it contains secret-like field names.
 #'
 #' @param function_url Complete public URL copied from the published function's
 #'   properties in Fabric. A discovered UserDataFunction item is not sufficient

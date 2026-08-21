@@ -277,12 +277,21 @@ function:
 | OneLake shortcut Core REST APIs | `https://api.fabric.microsoft.com/.default` |
 | Livy as a delegated user | `https://api.fabric.microsoft.com/Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and `Code.AccessStorage.All` |
 | Livy as a service principal | `https://analysis.windows.net/powerbi/api/.default` |
+| User data functions as a delegated user | `https://analysis.windows.net/powerbi/api/UserDataFunction.Execute.All` |
+| User data functions as a service principal | `https://analysis.windows.net/powerbi/api/.default` |
 | OneLake files and Delta tables | `https://storage.azure.com/.default` |
 | SQL connections | `https://database.windows.net/.default` |
 | DAX / Power BI Execute Queries | `https://analysis.windows.net/powerbi/api/.default` |
 | KQL | `https://api.kusto.windows.net/.default` |
 | GraphQL as a delegated user | `https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All` |
 | GraphQL as a service principal | `https://api.fabric.microsoft.com/.default` |
+
+Microsoft's current Livy batch documentation is internally inconsistent: it
+includes a service-principal walkthrough while also warning that batch jobs do
+not support service principals. fabricQueryR retains the documented
+client-credential audience, but production batch automation should be verified
+in the target tenant and delegated authentication remains the conservative
+baseline.
 
 For a GraphQL service principal acquired by the package, the Fabric API
 audience is selected automatically:

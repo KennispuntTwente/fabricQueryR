@@ -6,6 +6,9 @@
 \format{
 An \link[R6:R6Class]{R6::R6Class} generator
 }
+\value{
+The \code{FabricLivyStatement} R6 generator.
+}
 \description{
 Represents one piece of code submitted to a \link{FabricLivySession}. Call
 \verb{$wait()} and then \verb{$result()} to retrieve its output. For the usual

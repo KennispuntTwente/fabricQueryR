@@ -243,6 +243,7 @@ fabric_livy_session <- function(
 #' @field repl_id Isolated REPL ID for HC sessions
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
+#' @return The `FabricLivySession` R6 generator.
 #' @examples
 #' \dontrun{
 #' # fabric_livy_session() creates this class for a discovered Lakehouse
@@ -663,6 +664,7 @@ FabricLivySession <- R6::R6Class(
 #' @field completed_local Local completion timestamp
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
+#' @return The `FabricLivyStatement` R6 generator.
 #' @examples
 #' \dontrun{
 #' # Statements are returned by a session; users do not construct them directly

@@ -254,6 +254,7 @@ fabric_livy_batch_submit <- function(
 #' @field completed_local Local completion timestamp
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
+#' @return The `FabricLivyBatch` R6 generator.
 #' @examples
 #' \dontrun{
 #' # fabric_livy_batch_submit() returns this class for a submitted Spark job

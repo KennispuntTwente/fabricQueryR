@@ -1,8 +1,8 @@
 ---
-title: "Working with Fabric WareHouses"
+title: "Working with Fabric Warehouses"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Working with Fabric WareHouses}
+  %\VignetteIndexEntry{Working with Fabric Warehouses}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

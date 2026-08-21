@@ -16,6 +16,7 @@ playground/*
 ^\.fabric-test-manifest\.json$
 ^fabricQueryR\.Rcheck$
 ^\.pytest_cache$
+^\.ruff_cache$
 ^\.Rhistory$
 ^\.vscode$
 ^check$
