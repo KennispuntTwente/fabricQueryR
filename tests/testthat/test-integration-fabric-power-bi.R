@@ -64,6 +64,28 @@ test_that("semantic-model refresh completes with history and execution details",
   expect_identical(as.numeric(rows[["[row_count]"]]), 3)
 })
 
+test_that("service-principal standard refresh omits email notification", {
+  manifest <- fabric_test_manifest()
+  semantic_model <- fabric_test_manifest_item(
+    manifest,
+    "TestArrowSemanticModel"
+  )
+
+  refresh <- fabric_pbi_refresh(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    token = fabric_test_token_provider()
+  )
+  completed <- fabric_pbi_refresh_wait(
+    refresh,
+    poll_interval = 2,
+    timeout = 600
+  )
+
+  expect_identical(refresh$mode, "standard")
+  expect_true(completed$state %in% c("Completed", "CompletedWithWarnings"))
+})
+
 test_that("an enhanced semantic-model refresh can be cancelled", {
   manifest <- fabric_test_manifest()
   semantic_model <- fabric_test_manifest_item(

@@ -55,9 +55,11 @@ test_that("standard refresh submission returns a reusable handle", {
   expect_s3_class(call$credential, "fabric_credential")
 })
 
-test_that("delegated standard refresh has a valid default request body", {
+test_that("standard refresh defaults follow the known authentication flow", {
   payloads <- list()
+  credential <- fabric_credential(token = "test-token")
   local_mocked_bindings(
+    fabric_credential = function(...) credential,
     .pbi_refresh_request = function(
       method,
       url,
@@ -78,18 +80,26 @@ test_that("delegated standard refresh has a valid default request body", {
 
   fabric_pbi_refresh(
     pbi_refresh_test_model(),
-    token = "delegated-token",
+    tenant_id = "tenant-id",
+    client_id = "client-id",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
   fabric_pbi_refresh(
     pbi_refresh_test_model(),
-    notify_option = NULL,
-    token = "application-token",
+    tenant_id = "tenant-id",
+    client_id = "client-id",
+    auth_args = list(auth_type = "client_credentials", password = "secret"),
+    api_base = "https://powerbi.test/v1.0/myorg"
+  )
+  fabric_pbi_refresh(
+    pbi_refresh_test_model(),
+    token = "opaque-token",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
 
   expect_equal(payloads[[1L]], list(notifyOption = "MailOnFailure"))
   expect_length(payloads[[2L]], 0L)
+  expect_length(payloads[[3L]], 0L)
 })
 
 test_that("enhanced refresh builds documented processing controls", {

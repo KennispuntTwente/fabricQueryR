@@ -71,6 +71,11 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_pbi_refresh()` now omits `notifyOption` by default for
+service-principal client credentials and caller-supplied tokens, matching the
+Power BI refresh contract. Package-acquired delegated refreshes retain the
+`MailOnFailure` default.
+
 * `fabric_job_schedules()` and the schedule create, update, and delete helpers
 now infer the documented `Execute` job type for Data Pipelines, Dataflows, and
 Data Build Tool Jobs instead of relying on legacy or generic job-type values.
