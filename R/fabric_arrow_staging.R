@@ -197,6 +197,8 @@
   paths <- character()
   rows_per_file <- numeric()
   bytes_per_file <- numeric()
+  raw_bytes_per_file <- numeric()
+  current_raw_bytes <- 0
   complete <- FALSE
   on.exit(
     {
@@ -246,6 +248,7 @@
           properties
         )
         current_rows <<- 0
+        current_raw_bytes <<- 0
       }
       close_file <- function() {
         writer$Close()
@@ -264,8 +267,10 @@
         paths <<- c(paths, current_path)
         rows_per_file <<- c(rows_per_file, current_rows)
         bytes_per_file <<- c(bytes_per_file, as.numeric(bytes))
+        raw_bytes_per_file <<- c(raw_bytes_per_file, current_raw_bytes)
         current_path <<- NULL
         current_rows <<- 0
+        current_raw_bytes <<- 0
       }
 
       total_rows <- 0
@@ -304,7 +309,17 @@
           }
           piece <- batch$Slice(as.numeric(offset), as.numeric(take))
           writer$WriteBatch(piece, chunk_size = as.integer(take))
+          piece_bytes <- as.numeric(piece$nbytes())
+          if (
+            length(piece_bytes) != 1L ||
+              is.na(piece_bytes) ||
+              !is.finite(piece_bytes) ||
+              piece_bytes < 0
+          ) {
+            .fabric_abort("Arrow returned an invalid record-batch byte size")
+          }
           current_rows <- current_rows + take
+          current_raw_bytes <- current_raw_bytes + piece_bytes
           total_rows <- total_rows + take
           offset <- offset + take
           current_size <- as.numeric(output$tell())
@@ -329,6 +344,8 @@
         rows_per_file = rows_per_file,
         bytes = bytes_per_file,
         total_bytes = sum(bytes_per_file),
+        raw_bytes = raw_bytes_per_file,
+        total_raw_bytes = sum(raw_bytes_per_file),
         file_count = length(paths),
         names = prepared$names
       )

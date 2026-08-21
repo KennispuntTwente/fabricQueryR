@@ -1685,6 +1685,11 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' same logical write. Use normal batching, stage one file, or omit the
 #' idempotency key.
 #'
+#' The service's advertised `maxDataSize` applies to uncompressed data. The
+#' writer measures Arrow buffer bytes for every staged part, validates their
+#' total before upload, and submits each value as the source `rawSize`. The
+#' compressed Parquet file sizes remain available separately in the result.
+#'
 #' Set `create_if_missing = TRUE` to issue Kusto's idempotent `.create table`
 #' command before staging. A missing table is created from the Arrow schema; an
 #' existing table is returned unchanged, so this option never alters an
@@ -1759,7 +1764,8 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param auth_args Additional options passed to [AzureAuth::get_azure_token()].
 #' @param .sleep,.now Internal deterministic polling hooks.
 #'
-#' @return A `fabric_kql_write_result` containing row/byte/file counts,
+#' @return A `fabric_kql_write_result` containing row/file counts, compressed
+#'   Parquet `bytes`/`part_bytes`, uncompressed `raw_bytes`/`part_raw_bytes`,
 #'   normalized ingestion status, tracking handle, source IDs, and staging
 #'   disposition.
 #' @references
@@ -2020,17 +2026,19 @@ fabric_kql_write_table <- function(
     caller = "fabric_kql_write_table()",
     error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
   )
-  if (serialized$total_bytes > configuration$max_data_size) {
+  if (serialized$total_raw_bytes > configuration$max_data_size) {
     .fabric_abort(
       paste0(
-        "The staged Parquet payload is ",
-        format(serialized$total_bytes, scientific = FALSE, trim = TRUE),
-        " bytes, exceeding Kusto's advertised maxDataSize of ",
+        "The staged data is ",
+        format(serialized$total_raw_bytes, scientific = FALSE, trim = TRUE),
+        " uncompressed bytes, exceeding Kusto's advertised maxDataSize of ",
         format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
         " bytes"
       ),
       class = c("fabric_kql_size_error", "fabric_kql_write_error"),
-      bytes = serialized$total_bytes,
+      bytes = serialized$total_raw_bytes,
+      raw_bytes = serialized$total_raw_bytes,
+      staged_bytes = serialized$total_bytes,
       max_data_size = configuration$max_data_size
     )
   }
@@ -2144,7 +2152,7 @@ fabric_kql_write_table <- function(
       database = database,
       format = "parquet",
       source_ids = source_ids,
-      raw_sizes = NULL,
+      raw_sizes = serialized$raw_bytes,
       mapping = mapping,
       tags = tags,
       ingest_if_not_exists = ingest_if_not_exists,
@@ -2907,6 +2915,8 @@ kusto_write_result <- function(
       rows = serialized$rows,
       bytes = serialized$total_bytes,
       part_bytes = serialized$bytes,
+      raw_bytes = serialized$total_raw_bytes,
+      part_raw_bytes = serialized$raw_bytes,
       file_count = serialized$file_count,
       columns = serialized$names,
       source_id = source_ids[[1L]],
