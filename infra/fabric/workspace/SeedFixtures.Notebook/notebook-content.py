@@ -118,6 +118,18 @@ try:
         .saveAsTable("dbo.fabricqueryr_basic")
     )
 
+    stage = "write non-default-schema Delta table"
+    spark.sql("CREATE SCHEMA IF NOT EXISTS fabricqueryr_alt")
+    (
+        fixture.withColumn(
+            "loaded_at", F.lit("2026-01-01T00:00:00Z").cast("timestamp")
+        )
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", True)
+        .saveAsTable("fabricqueryr_alt.fabricqueryr_basic")
+    )
+
     stage = "write schema-disabled Lakehouse Delta table"
     (
         fixture.withColumn(

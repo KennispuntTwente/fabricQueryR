@@ -145,7 +145,7 @@ test_that("Lakehouse reader resolves discovered item and table records", {
   expect_identical(captured$table_path, "orders")
   expect_identical(captured$workspace_name, item$workspaceId)
   expect_identical(captured$lakehouse_name, item)
-  expect_identical(captured$schema, "sales")
+  expect_identical(captured$schema, "curated")
   expect_identical(captured$item_type, "Lakehouse")
   expect_identical(captured$columns, "id")
   expect_identical(captured$limit, 1)
@@ -154,6 +154,14 @@ test_that("Lakehouse reader resolves discovered item and table records", {
   expect_false(captured$verbose)
   expect_identical(captured$token, "storage-token")
   expect_null(captured$dfs_base)
+
+  fabric_lakehouse_read_table(
+    item,
+    table,
+    schema = "explicit",
+    token = "storage-token"
+  )
+  expect_identical(captured$schema, "explicit")
 })
 
 test_that("Lakehouse reader accepts names and explicit schema", {

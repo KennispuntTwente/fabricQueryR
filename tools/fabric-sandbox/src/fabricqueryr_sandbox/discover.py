@@ -28,6 +28,7 @@ from .sql_api import SQL_FIXTURE_TABLE, SQL_FIXTURE_VIEW, SQL_MUTATION_TABLE
 ONELAKE_LAKEHOUSE_TABLES = {
     "runtime": "fabricqueryr_runtime",
     "basic": "fabricqueryr_basic",
+    "non_default_basic": "fabricqueryr_basic",
     "empty": "fabricqueryr_empty",
     "void": "fabricqueryr_void",
     "partitioned": "fabricqueryr_partitioned",

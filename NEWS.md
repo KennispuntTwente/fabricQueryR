@@ -86,6 +86,9 @@ retaining or returning service data.
 * `fabric_kql_tables()` now reports the requested database display name even
 when Fabric's table metadata identifies the database by its internal ID.
 
+* `fabric_lakehouse_read_table()` now prefers a discovered table row's schema
+over the Lakehouse default schema while still honoring an explicit `schema`.
+
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
 snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and
