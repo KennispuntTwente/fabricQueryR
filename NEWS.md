@@ -107,6 +107,10 @@ carefully and give clearer retry, timeout, and error messages.
 workload-scoped operations that expose completion only in their state payload.
 Save the complete service `Location` when resuming a scoped operation later.
 
+* `fabric_onelake_shortcut_*()` now reject `%`, `+`, and non-ASCII characters
+in shortcut names, parent paths, and OneLake target paths, matching current
+OneLake limitations.
+
 * `fabric_kql_export()` now applies its OneLake `Files/` safety boundary to
 complete destination URLs even when they contain authentication suffixes or
 query credentials.

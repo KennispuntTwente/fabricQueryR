@@ -34,6 +34,10 @@
 #'   `TRUE`. Deleting a shortcut does not delete its destination data.
 #' @inheritParams fabric_workspaces
 #'
+#' @details
+#' Shortcut names, parent paths, and OneLake target paths follow Fabric's
+#' current shortcut limits: `%`, `+`, and non-ASCII characters are rejected.
+#'
 #' @return `fabric_onelake_shortcuts()` returns a tibble with one row per
 #'   shortcut. `fabric_onelake_shortcut_get()` and
 #'   `fabric_onelake_shortcut_create()` return the same one-row shape.
@@ -648,6 +652,8 @@ fabric_onelake_shortcut_delete <- function(
       value %in% c(".", "..") ||
       nchar(value) > 255L ||
       grepl('["\\\\/:|<>*?[:cntrl:]]', value) ||
+      grepl("[%+]", value) ||
+      grepl("[^\\x20-\\x7E]", value, perl = TRUE) ||
       grepl("[. ]$", value) ||
       invalid_device
   ) {

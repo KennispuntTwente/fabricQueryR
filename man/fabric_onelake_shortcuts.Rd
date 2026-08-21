@@ -137,6 +137,9 @@ raw target list supports connection-backed shortcut types already configured
 in Fabric without copying data into R.
 }
 \details{
+Shortcut names, parent paths, and OneLake target paths follow Fabric's
+current shortcut limits: \verb{\%}, \code{+}, and non-ASCII characters are rejected.
+
 Listing follows Fabric continuation links and tokens until every shortcut
 below \code{parent_path} is returned. Unknown target details and transform fields
 are preserved in list columns for forward compatibility.

@@ -63,8 +63,8 @@ test_that("shortcut get encodes path components and returns one row", {
     request_url <<- req$url
     shortcut_test_response(
       shortcut_test_onelake_record(
-        path = "Files/équipe data",
-        name = "résumé 2026"
+        path = "Files/team data",
+        name = "resume 2026"
       ),
       url = req$url
     )
@@ -72,16 +72,16 @@ test_that("shortcut get encodes path components and returns one row", {
 
   result <- fabric_onelake_shortcut_get(
     shortcut_test_item(),
-    path = "Files/équipe data",
-    name = "résumé 2026",
+    path = "Files/team data",
+    name = "resume 2026",
     token = "test-token"
   )
 
   expect_equal(nrow(result), 1L)
-  expect_equal(result$name, "résumé 2026")
+  expect_equal(result$name, "resume 2026")
   expect_match(
     request_url,
-    "Files/%C3%A9quipe%20data/r%C3%A9sum%C3%A9%202026",
+    "Files/team%20data/resume%202026",
     fixed = TRUE
   )
 })
@@ -299,6 +299,23 @@ test_that("shortcut validation stops unsafe requests locally", {
   expect_error(invoke(path = "Other/shared"), "begin with Files or Tables")
   expect_error(invoke(name = "bad/name"), "invalid path component")
   expect_error(invoke(name = "NUL"), "invalid path component")
+  for (name in c("percent%name", "plus+name", "résumé")) {
+    expect_error(invoke(name = name), "invalid path component", fixed = TRUE)
+  }
+  for (path in c("Files/percent%path", "Files/plus+path", "Files/équipe")) {
+    expect_error(invoke(path = path), "invalid path component", fixed = TRUE)
+  }
+  for (target_path in c(
+    "Tables/percent%path",
+    "Tables/plus+path",
+    "Tables/équipe"
+  )) {
+    expect_error(
+      invoke(target_path = target_path),
+      "invalid path component",
+      fixed = TRUE
+    )
+  }
   expect_error(invoke(conflict_policy = "replace"), "must be one of")
   expect_error(
     invoke(target_path = NULL),
