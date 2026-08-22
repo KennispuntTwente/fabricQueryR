@@ -951,7 +951,12 @@ test_that("typed convenience helpers forward their workload types", {
     vapply(calls, `[[`, character(1), "type"),
     unname(unlist(helpers))
   )
-  expect_true(all(vapply(calls, `[[`, logical(1), "detail")))
+  expected_detail <- !unname(unlist(helpers)) %in%
+    c("SemanticModel", "GraphQLApi")
+  expect_identical(
+    vapply(calls, `[[`, logical(1), "detail"),
+    expected_detail
+  )
   expect_true(all(
     vapply(calls, `[[`, character(1), "workspace") == "Workspace"
   ))
@@ -966,6 +971,51 @@ test_that("typed convenience helpers forward their workload types", {
   expect_false(calls[[length(calls)]]$forwarded$recursive)
   expect_identical(calls[[length(calls)]]$forwarded$detail_errors, "abort")
   expect_identical(calls[[length(calls)]]$forwarded$token, "token")
+})
+
+test_that("Semantic Model and GraphQL defaults avoid detail requests", {
+  collection_calls <- character()
+  detail_calls <- 0L
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = "11111111-1111-4111-8111-111111111111",
+        displayName = "Data & AI",
+        raw = list(type = "Workspace")
+      )
+    },
+    .httr2_collection = function(url, ...) {
+      collection_calls <<- c(collection_calls, url)
+      if (grepl("type=SemanticModel", url, fixed = TRUE)) {
+        return(list(list(
+          id = "22222222-2222-4222-8222-222222222222",
+          displayName = "Sales",
+          type = "SemanticModel"
+        )))
+      }
+      list(list(
+        id = "33333333-3333-4333-8333-333333333333",
+        displayName = "Products API",
+        type = "GraphQLApi"
+      ))
+    },
+    .httr2_json = function(...) {
+      detail_calls <<- detail_calls + 1L
+      rlang::abort("unexpected detail request")
+    }
+  )
+
+  models <- fabric_semantic_models("Workspace", token = "token")
+  apis <- fabric_graphql_apis("Workspace", token = "token")
+
+  expect_length(collection_calls, 2L)
+  expect_identical(detail_calls, 0L)
+  expect_match(models[[1L]]$dax_connection_string, "Data%20%26%20AI")
+  expect_match(
+    apis[[1L]]$graphql_endpoint,
+    paste0("/graphqlapis/", apis[[1L]]$id, "/graphql$"),
+    perl = TRUE
+  )
 })
 
 test_that("typed helpers strictly filter records and preserve future fields", {

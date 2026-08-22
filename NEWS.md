@@ -79,6 +79,11 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_semantic_models()` and `fabric_graphql_apis()` now default to
+lightweight discovery. Their DAX and GraphQL targets are derived from list-level
+metadata, avoiding one extra workload GET per item and the associated permission
+requirement; use `detail = TRUE` to request workload-specific properties.
+
 * `fabric_job_schedule_*()` functions now default Dataflow schedules to
 `"Execute"`; use `job_type = "ApplyChanges"` for an explicit publish schedule.
 

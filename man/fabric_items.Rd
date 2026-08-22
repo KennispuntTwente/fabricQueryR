@@ -33,7 +33,9 @@ Fabric, so use the API spelling. Leave \code{NULL} to list all item types}
 
 \item{detail}{Whether to retrieve connection details as well as names and
 IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers use \code{TRUE} by default}
+typed discovery helpers generally use \code{TRUE}; Semantic Model and GraphQL
+helpers default to lightweight records because their query targets can be
+derived without workload detail requests}
 
 \item{detail_errors}{What to do if some connection details cannot be read
 \code{"record"} returns the available information and stores an error message

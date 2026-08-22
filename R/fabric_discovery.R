@@ -142,7 +142,9 @@ fabric_workspaces <- function(
 #'   Fabric, so use the API spelling. Leave `NULL` to list all item types
 #' @param detail Whether to retrieve connection details as well as names and
 #'   IDs. This takes more requests and may require additional permissions. The
-#'   typed discovery helpers use `TRUE` by default
+#'   typed discovery helpers generally use `TRUE`; Semantic Model and GraphQL
+#'   helpers default to lightweight records because their query targets can be
+#'   derived without workload detail requests
 #' @param detail_errors What to do if some connection details cannot be read
 #'   `"record"` returns the available information and stores an error message
 #'   with the affected item; `"abort"` stops the call
@@ -510,10 +512,12 @@ fabric_item <- function(
 
 #' Typed Microsoft Fabric item discovery
 #'
-#' These shortcuts find one kind of Fabric item. By default, they also retrieve
-#' the connection details needed by the matching query functions, so their
-#' results can usually be passed straight to the next 'fabricQueryR' call. Set
-#' `detail = FALSE` when you only need names and IDs
+#' These shortcuts find one kind of Fabric item. Most also retrieve workload
+#' connection details by default, so their results can usually be passed
+#' straight to the next 'fabricQueryR' call. Semantic Model and GraphQL helpers
+#' default to lightweight discovery because their executable targets are
+#' derived from list-level IDs and workspace fields; set `detail = TRUE` when
+#' their workload-specific properties are needed
 #'
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`,
@@ -634,7 +638,7 @@ fabric_sql_databases <- function(workspace, detail = TRUE, ...) {
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_semantic_models <- function(workspace, detail = TRUE, ...) {
+fabric_semantic_models <- function(workspace, detail = FALSE, ...) {
   fabric_typed_item_list(workspace, "SemanticModel", detail, ...)
 }
 
@@ -682,7 +686,7 @@ fabric_user_data_functions <- function(workspace, detail = TRUE, ...) {
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_graphql_apis <- function(workspace, detail = TRUE, ...) {
+fabric_graphql_apis <- function(workspace, detail = FALSE, ...) {
   fabric_typed_item_list(workspace, "GraphQLApi", detail, ...)
 }
 

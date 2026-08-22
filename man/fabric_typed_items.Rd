@@ -28,7 +28,7 @@ fabric_mirrored_databases(workspace, detail = TRUE, ...)
 
 fabric_sql_databases(workspace, detail = TRUE, ...)
 
-fabric_semantic_models(workspace, detail = TRUE, ...)
+fabric_semantic_models(workspace, detail = FALSE, ...)
 
 fabric_eventhouses(workspace, detail = TRUE, ...)
 
@@ -44,7 +44,7 @@ fabric_environments(workspace, detail = TRUE, ...)
 
 fabric_user_data_functions(workspace, detail = TRUE, ...)
 
-fabric_graphql_apis(workspace, detail = TRUE, ...)
+fabric_graphql_apis(workspace, detail = FALSE, ...)
 }
 \arguments{
 \item{workspace}{Workspace name, ID, or record returned by
@@ -53,7 +53,9 @@ avoids an extra lookup}
 
 \item{detail}{Whether to retrieve connection details as well as names and
 IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers use \code{TRUE} by default}
+typed discovery helpers generally use \code{TRUE}; Semantic Model and GraphQL
+helpers default to lightweight records because their query targets can be
+derived without workload detail requests}
 
 \item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}
 Do not supply \code{type}; each helper sets that value}
@@ -64,10 +66,12 @@ contains common item metadata and applicable connection fields. See
 \code{\link[=fabric_items]{fabric_items()}} for details
 }
 \description{
-These shortcuts find one kind of Fabric item. By default, they also retrieve
-the connection details needed by the matching query functions, so their
-results can usually be passed straight to the next 'fabricQueryR' call. Set
-\code{detail = FALSE} when you only need names and IDs
+These shortcuts find one kind of Fabric item. Most also retrieve workload
+connection details by default, so their results can usually be passed
+straight to the next 'fabricQueryR' call. Semantic Model and GraphQL helpers
+default to lightweight discovery because their executable targets are
+derived from list-level IDs and workspace fields; set \code{detail = TRUE} when
+their workload-specific properties are needed
 }
 \section{Choosing a helper}{
 
