@@ -78,9 +78,6 @@ token, or a function that supplies refreshed tokens through `token`;
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
-* `fabric_kql_query()` now decodes numeric JSON values independently of R's
-`OutDec` display option.
-
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
 snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and
@@ -94,10 +91,6 @@ default `database = NULL` infers the database when possible;
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
 provides typed tibbles or streams for models that support it.
-
-* `fabric_pbi_refresh()` now sends an explicit zero-length body when a standard
-service-principal refresh has no notification option, avoiding HTTP 411
-responses from Power BI.
 
 * `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
 and compatible Warehouse tables through an optional Python Delta reader. It
