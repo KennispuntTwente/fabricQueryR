@@ -156,6 +156,42 @@ test_that("AzureAuth caches multi-scope delegated tokens", {
   )
 })
 
+test_that("AzureAuth audience cache keys cannot collide", {
+  resources <- list()
+  local_mocked_bindings(
+    get_azure_token = function(resource, ...) {
+      resources[[length(resources) + 1L]] <<- resource
+      fake_azure_token(paste0("audience-token-", length(resources)))
+    },
+    .package = "AzureAuth"
+  )
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(auth_type = "device_code")
+  )
+  audiences <- list(
+    "https://example.test/a-b",
+    "https://example.test/a_b",
+    c("scope:a", "scope:b|scope:c"),
+    c("scope:a|scope:b", "scope:c")
+  )
+
+  tokens <- vapply(
+    audiences,
+    function(audience) fabric_get_token(credential, audience),
+    character(1)
+  )
+
+  expect_identical(tokens, paste0("audience-token-", seq_along(audiences)))
+  expect_length(resources, length(audiences))
+  expect_identical(
+    fabric_get_token(credential, audiences[[1L]]),
+    "audience-token-1"
+  )
+  expect_length(resources, length(audiences))
+})
+
 test_that("authentication inputs are validated consistently", {
   expect_error(
     fabric_credential(token = list(value = "not-a-token")),

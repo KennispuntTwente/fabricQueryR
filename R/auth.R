@@ -142,11 +142,7 @@ fabric_credential <- function(
   cache <- new.env(parent = emptyenv())
   # Acquire or refresh a token for `audience`; returns one bearer-token string
   provider <- function(audience, force_refresh = FALSE) {
-    key <- gsub(
-      "[^A-Za-z0-9]",
-      "_",
-      paste(audience, collapse = "|")
-    )
+    key <- .fabric_audience_cache_key(audience)
     azure_token <- cache[[key]]
     if (is.null(azure_token)) {
       args <- c(
@@ -172,6 +168,13 @@ fabric_credential <- function(
     list(provider = provider, refreshable = TRUE, type = "AzureAuth"),
     class = "fabric_credential"
   )
+}
+
+# Serialize an audience vector into a collision-free environment key
+# Returns a portable ASCII key while preserving punctuation and vector bounds
+.fabric_audience_cache_key <- function(audience) {
+  bytes <- serialize(enc2utf8(audience), NULL, version = 2)
+  paste(sprintf("%02x", as.integer(bytes)), collapse = "")
 }
 
 #' Consume the legacy static-token argument from dots
