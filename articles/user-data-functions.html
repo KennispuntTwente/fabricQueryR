@@ -60,40 +60,31 @@
 
     
     
-<p>A Fabric user data function is similar to calling a function in
-another R package, except its Python code runs in Fabric. R sends named
-inputs to a secure web address and receives a structured result.</p>
-<p>fabricQueryR invokes functions that are already defined, published,
-and enabled for public access. It does not create or deploy the
-function. This guide starts with one small scalar call before
-introducing nested inputs, retries, and security limits.</p>
+<p>A Fabric <em>user data function</em> is a reusable piece of Python
+code that runs in Microsoft Fabric. It can accept inputs, perform a
+task, and return a result. Fabric hosts and runs the Python code.</p>
+<p>With fabricQueryR, you can invoke these functions from R. R then
+sends named inputs to the function’s secure web address, Fabric runs the
+function, and R receives a structured response. This vignette show a
+simple example.</p>
 <div class="section level2">
 <h2 id="prepare-the-function-in-fabric">Prepare the function in Fabric<a class="anchor" aria-label="anchor" href="#prepare-the-function-in-fabric"></a>
 </h2>
 <p>In the Fabric portal, publish the user data functions item, switch to
-<strong>Run only</strong> mode, open the function’s properties, enable
-<strong>Public access</strong>, and copy the <strong>Public
-URL</strong>. Each function has its own URL. Although
-<code><a href="../reference/fabric_typed_items.html">fabric_user_data_functions()</a></code> discovers the containing item,
-Microsoft’s item response does not expose enough information to derive
-each public URL safely.</p>
-<p>Store the copied URL in configuration rather than source code:</p>
+<em>Run only</em> mode, open the function’s properties, enable
+<em>Public access</em>, and copy the <em>Public URL</em>. Each function
+has its own URL. Although <code><a href="../reference/fabric_typed_items.html">fabric_user_data_functions()</a></code>
+discovers the containing item, Microsoft’s item response does not expose
+enough information to derive each public URL.</p>
+<p>You could store the URL in an environment variable (rather than
+hardcoding it):</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">function_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span></span></code></pre></div>
-<p>The caller needs Execute permission on the item. Interactive app
-registrations need the Power BI delegated permission
+<p>The function caller needs Execute permission on the item. Interactive
+app registrations need the Power BI delegated permission
 <code>UserDataFunction.Execute.All</code> or
 <code>Item.Execute.All</code>. Application credentials require the
-relevant service-principal tenant setting and item access. fabricQueryR
-chooses the narrow delegated scope for interactive authentication and
-the Power BI <code>.default</code> audience for client credentials; use
-<code>audience</code> only for a custom identity provider.</p>
-<p>The caller identity for the public endpoint and the connections used
-inside the function are separate concerns. Microsoft currently does not
-support using a service principal through UDF-managed connections to
-access Fabric items or data sources. An application can therefore be
-allowed to invoke a function whose own managed data connection remains
-unsupported for that identity.</p>
+relevant service-principal tenant setting and item access.</p>
 </div>
 <div class="section level2">
 <h2 id="make-a-first-call">Make a first call<a class="anchor" aria-label="anchor" href="#make-a-first-call"></a>
@@ -112,10 +103,6 @@ inputs:</p>
 <span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">output</span></span></code></pre></div>
-<p><code>Succeeded</code> means the function completed. The output shape
-is defined by the published function, so inspect
-<code>result$output</code> before building downstream R code around
-it.</p>
 </div>
 <div class="section level2">
 <h2 id="send-structured-parameters">Send structured parameters<a class="anchor" aria-label="anchor" href="#send-structured-parameters"></a>
@@ -137,7 +124,7 @@ value in <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">
 Named atomic vectors and data frames are also accepted as top-level
 parameter objects; a named list gives the clearest control over nested
 JSON shapes.</p>
-<p>The result is deliberately inspectable:</p>
+<p>The result is a list which can be inspected:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">structured_result</span><span class="op">$</span><span class="va">function_name</span></span>
 <span><span class="va">structured_result</span><span class="op">$</span><span class="va">invocation_id</span></span>
@@ -150,17 +137,7 @@ JSON shapes.</p>
 <code>ResponseTooLarge</code>. A valid invocation envelope is returned
 even when the corresponding HTTP response is 400, 403, 408, 409, 422, or
 500. This keeps a handled <code>UserThrownError</code>, its message, and
-its <code>properties</code> available to the R application.
-Authentication, item authorization, throttling, malformed JSON, and
-non-function service responses still raise typed package errors.</p>
-<p>The invocation tutorial describes an error <code>name</code>; current
-live responses can instead provide <code>errorCode</code>.
-<code>result$errors</code> adds <code>name</code> as an alias when only
-<code>errorCode</code> is present, while <code>result$response</code>
-retains the original service shape.</p>
-<p>Unknown response fields and future status values remain in
-<code>result$response</code>. Integers outside R’s exact double range
-are preserved as character values.</p>
+its <code>properties</code> available.</p>
 </div>
 <div class="section level2">
 <h2 id="retry-only-safe-functions">Retry only safe functions<a class="anchor" aria-label="anchor" href="#retry-only-safe-functions"></a>
@@ -175,35 +152,22 @@ implements its own durable idempotency key, opt in explicitly:</p>
 <span>  idempotent <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Opted-in calls use bounded retries for transport failures,
-throttling, and transient HTTP responses. <code>idempotent = TRUE</code>
-is a promise made by the caller; fabricQueryR cannot infer whether
-repeating arbitrary Python code is safe.</p>
+throttling, and transient HTTP responses.</p>
 </div>
 <div class="section level2">
-<h2 id="trust-boundary-limits-and-redaction">Trust boundary, limits, and redaction<a class="anchor" aria-label="anchor" href="#trust-boundary-limits-and-redaction"></a>
+<h2 id="limits">Limits<a class="anchor" aria-label="anchor" href="#limits"></a>
 </h2>
-<p>Bearer tokens are sent to the exact <code>function_url</code>
-supplied by the caller after the URL passes structural validation.
-Supplying that URL is the explicit trust decision, so verify custom
-origins independently. URLs must use HTTPS and the documented
-<code>/v1/workspaces/.../userDataFunctions/.../functions/.../invoke</code>
-route. Embedded credentials, query strings, fragments, and nonstandard
-ports are rejected.</p>
-<p>Microsoft currently limits the combined request parameters to 4 MB,
-execution through a public endpoint to 100 seconds, and the function
-return value to 30 MB. fabricQueryR rejects oversized requests before
-authentication, waits up to 110 seconds by default so Fabric can return
-its own timeout envelope, and caps the complete response at 32 MiB to
-leave room around a valid 30 MB output.</p>
-<p>Returned values and errors can otherwise become logs or persisted
-objects. fabricQueryR redacts secret-named fields such as
-<code>token</code>, <code>authorization</code>, <code>password</code>,
-and <code>apiKey</code>, as well as bearer-token text, from errors,
-response metadata, and attached conditions. Function <code>output</code>
-is returned unchanged because those names can be legitimate domain data.
-Treat output as untrusted application data and do not use a user data
-function as a secret-delivery mechanism.</p>
-<p>For the current service contract, see Microsoft’s <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">external
+<p>Microsoft Fabric currently limits the combined request parameters to
+4 MB, execution through a public endpoint to 100 seconds, and the
+function return value to 30 MB. fabricQueryR rejects oversized requests
+before authentication, waits up to 110 seconds by default so Fabric can
+return its own timeout envelope, and caps the complete response at 32
+MiB to leave room around a valid 30 MB output.</p>
+</div>
+<div class="section level2">
+<h2 id="more-information">More information<a class="anchor" aria-label="anchor" href="#more-information"></a>
+</h2>
+<p>See Microsoft’s <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app" class="external-link">external
 invocation tutorial</a>, <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/python-programming-model" class="external-link">programming
 model</a>, and <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-service-limits" class="external-link">service
 limits</a>.</p>
