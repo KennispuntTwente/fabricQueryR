@@ -12,7 +12,7 @@ articles:
       - reading-data
       - ingesting-data
       - onelake-and-lakehouse
-      - warehouse-write
+      - warehouse
       - eventhouse-ingestion
       - semantic-model-refresh
       - graphql-schema-and-rows

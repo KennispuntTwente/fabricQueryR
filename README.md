@@ -192,7 +192,7 @@ fabric_warehouse_write_table(
 ```
 
 See
-[Working with Fabric Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html)
+[Working with Fabric Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html)
 for staging, table creation, overwrite behavior, schema matching, and large
 Arrow inputs.
 
