@@ -15,7 +15,6 @@ test_that("service-principal standard refresh uses the RequestId header", {
 
   refresh <- fabric_pbi_refresh(
     pbi_refresh_test_model(),
-    notify_option = NULL,
     token = "test-token",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
@@ -45,7 +44,7 @@ test_that("service-principal standard refresh uses the RequestId header", {
   expect_length(submission$req$body$data, 0L)
 })
 
-test_that("standard refresh defaults follow the known authentication flow", {
+test_that("standard refresh defaults are safe for opaque principals", {
   payloads <- list()
   credential <- fabric_credential(token = "test-token")
   local_mocked_bindings(
@@ -88,15 +87,21 @@ test_that("standard refresh defaults follow the known authentication flow", {
   )
   fabric_pbi_refresh(
     pbi_refresh_test_model(),
-    notify_option = NULL,
-    token = "opaque-service-principal-token",
+    token = function(...) "opaque-callback-token",
+    api_base = "https://powerbi.test/v1.0/myorg"
+  )
+  fabric_pbi_refresh(
+    pbi_refresh_test_model(),
+    notify_option = "MailOnFailure",
+    token = "delegated-token",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
 
-  expect_equal(payloads[[1L]], list(notifyOption = "MailOnFailure"))
+  expect_length(payloads[[1L]], 0L)
   expect_length(payloads[[2L]], 0L)
-  expect_equal(payloads[[3L]], list(notifyOption = "MailOnFailure"))
+  expect_length(payloads[[3L]], 0L)
   expect_length(payloads[[4L]], 0L)
+  expect_equal(payloads[[5L]], list(notifyOption = "MailOnFailure"))
 })
 
 test_that("enhanced refresh builds documented processing controls", {

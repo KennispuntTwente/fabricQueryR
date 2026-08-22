@@ -29,10 +29,9 @@
 #'   controls and requires Premium, PPU, Embedded, or Fabric capacity
 #' @param notify_option Standard-refresh email behavior for delegated calls:
 #'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
-#'   omitted, standard refresh defaults to `"MailOnFailure"` unless
-#'   'fabricQueryR' knows that it is using client credentials. For a
-#'   caller-supplied service-principal token, pass `NULL` explicitly because
-#'   its identity cannot be inferred. Omit this for enhanced refreshes
+#'   omitted, no notification option is sent, which is safe for opaque
+#'   service-principal token providers. Delegated callers can request email
+#'   explicitly. Omit this for enhanced refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
 #'   `"Calculate"`, `"DataOnly"`, `"Automatic"`, or `"Defragment"`
 #' @param commit_mode Enhanced commit behavior. `"Transactional"` preserves the
@@ -223,7 +222,6 @@ fabric_pbi_refresh <- function(
 
   # Reuse the DAX target rules so query and refresh workflows accept the same inputs
 
-  notify_option_missing <- missing(notify_option)
   mode <- match.arg(mode)
   api_base <- pbi_api_base(api_base)
   credential <- fabric_credential(
@@ -232,11 +230,6 @@ fabric_pbi_refresh <- function(
     token = token,
     auth_args = auth_args
   )
-  default_notify_option <- if (!fabric_uses_client_credentials(auth_args)) {
-    "MailOnFailure"
-  } else {
-    NULL
-  }
   target <- .pbi_refresh_target(
     connstr,
     workspace_id,
@@ -260,9 +253,7 @@ fabric_pbi_refresh <- function(
     effective_date = effective_date,
     max_parallelism = max_parallelism,
     retry_count = retry_count,
-    refresh_timeout = timeout,
-    notify_option_missing = notify_option_missing,
-    default_notify_option = default_notify_option
+    refresh_timeout = timeout
   )
   url <- .pbi_refresh_collection_url(api_base, target)
 
@@ -797,9 +788,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   effective_date,
   max_parallelism,
   retry_count,
-  refresh_timeout,
-  notify_option_missing = FALSE,
-  default_notify_option = "MailOnFailure"
+  refresh_timeout
 ) {
   mode <- match.arg(mode, c("automatic", "standard", "enhanced"))
   enhanced_values <- list(
@@ -824,10 +813,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   if (identical(mode, "enhanced") && !is.null(notify_option)) {
     .fabric_abort("notify_option cannot be used with an enhanced refresh")
   }
-  if (identical(mode, "standard") && isTRUE(notify_option_missing)) {
-    notify_option <- default_notify_option
-  }
-
   notify_option <- .pbi_refresh_choice(
     notify_option,
     "notify_option",
