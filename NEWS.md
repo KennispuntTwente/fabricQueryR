@@ -79,6 +79,9 @@ token, or a function that supplies refreshed tokens through `token`;
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
+* `fabric_kql_query()` now decodes numeric JSON values independently of R's
+`OutDec` display option.
+
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
 snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and

@@ -592,6 +592,15 @@ test_that("Kusto real specials survive numeric conversion", {
   expect_identical(values[[3L]], -Inf)
 })
 
+test_that("Kusto numeric JSON values ignore the display decimal option", {
+  withr::local_options(OutDec = ",")
+
+  expect_identical(
+    kusto_numeric_column(list(1.5, 2L, "3.5", NULL)),
+    c(1.5, 2, 3.5, NA_real_)
+  )
+})
+
 test_that("Kusto Boolean conversion rejects malformed values", {
   expect_identical(
     kusto_convert_column(list(TRUE, FALSE, NULL), "bool"),

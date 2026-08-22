@@ -1397,7 +1397,15 @@ kusto_character_column <- function(values) {
 # Convert Kusto numeric `values`, including infinity spellings. Returns a double
 # vector or raises a protocol error for invalid declared values
 kusto_numeric_column <- function(values) {
-  text <- kusto_character_column(values)
+  numeric <- vapply(
+    values,
+    function(value) is.numeric(value) && length(value) == 1L,
+    logical(1)
+  )
+  out <- rep(NA_real_, length(values))
+  out[numeric] <- vapply(values[numeric], as.double, double(1))
+  text <- rep(NA_character_, length(values))
+  text[!numeric] <- kusto_character_column(values[!numeric])
   special <- c(
     "NaN" = NaN,
     "Infinity" = Inf,
@@ -1407,7 +1415,7 @@ kusto_numeric_column <- function(values) {
     "+inf" = Inf,
     "-inf" = -Inf
   )
-  out <- suppressWarnings(as.numeric(text))
+  out[!numeric] <- suppressWarnings(as.numeric(text[!numeric]))
   matched <- match(text, names(special))
   out[!is.na(matched)] <- unname(special[matched[!is.na(matched)]])
   invalid <- !is.na(text) & is.na(out) & is.na(matched)
