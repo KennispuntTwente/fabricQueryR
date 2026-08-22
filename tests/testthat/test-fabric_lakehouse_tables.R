@@ -69,12 +69,12 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
       return(lakehouse_table_test_response(
         list(
           data = list(list(
-            name = "sales.éxport_数据",
+            name = "sales.\u00e9xport_\u6570\u636e",
             type = "External",
             format = "Delta",
             location = paste0(
               "abfss://workspace@onelake.dfs.fabric.microsoft.com/lakehouse/",
-              "Tables/sales/éxport_数据"
+              "Tables/sales/\u00e9xport_\u6570\u636e"
             ),
             future_fabric = "kept"
           )),
@@ -85,13 +85,13 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
     }
     lakehouse_table_test_response(
       list(
-        name = "éxport_数据",
+        name = "\u00e9xport_\u6570\u636e",
         schema_name = "sales",
         table_id = "table-export",
         columns = list(list(name = "id", type_name = "long")),
         storage_location = paste0(
           "https://onelake.dfs.fabric.microsoft.com/workspace/lakehouse/",
-          "Tables/sales/éxport_数据"
+          "Tables/sales/\u00e9xport_\u6570\u636e"
         ),
         future_detail = "kept"
       ),
@@ -101,13 +101,13 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
 
   table <- fabric_lakehouse_table(
     lakehouse_table_test_item(),
-    tibble::tibble(name = "éxport_数据", schema = "sales"),
+    tibble::tibble(name = "\u00e9xport_\u6570\u636e", schema = "sales"),
     token = provider
   )
 
-  expect_equal(table$name, "éxport_数据")
+  expect_equal(table$name, "\u00e9xport_\u6570\u636e")
   expect_equal(table$schema, "sales")
-  expect_equal(table$full_name, "sales.éxport_数据")
+  expect_equal(table$full_name, "sales.\u00e9xport_\u6570\u636e")
   expect_equal(table$type, "External")
   expect_equal(table$format, "Delta")
   expect_equal(table$columns[[1L]][[1L]]$name, "id")
@@ -115,7 +115,11 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
   expect_equal(table$raw[[1L]]$future_detail, "kept")
   expect_equal(table$fabric_raw[[1L]]$future_fabric, "kept")
   expect_length(calls, 2L)
-  expect_match(utils::URLdecode(calls[[2L]]), "éxport_数据", fixed = TRUE)
+  expect_match(
+    calls[[2L]],
+    "%C3%A9xport_%E6%95%B0%E6%8D%AE",
+    ignore.case = TRUE
+  )
   expect_equal(audiences, c(.fabric_audience$fabric, .fabric_audience$storage))
 })
 
@@ -261,10 +265,10 @@ test_that("Lakehouse table discovery follows schema and table pages", {
       name <- switch(
         token,
         `fabric-2` = "customers",
-        `fabric-3` = "éxport_数据",
+        `fabric-3` = "\u00e9xport_\u6570\u636e",
         "orders"
       )
-      suffix <- if (identical(name, "éxport_数据")) {
+      suffix <- if (identical(name, "\u00e9xport_\u6570\u636e")) {
         paste("sales", name, sep = "/")
       } else {
         name
@@ -272,7 +276,11 @@ test_that("Lakehouse table discovery follows schema and table pages", {
       list(
         data = list(list(
           name = name,
-          type = if (identical(name, "éxport_数据")) "External" else "Managed",
+          type = if (identical(name, "\u00e9xport_\u6570\u636e")) {
+            "External"
+          } else {
+            "Managed"
+          },
           format = "Delta",
           location = paste0(
             "abfss://workspace@onelake.dfs.fabric.microsoft.com/lakehouse/",
@@ -325,7 +333,11 @@ test_that("Lakehouse table discovery follows schema and table pages", {
           next_page_token = "table-2"
         )
       } else {
-        name <- if (identical(schema, "sales")) "éxport_数据" else "customers"
+        name <- if (identical(schema, "sales")) {
+          "\u00e9xport_\u6570\u636e"
+        } else {
+          "customers"
+        }
         list(
           tables = list(list(
             name = name,
@@ -347,9 +359,13 @@ test_that("Lakehouse table discovery follows schema and table pages", {
       } else if (grepl("customers", url, fixed = TRUE)) {
         "customers"
       } else {
-        "éxport_数据"
+        "\u00e9xport_\u6570\u636e"
       }
-      schema <- if (identical(name, "éxport_数据")) "sales" else "dbo"
+      schema <- if (identical(name, "\u00e9xport_\u6570\u636e")) {
+        "sales"
+      } else {
+        "dbo"
+      }
       list(
         name = name,
         schema_name = schema,
@@ -374,18 +390,24 @@ test_that("Lakehouse table discovery follows schema and table pages", {
   )
 
   expect_s3_class(tables, "tbl_df")
-  expect_setequal(tables$name, c("orders", "customers", "éxport_数据"))
+  expect_setequal(
+    tables$name,
+    c("orders", "customers", "\u00e9xport_\u6570\u636e")
+  )
   expect_setequal(tables$schema, c("dbo", "sales"))
   expect_setequal(
     tables$full_name,
     c(
       "dbo.orders",
       "dbo.customers",
-      "sales.éxport_数据"
+      "sales.\u00e9xport_\u6570\u636e"
     )
   )
   expect_equal(tables$type[tables$name == "orders"], "Managed")
-  expect_equal(tables$type[tables$name == "éxport_数据"], "External")
+  expect_equal(
+    tables$type[tables$name == "\u00e9xport_\u6570\u636e"],
+    "External"
+  )
   expect_equal(tables$format, rep("Delta", 3L))
   expect_s3_class(tables$created_at, "POSIXct")
   expect_equal(tables$columns[[1L]][[1L]]$type_name, "long")
@@ -610,7 +632,7 @@ test_that("Lakehouse load builds the documented CSV schema request", {
   operation <- fabric_lakehouse_load_table(
     lakehouse_table_test_item(),
     table = "orders_2026",
-    path = "Files/incoming/café-数据.csv",
+    path = "Files/incoming/caf\u00e9-\u6570\u636e.csv",
     format = "csv",
     mode = "append",
     header = FALSE,
@@ -621,7 +643,10 @@ test_that("Lakehouse load builds the documented CSV schema request", {
   expect_s3_class(operation, "fabric_operation")
   expect_null(operation$result_url)
   expect_equal(operation$schema, "dbo")
-  expect_equal(operation$source_path, "Files/incoming/café-数据.csv")
+  expect_equal(
+    operation$source_path,
+    "Files/incoming/caf\u00e9-\u6570\u636e.csv"
+  )
   expect_equal(operation$retry_after, 5)
   expect_equal(captured$method, "POST")
   expect_match(
@@ -631,7 +656,7 @@ test_that("Lakehouse load builds the documented CSV schema request", {
   expect_equal(
     captured$body$data,
     list(
-      relativePath = "Files/incoming/café-数据.csv",
+      relativePath = "Files/incoming/caf\u00e9-\u6570\u636e.csv",
       pathType = "File",
       mode = "Append",
       recursive = FALSE,
@@ -799,7 +824,7 @@ test_that("Lakehouse paths follow the Fabric relativePath grammar", {
     "Files",
     "Files/a",
     "Files/incoming/orders 2026-08.csv",
-    "Files/数据/échantillon.parquet",
+    "Files/\u6570\u636e/\u00e9chantillon.parquet",
     "Files/a-b_c."
   )
   for (path in valid) {
@@ -892,14 +917,15 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
       TRUE
     }
   )
+  unicode_name <- "caf\u00e9_\u6570\u636e"
   value <- data.frame(
     id = bit64::as.integer64(c("9007199254740993", NA)),
-    café_数据 = c("één", NA),
     amount = c(10.5, NA),
     observed_on = as.Date(c("2026-01-01", NA)),
     kind = factor(c("a", "b")),
     stringsAsFactors = FALSE
   )
+  value[[unicode_name]] <- c("\u00e9\u00e9n", NA)
 
   result <- fabric_lakehouse_write_table(
     lakehouse_table_test_item(),
@@ -921,7 +947,7 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
   )
   expect_equal(uploaded$data$kind, c("a", "b"))
   expect_equal(as.character(uploaded$data$id[[1L]]), "9007199254740993")
-  expect_true(is.na(uploaded$data$café_数据[[2L]]))
+  expect_true(is.na(uploaded$data[[unicode_name]][[2L]]))
 })
 
 test_that("Lakehouse writer loads bounded Parquet folders", {

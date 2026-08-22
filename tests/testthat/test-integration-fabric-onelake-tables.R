@@ -92,10 +92,10 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
 
   # The R workflow covers Unicode names, nulls, exact 64-bit integers, dates,
   # timestamps, overwrite, append, and confirmed staging cleanup
+  unicode_name <- "caf\u00e9_\u6570\u636e"
   first <- data.frame(
     id = 1:2,
     whole = bit64::as.integer64(c("9007199254740993", NA)),
-    café_数据 = c("één", NA),
     amount = c(10.5, NA),
     active = c(TRUE, FALSE),
     event_date = as.Date(c("2026-01-01", "2026-01-02")),
@@ -105,6 +105,7 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
     ),
     stringsAsFactors = FALSE
   )
+  first[[unicode_name]] <- c("\u00e9\u00e9n", NA)
   overwrite <- fabric_lakehouse_write_table(
     target,
     table = parquet_table,
@@ -119,13 +120,13 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   second <- data.frame(
     id = 3L,
     whole = bit64::as.integer64("9007199254740995"),
-    café_数据 = "drie",
     amount = 30,
     active = TRUE,
     event_date = as.Date("2026-01-03"),
     event_time = as.POSIXct("2026-01-03 12:45:00", tz = "UTC"),
     stringsAsFactors = FALSE
   )
+  second[[unicode_name]] <- "drie"
   append <- fabric_lakehouse_write_table(
     target,
     table = parquet_table,
@@ -157,7 +158,10 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
     as.character(delta_rows$whole),
     c("9007199254740993", NA, "9007199254740995")
   )
-  expect_equal(delta_rows$café_数据, c("één", NA, "drie"))
+  expect_equal(
+    delta_rows[[unicode_name]],
+    c("\u00e9\u00e9n", NA, "drie")
+  )
   expect_equal(delta_rows$amount, c(10.5, NA, 30))
   expect_identical(delta_rows$active, c(TRUE, FALSE, TRUE))
   expect_equal(
@@ -181,7 +185,9 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
       database = lakehouse$display_name,
       sql = paste0(
         "SELECT COUNT_BIG(*) AS row_count, ",
-        "SUM(CASE WHEN [café_数据] IS NULL THEN 1 ELSE 0 END) AS null_count, ",
+        "SUM(CASE WHEN [",
+        unicode_name,
+        "] IS NULL THEN 1 ELSE 0 END) AS null_count, ",
         "CAST(MAX(whole) AS varchar(30)) AS max_whole ",
         "FROM [",
         schema,

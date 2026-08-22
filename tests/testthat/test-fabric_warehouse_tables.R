@@ -99,7 +99,11 @@ test_that("Warehouse table discovery follows schema and table pages", {
       } else {
         "dbo"
       }
-      name <- if (identical(schema, "sales")) "éxport_数据" else "orders"
+      name <- if (identical(schema, "sales")) {
+        "\u00e9xport_\u6570\u636e"
+      } else {
+        "orders"
+      }
       list(
         tables = list(list(
           name = name,
@@ -118,12 +122,22 @@ test_that("Warehouse table discovery follows schema and table pages", {
         next_page_token = NULL
       )
     } else {
-      name <- if (grepl("éxport_数据", url, fixed = TRUE)) {
-        "éxport_数据"
+      name <- if (
+        grepl(
+          "%C3%A9xport_%E6%95%B0%E6%8D%AE",
+          req$url,
+          ignore.case = TRUE
+        )
+      ) {
+        "\u00e9xport_\u6570\u636e"
       } else {
         "orders"
       }
-      schema <- if (identical(name, "éxport_数据")) "sales" else "dbo"
+      schema <- if (identical(name, "\u00e9xport_\u6570\u636e")) {
+        "sales"
+      } else {
+        "dbo"
+      }
       list(
         name = name,
         schema_name = schema,
@@ -149,9 +163,12 @@ test_that("Warehouse table discovery follows schema and table pages", {
   )
 
   expect_s3_class(tables, "tbl_df")
-  expect_equal(tables$name, c("orders", "éxport_数据"))
+  expect_equal(tables$name, c("orders", "\u00e9xport_\u6570\u636e"))
   expect_equal(tables$schema, c("dbo", "sales"))
-  expect_equal(tables$full_name, c("dbo.orders", "sales.éxport_数据"))
+  expect_equal(
+    tables$full_name,
+    c("dbo.orders", "sales.\u00e9xport_\u6570\u636e")
+  )
   expect_equal(tables$type, rep("MANAGED", 2L))
   expect_equal(tables$format, rep("DELTA", 2L))
   expect_s3_class(tables$created_at, "POSIXct")

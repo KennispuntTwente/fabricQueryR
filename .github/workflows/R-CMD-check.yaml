@@ -10,6 +10,30 @@ name: R-CMD-check.yaml
 permissions: read-all
 
 jobs:
+  windows-restrictive-locale:
+    runs-on: windows-latest
+    name: windows-latest (C locale parsing)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+
+      - name: Parse package sources under the C locale
+        shell: Rscript {0}
+        run: |
+          locale <- Sys.setlocale("LC_CTYPE", "C")
+          stopifnot(identical(locale, "C"))
+          files <- c(
+            list.files("R", pattern = "[.][Rr]$", recursive = TRUE, full.names = TRUE),
+            list.files("tests", pattern = "[.][Rr]$", recursive = TRUE, full.names = TRUE)
+          )
+          for (file in files) {
+            parse(file = file, encoding = "UTF-8")
+          }
+
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
 
