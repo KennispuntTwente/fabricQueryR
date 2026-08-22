@@ -622,7 +622,14 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     type = "GraphQLApi",
     token = token
   )
-  expect_equal(api$graphql_endpoint, provisioned$endpoint)
+  expect_equal(
+    api$graphql_endpoint,
+    sub(
+      "^https://api[.]fabric[.]microsoft[.]com",
+      sub("/+$", "", api$workspaceApiEndpoint),
+      provisioned$endpoint
+    )
+  )
   root_field <- provisioned$root_field
 
   result <- fabric_graphql_query(

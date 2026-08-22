@@ -74,6 +74,17 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     expect_equal(length(matches), 1L, info = id)
     matches[[1L]]
   }
+  public_sql_server <- function(server) {
+    sub(
+      paste0(
+        "^([^.]+)[.][^.]+",
+        "([.]datawarehouse[.]fabric[.]microsoft[.]com)$"
+      ),
+      "\\1\\2",
+      server
+    )
+  }
+  workspace_api_endpoint <- sub("/+$", "", workspace$apiEndpoint)
 
   items <- fabric_items(
     workspace,
@@ -114,21 +125,30 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   lakehouses <- fabric_lakehouses(workspace, token = token)
   lakehouse <- find_item(lakehouses, manifest$items$TestLakehouse$id)
   expect_equal(
-    lakehouse$sql_server,
+    public_sql_server(lakehouse$sql_server),
     manifest$items$TestLakehouse$sql_endpoint
   )
+  expect_identical(lakehouse$sql_private_link_type, "Workspace")
   expect_equal(
     lakehouse$one_lake_tables_path,
     manifest$items$TestLakehouse$one_lake_tables_path
   )
-  expect_equal(lakehouse$livy_url, manifest$items$TestLakehouse$livy_url)
+  expect_equal(
+    lakehouse$livy_url,
+    sub(
+      "^https://api[.]fabric[.]microsoft[.]com",
+      workspace_api_endpoint,
+      manifest$items$TestLakehouse$livy_url
+    )
+  )
 
   warehouses <- fabric_warehouses(workspace, token = token)
   warehouse <- find_item(warehouses, manifest$items$TestWarehouse$id)
   expect_equal(
-    warehouse$sql_server,
+    public_sql_server(warehouse$sql_server),
     manifest$items$TestWarehouse$connection_string
   )
+  expect_identical(warehouse$sql_private_link_type, "Workspace")
   expect_equal(
     warehouse$sql_database,
     manifest$items$TestWarehouse$database_name
@@ -140,9 +160,10 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestWarehouseSnapshot$id
   )
   expect_equal(
-    warehouse_snapshot$sql_server,
+    public_sql_server(warehouse_snapshot$sql_server),
     manifest$items$TestWarehouseSnapshot$connection_string
   )
+  expect_identical(warehouse_snapshot$sql_private_link_type, "Workspace")
   expect_equal(
     warehouse_snapshot$sql_database,
     manifest$items$TestWarehouseSnapshot$database_name
