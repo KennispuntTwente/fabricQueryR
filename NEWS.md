@@ -79,18 +79,6 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
-* `fabric_semantic_models()` and `fabric_graphql_apis()` now default to
-lightweight discovery. Their DAX and GraphQL targets are derived from list-level
-metadata, avoiding one extra workload GET per item and the associated permission
-requirement; use `detail = TRUE` to request workload-specific properties.
-
-* `fabric_job_schedule_*()` functions now default Dataflow schedules to
-`"Execute"`; use `job_type = "ApplyChanges"` for an explicit publish schedule.
-
-* `fabric_kql_export()` and `fabric_kql_ingest()` now remove account keys and
-SAS tokens from submission errors, their HTTP diagnostics, and serialized
-conditions.
-
 * Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
@@ -132,17 +120,6 @@ preserve large whole numbers and decimals exactly.
 * `fabric_livy_query()` now bounds temporary-session cleanup with a separate
 deadline and reports both errors when statement execution and session deletion
 fail together.
-
-* Livy session, statement, and batch handles no longer persist credentials when
-serialized, and timeout conditions contain only safe handle metadata.
-
-* OneLake file operations now normalize a directly supplied Fabric Blob service
-address to the corresponding DFS endpoint before sending path requests.
-
-* Long-running core operations reconstructed from an operation ID now retrieve
-their documented `/result` resource after success. Operation handles explicitly
-retain whether workload-specific operations, such as Lakehouse table loads, are
-state-only.
 
 # 'fabricQueryR' 0.2.1
 
