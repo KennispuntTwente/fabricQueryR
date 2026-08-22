@@ -144,9 +144,10 @@
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   now reads current or historical Lakehouse and compatible Warehouse
   tables through an optional Python Delta reader. It supports selected
-  columns, row limits, and Arrow streams for large or nested results.
-  The `dest_dir` argument has been removed; tables using unsupported
-  Delta features should be read through SQL or Spark instead.
+  columns, row limits, and Arrow streams for large or nested results,
+  including through discovered workspace-private OneLake endpoints. The
+  `dest_dir` argument has been removed; tables using unsupported Delta
+  features should be read through SQL or Spark instead.
 
 - [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
   table results now follow the declared Spark schema and preserve large
