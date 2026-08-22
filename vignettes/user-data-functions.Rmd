@@ -11,47 +11,37 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-A Fabric user data function is similar to calling a function in another R
-package, except its Python code runs in Fabric. R sends named inputs to a secure
-web address and receives a structured result.
+A Fabric *user data function* is a reusable piece of Python code that runs in
+Microsoft Fabric. It can accept inputs, perform a task, and return a result.
+Fabric hosts and runs the Python code.
 
-fabricQueryR invokes functions that are already defined, published, and enabled
-for public access. It does not create or deploy the function. This guide starts
-with one small scalar call before introducing nested inputs, retries, and
-security limits.
+With fabricQueryR, you can invoke these functions from R. R then sends named
+inputs to the function's secure web address, Fabric runs the function, and R
+receives a structured response. This vignette show a simple example.
 
 ## Prepare the function in Fabric
 
-In the Fabric portal, publish the user data functions item, switch to **Run
-only** mode, open the function's properties, enable **Public access**, and copy
-the **Public URL**. Each function has its own URL. Although
+In the Fabric portal, publish the user data functions item, switch to *Run
+only* mode, open the function's properties, enable *Public access*, and copy
+the *Public URL*. Each function has its own URL. Although
 `fabric_user_data_functions()` discovers the containing item, Microsoft's item
-response does not expose enough information to derive each public URL safely.
+response does not expose enough information to derive each public URL.
 
-Store the copied URL in configuration rather than source code:
+You could store the URL in an environment variable (rather than hardcoding it):
 
 ```{r, eval = FALSE}
 function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 ```
 
-The caller needs Execute permission on the item. Interactive app registrations
+The function caller needs Execute permission on the item. Interactive app registrations
 need the Power BI delegated permission `UserDataFunction.Execute.All` or
 `Item.Execute.All`. Application credentials require the relevant
-service-principal tenant setting and item access. fabricQueryR chooses the
-narrow delegated scope for interactive authentication and the Power BI
-`.default` audience for client credentials; use `audience` only for a custom
-identity provider.
-
-The caller identity for the public endpoint and the connections used inside the
-function are separate concerns. Microsoft currently does not support using a
-service principal through UDF-managed connections to access Fabric items or
-data sources. An application can therefore be allowed to invoke a function
-whose own managed data connection remains unsupported for that identity.
+service-principal tenant setting and item access.
 
 ## Make a first call
 
-Parameter names must match the published Python function. For a function with
-`customerName` and `priority` inputs:
+Parameter names must match the published Python function. 
+For a function with `customerName` and `priority` inputs:
 
 ```{r, eval = FALSE}
 result <- fabric_function_invoke(
@@ -65,10 +55,6 @@ result <- fabric_function_invoke(
 result$status
 result$output
 ```
-
-`Succeeded` means the function completed. The output shape is defined by the
-published function, so inspect `result$output` before building downstream R
-code around it.
 
 ## Send structured parameters
 
@@ -92,7 +78,7 @@ One-element R values normally become JSON scalars. Wrap a one-element value in
 frames are also accepted as top-level parameter objects; a named list gives the
 clearest control over nested JSON shapes.
 
-The result is deliberately inspectable:
+The result is a list which can be inspected:
 
 ```{r, eval = FALSE}
 structured_result$function_name
@@ -106,17 +92,7 @@ structured_result$http_status
 Fabric documents the statuses `Succeeded`, `BadRequest`, `Failed`, `Timeout`,
 and `ResponseTooLarge`. A valid invocation envelope is returned even when the
 corresponding HTTP response is 400, 403, 408, 409, 422, or 500. This keeps a
-handled `UserThrownError`, its message, and its `properties` available to the R
-application. Authentication, item authorization, throttling, malformed JSON,
-and non-function service responses still raise typed package errors.
-
-The invocation tutorial describes an error `name`; current live responses can
-instead provide `errorCode`. `result$errors` adds `name` as an alias when only
-`errorCode` is present, while `result$response` retains the original service
-shape.
-
-Unknown response fields and future status values remain in `result$response`.
-Integers outside R's exact double range are preserved as character values.
+handled `UserThrownError`, its message, and its `properties` available.
 
 ## Retry only safe functions
 
@@ -133,33 +109,19 @@ result <- fabric_function_invoke(
 ```
 
 Opted-in calls use bounded retries for transport failures, throttling, and
-transient HTTP responses. `idempotent = TRUE` is a promise made by the caller;
-fabricQueryR cannot infer whether repeating arbitrary Python code is safe.
+transient HTTP responses. 
 
-## Trust boundary, limits, and redaction
+## Limits
 
-Bearer tokens are sent to the exact `function_url` supplied by the caller after
-the URL passes structural validation. Supplying that URL is the explicit trust
-decision, so verify custom origins independently. URLs must use HTTPS and the
-documented `/v1/workspaces/.../userDataFunctions/.../functions/.../invoke`
-route. Embedded credentials, query strings, fragments, and nonstandard ports
-are rejected.
-
-Microsoft currently limits the combined request parameters to 4 MB, execution
+Microsoft Fabric currently limits the combined request parameters to 4 MB, execution
 through a public endpoint to 100 seconds, and the function return value to 30
 MB. fabricQueryR rejects oversized requests before authentication, waits up to
 110 seconds by default so Fabric can return its own timeout envelope, and caps
 the complete response at 32 MiB to leave room around a valid 30 MB output.
 
-Returned values and errors can otherwise become logs or persisted objects.
-fabricQueryR redacts secret-named fields such as `token`, `authorization`,
-`password`, and `apiKey`, as well as bearer-token text, from errors, response
-metadata, and attached conditions. Function `output` is returned unchanged
-because those names can be legitimate domain data. Treat output as untrusted
-application data and do not use a user data function as a secret-delivery
-mechanism.
+## More information
 
-For the current service contract, see Microsoft's [external invocation
+See Microsoft's [external invocation
 tutorial](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app),
 [programming model](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/python-programming-model),
 and [service limits](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-service-limits).
