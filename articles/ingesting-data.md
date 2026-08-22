@@ -1,8 +1,8 @@
 # Bring R data into Microsoft Fabric
 
 ‘fabricQueryR’ can also be used to ingest data into Microsoft Fabric. In
-this guide, it is shown you can move R data frames, Arrow objects, or
-files into Microsoft Fabric.
+this guide, it is shown how you can move R data frames, Arrow objects,
+or files into Microsoft Fabric.
 
 ## Choose a destination
 
@@ -18,7 +18,10 @@ For a first ingestion, a Lakehouse table is the most direct
 general-purpose workflow. The high-level writers accept ordinary data
 frames and handle their own temporary Parquet staging.
 
-## Prepare a small R object
+## Prepare a small R dataframe
+
+For demonstration purposes, we’ll first create a small R dataframe and
+select a Lakehouse in a workspace:
 
 ``` r
 
@@ -37,12 +40,9 @@ matches <- Filter(
 )
 stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
+
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
-
-Use a simple object and a clearly disposable destination while learning.
-This makes column names, inferred types, and replacement behavior easy
-to inspect.
 
 ## Write a Lakehouse table
 
@@ -73,6 +73,7 @@ check <- fabric_lakehouse_read_table(
   table = "orders_from_r",
   limit = 10L
 )
+
 check
 ```
 
@@ -136,6 +137,7 @@ warehouse_result <- fabric_warehouse_write_table(
 
 For a missing table, Fabric can infer a basic definition. Pre-create the
 table when exact SQL types, lengths, constraints, or grants matter.
+
 [Working with Fabric
 Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.md)
 explains overwrite choices, transactions, and larger Arrow inputs.
@@ -160,8 +162,9 @@ kql_result$status$state
 ```
 
 The high-level writer stages the R object, submits tracked ingestion,
-waits, and cleans up after confirmed success. [Working with Fabric
-Eventhouses (real-time
+waits, and cleans up after confirmed success.
+
+[Working with Fabric Eventhouses (real-time
 data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md)
 covers predefined mappings, existing storage files, idempotency keys,
 and failure recovery.
@@ -190,23 +193,9 @@ local file; use
 [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
 first when necessary.
 
-## Choose append and overwrite deliberately
-
-These names describe intent, but the exact behavior depends on the
-destination:
-
-| Choice | Use it when | Check first |
-|----|----|----|
-| Append | New rows belong beside existing rows | Column names and types are compatible; re-running will not duplicate data |
-| Overwrite | The supplied data should replace the current contents | Which table definition, grants, or history the workload preserves |
-| Create if missing | A basic inferred table is acceptable | Inferred types and nullability meet downstream needs |
-
-Warehouse drop replacement can discard table-specific metadata.
-Eventhouse queued ingestion has at-least-once delivery. Read the linked
-destination-specific guide before using these paths in an automated
-production workflow.
-
 ## Scale up with Arrow
+
+When you are moving larger amounts of data, consider using Arrow.
 
 The Lakehouse, Warehouse, and Eventhouse writers accept Arrow Tables and
 RecordBatches. They can also consume lazy Arrow Datasets, Scanners,
@@ -223,10 +212,3 @@ fabric_lakehouse_write_table(
   data = dataset
 )
 ```
-
-Start with the default part sizes. Tune file or row boundaries only
-after measuring a real workload. For transformations that need
-distributed compute or exact Spark-managed schemas, use [Working with
-Livy
-(Spark)](https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.md)
-rather than moving all intermediate data through R.
