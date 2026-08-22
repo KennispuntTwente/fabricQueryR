@@ -1351,4 +1351,22 @@ test_that("OneLake DFS bases must be canonical HTTPS origins", {
 
   target <- resolve(paste0("https://", host, ":443"))
   expect_equal(target$dfs_base, paste0("https://", host, ":443"))
+
+  blob_target <- resolve("https://onelake.blob.fabric.microsoft.com/")
+  expect_equal(
+    blob_target$dfs_base,
+    "https://onelake.dfs.fabric.microsoft.com"
+  )
+  request <- onelake_request(onelake_path_url(blob_target))
+  expect_match(
+    request$url,
+    "^https://onelake[.]dfs[.]fabric[.]microsoft[.]com/",
+    perl = TRUE
+  )
+
+  private_blob <- "https://workspace.z12.blob.fabric.microsoft.com"
+  expect_equal(
+    resolve(private_blob)$dfs_base,
+    "https://workspace.z12.dfs.fabric.microsoft.com"
+  )
 })

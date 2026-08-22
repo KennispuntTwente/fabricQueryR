@@ -118,6 +118,9 @@ fail together.
 * Livy session, statement, and batch handles no longer persist credentials when
 serialized, and timeout conditions contain only safe handle metadata.
 
+* OneLake file operations now normalize a directly supplied Fabric Blob service
+address to the corresponding DFS endpoint before sending path requests.
+
 # 'fabricQueryR' 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

@@ -798,10 +798,10 @@ onelake_resolve_target <- function(
       onelake_record_dfs_endpoint(item_record) %||%
       "https://onelake.dfs.fabric.microsoft.com"
   }
-  onelake_validate_endpoint(dfs_base)
+  dfs_base <- onelake_validate_endpoint(dfs_base)
   structure(
     list(
-      dfs_base = sub("/+$", "", dfs_base),
+      dfs_base = dfs_base,
       workspace = workspace_value,
       item = item_value,
       path = onelake_normalize_path(path, allow_empty = TRUE)
@@ -1035,8 +1035,8 @@ onelake_segment <- function(value, name) {
   invisible(value)
 }
 
-# Validate a OneLake DFS `endpoint` and its trust boundary. Returns invisibly
-# before storage credentials can be sent there
+# Validate and normalize a OneLake DFS `endpoint` and its trust boundary.
+# Returns its canonical HTTPS origin before credentials can be sent there.
 onelake_validate_endpoint <- function(endpoint) {
   onelake_scalar(endpoint, "dfs_base")
   parsed <- httr2::url_parse(endpoint)
@@ -1065,7 +1065,16 @@ onelake_validate_endpoint <- function(endpoint) {
   if (!is.null(parsed$query) || !is.null(parsed$fragment)) {
     .fabric_abort("dfs_base must not include a query string or fragment")
   }
-  invisible(endpoint)
+  host <- sub(
+    "\\.blob\\.fabric\\.microsoft\\.com$",
+    ".dfs.fabric.microsoft.com",
+    tolower(parsed$hostname)
+  )
+  paste0(
+    "https://",
+    host,
+    if (is.null(parsed$port)) "" else paste0(":", parsed$port)
+  )
 }
 
 # Check `host` against Microsoft Fabric OneLake domains. Returns normalized host
