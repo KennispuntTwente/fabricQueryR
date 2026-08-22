@@ -1,9 +1,13 @@
 # Bring R data into Microsoft Fabric
 
-‘fabricQueryR’ can be used to bring data from R into Microsoft Fabric.
+‘fabricQueryR’ helps you send data from R to Lakehouses, Warehouses,
+Eventhouses, and OneLake. The source can be an ordinary R data frame, an
+Arrow object, or a file that already exists on disk or in Fabric.
 
-In this vignette, it is shown how you can move R data frames, Arrow
-objects, or files.
+The right writer depends on how the data will be used after it arrives.
+This guide starts with a small data frame and a managed Lakehouse table,
+then shows the other common destinations. Larger Arrow workflows come
+last.
 
 ## Choose a destination
 
@@ -19,10 +23,9 @@ For a first ingestion, a Lakehouse table is the most direct
 general-purpose workflow. The high-level writers accept ordinary data
 frames and handle their own temporary Parquet staging.
 
-## Prepare a small R dataframe
+## Prepare a small R data frame
 
-For demonstration purposes, we’ll first create a small R dataframe and
-select a Lakehouse in a workspace:
+Create a small data frame and select a Lakehouse in a workspace:
 
 ``` r
 

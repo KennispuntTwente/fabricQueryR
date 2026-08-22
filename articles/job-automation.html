@@ -86,14 +86,10 @@ types.</p>
 checks Fabric until the job finishes or the 15-minute local deadline is
 reached. <code>cancel_on_timeout = TRUE</code> asks Fabric to cancel the
 run if that deadline is exceeded.</p>
-<p>Running jobs needs item execute permission. Reading history and
-schedules needs item read permission. Creating or updating a schedule
-needs item execute and read-write permissions; deletion needs item
-read-write permission. A workspace Contributor role or direct item Write
-permission is normally needed to change schedules.</p>
-<p><code><a href="../reference/fabric_job_instances.html">fabric_job_instances()</a></code> follows all Fabric continuation
-pages. Most item types retain at most 100 recently completed runs, in
-addition to active runs.</p>
+<p>Running a job needs Execute permission. Reading history needs Read
+permission, while changing schedules normally needs Write access. If an
+on-demand run works but schedule creation does not, ask the item owner
+to check your Write access.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_instances.html">fabric_job_instances</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span>
 <span></span>
@@ -101,47 +97,33 @@ addition to active runs.</p>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">status</span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">start_time</span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">failure_reason</span></span></code></pre></div>
-<p>History entries use the same <code>fabric_job_instance</code>
-contract as on-demand status results. They can be refreshed directly
-without copying an instance ID:</p>
+<p>Refresh a history entry directly without copying its instance ID:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_status</a></span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
-<p>Fabric can add job statuses and invocation types over time. Unknown
-values stay unchanged in the normalized fields and the complete response
-is available in <code>raw</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="build-schedule-configurations">Build schedule configurations<a class="anchor" aria-label="anchor" href="#build-schedule-configurations"></a>
 </h2>
-<p>Fabric currently documents four REST configuration types. Schedule
-boundaries are absolute UTC instants. Daily, weekly, and monthly clock
-times are local to a Windows time-zone identifier, which lets Fabric
-apply daylight-saving rules. They never depend on the computer running
-R.</p>
-<p>Cron is Fabric’s name for a minute interval, not a cron
-expression:</p>
+<p>Build and validate a schedule configuration before creating the
+schedule in Fabric. Boundaries are UTC instants, while recurring clock
+times use a Windows time-zone identifier so Fabric can apply
+daylight-saving rules.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">every_30_minutes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
-<span>  <span class="st">"Cron"</span>,</span>
-<span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span>
-<span>  end_time <span class="op">=</span> <span class="st">"2027-10-01T00:00:00Z"</span>,</span>
-<span>  time_zone <span class="op">=</span> <span class="st">"UTC"</span>,</span>
-<span>  interval <span class="op">=</span> <span class="fl">30L</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Daily and weekly schedules accept one or more <code>HH:MM</code>
-values. Use a Windows identifier such as
-<code>W. Europe Standard Time</code>, not an IANA identifier such as
-<code>Europe/Amsterdam</code>.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">daily</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Daily"</span>,</span>
 <span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span>
 <span>  end_time <span class="op">=</span> <span class="st">"2027-10-01T00:00:00Z"</span>,</span>
 <span>  time_zone <span class="op">=</span> <span class="st">"W. Europe Standard Time"</span>,</span>
-<span>  times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"08:30"</span>, <span class="st">"17:00"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">weekly</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
+<span>  times <span class="op">=</span> <span class="st">"08:30"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Fabric supports minute-interval, daily, weekly, and monthly
+schedules. Weekly schedules add <code>weekdays</code>; monthly schedules
+select a numbered day or an ordinal weekday. See
+<code><a href="../reference/fabric_job_schedule_config.html">?fabric_job_schedule_config</a></code> for those shapes. Use a Windows
+time zone such as <code>"W. Europe Standard Time"</code>, not an IANA
+name such as <code>"Europe/Amsterdam"</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">weekly</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Weekly"</span>,</span>
 <span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span>
 <span>  end_time <span class="op">=</span> <span class="st">"2027-10-01T00:00:00Z"</span>,</span>
@@ -149,35 +131,18 @@ values. Use a Windows identifier such as
 <span>  times <span class="op">=</span> <span class="st">"07:30"</span>,</span>
 <span>  weekdays <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Monday"</span>, <span class="st">"Thursday"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Monthly schedules repeat every 1 through 12 months. Select either a
-numbered day or an ordinal weekday. Fabric skips months where a numbered
-day is invalid.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">month_end_review</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
-<span>  <span class="st">"Monthly"</span>,</span>
-<span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span>
-<span>  end_time <span class="op">=</span> <span class="st">"2027-10-01T00:00:00Z"</span>,</span>
-<span>  time_zone <span class="op">=</span> <span class="st">"W. Europe Standard Time"</span>,</span>
-<span>  times <span class="op">=</span> <span class="st">"09:00"</span>,</span>
-<span>  recurrence <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  week_index <span class="op">=</span> <span class="st">"Fourth"</span>,</span>
-<span>  weekday <span class="op">=</span> <span class="st">"Friday"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="create-list-update-and-disable">Create, list, update, and disable<a class="anchor" aria-label="anchor" href="#create-list-update-and-disable"></a>
 </h2>
-<p>An item can currently have at most 20 schedules. Create one from a
-validated configuration, then list all of the schedules for that job
-type:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<p>Create one schedule from a validated configuration, then list the
+schedules for the item:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_create</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedules</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span></code></pre></div>
-<p>The Fabric PATCH endpoint requires both <code>enabled</code> and the
-complete schedule configuration. For a partial R update, ‘fabricQueryR’
-first reads the current record and preserves fields that were not
-supplied:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<p>Disable or restart a schedule without rebuilding its
+configuration:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">disabled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_update</a></span><span class="op">(</span></span>
 <span>  <span class="va">notebook</span>,</span>
 <span>  <span class="va">schedule</span>,</span>
@@ -189,43 +154,15 @@ supplied:</p>
 <span>  <span class="va">schedule</span>,</span>
 <span>  enabled <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Fabric may automatically disable a schedule after repeated failures.
-Updating it with <code>enabled = TRUE</code> restarts it. The published
-REST response exposes the <code>enabled</code> flag but does not yet
-guarantee a separate auto-disable reason, so <code>auto_disabled</code>
-is <code>NA</code> unless the service returns an explicit marker.
-Inspect <code>raw</code> for any newer workload-specific fields.</p>
-<p>Some job types accept static <code>executionData</code>. Its schema
-belongs to that workload, so provide the exact documented object:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">special</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_create</a></span><span class="op">(</span></span>
-<span>  <span class="va">workload_item</span>,</span>
-<span>  <span class="va">daily</span>,</span>
-<span>  job_type <span class="op">=</span> <span class="st">"DefaultJob"</span>,</span>
-<span>  execution_data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    tableName <span class="op">=</span> <span class="st">"Sales"</span>,</span>
-<span>    optimizeSettings <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>vOrder <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Omitting <code>execution_data</code> during update, or leaving it as
-<code>NULL</code>, preserves the current value. Supply a named list to
-replace it.</p>
+<p>Fabric may disable a schedule after repeated failures. Re-enable it
+only after inspecting recent job history and correcting the cause.</p>
 </div>
 <div class="section level2">
-<h2 id="future-schedule-types-and-cleanup">Future schedule types and cleanup<a class="anchor" aria-label="anchor" href="#future-schedule-types-and-cleanup"></a>
+<h2 id="delete-a-schedule">Delete a schedule<a class="anchor" aria-label="anchor" href="#delete-a-schedule"></a>
 </h2>
-<p>For a schedule type added after this package version, pass the
-documented JSON shape as a named list. Known types are validated;
-unknown types are sent without discarding their fields and returned in
-<code>configuration</code> and <code>raw</code>.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">future_configuration</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  type <span class="op">=</span> <span class="st">"FutureScheduleType"</span>,</span>
-<span>  futureProperty <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>value <span class="op">=</span> <span class="st">"documented by Fabric"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
 <p>Deletion is permanent and never inferred from a create or update
 conflict. It requires explicit confirmation:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_delete</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">schedule</span>, confirm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>Microsoft documents scheduler throttling, maximum job duration and
 concurrency, schedule expiry after prolonged user inactivity, and

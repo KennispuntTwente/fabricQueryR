@@ -61,12 +61,12 @@
     
     
 <p>Microsoft Fabric is a collection of services for storing,
-transforming, and reporting on data. ‘fabricQueryR’ lets you use many of
-those services from R. You can bring Fabric data into an R data frame,
-send R data to Fabric, or use R to start work that runs inside
-Fabric.</p>
-<p>This guide introduces the few of the Fabric concepts you need for a
-first successful workflow.</p>
+transforming, and reporting on data. ‘fabricQueryR’ lets you work with
+many of those services from R: you can read Fabric data, send R data to
+Fabric, and start work that runs inside Fabric.</p>
+<p>This guide introduces the basic Fabric concepts and completes one
+small read. Start here if you are new to either Fabric or
+‘fabricQueryR’, then continue to a task-specific vignette.</p>
 <div class="section level2">
 <h2 id="the-fabric-objects-you-will-see">The Fabric objects you will see<a class="anchor" aria-label="anchor" href="#the-fabric-objects-you-will-see"></a>
 </h2>
@@ -182,9 +182,9 @@ specific type:</p>
 <span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span><span class="op">$</span><span class="va">displayName</span></span></code></pre></div>
-<p>A discovered item contains metadata such as its name and type. You
-can pass the discovered item to other functions of this package (see
-below).</p>
+<p>A discovered item contains metadata such as its name and type. Pass
+that item directly to other ‘fabricQueryR’ functions instead of copying
+IDs or connection details by hand.</p>
 </div>
 <div class="section level2">
 <h2 id="complete-a-first-read">Complete a first read<a class="anchor" aria-label="anchor" href="#complete-a-first-read"></a>

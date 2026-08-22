@@ -60,6 +60,8 @@
 
     
     
+<p>When you want to use ‘fabricQueryR’ to access Microsoft Fabric, you
+always start with authentication.</p>
 <p>Authentication is how Microsoft Fabric confirms <em>who you are</em>.
 Authorization is what that person or application is allowed to see and
 do. You need both: signing in successfully does not automatically grant
@@ -177,16 +179,11 @@ least-privileged role that supports your task; or</li>
 <li>share the specific Fabric item with your account and grant any
 additional data permission it needs.</li>
 </ol>
-<p>The <em>Viewer</em> workspace role is enough to list the workspace
-and its items, but does not itself grant direct OneLake data access. A
-generic item <em>Read</em> grant also exposes metadata without granting
-the underlying OneLake data. For example, a semantic model normally
-needs Read and Build permission. A direct Lakehouse read needs an Admin,
-Member, or Contributor workspace role; item <em>Read</em> plus
-<em>ReadAll</em>; or, when OneLake security is enabled, item
-<em>Read</em> plus membership in a OneLake role that grants
-<em>Read</em> on the target data. Detailed workload guidance appears
-later in this vignette.</p>
+<p>Workspace visibility and data access are not always the same
+permission. For example, a semantic model normally needs Read and Build
+access, while OneLake data can require an additional data permission. If
+discovery works but a read does not, ask the item owner which permission
+that workload requires.</p>
 </div>
 <div class="section level2">
 <h2 id="first-login-troubleshooting">First-login troubleshooting<a class="anchor" aria-label="anchor" href="#first-login-troubleshooting"></a>
@@ -254,58 +251,28 @@ any browser, enter the code, and sign in with the intended account.</p>
 <h2 id="how-authentication-works">How authentication works<a class="anchor" aria-label="anchor" href="#how-authentication-works"></a>
 </h2>
 <p>‘fabricQueryR’ uses <a href="https://azure.r-universe.dev/AzureAuth/doc/token.html" class="external-link">‘AzureAuth’</a>
-to sign in to Microsoft Entra. Every exported function that needs
-authentication accepts the same four arguments:</p>
+to sign in to Microsoft Entra. Most functions accept the same
+authentication arguments:</p>
 <ul>
 <li>
-<code>tenant_id</code> identifies the organization and defaults to
-<code>FABRICQUERYR_TENANT_ID</code>.</li>
+<code>tenant_id</code> identifies the organization;</li>
 <li>
-<code>client_id</code> identifies the application and defaults to
-<code>FABRICQUERYR_CLIENT_ID</code>, then the Azure CLI public client
-ID.</li>
+<code>client_id</code> identifies the application;</li>
 <li>
-<code>token</code> can supply an existing token or token provider.
-Most interactive users should leave it as <code>NULL</code>.</li>
+<code>token</code> supplies an existing token or token-provider
+function; and</li>
 <li>
-<code>auth_args</code> customizes how ‘AzureAuth’ signs in. Most
-interactive users can leave it as an empty list.</li>
+<code>auth_args</code> customizes automatic sign-in.</li>
 </ul>
-<p>With the defaults, ‘AzureAuth’ first looks for a matching cached
-token. If none is available, it normally opens a browser or uses
-device-code login. Later calls reuse and refresh the cached token, so
-signing in is not usually required for every query.</p>
-<p>See the ‘AzureAuth’ documentation on <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
-scenarios</a> and <a href="https://azure.r-universe.dev/AzureAuth/doc/token.html#caching" class="external-link">caching</a>.</p>
-<div class="section level3">
-<h3 id="authentication-arguments-and-precedence">Authentication arguments and precedence<a class="anchor" aria-label="anchor" href="#authentication-arguments-and-precedence"></a>
-</h3>
-<p>When <code>token = NULL</code>, ‘fabricQueryR’ asks ‘AzureAuth’ to
-obtain the token. The package chooses the correct token resource for
-each Fabric service and supplies the tenant, client ID, and Microsoft
-identity-platform version. Other
-<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code> options can be supplied in
-<code>auth_args</code>.</p>
-<p>When <code>token</code> is supplied, it takes responsibility for
-authentication and <code>auth_args</code> is not used. This avoids
-accidentally combining two different login methods.</p>
-</div>
-<div class="section level3">
-<h3 id="using-your-own-app-registration-interactively">Using your own app registration interactively<a class="anchor" aria-label="anchor" href="#using-your-own-app-registration-interactively"></a>
-</h3>
-<p>A dedicated app registration gives an organization more control over
-which users may sign in and which delegated API permissions they may
-request. Ask an Entra administrator to create or approve one if the
-default client is blocked.</p>
-<p>For browser-based authorization-code login, the app needs a suitable
-redirect URI (normally <code>http://localhost:1410</code>) and R needs
-the ‘httpuv’ package. For device-code login, the app registration needs
-<em>Allow public client flows</em> enabled. Your tenant’s user/admin
-consent, Conditional Access, and multifactor-authentication policies
-continue to apply.</p>
-<p>Do not create a client secret for ordinary interactive user
-login.</p>
-</div>
+<p>Most interactive users only need the tenant ID. ‘AzureAuth’ opens a
+browser or uses device-code login, caches the resulting token, and
+refreshes it when needed. ‘fabricQueryR’ chooses the correct token
+audience for each Fabric service.</p>
+<p>Leave <code>token = NULL</code> for automatic sign-in. When you
+supply <code>token</code>, it becomes responsible for authentication and
+<code>auth_args</code> is not used. See <code><a href="../reference/fabric_workspaces.html">?fabric_workspaces</a></code>
+and the ‘AzureAuth’ <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
+scenarios</a> for the complete argument details.</p>
 </div>
 <div class="section level2">
 <h2 id="choosing-an-advanced-authentication-method">Choosing an advanced authentication method<a class="anchor" aria-label="anchor" href="#choosing-an-advanced-authentication-method"></a>
@@ -351,112 +318,6 @@ system</td>
 </table>
 </div>
 <div class="section level2">
-<h2 id="advanced-pass-an-azureauth-token">Advanced: pass an ‘AzureAuth’ token<a class="anchor" aria-label="anchor" href="#advanced-pass-an-azureauth-token"></a>
-</h2>
-<p>You can acquire a token with ‘AzureAuth’ and pass the resulting ‘R6’
-object directly. ‘fabricQueryR’ extracts its access token, checks its
-expiry, and calls its <code>refresh()</code> method when needed:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fabric_token</span> <span class="op">&lt;-</span> <span class="fu">AzureAuth</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">get_azure_token</a></span><span class="op">(</span></span>
-<span>  resource <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    <span class="st">"https://api.fabric.microsoft.com/.default"</span>,</span>
-<span>    <span class="st">"offline_access"</span></span>
-<span>  <span class="op">)</span>,</span>
-<span>  tenant <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
-<span>  app <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span><span class="op">)</span>,</span>
-<span>  version <span class="op">=</span> <span class="fl">2</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span>token <span class="op">=</span> <span class="va">fabric_token</span><span class="op">)</span></span></code></pre></div>
-<p>Tokens are resource-specific. Pass a token issued for the resource
-used by the function:</p>
-<table class="table">
-<colgroup>
-<col width="50%">
-<col width="50%">
-</colgroup>
-<thead><tr class="header">
-<th>Operations</th>
-<th>Azure AD v2 resource/scope</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td>Discovery, Fabric REST, and jobs</td>
-<td><code>https://api.fabric.microsoft.com/.default</code></td>
-</tr>
-<tr class="even">
-<td>OneLake shortcut Core REST APIs</td>
-<td><code>https://api.fabric.microsoft.com/.default</code></td>
-</tr>
-<tr class="odd">
-<td>Livy as a delegated user</td>
-<td>
-<code>https://api.fabric.microsoft.com/Lakehouse.Execute.All</code>,
-<code>Lakehouse.Read.All</code>, <code>Code.AccessFabric.All</code>, and
-<code>Code.AccessStorage.All</code>
-</td>
-</tr>
-<tr class="even">
-<td>Livy as a service principal</td>
-<td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
-</tr>
-<tr class="odd">
-<td>User data functions as a delegated user</td>
-<td><code>https://analysis.windows.net/powerbi/api/UserDataFunction.Execute.All</code></td>
-</tr>
-<tr class="even">
-<td>User data functions as a service principal</td>
-<td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
-</tr>
-<tr class="odd">
-<td>OneLake files and Delta tables</td>
-<td><code>https://storage.azure.com/.default</code></td>
-</tr>
-<tr class="even">
-<td>SQL connections</td>
-<td><code>https://database.windows.net/.default</code></td>
-</tr>
-<tr class="odd">
-<td>DAX / Power BI Execute Queries</td>
-<td><code>https://analysis.windows.net/powerbi/api/.default</code></td>
-</tr>
-<tr class="even">
-<td>KQL</td>
-<td><code>https://api.kusto.windows.net/.default</code></td>
-</tr>
-<tr class="odd">
-<td>GraphQL as a delegated user</td>
-<td><code>https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All</code></td>
-</tr>
-<tr class="even">
-<td>GraphQL as a service principal</td>
-<td><code>https://api.fabric.microsoft.com/.default</code></td>
-</tr>
-</tbody>
-</table>
-<p>Microsoft’s current Livy batch documentation is internally
-inconsistent: it includes a service-principal walkthrough while also
-warning that batch jobs do not support service principals.
-‘fabricQueryR’ retains the documented client-credential audience, but
-production batch automation should be verified in the target tenant and
-delegated authentication remains the conservative baseline.</p>
-<p>For a GraphQL service principal acquired by the package, the Fabric
-API audience is selected automatically:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">api</span>,</span>
-<span>  <span class="va">query</span>,</span>
-<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    password <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_CLIENT_SECRET"</span><span class="op">)</span>,</span>
-<span>    auth_type <span class="op">=</span> <span class="st">"client_credentials"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Set
-<code>audience = "https://api.fabric.microsoft.com/.default"</code>
-explicitly when a custom token-provider function obtains the
-service-principal token.</p>
-</div>
-<div class="section level2">
 <h2 id="advanced-authentication-for-automation">Advanced: authentication for automation<a class="anchor" aria-label="anchor" href="#advanced-authentication-for-automation"></a>
 </h2>
 <p>Automated code cannot wait for a person to complete a browser login.
@@ -469,7 +330,7 @@ Fabric.</p>
 </h3>
 <p>‘AzureAuth’ calls this the <code>client_credentials</code> flow. Keep
 the secret outside source code:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span></span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span><span class="op">)</span>,</span>
@@ -478,89 +339,36 @@ the secret outside source code:</p>
 <span>    auth_type <span class="op">=</span> <span class="st">"client_credentials"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>When client credentials are selected, the package does not request
-<code>offline_access</code>, because application tokens do not use
-delegated refresh tokens. ‘AzureAuth’ reacquires them with the
-application credential.</p>
+<p>Keep secrets outside source code and grant the service principal
+access to the Fabric workspace or item. A certificate can replace the
+client secret when your organization requires it.</p>
 </div>
 <div class="section level3">
-<h3 id="service-principal-with-a-certificate">Service principal with a certificate<a class="anchor" aria-label="anchor" href="#service-principal-with-a-certificate"></a>
+<h3 id="managed-identities-and-custom-token-providers">Managed identities and custom token providers<a class="anchor" aria-label="anchor" href="#managed-identities-and-custom-token-providers"></a>
 </h3>
-<p>Certificate authentication avoids a long-lived client secret:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span></span>
-<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    certificate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_CLIENT_CERTIFICATE"</span><span class="op">)</span>,</span>
-<span>    auth_type <span class="op">=</span> <span class="st">"client_credentials"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p><code>certificate</code> accepts the formats supported by
-‘AzureAuth’, including a PEM/PFX file and supported Azure Key Vault
-certificate objects. Protect the certificate and its private key as
-credentials.</p>
-</div>
-<div class="section level3">
-<h3 id="managed-identity">Managed identity<a class="anchor" aria-label="anchor" href="#managed-identity"></a>
-</h3>
-<p>Where the individual Fabric API supports managed identities, acquire
-an <code>AzureToken</code> with
-<code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_managed_token()</a></code> and pass it through
-<code>token</code>:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">managed_token</span> <span class="op">&lt;-</span> <span class="fu">AzureAuth</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">get_managed_token</a></span><span class="op">(</span></span>
-<span>  <span class="st">"https://api.fabric.microsoft.com"</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span>token <span class="op">=</span> <span class="va">managed_token</span><span class="op">)</span></span></code></pre></div>
-<p>Managed-identity support is API-specific. Check the <em>Microsoft
-Entra supported identities</em> table on the relevant Fabric REST API
-page. The current Fabric <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">identity-support
-documentation</a> explains the tenant switch and this per-API
-requirement.</p>
-</div>
-<div class="section level3">
-<h3 id="custom-token-brokers">Custom token brokers<a class="anchor" aria-label="anchor" href="#custom-token-brokers"></a>
-</h3>
-<p>For workload identity federation, an external secret store, or
-another token broker, pass a function. It can accept
-<code>audience</code> and <code>force_refresh</code>:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">provider</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">audience</span>, <span class="va">force_refresh</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="co"># Acquire a token for `audience`; bypass your cache when force_refresh is TRUE</span></span>
-<span>  <span class="fu">my_token_broker</span><span class="op">(</span><span class="va">audience</span>, refresh <span class="op">=</span> <span class="va">force_refresh</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_onelake_files.html">fabric_onelake_list</a></span><span class="op">(</span></span>
-<span>  <span class="st">"Analytics"</span>,</span>
-<span>  <span class="st">"Curated.Lakehouse"</span>,</span>
-<span>  token <span class="op">=</span> <span class="va">provider</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>The callback must return one bearer-token string (or a list
-containing an <code>access_token</code> or <code>token</code> field).
-This is also the escape hatch for authentication methods not implemented
-by ‘AzureAuth’.</p>
+<p>Some Fabric APIs support managed identities. Other environments may
+use workload identity federation or an organization-specific token
+broker. Pass an existing token or a token-provider function through
+<code>token</code> for these cases. Support is API-specific, so check
+the relevant Fabric <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">identity-support
+documentation</a> and <code><a href="../reference/fabric_workspaces.html">?fabric_workspaces</a></code> before choosing
+this route.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="set-fabric-permissions-by-workload">Set Fabric permissions by workload<a class="anchor" aria-label="anchor" href="#set-fabric-permissions-by-workload"></a>
 </h2>
-<p>Getting a token proves an identity; it does not grant that identity
-access to Fabric data. The quick-start section described the basic
-access requirement. For production use or troubleshooting a particular
-function, configure the relevant layers below:</p>
+<p>Getting a token proves an identity; it does not grant access to
+Fabric data. For a production workflow, check three layers:</p>
 <ol style="list-style-type: decimal">
-<li>For service principals and managed identities, a Fabric
-administrator normally enables <em>Service principals can use Fabric
-APIs</em> under <em>Admin portal &gt; Tenant settings &gt; Developer
-settings</em>. Scope the setting to a dedicated Entra security group
-where possible. See <a href="https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support" class="external-link">Fabric
-identity support</a>.</li>
-<li>Add the user, service principal, managed identity, or an appropriate
-group to the workspace, or grant item-level permissions. Fabric <a href="https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces" class="external-link">workspace
-roles</a> are Admin, Member, Contributor, and Viewer. Use the
-least-privileged role that permits the required operation.</li>
-<li>Grant workload-specific data permissions. Workspace visibility and
-data access are not always the same permission.</li>
+<li>the tenant setting allows that identity type to use the API;</li>
+<li>the user or application can access the workspace or item; and</li>
+<li>the workload-specific data permission allows the requested
+operation.</li>
 </ol>
+<p>Use the least-privileged role that supports the task. Fabric’s <a href="https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces" class="external-link">workspace-role
+documentation</a> explains the standard roles; each workload guide lists
+its additional access requirements.</p>
 </div>
 <div class="section level2">
 <h2 id="signing-out-token-cache">Signing out (token cache)<a class="anchor" aria-label="anchor" href="#signing-out-token-cache"></a>

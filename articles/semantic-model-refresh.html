@@ -111,20 +111,11 @@ model and additional tenant settings.</p>
 <div class="section level2">
 <h2 id="check-access-before-refreshing">Check access before refreshing<a class="anchor" aria-label="anchor" href="#check-access-before-refreshing"></a>
 </h2>
-<p>Querying requires Read and Build permission on the model and the
-tenant’s <em>Semantic Model Execute Queries REST API</em> setting.
-Starting or cancelling a refresh requires
-<code>Dataset.ReadWrite.All</code> and Write permission on the model.
-Status and history use <code>Dataset.Read.All</code> or
-<code>Dataset.ReadWrite.All</code>, although Microsoft also requires
-model Write permission for refresh history.</p>
-<p>Service principals are supported when tenant settings and model or
-workspace access allow them. Email notification options do not apply to
-service-principal refresh requests. ‘fabricQueryR’ omits the option for
-known client-credential flows. Caller-supplied tokens default to
-delegated behavior because their identity cannot be inferred; pass
-<code>notify_option = NULL</code> explicitly with a caller-supplied
-service-principal token.</p>
+<p>Querying normally requires Read and Build permission on the model and
+the tenant setting that enables Execute Queries. Refreshing requires
+Write access. If a query succeeds but a refresh does not, ask the model
+owner or Fabric administrator to check those permissions and tenant
+settings.</p>
 </div>
 <div class="section level2">
 <h2 id="refresh-after-an-upstream-update">Refresh after an upstream update<a class="anchor" aria-label="anchor" href="#refresh-after-an-upstream-update"></a>
@@ -138,10 +129,9 @@ defaults:</p>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">start_time</span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">end_time</span></span></code></pre></div>
-<p>The returned handle stores its target and in-process sign-in context.
-It can be passed to status, wait, or cancel without copying IDs.
-Credentials are not persisted when a handle is serialized; authenticate
-again after restoring one in another R process.</p>
+<p>Pass the returned handle to status, wait, or cancel functions without
+copying IDs. If you save it and restore it in another R process,
+authenticate again.</p>
 <p>For example, a data-load workflow can refresh only after the source
 update has committed successfully:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
@@ -187,28 +177,18 @@ explicitly:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">5</span> <span class="op">*</span> <span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span></span></code></pre></div>
-<p>The refresh submission <code>timeout</code> is an
-<code>HH:MM:SS</code> limit for each attempt. Each retry gets a new
-attempt limit, but Power BI limits the whole operation to 24 hours. The
-wait function’s numeric <code>timeout</code> remains a separate client
-limit.</p>
-<p>Use <code>Transactional</code> to preserve the previous model unless
-the entire refresh succeeds. <code>PartialBatch</code> commits each
-processing command separately, so a failure can leave only part of the
-new data loaded or a table empty. It also cannot be combined with
-<code>apply_refresh_policy = TRUE</code>.</p>
-<p>Power BI permits only one active refresh per semantic model. A second
-request is rejected rather than queued behind the first.</p>
+<p>The submission <code>timeout</code> controls an individual Power BI
+attempt; the numeric timeout in <code><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait()</a></code>
+controls how long R waits. Use <code>"Transactional"</code> when the
+previous model should remain available unless the complete refresh
+succeeds. See <code><a href="../reference/fabric_pbi_refresh.html">?fabric_pbi_refresh</a></code> before using
+partial-batch commits or refresh-policy options.</p>
 </div>
 <div class="section level2">
 <h2 id="diagnose-attempts-and-failures">Diagnose attempts and failures<a class="anchor" aria-label="anchor" href="#diagnose-attempts-and-failures"></a>
 </h2>
-<p>Execution details retain the service’s general and extended states.
-The normalized <code>state</code> distinguishes <code>Queued</code>,
-<code>InProgress</code>, <code>Completed</code>,
-<code>CompletedWithWarnings</code>, <code>Failed</code>,
-<code>TimedOut</code>, <code>Cancelled</code>, and
-<code>Disabled</code>.</p>
+<p>Use the status helper when a refresh takes longer than expected or
+fails:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_status</a></span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span>
 <span></span>
@@ -218,16 +198,11 @@ The normalized <code>state</code> distinguishes <code>Queued</code>,
 <span><span class="va">status</span><span class="op">$</span><span class="va">service_error</span></span>
 <span><span class="va">status</span><span class="op">$</span><span class="va">objects</span></span>
 <span><span class="va">status</span><span class="op">$</span><span class="va">details_url</span></span></code></pre></div>
-<p>Each attempt retains Data or Query phase information, timestamps,
-execution metrics, and a parsed service exception. The complete response
-remains in <code>raw</code>, so new Microsoft fields are still
-inspectable.</p>
-<p>Power BI can finish successfully with non-fatal warnings. Microsoft
-currently documents that the history and execution-detail REST APIs do
-not include those warnings. If the service returns warning messages,
-‘fabricQueryR’ reports <code>CompletedWithWarnings</code>; otherwise
-open <code>details_url</code> to check the Fabric refresh-detail
-page.</p>
+<p>The normalized state distinguishes work that is queued, running,
+completed, completed with warnings, failed, timed out, cancelled, or
+disabled. Attempt details and <code>details_url</code> help diagnose the
+service response; the complete response remains available in
+<code>raw</code>.</p>
 <p>By default, wait raises typed R conditions for service failures,
 cancellation, service timeouts, and disabled refreshes. Keep the
 terminal detail instead when building a monitoring table:</p>
@@ -242,9 +217,8 @@ terminal detail instead when building a monitoring table:</p>
 <div class="section level2">
 <h2 id="inspect-history">Inspect history<a class="anchor" aria-label="anchor" href="#inspect-history"></a>
 </h2>
-<p>Power BI retains between 20 and 60 recent history entries depending
-on their age. OneDrive synchronization history is separate and is not
-returned here.</p>
+<p>Inspect recent refreshes when you need to compare duration or failure
+patterns:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_history</a></span><span class="op">(</span><span class="va">model</span>, top <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span></span>
 <span></span>

@@ -1,12 +1,13 @@
 # Get started with 'fabricQueryR'
 
 Microsoft Fabric is a collection of services for storing, transforming,
-and reporting on data. ‘fabricQueryR’ lets you use many of those
-services from R. You can bring Fabric data into an R data frame, send R
-data to Fabric, or use R to start work that runs inside Fabric.
+and reporting on data. ‘fabricQueryR’ lets you work with many of those
+services from R: you can read Fabric data, send R data to Fabric, and
+start work that runs inside Fabric.
 
-This guide introduces the few of the Fabric concepts you need for a
-first successful workflow.
+This guide introduces the basic Fabric concepts and completes one small
+read. Start here if you are new to either Fabric or ‘fabricQueryR’, then
+continue to a task-specific vignette.
 
 ## The Fabric objects you will see
 
@@ -114,8 +115,9 @@ lakehouse <- lakehouses[[1L]]
 lakehouse$displayName
 ```
 
-A discovered item contains metadata such as its name and type. You can
-pass the discovered item to other functions of this package (see below).
+A discovered item contains metadata such as its name and type. Pass that
+item directly to other ‘fabricQueryR’ functions instead of copying IDs
+or connection details by hand.
 
 ## Complete a first read
 

@@ -60,10 +60,13 @@
 
     
     
-<p>‘fabricQueryR’ can be used to bring data from R into Microsoft
-Fabric.</p>
-<p>In this vignette, it is shown how you can move R data frames, Arrow
-objects, or files.</p>
+<p>‘fabricQueryR’ helps you send data from R to Lakehouses, Warehouses,
+Eventhouses, and OneLake. The source can be an ordinary R data frame, an
+Arrow object, or a file that already exists on disk or in Fabric.</p>
+<p>The right writer depends on how the data will be used after it
+arrives. This guide starts with a small data frame and a managed
+Lakehouse table, then shows the other common destinations. Larger Arrow
+workflows come last.</p>
 <div class="section level2">
 <h2 id="choose-a-destination">Choose a destination<a class="anchor" aria-label="anchor" href="#choose-a-destination"></a>
 </h2>
@@ -112,10 +115,9 @@ general-purpose workflow. The high-level writers accept ordinary data
 frames and handle their own temporary Parquet staging.</p>
 </div>
 <div class="section level2">
-<h2 id="prepare-a-small-r-dataframe">Prepare a small R dataframe<a class="anchor" aria-label="anchor" href="#prepare-a-small-r-dataframe"></a>
+<h2 id="prepare-a-small-r-data-frame">Prepare a small R data frame<a class="anchor" aria-label="anchor" href="#prepare-a-small-r-data-frame"></a>
 </h2>
-<p>For demonstration purposes, we’ll first create a small R dataframe
-and select a Lakehouse in a workspace:</p>
+<p>Create a small data frame and select a Lakehouse in a workspace:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>

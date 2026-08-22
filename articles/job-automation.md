@@ -34,15 +34,10 @@ checks Fabric until the job finishes or the 15-minute local deadline is
 reached. `cancel_on_timeout = TRUE` asks Fabric to cancel the run if
 that deadline is exceeded.
 
-Running jobs needs item execute permission. Reading history and
-schedules needs item read permission. Creating or updating a schedule
-needs item execute and read-write permissions; deletion needs item
-read-write permission. A workspace Contributor role or direct item Write
-permission is normally needed to change schedules.
-
-[`fabric_job_instances()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_instances.md)
-follows all Fabric continuation pages. Most item types retain at most
-100 recently completed runs, in addition to active runs.
+Running a job needs Execute permission. Reading history needs Read
+permission, while changing schedules normally needs Write access. If an
+on-demand run works but schedule creation does not, ask the item owner
+to check your Write access.
 
 ``` r
 
@@ -54,43 +49,19 @@ history[[1]]$start_time
 history[[1]]$failure_reason
 ```
 
-History entries use the same `fabric_job_instance` contract as on-demand
-status results. They can be refreshed directly without copying an
-instance ID:
+Refresh a history entry directly without copying its instance ID:
 
 ``` r
 
 latest <- fabric_job_status(history[[1]])
 ```
 
-Fabric can add job statuses and invocation types over time. Unknown
-values stay unchanged in the normalized fields and the complete response
-is available in `raw`.
-
 ## Build schedule configurations
 
-Fabric currently documents four REST configuration types. Schedule
-boundaries are absolute UTC instants. Daily, weekly, and monthly clock
-times are local to a Windows time-zone identifier, which lets Fabric
-apply daylight-saving rules. They never depend on the computer running
-R.
-
-Cron is Fabric’s name for a minute interval, not a cron expression:
-
-``` r
-
-every_30_minutes <- fabric_job_schedule_config(
-  "Cron",
-  start_time = "2026-10-01T00:00:00Z",
-  end_time = "2027-10-01T00:00:00Z",
-  time_zone = "UTC",
-  interval = 30L
-)
-```
-
-Daily and weekly schedules accept one or more `HH:MM` values. Use a
-Windows identifier such as `W. Europe Standard Time`, not an IANA
-identifier such as `Europe/Amsterdam`.
+Build and validate a schedule configuration before creating the schedule
+in Fabric. Boundaries are UTC instants, while recurring clock times use
+a Windows time-zone identifier so Fabric can apply daylight-saving
+rules.
 
 ``` r
 
@@ -99,8 +70,19 @@ daily <- fabric_job_schedule_config(
   start_time = "2026-10-01T00:00:00Z",
   end_time = "2027-10-01T00:00:00Z",
   time_zone = "W. Europe Standard Time",
-  times = c("08:30", "17:00")
+  times = "08:30"
 )
+```
+
+Fabric supports minute-interval, daily, weekly, and monthly schedules.
+Weekly schedules add `weekdays`; monthly schedules select a numbered day
+or an ordinal weekday. See
+[`?fabric_job_schedule_config`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedule_config.md)
+for those shapes. Use a Windows time zone such as
+`"W. Europe Standard Time"`, not an IANA name such as
+`"Europe/Amsterdam"`.
+
+``` r
 
 weekly <- fabric_job_schedule_config(
   "Weekly",
@@ -112,29 +94,10 @@ weekly <- fabric_job_schedule_config(
 )
 ```
 
-Monthly schedules repeat every 1 through 12 months. Select either a
-numbered day or an ordinal weekday. Fabric skips months where a numbered
-day is invalid.
-
-``` r
-
-month_end_review <- fabric_job_schedule_config(
-  "Monthly",
-  start_time = "2026-10-01T00:00:00Z",
-  end_time = "2027-10-01T00:00:00Z",
-  time_zone = "W. Europe Standard Time",
-  times = "09:00",
-  recurrence = 1L,
-  week_index = "Fourth",
-  weekday = "Friday"
-)
-```
-
 ## Create, list, update, and disable
 
-An item can currently have at most 20 schedules. Create one from a
-validated configuration, then list all of the schedules for that job
-type:
+Create one schedule from a validated configuration, then list the
+schedules for the item:
 
 ``` r
 
@@ -142,9 +105,7 @@ schedule <- fabric_job_schedule_create(notebook, weekly, enabled = TRUE)
 schedules <- fabric_job_schedules(notebook)
 ```
 
-The Fabric PATCH endpoint requires both `enabled` and the complete
-schedule configuration. For a partial R update, ‘fabricQueryR’ first
-reads the current record and preserves fields that were not supplied:
+Disable or restart a schedule without rebuilding its configuration:
 
 ``` r
 
@@ -161,46 +122,10 @@ restarted <- fabric_job_schedule_update(
 )
 ```
 
-Fabric may automatically disable a schedule after repeated failures.
-Updating it with `enabled = TRUE` restarts it. The published REST
-response exposes the `enabled` flag but does not yet guarantee a
-separate auto-disable reason, so `auto_disabled` is `NA` unless the
-service returns an explicit marker. Inspect `raw` for any newer
-workload-specific fields.
+Fabric may disable a schedule after repeated failures. Re-enable it only
+after inspecting recent job history and correcting the cause.
 
-Some job types accept static `executionData`. Its schema belongs to that
-workload, so provide the exact documented object:
-
-``` r
-
-special <- fabric_job_schedule_create(
-  workload_item,
-  daily,
-  job_type = "DefaultJob",
-  execution_data = list(
-    tableName = "Sales",
-    optimizeSettings = list(vOrder = TRUE)
-  )
-)
-```
-
-Omitting `execution_data` during update, or leaving it as `NULL`,
-preserves the current value. Supply a named list to replace it.
-
-## Future schedule types and cleanup
-
-For a schedule type added after this package version, pass the
-documented JSON shape as a named list. Known types are validated;
-unknown types are sent without discarding their fields and returned in
-`configuration` and `raw`.
-
-``` r
-
-future_configuration <- list(
-  type = "FutureScheduleType",
-  futureProperty = list(value = "documented by Fabric")
-)
-```
+## Delete a schedule
 
 Deletion is permanent and never inferred from a create or update
 conflict. It requires explicit confirmation:

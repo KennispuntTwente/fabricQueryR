@@ -153,32 +153,11 @@ frame:</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="stream-a-larger-than-memory-arrow-source">Stream a larger-than-memory Arrow source<a class="anchor" aria-label="anchor" href="#stream-a-larger-than-memory-arrow-source"></a>
+<h2 id="replace-table-data">Replace table data<a class="anchor" aria-label="anchor" href="#replace-table-data"></a>
 </h2>
-<p>Arrow Datasets, Scanners, ‘dplyr’ queries, RecordBatchReaders,
-Tables, and Arrow-compatible streams use the same function. They are
-consumed one record batch at a time rather than collected into an R data
-frame:</p>
+<p>Use overwrite mode when the new data should replace the current
+rows:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
-<span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
-<span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
-<span>  target_file_size <span class="op">=</span> <span class="fl">512</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">^</span><span class="fl">2</span>,</span>
-<span>  max_rows_per_file <span class="op">=</span> <span class="cn">NULL</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p><code>target_file_size</code> is a soft compressed-size boundary. The
-512 MB default is inside Fabric’s documented 100 MB to 1 GB performance
-range. Use <code>max_rows_per_file</code> when an exact and
-deterministic part boundary matters.</p>
-</div>
-<div class="section level2">
-<h2 id="choose-truncate-or-drop-replacement">Choose truncate or drop replacement<a class="anchor" aria-label="anchor" href="#choose-truncate-or-drop-replacement"></a>
-</h2>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
@@ -187,11 +166,10 @@ deterministic part boundary matters.</p>
 <span>  mode <span class="op">=</span> <span class="st">"Overwrite"</span>,</span>
 <span>  overwrite_method <span class="op">=</span> <span class="st">"Truncate"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The default truncate path preserves the existing definition, executes
-<code>COPY INTO</code>, and commits only after the load succeeds. Use
-drop replacement when the target definition should instead be inferred
-again:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<p>The default <code>"Truncate"</code> method preserves the existing
+table definition. Use <code>"Drop"</code> only when Fabric should infer
+a new definition from the incoming data:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">recreated</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
@@ -201,21 +179,34 @@ again:</p>
 <span>  overwrite_method <span class="op">=</span> <span class="st">"Drop"</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Drop replacement discards the old table definition—including
-table-specific constraints, indexes, and grants—and recreates it with
-CTAS. Setting <code>create_if_missing = TRUE</code> also lets this path
-proceed when the target is already absent. Fabric Warehouse documents
-DDL inside ACID transactions and all-or-nothing rollback for these
-grouped write operations.</p>
-<p>Local temporary files are always removed. The OneLake staging
-directory is removed only after confirmed success. If SQL delivery
-becomes ambiguous, it is retained even when
-<code>keep_staging_on_failure = FALSE</code>; the error condition
-contains <code>staging_path</code>, <code>staging_retained</code>, and
-<code>ambiguous</code> fields for recovery and diagnosis.</p>
+<p>Dropping a table also removes its table-specific constraints,
+indexes, and grants. Prefer <code>"Truncate"</code> unless recreating
+the definition is intentional. The writer removes staging files after
+confirmed success and reports a retained staging path when manual
+recovery may be needed.</p>
 </div>
 <div class="section level2">
-<h2 id="microsoft-documentation">Microsoft documentation<a class="anchor" aria-label="anchor" href="#microsoft-documentation"></a>
+<h2 id="scale-up-with-arrow">Scale up with Arrow<a class="anchor" aria-label="anchor" href="#scale-up-with-arrow"></a>
+</h2>
+<p>The same writer accepts Arrow Datasets, Scanners, ‘dplyr’ queries,
+RecordBatchReaders, Tables, and Arrow-compatible streams. These sources
+are processed in batches instead of first being collected into an R data
+frame:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
+<span>  <span class="va">warehouse</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
+<span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>See <code><a href="../reference/fabric_warehouse_write_table.html">?fabric_warehouse_write_table</a></code> when you need to tune
+staged file sizes or recover a retained staging directory after a failed
+write.</p>
+</div>
+<div class="section level2">
+<h2 id="more-information">More information<a class="anchor" aria-label="anchor" href="#more-information"></a>
 </h2>
 <ul>
 <li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/copy-into-transact-sql?view=fabric" class="external-link">COPY

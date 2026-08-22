@@ -60,13 +60,15 @@
 
     
     
-<p>A Fabric API for GraphQL is a structured doorway to data selected by
-the API’s owner. A GraphQL query names the fields you want, and the
-response follows the same nested shape. This can be convenient when you
-need an approved API view instead of direct access to the underlying
-Lakehouse, Warehouse, or SQL Database.</p>
+<p>A Fabric API for GraphQL provides a structured view of data selected
+by the API’s owner. A query names the fields you want, and the response
+follows the same nested shape. This is useful when you should use an
+approved API instead of connecting directly to the underlying data
+source.</p>
 <p>This guide starts with one small query. It then introduces schema
-inspection, pagination, and collection into a tibble.</p>
+inspection, pagination, and collection into a tibble. You only need the
+later sections when the result spans several pages or contains nested
+fields.</p>
 <p>Start with a discovered API so its endpoint and workspace travel
 together:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -75,9 +77,7 @@ together:</p>
 <span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>The caller needs <em>Run Queries and Mutations</em> permission on the
 API. With SSO connectivity, the caller also needs access to the
-underlying data source. The package uses the delegated
-<code>GraphQLApi.Execute.All</code> scope for interactive users and the
-Fabric audience for service-principal authentication.</p>
+underlying data source.</p>
 <div class="section level2">
 <h2 id="run-a-first-query">Run a first query<a class="anchor" aria-label="anchor" href="#run-a-first-query"></a>
 </h2>
@@ -167,28 +167,19 @@ list-columns rather than being flattened:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">products</span><span class="op">$</span><span class="va">category</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">products</span><span class="op">$</span><span class="va">tags</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>JSON whole numbers beyond R’s exact double range are decoded as
-character values. The collector preserves those strings. If the same
-field has smaller R integer values on another page, it promotes those
-smaller values to character too; it never converts the large value to an
-inexact double. Other incompatible scalar changes stop with an error so
-a schema change cannot silently alter the analysis.</p>
-<p>GraphQL can return data and errors together. The rows remain usable,
-while the combined service errors stay in
-<code>attr(products, "errors")</code> and their count is shown when the
-tibble prints.</p>
+<p>The collector preserves large whole numbers as character values so
+they are not silently rounded. GraphQL can also return data and errors
+together: usable rows remain available, while combined service errors
+stay in <code>attr(products, "errors")</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="treat-incomplete-pagination-as-partial-data">Treat incomplete pagination as partial data<a class="anchor" aria-label="anchor" href="#treat-incomplete-pagination-as-partial-data"></a>
 </h2>
-<p><code><a href="../reference/fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code> marks completion only after
-the cursor callback reports that no next page exists. Reaching
-<code>max_pages</code> raises a
-<code>fabric_graphql_pagination_error</code> whose <code>pages</code>
-field is marked incomplete. If those pages are passed to
-<code><a href="../reference/fabric_graphql_collect.html">fabric_graphql_collect()</a></code>, collection raises a
-<code>fabric_graphql_collection_error</code> instead of returning an
-apparently complete tibble:</p>
+<p><code><a href="../reference/fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code> marks a result complete only
+after the API reports that no next page exists. If a page limit is
+reached first, collection raises an error rather than returning an
+apparently complete tibble. The partial rows remain available for
+explicit recovery:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/fabric_graphql_collect.html">fabric_graphql_collect</a></span><span class="op">(</span><span class="va">incomplete_pages</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"products"</span>, <span class="st">"items"</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -198,11 +189,9 @@ apparently complete tibble:</p>
 <span>    <span class="va">partial</span></span>
 <span>  <span class="op">}</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Fabric currently defaults each page to 100 items and limits
-pagination to 100,000 items. A response is limited to 64 MB, one request
-to 100 seconds, and query nesting to 10 levels. Use smaller pages and
-stable filtered partitions for large results rather than treating a
-service-limit response as completion.</p>
+<p>For large results, use smaller pages and stable filtered partitions.
+See the Fabric limits documentation before designing a high-volume API
+workflow.</p>
 <p>See Microsoft’s documentation for <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export" class="external-link">introspection
 and schema export</a>, <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits" class="external-link">GraphQL
 limits</a>, and the generated <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-aggregations" class="external-link">pagination

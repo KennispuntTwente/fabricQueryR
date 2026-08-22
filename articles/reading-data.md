@@ -1,21 +1,17 @@
 # Bring Fabric data into R
 
-Microsoft Fabric can store and serve data in several ways.
-‘fabricQueryR’ helps you bring that data into your local R session for
-analysis, visualization, and reporting.
+Microsoft Fabric stores and serves data through Lakehouses, Warehouses,
+Eventhouses, semantic models, files, and APIs. ‘fabricQueryR’ helps you
+bring that data into your local R session for analysis, visualization,
+and reporting. For most everyday tasks, the result is a tibble (a modern
+R data frame).
 
-For most everyday tasks, the result is a tibble (a modern R data frame),
-but you can also use an Arrow stream when working with data that is too
-large to fit comfortably in memory.
-
-The best way to read data depends mainly on where it is stored and
-whether you need an entire table or only a filtered subset. A good rule
-is to start with a small, filtered read, then move to streaming or Spark
-only when the data is very large or the work requires distributed
-computing.
-
-This vignette explains the various ways that you can read data from
-Microsoft Fabric into R.
+The best method depends on where the data lives and whether you need a
+whole table or a filtered result. Start with a small read and let Fabric
+filter the data when possible. Move to Arrow streaming or Spark only
+when the data is too large for local memory or the transformation needs
+distributed computing. This guide compares the common methods in that
+order.
 
 ## Choose a reading method
 
@@ -159,7 +155,7 @@ daily_events <- fabric_kql_query(
 ## Query a semantic model with DAX
 
 A semantic model is a dataset ready for reporting, commonly used in
-PowerBi. Semantic models can be queried with DAX (Data Analysis
+Power BI. Semantic models can be queried with DAX (Data Analysis
 Expressions):
 
 ``` r
@@ -235,11 +231,10 @@ counts <- result$output$parsed
 Spark has startup cost. Prefer SQL or a direct reader for a small,
 ordinary table read.
 
-## Working with large data (Arrow streams)
+## Scale up with Arrow streams
 
-If you work with large volumes of data (larger than your device’s
-working memory), you may need to stream the data into R rather than
-reading it all at once.
+If a selected result is larger than your computer’s working memory,
+process it as a stream instead of collecting it all at once.
 
 Several readers accept `result = "arrow_stream"`. This can be used with
 the ‘arrow’ R package to read the data in batches:

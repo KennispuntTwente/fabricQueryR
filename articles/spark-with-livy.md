@@ -8,7 +8,9 @@ your local R process.
 Use Spark when a transformation is too large for one computer, needs a
 Spark-specific library or format, or already exists as a Spark
 application. For a small table read, SQL or a direct Lakehouse reader is
-usually simpler and starts faster.
+usually simpler and starts faster. This guide begins with one small
+statement, then moves to reusable sessions, complete applications, and
+shared environments.
 
 ## Before the first call
 

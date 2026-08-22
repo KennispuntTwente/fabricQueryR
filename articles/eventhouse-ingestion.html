@@ -61,14 +61,14 @@
     
     
 <p>An Eventhouse stores event, log, and time-series data in KQL
-databases. In this vignette, <em>ingestion</em> means adding rows to one
-of its KQL tables.</p>
-<p>Start with <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>: it accepts a data
-frame and manages the upload, ingestion status, and cleanup for you.
-Later sections cover larger Arrow inputs and the lower-level
-queued-ingestion workflow for files that are already in OneLake or blob
-storage. The underlying ingestion REST routes are currently in
-preview.</p>
+databases. In this guide, <em>ingestion</em> means adding rows to a KQL
+table. Start with <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>, which accepts
+an R data frame and manages staging, status checks, and cleanup for
+you.</p>
+<p>After the basic write, this guide shows how to monitor ingestion, use
+an existing storage file, scale up with Arrow, and export a large query
+result. The lower-level ingestion routes used by these workflows are
+currently in preview.</p>
 <div class="section level2">
 <h2 id="find-a-kql-database">Find a KQL database<a class="anchor" aria-label="anchor" href="#find-a-kql-database"></a>
 </h2>
@@ -106,49 +106,11 @@ a new test table while learning:</p>
 queues the ingestion, waits for a final status, and deletes staging only
 after confirmed success. <code>create_if_missing = TRUE</code> creates a
 basic table from the R object’s columns when needed.</p>
-<p>With <code>create_if_missing = TRUE</code>, the writer sends Kusto’s
-idempotent <code>.create table</code> command before staging. A missing
-target is inferred from the Arrow schema; an existing target is returned
-unchanged. Common logical, integer, double, character, date/time,
-decimal, and nested Arrow types are mapped to Kusto scalar types. Use a
-named <code>column_types</code> vector with one value per source field
-when those inferred types are not appropriate.</p>
-<p>Parquet identity mapping is case-sensitive. Source field names and
-types must match an existing KQL table; otherwise supply a predefined
-Parquet <code>mapping</code>. Factors are written as strings. Convert
-complex and <code>difftime</code> columns explicitly.</p>
-<p>Arrow Tables and RecordBatches work without an R data-frame
-conversion. For data larger than memory, pass a lazy Dataset, Scanner,
-Arrow ‘dplyr’ query, RecordBatchReader, or an Arrow-compatible stream
-returned by a package query:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
-<span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
-<span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span>,</span>
-<span>  create_if_missing <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>The dataset is scanned one record batch at a time into bounded
-temporary Parquet parts and then uploaded in bounded chunks. It is never
-collected into a data frame or Arrow Table. A supplied RecordBatchReader
-is single-use and is exhausted by the write. Use
-<code>target_file_size</code> for a soft byte boundary or
-<code>max_rows_per_file</code> for an exact row boundary. The serialized
-batch must remain within the ingestion service’s advertised size and
-blob-count limits.</p>
-<p>The function uses the OneLake folder returned by
-<code>/v1/rest/ingestion/configuration</code>. If an administrator
-provides a different writable location, pass its full trusted
-<code>Files/</code> URI as <code>staging_folder</code>. Ambiguous
-submission and polling failures always retain staging. Confirmed
-terminal failures retain it by default; set
-<code>keep_staging_on_failure = FALSE</code> only when automatic removal
-is appropriate. An upload transport error can make the final atomic
-rename ambiguous; its condition reports the unique path with
-<code>staging_retained = NA</code> for inspection.</p>
+<p>For an existing table, the source names and types must match. Supply
+a predefined Parquet <code>mapping</code> or explicit
+<code>column_types</code> when inference is not appropriate. See
+<code><a href="../reference/fabric_kql_write_table.html">?fabric_kql_write_table</a></code> for supported type mappings and
+staging recovery options.</p>
 </div>
 <div class="section level2">
 <h2 id="queue-a-tracked-batch">Queue a tracked batch<a class="anchor" aria-label="anchor" href="#queue-a-tracked-batch"></a>
@@ -158,24 +120,18 @@ file already exists in OneLake or supported blob storage. It does not
 upload a local file or serialize an R object, and the destination table
 must already exist.</p>
 <p>For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate
-a named ingestion mapping in Fabric before submission. A OneLake source
-can use the workspace and item GUIDs with caller impersonation:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+a named ingestion mapping in Fabric before submission. Supply the
+complete source path and its format:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>  <span class="st">"https://onelake.dfs.fabric.microsoft.com/"</span>,</span>
-<span>  <span class="st">"00000000-0000-0000-0000-000000000001/"</span>,</span>
-<span>  <span class="st">"00000000-0000-0000-0000-000000000002/"</span>,</span>
-<span>  <span class="st">"Files/events/2026-08-14.csv;impersonate"</span></span>
+<span>  <span class="st">"&lt;workspace-id&gt;/&lt;lakehouse-id&gt;"</span>,</span>
+<span>  <span class="st">"/Files/events/2026-08-14.csv;impersonate"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The signed-in identity must be able to read the file. Other Kusto
-storage connection strings can contain a SAS token, managed-identity
-suffix, or another documented authentication method. Do not print or log
-a credential-bearing source string. The complete value must be sent to
-the trusted ingestion endpoint even though returned objects redact
-recognized secrets.</p>
-<p>Supply the source format and the predefined mapping. Source GUIDs are
-generated when omitted and exposed on the returned handle:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<p>The signed-in identity must be able to read the file. Do not print or
+log a source string that contains credentials. Source IDs are generated
+when omitted and remain available on the returned handle:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest</a></span><span class="op">(</span></span>
 <span>  <span class="va">database</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
@@ -188,56 +144,26 @@ generated when omitted and exposed on the returned handle:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ingestion</span><span class="op">$</span><span class="va">id</span></span>
-<span><span class="va">ingestion</span><span class="op">$</span><span class="va">sources</span><span class="op">$</span><span class="va">source_id</span></span>
-<span><span class="va">ingestion</span><span class="op">$</span><span class="va">tags</span></span></code></pre></div>
-<p><code>ingest_if_not_exists</code> uses stable keys without the
-<code>ingest-by:</code> prefix. The function attaches the matching
-extent tag automatically. A later ingestion with the same key is
-prevented when that tag already exists. This is the Kusto idempotency
-mechanism; a source GUID primarily identifies a blob in tracking and
-diagnostics.</p>
-<p>Queued ingestion still has at-least-once delivery. In particular,
-concurrent requests using the same key can race before either extent
-exists. Serialize submissions sharing a key. ‘fabricQueryR’ also does
-not retry the submission POST: after a timeout, throttling response, or
-lost connection, the service might already have accepted it, so an
-automatic replay could duplicate data.</p>
-<p>The preview route accepts at most 20 blobs per request and up to 6 GB
-of uncompressed data. Structured records expose known sizes without
-parallel vectors:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sources</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
-<span>  url <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">source_a</span>, <span class="va">source_b</span><span class="op">)</span>,</span>
-<span>  source_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">source_a_id</span>, <span class="va">source_b_id</span><span class="op">)</span>,</span>
-<span>  raw_size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">120000000</span>, <span class="fl">180000000</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
-<span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
-<span>  sources <span class="op">=</span> <span class="va">sources</span>,</span>
-<span>  format <span class="op">=</span> <span class="st">"parquet"</span>,</span>
-<span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>Keep <code>skip_batching = FALSE</code> for normal throughput. Set it
-only when lower latency is more important than Kusto’s normal batching
-efficiency. Source files are preserved by default;
-<code>delete_after_download = TRUE</code> permanently removes a
-successfully downloaded source and requires corresponding storage
-permission.</p>
+<span><span class="va">ingestion</span><span class="op">$</span><span class="va">sources</span><span class="op">$</span><span class="va">source_id</span></span></code></pre></div>
+<p>Use a stable <code>ingest_if_not_exists</code> key when the same
+logical batch may be submitted again. Queued ingestion is still an
+advanced, at-least-once workflow: after an uncertain network result,
+inspect the tracked operation and target table before submitting the
+source again. See <code><a href="../reference/fabric_kql_ingest.html">?fabric_kql_ingest</a></code> for batching, source
+deletion, and storage-authentication options.</p>
 </div>
 <div class="section level2">
 <h2 id="wait-and-inspect-the-outcome">Wait and inspect the outcome<a class="anchor" aria-label="anchor" href="#wait-and-inspect-the-outcome"></a>
 </h2>
 <p>One status snapshot is useful for a scheduler that persists operation
 IDs:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">snapshot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span><span class="va">ingestion</span><span class="op">)</span></span>
 <span><span class="va">snapshot</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">snapshot</span><span class="op">$</span><span class="va">counts</span></span></code></pre></div>
 <p>For an interactive or single-process batch, poll with a client-side
 deadline:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span></span>
 <span>  <span class="va">ingestion</span>,</span>
 <span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -247,15 +173,10 @@ deadline:</p>
 <span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">details</span></span></code></pre></div>
-<p>The deadline stops only the R waiter. A
-<code>fabric_kql_ingestion_timeout</code> condition includes the last
-observed status and explicitly leaves the service operation running.
-Status GETs are safe to retry and honor service throttling hints.</p>
-<p>A mixed batch returns <code>PartiallySucceeded</code>; completely
-failed and canceled batches have their own states. By default terminal
-problems raise a typed condition containing <code>last_status</code> and
-the failed-source details. To handle all states as data:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<p>The deadline stops only the R waiter; it does not cancel ingestion in
+Fabric. By default, a failed or partially successful batch raises an R
+condition. To inspect every terminal state as data instead:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span></span>
 <span>  <span class="va">ingestion</span>,</span>
 <span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -267,22 +188,34 @@ the failed-source details. To handle all states as data:</p>
 <span>  <span class="va">status</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Failed"</span>, <span class="st">"Canceled"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">failed</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"source_id"</span>, <span class="st">"error_code"</span>, <span class="st">"failure_status"</span>, <span class="st">"message"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
-<p>Retry a <code>Transient</code> source only after considering whether
-it might already have committed. A <code>Permanent</code> failure such
-as a missing mapping or malformed input requires a configuration or data
-fix. Query the destination after success:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<p>Query the destination after success:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">loaded</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">database</span>,</span>
 <span>  query <span class="op">=</span> <span class="st">"Events | where ingestion_time() &gt; ago(1h) | take 100"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The caller needs Table Ingestor permission on the destination and
-Database User access. Status details for nonpublic storage also require
-source storage read access. For manual <code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code>
-workflows, keep the staged file until the tracked result is terminal and
-verified. <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code> applies that retention
-rule automatically and reports the full retained path whenever manual
-recovery is required.</p>
+<p>The caller needs permission to ingest into the destination table and
+read the source file. Keep a manually staged source until the tracked
+result is final and verified; <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>
+manages this retention rule for you.</p>
+</div>
+<div class="section level2">
+<h2 id="scale-up-with-arrow">Scale up with Arrow<a class="anchor" aria-label="anchor" href="#scale-up-with-arrow"></a>
+</h2>
+<p>For data larger than memory, pass an Arrow Dataset, Scanner, ‘dplyr’
+query, RecordBatchReader, or compatible stream to the same high-level
+writer:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
+<span>  <span class="va">database</span>,</span>
+<span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
+<span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The source is processed in batches instead of first being collected
+into an R data frame. A supplied RecordBatchReader is single-use.</p>
 </div>
 <div class="section level2">
 <h2 id="export-a-large-kql-result-to-onelake">Export a large KQL result to OneLake<a class="anchor" aria-label="anchor" href="#export-a-large-kql-result-to-onelake"></a>
@@ -292,7 +225,7 @@ result belongs in R. When the result is too large for the client-result
 channel or should remain in Fabric, <code><a href="../reference/fabric_kql_export.html">fabric_kql_export()</a></code>
 runs Kusto’s service-side export and writes the first result set
 directly to storage:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">exported</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_export.html">fabric_kql_export</a></span><span class="op">(</span></span>
@@ -308,20 +241,9 @@ directly to storage:</p>
 <span><span class="va">exported</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">exported</span><span class="op">$</span><span class="va">records</span></span>
 <span><span class="va">exported</span><span class="op">$</span><span class="va">artifacts</span></span></code></pre></div>
-<p>A discovered item uses a OneLake GUID path with
-<code>;impersonate</code>; the principal therefore needs write access to
-the destination. A complete documented Kusto storage connection string
-can be supplied instead. Credential-bearing strings are obfuscated in
-Kusto command telemetry and redacted from returned R objects.</p>
-<p>The function always uses <code>async</code>, polls
-<code>.show operations</code>, and calls
-<code>.show operation ... details</code> only after the operation
-reports <code>Completed</code>. The submission itself is never replayed.
-Kusto documents that ordinary exports do not retry and that artifacts
-already written by a failed export remain and must be treated as
-incomplete. Timeout and failure conditions carry the operation ID and
-safe destination so the operation can be inspected before a new export
-is submitted.</p>
+<p>The signed-in identity needs write access to the destination. If an
+export fails, treat any files already written as incomplete and inspect
+the returned operation before starting a replacement export.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

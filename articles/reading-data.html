@@ -60,19 +60,17 @@
 
     
     
-<p>Microsoft Fabric can store and serve data in several ways.
+<p>Microsoft Fabric stores and serves data through Lakehouses,
+Warehouses, Eventhouses, semantic models, files, and APIs.
 ‘fabricQueryR’ helps you bring that data into your local R session for
-analysis, visualization, and reporting.</p>
-<p>For most everyday tasks, the result is a tibble (a modern R data
-frame), but you can also use an Arrow stream when working with data that
-is too large to fit comfortably in memory.</p>
-<p>The best way to read data depends mainly on where it is stored and
-whether you need an entire table or only a filtered subset. A good rule
-is to start with a small, filtered read, then move to streaming or Spark
-only when the data is very large or the work requires distributed
-computing.</p>
-<p>This vignette explains the various ways that you can read data from
-Microsoft Fabric into R.</p>
+analysis, visualization, and reporting. For most everyday tasks, the
+result is a tibble (a modern R data frame).</p>
+<p>The best method depends on where the data lives and whether you need
+a whole table or a filtered result. Start with a small read and let
+Fabric filter the data when possible. Move to Arrow streaming or Spark
+only when the data is too large for local memory or the transformation
+needs distributed computing. This guide compares the common methods in
+that order.</p>
 <div class="section level2">
 <h2 id="choose-a-reading-method">Choose a reading method<a class="anchor" aria-label="anchor" href="#choose-a-reading-method"></a>
 </h2>
@@ -244,7 +242,7 @@ first:</p>
 <h2 id="query-a-semantic-model-with-dax">Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#query-a-semantic-model-with-dax"></a>
 </h2>
 <p>A semantic model is a dataset ready for reporting, commonly used in
-PowerBi. Semantic models can be queried with DAX (Data Analysis
+Power BI. Semantic models can be queried with DAX (Data Analysis
 Expressions):</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sales_by_region</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
@@ -305,11 +303,10 @@ data formats, or logic already written for Spark:</p>
 ordinary table read.</p>
 </div>
 <div class="section level2">
-<h2 id="working-with-large-data-arrow-streams">Working with large data (Arrow streams)<a class="anchor" aria-label="anchor" href="#working-with-large-data-arrow-streams"></a>
+<h2 id="scale-up-with-arrow-streams">Scale up with Arrow streams<a class="anchor" aria-label="anchor" href="#scale-up-with-arrow-streams"></a>
 </h2>
-<p>If you work with large volumes of data (larger than your device’s
-working memory), you may need to stream the data into R rather than
-reading it all at once.</p>
+<p>If a selected result is larger than your computer’s working memory,
+process it as a stream instead of collecting it all at once.</p>
 <p>Several readers accept <code>result = "arrow_stream"</code>. This can
 be used with the ‘arrow’ R package to read the data in batches:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">

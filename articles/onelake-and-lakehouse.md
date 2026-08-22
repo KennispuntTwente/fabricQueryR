@@ -1,14 +1,17 @@
 # Working with Fabric Lakehouses and OneLake
 
-A Fabric Lakehouse keeps files and managed tables together in OneLake:
+A Fabric Lakehouse keeps ordinary files and managed tables together in
+OneLake:
 
 - `Files/` contains ordinary files such as CSV, Parquet, JSON, images,
   and scripts.
 - `Tables/` contains managed Delta tables that Fabric engines can query.
 
-The Lakehouse SQL analytics endpoint lets you query the managed tables
-as you would query tables in a SQL database. This guide starts there,
-then covers direct table and file access.
+Use the SQL analytics endpoint for familiar SQL queries against managed
+tables. Use the Lakehouse and OneLake helpers when you want to work
+directly with a table or file. This guide starts with a small SQL query,
+then moves from ordinary files to managed tables and, finally, large or
+historical reads.
 
 ## Find and connect to a Lakehouse
 

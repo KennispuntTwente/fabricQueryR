@@ -1,13 +1,13 @@
 # Invoke Fabric user data functions
 
-A Fabric *user data function* is a reusable piece of Python code that
-runs in Microsoft Fabric. It can accept inputs, perform a task, and
-return a result. Fabric hosts and runs the Python code.
+A Fabric *user data function* is reusable Python code that Fabric hosts
+and runs. It can accept inputs, perform a task, and return a result.
+With ‘fabricQueryR’, an R session can call the published function and
+receive its structured response.
 
-With ‘fabricQueryR’, you can invoke these functions from R. R then sends
-named inputs to the function’s secure web address, Fabric runs the
-function, and R receives a structured response. This vignette show a
-simple example.
+This guide prepares a function for external use, makes one small call,
+and then introduces structured parameters and safe retries. Start with a
+simple function whose output you can verify in the Fabric portal.
 
 ## Prepare the function in Fabric
 
@@ -26,11 +26,9 @@ hardcoding it):
 function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 ```
 
-The function caller needs Execute permission on the item. Interactive
-app registrations need the Power BI delegated permission
-`UserDataFunction.Execute.All` or `Item.Execute.All`. Application
-credentials require the relevant service-principal tenant setting and
-item access.
+The caller needs Execute permission on the item. If sign-in succeeds but
+the call is denied, ask the item owner or Fabric administrator to check
+item access and the relevant tenant setting.
 
 ## Make a first call
 
@@ -87,11 +85,9 @@ structured_result$errors
 structured_result$http_status
 ```
 
-Fabric documents the statuses `Succeeded`, `BadRequest`, `Failed`,
-`Timeout`, and `ResponseTooLarge`. A valid invocation envelope is
-returned even when the corresponding HTTP response is 400, 403, 408,
-409, 422, or 500. This keeps a handled `UserThrownError`, its message,
-and its `properties` available.
+The response keeps the function status, output, and any structured
+errors together. Inspect these fields before using the output in a later
+step.
 
 ## Retry only safe functions
 
@@ -113,12 +109,10 @@ and transient HTTP responses.
 
 ## Limits
 
-Microsoft Fabric currently limits the combined request parameters to 4
-MB, execution through a public endpoint to 100 seconds, and the function
-return value to 30 MB. ‘fabricQueryR’ rejects oversized requests before
-authentication, waits up to 110 seconds by default so Fabric can return
-its own timeout envelope, and caps the complete response at 32 MiB to
-leave room around a valid 30 MB output.
+Public function calls have request-size, execution-time, and
+response-size limits. Keep calls focused and pass large data through a
+Fabric data store instead of function parameters. See the service-limits
+link below for current values.
 
 ## More information
 

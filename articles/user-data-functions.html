@@ -60,13 +60,14 @@
 
     
     
-<p>A Fabric <em>user data function</em> is a reusable piece of Python
-code that runs in Microsoft Fabric. It can accept inputs, perform a
-task, and return a result. Fabric hosts and runs the Python code.</p>
-<p>With ‘fabricQueryR’, you can invoke these functions from R. R then
-sends named inputs to the function’s secure web address, Fabric runs the
-function, and R receives a structured response. This vignette show a
-simple example.</p>
+<p>A Fabric <em>user data function</em> is reusable Python code that
+Fabric hosts and runs. It can accept inputs, perform a task, and return
+a result. With ‘fabricQueryR’, an R session can call the published
+function and receive its structured response.</p>
+<p>This guide prepares a function for external use, makes one small
+call, and then introduces structured parameters and safe retries. Start
+with a simple function whose output you can verify in the Fabric
+portal.</p>
 <div class="section level2">
 <h2 id="prepare-the-function-in-fabric">Prepare the function in Fabric<a class="anchor" aria-label="anchor" href="#prepare-the-function-in-fabric"></a>
 </h2>
@@ -80,11 +81,9 @@ enough information to derive each public URL.</p>
 hardcoding it):</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">function_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span></span></code></pre></div>
-<p>The function caller needs Execute permission on the item. Interactive
-app registrations need the Power BI delegated permission
-<code>UserDataFunction.Execute.All</code> or
-<code>Item.Execute.All</code>. Application credentials require the
-relevant service-principal tenant setting and item access.</p>
+<p>The caller needs Execute permission on the item. If sign-in succeeds
+but the call is denied, ask the item owner or Fabric administrator to
+check item access and the relevant tenant setting.</p>
 </div>
 <div class="section level2">
 <h2 id="make-a-first-call">Make a first call<a class="anchor" aria-label="anchor" href="#make-a-first-call"></a>
@@ -132,12 +131,9 @@ JSON shapes.</p>
 <span><span class="va">structured_result</span><span class="op">$</span><span class="va">output</span></span>
 <span><span class="va">structured_result</span><span class="op">$</span><span class="va">errors</span></span>
 <span><span class="va">structured_result</span><span class="op">$</span><span class="va">http_status</span></span></code></pre></div>
-<p>Fabric documents the statuses <code>Succeeded</code>,
-<code>BadRequest</code>, <code>Failed</code>, <code>Timeout</code>, and
-<code>ResponseTooLarge</code>. A valid invocation envelope is returned
-even when the corresponding HTTP response is 400, 403, 408, 409, 422, or
-500. This keeps a handled <code>UserThrownError</code>, its message, and
-its <code>properties</code> available.</p>
+<p>The response keeps the function status, output, and any structured
+errors together. Inspect these fields before using the output in a later
+step.</p>
 </div>
 <div class="section level2">
 <h2 id="retry-only-safe-functions">Retry only safe functions<a class="anchor" aria-label="anchor" href="#retry-only-safe-functions"></a>
@@ -157,12 +153,10 @@ throttling, and transient HTTP responses.</p>
 <div class="section level2">
 <h2 id="limits">Limits<a class="anchor" aria-label="anchor" href="#limits"></a>
 </h2>
-<p>Microsoft Fabric currently limits the combined request parameters to
-4 MB, execution through a public endpoint to 100 seconds, and the
-function return value to 30 MB. ‘fabricQueryR’ rejects oversized
-requests before authentication, waits up to 110 seconds by default so
-Fabric can return its own timeout envelope, and caps the complete
-response at 32 MiB to leave room around a valid 30 MB output.</p>
+<p>Public function calls have request-size, execution-time, and
+response-size limits. Keep calls focused and pass large data through a
+Fabric data store instead of function parameters. See the service-limits
+link below for current values.</p>
 </div>
 <div class="section level2">
 <h2 id="more-information">More information<a class="anchor" aria-label="anchor" href="#more-information"></a>
