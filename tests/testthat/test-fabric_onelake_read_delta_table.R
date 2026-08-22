@@ -42,21 +42,30 @@ test_that("Delta targets preserve Fabric discovery and ABFSS addressing", {
   )
   expect_identical(discovered$target$dfs_base, discovered_dfs)
   private_target <- resolved$target
+  private_host <- paste0(
+    gsub("-", "", workspace_id, fixed = TRUE),
+    ".z11.dfs.fabric.microsoft.com"
+  )
   private_target$dfs_base <- paste0(
     "https://",
-    workspace_id,
-    ".z12.dfs.fabric.microsoft.com"
+    private_host
   )
   expect_identical(
     fabric_delta_target_uri(private_target),
     paste0(
       "abfss://",
       workspace_id,
-      "@",
-      workspace_id,
-      ".z12.dfs.fabric.microsoft.com/",
+      "@onelake.dfs.fabric.microsoft.com/",
       item_id,
       "/Tables/dbo/patients"
+    )
+  )
+  expect_null(fabric_delta_storage_endpoint(resolved$target))
+  expect_identical(
+    fabric_delta_storage_endpoint(private_target),
+    paste0(
+      "https://",
+      sub(".dfs.", ".blob.", private_host, fixed = TRUE)
     )
   )
 
@@ -313,6 +322,22 @@ test_that("Delta queries project and limit without feature workarounds", {
 
 test_that("the public reader passes Fabric auth and query options to delta-rs", {
   captured <- NULL
+  workspace_id <- "11111111-1111-1111-1111-111111111111"
+  item_id <- "22222222-2222-2222-2222-222222222222"
+  private_host <- paste0(
+    gsub("-", "", workspace_id, fixed = TRUE),
+    ".z11.dfs.fabric.microsoft.com"
+  )
+  workspace <- list(
+    id = workspace_id,
+    oneLakeEndpoints = list(dfsEndpoint = paste0("https://", private_host))
+  )
+  lakehouse <- list(
+    id = item_id,
+    type = "Lakehouse",
+    workspaceId = workspace_id,
+    properties = list(defaultSchema = "dbo")
+  )
   provider_calls <- list()
   provider <- function(audience, force_refresh = FALSE) {
     provider_calls[[length(provider_calls) + 1L]] <<- list(
@@ -330,8 +355,8 @@ test_that("the public reader passes Fabric auth and query options to delta-rs", 
 
   result <- fabric_onelake_read_delta_table(
     table_path = "table",
-    workspace_name = "workspace",
-    lakehouse_name = "lakehouse",
+    workspace_name = workspace,
+    lakehouse_name = lakehouse,
     schema = "dbo",
     token = provider,
     version = 2147483648,
@@ -349,11 +374,23 @@ test_that("the public reader passes Fabric auth and query options to delta-rs", 
   expect_identical(captured$columns, c("name", "id"))
   expect_equal(captured$limit, 10)
   expect_identical(captured$result, "tibble")
-  expect_match(
+  expect_identical(
     captured$table_uri,
-    "^abfss://workspace@onelake[.]dfs[.]fabric[.]microsoft[.]com/"
+    paste0(
+      "abfss://",
+      workspace_id,
+      "@onelake.dfs.fabric.microsoft.com/",
+      item_id,
+      "/Tables/dbo/table"
+    )
   )
-  expect_match(captured$table_uri, "/Tables/dbo/table$", perl = TRUE)
+  expect_identical(
+    captured$storage_endpoint,
+    paste0(
+      "https://",
+      sub(".dfs.", ".blob.", private_host, fixed = TRUE)
+    )
+  )
 })
 
 test_that("Delta reads refresh once after a pre-return authentication failure", {

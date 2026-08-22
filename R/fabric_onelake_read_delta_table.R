@@ -192,6 +192,7 @@ fabric_onelake_read_delta_table <- function(
     auth_args = auth_args
   )
   table_uri <- fabric_delta_target_uri(resolved$target)
+  storage_endpoint <- fabric_delta_storage_endpoint(resolved$target)
   inform(verbose, "Opening Delta table {.path {resolved$table_dir}}")
 
   # 3 Read with one authentication retry -----------------------------------------------------------
@@ -211,6 +212,7 @@ fabric_onelake_read_delta_table <- function(
     value <- fabric_delta_read_uri(
       table_uri = table_uri,
       bearer_token = bearer_token,
+      storage_endpoint = storage_endpoint,
       version = version,
       columns = columns,
       limit = limit,
@@ -603,6 +605,13 @@ fabric_delta_target_uri <- function(target) {
     .fabric_abort("The resolved OneLake target has no DFS host")
   }
 
+  # delta-rs 1.6.x cannot parse Fabric's workspace-private ABFSS authority.
+  # Keep the logical URI parser-compatible and pass the private host as a
+  # separate storage endpoint so requests still use the discovered route.
+  if (!is.null(onelake_workspace_host_guid(host))) {
+    host <- "onelake.dfs.fabric.microsoft.com"
+  }
+
   if (
     !fabric_is_guid(target$workspace) &&
       grepl("[^A-Za-z0-9_-]", target$workspace)
@@ -634,6 +643,24 @@ fabric_delta_target_uri <- function(target) {
   paste0(prefix, "/", onelake_encode_path(target$path))
 }
 
+#' Return a workspace-private Blob endpoint for delta-rs
+#' @keywords internal
+#' @noRd
+# Uses a resolved OneLake `target`; returns a private endpoint or `NULL`
+fabric_delta_storage_endpoint <- function(target) {
+  host <- httr2::url_parse(target$dfs_base)$hostname
+  if (is.null(onelake_workspace_host_guid(host))) {
+    return(NULL)
+  }
+
+  blob_host <- sub(
+    "\\.dfs\\.fabric\\.microsoft\\.com$",
+    ".blob.fabric.microsoft.com",
+    tolower(host)
+  )
+  paste0("https://", blob_host)
+}
+
 #' Read a Delta URI through the Python runtime
 #' @keywords internal
 #' @noRd
@@ -641,6 +668,7 @@ fabric_delta_target_uri <- function(target) {
 fabric_delta_read_uri <- function(
   table_uri,
   bearer_token = NULL,
+  storage_endpoint = NULL,
   version = NULL,
   columns = NULL,
   limit = NULL,
@@ -649,6 +677,7 @@ fabric_delta_read_uri <- function(
   reader <- fabric_delta_python_reader(
     table_uri = table_uri,
     bearer_token = bearer_token,
+    storage_endpoint = storage_endpoint,
     version = version,
     columns = columns,
     limit = limit
@@ -667,16 +696,23 @@ fabric_delta_read_uri <- function(
 fabric_delta_python_reader <- function(
   table_uri,
   bearer_token = NULL,
+  storage_endpoint = NULL,
   version = NULL,
   columns = NULL,
   limit = NULL
 ) {
   storage_options <- NULL
-  if (!is.null(bearer_token)) {
-    storage_options <- reticulate::dict(
-      bearer_token = bearer_token,
-      use_fabric_endpoint = "true",
-      convert = FALSE
+  if (!is.null(bearer_token) || !is.null(storage_endpoint)) {
+    option_values <- list(use_fabric_endpoint = "true")
+    if (!is.null(bearer_token)) {
+      option_values$bearer_token <- bearer_token
+    }
+    if (!is.null(storage_endpoint)) {
+      option_values$azure_storage_endpoint <- storage_endpoint
+    }
+    storage_options <- do.call(
+      reticulate::dict,
+      c(option_values, list(convert = FALSE))
     )
   }
   args <- list(table_uri = table_uri)
