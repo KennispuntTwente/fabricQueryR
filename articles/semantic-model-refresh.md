@@ -22,7 +22,7 @@ model <- fabric_semantic_models("Analytics workspace")[[1]]
 
 DAX is the query and calculation language used by semantic models. A
 query normally begins with `EVALUATE` and returns a table. If you are
-new to DAX, create and test a query in the model’s **DAX query view** in
+new to DAX, create and test a query in the model’s *DAX query view* in
 Fabric, then use the same text from R:
 
 ``` r
@@ -64,8 +64,8 @@ tenant settings.
 ## Check access before refreshing
 
 Querying requires Read and Build permission on the model and the
-tenant’s **Semantic Model Execute Queries REST API** setting. Starting
-or cancelling a refresh requires `Dataset.ReadWrite.All` and Write
+tenant’s *Semantic Model Execute Queries REST API* setting. Starting or
+cancelling a refresh requires `Dataset.ReadWrite.All` and Write
 permission on the model. Status and history use `Dataset.Read.All` or
 `Dataset.ReadWrite.All`, although Microsoft also requires model Write
 permission for refresh history.
@@ -205,7 +205,7 @@ result <- fabric_pbi_refresh_wait(
 if (result$state != "Completed") result$details_url
 ```
 
-## Inspect history or cancel work
+## Inspect history
 
 Power BI retains between 20 and 60 recent history entries depending on
 their age. OneDrive synchronization history is separate and is not
@@ -223,40 +223,15 @@ history[[1]]$attempts
 latest <- fabric_pbi_refresh_status(history[[1]])
 ```
 
-Cancel a running Import or Composite model refresh when the model is on
-Premium, PPU, Embedded, or Fabric capacity. Microsoft requires
-Contributor, Member, or Admin access to the workspace:
+## More information
 
-``` r
-
-fabric_pbi_refresh_cancel(refresh)
-```
-
-## Capacity and Direct Lake behavior
-
-Shared capacity supports standard refresh only and permits at most eight
-scheduled and API-triggered refresh requests per day. Capacity-backed
-models have no fixed API-refresh count, but work can queue or throttle
-as capacity resources become busy. A refresh fails if capacity
-throttling continues beyond the service limit.
-
-Direct Lake refresh is different from Import refresh. It frames the
-current Delta table versions so the model has a new point-in-time
-baseline; it does not copy all OneLake data into the model. Automatic
-Direct Lake updates are enabled by default, so explicit refresh is
-commonly unnecessary. Use it when automatic updates are disabled, after
-programmatic table changes, or when a controlled consistent frame is
-part of the workflow.
-
-See Microsoft’s documentation for the current contracts and limits:
-
-- [Refresh Dataset
-  API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group)
-- [Enhanced
-  refresh](https://learn.microsoft.com/en-us/power-bi/connect-data/asynchronous-refresh)
-- [Refresh execution
-  details](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/get-refresh-execution-details-in-group)
-- [Data refresh and capacity
-  limits](https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data)
-- [How Direct Lake
-  works](https://learn.microsoft.com/en-us/fabric/fundamentals/direct-lake-how-it-works)
+See Microsoft’s documentation for more information: - [Refresh Dataset
+API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group) -
+[Enhanced
+refresh](https://learn.microsoft.com/en-us/power-bi/connect-data/asynchronous-refresh) -
+[Refresh execution
+details](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/get-refresh-execution-details-in-group) -
+[Data refresh and capacity
+limits](https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data) -
+[How Direct Lake
+works](https://learn.microsoft.com/en-us/fabric/fundamentals/direct-lake-how-it-works)

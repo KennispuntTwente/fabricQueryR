@@ -78,8 +78,8 @@ travel together:</p>
 </h2>
 <p>DAX is the query and calculation language used by semantic models. A
 query normally begins with <code>EVALUATE</code> and returns a table. If
-you are new to DAX, create and test a query in the model’s <strong>DAX
-query view</strong> in Fabric, then use the same text from R:</p>
+you are new to DAX, create and test a query in the model’s <em>DAX query
+view</em> in Fabric, then use the same text from R:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
@@ -112,8 +112,8 @@ model and additional tenant settings.</p>
 <h2 id="check-access-before-refreshing">Check access before refreshing<a class="anchor" aria-label="anchor" href="#check-access-before-refreshing"></a>
 </h2>
 <p>Querying requires Read and Build permission on the model and the
-tenant’s <strong>Semantic Model Execute Queries REST API</strong>
-setting. Starting or cancelling a refresh requires
+tenant’s <em>Semantic Model Execute Queries REST API</em> setting.
+Starting or cancelling a refresh requires
 <code>Dataset.ReadWrite.All</code> and Write permission on the model.
 Status and history use <code>Dataset.Read.All</code> or
 <code>Dataset.ReadWrite.All</code>, although Microsoft also requires
@@ -239,7 +239,7 @@ terminal detail instead when building a monitoring table:</p>
 <span><span class="kw">if</span> <span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">state</span> <span class="op">!=</span> <span class="st">"Completed"</span><span class="op">)</span> <span class="va">result</span><span class="op">$</span><span class="va">details_url</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="inspect-history-or-cancel-work">Inspect history or cancel work<a class="anchor" aria-label="anchor" href="#inspect-history-or-cancel-work"></a>
+<h2 id="inspect-history">Inspect history<a class="anchor" aria-label="anchor" href="#inspect-history"></a>
 </h2>
 <p>Power BI retains between 20 and 60 recent history entries depending
 on their age. OneDrive synchronization history is separate and is not
@@ -253,41 +253,16 @@ returned here.</p>
 <span></span>
 <span><span class="co"># Refresh an old history entry from its request ID and stored model context</span></span>
 <span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_status</a></span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
-<p>Cancel a running Import or Composite model refresh when the model is
-on Premium, PPU, Embedded, or Fabric capacity. Microsoft requires
-Contributor, Member, or Admin access to the workspace:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_cancel</a></span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="capacity-and-direct-lake-behavior">Capacity and Direct Lake behavior<a class="anchor" aria-label="anchor" href="#capacity-and-direct-lake-behavior"></a>
+<h2 id="more-information">More information<a class="anchor" aria-label="anchor" href="#more-information"></a>
 </h2>
-<p>Shared capacity supports standard refresh only and permits at most
-eight scheduled and API-triggered refresh requests per day.
-Capacity-backed models have no fixed API-refresh count, but work can
-queue or throttle as capacity resources become busy. A refresh fails if
-capacity throttling continues beyond the service limit.</p>
-<p>Direct Lake refresh is different from Import refresh. It frames the
-current Delta table versions so the model has a new point-in-time
-baseline; it does not copy all OneLake data into the model. Automatic
-Direct Lake updates are enabled by default, so explicit refresh is
-commonly unnecessary. Use it when automatic updates are disabled, after
-programmatic table changes, or when a controlled consistent frame is
-part of the workflow.</p>
-<p>See Microsoft’s documentation for the current contracts and
-limits:</p>
-<ul>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group" class="external-link">Refresh
-Dataset API</a></li>
-<li><a href="https://learn.microsoft.com/en-us/power-bi/connect-data/asynchronous-refresh" class="external-link">Enhanced
-refresh</a></li>
-<li><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/get-refresh-execution-details-in-group" class="external-link">Refresh
-execution details</a></li>
-<li><a href="https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data" class="external-link">Data
-refresh and capacity limits</a></li>
-<li><a href="https://learn.microsoft.com/en-us/fabric/fundamentals/direct-lake-how-it-works" class="external-link">How
-Direct Lake works</a></li>
-</ul>
+<p>See Microsoft’s documentation for more information: - <a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group" class="external-link">Refresh
+Dataset API</a> - <a href="https://learn.microsoft.com/en-us/power-bi/connect-data/asynchronous-refresh" class="external-link">Enhanced
+refresh</a> - <a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/get-refresh-execution-details-in-group" class="external-link">Refresh
+execution details</a> - <a href="https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data" class="external-link">Data
+refresh and capacity limits</a> - <a href="https://learn.microsoft.com/en-us/fabric/fundamentals/direct-lake-how-it-works" class="external-link">How
+Direct Lake works</a></p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
