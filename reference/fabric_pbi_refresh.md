@@ -1,8 +1,8 @@
 # Refresh and monitor a Power BI semantic model
 
 Start a semantic-model refresh, inspect recent refreshes and execution
-details, wait for completion, or cancel a refresh. The easiest target is
-a record returned by
+details, wait for completion, or cancel an enhanced refresh. The easiest
+target is a record returned by
 [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
 
 ## Usage
@@ -240,12 +240,14 @@ fabric_pbi_refresh_cancel(
 - cancel_on_timeout:
 
   Whether a client-side wait timeout should request cancellation before
-  raising its timeout error
+  raising its timeout error. Cancellation is available only for enhanced
+  refreshes
 
 - cancel:
 
   Optional function checked between status updates. If it returns
-  `TRUE`, fabricQueryR requests cancellation and stops waiting
+  `TRUE`, fabricQueryR requests cancellation and stops waiting.
+  Cancellation is available only for enhanced refreshes
 
 ## Value
 
@@ -262,6 +264,13 @@ supplied. It can target tables or partitions, retry, change commit
 behavior, and set an attempt timeout, but requires a capacity-backed
 model. Only one refresh can run for a semantic model at a time
 
+Standard and service-principal refresh responses can expose the accepted
+refresh ID through `RequestId` rather than `x-ms-request-id` or
+`Location`. fabricQueryR recognizes either response form.
+Standard-refresh status and waiting fall back to refresh history when
+request-specific execution details are unavailable. Cancellation is
+available only for enhanced refreshes
+
 `Transactional` is the safe commit default. `PartialBatch` can expose a
 partially refreshed model after failure and cannot apply an incremental
 refresh policy. Each retry receives its own attempt timeout, while Power
@@ -273,8 +282,10 @@ BI limits the entire refresh including retries to 24 hours
 `fabric_pbi_refresh_status()` and `fabric_pbi_refresh_wait()` return a
 `fabric_pbi_refresh_detail` with `state`, service status fields, UTC
 times, processing objects, attempts, engine messages, parsed service
-errors, a browser `details_url`, and the untouched response in `raw`
-`fabric_pbi_refresh_history()` returns a list of the same detail records
+errors, a browser `details_url`, and the untouched response in `raw`.
+When a standard refresh falls back to history, details are limited to
+the fields available there `fabric_pbi_refresh_history()` returns a list
+of the same detail records
 
 Power BI can report a successful refresh with warnings, but Microsoft
 notes that the history and execution-detail REST APIs do not always
@@ -284,20 +295,20 @@ to inspect the Fabric refresh-detail page
 
 ## Permissions and service limits
 
-Starting and cancelling require `Dataset.ReadWrite.All` and
-semantic-model Write permission. History and status accept
-`Dataset.Read.All` or `Dataset.ReadWrite.All`, but history callers still
-need model Write permission. A service principal may call the APIs when
-the tenant allows it and the principal has sufficient workspace/model
-access; email notification options do not apply to service-principal
-requests
+Starting any refresh and cancelling an enhanced refresh require
+`Dataset.ReadWrite.All` and semantic-model Write permission. History and
+status accept `Dataset.Read.All` or `Dataset.ReadWrite.All`, but history
+callers still need model Write permission. A service principal may call
+the APIs when the tenant allows it and the principal has sufficient
+workspace/model access; email notification options do not apply to
+service-principal requests
 
 Shared capacity permits at most eight scheduled and API refresh requests
 per day and does not support enhanced refresh. Capacity-backed models
 have no fixed API-refresh count but can queue or throttle under load.
-Cancellation is supported for Import and Composite models in Premium,
-PPU, Embedded, or Fabric capacity and requires Contributor, Member, or
-Admin workspace access
+Enhanced-refresh cancellation is supported for Import and Composite
+models in Premium, PPU, Embedded, or Fabric capacity and requires
+Contributor, Member, or Admin workspace access
 
 Direct Lake refresh is a usually short metadata framing operation, not
 an import of OneLake data. Automatic Direct Lake updates are enabled by
@@ -340,8 +351,12 @@ result <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
 result$state
 result$details_url
 
-# An active refresh can instead be cancelled when it is no longer needed
-refresh_to_cancel <- fabric_pbi_refresh(model)
+# An active enhanced refresh can be cancelled when it is no longer needed
+refresh_to_cancel <- fabric_pbi_refresh(
+  model,
+  mode = "enhanced",
+  type = "Full"
+)
 fabric_pbi_refresh_cancel(refresh_to_cancel)
 
 # Choose a table shown in the model, then refresh only that table
