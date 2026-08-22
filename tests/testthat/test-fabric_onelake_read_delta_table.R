@@ -637,8 +637,25 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   )
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 
+  schema <- list(json = function() {
+    jsonlite::toJSON(
+      list(
+        type = "struct",
+        fields = list(list(
+          name = "payload",
+          type = "variant",
+          nullable = TRUE,
+          metadata = list()
+        ))
+      ),
+      auto_unbox = TRUE
+    )
+  })
   preflight <- tryCatch(
-    fabric_delta_check_protocol(list(reader_features = "variantType")),
+    fabric_delta_check_protocol(
+      list(reader_features = "variantType"),
+      schema = schema
+    ),
     error = identity
   )
   translated <- tryCatch(
@@ -664,8 +681,8 @@ test_that("Delta protocol preflight rejects unsupported reader features", {
     "typeWidening",
     "typeWidening-preview",
     "v2Checkpoint",
-    "variantType",
-    "variantShredding"
+    "variantShredding",
+    "variantShredding-preview"
   )) {
     error <- expect_error(
       fabric_delta_check_protocol(protocol(feature)),
@@ -686,6 +703,63 @@ test_that("Delta protocol preflight rejects unsupported reader features", {
     combined$delta_features,
     "V2Checkpoint"
   )
+})
+
+test_that("unshredded Variant permits only non-Variant projections", {
+  schema <- list(json = function() {
+    jsonlite::toJSON(
+      list(
+        type = "struct",
+        fields = list(
+          list(
+            name = "id",
+            type = "long",
+            nullable = FALSE,
+            metadata = list()
+          ),
+          list(
+            name = "payload",
+            type = "variant",
+            nullable = TRUE,
+            metadata = list()
+          ),
+          list(
+            name = "nested",
+            type = list(
+              type = "array",
+              elementType = list(
+                type = "struct",
+                fields = list(list(
+                  name = "value",
+                  type = "variant",
+                  nullable = TRUE,
+                  metadata = list()
+                ))
+              ),
+              containsNull = TRUE
+            ),
+            nullable = TRUE,
+            metadata = list()
+          )
+        )
+      ),
+      auto_unbox = TRUE
+    )
+  })
+  protocol <- list(reader_features = "variantType-preview")
+
+  expect_invisible(fabric_delta_check_protocol(
+    protocol,
+    schema = schema,
+    columns = "id"
+  ))
+  error <- expect_error(
+    fabric_delta_check_protocol(protocol, schema = schema),
+    class = "fabric_delta_unsupported_feature_error"
+  )
+  expect_identical(error$delta_features, "VariantType-preview")
+  expect_identical(error$delta_columns, c("payload", "nested"))
+  expect_match(conditionMessage(error), "physical Variant binary", fixed = TRUE)
 })
 
 test_that("deletion-vector scans preserve source row order", {

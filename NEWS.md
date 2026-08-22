@@ -104,9 +104,11 @@ provides typed tibbles or streams for models that support it.
 * `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
 and compatible Warehouse tables through an optional Python Delta reader. It
 supports selected columns, row limits, and Arrow streams for large or nested
-results, including through discovered workspace-private OneLake endpoints. The
-`dest_dir` argument has been removed; tables using unsupported Delta features
-should be read through SQL or Spark instead.
+results, including through discovered workspace-private OneLake endpoints.
+Unshredded Variant tables can now be queried when `columns` excludes all
+Variant-containing fields; decoded Variant values and shredded Variant remain
+unsupported. The `dest_dir` argument has been removed; tables using unsupported
+Delta features should be read through SQL or Spark instead.
 
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.

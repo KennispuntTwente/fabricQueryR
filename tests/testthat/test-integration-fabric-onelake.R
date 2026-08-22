@@ -900,6 +900,48 @@ test_that("Fabric Variant tables fail before exposing physical fields", {
   }
 })
 
+test_that("unshredded Fabric Variant permits non-Variant projections", {
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  table <- lakehouse$tables$variant
+
+  for (result in c("tibble", "arrow_stream")) {
+    condition <- tryCatch(
+      fabric_test_read_delta(
+        manifest,
+        lakehouse,
+        table,
+        version = 1,
+        result = result
+      ),
+      error = identity
+    )
+    expect_s3_class(
+      condition,
+      "fabric_delta_unsupported_feature_error",
+      label = result
+    )
+    expect_identical(condition$delta_columns, "data", label = result)
+
+    value <- fabric_test_read_delta(
+      manifest,
+      lakehouse,
+      table,
+      version = 1,
+      columns = "event_id",
+      result = result
+    )
+    if (identical(result, "arrow_stream")) {
+      value <- as.data.frame(
+        arrow::as_record_batch_reader(value)$read_table()
+      )
+    }
+    expect_identical(value$event_id, 1:4, label = result)
+  }
+})
+
 test_that("seeded Fabric Warehouse Delta exports remain readable", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()

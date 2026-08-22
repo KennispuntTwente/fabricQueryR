@@ -4,8 +4,12 @@
   typewidening = "TypeWidening",
   typewideningpreview = "TypeWidening-preview",
   v2checkpoint = "V2Checkpoint",
+  variantshredding = "VariantShredding",
+  variantshreddingpreview = "VariantShredding-preview"
+)
+.fabric_delta_variant_reader_features <- c(
   varianttype = "VariantType",
-  variantshredding = "VariantShredding"
+  varianttypepreview = "VariantType-preview"
 )
 
 #' Read a Delta table from OneLake
@@ -64,8 +68,12 @@
 #' This function uses the Python
 #' [deltalake](https://pypi.org/project/deltalake/) reader through 'reticulate'
 #' Some newer Delta features, including Type Widening, V2 Checkpoints, and
-#' Fabric Variant, are not supported by that reader. Use SQL or Spark (Livy) if
-#' the function reports an unsupported table feature
+#' shredded Fabric Variant, are not supported by that reader. The reader can
+#' query an unshredded Variant table only when `columns` explicitly excludes
+#' every top-level column containing Variant values. It otherwise returns
+#' Variant's physical binary storage instead of decoded logical values, so this
+#' function rejects that projection. Use SQL or Spark (Livy) for Variant values
+#' or when the function reports another unsupported table feature
 #'
 #' Compatible Warehouse tables can also be read through their published Delta
 #' logs. If the reader cannot open a Warehouse table, use [fabric_sql_query()]
@@ -727,7 +735,11 @@ fabric_delta_python_reader <- function(
   }
 
   table <- do.call(.delta_python$deltalake$DeltaTable, args)
-  features <- fabric_delta_check_protocol(table$protocol())
+  features <- fabric_delta_check_protocol(
+    table$protocol(),
+    schema = table$schema(),
+    columns = columns
+  )
   builder <- .delta_python$deltalake$QueryBuilder()
   fabric_delta_configure_query(builder, features)
   builder$register("fabric_delta_table", table)
@@ -741,7 +753,11 @@ fabric_delta_python_reader <- function(
 #' @keywords internal
 #' @noRd
 # Uses a delta-rs `protocol`; returns supported reader features or raises
-fabric_delta_check_protocol <- function(protocol) {
+fabric_delta_check_protocol <- function(
+  protocol,
+  schema = NULL,
+  columns = NULL
+) {
   features <- reticulate::py_to_r(protocol$reader_features)
   features <- if (is.null(features)) character() else as.character(features)
   normalized <- gsub("[^a-z0-9]", "", tolower(features))
@@ -770,7 +786,92 @@ fabric_delta_check_protocol <- function(protocol) {
       delta_features = unsupported
     )
   }
+
+  variant_features <- unname(.fabric_delta_variant_reader_features[
+    intersect(normalized, names(.fabric_delta_variant_reader_features))
+  ])
+  if (length(variant_features) && !is.null(schema)) {
+    variant_columns <- fabric_delta_variant_columns(schema)
+    selected <- if (is.null(columns)) {
+      variant_columns
+    } else {
+      intersect(columns, variant_columns)
+    }
+    if (length(selected)) {
+      .fabric_abort(
+        c(
+          paste0(
+            "The selected Delta projection includes unsupported Variant ",
+            "column",
+            if (length(selected) == 1L) " " else "s: ",
+            paste(selected, collapse = ", "),
+            "."
+          ),
+          "i" = paste0(
+            "The pinned deltalake runtime returns physical Variant binary ",
+            "storage instead of decoded logical values. Select only ",
+            "non-Variant columns, or use Fabric SQL or PySpark through Livy."
+          )
+        ),
+        class = c(
+          "fabric_delta_unsupported_feature_error",
+          "fabric_delta_unsupported_error",
+          "fabric_delta_error"
+        ),
+        delta_features = variant_features,
+        delta_columns = selected
+      )
+    }
+  }
   invisible(features)
+}
+
+# Return top-level fields whose Delta type contains Variant. The Python schema
+# supplies its canonical Delta JSON, so no physical Parquet fields are exposed.
+fabric_delta_variant_columns <- function(schema) {
+  schema_json <- reticulate::py_to_r(schema$json())
+  decoded <- try(
+    jsonlite::fromJSON(schema_json, simplifyVector = FALSE),
+    silent = TRUE
+  )
+  fields <- if (inherits(decoded, "try-error")) NULL else decoded$fields
+  if (!is.list(fields)) {
+    .fabric_abort(
+      "The Delta reader returned a malformed table schema",
+      class = c("fabric_delta_protocol_error", "fabric_delta_error")
+    )
+  }
+  vapply(
+    Filter(
+      function(field) fabric_delta_type_contains_variant(field$type),
+      fields
+    ),
+    `[[`,
+    character(1),
+    "name"
+  )
+}
+
+# Check one decoded Delta JSON type recursively for logical Variant values.
+fabric_delta_type_contains_variant <- function(type) {
+  if (is.character(type)) {
+    return(identical(tolower(type), "variant"))
+  }
+  if (!is.list(type)) {
+    return(FALSE)
+  }
+  switch(
+    tolower(type$type %||% ""),
+    struct = any(vapply(
+      type$fields %||% list(),
+      function(field) fabric_delta_type_contains_variant(field$type),
+      logical(1)
+    )),
+    array = fabric_delta_type_contains_variant(type$elementType),
+    map = fabric_delta_type_contains_variant(type$keyType) ||
+      fabric_delta_type_contains_variant(type$valueType),
+    FALSE
+  )
 }
 
 #' Configure DataFusion for protocol-sensitive Delta scans
