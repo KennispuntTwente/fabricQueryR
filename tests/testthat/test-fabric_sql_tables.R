@@ -87,6 +87,11 @@ test_that("SQL table discovery normalizes objects and detailed columns", {
 
 test_that("SQL view discovery includes definitions without detail", {
   calls <- list()
+  long_definition <- paste0(
+    "CREATE VIEW reporting.monthly_sales AS SELECT '",
+    paste(rep("x", 5000L), collapse = ""),
+    "' AS payload"
+  )
   local_mocked_bindings(
     fabric_sql_query = function(...) {
       calls[[length(calls) + 1L]] <<- list(...)
@@ -94,7 +99,7 @@ test_that("SQL view discovery includes definitions without detail", {
         schema_name = "reporting",
         object_name = "monthly_sales",
         object_type = "VIEW",
-        view_definition = "SELECT month, amount FROM dbo.sales",
+        view_definition = long_definition,
         check_option = "NONE",
         is_updatable = "NO"
       )
@@ -112,11 +117,16 @@ test_that("SQL view discovery includes definitions without detail", {
   expect_equal(views$name, "monthly_sales")
   expect_equal(views$schema, "reporting")
   expect_equal(views$type, "VIEW")
-  expect_equal(views$definition, "SELECT month, amount FROM dbo.sales")
+  expect_identical(views$definition, long_definition)
+  expect_gt(nchar(views$definition, type = "chars"), 4000L)
   expect_length(views$columns[[1L]], 0L)
   expect_equal(views$raw[[1L]]$check_option, "NONE")
   expect_length(calls, 1L)
   expect_match(calls[[1L]]$sql, "INFORMATION_SCHEMA.VIEWS", fixed = TRUE)
+  expect_match(calls[[1L]]$sql, "sys.views", fixed = TRUE)
+  expect_match(calls[[1L]]$sql, "sys.sql_modules", fixed = TRUE)
+  expect_match(calls[[1L]]$sql, "m.definition", fixed = TRUE)
+  expect_false(grepl("v.VIEW_DEFINITION", calls[[1L]]$sql, fixed = TRUE))
   expect_null(calls[[1L]]$params)
 })
 

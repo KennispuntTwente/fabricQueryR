@@ -3,8 +3,8 @@
 #' These helpers provide a target-independent metadata and table-read layer for
 #' Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
 #' and SQL Database records, or the same direct server inputs as
-#' [fabric_sql_query()]. Discovery uses the portable `INFORMATION_SCHEMA` views
-#' and is limited by the caller's SQL metadata permissions.
+#' [fabric_sql_query()]. Discovery uses SQL catalog metadata views and is
+#' limited by the caller's SQL metadata permissions.
 #'
 #' @param server Fabric SQL endpoint, portal connection string, or discovered
 #'   SQL-capable item record.
@@ -37,6 +37,8 @@
 #'
 #' @references
 #' [System information schema views](https://learn.microsoft.com/en-us/sql/relational-databases/system-information-schema-views/system-information-schema-views-transact-sql)
+#'
+#' [SQL module definitions](https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-sql-modules-transact-sql)
 #'
 #' [Fabric SQL analytics endpoints](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint)
 #' @name fabric_sql_tables
@@ -280,7 +282,7 @@ fabric_sql_read_table <- function(
 .fabric_sql_objects_sql <- function(object_type, schema) {
   definition <- if (identical(object_type, "VIEW")) {
     paste0(
-      ", v.VIEW_DEFINITION AS view_definition, ",
+      ", m.definition AS view_definition, ",
       "v.CHECK_OPTION AS check_option, ",
       "v.IS_UPDATABLE AS is_updatable"
     )
@@ -293,7 +295,14 @@ fabric_sql_read_table <- function(
       "LEFT JOIN INFORMATION_SCHEMA.VIEWS AS v ",
       "ON v.TABLE_CATALOG = t.TABLE_CATALOG ",
       "AND v.TABLE_SCHEMA = t.TABLE_SCHEMA ",
-      "AND v.TABLE_NAME = t.TABLE_NAME"
+      "AND v.TABLE_NAME = t.TABLE_NAME ",
+      "LEFT JOIN sys.schemas AS s ",
+      "ON s.name = t.TABLE_SCHEMA ",
+      "LEFT JOIN sys.views AS sv ",
+      "ON sv.schema_id = s.schema_id ",
+      "AND sv.name = t.TABLE_NAME ",
+      "LEFT JOIN sys.sql_modules AS m ",
+      "ON m.object_id = sv.object_id"
     )
   } else {
     " FROM INFORMATION_SCHEMA.TABLES AS t"
