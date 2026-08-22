@@ -84,7 +84,9 @@ Fabric, so use the API spelling. Leave <code>NULL</code> to list all item types<
 <dt id="arg-detail">detail<a class="anchor" aria-label="anchor" href="#arg-detail"></a></dt>
 <dd><p>Whether to retrieve connection details as well as names and
 IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers use <code>TRUE</code> by default</p></dd>
+typed discovery helpers generally use <code>TRUE</code>; Semantic Model and GraphQL
+helpers default to lightweight records because their query targets can be
+derived without workload detail requests</p></dd>
 
 
 <dt id="arg-detail-errors">detail_errors<a class="anchor" aria-label="anchor" href="#arg-detail-errors"></a></dt>

@@ -131,11 +131,9 @@ fabric_pbi_refresh_cancel(
 
   Standard-refresh email behavior for delegated calls:
   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
-  omitted, standard refresh defaults to `"MailOnFailure"` unless
-  'fabricQueryR' knows that it is using client credentials. For a
-  caller-supplied service-principal token, pass `NULL` explicitly
-  because its identity cannot be inferred. Omit this for enhanced
-  refreshes
+  omitted, no notification option is sent, which is safe for opaque
+  service-principal token providers. Delegated callers can request email
+  explicitly. Omit this for enhanced refreshes
 
 - type:
 

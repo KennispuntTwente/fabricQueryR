@@ -134,7 +134,8 @@ retrieval waits by default, so it is enough for the common case
 
 If the R process restarts, save the service-provided `location` and pass
 it with fresh authentication arguments. A bare ID is sufficient only for
-core operations
+core operations; after success, core operations are completed by reading
+the documented `/operations/{id}/result` resource
 
 ## Results and failures
 

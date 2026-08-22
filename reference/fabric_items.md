@@ -45,7 +45,9 @@ fabric_items(
 
   Whether to retrieve connection details as well as names and IDs. This
   takes more requests and may require additional permissions. The typed
-  discovery helpers use `TRUE` by default
+  discovery helpers generally use `TRUE`; Semantic Model and GraphQL
+  helpers default to lightweight records because their query targets can
+  be derived without workload detail requests
 
 - detail_errors:
 

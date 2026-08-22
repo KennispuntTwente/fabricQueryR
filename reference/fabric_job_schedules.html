@@ -124,9 +124,9 @@ Omit it when <code>item</code> is a discovered record containing <code>workspace
 
 
 <dt id="arg-job-type">job_type<a class="anchor" aria-label="anchor" href="#arg-job-type"></a></dt>
-<dd><p>Schedule job type. Data pipelines and Data Build Tool Jobs
-default to <code>"Execute"</code>; Dataflows default to <code>"ApplyChanges"</code>, as required
-by their workload schedule contracts. Other item types default to
+<dd><p>Schedule job type. Data pipelines, Dataflows, and Data Build
+Tool Jobs default to <code>"Execute"</code>. For a Dataflow publish schedule, set
+<code>job_type = "ApplyChanges"</code> explicitly. Other item types default to
 <code>"DefaultJob"</code>, as shown in the Core Job Scheduler examples. Supply an
 explicit value for another workload-specific schedule job type. When
 passing one of these item types as a GUID instead of a discovered item,
@@ -219,6 +219,7 @@ an explicit marker. The complete response stays available in <code>raw</code>.</
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/" class="external-link">Fabric Job Scheduler REST API</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute" class="external-link">Schedule a Data Pipeline</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute" class="external-link">Schedule Dataflow Execute</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes" class="external-link">Schedule Dataflow Apply Changes</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job" class="external-link">Schedule a Data Build Tool Job</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-factory/pipeline-rest-api-capabilities" class="external-link">Fabric Data Pipeline REST API capabilities</a></p>

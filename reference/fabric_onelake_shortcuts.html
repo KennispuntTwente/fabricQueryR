@@ -163,7 +163,10 @@ different Fabric cloud or a test service</p></dd>
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>Parent <code>Files</code> or <code>Tables</code> path where the shortcut exists or will
-be created.</p></dd>
+be created. Local checks validate path syntax, while Fabric applies
+item- and workload-specific placement rules. In a Lakehouse <code>Tables</code>
+section, use <code>Tables</code> because Fabric permits shortcuts only at that top
+level.</p></dd>
 
 
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
@@ -175,9 +178,11 @@ be created.</p></dd>
 shortcut target list. A raw target must contain exactly one documented
 key such as <code>oneLake</code>, <code>adlsGen2</code>, <code>amazonS3</code>, <code>azureBlobStorage</code>,
 <code>googleCloudStorage</code>, <code>oneDriveSharePoint</code>, <code>s3Compatible</code>, or <code>dataverse</code>.
-Connection-backed targets must include the documented connection and
-location fields, use an existing Fabric connection ID, and must not embed
-credentials. Type-specific fields are validated before a request is sent.</p></dd>
+Connection-backed targets must include the documented required fields, use
+a Fabric connection ID, and must not embed credentials. Local checks cover
+structure, required fields, identifier shape, and generic URL safety; they
+do not verify source-specific host/path rules or that a connection refers
+to the supplied location. Fabric service validation is authoritative.</p></dd>
 
 
 <dt id="arg-target-workspace">target_workspace<a class="anchor" aria-label="anchor" href="#arg-target-workspace"></a></dt>
@@ -217,7 +222,9 @@ shortcut. <code>fabric_onelake_shortcut_get()</code> and
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Shortcut names, parent paths, and OneLake target paths follow Fabric's
-current shortcut limits: <code>%</code>, <code>+</code>, and non-ASCII characters are rejected.</p>
+current shortcut limits: <code>%</code>, <code>+</code>, and non-ASCII characters are rejected.
+Other source- and destination-specific restrictions are intentionally left
+to Fabric so that newly supported connection types and rules remain usable.</p>
 <p>Listing follows Fabric continuation links and tokens until every shortcut
 below <code>parent_path</code> is returned. Unknown target details and transform fields
 are preserved in list columns for forward compatibility.</p>
@@ -232,6 +239,7 @@ identities.</p>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/" class="external-link">OneLake shortcuts REST API</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts" class="external-link">OneLake shortcut placement and limitations</a></p>
     </div>
 
     <div class="section level2">

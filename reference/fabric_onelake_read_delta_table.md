@@ -163,8 +163,13 @@ settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-on
 This function uses the Python
 [deltalake](https://pypi.org/project/deltalake/) reader through
 'reticulate' Some newer Delta features, including Type Widening, V2
-Checkpoints, and Fabric Variant, are not supported by that reader. Use
-SQL or Spark (Livy) if the function reports an unsupported table feature
+Checkpoints, and shredded Fabric Variant, are not supported by that
+reader. The reader can query an unshredded Variant table only when
+`columns` explicitly excludes every top-level column containing Variant
+values. It otherwise returns Variant's physical binary storage instead
+of decoded logical values, so this function rejects that projection. Use
+SQL or Spark (Livy) for Variant values or when the function reports
+another unsupported table feature
 
 Compatible Warehouse tables can also be read through their published
 Delta logs. If the reader cannot open a Warehouse table, use

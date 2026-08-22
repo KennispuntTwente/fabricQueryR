@@ -120,7 +120,10 @@ fabric_onelake_shortcut_delete(
 - path:
 
   Parent `Files` or `Tables` path where the shortcut exists or will be
-  created.
+  created. Local checks validate path syntax, while Fabric applies item-
+  and workload-specific placement rules. In a Lakehouse `Tables`
+  section, use `Tables` because Fabric permits shortcuts only at that
+  top level.
 
 - name:
 
@@ -133,9 +136,11 @@ fabric_onelake_shortcut_delete(
   as `oneLake`, `adlsGen2`, `amazonS3`, `azureBlobStorage`,
   `googleCloudStorage`, `oneDriveSharePoint`, `s3Compatible`, or
   `dataverse`. Connection-backed targets must include the documented
-  connection and location fields, use an existing Fabric connection ID,
-  and must not embed credentials. Type-specific fields are validated
-  before a request is sent.
+  required fields, use a Fabric connection ID, and must not embed
+  credentials. Local checks cover structure, required fields, identifier
+  shape, and generic URL safety; they do not verify source-specific
+  host/path rules or that a connection refers to the supplied location.
+  Fabric service validation is authoritative.
 
 - target_workspace:
 
@@ -175,7 +180,9 @@ returns `TRUE` invisibly after success.
 
 Shortcut names, parent paths, and OneLake target paths follow Fabric's
 current shortcut limits: `%`, `+`, and non-ASCII characters are
-rejected.
+rejected. Other source- and destination-specific restrictions are
+intentionally left to Fabric so that newly supported connection types
+and rules remain usable.
 
 Listing follows Fabric continuation links and tokens until every
 shortcut below `parent_path` is returned. Unknown target details and
@@ -196,6 +203,9 @@ principals, and managed identities.
 
 [OneLake shortcuts REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
+
+[OneLake shortcut placement and
+limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
 
 ## Examples
 

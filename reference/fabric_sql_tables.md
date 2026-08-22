@@ -4,8 +4,8 @@ These helpers provide a target-independent metadata and table-read layer
 for Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse
 snapshot, and SQL Database records, or the same direct server inputs as
 [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md).
-Discovery uses the portable `INFORMATION_SCHEMA` views and is limited by
-the caller's SQL metadata permissions.
+Discovery uses SQL catalog metadata views and is limited by the caller's
+SQL metadata permissions.
 
 ## Usage
 
@@ -122,6 +122,9 @@ object `name`, `schema`, `full_name`, `type`, optional view
 
 [System information schema
 views](https://learn.microsoft.com/en-us/sql/relational-databases/system-information-schema-views/system-information-schema-views-transact-sql)
+
+[SQL module
+definitions](https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-sql-modules-transact-sql)
 
 [Fabric SQL analytics
 endpoints](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint)
