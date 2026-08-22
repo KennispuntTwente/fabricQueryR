@@ -112,6 +112,9 @@ preserve large whole numbers and decimals exactly.
 deadline and reports both errors when statement execution and session deletion
 fail together.
 
+* Livy session, statement, and batch handles no longer persist credentials when
+serialized, and timeout conditions contain only safe handle metadata.
+
 # 'fabricQueryR' 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 

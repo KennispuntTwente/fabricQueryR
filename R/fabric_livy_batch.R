@@ -305,7 +305,9 @@ FabricLivyBatch <- R6::R6Class(
       self$response <- response
       self$submitted_local <- Sys.time()
       self$verbose <- verbose
-      private$credential <- credential
+      credential_reference <- fabric_livy_credential_reference(credential)
+      private$credential_ref <- credential_reference$reference
+      private$credential_key <- credential_reference$key
       invisible(self)
     },
 
@@ -334,7 +336,7 @@ FabricLivyBatch <- R6::R6Class(
         self$response <- fabric_livy_json(
           "GET",
           self$url,
-          private$credential,
+          fabric_livy_handle_credential(private$credential_ref),
           deadline = deadline
         )
         self$state <- self$response$state %||% self$state
@@ -484,7 +486,7 @@ FabricLivyBatch <- R6::R6Class(
       fabric_livy_ok(
         "DELETE",
         self$url,
-        private$credential,
+        fabric_livy_handle_credential(private$credential_ref),
         idempotent = TRUE,
         accepted_status = 404L,
         deadline = deadline
@@ -494,7 +496,8 @@ FabricLivyBatch <- R6::R6Class(
     }
   ),
   private = list(
-    credential = NULL,
+    credential_ref = NULL,
+    credential_key = NULL,
 
     # Handle a wait deadline, optionally asking Fabric to cancel the batch
     # It receives the deadline and cancel flag, then always raises a timeout

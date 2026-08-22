@@ -615,6 +615,61 @@ fabric_livy_poll_sleep <- function(
   invisible(remaining)
 }
 
+# Store a credential behind a weak reference so Livy handles can be serialized
+# without persisting bearer tokens, callback environments, or client secrets.
+fabric_livy_credential_reference <- function(credential) {
+  key <- new.env(parent = emptyenv())
+  list(
+    reference = rlang::new_weakref(key, credential),
+    key = key
+  )
+}
+
+# Resolve a Livy handle's in-process credential. Direct credentials remain
+# accepted for objects constructed by earlier package versions.
+fabric_livy_handle_credential <- function(stored) {
+  if (inherits(stored, "fabric_credential")) {
+    return(stored)
+  }
+  credential <- if (rlang::is_weakref(stored)) {
+    rlang::wref_value(stored)
+  } else {
+    NULL
+  }
+  if (is.null(credential)) {
+    .fabric_abort(
+      paste0(
+        "This Livy handle no longer has an in-process credential; create a ",
+        "new handle with `token`, `tenant_id`, or other authentication ",
+        "arguments"
+      ),
+      class = "fabric_livy_credential_error"
+    )
+  }
+  credential
+}
+
+# Copy only stable public identifiers from an R6 handle for error diagnostics.
+fabric_livy_handle_metadata <- function(kind, handle) {
+  metadata <- list(
+    id = handle$id,
+    url = handle$url,
+    state = handle$state
+  )
+  if (identical(kind, "session")) {
+    metadata$closed <- handle$closed
+    metadata$high_concurrency <- handle$high_concurrency
+    metadata$session_id <- handle$session_id
+    metadata$repl_id <- handle$repl_id
+  } else if (identical(kind, "batch")) {
+    metadata$cancel_requested <- handle$cancel_requested
+  }
+  structure(
+    Filter(Negate(is.null), metadata),
+    class = c(paste0("fabric_livy_", kind, "_metadata"), "list")
+  )
+}
+
 # Raise a typed timeout condition with the latest `response`. This function does
 # not return and is shared by every Livy polling loop
 fabric_livy_abort_timeout <- function(
@@ -634,13 +689,15 @@ fabric_livy_abort_timeout <- function(
     message = paste0("Timed out waiting for the Livy ", kind),
     class = "fabric_livy_timeout_error",
     kind = kind,
-    last_response = response,
+    last_response = .httr2_redact_object(response),
     last_state = fabric_livy_state(response),
     cancel_accepted = cancel_accepted,
     cancel_error = cancel_error
   )
-  data[[field]] <- handle
-  do.call(rlang::abort, data)
+  data[[field]] <- fabric_livy_handle_metadata(kind, handle)
+  data$call <- NULL
+  data$.trace <- FALSE
+  do.call(.fabric_abort, data)
 }
 
 # Send a Livy request that needs no response body. Returns invisibly after shared
