@@ -684,7 +684,9 @@ test_that("standard refresh wait retries missing history until completion", {
     pbi_refresh_test_handle(mode = "standard"),
     poll_interval = 0,
     timeout = 1,
-    .sleep = function(seconds) now <<- now + seconds,
+    .sleep = function(seconds) {
+      now <<- now + seconds
+    },
     .now = function() now
   )
 
