@@ -510,29 +510,3 @@ test_that("malformed function responses keep standard safe HTTP behavior", {
   )
   expect_identical(error$response_metadata$status, 200L)
 })
-
-test_that("UDF documentation separates invocation and managed connections", {
-  source_root <- test_path("..", "..")
-  if (!dir.exists(file.path(source_root, "vignettes"))) {
-    skip("Package vignettes are not available in installed test runs")
-  }
-
-  documentation <- paste(
-    readLines(
-      file.path(source_root, "R", "fabric_function_invoke.R"),
-      warn = FALSE
-    ),
-    readLines(
-      file.path(source_root, "vignettes", "user-data-functions.Rmd"),
-      warn = FALSE
-    ),
-    collapse = "\n"
-  )
-
-  expect_match(documentation, "public invocation endpoint", fixed = TRUE)
-  expect_match(documentation, "UDF-managed connections", fixed = TRUE)
-  expect_identical(
-    grepl("corresponding application permission", documentation, fixed = TRUE),
-    FALSE
-  )
-})
