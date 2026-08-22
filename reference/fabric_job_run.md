@@ -264,9 +264,9 @@ failure. Otherwise, have the notebook report its outcome with
 remains backward compatible but Microsoft recommends migrating because
 it will be retired
 
-Notebook submission uses the current workload-specific `RunNotebook` job
-contract so Fabric applies per-run parameters and compute settings. The
-richer workload-specific status endpoint is still queried by default for
+Notebook submission uses the released workload-specific route so Fabric
+applies per-run parameters and compute settings. The richer
+workload-specific status endpoint is still queried by default for
 notebook exit values, with the stable Core status endpoint as its
 fallback.
 
