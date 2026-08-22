@@ -95,6 +95,10 @@ can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
 provides typed tibbles or streams for models that support it.
 
+* `fabric_pbi_refresh()` now sends an explicit zero-length body when a standard
+service-principal refresh has no notification option, avoiding HTTP 411
+responses from Power BI.
+
 * `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
 and compatible Warehouse tables through an optional Python Delta reader. It
 supports selected columns, row limits, and Arrow streams for large or nested

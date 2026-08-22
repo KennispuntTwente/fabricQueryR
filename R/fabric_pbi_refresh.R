@@ -1043,6 +1043,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       auto_unbox = TRUE,
       null = "null"
     )
+  } else if (toupper(method) %in% c("POST", "PUT", "PATCH")) {
+    request <- httr2::req_body_raw(request, raw())
   }
   response <- .httr2_perform(
     request,
