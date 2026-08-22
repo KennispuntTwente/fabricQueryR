@@ -1,10 +1,10 @@
-# fabricQueryR (development version)
+# 'fabricQueryR' (development version)
 
 ## New
 
 * `fabric_workspaces()`, `fabric_items()`, and type-specific functions such as
 `fabric_lakehouses()` and `fabric_semantic_models()` discover common Fabric
-resources. Their results can be passed directly to other fabricQueryR
+resources. Their results can be passed directly to other 'fabricQueryR'
 functions, avoiding copied IDs and endpoints in most workflows.
 
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
@@ -74,9 +74,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
-* Authenticated functions now consistently accept an AzureAuth token, a bearer
+* Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
-`auth_args` controls AzureAuth sign-in. The older `access_token` argument for
+`auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated. Requests also check service addresses more
 carefully and give clearer retry, timeout, and error messages.
 
@@ -108,7 +108,7 @@ preserve large whole numbers and decimals exactly.
 deadline and reports both errors when statement execution and session deletion
 fail together.
 
-# fabricQueryR 0.2.1
+# 'fabricQueryR' 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 
 personal e-mail address due to leaving the organization).
@@ -117,11 +117,11 @@ personal e-mail address due to leaving the organization).
 a Lakehouse schema name to read from a specific schema within a Lakehouse which
 has Lakehouse schemas enabled.
 
-# fabricQueryR 0.2.0
+# 'fabricQueryR' 0.2.0
 
 * Added `fabric_livy_query()` to run queries against the 'Fabric Livy API',
 allowing remote execution of 'Spark' code.
 
-# fabricQueryR 0.1.1
+# 'fabricQueryR' 0.1.1
 
 * Initial CRAN submission.

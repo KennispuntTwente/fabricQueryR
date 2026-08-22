@@ -1,6 +1,6 @@
 # Fabric integration sandbox
 
-This directory contains the real-service test environment for `fabricQueryR`.
+This directory contains the real-service test environment for 'fabricQueryR'.
 Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse,
 Warehouse snapshot, SQL Database, open mirrored database, Eventhouse, KQL
 database, GraphQL API, and access assignments. `fabric-cicd`
@@ -73,7 +73,7 @@ Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE
 
 Both the sandbox command and the R test helper resolve
 `.fabric-test-manifest.json` at the repository root by default, even though
-`testthat` runs tests from a nested working directory. Set
+'testthat' runs tests from a nested working directory. Set
 `FABRIC_TEST_MANIFEST` only to override that shared location.
 Before running the seed notebook, the sandbox sets the dedicated workspace to
 the selected runtime lane. The default `core` lane uses the GA Fabric Runtime
@@ -138,11 +138,11 @@ must be permitted by the Fabric tenant settings, be allowed to create workspaces
 and have sufficient access to assign the configured capacity. The sandbox itself
 does not require a client secret for provisioning.
 
-To exercise `fabricQueryR`'s own `AzureAuth` token-acquisition path in addition
-to the service tests that use short-lived Azure CLI tokens, define the protected
+To exercise the 'fabricQueryR' package's own 'AzureAuth' token-acquisition path
+in addition to the service tests that use short-lived Azure CLI tokens, define the protected
 environment secret `FABRIC_TEST_AUTH_CLIENT_SECRET`. The smoke test
 uses it with `AZURE_TENANT_ID` and `AZURE_CLIENT_ID` in a client-credentials
-flow, disables the AzureAuth token cache, and verifies that the application can
+flow, disables the 'AzureAuth' token cache, and verifies that the application can
 discover the ephemeral workspace. Required CI fails when the secret is absent;
 optional local runs skip only this authentication smoke test. Use a dedicated,
 short-lived test secret; the federated workflow login remains responsible for
@@ -203,7 +203,7 @@ source("tools/fabric-sandbox/local-integration.R")
 run_fabric_integration_tests()
 ```
 
-To run one of the split feature groups while developing, pass its testthat
+To run one of the split feature groups while developing, pass its 'testthat'
 filter. For example:
 
 ```r
@@ -257,21 +257,21 @@ The local runner:
 
 1. checks the R, ODBC, ADBC, `uv`, and sandbox-tool dependencies;
 2. reuses the tenant, client ID, and offline refresh token from a cached Fabric
-   `AzureAuth` token;
+   'AzureAuth' token;
 3. silently obtains user tokens for Fabric, Power BI, SQL, OneLake, and Kusto,
-   prompting through AzureAuth only when the cached login cannot do so;
+   prompting through 'AzureAuth' only when the cached login cannot do so;
 4. verifies the Fabric token's `oid` claim is the configured workspace admin;
 5. resolves the single marked `fabricqueryr-dev-dhrkoning` workspace;
 6. regenerates `.fabric-test-manifest.json` from its live items; and
 7. calls the existing
    `devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)`.
-   The AzureAuth acquisition test uses the interactive user context locally;
+   The 'AzureAuth' acquisition test uses the interactive user context locally;
    CI continues to exercise its client-credentials configuration.
 
 Raw bearer tokens exported by the runner stay in the R process and child
 discovery process only. The runner restores the previous environment variables
-and token-provider option when it finishes; AzureAuth continues to manage its
-normal user token cache. If a matching AzureAuth token is missing, AzureAuth
+and token-provider option when it finishes; 'AzureAuth' continues to manage its
+normal user token cache. If a matching 'AzureAuth' token is missing, 'AzureAuth'
 starts its normal interactive browser login. For a terminal without a usable
 browser, request device-code login explicitly:
 
@@ -343,11 +343,11 @@ connectivity failures fail the integration job.
 
 The SQL portion runs the ODBC and ADBC backends against the Lakehouse SQL
 analytics endpoint, Warehouse, Warehouse snapshot, and SQL Database. It checks
-direct DBI connections and lifecycle, table metadata, discovery records, portal
+direct 'DBI' connections and lifecycle, table metadata, discovery records, portal
 connection strings, bare server/database pairs, bound parameters, typed and
 null values, collected tibbles, and Arrow streams that remain consumable after
 the one-shot helper closes its connection. ODBC and ADBC results are normalized
-and compared for the writable SQL items. The stream checks cover both nanoarrow
+and compared for the writable SQL items. The stream checks cover both 'nanoarrow'
 collection and conversion to an `arrow::RecordBatchReader`.
 
 The OneLake portion also discovers the provisioned mirrored database and its

@@ -39,7 +39,7 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scope. Most users should leave this `NULL`;
@@ -56,7 +56,7 @@
 #'   structured timeout condition always contains the submitted object in its
 #'   `batch` field, including when cancellation fails or is disabled
 #'
-#' @return A [FabricLivyBatch] R6 object. Inspect its `$state`, call
+#' @return A [FabricLivyBatch] 'R6' object. Inspect its `$state`, call
 #'   `$result()` for structured metadata and logs, and call `$wait()` later when
 #'   submitting with `wait = FALSE`
 #' @section Before you submit:
@@ -243,7 +243,7 @@ fabric_livy_batch_submit <- function(
 #' Represents a Spark application submitted with [fabric_livy_batch_submit()]
 #' Use `$wait()` to wait for completion, `$result()` or `$logs()` to inspect the
 #' outcome, and `$cancel()` to request cancellation. Most users do not need to
-#' call this R6 class directly
+#' call this 'R6' class directly
 #'
 #' @field id Fabric batch ID
 #' @field url Batch lifecycle URL
@@ -254,7 +254,7 @@ fabric_livy_batch_submit <- function(
 #' @field completed_local Local completion timestamp
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
-#' @return The `FabricLivyBatch` R6 generator.
+#' @return The `FabricLivyBatch` 'R6' generator.
 #' @examples
 #' \dontrun{
 #' # fabric_livy_batch_submit() returns this class for a submitted Spark job

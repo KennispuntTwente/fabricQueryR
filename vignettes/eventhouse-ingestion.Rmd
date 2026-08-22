@@ -73,7 +73,7 @@ Factors are written as strings. Convert complex and `difftime` columns
 explicitly.
 
 Arrow Tables and RecordBatches work without an R data-frame conversion. For
-data larger than memory, pass a lazy Dataset, Scanner, Arrow dplyr query,
+data larger than memory, pass a lazy Dataset, Scanner, Arrow 'dplyr' query,
 RecordBatchReader, or an Arrow-compatible stream returned by a package query:
 
 ```{r, eval = FALSE}
@@ -157,7 +157,7 @@ and diagnostics.
 
 Queued ingestion still has at-least-once delivery. In particular, concurrent
 requests using the same key can race before either extent exists. Serialize
-submissions sharing a key. fabricQueryR also does not retry the submission POST:
+submissions sharing a key. 'fabricQueryR' also does not retry the submission POST:
 after a timeout, throttling response, or lost connection, the service might
 already have accepted it, so an automatic replay could duplicate data.
 

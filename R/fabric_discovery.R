@@ -18,7 +18,7 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
@@ -169,7 +169,7 @@ fabric_workspaces <- function(
 #' @return A list with one item record per match. Every record includes common
 #'   fields such as `id`, `displayName`, `type`, and `workspaceId`. With
 #'   `detail = TRUE`, records also include the connection details needed by the
-#'   matching fabricQueryR functions when Fabric makes them available
+#'   matching 'fabricQueryR' functions when Fabric makes them available
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
 #' sufficient for the core list operation). Workload enrichment additionally
@@ -373,7 +373,7 @@ fabric_items <- function(
 
 #' Discover one Microsoft Fabric item
 #'
-#' Finds one item and returns the connection details needed by fabricQueryR
+#' Finds one item and returns the connection details needed by 'fabricQueryR'
 #' Use this when you know the item's name or ID and do not need to list every
 #' item in the workspace
 #'
@@ -512,7 +512,7 @@ fabric_item <- function(
 #'
 #' These shortcuts find one kind of Fabric item. By default, they also retrieve
 #' the connection details needed by the matching query functions, so their
-#' results can usually be passed straight to the next fabricQueryR call. Set
+#' results can usually be passed straight to the next 'fabricQueryR' call. Set
 #' `detail = FALSE` when you only need names and IDs
 #'
 #' @section Choosing a helper:
@@ -543,7 +543,7 @@ fabric_item <- function(
 #' and `detail_errors` have the same behavior as in [fabric_items()]. The four
 #' new helpers do not currently make workload-specific detail requests. Their
 #' core records contain the IDs and type needed by [fabric_job_run()] where
-#' applicable, and fabricQueryR does not yet consume an additional target from
+#' applicable, and 'fabricQueryR' does not yet consume an additional target from
 #' Environment or User Data Function details
 #'
 #' @inheritParams fabric_items

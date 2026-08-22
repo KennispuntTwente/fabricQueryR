@@ -27,8 +27,8 @@
 #' on the user data functions item. Service-to-service callers can use an
 #' application credential with the Power BI `.default` audience and the
 #' required tenant and item access. Most users can leave `audience = NULL`;
-#' fabricQueryR selects the documented delegated scope or application audience
-#' for the authentication flow.
+#' 'fabricQueryR' selects the documented delegated scope or application
+#' audience for the authentication flow.
 #'
 #' Application authentication for the public invocation endpoint is distinct
 #' from authentication used by connections inside the function. Microsoft
@@ -83,7 +83,7 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback.
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow.
+#'   to let 'fabricQueryR' use its normal sign-in flow.
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()].
 #' @param audience OAuth audience/scope passed to the credential. `NULL`

@@ -48,7 +48,7 @@ supply this together with \code{personal_workspace_tenant_id} when a
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -62,7 +62,7 @@ One \code{fabric_item} record containing the item's name, ID, type,
 workspace, and any connection details that Fabric makes available
 }
 \description{
-Finds one item and returns the connection details needed by fabricQueryR
+Finds one item and returns the connection details needed by 'fabricQueryR'
 Use this when you know the item's name or ID and do not need to list every
 item in the workspace
 }

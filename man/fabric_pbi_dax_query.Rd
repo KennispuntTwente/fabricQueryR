@@ -52,7 +52,7 @@ Workspace. Leave \code{FALSE} for shared workspaces}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -113,13 +113,13 @@ code. For a model in My Workspace, supply \code{dataset_id} and set
 
 Keep \code{api = "json"} for ordinary queries and broad compatibility. It returns
 one result table and is available to Pro, PPU, and capacity-backed models
-Results are limited by Power BI; fabricQueryR raises an error instead of
+Results are limited by Power BI; 'fabricQueryR' raises an error instead of
 silently returning a partial result. Very large whole numbers are returned as
 character values so they are not rounded
 
 Use \code{api = "arrow"} when exact semantic-model types matter, when a query has
 several \code{EVALUATE} statements, or when you want an Arrow stream. It requires
-the optional \pkg{arrow} package and a model on Premium or Fabric capacity.
+the optional 'arrow' package and a model on Premium or Fabric capacity.
 Decimal128 and Decimal256 columns are returned as exact character values in
 a tibble; \code{result = "arrow_stream"} retains their native Arrow decimal types.
 The Power BI administrator must enable both \strong{Dataset Execute Queries REST

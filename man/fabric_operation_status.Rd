@@ -59,7 +59,7 @@ operation state/result URL returned in a \code{Location} header}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow. A \code{fabric_operation}
+to let 'fabricQueryR' use its normal sign-in flow. A \code{fabric_operation}
 handle reuses its stored credential unless authentication arguments are
 supplied explicitly}
 
@@ -96,7 +96,7 @@ decoded as lists, binary results are raw vectors, and empty results have a
 \description{
 Check, wait for, and retrieve the result of a Fabric operation that continues
 after its initiating request returns. Pass the operation handle returned by a
-fabricQueryR function when possible. To resume work later, save the complete
+'fabricQueryR' function when possible. To resume work later, save the complete
 \code{Location} URL returned by Fabric. A bare operation ID can reconstruct only
 the core \verb{/operations/\{id\}} route, not workload-scoped routes
 }
@@ -132,7 +132,7 @@ originally started the operation
 \section{Regional operation endpoints}{
 
 Fabric can return a \code{Location} on a regional \verb{*.analysis.windows.net}
-cluster. fabricQueryR recognizes those Microsoft endpoints and automatically
+cluster. 'fabricQueryR' recognizes those Microsoft endpoints and automatically
 uses the Power BI token audience they require. Normal automatic sign-in or an
 audience-aware token-provider function handles both audiences. A single
 static Fabric bearer token cannot authenticate a regional operation URL

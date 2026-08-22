@@ -44,7 +44,7 @@ response body. The default is 32 MiB, slightly above Fabric's documented
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback.}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow.}
+to let 'fabricQueryR' use its normal sign-in flow.}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
@@ -89,8 +89,8 @@ Interactive authentication requires the Power BI delegated permission
 on the user data functions item. Service-to-service callers can use an
 application credential with the Power BI \code{.default} audience and the
 required tenant and item access. Most users can leave \code{audience = NULL};
-fabricQueryR selects the documented delegated scope or application audience
-for the authentication flow.
+'fabricQueryR' selects the documented delegated scope or application
+audience for the authentication flow.
 
 Application authentication for the public invocation endpoint is distinct
 from authentication used by connections inside the function. Microsoft

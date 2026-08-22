@@ -30,7 +30,7 @@
 #' @param notify_option Standard-refresh email behavior for delegated calls:
 #'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
 #'   omitted, standard refresh defaults to `"MailOnFailure"` unless
-#'   fabricQueryR knows that it is using client credentials. For a
+#'   'fabricQueryR' knows that it is using client credentials. For a
 #'   caller-supplied service-principal token, pass `NULL` explicitly because
 #'   its identity cannot be inferred. Omit this for enhanced refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
@@ -70,7 +70,7 @@
 #'   cancellation before raising its timeout error. Cancellation is available
 #'   only for enhanced refreshes
 #' @param cancel Optional function checked between status updates. If it returns
-#'   `TRUE`, fabricQueryR requests cancellation and stops waiting. Cancellation
+#'   `TRUE`, 'fabricQueryR' requests cancellation and stops waiting. Cancellation
 #'   is available only for enhanced refreshes
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
@@ -95,7 +95,7 @@
 #'
 #' Standard and service-principal refresh responses can expose the accepted
 #' refresh ID through `RequestId` rather than `x-ms-request-id` or `Location`.
-#' fabricQueryR recognizes either response form. Standard-refresh status and
+#' 'fabricQueryR' recognizes either response form. Standard-refresh status and
 #' waiting fall back to refresh history when request-specific execution details
 #' are unavailable. Cancellation is available only for enhanced refreshes
 #'

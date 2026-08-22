@@ -55,7 +55,7 @@ retaining a second copy of large result data}
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -97,7 +97,7 @@ name in \code{request_properties}, even though Azure Data Explorer supports them
 
 KQL \code{bool}, \code{datetime}, \code{int}, \code{long}, \code{real}, and \code{timespan} columns normally
 become logical, UTC \code{POSIXct}, integer, \code{bit64::integer64}, double, and
-\code{difftime} vectors. Base R and \code{bit64} reserve the minimum signed \code{int} and
+\code{difftime} vectors. Base R and 'bit64' reserve the minimum signed \code{int} and
 \code{long} values for missing data; a column containing either boundary is
 returned as character with a warning so the value remains exact. \code{dynamic}
 columns are list-columns, and GUIDs, strings, and \code{decimal} values are

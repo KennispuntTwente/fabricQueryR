@@ -60,7 +60,7 @@
 #' @param client_id Entra application ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param dfs_base OneLake service address. Most users should keep the default;

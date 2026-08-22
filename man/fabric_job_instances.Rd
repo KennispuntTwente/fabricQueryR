@@ -34,7 +34,7 @@ item supplies this automatically.}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow
+to let 'fabricQueryR' use its normal sign-in flow
 A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
 \code{client_id}, \code{token}, or non-empty \code{auth_args} is supplied explicitly}
 

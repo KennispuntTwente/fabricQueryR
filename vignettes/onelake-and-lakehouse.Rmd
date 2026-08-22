@@ -55,7 +55,7 @@ orders <- fabric_sql_query(
 ```
 
 The function opens and closes the SQL connection for you. If you want to run
-several commands with DBI, open a reusable connection instead:
+several commands with 'DBI', open a reusable connection instead:
 
 ```{r, eval = FALSE}
 con <- fabric_sql_connect(lakehouse)
@@ -67,7 +67,7 @@ DBI::dbDisconnect(con)
 For most work with managed tables, start with SQL. Use `fabric_sql_query()` for
 filters, joins, and summaries, or `fabric_sql_read_table()` to read one table
 without writing SQL. Use `fabric_sql_connect()` only when you want to keep a
-connection open for several DBI calls.
+connection open for several 'DBI' calls.
 
 You can also read a Delta table directly through OneLake with
 `fabric_lakehouse_read_table()`. This is useful for an Arrow stream or an

@@ -66,7 +66,7 @@ contains common item metadata and applicable connection fields. See
 \description{
 These shortcuts find one kind of Fabric item. By default, they also retrieve
 the connection details needed by the matching query functions, so their
-results can usually be passed straight to the next fabricQueryR call. Set
+results can usually be passed straight to the next 'fabricQueryR' call. Set
 \code{detail = FALSE} when you only need names and IDs
 }
 \section{Choosing a helper}{
@@ -102,7 +102,7 @@ Folder recursion, workspace-specific private-link routing, authentication,
 and \code{detail_errors} have the same behavior as in \code{\link[=fabric_items]{fabric_items()}}. The four
 new helpers do not currently make workload-specific detail requests. Their
 core records contain the IDs and type needed by \code{\link[=fabric_job_run]{fabric_job_run()}} where
-applicable, and fabricQueryR does not yet consume an additional target from
+applicable, and 'fabricQueryR' does not yet consume an additional target from
 Environment or User Data Function details
 }
 

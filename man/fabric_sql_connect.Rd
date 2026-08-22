@@ -41,9 +41,9 @@ analytics endpoints open Fabric's \code{master} context, which is useful for
 discovery but does not select the item's tables}
 
 \item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
-hostname prevents fabricQueryR from identifying it}
+hostname prevents 'fabricQueryR' from identifying it}
 
-\item{backend}{Connection driver. Use \code{"odbc"} for ordinary DBI work or
+\item{backend}{Connection driver. Use \code{"odbc"} for ordinary 'DBI' work or
 \code{"adbc"} for a native Arrow path after installing its \code{mssql} driver}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
@@ -53,7 +53,7 @@ hostname prevents fabricQueryR from identifying it}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -99,8 +99,9 @@ finished. For an ADBC connection with child results still registered,
 use \code{DBI::dbDisconnect(con, force = TRUE)} to release them immediately
 }
 \description{
-Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot, Lakehouse,
-mirrored database, or SQL Database. Use the connection with familiar DBI
+Opens a 'DBI' connection to a Fabric Warehouse, Warehouse snapshot,
+Lakehouse, mirrored database, or SQL Database. Use the connection with
+familiar 'DBI'
 functions such as \code{\link[DBI:dbListTables]{DBI::dbListTables()}} and \code{\link[DBI:dbGetQuery]{DBI::dbGetQuery()}}
 }
 \details{
@@ -112,7 +113,7 @@ source system, Spark, or another appropriate writer to change their data
 }
 \section{Choosing a backend}{
 
-\code{backend = "odbc"} is the default and works well for ordinary DBI use. It
+\code{backend = "odbc"} is the default and works well for ordinary 'DBI' use. It
 requires Microsoft ODBC Driver 18 or newer. Use \code{backend = "adbc"} when you
 want a native Arrow result path, typically for larger analytical results
 ADBC requires the external \code{mssql} driver; install it separately with
@@ -134,7 +135,7 @@ or application must have access through a workspace role or the item's
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Open a DBI connection, use it, and always disconnect when finished
+# Open a 'DBI' connection, use it, and always disconnect when finished
 con <- fabric_sql_connect(warehouse)
 table <- DBI::dbListTables(con)[[1L]]
 table <- DBI::dbQuoteIdentifier(con, table)

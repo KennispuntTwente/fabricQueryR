@@ -87,7 +87,7 @@ already includes the item type and workspace ID}
 \item{workspace}{Workspace GUID, exact display name, or a workspace record
 Omit it when \code{item} is a discovered record containing \code{workspaceId}}
 
-\item{job_type}{Fabric job type. fabricQueryR uses the current typed
+\item{job_type}{Fabric job type. 'fabricQueryR' uses the current typed
 \code{"Execute"} operation for data pipelines and knows the usual values for
 notebooks and Spark job definitions, so normally omit this unless running
 another item type. Set \code{job_type = "Pipeline"} for a data pipeline only when
@@ -138,7 +138,7 @@ failure reporting}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow
+to let 'fabricQueryR' use its normal sign-in flow
 A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
 \code{client_id}, \code{token}, or non-empty \code{auth_args} is supplied explicitly}
 
@@ -181,8 +181,8 @@ typed errors. Set to \code{FALSE} to inspect those terminal results directly}
 timeout expires. \code{FALSE} stops waiting but leaves the Fabric job running}
 
 \item{cancel}{Optional function checked between status updates. If it returns
-\code{TRUE}, fabricQueryR requests cancellation. This can support an application's
-stop button}
+\code{TRUE}, 'fabricQueryR' requests cancellation. This can support an
+application's stop button}
 }
 \value{
 \code{fabric_job_run()} returns a \code{fabric_job} handle for use with the
@@ -222,7 +222,7 @@ the stable Core status endpoint as its fallback.
 \section{Permissions and status handling}{
 
 Running and cancelling need an item execute permission. Checking or waiting
-also needs an item read permission. fabricQueryR reconciles notebook status
+also needs an item read permission. 'fabricQueryR' reconciles notebook status
 information from Fabric before returning it and stops with a typed error if
 Fabric reports an unfamiliar state instead of waiting indefinitely
 }

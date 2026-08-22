@@ -39,7 +39,7 @@ from the Kusto \code{servertimeout} request property}
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}

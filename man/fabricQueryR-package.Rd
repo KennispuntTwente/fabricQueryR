@@ -6,8 +6,8 @@
 \alias{fabricQueryR-package}
 \title{Work with Microsoft Fabric from R}
 \description{
-fabricQueryR helps you find and work with Microsoft Fabric data from R. Start
-by discovering the workspaces and items available to you, then pass those
+'fabricQueryR' helps you find and work with Microsoft Fabric data from R.
+Start by discovering the workspaces and items available to you, then pass those
 results directly to the package's query, file, Spark, and job functions. In
 most workflows, you do not need to copy IDs or connection details by hand
 }

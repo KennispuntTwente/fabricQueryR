@@ -39,7 +39,7 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scope. Most users should leave this `NULL`;
@@ -231,7 +231,7 @@ fabric_livy_session <- function(
 #' A Livy session keeps Spark running while you submit several pieces of code
 #' Create one with [fabric_livy_session()], call `$wait()` once it starts, use
 #' `$run()` to execute code, and call `$close()` when finished. Most users do
-#' not need to call this R6 class directly
+#' not need to call this 'R6' class directly
 #'
 #' @field id Fabric session or high-concurrency acquisition ID
 #' @field url Session lifecycle URL
@@ -243,7 +243,7 @@ fabric_livy_session <- function(
 #' @field repl_id Isolated REPL ID for HC sessions
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
-#' @return The `FabricLivySession` R6 generator.
+#' @return The `FabricLivySession` 'R6' generator.
 #' @examples
 #' \dontrun{
 #' # fabric_livy_session() creates this class for a discovered Lakehouse
@@ -666,7 +666,7 @@ FabricLivySession <- R6::R6Class(
 #' @field completed_local Local completion timestamp
 #' @field verbose Whether lifecycle messages are enabled
 #' @format An [R6::R6Class] generator
-#' @return The `FabricLivyStatement` R6 generator.
+#' @return The `FabricLivyStatement` 'R6' generator.
 #' @examples
 #' \dontrun{
 #' # Statements are returned by a session; users do not construct them directly

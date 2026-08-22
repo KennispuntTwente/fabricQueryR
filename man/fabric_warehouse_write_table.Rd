@@ -39,7 +39,7 @@ fabric_warehouse_write_table(
 \item{table}{Destination table name.}
 
 \item{data}{A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
-RecordBatchReader, Arrow dplyr query, or Arrow-compatible array stream.}
+RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.}
 
 \item{staging_lakehouse}{A Lakehouse record returned by
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}, or its name or GUID. Fabric does
@@ -94,7 +94,7 @@ part. Fabric recommends files between 100 MB and 1 GB for Warehouse loads.}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}

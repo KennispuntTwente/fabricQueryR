@@ -1,7 +1,7 @@
 #' Get connection details for a Fabric SQL item
 #'
-#' Shows the server, database, port, and item type that fabricQueryR will use for
-#' a Fabric SQL connection. Most users can pass a discovered item directly to
+#' Shows the server, database, port, and item type that 'fabricQueryR' will use
+#' for a Fabric SQL connection. Most users can pass a discovered item directly to
 #' [fabric_sql_connect()] and do not need to call this helper
 #'
 #' @param server A Fabric SQL server name, a complete connection string copied
@@ -14,7 +14,7 @@
 #'   analytics endpoints open Fabric's `master` context, which is useful for
 #'   discovery but does not select the item's tables
 #' @param target_type Kind of Fabric SQL item. Keep `"auto"` unless a custom
-#'   hostname prevents fabricQueryR from identifying it
+#'   hostname prevents 'fabricQueryR' from identifying it
 #' @param port Optional TCP port. An explicit value overrides a port in
 #'   `server`; otherwise the standard SQL port, 1433, is used
 #'
@@ -171,8 +171,9 @@ fabric_sql_connection_info <- function(
 
 #' Connect to a Microsoft Fabric SQL target
 #'
-#' Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot, Lakehouse,
-#' mirrored database, or SQL Database. Use the connection with familiar DBI
+#' Opens a 'DBI' connection to a Fabric Warehouse, Warehouse snapshot,
+#' Lakehouse, mirrored database, or SQL Database. Use the connection with
+#' familiar 'DBI'
 #' functions such as [DBI::dbListTables()] and [DBI::dbGetQuery()]
 #'
 #' @details
@@ -183,7 +184,7 @@ fabric_sql_connection_info <- function(
 #' source system, Spark, or another appropriate writer to change their data
 #'
 #' @section Choosing a backend:
-#' `backend = "odbc"` is the default and works well for ordinary DBI use. It
+#' `backend = "odbc"` is the default and works well for ordinary 'DBI' use. It
 #' requires Microsoft ODBC Driver 18 or newer. Use `backend = "adbc"` when you
 #' want a native Arrow result path, typically for larger analytical results
 #' ADBC requires the external `mssql` driver; install it separately with
@@ -197,14 +198,14 @@ fabric_sql_connection_info <- function(
 #' **Manage permissions** settings; SQL permissions may further restrict data
 #'
 #' @inheritParams fabric_sql_connection_info
-#' @param backend Connection driver. Use `"odbc"` for ordinary DBI work or
+#' @param backend Connection driver. Use `"odbc"` for ordinary 'DBI' work or
 #'   `"adbc"` for a native Arrow path after installing its `mssql` driver
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param odbc_driver ODBC driver name. ODBC Driver 18 for SQL Server is the
@@ -249,7 +250,7 @@ fabric_sql_connection_info <- function(
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Open a DBI connection, use it, and always disconnect when finished
+#' # Open a 'DBI' connection, use it, and always disconnect when finished
 #' con <- fabric_sql_connect(warehouse)
 #' table <- DBI::dbListTables(con)[[1L]]
 #' table <- DBI::dbQuoteIdentifier(con, table)
@@ -479,7 +480,7 @@ fabric_sql_connect <- function(
 #'   correctly than building a query with `paste()`
 #' @param result Return a `"tibble"` for ordinary R analysis, or a single-use
 #'   `"arrow_stream"` to avoid data-frame conversion and retain Arrow-native
-#'   batches. The ADBC/DBI driver may fetch the complete result before returning
+#'   batches. The 'adbi' driver may fetch the complete result before returning
 #'   the stream, so this option does not guarantee bounded-memory retrieval
 #' @param idempotent Logical. Set to `TRUE` only if running the entire statement
 #'   a second time has no unwanted effect (usually a plain `SELECT`). This
@@ -497,7 +498,7 @@ fabric_sql_connect <- function(
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Discover and quote a table name through a short DBI connection
+#' # Discover and quote a table name through a short 'DBI' connection
 #' con <- fabric_sql_connect(warehouse)
 #' table <- DBI::dbListTables(con)[[1L]]
 #' table <- DBI::dbQuoteIdentifier(con, table)

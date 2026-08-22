@@ -25,7 +25,7 @@ analytics endpoints open Fabric's \code{master} context, which is useful for
 discovery but does not select the item's tables}
 
 \item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
-hostname prevents fabricQueryR from identifying it}
+hostname prevents 'fabricQueryR' from identifying it}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
 \code{server}; otherwise the standard SQL port, 1433, is used}
@@ -36,8 +36,8 @@ A \code{fabric_sql_connection_info} list with \code{server}, \code{database},
 discovery record). No connection is opened
 }
 \description{
-Shows the server, database, port, and item type that fabricQueryR will use for
-a Fabric SQL connection. Most users can pass a discovered item directly to
+Shows the server, database, port, and item type that 'fabricQueryR' will use
+for a Fabric SQL connection. Most users can pass a discovered item directly to
 \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} and do not need to call this helper
 }
 \examples{

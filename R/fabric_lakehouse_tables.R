@@ -54,7 +54,7 @@
 #'   Dataset/Scanner/query, or Arrow RecordBatchReader to serialize as Parquet.
 #'   Lazy inputs are consumed batch by batch without collecting the complete
 #'   object in R memory. Arrow-compatible `nanoarrow_array_stream` inputs are
-#'   also accepted. Readers and streams are single-use. The optional `arrow`
+#'   also accepted. Readers and streams are single-use. The optional 'arrow'
 #'   package is required.
 #' @param staging_root Item-relative directory below `Files/` used for unique
 #'   staging files.
@@ -135,8 +135,8 @@
 #' The high-level writer uploads complete Parquet parts atomically to a unique
 #' folder and starts the managed folder load only after every upload succeeds. A
 #' successful load is a committed Delta operation. On failure, the destination
-#' is left to Fabric's transactional load behavior and fabricQueryR never edits
-#' `Tables/` files.
+#' is left to Fabric's transactional load behavior and 'fabricQueryR' never
+#' edits `Tables/` files.
 #'
 #' Retained staging paths are included in `fabric_lakehouse_write_error`
 #' conditions so the source can be inspected or passed to

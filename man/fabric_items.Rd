@@ -66,7 +66,7 @@ supply this together with \code{personal_workspace_tenant_id} when a
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -79,7 +79,7 @@ containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 A list with one item record per match. Every record includes common
 fields such as \code{id}, \code{displayName}, \code{type}, and \code{workspaceId}. With
 \code{detail = TRUE}, records also include the connection details needed by the
-matching fabricQueryR functions when Fabric makes them available
+matching 'fabricQueryR' functions when Fabric makes them available
 }
 \description{
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and other

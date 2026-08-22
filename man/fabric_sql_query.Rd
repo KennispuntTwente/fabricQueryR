@@ -50,7 +50,7 @@ correctly than building a query with \code{paste()}}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
-batches. The ADBC/DBI driver may fetch the complete result before returning
+batches. The 'adbi' driver may fetch the complete result before returning
 the stream, so this option does not guarantee bounded-memory retrieval}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
@@ -60,9 +60,9 @@ analytics endpoints open Fabric's \code{master} context, which is useful for
 discovery but does not select the item's tables}
 
 \item{target_type}{Kind of Fabric SQL item. Keep \code{"auto"} unless a custom
-hostname prevents fabricQueryR from identifying it}
+hostname prevents 'fabricQueryR' from identifying it}
 
-\item{backend}{Connection driver. Use \code{"odbc"} for ordinary DBI work or
+\item{backend}{Connection driver. Use \code{"odbc"} for ordinary 'DBI' work or
 \code{"adbc"} for a native Arrow path after installing its \code{mssql} driver}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
@@ -72,7 +72,7 @@ hostname prevents fabricQueryR from identifying it}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -134,7 +134,7 @@ than pasting them into the SQL text
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Discover and quote a table name through a short DBI connection
+# Discover and quote a table name through a short 'DBI' connection
 con <- fabric_sql_connect(warehouse)
 table <- DBI::dbListTables(con)[[1L]]
 table <- DBI::dbQuoteIdentifier(con, table)

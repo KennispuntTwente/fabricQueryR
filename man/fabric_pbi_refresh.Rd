@@ -115,7 +115,7 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity}
 \item{notify_option}{Standard-refresh email behavior for delegated calls:
 \code{"NoNotification"}, \code{"MailOnFailure"}, or \code{"MailOnCompletion"}. When
 omitted, standard refresh defaults to \code{"MailOnFailure"} unless
-fabricQueryR knows that it is using client credentials. For a
+'fabricQueryR' knows that it is using client credentials. For a
 caller-supplied service-principal token, pass \code{NULL} explicitly because
 its identity cannot be inferred. Omit this for enhanced refreshes}
 
@@ -188,7 +188,7 @@ cancellation before raising its timeout error. Cancellation is available
 only for enhanced refreshes}
 
 \item{cancel}{Optional function checked between status updates. If it returns
-\code{TRUE}, fabricQueryR requests cancellation and stops waiting. Cancellation
+\code{TRUE}, 'fabricQueryR' requests cancellation and stops waiting. Cancellation
 is available only for enhanced refreshes}
 }
 \value{
@@ -212,7 +212,7 @@ run for a semantic model at a time
 
 Standard and service-principal refresh responses can expose the accepted
 refresh ID through \code{RequestId} rather than \code{x-ms-request-id} or \code{Location}.
-fabricQueryR recognizes either response form. Standard-refresh status and
+'fabricQueryR' recognizes either response form. Standard-refresh status and
 waiting fall back to refresh history when request-specific execution details
 are unavailable. Cancellation is available only for enhanced refreshes
 

@@ -29,7 +29,7 @@
 #'   already includes the item type and workspace ID
 #' @param workspace Workspace GUID, exact display name, or a workspace record
 #'   Omit it when `item` is a discovered record containing `workspaceId`
-#' @param job_type Fabric job type. fabricQueryR uses the current typed
+#' @param job_type Fabric job type. 'fabricQueryR' uses the current typed
 #'   `"Execute"` operation for data pipelines and knows the usual values for
 #'   notebooks and Spark job definitions, so normally omit this unless running
 #'   another item type. Set `job_type = "Pipeline"` for a data pipeline only when
@@ -69,7 +69,7 @@
 #' @param client_id Entra application ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #'   A `fabric_job` handle reuses its stored credential unless `tenant_id`,
 #'   `client_id`, `token`, or non-empty `auth_args` is supplied explicitly
 #' @param auth_args Additional sign-in options passed to
@@ -97,7 +97,7 @@
 #'
 #' @section Permissions and status handling:
 #' Running and cancelling need an item execute permission. Checking or waiting
-#' also needs an item read permission. fabricQueryR reconciles notebook status
+#' also needs an item read permission. 'fabricQueryR' reconciles notebook status
 #' information from Fabric before returning it and stops with a typed error if
 #' Fabric reports an unfamiliar state instead of waiting indefinitely
 #' @references
@@ -414,8 +414,8 @@ fabric_job_status <- function(
 #' @param cancel_on_timeout Ask Fabric to cancel the job when the client-side
 #'   timeout expires. `FALSE` stops waiting but leaves the Fabric job running
 #' @param cancel Optional function checked between status updates. If it returns
-#'   `TRUE`, fabricQueryR requests cancellation. This can support an application's
-#'   stop button
+#'   `TRUE`, 'fabricQueryR' requests cancellation. This can support an
+#'   application's stop button
 #' @param .sleep,.now Internal hooks for deterministic tests
 #' @rdname fabric_job_run
 #' @export

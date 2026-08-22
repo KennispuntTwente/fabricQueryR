@@ -44,7 +44,7 @@ supply its schema when this argument is omitted.}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
-batches. The ADBC/DBI driver may fetch the complete result before returning
+batches. The 'adbi' driver may fetch the complete result before returning
 the stream, so this option does not guarantee bounded-memory retrieval}
 
 \item{backend}{SQL connection backend, \code{"odbc"} or \code{"adbc"}.}
@@ -56,7 +56,7 @@ the stream, so this option does not guarantee bounded-memory retrieval}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -88,10 +88,10 @@ function for filters, ordering, joins, aggregations, or other T-SQL.
 \section{Large results}{
 
 Use \code{backend = "adbc"} with \code{result = "arrow_stream"} for a native Arrow
-result path that avoids conversion to an R data frame. The current DBI/ADBI
-path may fetch the complete result before returning the stream, so use a
-selective query or \code{limit} when the result may exceed memory. The external
-ADBC \code{mssql} driver must be installed.
+result path that avoids conversion to an R data frame. The current result path
+through 'DBI' and 'adbi' may fetch the complete result before returning the
+stream, so use a selective query or \code{limit} when the result may exceed memory.
+The external ADBC \code{mssql} driver must be installed.
 
 \code{limit} uses T-SQL \code{TOP} and does not define row order. Use
 \code{\link[=fabric_sql_query]{fabric_sql_query()}} with an explicit \verb{ORDER BY} when deterministic row
@@ -104,7 +104,7 @@ selection matters.
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Use DBI metadata to discover an existing table in that Warehouse
+# Use 'DBI' metadata to discover an existing table in that Warehouse
 con <- fabric_sql_connect(warehouse)
 tables <- DBI::dbListTables(con)
 DBI::dbDisconnect(con)

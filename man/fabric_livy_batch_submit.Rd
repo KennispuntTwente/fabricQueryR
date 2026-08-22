@@ -88,7 +88,7 @@ workload has been sized deliberately}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let fabricQueryR use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -113,7 +113,7 @@ structured timeout condition always contains the submitted object in its
 \code{batch} field, including when cancellation fails or is disabled}
 }
 \value{
-A \link{FabricLivyBatch} R6 object. Inspect its \verb{$state}, call
+A \link{FabricLivyBatch} 'R6' object. Inspect its \verb{$state}, call
 \verb{$result()} for structured metadata and logs, and call \verb{$wait()} later when
 submitting with \code{wait = FALSE}
 }

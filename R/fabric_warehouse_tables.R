@@ -145,10 +145,10 @@ fabric_warehouse_tables <- function(
 #'
 #' @section Large results:
 #' Use `backend = "adbc"` with `result = "arrow_stream"` for a native Arrow
-#' result path that avoids conversion to an R data frame. The current DBI/ADBI
-#' path may fetch the complete result before returning the stream, so use a
-#' selective query or `limit` when the result may exceed memory. The external
-#' ADBC `mssql` driver must be installed.
+#' result path that avoids conversion to an R data frame. The current result path
+#' through 'DBI' and 'adbi' may fetch the complete result before returning the
+#' stream, so use a selective query or `limit` when the result may exceed memory.
+#' The external ADBC `mssql` driver must be installed.
 #'
 #' `limit` uses T-SQL `TOP` and does not define row order. Use
 #' [fabric_sql_query()] with an explicit `ORDER BY` when deterministic row
@@ -166,7 +166,7 @@ fabric_warehouse_tables <- function(
 #' workspace <- fabric_workspaces()[[1L]]
 #' warehouse <- fabric_warehouses(workspace)[[1L]]
 #'
-#' # Use DBI metadata to discover an existing table in that Warehouse
+#' # Use 'DBI' metadata to discover an existing table in that Warehouse
 #' con <- fabric_sql_connect(warehouse)
 #' tables <- DBI::dbListTables(con)
 #' DBI::dbDisconnect(con)
@@ -324,7 +324,7 @@ fabric_warehouse_read_table <- function(
 #'   [fabric_item()], or its name or GUID when `workspace` is supplied.
 #' @param table Destination table name.
 #' @param data A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
-#'   RecordBatchReader, Arrow dplyr query, or Arrow-compatible array stream.
+#'   RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.
 #' @param staging_lakehouse A Lakehouse record returned by
 #'   [fabric_lakehouses()] or [fabric_item()], or its name or GUID. Fabric does
 #'   not support a Warehouse item as the OneLake source of `COPY INTO`, so a

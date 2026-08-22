@@ -7,7 +7,7 @@
 An \link[R6:R6Class]{R6::R6Class} generator
 }
 \value{
-The \code{FabricLivyStatement} R6 generator.
+The \code{FabricLivyStatement} 'R6' generator.
 }
 \description{
 Represents one piece of code submitted to a \link{FabricLivySession}. Call

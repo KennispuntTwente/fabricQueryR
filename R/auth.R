@@ -31,7 +31,7 @@
 #' @param client_id Entra application ID
 #' @param token Optional token supplied as an `AzureAuth::AzureToken` object, a
 #'   bearer-token string, or a token-provider function. `NULL` delegates token
-#'   acquisition, cache reuse, and interactive login to `AzureAuth`
+#'   acquisition, cache reuse, and interactive login to 'AzureAuth'
 #' @param auth_args Named list of additional arguments passed to
 #'   [AzureAuth::get_azure_token()]. The package supplies `resource`, `tenant`,
 #'   `app`, and `version`
@@ -225,9 +225,9 @@ fabric_resolve_token_alias <- function(
   list(token = token %||% access_token, dots = dots)
 }
 
-#' Validate AzureAuth passthrough arguments
+#' Validate 'AzureAuth' passthrough arguments
 #'
-#' @param auth_args Named list passed on to AzureAuth
+#' @param auth_args Named list passed on to 'AzureAuth'
 #' @return `auth_args`, invisibly, after checking names and reserved settings
 #' @details Called by `fabric_credential()` before any automatic sign-in
 #' @keywords internal
@@ -275,11 +275,11 @@ fabric_validate_auth_args <- function(auth_args) {
   invisible(auth_args)
 }
 
-#' Choose Azure v2 scopes for an AzureAuth flow
+#' Choose Azure v2 scopes for an 'AzureAuth' flow
 #'
 #' @param audience Service scopes requested by the calling API function
-#' @param auth_args Named AzureAuth settings that identify the sign-in flow
-#' @return The scopes AzureAuth should request
+#' @param auth_args Named 'AzureAuth' settings that identify the sign-in flow
+#' @return The scopes 'AzureAuth' should request
 #' @details Interactive flows need `offline_access`; application-only flows do
 #'   not. `fabric_credential()` uses this distinction when acquiring a token
 #' @keywords internal
@@ -292,9 +292,9 @@ fabric_azure_scopes <- function(audience, auth_args) {
   }
 }
 
-#' Detect an AzureAuth client-credentials flow
+#' Detect an 'AzureAuth' client-credentials flow
 #'
-#' @param auth_args Named AzureAuth settings
+#' @param auth_args Named 'AzureAuth' settings
 #' @return `TRUE` for an application-only sign-in, otherwise `FALSE`
 #' @details Used when choosing both token scopes and the GraphQL audience
 #' @keywords internal
@@ -308,11 +308,12 @@ fabric_uses_client_credentials <- function(auth_args) {
       is.null(auth_args$on_behalf_of))
 }
 
-#' Adapt a refreshable AzureAuth token
+#' Adapt a refreshable 'AzureAuth' token
 #'
 #' @param token An `AzureAuth::AzureToken` object
 #' @return An internal credential that refreshes and reads `token` on demand
-#' @details `fabric_credential()` uses this for caller-supplied AzureAuth tokens
+#' @details `fabric_credential()` uses this for caller-supplied 'AzureAuth'
+#'   tokens
 #' @keywords internal
 #' @noRd
 fabric_azure_token_credential <- function(token) {
@@ -332,11 +333,11 @@ fabric_azure_token_credential <- function(token) {
   )
 }
 
-#' Extract and validate a bearer token from an AzureAuth token
+#' Extract and validate a bearer token from an 'AzureAuth' token
 #'
 #' @param token Value expected to be an `AzureAuth::AzureToken` object
 #' @return One validated bearer-token string
-#' @details Used by both forms of AzureAuth-backed internal credentials
+#' @details Used by both forms of 'AzureAuth'-backed internal credentials
 #' @keywords internal
 #' @noRd
 fabric_extract_azure_token <- function(token) {

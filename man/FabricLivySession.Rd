@@ -7,13 +7,13 @@
 An \link[R6:R6Class]{R6::R6Class} generator
 }
 \value{
-The \code{FabricLivySession} R6 generator.
+The \code{FabricLivySession} 'R6' generator.
 }
 \description{
 A Livy session keeps Spark running while you submit several pieces of code
 Create one with \code{\link[=fabric_livy_session]{fabric_livy_session()}}, call \verb{$wait()} once it starts, use
 \verb{$run()} to execute code, and call \verb{$close()} when finished. Most users do
-not need to call this R6 class directly
+not need to call this 'R6' class directly
 }
 \examples{
 \dontrun{

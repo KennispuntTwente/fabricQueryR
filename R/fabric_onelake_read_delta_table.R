@@ -45,7 +45,7 @@
 #' | Signed 32-bit integer | original integer type | double |
 #' | Timestamp without timezone | original Arrow timestamp | character |
 #' | Timestamp with timezone | original Arrow timestamp | UTC `POSIXct` |
-#' | Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | nanoarrow's corresponding R scalar type |
+#' | Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | corresponding R scalar type from 'nanoarrow' |
 #' | Struct, map, list, extension/Variant | corresponding normalized Arrow type when supported | rejected; request an Arrow stream |
 #'
 #' Decimal text retains its scale and digits. Some large Arrow buffer types are
@@ -62,7 +62,7 @@
 #' and [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
 #'
 #' This function uses the Python
-#' [deltalake](https://pypi.org/project/deltalake/) reader through `reticulate`
+#' [deltalake](https://pypi.org/project/deltalake/) reader through 'reticulate'
 #' Some newer Delta features, including Type Widening, V2 Checkpoints, and
 #' Fabric Variant, are not supported by that reader. Use SQL or Spark (Livy) if
 #' the function reports an unsupported table feature
@@ -85,7 +85,7 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Most users can
-#'   leave this as `NULL` and let fabricQueryR sign in
+#'   leave this as `NULL` and let 'fabricQueryR' sign in
 #' @param auth_args Extra sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param version Specific table version to read, or `NULL` for the latest
@@ -835,7 +835,7 @@ fabric_delta_quote_identifier <- function(value) {
   paste0('"', gsub('"', '""', value, fixed = TRUE), '"')
 }
 
-#' Convert a Python Arrow reader into an R nanoarrow stream
+#' Convert a Python Arrow reader into an R 'nanoarrow' stream
 #' @keywords internal
 #' @noRd
 # Uses a Python Arrow `reader`; returns an R nanoarrow stream for result handling
@@ -1044,7 +1044,7 @@ fabric_delta_validate_collect_schema <- function(schema) {
   )
 }
 
-#' Collect common Delta scalar types through nanoarrow
+#' Collect common Delta scalar types through 'nanoarrow'
 #' @keywords internal
 #' @noRd
 # Uses a Python Arrow `reader`; returns a tibble for supported scalar columns

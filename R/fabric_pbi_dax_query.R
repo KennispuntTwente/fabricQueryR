@@ -16,13 +16,13 @@
 #' @section Choosing a response format:
 #' Keep `api = "json"` for ordinary queries and broad compatibility. It returns
 #' one result table and is available to Pro, PPU, and capacity-backed models
-#' Results are limited by Power BI; fabricQueryR raises an error instead of
+#' Results are limited by Power BI; 'fabricQueryR' raises an error instead of
 #' silently returning a partial result. Very large whole numbers are returned as
 #' character values so they are not rounded
 #'
 #' Use `api = "arrow"` when exact semantic-model types matter, when a query has
 #' several `EVALUATE` statements, or when you want an Arrow stream. It requires
-#' the optional \pkg{arrow} package and a model on Premium or Fabric capacity.
+#' the optional 'arrow' package and a model on Premium or Fabric capacity.
 #' Decimal128 and Decimal256 columns are returned as exact character values in
 #' a tibble; `result = "arrow_stream"` retains their native Arrow decimal types.
 #' The Power BI administrator must enable both **Dataset Execute Queries REST
@@ -73,7 +73,7 @@
 #'   authentication contract. Sovereign Microsoft clouds are not currently
 #'   supported by this helper
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let fabricQueryR use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param impersonated_user Optional user principal name, such as

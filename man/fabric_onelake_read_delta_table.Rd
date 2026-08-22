@@ -46,7 +46,7 @@ type suffix}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Most users can
-leave this as \code{NULL} and let fabricQueryR sign in}
+leave this as \code{NULL} and let 'fabricQueryR' sign in}
 
 \item{auth_args}{Extra sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
@@ -108,7 +108,7 @@ tibble. Nested columns require an Arrow stream. The complete mapping is:\tabular
    Signed 32-bit integer \tab original integer type \tab double \cr
    Timestamp without timezone \tab original Arrow timestamp \tab character \cr
    Timestamp with timezone \tab original Arrow timestamp \tab UTC \code{POSIXct} \cr
-   Date, Boolean, floating point, smaller integers, UTF-8, binary \tab corresponding Arrow scalar \tab nanoarrow's corresponding R scalar type \cr
+   Date, Boolean, floating point, smaller integers, UTF-8, binary \tab corresponding Arrow scalar \tab corresponding R scalar type from 'nanoarrow' \cr
    Struct, map, list, extension/Variant \tab corresponding normalized Arrow type when supported \tab rejected; request an Arrow stream \cr
 }
 
@@ -129,7 +129,7 @@ engine instead. See the
 and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}
 
 This function uses the Python
-\href{https://pypi.org/project/deltalake/}{deltalake} reader through \code{reticulate}
+\href{https://pypi.org/project/deltalake/}{deltalake} reader through 'reticulate'
 Some newer Delta features, including Type Widening, V2 Checkpoints, and
 Fabric Variant, are not supported by that reader. Use SQL or Spark (Livy) if
 the function reports an unsupported table feature
