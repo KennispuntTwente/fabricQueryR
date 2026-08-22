@@ -12,7 +12,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
 An Eventhouse stores event, log, and time-series data in KQL databases. In this
-vignette, **ingestion** means adding rows to one of its KQL tables.
+vignette, *ingestion* means adding rows to one of its KQL tables.
 
 Start with `fabric_kql_write_table()`: it accepts a data frame and manages the
 upload, ingestion status, and cleanup for you. Later sections cover larger

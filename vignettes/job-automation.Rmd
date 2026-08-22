@@ -11,7 +11,7 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-A Fabric **job** is a run of an item such as a notebook, data pipeline, or Spark
+A Fabric *job* is a run of an item such as a notebook, data pipeline, or Spark
 job definition. fabricQueryR can start a run, wait for it, inspect recent runs,
 and manage recurring schedules.
 
