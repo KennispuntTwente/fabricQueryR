@@ -820,6 +820,7 @@ kusto_ingestion_submit <- function(target, body, credential, timeout) {
       idempotent = FALSE
     ),
     error = function(error) {
+      safe_error <- kusto_storage_redact_condition(error)
       .fabric_abort(
         paste0(
           "Queued ingestion submission failed before a tracking ID was ",
@@ -830,9 +831,11 @@ kusto_ingestion_submit <- function(target, body, credential, timeout) {
           "fabric_kql_ingestion_submission_error",
           "fabric_kql_ingestion_error"
         ),
-        status = error$status %||% NULL,
-        response_metadata = error$response_metadata %||% NULL,
-        parent = error
+        status = safe_error$status %||% NULL,
+        response_metadata = safe_error$response_metadata %||% NULL,
+        parent = safe_error,
+        call = NULL,
+        .trace = FALSE
       )
     }
   )
@@ -3138,6 +3141,7 @@ fabric_kql_export <- function(
       )
     },
     error = function(error) {
+      safe_error <- kusto_storage_redact_condition(error)
       .fabric_abort(
         paste0(
           "KQL export submission did not return a tracking operation ID. ",
@@ -3150,7 +3154,11 @@ fabric_kql_export <- function(
           "fabric_kql_export_error"
         ),
         destination = destination$display,
-        parent = error
+        status = safe_error$status %||% NULL,
+        response_metadata = safe_error$response_metadata %||% NULL,
+        parent = safe_error,
+        call = NULL,
+        .trace = FALSE
       )
     }
   )
@@ -3875,6 +3883,22 @@ kusto_storage_redact_object <- function(value) {
     value[index] <- list(kusto_storage_redact_object(value[[index]]))
   }
   value
+}
+
+# Build a serializable copy of an error with Kusto storage credentials removed.
+# Traces and calls are omitted because they can retain the authenticated request.
+kusto_storage_redact_condition <- function(error) {
+  fields <- unclass(error)
+  fields[c("message", "call", "trace", "parent", "rlang")] <- NULL
+  fields <- kusto_storage_redact_object(fields)
+  fields$message <- kusto_storage_redact_text(conditionMessage(error))
+  fields$call <- NULL
+  if (inherits(error$parent, "condition")) {
+    fields$parent <- kusto_storage_redact_condition(error$parent)
+  } else if (!is.null(error$parent)) {
+    fields$parent <- kusto_storage_redact_object(error$parent)
+  }
+  structure(fields, class = class(error))
 }
 
 # Redact credentials that may be embedded in export status text.

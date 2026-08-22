@@ -249,6 +249,47 @@ test_that("KQL export treats a missing tracking ID as ambiguous", {
   expect_match(conditionMessage(error), "not replayed", fixed = TRUE)
 })
 
+test_that("KQL export submission errors redact storage credentials", {
+  secrets <- c("BARE_ACCOUNT_KEY_123", "SAS_SIGNATURE_456")
+  locations <- c(
+    paste0("https://storage.test/container/export;", secrets[[1L]]),
+    paste0("https://storage.test/container/export?sv=1&sig=", secrets[[2L]])
+  )
+  httr2::local_mocked_responses(function(req) {
+    kusto_ingestion_test_response(
+      list(error = list(code = "BadRequest", message = paste(locations))),
+      status = 400L,
+      url = req$url
+    )
+  })
+
+  error <- tryCatch(
+    fabric_kql_export(
+      "https://cluster.z1.kusto.fabric.microsoft.com",
+      query = "Events",
+      database = "Telemetry",
+      destination = locations[[1L]],
+      token = "token"
+    ),
+    error = identity
+  )
+
+  exposed <- c(
+    conditionMessage(error),
+    conditionMessage(error$parent),
+    jsonlite::toJSON(error$response_metadata, auto_unbox = TRUE),
+    rawToChar(serialize(error, NULL, ascii = TRUE))
+  )
+  expect_s3_class(error, "fabric_kql_export_submission_error")
+  exposed_secret <- vapply(
+    secrets,
+    function(secret) any(grepl(secret, exposed, fixed = TRUE)),
+    logical(1)
+  )
+  expect_false(any(exposed_secret))
+  expect_match(paste(exposed, collapse = " "), "<redacted>", fixed = TRUE)
+})
+
 test_that("KQL export validates destinations and format-specific properties", {
   onelake_base <- paste0(
     "https://onelake.dfs.fabric.microsoft.com/",

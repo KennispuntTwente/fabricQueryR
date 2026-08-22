@@ -74,6 +74,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_kql_export()` and `fabric_kql_ingest()` now remove account keys and
+SAS tokens from submission errors, their HTTP diagnostics, and serialized
+conditions.
+
 * Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for

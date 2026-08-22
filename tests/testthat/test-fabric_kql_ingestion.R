@@ -309,6 +309,51 @@ test_that("submission permission failures retain HTTP diagnostics", {
   )
 })
 
+test_that("ingestion submission errors redact storage credentials", {
+  secrets <- c("BARE_ACCOUNT_KEY_123", "SAS_SIGNATURE_456")
+  locations <- c(
+    paste0("https://account.blob.core.windows.net/c/a.csv;", secrets[[1L]]),
+    paste0(
+      "https://account.blob.core.windows.net/c/b.csv?sv=1&sig=",
+      secrets[[2L]]
+    )
+  )
+  httr2::local_mocked_responses(function(req) {
+    kusto_ingestion_test_response(
+      list(error = list(code = "BadRequest", message = paste(locations))),
+      status = 400L,
+      url = req$url
+    )
+  })
+
+  error <- tryCatch(
+    fabric_kql_ingest(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      table = "Raw",
+      sources = locations,
+      database = "Telemetry",
+      format = "csv",
+      token = "token"
+    ),
+    error = identity
+  )
+
+  exposed <- c(
+    conditionMessage(error),
+    conditionMessage(error$parent),
+    jsonlite::toJSON(error$response_metadata, auto_unbox = TRUE),
+    rawToChar(serialize(error, NULL, ascii = TRUE))
+  )
+  expect_s3_class(error, "fabric_kql_ingestion_submission_error")
+  exposed_secret <- vapply(
+    secrets,
+    function(secret) any(grepl(secret, exposed, fixed = TRUE)),
+    logical(1)
+  )
+  expect_false(any(exposed_secret))
+  expect_match(paste(exposed, collapse = " "), "<redacted>", fixed = TRUE)
+})
+
 test_that("ingestion status redacts every storage credential suffix", {
   source_id <- "11111111-1111-4111-8111-111111111111"
   secret_urls <- c(
