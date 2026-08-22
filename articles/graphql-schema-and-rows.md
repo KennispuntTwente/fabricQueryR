@@ -19,11 +19,11 @@ library(fabricQueryR)
 api <- fabric_graphql_apis("Analytics workspace")[[1]]
 ```
 
-The caller needs **Run Queries and Mutations** permission on the API.
-With SSO connectivity, the caller also needs access to the underlying
-data source. The package uses the delegated `GraphQLApi.Execute.All`
-scope for interactive users and the Fabric audience for
-service-principal authentication.
+The caller needs *Run Queries and Mutations* permission on the API. With
+SSO connectivity, the caller also needs access to the underlying data
+source. The package uses the delegated `GraphQLApi.Execute.All` scope
+for interactive users and the Fabric audience for service-principal
+authentication.
 
 ## Run a first query
 
@@ -50,7 +50,7 @@ one page.
 ## Inspect the available fields
 
 Microsoft Fabric disables runtime introspection by default. Only a
-workspace admin can enable it under **API Settings \> Introspection**.
+workspace admin can enable it under *API Settings \> Introspection*.
 Once enabled, the standard introspection response is available as a
 nested R list:
 
@@ -65,7 +65,7 @@ vapply(schema$types, `[[`, character(1), "name")
 [`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md)
 stops with a `fabric_graphql_introspection_error` when the service does
 not return a complete schema. Its message points to the administrator
-setting and the portal’s **Export schema** alternative. Export remains
+setting and the portal’s *Export schema* alternative. Export remains
 available when runtime introspection must stay disabled.
 
 ## Read more than one page

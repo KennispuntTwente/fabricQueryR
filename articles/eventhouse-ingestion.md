@@ -1,7 +1,7 @@
 # Working with Fabric Eventhouses (real-time data)
 
 An Eventhouse stores event, log, and time-series data in KQL databases.
-In this vignette, **ingestion** means adding rows to one of its KQL
+In this vignette, *ingestion* means adding rows to one of its KQL
 tables.
 
 Start with

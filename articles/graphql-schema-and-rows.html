@@ -73,9 +73,9 @@ together:</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>The caller needs <strong>Run Queries and Mutations</strong>
-permission on the API. With SSO connectivity, the caller also needs
-access to the underlying data source. The package uses the delegated
+<p>The caller needs <em>Run Queries and Mutations</em> permission on the
+API. With SSO connectivity, the caller also needs access to the
+underlying data source. The package uses the delegated
 <code>GraphQLApi.Execute.All</code> scope for interactive users and the
 Fabric audience for service-principal authentication.</p>
 <div class="section level2">
@@ -101,9 +101,9 @@ retrieve more than one page.</p>
 <h2 id="inspect-the-available-fields">Inspect the available fields<a class="anchor" aria-label="anchor" href="#inspect-the-available-fields"></a>
 </h2>
 <p>Microsoft Fabric disables runtime introspection by default. Only a
-workspace admin can enable it under <strong>API Settings &gt;
-Introspection</strong>. Once enabled, the standard introspection
-response is available as a nested R list:</p>
+workspace admin can enable it under <em>API Settings &gt;
+Introspection</em>. Once enabled, the standard introspection response is
+available as a nested R list:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schema</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_schema.html">fabric_graphql_schema</a></span><span class="op">(</span><span class="va">api</span><span class="op">)</span></span>
 <span></span>
@@ -112,9 +112,8 @@ response is available as a nested R list:</p>
 <p><code><a href="../reference/fabric_graphql_schema.html">fabric_graphql_schema()</a></code> stops with a
 <code>fabric_graphql_introspection_error</code> when the service does
 not return a complete schema. Its message points to the administrator
-setting and the portal’s <strong>Export schema</strong> alternative.
-Export remains available when runtime introspection must stay
-disabled.</p>
+setting and the portal’s <em>Export schema</em> alternative. Export
+remains available when runtime introspection must stay disabled.</p>
 </div>
 <div class="section level2">
 <h2 id="read-more-than-one-page">Read more than one page<a class="anchor" aria-label="anchor" href="#read-more-than-one-page"></a>

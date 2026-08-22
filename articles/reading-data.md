@@ -2,8 +2,8 @@
 
 Reading data means selecting data stored or served by Fabric and
 returning it to your local R session. For ordinary analysis, the result
-is usually a **tibble** (a modern R data frame). It’s also possible to
-get an Arrow stream for larger-than-memory data.
+is usually a *tibble* (a modern R data frame). It’s also possible to get
+an Arrow stream for larger-than-memory data.
 
 The best method depends mainly on where the data lives and whether you
 want whole tables or a filtered result. Start with a small, filtered
