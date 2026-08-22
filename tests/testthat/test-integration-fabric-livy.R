@@ -374,7 +374,11 @@ test_that("Livy batches cover success, failure, and cancellation", {
     ),
     class = "fabric_livy_timeout_error"
   )
-  expect_identical(timeout_error$batch, slow)
+  expect_s3_class(timeout_error$batch, "fabric_livy_batch_metadata")
+  expect_identical(timeout_error$batch$id, slow$id)
+  expect_identical(timeout_error$batch$url, slow$url)
+  expect_identical(timeout_error$batch$state, slow$state)
+  expect_true(timeout_error$batch$cancel_requested)
   expect_true(timeout_error$cancel_accepted)
   expect_null(timeout_error$cancel_error)
   expect_true(slow$cancel_requested)

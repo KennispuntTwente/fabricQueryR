@@ -887,12 +887,16 @@ test_that("Fabric Variant tables fail before exposing physical fields", {
         condition,
         "fabric_delta_unsupported_feature_error"
       )
-      expect_true(
-        length(condition$delta_features) > 0L &&
-          all(
-            condition$delta_features %in%
-              c("VariantType", "VariantShredding")
+      expect_gt(length(condition$delta_features), 0L, label = table)
+      expect_equal(
+        condition$delta_features %in%
+          c(
+            "VariantType",
+            "VariantType-preview",
+            "VariantShredding",
+            "VariantShredding-preview"
           ),
+        rep(TRUE, length(condition$delta_features)),
         label = table
       )
       expect_match(conditionMessage(condition), "Variant(Type|Shredding)")
@@ -920,8 +924,7 @@ test_that("unshredded Fabric Variant permits non-Variant projections", {
     )
     expect_s3_class(
       condition,
-      "fabric_delta_unsupported_feature_error",
-      label = result
+      "fabric_delta_unsupported_feature_error"
     )
     expect_identical(condition$delta_columns, "data", label = result)
 

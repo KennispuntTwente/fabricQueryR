@@ -109,7 +109,7 @@ object}
 \item{cancel_on_timeout}{Logical. When waiting at submission time, request
 cancellation if the local timeout expires. Defaults to \code{TRUE}, so a timed
 out call does not normally leave Spark compute running unattended. The
-structured timeout condition always contains the submitted object in its
+structured timeout condition contains stable public batch metadata in its
 \code{batch} field, including when cancellation fails or is disabled}
 }
 \value{
