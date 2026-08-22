@@ -109,7 +109,8 @@ retrieval waits by default, so it is enough for the common case
 
 If the R process restarts, save the service-provided \code{location} and pass it
 with fresh authentication arguments. A bare ID is sufficient only for core
-operations
+operations; after success, core operations are completed by reading the
+documented \verb{/operations/\{id\}/result} resource
 }
 
 \section{Results and failures}{

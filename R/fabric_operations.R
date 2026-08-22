@@ -33,7 +33,8 @@
 #'
 #' If the R process restarts, save the service-provided `location` and pass it
 #' with fresh authentication arguments. A bare ID is sufficient only for core
-#' operations
+#' operations; after success, core operations are completed by reading the
+#' documented `/operations/{id}/result` resource
 #'
 #' @section Results and failures:
 #' `fabric_operation_status()` preserves Fabric's status, progress, timestamps,
@@ -315,7 +316,7 @@ fabric_operation_result <- function(
   # The result body may be JSON, binary, or empty; all three become the same
   # stable result envelope used for an immediate 200 or 201 response
 
-  if (is.null(state$operation$result_url)) {
+  if (isFALSE(state$operation$result_expected)) {
     return(.fabric_operation_result_object(
       list(
         value = state$raw,
@@ -328,6 +329,12 @@ fabric_operation_result <- function(
       ),
       state$operation
     ))
+  }
+  if (is.null(state$operation$result_url)) {
+    .fabric_operation_abort_protocol(
+      "The operation expects a result but has no result endpoint",
+      operation = state$operation
+    )
   }
 
   response <- .httr2_perform(
@@ -361,6 +368,7 @@ fabric_operation_result <- function(
   credential,
   api_base = NULL,
   idempotent = FALSE,
+  result_expected = TRUE,
   .now = Sys.time
 ) {
   # 1 Validate the initiating request --------------------------------------------------------------
@@ -369,6 +377,7 @@ fabric_operation_result <- function(
   # normalized base, which is needed when only an operation ID is returned
 
   .fabric_operation_logical(idempotent, "idempotent")
+  .fabric_operation_logical(result_expected, "result_expected")
   if (!inherits(request, "httr2_request")) {
     .fabric_abort("`request` must be an httr2 request")
   }
@@ -416,6 +425,7 @@ fabric_operation_result <- function(
         location = httr2::resp_header(response, "location"),
         status_url = NULL,
         result_url = NULL,
+        result_expected = FALSE,
         retry_after = NULL,
         submitted_at = submitted_at,
         next_poll_at = NULL,
@@ -441,7 +451,8 @@ fabric_operation_result <- function(
     operation_id = operation_id,
     location = location,
     current_url = request$url,
-    api_base = base
+    api_base = base,
+    result_expected = result_expected
   )
   retry_after <- .httr2_retry_after(response)
   structure(
@@ -450,6 +461,7 @@ fabric_operation_result <- function(
       location = urls$location,
       status_url = urls$status_url,
       result_url = urls$result_url,
+      result_expected = urls$result_expected,
       retry_after = retry_after,
       submitted_at = submitted_at,
       next_poll_at = if (is.null(retry_after)) {
@@ -485,6 +497,7 @@ fabric_operation_result <- function(
     credential,
     api_base = api_base,
     idempotent = idempotent,
+    result_expected = TRUE,
     .now = .now
   )
   fabric_operation_result(
@@ -791,6 +804,20 @@ fabric_operation_result <- function(
     }
     handle <- operation
     handle$api_base <- fabric_api_base(operation$api_base %||% api_base)
+    if (!isTRUE(handle$immediate)) {
+      urls <- .fabric_operation_urls(
+        operation_id = handle$id,
+        location = handle$result_url %||% handle$status_url,
+        current_url = handle$status_url,
+        api_base = handle$api_base,
+        result_expected = handle$result_expected
+      )
+      handle$status_url <- urls$status_url
+      handle$result_url <- urls$result_url
+      handle$result_expected <- urls$result_expected
+    } else {
+      handle$result_expected <- FALSE
+    }
     if (isTRUE(override_auth)) {
       reference <- .fabric_operation_credential_reference(credential)
       handle$credential <- reference$reference
@@ -828,14 +855,16 @@ fabric_operation_result <- function(
       id = operation,
       location = NULL,
       status_url = paste0(base, "/operations/", operation),
-      result_url = NULL
+      result_url = paste0(base, "/operations/", operation, "/result"),
+      result_expected = TRUE
     )
   } else {
     .fabric_operation_urls(
       operation_id = NULL,
       location = operation,
       current_url = base,
-      api_base = base
+      api_base = base,
+      result_expected = NULL
     )
   }
   reference <- .fabric_operation_credential_reference(credential)
@@ -845,6 +874,7 @@ fabric_operation_result <- function(
       location = urls$location,
       status_url = urls$status_url,
       result_url = urls$result_url,
+      result_expected = urls$result_expected,
       retry_after = NULL,
       submitted_at = NULL,
       next_poll_at = NULL,
@@ -866,8 +896,12 @@ fabric_operation_result <- function(
   operation_id,
   location,
   current_url,
-  api_base
+  api_base,
+  result_expected = NULL
 ) {
+  if (!is.null(result_expected)) {
+    .fabric_operation_logical(result_expected, "result_expected")
+  }
   if (!is.null(operation_id)) {
     operation_id <- trimws(operation_id)
     if (!fabric_is_guid(operation_id)) {
@@ -908,8 +942,19 @@ fabric_operation_result <- function(
   } else {
     default_status
   }
-  result_url <- if (!is.null(parsed) && isTRUE(parsed$is_result)) {
-    parsed$url
+  expects_result <- result_expected %||%
+    (is.null(parsed) || identical(parsed$kind, "core"))
+  if (
+    isTRUE(expects_result) &&
+      !is.null(parsed) &&
+      identical(parsed$kind, "state_only")
+  ) {
+    .fabric_operation_abort_protocol(
+      "A state-only workload operation cannot provide a separate result"
+    )
+  }
+  result_url <- if (isTRUE(expects_result)) {
+    paste0(sub("/+$", "", status_url), "/result")
   } else {
     NULL
   }
@@ -917,7 +962,8 @@ fabric_operation_result <- function(
     id = id,
     location = if (is.null(parsed)) location else parsed$url,
     status_url = status_url,
-    result_url = result_url
+    result_url = result_url,
+    result_expected = expects_result
   )
 }
 
@@ -1029,7 +1075,8 @@ fabric_operation_result <- function(
     operation_id = operation_id,
     location = location,
     current_url = operation$status_url,
-    api_base = operation$api_base
+    api_base = operation$api_base,
+    result_expected = operation$result_expected
   )
   if (!identical(tolower(urls$id), tolower(operation$id))) {
     .fabric_operation_abort_protocol(
@@ -1041,6 +1088,7 @@ fabric_operation_result <- function(
   operation$location <- urls$location
   operation$status_url <- urls$status_url
   operation$result_url <- urls$result_url
+  operation$result_expected <- urls$result_expected
   operation
 }
 

@@ -406,18 +406,27 @@ test_that("operation headers can independently provide Location or ID", {
   expect_equal(from_location$id, operation_test_id)
   expect_equal(from_id$id, operation_test_id)
   expect_equal(from_location$status_url, from_id$status_url)
-  expect_null(from_location$result_url)
-  expect_null(from_id$result_url)
+  expected_result <- paste0(
+    "https://api.fabric.microsoft.com/v1/operations/",
+    operation_test_id,
+    "/result"
+  )
+  expect_equal(from_location$result_url, expected_result)
+  expect_equal(from_id$result_url, expected_result)
+  expect_true(from_location$result_expected)
+  expect_true(from_id$result_expected)
 })
 
-test_that("core operations do not invent an undocumented result resource", {
+test_that("a successful bare core operation ID retrieves its result", {
   calls <- character()
-  location <- paste0(
-    "https://api.fabric.microsoft.com/v1/operations/",
-    operation_test_id
-  )
   httr2::local_mocked_responses(function(req) {
     calls <<- c(calls, req$url)
+    if (grepl("/result$", req$url)) {
+      return(operation_test_response(
+        body = list(id = "created-item", type = "Notebook"),
+        url = req$url
+      ))
+    }
     operation_test_response(
       body = list(status = "Succeeded", percentComplete = 100L),
       headers = list(`x-ms-operation-id` = operation_test_id),
@@ -426,16 +435,20 @@ test_that("core operations do not invent an undocumented result resource", {
   })
 
   result <- fabric_operation_result(
-    location,
+    operation_test_id,
     wait = FALSE,
     token = "test-token"
   )
 
   expect_s3_class(result, "fabric_operation_result")
-  expect_equal(result$value$status, "Succeeded")
-  expect_null(result$operation$result_url)
-  expect_length(calls, 1L)
-  expect_false(grepl("/result", calls[[1L]], fixed = TRUE))
+  expect_equal(result$value$id, "created-item")
+  expect_true(result$operation$result_expected)
+  expect_length(calls, 2L)
+  expect_match(calls[[1L]], paste0("/operations/", operation_test_id, "$"))
+  expect_match(
+    calls[[2L]],
+    paste0("/operations/", operation_test_id, "/result$")
+  )
 })
 
 test_that("regional Fabric operation locations select the Power BI audience", {

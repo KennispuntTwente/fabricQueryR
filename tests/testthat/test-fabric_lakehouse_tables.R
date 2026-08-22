@@ -642,6 +642,7 @@ test_that("Lakehouse load builds the documented CSV schema request", {
 
   expect_s3_class(operation, "fabric_operation")
   expect_null(operation$result_url)
+  expect_false(operation$result_expected)
   expect_equal(operation$schema, "dbo")
   expect_equal(
     operation$source_path,
@@ -696,6 +697,8 @@ test_that("Lakehouse load supports folder Parquet options", {
   expect_equal(captured$body$data$formatOptions, list(format = "Parquet"))
   expect_true(captured$body$data$recursive)
   expect_equal(operation$format, "Parquet")
+  expect_false(operation$result_expected)
+  expect_null(operation$result_url)
 })
 
 test_that("Lakehouse-scoped operation states are normalized and result-ready", {
@@ -762,6 +765,7 @@ test_that("Lakehouse-scoped operation states are normalized and result-ready", {
   expect_equal(result$value$Status, 3L)
   expect_equal(result$content_type, "application/json")
   expect_false(result$empty)
+  expect_false(result$operation$result_expected)
   expect_equal(calls, 4L)
   expect_false(any(grepl(
     "/result",

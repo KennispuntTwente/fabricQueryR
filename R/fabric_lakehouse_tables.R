@@ -1331,7 +1331,8 @@ fabric_lakehouse_write_table <- function(
     request,
     credential,
     api_base = target$api_base,
-    idempotent = FALSE
+    idempotent = FALSE,
+    result_expected = FALSE
   )
   operation$workspace_id <- target$workspace_id
   operation$lakehouse_id <- target$lakehouse_id

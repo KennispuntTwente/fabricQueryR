@@ -123,6 +123,11 @@ serialized, and timeout conditions contain only safe handle metadata.
 * OneLake file operations now normalize a directly supplied Fabric Blob service
 address to the corresponding DFS endpoint before sending path requests.
 
+* Long-running core operations reconstructed from an operation ID now retrieve
+their documented `/result` resource after success. Operation handles explicitly
+retain whether workload-specific operations, such as Lakehouse table loads, are
+state-only.
+
 # 'fabricQueryR' 0.2.1
 
 * Update e-mail address of maintainer in DESCRIPTION file (change to a 
