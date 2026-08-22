@@ -72,7 +72,7 @@ permission for refresh history.
 
 Service principals are supported when tenant settings and model or
 workspace access allow them. Email notification options do not apply to
-service-principal refresh requests. fabricQueryR omits the option for
+service-principal refresh requests. ‘fabricQueryR’ omits the option for
 known client-credential flows. Caller-supplied tokens default to
 delegated behavior because their identity cannot be inferred; pass
 `notify_option = NULL` explicitly with a caller-supplied
@@ -188,7 +188,7 @@ remains in `raw`, so new Microsoft fields are still inspectable.
 Power BI can finish successfully with non-fatal warnings. Microsoft
 currently documents that the history and execution-detail REST APIs do
 not include those warnings. If the service returns warning messages,
-fabricQueryR reports `CompletedWithWarnings`; otherwise open
+‘fabricQueryR’ reports `CompletedWithWarnings`; otherwise open
 `details_url` to check the Fabric refresh-detail page.
 
 By default, wait raises typed R conditions for service failures,

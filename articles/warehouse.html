@@ -89,7 +89,7 @@ need to find or copy that address from the Fabric portal.</p>
 <span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The function opens and closes the SQL connection for you. If you want
-to run several commands with DBI, open a reusable connection
+to run several commands with ‘DBI’, open a reusable connection
 instead:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span>
@@ -103,8 +103,8 @@ without writing SQL. It uses SQL internally.
 supported Fabric SQL item.</p>
 <p>Use <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> when you need filters, joins,
 grouping, or other SQL. Use <code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> when you
-want to keep a connection open for several DBI calls. To add or replace
-many rows from an R data frame or Arrow source, use
+want to keep a connection open for several ‘DBI’ calls. To add or
+replace many rows from an R data frame or Arrow source, use
 <code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>. See
 <code><a href="../articles/reading-data.html">vignette("reading-data")</a></code> for more reading examples.</p>
 </div>
@@ -155,9 +155,9 @@ frame:</p>
 <div class="section level2">
 <h2 id="stream-a-larger-than-memory-arrow-source">Stream a larger-than-memory Arrow source<a class="anchor" aria-label="anchor" href="#stream-a-larger-than-memory-arrow-source"></a>
 </h2>
-<p>Arrow Datasets, Scanners, dplyr queries, RecordBatchReaders, Tables,
-and Arrow-compatible streams use the same function. They are consumed
-one record batch at a time rather than collected into an R data
+<p>Arrow Datasets, Scanners, ‘dplyr’ queries, RecordBatchReaders,
+Tables, and Arrow-compatible streams use the same function. They are
+consumed one record batch at a time rather than collected into an R data
 frame:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>

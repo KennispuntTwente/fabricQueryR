@@ -82,7 +82,7 @@ fabric_kql_query(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -124,7 +124,7 @@ even though Azure Data Explorer supports them
 KQL `bool`, `datetime`, `int`, `long`, `real`, and `timespan` columns
 normally become logical, UTC `POSIXct`, integer,
 [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
-double, and `difftime` vectors. Base R and `bit64` reserve the minimum
+double, and `difftime` vectors. Base R and 'bit64' reserve the minimum
 signed `int` and `long` values for missing data; a column containing
 either boundary is returned as character with a warning so the value
 remains exact. `dynamic` columns are list-columns, and GUIDs, strings,

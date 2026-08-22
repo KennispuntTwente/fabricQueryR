@@ -42,10 +42,10 @@ response$data$products$items
 response$errors
 ```
 
-GraphQL can return useful data and service errors together. fabricQueryR
-keeps them separate so you can inspect both. When this small request
-works, use the next sections to discover fields and retrieve more than
-one page.
+GraphQL can return useful data and service errors together.
+‘fabricQueryR’ keeps them separate so you can inspect both. When this
+small request works, use the next sections to discover fields and
+retrieve more than one page.
 
 ## Inspect the available fields
 

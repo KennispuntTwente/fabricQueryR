@@ -88,7 +88,7 @@ fabric_graphql_query(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -144,7 +144,7 @@ connectivity, the caller also needs the required access to the
 underlying data source Saved-credential APIs use the configured
 connection instead
 
-Most users can leave `audience = NULL`; fabricQueryR chooses the
+Most users can leave `audience = NULL`; 'fabricQueryR' chooses the
 documented scope for the sign-in flow. Set it only for a custom identity
 provider
 

@@ -4,7 +4,7 @@ A Livy session keeps Spark running while you submit several pieces of
 code Create one with
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
 call `$wait()` once it starts, use `$run()` to execute code, and call
-`$close()` when finished. Most users do not need to call this R6 class
+`$close()` when finished. Most users do not need to call this 'R6' class
 directly
 
 ## Format
@@ -13,7 +13,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
 ## Value
 
-The `FabricLivySession` R6 generator.
+The `FabricLivySession` 'R6' generator.
 
 ## Public fields
 

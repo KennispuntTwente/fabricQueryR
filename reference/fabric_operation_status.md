@@ -2,8 +2,8 @@
 
 Check, wait for, and retrieve the result of a Fabric operation that
 continues after its initiating request returns. Pass the operation
-handle returned by a fabricQueryR function when possible. To resume work
-later, save the complete `Location` URL returned by Fabric. A bare
+handle returned by a 'fabricQueryR' function when possible. To resume
+work later, save the complete `Location` URL returned by Fabric. A bare
 operation ID can reconstruct only the core `/operations/{id}` route, not
 workload-scoped routes
 
@@ -73,9 +73,9 @@ fabric_operation_result(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow. A `fabric_operation` handle
-  reuses its stored credential unless authentication arguments are
-  supplied explicitly
+  'fabricQueryR' use its normal sign-in flow. A `fabric_operation`
+  handle reuses its stored credential unless authentication arguments
+  are supplied explicitly
 
 - auth_args:
 
@@ -156,7 +156,7 @@ request that originally started the operation
 ## Regional operation endpoints
 
 Fabric can return a `Location` on a regional `*.analysis.windows.net`
-cluster. fabricQueryR recognizes those Microsoft endpoints and
+cluster. 'fabricQueryR' recognizes those Microsoft endpoints and
 automatically uses the Power BI token audience they require. Normal
 automatic sign-in or an audience-aware token-provider function handles
 both audiences. A single static Fabric bearer token cannot authenticate

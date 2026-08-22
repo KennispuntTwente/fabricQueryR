@@ -1,7 +1,7 @@
-# Get started with fabricQueryR
+# Get started with 'fabricQueryR'
 
 Microsoft Fabric is a collection of services for storing, transforming,
-and reporting on data. `fabricQueryR` lets you use many of those
+and reporting on data. ‘fabricQueryR’ lets you use many of those
 services from R. You can bring Fabric data into an R data frame, send R
 data to Fabric, or use R to start work that runs inside Fabric.
 
@@ -140,7 +140,7 @@ rows <- fabric_lakehouse_read_table(
 head(rows)
 ```
 
-The result is a tibble, which can be used with base R, `dplyr`, plotting
+The result is a tibble, which can be used with base R, ‘dplyr’, plotting
 packages, or other familiar R tools. `limit = 100L` keeps this first
 request small while you confirm that access and table selection are
 correct.

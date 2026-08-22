@@ -71,8 +71,8 @@ fabric_warehouse_read_table(
 
   Return a `"tibble"` for ordinary R analysis, or a single-use
   `"arrow_stream"` to avoid data-frame conversion and retain
-  Arrow-native batches. The ADBC/DBI driver may fetch the complete
-  result before returning the stream, so this option does not guarantee
+  Arrow-native batches. The 'adbi' driver may fetch the complete result
+  before returning the stream, so this option does not guarantee
   bounded-memory retrieval
 
 - backend:
@@ -91,7 +91,7 @@ fabric_warehouse_read_table(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -130,9 +130,10 @@ A tibble, or a single-use `nanoarrow_array_stream` when
 
 Use `backend = "adbc"` with `result = "arrow_stream"` for a native Arrow
 result path that avoids conversion to an R data frame. The current
-DBI/ADBI path may fetch the complete result before returning the stream,
-so use a selective query or `limit` when the result may exceed memory.
-The external ADBC `mssql` driver must be installed.
+result path through 'DBI' and 'adbi' may fetch the complete result
+before returning the stream, so use a selective query or `limit` when
+the result may exceed memory. The external ADBC `mssql` driver must be
+installed.
 
 `limit` uses T-SQL `TOP` and does not define row order. Use
 [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
@@ -154,7 +155,7 @@ if (FALSE) { # \dontrun{
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Use DBI metadata to discover an existing table in that Warehouse
+# Use 'DBI' metadata to discover an existing table in that Warehouse
 con <- fabric_sql_connect(warehouse)
 tables <- DBI::dbListTables(con)
 DBI::dbDisconnect(con)

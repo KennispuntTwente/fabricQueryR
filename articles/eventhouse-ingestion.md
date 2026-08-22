@@ -70,7 +70,7 @@ must match an existing KQL table; otherwise supply a predefined Parquet
 `difftime` columns explicitly.
 
 Arrow Tables and RecordBatches work without an R data-frame conversion.
-For data larger than memory, pass a lazy Dataset, Scanner, Arrow dplyr
+For data larger than memory, pass a lazy Dataset, Scanner, Arrow ‘dplyr’
 query, RecordBatchReader, or an Arrow-compatible stream returned by a
 package query:
 
@@ -163,10 +163,10 @@ identifies a blob in tracking and diagnostics.
 
 Queued ingestion still has at-least-once delivery. In particular,
 concurrent requests using the same key can race before either extent
-exists. Serialize submissions sharing a key. fabricQueryR also does not
-retry the submission POST: after a timeout, throttling response, or lost
-connection, the service might already have accepted it, so an automatic
-replay could duplicate data.
+exists. Serialize submissions sharing a key. ‘fabricQueryR’ also does
+not retry the submission POST: after a timeout, throttling response, or
+lost connection, the service might already have accepted it, so an
+automatic replay could duplicate data.
 
 The preview route accepts at most 20 blobs per request and up to 6 GB of
 uncompressed data. Structured records expose known sizes without

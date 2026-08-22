@@ -132,7 +132,7 @@ fabric_pbi_refresh_cancel(
   Standard-refresh email behavior for delegated calls:
   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
   omitted, standard refresh defaults to `"MailOnFailure"` unless
-  fabricQueryR knows that it is using client credentials. For a
+  'fabricQueryR' knows that it is using client credentials. For a
   caller-supplied service-principal token, pass `NULL` explicitly
   because its identity cannot be inferred. Omit this for enhanced
   refreshes
@@ -246,7 +246,7 @@ fabric_pbi_refresh_cancel(
 - cancel:
 
   Optional function checked between status updates. If it returns
-  `TRUE`, fabricQueryR requests cancellation and stops waiting.
+  `TRUE`, 'fabricQueryR' requests cancellation and stops waiting.
   Cancellation is available only for enhanced refreshes
 
 ## Value
@@ -266,7 +266,7 @@ model. Only one refresh can run for a semantic model at a time
 
 Standard and service-principal refresh responses can expose the accepted
 refresh ID through `RequestId` rather than `x-ms-request-id` or
-`Location`. fabricQueryR recognizes either response form.
+`Location`. 'fabricQueryR' recognizes either response form.
 Standard-refresh status and waiting fall back to refresh history when
 request-specific execution details are unavailable. Cancellation is
 available only for enhanced refreshes

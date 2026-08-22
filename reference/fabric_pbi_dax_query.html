@@ -113,7 +113,7 @@ Workspace. Leave <code>FALSE</code> for shared workspaces</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let fabricQueryR use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -188,12 +188,12 @@ code. For a model in My Workspace, supply <code>dataset_id</code> and set
 
 <p>Keep <code>api = "json"</code> for ordinary queries and broad compatibility. It returns
 one result table and is available to Pro, PPU, and capacity-backed models
-Results are limited by Power BI; fabricQueryR raises an error instead of
+Results are limited by Power BI; 'fabricQueryR' raises an error instead of
 silently returning a partial result. Very large whole numbers are returned as
 character values so they are not rounded</p>
 <p>Use <code>api = "arrow"</code> when exact semantic-model types matter, when a query has
 several <code>EVALUATE</code> statements, or when you want an Arrow stream. It requires
-the optional <span class="pkg">arrow</span> package and a model on Premium or Fabric capacity.
+the optional 'arrow' package and a model on Premium or Fabric capacity.
 Decimal128 and Decimal256 columns are returned as exact character values in
 a tibble; <code>result = "arrow_stream"</code> retains their native Arrow decimal types.
 The Power BI administrator must enable both <strong>Dataset Execute Queries REST

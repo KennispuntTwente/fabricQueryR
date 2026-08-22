@@ -1,8 +1,8 @@
 # Automate and inspect Microsoft Fabric jobs
 
 A Fabric *job* is a run of an item such as a notebook, data pipeline, or
-Spark job definition. fabricQueryR can start a run, wait for it, inspect
-recent runs, and manage recurring schedules.
+Spark job definition. ‘fabricQueryR’ can start a run, wait for it,
+inspect recent runs, and manage recurring schedules.
 
 Start with one on-demand run. Add a schedule only after that run
 succeeds and its parameters and runtime are understood. This guide uses
@@ -143,8 +143,8 @@ schedules <- fabric_job_schedules(notebook)
 ```
 
 The Fabric PATCH endpoint requires both `enabled` and the complete
-schedule configuration. For a partial R update, fabricQueryR first reads
-the current record and preserves fields that were not supplied:
+schedule configuration. For a partial R update, ‘fabricQueryR’ first
+reads the current record and preserves fields that were not supplied:
 
 ``` r
 

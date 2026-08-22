@@ -12,7 +12,7 @@ An [R6::R6Class](https://r6.r-lib.org/reference/R6Class.html) generator
 
 ## Value
 
-The `FabricLivyStatement` R6 generator.
+The `FabricLivyStatement` 'R6' generator.
 
 ## Public fields
 

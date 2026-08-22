@@ -38,7 +38,7 @@ orders <- fabric_sql_query(
 ```
 
 The function opens and closes the SQL connection for you. If you want to
-run several commands with DBI, open a reusable connection instead:
+run several commands with ‘DBI’, open a reusable connection instead:
 
 ``` r
 
@@ -59,8 +59,8 @@ Use
 [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
 when you need filters, joins, grouping, or other SQL. Use
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-when you want to keep a connection open for several DBI calls. To add or
-replace many rows from an R data frame or Arrow source, use
+when you want to keep a connection open for several ‘DBI’ calls. To add
+or replace many rows from an R data frame or Arrow source, use
 [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md).
 See
 [`vignette("reading-data")`](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
@@ -119,9 +119,9 @@ created <- fabric_warehouse_write_table(
 
 ## Stream a larger-than-memory Arrow source
 
-Arrow Datasets, Scanners, dplyr queries, RecordBatchReaders, Tables, and
-Arrow-compatible streams use the same function. They are consumed one
-record batch at a time rather than collected into an R data frame:
+Arrow Datasets, Scanners, ‘dplyr’ queries, RecordBatchReaders, Tables,
+and Arrow-compatible streams use the same function. They are consumed
+one record batch at a time rather than collected into an R data frame:
 
 ``` r
 

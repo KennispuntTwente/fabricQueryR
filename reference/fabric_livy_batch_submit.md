@@ -128,7 +128,7 @@ fabric_livy_batch_submit(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -169,7 +169,7 @@ fabric_livy_batch_submit(
 
 A
 [FabricLivyBatch](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md)
-R6 object. Inspect its `$state`, call `$result()` for structured
+'R6' object. Inspect its `$state`, call `$result()` for structured
 metadata and logs, and call `$wait()` later when submitting with
 `wait = FALSE`
 

@@ -76,7 +76,7 @@ fabric_pbi_dax_query(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -147,14 +147,14 @@ supply `dataset_id` and set `my_workspace = TRUE`
 
 Keep `api = "json"` for ordinary queries and broad compatibility. It
 returns one result table and is available to Pro, PPU, and
-capacity-backed models Results are limited by Power BI; fabricQueryR
+capacity-backed models Results are limited by Power BI; 'fabricQueryR'
 raises an error instead of silently returning a partial result. Very
 large whole numbers are returned as character values so they are not
 rounded
 
 Use `api = "arrow"` when exact semantic-model types matter, when a query
 has several `EVALUATE` statements, or when you want an Arrow stream. It
-requires the optional arrow package and a model on Premium or Fabric
+requires the optional 'arrow' package and a model on Premium or Fabric
 capacity. Decimal128 and Decimal256 columns are returned as exact
 character values in a tibble; `result = "arrow_stream"` retains their
 native Arrow decimal types. The Power BI administrator must enable both

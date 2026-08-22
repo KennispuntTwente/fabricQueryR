@@ -106,7 +106,7 @@ correctly than building a query with <code><a href="https://rdrr.io/r/base/paste
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
 <dd><p>Return a <code>"tibble"</code> for ordinary R analysis, or a single-use
 <code>"arrow_stream"</code> to avoid data-frame conversion and retain Arrow-native
-batches. The ADBC/DBI driver may fetch the complete result before returning
+batches. The 'adbi' driver may fetch the complete result before returning
 the stream, so this option does not guarantee bounded-memory retrieval</p></dd>
 
 
@@ -120,11 +120,11 @@ discovery but does not select the item's tables</p></dd>
 
 <dt id="arg-target-type">target_type<a class="anchor" aria-label="anchor" href="#arg-target-type"></a></dt>
 <dd><p>Kind of Fabric SQL item. Keep <code>"auto"</code> unless a custom
-hostname prevents fabricQueryR from identifying it</p></dd>
+hostname prevents 'fabricQueryR' from identifying it</p></dd>
 
 
 <dt id="arg-backend">backend<a class="anchor" aria-label="anchor" href="#arg-backend"></a></dt>
-<dd><p>Connection driver. Use <code>"odbc"</code> for ordinary DBI work or
+<dd><p>Connection driver. Use <code>"odbc"</code> for ordinary 'DBI' work or
 <code>"adbc"</code> for a native Arrow path after installing its <code>mssql</code> driver</p></dd>
 
 
@@ -140,7 +140,7 @@ hostname prevents fabricQueryR from identifying it</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let fabricQueryR use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -226,7 +226,7 @@ driver-converted column types. With <code>result = "arrow_stream"</code>, a sing
 <span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Discover and quote a table name through a short DBI connection</span></span></span>
+<span class="r-in"><span><span class="co"># Discover and quote a table name through a short 'DBI' connection</span></span></span>
 <span class="r-in"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">table</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">table</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbQuoteIdentifier.html" class="external-link">dbQuoteIdentifier</a></span><span class="op">(</span><span class="va">con</span>, <span class="va">table</span><span class="op">)</span></span></span>

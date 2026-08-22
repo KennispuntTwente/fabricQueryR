@@ -70,8 +70,8 @@ fabric_sql_query(
 
   Return a `"tibble"` for ordinary R analysis, or a single-use
   `"arrow_stream"` to avoid data-frame conversion and retain
-  Arrow-native batches. The ADBC/DBI driver may fetch the complete
-  result before returning the stream, so this option does not guarantee
+  Arrow-native batches. The 'adbi' driver may fetch the complete result
+  before returning the stream, so this option does not guarantee
   bounded-memory retrieval
 
 - database:
@@ -85,12 +85,12 @@ fabric_sql_query(
 - target_type:
 
   Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
-  prevents fabricQueryR from identifying it
+  prevents 'fabricQueryR' from identifying it
 
 - backend:
 
-  Connection driver. Use `"odbc"` for ordinary DBI work or `"adbc"` for
-  a native Arrow path after installing its `mssql` driver
+  Connection driver. Use `"odbc"` for ordinary 'DBI' work or `"adbc"`
+  for a native Arrow path after installing its `mssql` driver
 
 - tenant_id:
 
@@ -104,7 +104,7 @@ fabric_sql_query(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -190,7 +190,7 @@ if (FALSE) { # \dontrun{
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Discover and quote a table name through a short DBI connection
+# Discover and quote a table name through a short 'DBI' connection
 con <- fabric_sql_connect(warehouse)
 table <- DBI::dbListTables(con)[[1L]]
 table <- DBI::dbQuoteIdentifier(con, table)

@@ -2,8 +2,9 @@
 
 These shortcuts find one kind of Fabric item. By default, they also
 retrieve the connection details needed by the matching query functions,
-so their results can usually be passed straight to the next fabricQueryR
-call. Set `detail = FALSE` when you only need names and IDs
+so their results can usually be passed straight to the next
+'fabricQueryR' call. Set `detail = FALSE` when you only need names and
+IDs
 
 ## Usage
 
@@ -109,7 +110,7 @@ authentication, and `detail_errors` have the same behavior as in
 The four new helpers do not currently make workload-specific detail
 requests. Their core records contain the IDs and type needed by
 [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
-where applicable, and fabricQueryR does not yet consume an additional
+where applicable, and 'fabricQueryR' does not yet consume an additional
 target from Environment or User Data Function details
 
 ## References

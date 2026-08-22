@@ -1,14 +1,21 @@
 # Bring Fabric data into R
 
-Reading data means selecting data stored or served by Fabric and
-returning it to your local R session. For ordinary analysis, the result
-is usually a *tibble* (a modern R data frame). It’s also possible to get
-an Arrow stream for larger-than-memory data.
+Microsoft Fabric can store and serve data in several ways.
+‘fabricQueryR’ helps you bring that data into your local R session for
+analysis, visualization, and reporting.
 
-The best method depends mainly on where the data lives and whether you
-want whole tables or a filtered result. Start with a small, filtered
-read. Move to streaming or Spark only when the data is too large or the
-transformation needs distributed compute.
+For most everyday tasks, the result is a tibble (a modern R data frame),
+but you can also use an Arrow stream when working with data that is too
+large to fit comfortably in memory.
+
+The best way to read data depends mainly on where it is stored and
+whether you need an entire table or only a filtered subset. A good rule
+is to start with a small, filtered read, then move to streaming or Spark
+only when the data is very large or the work requires distributed
+computing.
+
+This vignette explains the various ways that you can read data from
+Microsoft Fabric into R.
 
 ## Choose a reading method
 
@@ -78,7 +85,7 @@ head(recent_orders)
 Put changing values in `params` rather than pasting them into the SQL
 text. This handles quoting safely. Use
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-and normal `DBI` functions when several queries should share one
+and normal ‘DBI’ functions when several queries should share one
 connection:
 
 ``` r
@@ -248,5 +255,5 @@ stream <- fabric_lakehouse_read_table(
 reader <- arrow::as_record_batch_reader(stream)
 ```
 
-See the [Arrow R package](https://arrow.apache.org/docs/r/) for more
+See the [‘arrow’ R package](https://arrow.apache.org/docs/r/) for more
 information on working with Arrow streams and record batches.

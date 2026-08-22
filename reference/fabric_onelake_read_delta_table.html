@@ -107,7 +107,7 @@ type suffix</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Most users can
-leave this as <code>NULL</code> and let fabricQueryR sign in</p></dd>
+leave this as <code>NULL</code> and let 'fabricQueryR' sign in</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -174,7 +174,7 @@ so enough temporary disk space must be available for the selected data</p>
 <p>Common dates, timestamps, numbers, text, and logical values are converted to
 practical R types. Values that R cannot represent exactly, including decimal
 and 64-bit integer values, are returned as character data when collecting a
-tibble. Nested columns require an Arrow stream. The complete mapping is:</p><table class="table table"><tr><td>Delta/Arrow source</td><td>Arrow stream result</td><td>Tibble result</td></tr><tr><td>Decimal (any precision/scale)</td><td>UTF-8 text</td><td>character</td></tr><tr><td>Large UTF-8 / large binary</td><td>UTF-8 / binary with 32-bit offsets</td><td>character / blob list-column</td></tr><tr><td>Large-list variants</td><td>list with 32-bit offsets</td><td>rejected as nested</td></tr><tr><td>Signed/unsigned 64-bit integer</td><td>original integer type</td><td>exact character</td></tr><tr><td>Signed 32-bit integer</td><td>original integer type</td><td>double</td></tr><tr><td>Timestamp without timezone</td><td>original Arrow timestamp</td><td>character</td></tr><tr><td>Timestamp with timezone</td><td>original Arrow timestamp</td><td>UTC <code>POSIXct</code></td></tr><tr><td>Date, Boolean, floating point, smaller integers, UTF-8, binary</td><td>corresponding Arrow scalar</td><td>nanoarrow's corresponding R scalar type</td></tr><tr><td>Struct, map, list, extension/Variant</td><td>corresponding normalized Arrow type when supported</td><td>rejected; request an Arrow stream</td></tr></table><p>Decimal text retains its scale and digits. Some large Arrow buffer types are
+tibble. Nested columns require an Arrow stream. The complete mapping is:</p><table class="table table"><tr><td>Delta/Arrow source</td><td>Arrow stream result</td><td>Tibble result</td></tr><tr><td>Decimal (any precision/scale)</td><td>UTF-8 text</td><td>character</td></tr><tr><td>Large UTF-8 / large binary</td><td>UTF-8 / binary with 32-bit offsets</td><td>character / blob list-column</td></tr><tr><td>Large-list variants</td><td>list with 32-bit offsets</td><td>rejected as nested</td></tr><tr><td>Signed/unsigned 64-bit integer</td><td>original integer type</td><td>exact character</td></tr><tr><td>Signed 32-bit integer</td><td>original integer type</td><td>double</td></tr><tr><td>Timestamp without timezone</td><td>original Arrow timestamp</td><td>character</td></tr><tr><td>Timestamp with timezone</td><td>original Arrow timestamp</td><td>UTC <code>POSIXct</code></td></tr><tr><td>Date, Boolean, floating point, smaller integers, UTF-8, binary</td><td>corresponding Arrow scalar</td><td>corresponding R scalar type from 'nanoarrow'</td></tr><tr><td>Struct, map, list, extension/Variant</td><td>corresponding normalized Arrow type when supported</td><td>rejected; request an Arrow stream</td></tr></table><p>Decimal text retains its scale and digits. Some large Arrow buffer types are
 normalized for R compatibility and may fail if one value exceeds the
 supported buffer size</p>
     </div>
@@ -190,7 +190,7 @@ engine instead. See the
 <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric permission model</a>
 and <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake tenant settings</a></p>
 <p>This function uses the Python
-<a href="https://pypi.org/project/deltalake/" class="external-link">deltalake</a> reader through <code>reticulate</code>
+<a href="https://pypi.org/project/deltalake/" class="external-link">deltalake</a> reader through 'reticulate'
 Some newer Delta features, including Type Widening, V2 Checkpoints, and
 Fabric Variant, are not supported by that reader. Use SQL or Spark (Livy) if
 the function reports an unsupported table feature</p>

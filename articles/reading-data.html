@@ -60,14 +60,19 @@
 
     
     
-<p>Reading data means selecting data stored or served by Fabric and
-returning it to your local R session. For ordinary analysis, the result
-is usually a <em>tibble</em> (a modern R data frame). It’s also possible
-to get an Arrow stream for larger-than-memory data.</p>
-<p>The best method depends mainly on where the data lives and whether
-you want whole tables or a filtered result. Start with a small, filtered
-read. Move to streaming or Spark only when the data is too large or the
-transformation needs distributed compute.</p>
+<p>Microsoft Fabric can store and serve data in several ways.
+‘fabricQueryR’ helps you bring that data into your local R session for
+analysis, visualization, and reporting.</p>
+<p>For most everyday tasks, the result is a tibble (a modern R data
+frame), but you can also use an Arrow stream when working with data that
+is too large to fit comfortably in memory.</p>
+<p>The best way to read data depends mainly on where it is stored and
+whether you need an entire table or only a filtered subset. A good rule
+is to start with a small, filtered read, then move to streaming or Spark
+only when the data is very large or the work requires distributed
+computing.</p>
+<p>This vignette explains the various ways that you can read data from
+Microsoft Fabric into R.</p>
 <div class="section level2">
 <h2 id="choose-a-reading-method">Choose a reading method<a class="anchor" aria-label="anchor" href="#choose-a-reading-method"></a>
 </h2>
@@ -176,8 +181,8 @@ and returns a tibble:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">recent_orders</span><span class="op">)</span></span></code></pre></div>
 <p>Put changing values in <code>params</code> rather than pasting them
 into the SQL text. This handles quoting safely. Use
-<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> and normal <code>DBI</code> functions
-when several queries should share one connection:</p>
+<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> and normal ‘DBI’ functions when
+several queries should share one connection:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -315,7 +320,7 @@ be used with the ‘arrow’ R package to read the data in batches:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></code></pre></div>
-<p>See the <a href="https://arrow.apache.org/docs/r/" class="external-link">Arrow R
+<p>See the <a href="https://arrow.apache.org/docs/r/" class="external-link">‘arrow’ R
 package</a> for more information on working with Arrow streams and
 record batches.</p>
 </div>

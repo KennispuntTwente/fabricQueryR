@@ -1,8 +1,8 @@
 # Discover one Microsoft Fabric item
 
-Finds one item and returns the connection details needed by fabricQueryR
-Use this when you know the item's name or ID and do not need to list
-every item in the workspace
+Finds one item and returns the connection details needed by
+'fabricQueryR' Use this when you know the item's name or ID and do not
+need to list every item in the workspace
 
 ## Usage
 
@@ -69,7 +69,7 @@ fabric_item(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 

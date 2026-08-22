@@ -120,7 +120,7 @@ Status and history use <code>Dataset.Read.All</code> or
 model Write permission for refresh history.</p>
 <p>Service principals are supported when tenant settings and model or
 workspace access allow them. Email notification options do not apply to
-service-principal refresh requests. fabricQueryR omits the option for
+service-principal refresh requests. ‘fabricQueryR’ omits the option for
 known client-credential flows. Caller-supplied tokens default to
 delegated behavior because their identity cannot be inferred; pass
 <code>notify_option = NULL</code> explicitly with a caller-supplied
@@ -225,8 +225,9 @@ inspectable.</p>
 <p>Power BI can finish successfully with non-fatal warnings. Microsoft
 currently documents that the history and execution-detail REST APIs do
 not include those warnings. If the service returns warning messages,
-fabricQueryR reports <code>CompletedWithWarnings</code>; otherwise open
-<code>details_url</code> to check the Fabric refresh-detail page.</p>
+‘fabricQueryR’ reports <code>CompletedWithWarnings</code>; otherwise
+open <code>details_url</code> to check the Fabric refresh-detail
+page.</p>
 <p>By default, wait raises typed R conditions for service failures,
 cancellation, service timeouts, and disabled refreshes. Keep the
 terminal detail instead when building a monitoring table:</p>

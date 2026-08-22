@@ -96,7 +96,7 @@ fabric_job_cancel(
 
 - job_type:
 
-  Fabric job type. fabricQueryR uses the current typed `"Execute"`
+  Fabric job type. 'fabricQueryR' uses the current typed `"Execute"`
   operation for data pipelines and knows the usual values for notebooks
   and Spark job definitions, so normally omit this unless running
   another item type. Set `job_type = "Pipeline"` for a data pipeline
@@ -169,9 +169,9 @@ fabric_job_cancel(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow A `fabric_job` handle reuses
-  its stored credential unless `tenant_id`, `client_id`, `token`, or
-  non-empty `auth_args` is supplied explicitly
+  'fabricQueryR' use its normal sign-in flow A `fabric_job` handle
+  reuses its stored credential unless `tenant_id`, `client_id`, `token`,
+  or non-empty `auth_args` is supplied explicitly
 
 - auth_args:
 
@@ -236,7 +236,7 @@ fabric_job_cancel(
 - cancel:
 
   Optional function checked between status updates. If it returns
-  `TRUE`, fabricQueryR requests cancellation. This can support an
+  `TRUE`, 'fabricQueryR' requests cancellation. This can support an
   application's stop button
 
 ## Value
@@ -273,7 +273,7 @@ fallback.
 ## Permissions and status handling
 
 Running and cancelling need an item execute permission. Checking or
-waiting also needs an item read permission. fabricQueryR reconciles
+waiting also needs an item read permission. 'fabricQueryR' reconciles
 notebook status information from Fabric before returning it and stops
 with a typed error if Fabric reports an unfamiliar state instead of
 waiting indefinitely

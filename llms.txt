@@ -1,6 +1,6 @@
-# fabricQueryR
+# ‘fabricQueryR’
 
-`fabricQueryR` helps you work with Microsoft Fabric directly from R.
+‘fabricQueryR’ helps you work with Microsoft Fabric directly from R.
 
 You can use it to find Fabric workspaces and data items, query Fabric
 data interfaces (SQL, DAX, KQL, and GraphQL), work with OneLake files
@@ -69,7 +69,7 @@ lakehouse <- fabric_lakehouses(workspace)[[1L]]
 
 ### 2. Query Fabric SQL endpoints
 
-Open a reusable DBI connection to a Warehouse, SQL Database, or
+Open a reusable ‘DBI’ connection to a Warehouse, SQL Database, or
 Lakehouse SQL analytics endpoint, or run a single query and return its
 result as a tibble.
 
@@ -612,7 +612,7 @@ Package overview
 ### Start here
 
 - [Get started with
-  fabricQueryR](https://kennispunttwente.github.io/fabricQueryR/articles/getting-started.md):
+  'fabricQueryR'](https://kennispunttwente.github.io/fabricQueryR/articles/getting-started.md):
 - [Get started with Microsoft Fabric
   authentication](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):
 

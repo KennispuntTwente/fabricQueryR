@@ -126,7 +126,7 @@ that could be applied twice</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let fabricQueryR use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -180,8 +180,9 @@ principals for Fabric APIs in the tenant, and grant the principal API
 Execute access or a suitable workspace role. With SSO connectivity, the
 caller also needs the required access to the underlying data source
 Saved-credential APIs use the configured connection instead</p>
-<p>Most users can leave <code>audience = NULL</code>; fabricQueryR chooses the documented
-scope for the sign-in flow. Set it only for a custom identity provider</p>
+<p>Most users can leave <code>audience = NULL</code>; 'fabricQueryR' chooses the
+documented scope for the sign-in flow. Set it only for a custom identity
+provider</p>
     </div>
     <div class="section level2">
     <h2 id="retries-and-service-limits">Retries and service limits<a class="anchor" aria-label="anchor" href="#retries-and-service-limits"></a></h2>

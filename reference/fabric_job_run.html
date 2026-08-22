@@ -135,7 +135,7 @@ Omit it when <code>item</code> is a discovered record containing <code>workspace
 
 
 <dt id="arg-job-type">job_type<a class="anchor" aria-label="anchor" href="#arg-job-type"></a></dt>
-<dd><p>Fabric job type. fabricQueryR uses the current typed
+<dd><p>Fabric job type. 'fabricQueryR' uses the current typed
 <code>"Execute"</code> operation for data pipelines and knows the usual values for
 notebooks and Spark job definitions, so normally omit this unless running
 another item type. Set <code>job_type = "Pipeline"</code> for a data pipeline only when
@@ -208,7 +208,7 @@ failure reporting</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let fabricQueryR use its normal sign-in flow
+to let 'fabricQueryR' use its normal sign-in flow
 A <code>fabric_job</code> handle reuses its stored credential unless <code>tenant_id</code>,
 <code>client_id</code>, <code>token</code>, or non-empty <code>auth_args</code> is supplied explicitly</p></dd>
 
@@ -275,8 +275,8 @@ timeout expires. <code>FALSE</code> stops waiting but leaves the Fabric job runn
 
 <dt id="arg-cancel">cancel<a class="anchor" aria-label="anchor" href="#arg-cancel"></a></dt>
 <dd><p>Optional function checked between status updates. If it returns
-<code>TRUE</code>, fabricQueryR requests cancellation. This can support an application's
-stop button</p></dd>
+<code>TRUE</code>, 'fabricQueryR' requests cancellation. This can support an
+application's stop button</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -316,7 +316,7 @@ the stable Core status endpoint as its fallback.</p>
 
 
 <p>Running and cancelling need an item execute permission. Checking or waiting
-also needs an item read permission. fabricQueryR reconciles notebook status
+also needs an item read permission. 'fabricQueryR' reconciles notebook status
 information from Fabric before returning it and stops with a typed error if
 Fabric reports an unfamiliar state instead of waiting indefinitely</p>
     </div>

@@ -111,9 +111,9 @@ fabric_job_schedule_delete(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow A `fabric_job` handle reuses
-  its stored credential unless `tenant_id`, `client_id`, `token`, or
-  non-empty `auth_args` is supplied explicitly
+  'fabricQueryR' use its normal sign-in flow A `fabric_job` handle
+  reuses its stored credential unless `tenant_id`, `client_id`, `token`,
+  or non-empty `auth_args` is supplied explicitly
 
 - auth_args:
 

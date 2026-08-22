@@ -1,8 +1,8 @@
 # Connect to a Microsoft Fabric SQL target
 
-Opens a DBI connection to a Fabric Warehouse, Warehouse snapshot,
+Opens a 'DBI' connection to a Fabric Warehouse, Warehouse snapshot,
 Lakehouse, mirrored database, or SQL Database. Use the connection with
-familiar DBI functions such as
+familiar 'DBI' functions such as
 [`DBI::dbListTables()`](https://dbi.r-dbi.org/reference/dbListTables.html)
 and
 [`DBI::dbGetQuery()`](https://dbi.r-dbi.org/reference/dbGetQuery.html)
@@ -55,12 +55,12 @@ fabric_sql_connect(
 - target_type:
 
   Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
-  prevents fabricQueryR from identifying it
+  prevents 'fabricQueryR' from identifying it
 
 - backend:
 
-  Connection driver. Use `"odbc"` for ordinary DBI work or `"adbc"` for
-  a native Arrow path after installing its `mssql` driver
+  Connection driver. Use `"odbc"` for ordinary 'DBI' work or `"adbc"`
+  for a native Arrow path after installing its `mssql` driver
 
 - tenant_id:
 
@@ -74,7 +74,7 @@ fabric_sql_connect(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -161,7 +161,7 @@ Spark, or another appropriate writer to change their data
 
 ## Choosing a backend
 
-`backend = "odbc"` is the default and works well for ordinary DBI use.
+`backend = "odbc"` is the default and works well for ordinary 'DBI' use.
 It requires Microsoft ODBC Driver 18 or newer. Use `backend = "adbc"`
 when you want a native Arrow result path, typically for larger
 analytical results ADBC requires the external `mssql` driver; install it
@@ -198,7 +198,7 @@ if (FALSE) { # \dontrun{
 workspace <- fabric_workspaces()[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
 
-# Open a DBI connection, use it, and always disconnect when finished
+# Open a 'DBI' connection, use it, and always disconnect when finished
 con <- fabric_sql_connect(warehouse)
 table <- DBI::dbListTables(con)[[1L]]
 table <- DBI::dbQuoteIdentifier(con, table)

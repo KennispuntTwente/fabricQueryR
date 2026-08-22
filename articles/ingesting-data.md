@@ -1,8 +1,9 @@
 # Bring R data into Microsoft Fabric
 
-‘fabricQueryR’ can also be used to ingest data into Microsoft Fabric. In
-this guide, it is shown how you can move R data frames, Arrow objects,
-or files into Microsoft Fabric.
+‘fabricQueryR’ can be used to bring data from R into Microsoft Fabric.
+
+In this vignette, it is shown how you can move R data frames, Arrow
+objects, or files.
 
 ## Choose a destination
 

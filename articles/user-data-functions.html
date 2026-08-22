@@ -63,7 +63,7 @@
 <p>A Fabric <em>user data function</em> is a reusable piece of Python
 code that runs in Microsoft Fabric. It can accept inputs, perform a
 task, and return a result. Fabric hosts and runs the Python code.</p>
-<p>With fabricQueryR, you can invoke these functions from R. R then
+<p>With ‘fabricQueryR’, you can invoke these functions from R. R then
 sends named inputs to the function’s secure web address, Fabric runs the
 function, and R receives a structured response. This vignette show a
 simple example.</p>
@@ -159,10 +159,10 @@ throttling, and transient HTTP responses.</p>
 </h2>
 <p>Microsoft Fabric currently limits the combined request parameters to
 4 MB, execution through a public endpoint to 100 seconds, and the
-function return value to 30 MB. fabricQueryR rejects oversized requests
-before authentication, waits up to 110 seconds by default so Fabric can
-return its own timeout envelope, and caps the complete response at 32
-MiB to leave room around a valid 30 MB output.</p>
+function return value to 30 MB. ‘fabricQueryR’ rejects oversized
+requests before authentication, waits up to 110 seconds by default so
+Fabric can return its own timeout envelope, and caps the complete
+response at 32 MiB to leave room around a valid 30 MB output.</p>
 </div>
 <div class="section level2">
 <h2 id="more-information">More information<a class="anchor" aria-label="anchor" href="#more-information"></a>

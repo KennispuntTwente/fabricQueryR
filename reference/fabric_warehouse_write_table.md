@@ -57,7 +57,7 @@ fabric_warehouse_write_table(
 - data:
 
   A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
-  RecordBatchReader, Arrow dplyr query, or Arrow-compatible array
+  RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array
   stream.
 
 - staging_lakehouse:
@@ -148,7 +148,7 @@ fabric_warehouse_write_table(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 

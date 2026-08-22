@@ -95,7 +95,7 @@ fabric_items(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow
 
 - auth_args:
 
@@ -113,7 +113,7 @@ fabric_items(
 A list with one item record per match. Every record includes common
 fields such as `id`, `displayName`, `type`, and `workspaceId`. With
 `detail = TRUE`, records also include the connection details needed by
-the matching fabricQueryR functions when Fabric makes them available
+the matching 'fabricQueryR' functions when Fabric makes them available
 
 ## Details
 

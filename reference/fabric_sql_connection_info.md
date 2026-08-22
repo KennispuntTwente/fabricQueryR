@@ -1,6 +1,6 @@
 # Get connection details for a Fabric SQL item
 
-Shows the server, database, port, and item type that fabricQueryR will
+Shows the server, database, port, and item type that 'fabricQueryR' will
 use for a Fabric SQL connection. Most users can pass a discovered item
 directly to
 [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
@@ -38,7 +38,7 @@ fabric_sql_connection_info(
 - target_type:
 
   Kind of Fabric SQL item. Keep `"auto"` unless a custom hostname
-  prevents fabricQueryR from identifying it
+  prevents 'fabricQueryR' from identifying it
 
 - port:
 

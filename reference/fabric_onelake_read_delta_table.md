@@ -67,7 +67,7 @@ fabric_onelake_read_delta_table(
 - token:
 
   Optional access token or token-provider function. Most users can leave
-  this as `NULL` and let fabricQueryR sign in
+  this as `NULL` and let 'fabricQueryR' sign in
 
 - auth_args:
 
@@ -142,7 +142,7 @@ The complete mapping is:
 | Signed 32-bit integer | original integer type | double |
 | Timestamp without timezone | original Arrow timestamp | character |
 | Timestamp with timezone | original Arrow timestamp | UTC `POSIXct` |
-| Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | nanoarrow's corresponding R scalar type |
+| Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | corresponding R scalar type from 'nanoarrow' |
 | Struct, map, list, extension/Variant | corresponding normalized Arrow type when supported | rejected; request an Arrow stream |
 
 Decimal text retains its scale and digits. Some large Arrow buffer types
@@ -162,7 +162,7 @@ settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-on
 
 This function uses the Python
 [deltalake](https://pypi.org/project/deltalake/) reader through
-`reticulate` Some newer Delta features, including Type Widening, V2
+'reticulate' Some newer Delta features, including Type Widening, V2
 Checkpoints, and Fabric Variant, are not supported by that reader. Use
 SQL or Spark (Livy) if the function reports an unsupported table feature
 

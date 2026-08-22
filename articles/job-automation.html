@@ -61,7 +61,7 @@
     
     
 <p>A Fabric <em>job</em> is a run of an item such as a notebook, data
-pipeline, or Spark job definition. fabricQueryR can start a run, wait
+pipeline, or Spark job definition. ‘fabricQueryR’ can start a run, wait
 for it, inspect recent runs, and manage recurring schedules.</p>
 <p>Start with one on-demand run. Add a schedule only after that run
 succeeds and its parameters and runtime are understood. This guide uses
@@ -174,7 +174,7 @@ type:</p>
 <code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_create</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedules</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span></code></pre></div>
 <p>The Fabric PATCH endpoint requires both <code>enabled</code> and the
-complete schedule configuration. For a partial R update, fabricQueryR
+complete schedule configuration. For a partial R update, ‘fabricQueryR’
 first reads the current record and preserves fields that were not
 supplied:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">

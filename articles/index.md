@@ -3,7 +3,7 @@
 ### Start here
 
 - [Get started with
-  fabricQueryR](https://kennispunttwente.github.io/fabricQueryR/articles/getting-started.md):
+  'fabricQueryR'](https://kennispunttwente.github.io/fabricQueryR/articles/getting-started.md):
 - [Get started with Microsoft Fabric
   authentication](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):
 

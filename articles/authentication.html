@@ -109,11 +109,11 @@ ID.</p>
 set that as well:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_CLIENT_ID <span class="op">=</span> <span class="st">"&lt;your-client-id&gt;"</span><span class="op">)</span></span></code></pre></div>
-<p>When <code>FABRICQUERYR_CLIENT_ID</code> is not set,
-<code>fabricQueryR</code> tries the public Azure CLI client ID. Some
-organizations allow this and some do not. If sign-in is blocked or your
-organization requires an approved application, ask the administrator for
-a dedicated client ID.</p>
+<p>When <code>FABRICQUERYR_CLIENT_ID</code> is not set, ‘fabricQueryR’
+tries the public Azure CLI client ID. Some organizations allow this and
+some do not. If sign-in is blocked or your organization requires an
+approved application, ask the administrator for a dedicated client
+ID.</p>
 </div>
 <div class="section level3">
 <h3 id="test-the-connection">3. Test the connection<a class="anchor" aria-label="anchor" href="#test-the-connection"></a>
@@ -166,9 +166,9 @@ still good practice.</p>
 <div class="section level2">
 <h2 id="make-sure-fabric-access-has-been-granted">Make sure Fabric access has been granted<a class="anchor" aria-label="anchor" href="#make-sure-fabric-access-has-been-granted"></a>
 </h2>
-<p><code>fabricQueryR</code> cannot grant Fabric permissions. The
-signed-in account must already be able to access the relevant workspace,
-item, and data.</p>
+<p>‘fabricQueryR’ cannot grant Fabric permissions. The signed-in account
+must already be able to access the relevant workspace, item, and
+data.</p>
 <p>For an initial test, ask a workspace administrator to do one of the
 following:</p>
 <ol style="list-style-type: decimal">
@@ -253,7 +253,7 @@ any browser, enter the code, and sign in with the intended account.</p>
 <div class="section level2">
 <h2 id="how-authentication-works">How authentication works<a class="anchor" aria-label="anchor" href="#how-authentication-works"></a>
 </h2>
-<p><code>fabricQueryR</code> uses <a href="https://azure.r-universe.dev/AzureAuth/doc/token.html" class="external-link"><code>AzureAuth</code></a>
+<p>‘fabricQueryR’ uses <a href="https://azure.r-universe.dev/AzureAuth/doc/token.html" class="external-link">‘AzureAuth’</a>
 to sign in to Microsoft Entra. Every exported function that needs
 authentication accepts the same four arguments:</p>
 <ul>
@@ -268,22 +268,22 @@ ID.</li>
 <code>token</code> can supply an existing token or token provider.
 Most interactive users should leave it as <code>NULL</code>.</li>
 <li>
-<code>auth_args</code> customizes how <code>AzureAuth</code> signs
-in. Most interactive users can leave it as an empty list.</li>
+<code>auth_args</code> customizes how ‘AzureAuth’ signs in. Most
+interactive users can leave it as an empty list.</li>
 </ul>
-<p>With the defaults, <code>AzureAuth</code> first looks for a matching
-cached token. If none is available, it normally opens a browser or uses
+<p>With the defaults, ‘AzureAuth’ first looks for a matching cached
+token. If none is available, it normally opens a browser or uses
 device-code login. Later calls reuse and refresh the cached token, so
 signing in is not usually required for every query.</p>
-<p>See the <code>AzureAuth</code> documentation on <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
+<p>See the ‘AzureAuth’ documentation on <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
 scenarios</a> and <a href="https://azure.r-universe.dev/AzureAuth/doc/token.html#caching" class="external-link">caching</a>.</p>
 <div class="section level3">
 <h3 id="authentication-arguments-and-precedence">Authentication arguments and precedence<a class="anchor" aria-label="anchor" href="#authentication-arguments-and-precedence"></a>
 </h3>
-<p>When <code>token = NULL</code>, <code>fabricQueryR</code> asks
-<code>AzureAuth</code> to obtain the token. The package chooses the
-correct token resource for each Fabric service and supplies the tenant,
-client ID, and Microsoft identity-platform version. Other
+<p>When <code>token = NULL</code>, ‘fabricQueryR’ asks ‘AzureAuth’ to
+obtain the token. The package chooses the correct token resource for
+each Fabric service and supplies the tenant, client ID, and Microsoft
+identity-platform version. Other
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code> options can be supplied in
 <code>auth_args</code>.</p>
 <p>When <code>token</code> is supplied, it takes responsibility for
@@ -299,10 +299,10 @@ request. Ask an Entra administrator to create or approve one if the
 default client is blocked.</p>
 <p>For browser-based authorization-code login, the app needs a suitable
 redirect URI (normally <code>http://localhost:1410</code>) and R needs
-the <code>httpuv</code> package. For device-code login, the app
-registration needs <em>Allow public client flows</em> enabled. Your
-tenant’s user/admin consent, Conditional Access, and
-multifactor-authentication policies continue to apply.</p>
+the ‘httpuv’ package. For device-code login, the app registration needs
+<em>Allow public client flows</em> enabled. Your tenant’s user/admin
+consent, Conditional Access, and multifactor-authentication policies
+continue to apply.</p>
 <p>Do not create a client secret for ordinary interactive user
 login.</p>
 </div>
@@ -351,12 +351,11 @@ system</td>
 </table>
 </div>
 <div class="section level2">
-<h2 id="advanced-pass-an-azureauth-token">Advanced: pass an AzureAuth token<a class="anchor" aria-label="anchor" href="#advanced-pass-an-azureauth-token"></a>
+<h2 id="advanced-pass-an-azureauth-token">Advanced: pass an ‘AzureAuth’ token<a class="anchor" aria-label="anchor" href="#advanced-pass-an-azureauth-token"></a>
 </h2>
-<p>You can acquire a token with <code>AzureAuth</code> and pass the
-resulting R6 object directly. <code>fabricQueryR</code> extracts its
-access token, checks its expiry, and calls its <code>refresh()</code>
-method when needed:</p>
+<p>You can acquire a token with ‘AzureAuth’ and pass the resulting ‘R6’
+object directly. ‘fabricQueryR’ extracts its access token, checks its
+expiry, and calls its <code>refresh()</code> method when needed:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fabric_token</span> <span class="op">&lt;-</span> <span class="fu">AzureAuth</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">get_azure_token</a></span><span class="op">(</span></span>
 <span>  resource <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -437,10 +436,10 @@ used by the function:</p>
 </table>
 <p>Microsoft’s current Livy batch documentation is internally
 inconsistent: it includes a service-principal walkthrough while also
-warning that batch jobs do not support service principals. fabricQueryR
-retains the documented client-credential audience, but production batch
-automation should be verified in the target tenant and delegated
-authentication remains the conservative baseline.</p>
+warning that batch jobs do not support service principals.
+‘fabricQueryR’ retains the documented client-credential audience, but
+production batch automation should be verified in the target tenant and
+delegated authentication remains the conservative baseline.</p>
 <p>For a GraphQL service principal acquired by the package, the Fabric
 API audience is selected automatically:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -468,8 +467,8 @@ Fabric.</p>
 <div class="section level3">
 <h3 id="service-principal-with-a-client-secret">Service principal with a client secret<a class="anchor" aria-label="anchor" href="#service-principal-with-a-client-secret"></a>
 </h3>
-<p><code>AzureAuth</code> calls this the <code>client_credentials</code>
-flow. Keep the secret outside source code:</p>
+<p>‘AzureAuth’ calls this the <code>client_credentials</code> flow. Keep
+the secret outside source code:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span></span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
@@ -481,8 +480,8 @@ flow. Keep the secret outside source code:</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>When client credentials are selected, the package does not request
 <code>offline_access</code>, because application tokens do not use
-delegated refresh tokens. <code>AzureAuth</code> reacquires them with
-the application credential.</p>
+delegated refresh tokens. ‘AzureAuth’ reacquires them with the
+application credential.</p>
 </div>
 <div class="section level3">
 <h3 id="service-principal-with-a-certificate">Service principal with a certificate<a class="anchor" aria-label="anchor" href="#service-principal-with-a-certificate"></a>
@@ -496,9 +495,9 @@ the application credential.</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><code>certificate</code> accepts the formats supported by
-<code>AzureAuth</code>, including a PEM/PFX file and supported Azure Key
-Vault certificate objects. Protect the certificate and its private key
-as credentials.</p>
+‘AzureAuth’, including a PEM/PFX file and supported Azure Key Vault
+certificate objects. Protect the certificate and its private key as
+credentials.</p>
 </div>
 <div class="section level3">
 <h3 id="managed-identity">Managed identity<a class="anchor" aria-label="anchor" href="#managed-identity"></a>
@@ -538,7 +537,7 @@ another token broker, pass a function. It can accept
 <p>The callback must return one bearer-token string (or a list
 containing an <code>access_token</code> or <code>token</code> field).
 This is also the escape hatch for authentication methods not implemented
-by <code>AzureAuth</code>.</p>
+by ‘AzureAuth’.</p>
 </div>
 </div>
 <div class="section level2">
@@ -566,13 +565,13 @@ data access are not always the same permission.</li>
 <div class="section level2">
 <h2 id="signing-out-token-cache">Signing out (token cache)<a class="anchor" aria-label="anchor" href="#signing-out-token-cache"></a>
 </h2>
-<p><code>AzureAuth</code> stores cached user tokens in its user-specific
-AzureR data directory, never in the package project. Use
+<p>‘AzureAuth’ stores cached user tokens in its user-specific ‘AzureR’
+data directory, never in the package project. Use
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::list_azure_tokens()</a></code> to inspect the cache and
 remove only the relevant token with
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::delete_azure_token()</a></code>. Use
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::clean_token_directory()</a></code> for signing out of every
-cached AzureR session.</p>
+cached ‘AzureR’ session.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

@@ -119,7 +119,7 @@ Parquet <code>mapping</code>. Factors are written as strings. Convert
 complex and <code>difftime</code> columns explicitly.</p>
 <p>Arrow Tables and RecordBatches work without an R data-frame
 conversion. For data larger than memory, pass a lazy Dataset, Scanner,
-Arrow dplyr query, RecordBatchReader, or an Arrow-compatible stream
+Arrow ‘dplyr’ query, RecordBatchReader, or an Arrow-compatible stream
 returned by a package query:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
@@ -198,10 +198,10 @@ mechanism; a source GUID primarily identifies a blob in tracking and
 diagnostics.</p>
 <p>Queued ingestion still has at-least-once delivery. In particular,
 concurrent requests using the same key can race before either extent
-exists. Serialize submissions sharing a key. fabricQueryR also does not
-retry the submission POST: after a timeout, throttling response, or lost
-connection, the service might already have accepted it, so an automatic
-replay could duplicate data.</p>
+exists. Serialize submissions sharing a key. ‘fabricQueryR’ also does
+not retry the submission POST: after a timeout, throttling response, or
+lost connection, the service might already have accepted it, so an
+automatic replay could duplicate data.</p>
 <p>The preview route accepts at most 20 blobs per request and up to 6 GB
 of uncompressed data. Structured records expose known sizes without
 parallel vectors:</p>

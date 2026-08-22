@@ -103,7 +103,7 @@ portal.</p>
 <span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The function opens and closes the SQL connection for you. If you want
-to run several commands with DBI, open a reusable connection
+to run several commands with ‘DBI’, open a reusable connection
 instead:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">lakehouse</span><span class="op">)</span></span>
@@ -114,7 +114,7 @@ instead:</p>
 <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> for filters, joins, and summaries, or
 <code><a href="../reference/fabric_sql_tables.html">fabric_sql_read_table()</a></code> to read one table without writing
 SQL. Use <code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> only when you want to keep a
-connection open for several DBI calls.</p>
+connection open for several ‘DBI’ calls.</p>
 <p>You can also read a Delta table directly through OneLake with
 <code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>. This is useful for an Arrow
 stream or an earlier table version. The <code>fabric_onelake_*()</code>

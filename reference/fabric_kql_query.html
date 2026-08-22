@@ -120,7 +120,7 @@ retaining a second copy of large result data</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let fabricQueryR use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -164,7 +164,7 @@ name in <code>request_properties</code>, even though Azure Data Explorer support
 
 <p>KQL <code>bool</code>, <code>datetime</code>, <code>int</code>, <code>long</code>, <code>real</code>, and <code>timespan</code> columns normally
 become logical, UTC <code>POSIXct</code>, integer, <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, double, and
-<code>difftime</code> vectors. Base R and <code>bit64</code> reserve the minimum signed <code>int</code> and
+<code>difftime</code> vectors. Base R and 'bit64' reserve the minimum signed <code>int</code> and
 <code>long</code> values for missing data; a column containing either boundary is
 returned as character with a warning so the value remains exact. <code>dynamic</code>
 columns are list-columns, and GUIDs, strings, and <code>decimal</code> values are

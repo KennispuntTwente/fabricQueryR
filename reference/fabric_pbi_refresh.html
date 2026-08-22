@@ -168,7 +168,7 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity</p></dd>
 <dd><p>Standard-refresh email behavior for delegated calls:
 <code>"NoNotification"</code>, <code>"MailOnFailure"</code>, or <code>"MailOnCompletion"</code>. When
 omitted, standard refresh defaults to <code>"MailOnFailure"</code> unless
-fabricQueryR knows that it is using client credentials. For a
+'fabricQueryR' knows that it is using client credentials. For a
 caller-supplied service-principal token, pass <code>NULL</code> explicitly because
 its identity cannot be inferred. Omit this for enhanced refreshes</p></dd>
 
@@ -283,7 +283,7 @@ only for enhanced refreshes</p></dd>
 
 <dt id="arg-cancel">cancel<a class="anchor" aria-label="anchor" href="#arg-cancel"></a></dt>
 <dd><p>Optional function checked between status updates. If it returns
-<code>TRUE</code>, fabricQueryR requests cancellation and stops waiting. Cancellation
+<code>TRUE</code>, 'fabricQueryR' requests cancellation and stops waiting. Cancellation
 is available only for enhanced refreshes</p></dd>
 
 </dl></div>
@@ -305,7 +305,7 @@ attempt timeout, but requires a capacity-backed model. Only one refresh can
 run for a semantic model at a time</p>
 <p>Standard and service-principal refresh responses can expose the accepted
 refresh ID through <code>RequestId</code> rather than <code>x-ms-request-id</code> or <code>Location</code>.
-fabricQueryR recognizes either response form. Standard-refresh status and
+'fabricQueryR' recognizes either response form. Standard-refresh status and
 waiting fall back to refresh history when request-specific execution details
 are unavailable. Cancellation is available only for enhanced refreshes</p>
 <p><code>Transactional</code> is the safe commit default. <code>PartialBatch</code> can expose a

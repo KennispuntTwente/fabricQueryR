@@ -60,7 +60,7 @@ that as well:
 Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-client-id>")
 ```
 
-When `FABRICQUERYR_CLIENT_ID` is not set, `fabricQueryR` tries the
+When `FABRICQUERYR_CLIENT_ID` is not set, ‘fabricQueryR’ tries the
 public Azure CLI client ID. Some organizations allow this and some do
 not. If sign-in is blocked or your organization requires an approved
 application, ask the administrator for a dedicated client ID.
@@ -132,7 +132,7 @@ practice.
 
 ## Make sure Fabric access has been granted
 
-`fabricQueryR` cannot grant Fabric permissions. The signed-in account
+‘fabricQueryR’ cannot grant Fabric permissions. The signed-in account
 must already be able to access the relevant workspace, item, and data.
 
 For an initial test, ask a workspace administrator to do one of the
@@ -191,8 +191,8 @@ any browser, enter the code, and sign in with the intended account.
 
 ## How authentication works
 
-`fabricQueryR` uses
-[`AzureAuth`](https://azure.r-universe.dev/AzureAuth/doc/token.html) to
+‘fabricQueryR’ uses
+[‘AzureAuth’](https://azure.r-universe.dev/AzureAuth/doc/token.html) to
 sign in to Microsoft Entra. Every exported function that needs
 authentication accepts the same four arguments:
 
@@ -202,22 +202,22 @@ authentication accepts the same four arguments:
   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI public client ID.
 - `token` can supply an existing token or token provider. Most
   interactive users should leave it as `NULL`.
-- `auth_args` customizes how `AzureAuth` signs in. Most interactive
+- `auth_args` customizes how ‘AzureAuth’ signs in. Most interactive
   users can leave it as an empty list.
 
-With the defaults, `AzureAuth` first looks for a matching cached token.
+With the defaults, ‘AzureAuth’ first looks for a matching cached token.
 If none is available, it normally opens a browser or uses device-code
 login. Later calls reuse and refresh the cached token, so signing in is
 not usually required for every query.
 
-See the `AzureAuth` documentation on [authentication
+See the ‘AzureAuth’ documentation on [authentication
 scenarios](https://azure.r-universe.dev/AzureAuth/doc/scenarios.html)
 and
 [caching](https://azure.r-universe.dev/AzureAuth/doc/token.html#caching).
 
 ### Authentication arguments and precedence
 
-When `token = NULL`, `fabricQueryR` asks `AzureAuth` to obtain the
+When `token = NULL`, ‘fabricQueryR’ asks ‘AzureAuth’ to obtain the
 token. The package chooses the correct token resource for each Fabric
 service and supplies the tenant, client ID, and Microsoft
 identity-platform version. Other
@@ -236,7 +236,7 @@ request. Ask an Entra administrator to create or approve one if the
 default client is blocked.
 
 For browser-based authorization-code login, the app needs a suitable
-redirect URI (normally `http://localhost:1410`) and R needs the `httpuv`
+redirect URI (normally `http://localhost:1410`) and R needs the ‘httpuv’
 package. For device-code login, the app registration needs *Allow public
 client flows* enabled. Your tenant’s user/admin consent, Conditional
 Access, and multifactor-authentication policies continue to apply.
@@ -256,10 +256,10 @@ runs requires it.
 | Managed identity | R running in a supported Azure-hosted environment | Identity managed by Azure |
 | Existing token or provider | An organization with its own token broker or workload-identity system | Supplied by that system |
 
-## Advanced: pass an AzureAuth token
+## Advanced: pass an ‘AzureAuth’ token
 
-You can acquire a token with `AzureAuth` and pass the resulting R6
-object directly. `fabricQueryR` extracts its access token, checks its
+You can acquire a token with ‘AzureAuth’ and pass the resulting ‘R6’
+object directly. ‘fabricQueryR’ extracts its access token, checks its
 expiry, and calls its `refresh()` method when needed:
 
 ``` r
@@ -297,7 +297,7 @@ by the function:
 
 Microsoft’s current Livy batch documentation is internally inconsistent:
 it includes a service-principal walkthrough while also warning that
-batch jobs do not support service principals. fabricQueryR retains the
+batch jobs do not support service principals. ‘fabricQueryR’ retains the
 documented client-credential audience, but production batch automation
 should be verified in the target tenant and delegated authentication
 remains the conservative baseline.
@@ -331,7 +331,7 @@ Fabric.
 
 ### Service principal with a client secret
 
-`AzureAuth` calls this the `client_credentials` flow. Keep the secret
+‘AzureAuth’ calls this the `client_credentials` flow. Keep the secret
 outside source code:
 
 ``` r
@@ -348,7 +348,7 @@ workspaces <- fabric_workspaces(
 
 When client credentials are selected, the package does not request
 `offline_access`, because application tokens do not use delegated
-refresh tokens. `AzureAuth` reacquires them with the application
+refresh tokens. ‘AzureAuth’ reacquires them with the application
 credential.
 
 ### Service principal with a certificate
@@ -365,7 +365,7 @@ workspaces <- fabric_workspaces(
 )
 ```
 
-`certificate` accepts the formats supported by `AzureAuth`, including a
+`certificate` accepts the formats supported by ‘AzureAuth’, including a
 PEM/PFX file and supported Azure Key Vault certificate objects. Protect
 the certificate and its private key as credentials.
 
@@ -412,7 +412,7 @@ files <- fabric_onelake_list(
 
 The callback must return one bearer-token string (or a list containing
 an `access_token` or `token` field). This is also the escape hatch for
-authentication methods not implemented by `AzureAuth`.
+authentication methods not implemented by ‘AzureAuth’.
 
 ## Set Fabric permissions by workload
 
@@ -438,11 +438,11 @@ function, configure the relevant layers below:
 
 ## Signing out (token cache)
 
-`AzureAuth` stores cached user tokens in its user-specific AzureR data
+‘AzureAuth’ stores cached user tokens in its user-specific ‘AzureR’ data
 directory, never in the package project. Use
 [`AzureAuth::list_azure_tokens()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 to inspect the cache and remove only the relevant token with
 [`AzureAuth::delete_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html).
 Use
 [`AzureAuth::clean_token_directory()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
-for signing out of every cached AzureR session.
+for signing out of every cached ‘AzureR’ session.

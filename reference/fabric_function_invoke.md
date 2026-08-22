@@ -67,7 +67,7 @@ fabric_function_invoke(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  fabricQueryR use its normal sign-in flow.
+  'fabricQueryR' use its normal sign-in flow.
 
 - auth_args:
 
@@ -111,7 +111,7 @@ Interactive authentication requires the Power BI delegated permission
 permission on the user data functions item. Service-to-service callers
 can use an application credential with the Power BI `.default` audience
 and the required tenant and item access. Most users can leave
-`audience = NULL`; fabricQueryR selects the documented delegated scope
+`audience = NULL`; 'fabricQueryR' selects the documented delegated scope
 or application audience for the authentication flow.
 
 Application authentication for the public invocation endpoint is
