@@ -74,6 +74,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_job_schedule_*()` functions now default Dataflow schedules to
+`"Execute"`; use `job_type = "ApplyChanges"` for an explicit publish schedule.
+
 * `fabric_kql_export()` and `fabric_kql_ingest()` now remove account keys and
 SAS tokens from submission errors, their HTTP diagnostics, and serialized
 conditions.

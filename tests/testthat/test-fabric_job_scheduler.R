@@ -470,7 +470,7 @@ test_that("workloads infer their documented schedule job type", {
 
   expect_match(urls[[1L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[2L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[3L]], "/jobs/ApplyChanges/schedules$", perl = TRUE)
+  expect_match(urls[[3L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[4L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[5L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
 })
@@ -501,7 +501,7 @@ test_that("DataPipeline schedule creation uses and records Execute", {
   expect_equal(schedule$job_type, "Execute")
 })
 
-test_that("Dataflow schedule creation uses and records ApplyChanges", {
+test_that("Dataflow schedule creation defaults to Execute", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(method, url, credential, payload, ...) {
@@ -519,6 +519,33 @@ test_that("Dataflow schedule creation uses and records ApplyChanges", {
   schedule <- fabric_job_schedule_create(
     scheduler_test_item("Dataflow"),
     scheduler_test_configuration(),
+    token = "test-token"
+  )
+
+  expect_equal(call$method, "POST")
+  expect_match(call$url, "/jobs/Execute/schedules$", perl = TRUE)
+  expect_equal(schedule$job_type, "Execute")
+})
+
+test_that("Dataflow ApplyChanges schedules remain explicit", {
+  call <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(method, url, credential, payload, ...) {
+      call <<- list(method = method, url = url)
+      list(
+        status_code = 201L,
+        body = scheduler_test_response(
+          configuration = payload$configuration,
+          enabled = payload$enabled
+        )
+      )
+    }
+  )
+
+  schedule <- fabric_job_schedule_create(
+    scheduler_test_item("Dataflow"),
+    scheduler_test_configuration(),
+    job_type = "ApplyChanges",
     token = "test-token"
   )
 

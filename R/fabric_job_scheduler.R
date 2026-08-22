@@ -229,9 +229,9 @@ fabric_job_schedule_config <- function(
 #' in the current REST contract.
 #'
 #' @inheritParams fabric_job_instances
-#' @param job_type Schedule job type. Data pipelines and Data Build Tool Jobs
-#'   default to `"Execute"`; Dataflows default to `"ApplyChanges"`, as required
-#'   by their workload schedule contracts. Other item types default to
+#' @param job_type Schedule job type. Data pipelines, Dataflows, and Data Build
+#'   Tool Jobs default to `"Execute"`. For a Dataflow publish schedule, set
+#'   `job_type = "ApplyChanges"` explicitly. Other item types default to
 #'   `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
 #'   explicit value for another workload-specific schedule job type. When
 #'   passing one of these item types as a GUID instead of a discovered item,
@@ -272,6 +272,8 @@ fabric_job_schedule_config <- function(
 #' [Fabric Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 #'
 #' [Schedule a Data Pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute)
+#'
+#' [Schedule Dataflow Execute](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute)
 #'
 #' [Schedule Dataflow Apply Changes](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes)
 #'
@@ -593,11 +595,9 @@ print.fabric_job_schedule <- function(x, ...) {
   }
 
   normalized <- gsub("[^a-z0-9]", "", tolower(item_type %||% ""))
-  if (identical(normalized, "dataflow")) {
-    "ApplyChanges"
-  } else if (
+  if (
     normalized %in%
-      c("datapipeline", "pipeline", "databuildtooljob")
+      c("datapipeline", "pipeline", "dataflow", "databuildtooljob")
   ) {
     "Execute"
   } else {
