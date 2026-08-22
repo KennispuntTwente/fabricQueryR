@@ -207,7 +207,7 @@ fabric_warehouse_write_table(
 ```
 
 See [Working with Fabric
-Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.html)
+Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html)
 for staging, table creation, overwrite behavior, schema matching, and
 large Arrow inputs.
 
@@ -625,7 +625,7 @@ Package overview
 - [Working with Fabric Lakehouses and
   OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md):
 - [Working with Fabric
-  Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md):
+  Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.md):
 - [Working with Fabric Eventhouses (real-time
   data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md):
 - [Working with Semantic Models (DAX

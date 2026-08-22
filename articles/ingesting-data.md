@@ -137,7 +137,7 @@ warehouse_result <- fabric_warehouse_write_table(
 For a missing table, Fabric can infer a basic definition. Pre-create the
 table when exact SQL types, lengths, constraints, or grants matter.
 [Working with Fabric
-Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md)
+Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.md)
 explains overwrite choices, transactions, and larger Arrow inputs.
 
 ## Write an Eventhouse table

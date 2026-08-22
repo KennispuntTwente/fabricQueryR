@@ -16,7 +16,7 @@
 - [Working with Fabric Lakehouses and
   OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.md):
 - [Working with Fabric
-  Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse-write.md):
+  Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.md):
 - [Working with Fabric Eventhouses (real-time
   data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md):
 - [Working with Semantic Models (DAX

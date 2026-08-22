@@ -54,27 +54,22 @@
       <h1>Working with Fabric Warehouses</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/kennispunttwente/fabricQueryR/blob/master/vignettes/warehouse-write.Rmd" class="external-link"><code>vignettes/warehouse-write.Rmd</code></a></small>
-      <div class="d-none name"><code>warehouse-write.Rmd</code></div>
+      <small class="dont-index">Source: <a href="https://github.com/kennispunttwente/fabricQueryR/blob/master/vignettes/warehouse.Rmd" class="external-link"><code>vignettes/warehouse.Rmd</code></a></small>
+      <div class="d-none name"><code>warehouse.Rmd</code></div>
     </div>
 
     
     
-<p>A Fabric Warehouse stores relational tables that you can query with
-SQL. Use <code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code> when rows held in R
-should become part of one of those tables. The source can be an ordinary
-data frame or, later, a larger Arrow dataset.</p>
-<p>This guide starts by appending a three-row data frame. It then covers
-table creation, large inputs, replacement choices, and the staging and
-transaction details that matter in production.</p>
+<p>A Fabric Warehouse stores data in relational tables, much like a
+traditional SQL database. You normally use its SQL endpoint to read and
+query those tables. This guide first connects to a Warehouse, then shows
+how to add or replace data from R.</p>
 <div class="section level2">
-<h2 id="find-the-warehouse-and-a-staging-lakehouse">Find the Warehouse and a staging Lakehouse<a class="anchor" aria-label="anchor" href="#find-the-warehouse-and-a-staging-lakehouse"></a>
+<h2 id="find-and-connect-to-a-warehouse">Find and connect to a Warehouse<a class="anchor" aria-label="anchor" href="#find-and-connect-to-a-warehouse"></a>
 </h2>
-<p>A Warehouse is the final destination. The writer also needs a
-Lakehouse in the same tenant for temporary files while Fabric loads the
-data. Those files are removed after a confirmed successful write.</p>
-<p>Discover both items so their IDs and connection details travel with
-them:</p>
+<p>Start by finding the workspace and Warehouse by name. The returned
+<code>warehouse</code> object contains the IDs and SQL connection
+details that the other functions need:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -82,15 +77,54 @@ them:</p>
 <span><span class="va">matches</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter</a></span><span class="op">(</span>\<span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">displayName</span>, <span class="st">"Analytics"</span><span class="op">)</span>, <span class="va">workspaces</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">staging_lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<p>The SQL endpoint is the address that database tools use to reach the
+Warehouse. Because it is included in <code>warehouse</code>, you do not
+need to find or copy that address from the Fabric portal.</p>
+<p>For a single query, pass that object directly to
+<code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code>:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
+<span>  <span class="va">warehouse</span>,</span>
+<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The function opens and closes the SQL connection for you. If you want
+to run several commands with DBI, open a reusable connection
+instead:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span><span class="op">)</span></span>
+<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></code></pre></div>
+<p>For a simple read, <code><a href="../reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code> lets
+you name a table and optionally select columns or limit the rows,
+without writing SQL. It uses SQL internally.
+<code><a href="../reference/fabric_sql_tables.html">fabric_sql_read_table()</a></code> is the more general version for any
+supported Fabric SQL item.</p>
+<p>Use <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> when you need filters, joins,
+grouping, or other SQL. Use <code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> when you
+want to keep a connection open for several DBI calls. To add or replace
+many rows from an R data frame or Arrow source, use
+<code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>. See
+<code><a href="../articles/reading-data.html">vignette("reading-data")</a></code> for more reading examples.</p>
 </div>
 <div class="section level2">
-<h2 id="append-a-small-r-data-frame">Append a small R data frame<a class="anchor" aria-label="anchor" href="#append-a-small-r-data-frame"></a>
+<h2 id="prepare-a-staging-lakehouse-for-writes">Prepare a staging Lakehouse for writes<a class="anchor" aria-label="anchor" href="#prepare-a-staging-lakehouse-for-writes"></a>
 </h2>
-<p>Start with a test table whose definition already matches the R
-columns:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p>Writing to a Warehouse also requires a Lakehouse in the same tenant.
+The package temporarily stores files there while Fabric loads them, then
+removes the files after a confirmed successful write:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">staging_lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="add-rows-to-an-existing-table">Add rows to an existing table<a class="anchor" aria-label="anchor" href="#add-rows-to-an-existing-table"></a>
+</h2>
+<p>Suppose <code>dbo.orders</code> already contains order data. This
+call adds three new rows to the table; it does not remove or change the
+rows already there. The existing table columns must match the R data
+frame:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
@@ -107,16 +141,9 @@ columns:</p>
 <span><span class="va">written</span><span class="op">$</span><span class="va">rows</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">file_count</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">staging_retained</span></span></code></pre></div>
-<p><code>rows</code> confirms how many source rows were staged. A
-successful result normally has <code>staging_retained = FALSE</code>,
-meaning the temporary OneLake files were removed.</p>
-<p>Column identifiers are quoted and mapped in the same ordinal order as
-the Parquet schema. The names and compatible types therefore need to
-match the existing destination columns. Factor columns are serialized as
-strings; Arrow retains supported 64-bit integers, dates, timestamps,
-decimals, and nulls.</p>
-<p>To create a missing target and load it in the same transaction:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<p>If you want to create a new table, you can use
+<code>create_if_missing = TRUE</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">created</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
@@ -124,20 +151,6 @@ decimals, and nulls.</p>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Fabric infers the names and Warehouse types from the staged Parquet
-result. Use a pre-created table when exact lengths, nullability,
-constraints, or other schema details must be controlled explicitly.</p>
-<p>The SQL identity needs <code>INSERT</code> and
-<code>ADMINISTER DATABASE BULK OPERATIONS</code> on the Warehouse.
-Microsoft also documents Contributor or higher workspace access for the
-OneLake staging source and Warehouse destination. Cross-workspace
-staging is supported in the same tenant through
-<code>staging_workspace</code> when the Lakehouse is supplied by name or
-ID.</p>
-<p>Behind the scenes, the function writes bounded Parquet parts to
-OneLake and uses Fabric’s high-throughput <code>COPY INTO</code> path.
-When creating a missing table, it uses a create-table-as-select
-operation so creation and loading are one transaction.</p>
 </div>
 <div class="section level2">
 <h2 id="stream-a-larger-than-memory-arrow-source">Stream a larger-than-memory Arrow source<a class="anchor" aria-label="anchor" href="#stream-a-larger-than-memory-arrow-source"></a>
@@ -146,7 +159,7 @@ operation so creation and loading are one transaction.</p>
 and Arrow-compatible streams use the same function. They are consumed
 one record batch at a time rather than collected into an R data
 frame:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
@@ -165,7 +178,7 @@ deterministic part boundary matters.</p>
 <div class="section level2">
 <h2 id="choose-truncate-or-drop-replacement">Choose truncate or drop replacement<a class="anchor" aria-label="anchor" href="#choose-truncate-or-drop-replacement"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
@@ -178,7 +191,7 @@ deterministic part boundary matters.</p>
 <code>COPY INTO</code>, and commits only after the load succeeds. Use
 drop replacement when the target definition should instead be inferred
 again:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">recreated</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
 <span>  <span class="va">warehouse</span>,</span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>

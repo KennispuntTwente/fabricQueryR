@@ -1,17 +1,18 @@
 # Working with Fabric Lakehouses and OneLake
 
-A Fabric Lakehouse gives you two related ways to organize data:
+A Fabric Lakehouse keeps files and managed tables together in OneLake:
 
 - `Files/` contains ordinary files such as CSV, Parquet, JSON, images,
   and scripts.
 - `Tables/` contains managed Delta tables that Fabric engines can query.
 
-An ordinary file can be copied, downloaded, or replaced. A Delta table
-also has a transaction log that records valid table versions. Use table
-functions for managed tables and file functions for ordinary files;
-never change the files underneath `Tables/` directly.
+The Lakehouse SQL analytics endpoint lets you query the managed tables
+as you would query tables in a SQL database. This guide starts there,
+then covers direct table and file access.
 
-## Find a Lakehouse
+## Find and connect to a Lakehouse
+
+Start by finding the workspace and Lakehouse by name:
 
 ``` r
 
@@ -29,8 +30,50 @@ lakehouse <- fabric_lakehouses(workspace)[[1L]]
 lakehouse$displayName
 ```
 
-Passing this discovered object to later calls avoids copying workspace
-IDs, item IDs, and service addresses.
+Fabric provides a SQL analytics endpoint for querying the managed tables
+under `Tables/`. It does not query ordinary files under `Files/`. The
+endpoint address is already included in `lakehouse`, so you do not need
+to copy it from the Fabric portal.
+
+For a single SQL query, pass `lakehouse` directly to
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md):
+
+``` r
+
+orders <- fabric_sql_query(
+  lakehouse,
+  "SELECT TOP 10 * FROM dbo.orders"
+)
+```
+
+The function opens and closes the SQL connection for you. If you want to
+run several commands with DBI, open a reusable connection instead:
+
+``` r
+
+con <- fabric_sql_connect(lakehouse)
+DBI::dbListTables(con)
+DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.orders")
+DBI::dbDisconnect(con)
+```
+
+For most work with managed tables, start with SQL. Use
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
+for filters, joins, and summaries, or
+[`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+to read one table without writing SQL. Use
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+only when you want to keep a connection open for several DBI calls.
+
+You can also read a Delta table directly through OneLake with
+[`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md).
+This is useful for an Arrow stream or an earlier table version. The
+`fabric_onelake_*()` functions work with ordinary files under `Files/`,
+while
+[`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
+adds or replaces managed table data. These functions do not need a SQL
+connection. Never change the files underneath `Tables/` directly because
+they are part of a managed Delta table.
 
 ## List and read ordinary files
 

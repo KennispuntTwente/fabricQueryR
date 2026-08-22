@@ -1,23 +1,15 @@
 # Working with Fabric Warehouses
 
-A Fabric Warehouse stores relational tables that you can query with SQL.
-Use
-[`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)
-when rows held in R should become part of one of those tables. The
-source can be an ordinary data frame or, later, a larger Arrow dataset.
+A Fabric Warehouse stores data in relational tables, much like a
+traditional SQL database. You normally use its SQL endpoint to read and
+query those tables. This guide first connects to a Warehouse, then shows
+how to add or replace data from R.
 
-This guide starts by appending a three-row data frame. It then covers
-table creation, large inputs, replacement choices, and the staging and
-transaction details that matter in production.
+## Find and connect to a Warehouse
 
-## Find the Warehouse and a staging Lakehouse
-
-A Warehouse is the final destination. The writer also needs a Lakehouse
-in the same tenant for temporary files while Fabric loads the data.
-Those files are removed after a confirmed successful write.
-
-Discover both items so their IDs and connection details travel with
-them:
+Start by finding the workspace and Warehouse by name. The returned
+`warehouse` object contains the IDs and SQL connection details that the
+other functions need:
 
 ``` r
 
@@ -28,12 +20,68 @@ matches <- Filter(\(x) identical(x$displayName, "Analytics"), workspaces)
 stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
 warehouse <- fabric_warehouses(workspace)[[1L]]
+```
+
+The SQL endpoint is the address that database tools use to reach the
+Warehouse. Because it is included in `warehouse`, you do not need to
+find or copy that address from the Fabric portal.
+
+For a single query, pass that object directly to
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md):
+
+``` r
+
+orders <- fabric_sql_query(
+  warehouse,
+  "SELECT TOP 10 * FROM dbo.orders"
+)
+```
+
+The function opens and closes the SQL connection for you. If you want to
+run several commands with DBI, open a reusable connection instead:
+
+``` r
+
+con <- fabric_sql_connect(warehouse)
+DBI::dbListTables(con)
+DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.orders")
+DBI::dbDisconnect(con)
+```
+
+For a simple read,
+[`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)
+lets you name a table and optionally select columns or limit the rows,
+without writing SQL. It uses SQL internally.
+[`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
+is the more general version for any supported Fabric SQL item.
+
+Use
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
+when you need filters, joins, grouping, or other SQL. Use
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+when you want to keep a connection open for several DBI calls. To add or
+replace many rows from an R data frame or Arrow source, use
+[`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md).
+See
+[`vignette("reading-data")`](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
+for more reading examples.
+
+## Prepare a staging Lakehouse for writes
+
+Writing to a Warehouse also requires a Lakehouse in the same tenant. The
+package temporarily stores files there while Fabric loads them, then
+removes the files after a confirmed successful write:
+
+``` r
+
 staging_lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
-## Append a small R data frame
+## Add rows to an existing table
 
-Start with a test table whose definition already matches the R columns:
+Suppose `dbo.orders` already contains order data. This call adds three
+new rows to the table; it does not remove or change the rows already
+there. The existing table columns must match the R data frame:
 
 ``` r
 
@@ -55,17 +103,8 @@ written$file_count
 written$staging_retained
 ```
 
-`rows` confirms how many source rows were staged. A successful result
-normally has `staging_retained = FALSE`, meaning the temporary OneLake
-files were removed.
-
-Column identifiers are quoted and mapped in the same ordinal order as
-the Parquet schema. The names and compatible types therefore need to
-match the existing destination columns. Factor columns are serialized as
-strings; Arrow retains supported 64-bit integers, dates, timestamps,
-decimals, and nulls.
-
-To create a missing target and load it in the same transaction:
+If you want to create a new table, you can use
+`create_if_missing = TRUE`:
 
 ``` r
 
@@ -77,22 +116,6 @@ created <- fabric_warehouse_write_table(
   create_if_missing = TRUE
 )
 ```
-
-Fabric infers the names and Warehouse types from the staged Parquet
-result. Use a pre-created table when exact lengths, nullability,
-constraints, or other schema details must be controlled explicitly.
-
-The SQL identity needs `INSERT` and
-`ADMINISTER DATABASE BULK OPERATIONS` on the Warehouse. Microsoft also
-documents Contributor or higher workspace access for the OneLake staging
-source and Warehouse destination. Cross-workspace staging is supported
-in the same tenant through `staging_workspace` when the Lakehouse is
-supplied by name or ID.
-
-Behind the scenes, the function writes bounded Parquet parts to OneLake
-and uses Fabric’s high-throughput `COPY INTO` path. When creating a
-missing table, it uses a create-table-as-select operation so creation
-and loading are one transaction.
 
 ## Stream a larger-than-memory Arrow source
 
