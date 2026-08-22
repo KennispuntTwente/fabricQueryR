@@ -269,37 +269,6 @@ available:</p>
 reader for compatible Delta paths in Lakehouses and Warehouses. Prefer
 the Lakehouse wrapper for a normal discovered-table workflow.</p>
 </div>
-<div class="section level2">
-<h2 id="use-shortcuts-instead-of-copying-data">Use shortcuts instead of copying data<a class="anchor" aria-label="anchor" href="#use-shortcuts-instead-of-copying-data"></a>
-</h2>
-<p>A OneLake shortcut makes data stored elsewhere appear at a path in
-the current item. It is a link, not a second copy:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span>
-<span><span class="va">destination</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">source</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">2L</span><span class="op">]</span><span class="op">]</span></span>
-<span></span>
-<span><span class="va">shortcut</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create</a></span><span class="op">(</span></span>
-<span>  <span class="va">destination</span>,</span>
-<span>  path <span class="op">=</span> <span class="st">"Files"</span>,</span>
-<span>  name <span class="op">=</span> <span class="st">"shared-orders"</span>,</span>
-<span>  target <span class="op">=</span> <span class="va">source</span>,</span>
-<span>  target_path <span class="op">=</span> <span class="st">"Tables/orders"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>List shortcuts with <code><a href="../reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcuts()</a></code>. Deleting
-a shortcut requires <code>confirm = TRUE</code> and removes only the
-link; it does not delete the target data.</p>
-</div>
-<div class="section level2">
-<h2 id="treat-deletion-as-a-separate-step">Treat deletion as a separate step<a class="anchor" aria-label="anchor" href="#treat-deletion-as-a-separate-step"></a>
-</h2>
-<p><code><a href="../reference/fabric_onelake_files.html">fabric_onelake_delete()</a></code> can permanently remove a file or
-directory. Inspect the exact path with
-<code><a href="../reference/fabric_onelake_files.html">fabric_onelake_list()</a></code> or
-<code><a href="../reference/fabric_onelake_files.html">fabric_onelake_metadata()</a></code> first. Keep destructive cleanup
-separate from read, write, and verification code so that a failed
-earlier step cannot accidentally broaden what is removed.</p>
-</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>

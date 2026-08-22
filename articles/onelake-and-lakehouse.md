@@ -255,39 +255,3 @@ older_rows <- fabric_lakehouse_read_table(
 is the lower-level reader for compatible Delta paths in Lakehouses and
 Warehouses. Prefer the Lakehouse wrapper for a normal discovered-table
 workflow.
-
-## Use shortcuts instead of copying data
-
-A OneLake shortcut makes data stored elsewhere appear at a path in the
-current item. It is a link, not a second copy:
-
-``` r
-
-lakehouses <- fabric_lakehouses(workspace)
-destination <- lakehouses[[1L]]
-source <- lakehouses[[2L]]
-
-shortcut <- fabric_onelake_shortcut_create(
-  destination,
-  path = "Files",
-  name = "shared-orders",
-  target = source,
-  target_path = "Tables/orders"
-)
-```
-
-List shortcuts with
-[`fabric_onelake_shortcuts()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md).
-Deleting a shortcut requires `confirm = TRUE` and removes only the link;
-it does not delete the target data.
-
-## Treat deletion as a separate step
-
-[`fabric_onelake_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-can permanently remove a file or directory. Inspect the exact path with
-[`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-or
-[`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-first. Keep destructive cleanup separate from read, write, and
-verification code so that a failed earlier step cannot accidentally
-broaden what is removed.
