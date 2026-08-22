@@ -98,7 +98,10 @@ to let 'fabricQueryR' use its normal sign-in flow}
 different Fabric cloud or a test service}
 
 \item{path}{Parent \code{Files} or \code{Tables} path where the shortcut exists or will
-be created.}
+be created. Local checks validate path syntax, while Fabric applies
+item- and workload-specific placement rules. In a Lakehouse \code{Tables}
+section, use \code{Tables} because Fabric permits shortcuts only at that top
+level.}
 
 \item{name}{Shortcut name.}
 
@@ -106,9 +109,11 @@ be created.}
 shortcut target list. A raw target must contain exactly one documented
 key such as \code{oneLake}, \code{adlsGen2}, \code{amazonS3}, \code{azureBlobStorage},
 \code{googleCloudStorage}, \code{oneDriveSharePoint}, \code{s3Compatible}, or \code{dataverse}.
-Connection-backed targets must include the documented connection and
-location fields, use an existing Fabric connection ID, and must not embed
-credentials. Type-specific fields are validated before a request is sent.}
+Connection-backed targets must include the documented required fields, use
+a Fabric connection ID, and must not embed credentials. Local checks cover
+structure, required fields, identifier shape, and generic URL safety; they
+do not verify source-specific host/path rules or that a connection refers
+to the supplied location. Fabric service validation is authoritative.}
 
 \item{target_workspace}{Workspace containing a OneLake \code{target}. May be
 omitted when a discovered target contains \code{workspaceId}.}
@@ -142,6 +147,8 @@ in Fabric without copying data into R.
 \details{
 Shortcut names, parent paths, and OneLake target paths follow Fabric's
 current shortcut limits: \verb{\%}, \code{+}, and non-ASCII characters are rejected.
+Other source- and destination-specific restrictions are intentionally left
+to Fabric so that newly supported connection types and rules remain usable.
 
 Listing follows Fabric continuation links and tokens until every shortcut
 below \code{parent_path} is returned. Unknown target details and transform fields
@@ -194,4 +201,6 @@ fabric_onelake_shortcut_delete(
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/}{OneLake shortcuts REST API}
+
+\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts}{OneLake shortcut placement and limitations}
 }

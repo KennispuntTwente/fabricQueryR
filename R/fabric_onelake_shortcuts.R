@@ -14,15 +14,20 @@
 #' @param parent_path Optional `Files` or `Tables` path from which listing
 #'   starts. Fabric still returns shortcuts below that path exhaustively.
 #' @param path Parent `Files` or `Tables` path where the shortcut exists or will
-#'   be created.
+#'   be created. Local checks validate path syntax, while Fabric applies
+#'   item- and workload-specific placement rules. In a Lakehouse `Tables`
+#'   section, use `Tables` because Fabric permits shortcuts only at that top
+#'   level.
 #' @param name Shortcut name.
 #' @param target A discovered Fabric item, its name or GUID, or a raw named
 #'   shortcut target list. A raw target must contain exactly one documented
 #'   key such as `oneLake`, `adlsGen2`, `amazonS3`, `azureBlobStorage`,
 #'   `googleCloudStorage`, `oneDriveSharePoint`, `s3Compatible`, or `dataverse`.
-#'   Connection-backed targets must include the documented connection and
-#'   location fields, use an existing Fabric connection ID, and must not embed
-#'   credentials. Type-specific fields are validated before a request is sent.
+#'   Connection-backed targets must include the documented required fields, use
+#'   a Fabric connection ID, and must not embed credentials. Local checks cover
+#'   structure, required fields, identifier shape, and generic URL safety; they
+#'   do not verify source-specific host/path rules or that a connection refers
+#'   to the supplied location. Fabric service validation is authoritative.
 #' @param target_workspace Workspace containing a OneLake `target`. May be
 #'   omitted when a discovered target contains `workspaceId`.
 #' @param target_path Item-relative `Files` or `Tables` path for a OneLake
@@ -40,6 +45,8 @@
 #' @details
 #' Shortcut names, parent paths, and OneLake target paths follow Fabric's
 #' current shortcut limits: `%`, `+`, and non-ASCII characters are rejected.
+#' Other source- and destination-specific restrictions are intentionally left
+#' to Fabric so that newly supported connection types and rules remain usable.
 #'
 #' @return `fabric_onelake_shortcuts()` returns a tibble with one row per
 #'   shortcut. `fabric_onelake_shortcut_get()` and
@@ -60,6 +67,8 @@
 #' identities.
 #' @references
 #' [OneLake shortcuts REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
+#'
+#' [OneLake shortcut placement and limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
 #' @examples
 #' \dontrun{
 #' # Discover two Lakehouses in the same workspace
