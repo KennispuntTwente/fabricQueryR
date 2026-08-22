@@ -1,9 +1,9 @@
 # Working with Livy (Spark)
 
-Apache Spark processes data using compute that runs in Fabric. **Livy**
-is the service that lets an R program submit Spark code and receive its
-status and output. The code runs remotely; it does not run in your local
-R process.
+Apache Spark processes data using compute that runs in Fabric. *Livy* is
+the service that lets an R program submit Spark code and receive its
+status and output. The Spark code runs on Fabric; it does not run in
+your local R process.
 
 Use Spark when a transformation is too large for one computer, needs a
 Spark-specific library or format, or already exists as a Spark
@@ -13,24 +13,18 @@ usually simpler and starts faster.
 ## Before the first call
 
 You need a Fabric workspace on supported capacity, a Lakehouse with a
-Livy endpoint, and the **tenant admin setting for the Livy API
-enabled**. A delegated caller needs all four of these Microsoft Entra
-scopes:
+Livy endpoint, and the *tenant admin setting for the Livy API enabled*.
 
-- `Lakehouse.Execute.All`
-- `Lakehouse.Read.All`
-- `Code.AccessFabric.All`
-- `Code.AccessStorage.All`
+A delegated caller needs all four of these Microsoft Entra scopes: -
+`Lakehouse.Execute.All` - `Lakehouse.Read.All` -
+`Code.AccessFabric.All` - `Code.AccessStorage.All`
 
-The signed-in user must be a **Contributor** in the workspace containing
+The signed-in user must be a *Contributor* in the workspace containing
 the Livy endpoint and data-source items. For unattended authentication,
 add the service principal to the workspace as a Contributor.
-`fabricQueryR` requests the four delegated scopes automatically for its
-normal interactive sign-in; client-credentials authentication uses the
-Fabric `.default` audience.
 
-Discovering the Lakehouse is normally enough; its record carries the
-endpoint:
+Then, you can discover the Lakehouse item which you want to use Livy
+with:
 
 ``` r
 
@@ -47,15 +41,8 @@ lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
 If discovery cannot retrieve the endpoint in your environment, copy the
-session-job connection string from **Lakehouse settings \> Livy
-endpoint** and pass that URL instead.
-
-If Fabric returns HTTP 403, check the tenant setting, the workspace
-Contributor role, and—when using delegated authentication—the four
-scopes above before changing the endpoint or Spark code. See Microsoft’s
-[Livy API setup and
-authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy)
-for the current requirements.
+session-job connection string from *Lakehouse settings \> Livy endpoint*
+and pass that URL instead.
 
 ## Run one piece of Spark code
 
@@ -104,10 +91,6 @@ result <- fabric_livy_query(
 )
 ```
 
-The language selected by `kind` is the language running in Fabric. Local
-R variables are not automatically available there; build the submitted
-code deliberately and do not insert untrusted text into it.
-
 ## Reuse a session for several statements
 
 Starting Spark can take time. Use
@@ -126,8 +109,7 @@ answer$output$parsed
 ```
 
 Always close a session explicitly. R object cleanup does not make a
-network request, so forgetting `$close()` can leave avoidable Spark work
-running.
+network request, so forgetting `$close()` can leave Spark running.
 
 A standard session is right for one R process running a sequence. High
 concurrency is an advanced option for several isolated workloads that
@@ -181,16 +163,3 @@ result <- fabric_livy_query(
   environment_id = environment$id
 )
 ```
-
-Prefer an Environment over repeating a long set of configuration
-overrides in every R call. Leave driver memory, executor memory, cores,
-and executor counts at Fabric defaults until the workload has been
-measured and sized.
-
-## Decide whether the result belongs in R
-
-Small summaries and samples are good return values for a Livy statement.
-A large transformed dataset should normally be written by Spark to a
-Lakehouse table or file and then read selectively from R. This keeps
-network transfer and local memory use bounded and makes the Fabric
-result reusable by other tools.
