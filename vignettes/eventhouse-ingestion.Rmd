@@ -12,13 +12,14 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
 An Eventhouse stores event, log, and time-series data in KQL databases. In this
-vignette, *ingestion* means adding rows to one of its KQL tables.
+guide, *ingestion* means adding rows to a KQL table. Start with
+`fabric_kql_write_table()`, which accepts an R data frame and manages staging,
+status checks, and cleanup for you.
 
-Start with `fabric_kql_write_table()`: it accepts a data frame and manages the
-upload, ingestion status, and cleanup for you. Later sections cover larger
-Arrow inputs and the lower-level queued-ingestion workflow for files that are
-already in OneLake or blob storage. The underlying ingestion REST routes are
-currently in preview.
+After the basic write, this guide shows how to monitor ingestion, use an
+existing storage file, scale up with Arrow, and export a large query result.
+The lower-level ingestion routes used by these workflows are currently in
+preview.
 
 ## Find a KQL database
 
@@ -60,49 +61,10 @@ ingestion, waits for a final status, and deletes staging only after confirmed
 success. `create_if_missing = TRUE` creates a basic table from the R object's
 columns when needed.
 
-With `create_if_missing = TRUE`, the writer sends Kusto's idempotent `.create
-table` command before staging. A missing target is inferred from the Arrow
-schema; an existing target is returned unchanged. Common logical, integer,
-double, character, date/time, decimal, and nested Arrow types are mapped to
-Kusto scalar types. Use a named `column_types` vector with one value per source
-field when those inferred types are not appropriate.
-
-Parquet identity mapping is case-sensitive. Source field names and types must
-match an existing KQL table; otherwise supply a predefined Parquet `mapping`.
-Factors are written as strings. Convert complex and `difftime` columns
-explicitly.
-
-Arrow Tables and RecordBatches work without an R data-frame conversion. For
-data larger than memory, pass a lazy Dataset, Scanner, Arrow 'dplyr' query,
-RecordBatchReader, or an Arrow-compatible stream returned by a package query:
-
-```{r, eval = FALSE}
-dataset <- arrow::open_dataset("local-parquet-directory")
-
-written <- fabric_kql_write_table(
-  database,
-  table = "Events",
-  data = dataset,
-  mapping = "EventsParquet",
-  create_if_missing = FALSE
-)
-```
-
-The dataset is scanned one record batch at a time into bounded temporary
-Parquet parts and then uploaded in bounded chunks. It is never collected into a
-data frame or Arrow Table. A supplied RecordBatchReader is single-use and is
-exhausted by the write. Use `target_file_size` for a soft byte boundary or
-`max_rows_per_file` for an exact row boundary. The serialized batch must remain
-within the ingestion service's advertised size and blob-count limits.
-
-The function uses the OneLake folder returned by
-`/v1/rest/ingestion/configuration`. If an administrator provides a different
-writable location, pass its full trusted `Files/` URI as `staging_folder`.
-Ambiguous submission and polling failures always retain staging. Confirmed
-terminal failures retain it by default; set
-`keep_staging_on_failure = FALSE` only when automatic removal is appropriate.
-An upload transport error can make the final atomic rename ambiguous; its
-condition reports the unique path with `staging_retained = NA` for inspection.
+For an existing table, the source names and types must match. Supply a
+predefined Parquet `mapping` or explicit `column_types` when inference is not
+appropriate. See `?fabric_kql_write_table` for supported type mappings and
+staging recovery options.
 
 ## Queue a tracked batch
 
@@ -111,26 +73,20 @@ in OneLake or supported blob storage. It does not upload a local file or
 serialize an R object, and the destination table must already exist.
 
 For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate a named
-ingestion mapping in Fabric before submission. A OneLake source can use the
-workspace and item GUIDs with caller impersonation:
+ingestion mapping in Fabric before submission. Supply the complete source path
+and its format:
 
 ```{r, eval = FALSE}
 source <- paste0(
   "https://onelake.dfs.fabric.microsoft.com/",
-  "00000000-0000-0000-0000-000000000001/",
-  "00000000-0000-0000-0000-000000000002/",
-  "Files/events/2026-08-14.csv;impersonate"
+  "<workspace-id>/<lakehouse-id>",
+  "/Files/events/2026-08-14.csv;impersonate"
 )
 ```
 
-The signed-in identity must be able to read the file. Other Kusto storage
-connection strings can contain a SAS token, managed-identity suffix, or another
-documented authentication method. Do not print or log a credential-bearing
-source string. The complete value must be sent to the trusted ingestion
-endpoint even though returned objects redact recognized secrets.
-
-Supply the source format and the predefined mapping. Source GUIDs are generated
-when omitted and exposed on the returned handle:
+The signed-in identity must be able to read the file. Do not print or log a
+source string that contains credentials. Source IDs are generated when omitted
+and remain available on the returned handle:
 
 ```{r, eval = FALSE}
 ingestion <- fabric_kql_ingest(
@@ -146,45 +102,13 @@ ingestion <- fabric_kql_ingest(
 
 ingestion$id
 ingestion$sources$source_id
-ingestion$tags
 ```
 
-`ingest_if_not_exists` uses stable keys without the `ingest-by:` prefix. The
-function attaches the matching extent tag automatically. A later ingestion
-with the same key is prevented when that tag already exists. This is the Kusto
-idempotency mechanism; a source GUID primarily identifies a blob in tracking
-and diagnostics.
-
-Queued ingestion still has at-least-once delivery. In particular, concurrent
-requests using the same key can race before either extent exists. Serialize
-submissions sharing a key. 'fabricQueryR' also does not retry the submission POST:
-after a timeout, throttling response, or lost connection, the service might
-already have accepted it, so an automatic replay could duplicate data.
-
-The preview route accepts at most 20 blobs per request and up to 6 GB of
-uncompressed data. Structured records expose known sizes without parallel
-vectors:
-
-```{r, eval = FALSE}
-sources <- tibble::tibble(
-  url = c(source_a, source_b),
-  source_id = c(source_a_id, source_b_id),
-  raw_size = c(120000000, 180000000)
-)
-
-ingestion <- fabric_kql_ingest(
-  database,
-  table = "Events",
-  sources = sources,
-  format = "parquet",
-  mapping = "EventsParquet"
-)
-```
-
-Keep `skip_batching = FALSE` for normal throughput. Set it only when lower
-latency is more important than Kusto's normal batching efficiency. Source files
-are preserved by default; `delete_after_download = TRUE` permanently removes a
-successfully downloaded source and requires corresponding storage permission.
+Use a stable `ingest_if_not_exists` key when the same logical batch may be
+submitted again. Queued ingestion is still an advanced, at-least-once workflow:
+after an uncertain network result, inspect the tracked operation and target
+table before submitting the source again. See `?fabric_kql_ingest` for batching,
+source deletion, and storage-authentication options.
 
 ## Wait and inspect the outcome
 
@@ -210,15 +134,9 @@ result$state
 result$details
 ```
 
-The deadline stops only the R waiter. A `fabric_kql_ingestion_timeout`
-condition includes the last observed status and explicitly leaves the service
-operation running. Status GETs are safe to retry and honor service throttling
-hints.
-
-A mixed batch returns `PartiallySucceeded`; completely failed and canceled
-batches have their own states. By default terminal problems raise a typed
-condition containing `last_status` and the failed-source details. To handle all
-states as data:
+The deadline stops only the R waiter; it does not cancel ingestion in Fabric.
+By default, a failed or partially successful batch raises an R condition. To
+inspect every terminal state as data instead:
 
 ```{r, eval = FALSE}
 result <- fabric_kql_ingestion_status(
@@ -234,9 +152,7 @@ failed <- subset(
 failed[c("source_id", "error_code", "failure_status", "message")]
 ```
 
-Retry a `Transient` source only after considering whether it might already have
-committed. A `Permanent` failure such as a missing mapping or malformed input
-requires a configuration or data fix. Query the destination after success:
+Query the destination after success:
 
 ```{r, eval = FALSE}
 loaded <- fabric_kql_query(
@@ -245,12 +161,28 @@ loaded <- fabric_kql_query(
 )
 ```
 
-The caller needs Table Ingestor permission on the destination and Database User
-access. Status details for nonpublic storage also require source storage read
-access. For manual `fabric_kql_ingest()` workflows, keep the staged file until
-the tracked result is terminal and verified. `fabric_kql_write_table()` applies
-that retention rule automatically and reports the full retained path whenever
-manual recovery is required.
+The caller needs permission to ingest into the destination table and read the
+source file. Keep a manually staged source until the tracked result is final and
+verified; `fabric_kql_write_table()` manages this retention rule for you.
+
+## Scale up with Arrow
+
+For data larger than memory, pass an Arrow Dataset, Scanner, 'dplyr' query,
+RecordBatchReader, or compatible stream to the same high-level writer:
+
+```{r, eval = FALSE}
+dataset <- arrow::open_dataset("local-parquet-directory")
+
+written <- fabric_kql_write_table(
+  database,
+  table = "Events",
+  data = dataset,
+  mapping = "EventsParquet"
+)
+```
+
+The source is processed in batches instead of first being collected into an R
+data frame. A supplied RecordBatchReader is single-use.
 
 ## Export a large KQL result to OneLake
 
@@ -277,15 +209,6 @@ exported$records
 exported$artifacts
 ```
 
-A discovered item uses a OneLake GUID path with `;impersonate`; the principal
-therefore needs write access to the destination. A complete documented Kusto
-storage connection string can be supplied instead. Credential-bearing strings
-are obfuscated in Kusto command telemetry and redacted from returned R objects.
-
-The function always uses `async`, polls `.show operations`, and calls
-`.show operation ... details` only after the operation reports `Completed`.
-The submission itself is never replayed. Kusto documents that ordinary exports
-do not retry and that artifacts already written by a failed export remain and
-must be treated as incomplete. Timeout and failure conditions carry the
-operation ID and safe destination so the operation can be inspected before a
-new export is submitted.
+The signed-in identity needs write access to the destination. If an export
+fails, treat any files already written as incomplete and inspect the returned
+operation before starting a replacement export.

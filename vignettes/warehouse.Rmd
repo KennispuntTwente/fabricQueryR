@@ -113,30 +113,9 @@ created <- fabric_warehouse_write_table(
 )
 ```
 
-## Stream a larger-than-memory Arrow source
+## Replace table data
 
-Arrow Datasets, Scanners, 'dplyr' queries, RecordBatchReaders, Tables, and
-Arrow-compatible streams use the same function. They are consumed one record
-batch at a time rather than collected into an R data frame:
-
-```{r, eval = FALSE}
-dataset <- arrow::open_dataset("local-parquet-directory")
-
-written <- fabric_warehouse_write_table(
-  warehouse,
-  table = "orders",
-  data = dataset,
-  staging_lakehouse = staging_lakehouse,
-  target_file_size = 512 * 1024^2,
-  max_rows_per_file = NULL
-)
-```
-
-`target_file_size` is a soft compressed-size boundary. The 512 MB default is
-inside Fabric's documented 100 MB to 1 GB performance range. Use
-`max_rows_per_file` when an exact and deterministic part boundary matters.
-
-## Choose truncate or drop replacement
+Use overwrite mode when the new data should replace the current rows:
 
 ```{r, eval = FALSE}
 replaced <- fabric_warehouse_write_table(
@@ -149,9 +128,8 @@ replaced <- fabric_warehouse_write_table(
 )
 ```
 
-The default truncate path preserves the existing definition, executes
-`COPY INTO`, and commits only after the load succeeds. Use drop replacement
-when the target definition should instead be inferred again:
+The default `"Truncate"` method preserves the existing table definition. Use
+`"Drop"` only when Fabric should infer a new definition from the incoming data:
 
 ```{r, eval = FALSE}
 recreated <- fabric_warehouse_write_table(
@@ -165,19 +143,32 @@ recreated <- fabric_warehouse_write_table(
 )
 ```
 
-Drop replacement discards the old table definition—including table-specific
-constraints, indexes, and grants—and recreates it with CTAS. Setting
-`create_if_missing = TRUE` also lets this path proceed when the target is
-already absent. Fabric Warehouse documents DDL inside ACID transactions and
-all-or-nothing rollback for these grouped write operations.
+Dropping a table also removes its table-specific constraints, indexes, and
+grants. Prefer `"Truncate"` unless recreating the definition is intentional.
+The writer removes staging files after confirmed success and reports a retained
+staging path when manual recovery may be needed.
 
-Local temporary files are always removed. The OneLake staging directory is
-removed only after confirmed success. If SQL delivery becomes ambiguous, it is
-retained even when `keep_staging_on_failure = FALSE`; the error condition
-contains `staging_path`, `staging_retained`, and `ambiguous` fields for recovery
-and diagnosis.
+## Scale up with Arrow
 
-## Microsoft documentation
+The same writer accepts Arrow Datasets, Scanners, 'dplyr' queries,
+RecordBatchReaders, Tables, and Arrow-compatible streams. These sources are
+processed in batches instead of first being collected into an R data frame:
+
+```{r, eval = FALSE}
+dataset <- arrow::open_dataset("local-parquet-directory")
+
+written <- fabric_warehouse_write_table(
+  warehouse,
+  table = "orders",
+  data = dataset,
+  staging_lakehouse = staging_lakehouse
+)
+```
+
+See `?fabric_warehouse_write_table` when you need to tune staged file sizes or
+recover a retained staging directory after a failed write.
+
+## More information
 
 - [COPY INTO in Fabric Warehouse](https://learn.microsoft.com/en-us/sql/t-sql/statements/copy-into-transact-sql?view=fabric)
 - [Create tables in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table)

@@ -11,14 +11,14 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-A Fabric API for GraphQL is a structured doorway to data selected by the API's
-owner. A GraphQL query names the fields you want, and the response follows the
-same nested shape. This can be convenient when you need an approved API view
-instead of direct access to the underlying Lakehouse, Warehouse, or SQL
-Database.
+A Fabric API for GraphQL provides a structured view of data selected by the
+API's owner. A query names the fields you want, and the response follows the
+same nested shape. This is useful when you should use an approved API instead
+of connecting directly to the underlying data source.
 
 This guide starts with one small query. It then introduces schema inspection,
-pagination, and collection into a tibble.
+pagination, and collection into a tibble. You only need the later sections when
+the result spans several pages or contains nested fields.
 
 Start with a discovered API so its endpoint and workspace travel together:
 
@@ -29,9 +29,7 @@ api <- fabric_graphql_apis("Analytics workspace")[[1]]
 ```
 
 The caller needs *Run Queries and Mutations* permission on the API. With SSO
-connectivity, the caller also needs access to the underlying data source. The
-package uses the delegated `GraphQLApi.Execute.All` scope for interactive users
-and the Fabric audience for service-principal authentication.
+connectivity, the caller also needs access to the underlying data source.
 
 ## Run a first query
 
@@ -128,25 +126,17 @@ products$category[[1]]
 products$tags[[1]]
 ```
 
-JSON whole numbers beyond R's exact double range are decoded as character
-values. The collector preserves those strings. If the same field has smaller R
-integer values on another page, it promotes those smaller values to character
-too; it never converts the large value to an inexact double. Other incompatible
-scalar changes stop with an error so a schema change cannot silently alter the
-analysis.
-
-GraphQL can return data and errors together. The rows remain usable, while the
-combined service errors stay in `attr(products, "errors")` and their count is
-shown when the tibble prints.
+The collector preserves large whole numbers as character values so they are not
+silently rounded. GraphQL can also return data and errors together: usable rows
+remain available, while combined service errors stay in
+`attr(products, "errors")`.
 
 ## Treat incomplete pagination as partial data
 
-`fabric_graphql_paginate()` marks completion only after the cursor callback
-reports that no next page exists. Reaching `max_pages` raises a
-`fabric_graphql_pagination_error` whose `pages` field is marked incomplete. If
-those pages are passed to `fabric_graphql_collect()`, collection raises a
-`fabric_graphql_collection_error` instead of returning an apparently complete
-tibble:
+`fabric_graphql_paginate()` marks a result complete only after the API reports
+that no next page exists. If a page limit is reached first, collection raises
+an error rather than returning an apparently complete tibble. The partial rows
+remain available for explicit recovery:
 
 ```{r, eval = FALSE}
 tryCatch(
@@ -159,10 +149,8 @@ tryCatch(
 )
 ```
 
-Fabric currently defaults each page to 100 items and limits pagination to
-100,000 items. A response is limited to 64 MB, one request to 100 seconds, and
-query nesting to 10 levels. Use smaller pages and stable filtered partitions
-for large results rather than treating a service-limit response as completion.
+For large results, use smaller pages and stable filtered partitions. See the
+Fabric limits documentation before designing a high-volume API workflow.
 
 See Microsoft's documentation for
 [introspection and schema export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export),

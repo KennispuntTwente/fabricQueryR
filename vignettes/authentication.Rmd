@@ -11,6 +11,9 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
+When you want to use 'fabricQueryR' to access Microsoft Fabric,
+you always start with authentication.
+
 Authentication is how Microsoft Fabric confirms *who you are*. Authorization
 is what that person or application is allowed to see and do. You need both:
 signing in successfully does not automatically grant access to a workspace or
@@ -143,14 +146,10 @@ For an initial test, ask a workspace administrator to do one of the following:
 2. share the specific Fabric item with your account and grant any additional
    data permission it needs.
 
-The *Viewer* workspace role is enough to list the workspace and its items, but
-does not itself grant direct OneLake data access. A generic item *Read* grant
-also exposes metadata without granting the underlying OneLake data. For
-example, a semantic model normally needs Read and Build permission. A direct
-Lakehouse read needs an Admin, Member, or Contributor workspace role; item
-*Read* plus *ReadAll*; or, when OneLake security is enabled, item *Read*
-plus membership in a OneLake role that grants *Read* on the target data.
-Detailed workload guidance appears later in this vignette.
+Workspace visibility and data access are not always the same permission. For
+example, a semantic model normally needs Read and Build access, while OneLake
+data can require an additional data permission. If discovery works but a read
+does not, ask the item owner which permission that workload requires.
 
 ## First-login troubleshooting
 
@@ -190,51 +189,23 @@ browser, enter the code, and sign in with the intended account.
 
 'fabricQueryR' uses
 ['AzureAuth'](https://azure.r-universe.dev/AzureAuth/doc/token.html) to sign in
-to Microsoft Entra. Every exported function that needs authentication accepts
-the same four arguments:
+to Microsoft Entra. Most functions accept the same authentication arguments:
 
-- `tenant_id` identifies the organization and defaults to
-  `FABRICQUERYR_TENANT_ID`.
-- `client_id` identifies the application and defaults to
-  `FABRICQUERYR_CLIENT_ID`, then the Azure CLI public client ID.
-- `token` can supply an existing token or token provider. Most interactive
-  users should leave it as `NULL`.
-- `auth_args` customizes how 'AzureAuth' signs in. Most interactive users can
-  leave it as an empty list.
+- `tenant_id` identifies the organization;
+- `client_id` identifies the application;
+- `token` supplies an existing token or token-provider function; and
+- `auth_args` customizes automatic sign-in.
 
-With the defaults, 'AzureAuth' first looks for a matching cached token. If none
-is available, it normally opens a browser or uses device-code login. Later
-calls reuse and refresh the cached token, so signing in is not usually required
-for every query.
+Most interactive users only need the tenant ID. 'AzureAuth' opens a browser or
+uses device-code login, caches the resulting token, and refreshes it when
+needed. 'fabricQueryR' chooses the correct token audience for each Fabric
+service.
 
-See the 'AzureAuth' documentation on
+Leave `token = NULL` for automatic sign-in. When you supply `token`, it becomes
+responsible for authentication and `auth_args` is not used. See
+`?fabric_workspaces` and the 'AzureAuth'
 [authentication scenarios](https://azure.r-universe.dev/AzureAuth/doc/scenarios.html)
-and [caching](https://azure.r-universe.dev/AzureAuth/doc/token.html#caching).
-
-### Authentication arguments and precedence
-
-When `token = NULL`, 'fabricQueryR' asks 'AzureAuth' to obtain the token. The
-package chooses the correct token resource for each Fabric service and supplies
-the tenant, client ID, and Microsoft identity-platform version. Other
-`AzureAuth::get_azure_token()` options can be supplied in `auth_args`.
-
-When `token` is supplied, it takes responsibility for authentication and
-`auth_args` is not used. This avoids accidentally combining two different
-login methods.
-
-### Using your own app registration interactively
-
-A dedicated app registration gives an organization more control over which
-users may sign in and which delegated API permissions they may request. Ask an
-Entra administrator to create or approve one if the default client is blocked.
-
-For browser-based authorization-code login, the app needs a suitable redirect
-URI (normally `http://localhost:1410`) and R needs the 'httpuv' package. For
-device-code login, the app registration needs *Allow public client flows*
-enabled. Your tenant's user/admin consent, Conditional Access, and
-multifactor-authentication policies continue to apply.
-
-Do not create a client secret for ordinary interactive user login.
+for the complete argument details.
 
 ## Choosing an advanced authentication method
 
@@ -247,68 +218,6 @@ using it. Choose one of the options below only when the way R runs requires it.
 | Service principal | Scheduled scripts, CI/CD, or applications with no person present | Client secret or certificate |
 | Managed identity | R running in a supported Azure-hosted environment | Identity managed by Azure |
 | Existing token or provider | An organization with its own token broker or workload-identity system | Supplied by that system |
-
-## Advanced: pass an 'AzureAuth' token
-
-You can acquire a token with 'AzureAuth' and pass the resulting 'R6' object
-directly. 'fabricQueryR' extracts its access token, checks its expiry, and calls
-its `refresh()` method when needed:
-
-```{r, eval = FALSE}
-fabric_token <- AzureAuth::get_azure_token(
-  resource = c(
-    "https://api.fabric.microsoft.com/.default",
-    "offline_access"
-  ),
-  tenant = Sys.getenv("FABRICQUERYR_TENANT_ID"),
-  app = Sys.getenv("FABRICQUERYR_CLIENT_ID"),
-  version = 2
-)
-
-workspaces <- fabric_workspaces(token = fabric_token)
-```
-
-Tokens are resource-specific. Pass a token issued for the resource used by the
-function:
-
-| Operations | Azure AD v2 resource/scope |
-|---|---|
-| Discovery, Fabric REST, and jobs | `https://api.fabric.microsoft.com/.default` |
-| OneLake shortcut Core REST APIs | `https://api.fabric.microsoft.com/.default` |
-| Livy as a delegated user | `https://api.fabric.microsoft.com/Lakehouse.Execute.All`, `Lakehouse.Read.All`, `Code.AccessFabric.All`, and `Code.AccessStorage.All` |
-| Livy as a service principal | `https://analysis.windows.net/powerbi/api/.default` |
-| User data functions as a delegated user | `https://analysis.windows.net/powerbi/api/UserDataFunction.Execute.All` |
-| User data functions as a service principal | `https://analysis.windows.net/powerbi/api/.default` |
-| OneLake files and Delta tables | `https://storage.azure.com/.default` |
-| SQL connections | `https://database.windows.net/.default` |
-| DAX / Power BI Execute Queries | `https://analysis.windows.net/powerbi/api/.default` |
-| KQL | `https://api.kusto.windows.net/.default` |
-| GraphQL as a delegated user | `https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All` |
-| GraphQL as a service principal | `https://api.fabric.microsoft.com/.default` |
-
-Microsoft's current Livy batch documentation is internally inconsistent: it
-includes a service-principal walkthrough while also warning that batch jobs do
-not support service principals. 'fabricQueryR' retains the documented
-client-credential audience, but production batch automation should be verified
-in the target tenant and delegated authentication remains the conservative
-baseline.
-
-For a GraphQL service principal acquired by the package, the Fabric API
-audience is selected automatically:
-
-```{r, eval = FALSE}
-result <- fabric_graphql_query(
-  api,
-  query,
-  auth_args = list(
-    password = Sys.getenv("FABRIC_CLIENT_SECRET"),
-    auth_type = "client_credentials"
-  )
-)
-```
-
-Set `audience = "https://api.fabric.microsoft.com/.default"` explicitly when a
-custom token-provider function obtains the service-principal token.
 
 ## Advanced: authentication for automation
 
@@ -333,85 +242,32 @@ workspaces <- fabric_workspaces(
 )
 ```
 
-When client credentials are selected, the package does not request
-`offline_access`, because application tokens do not use delegated refresh
-tokens. 'AzureAuth' reacquires them with the application credential.
+Keep secrets outside source code and grant the service principal access to the
+Fabric workspace or item. A certificate can replace the client secret when
+your organization requires it.
 
-### Service principal with a certificate
+### Managed identities and custom token providers
 
-Certificate authentication avoids a long-lived client secret:
-
-```{r, eval = FALSE}
-workspaces <- fabric_workspaces(
-  auth_args = list(
-    certificate = Sys.getenv("FABRIC_CLIENT_CERTIFICATE"),
-    auth_type = "client_credentials"
-  )
-)
-```
-
-`certificate` accepts the formats supported by 'AzureAuth', including a
-PEM/PFX file and supported Azure Key Vault certificate objects. Protect the
-certificate and its private key as credentials.
-
-### Managed identity
-
-Where the individual Fabric API supports managed identities, acquire an
-`AzureToken` with `AzureAuth::get_managed_token()` and pass it through `token`:
-
-```{r, eval = FALSE}
-managed_token <- AzureAuth::get_managed_token(
-  "https://api.fabric.microsoft.com"
-)
-workspaces <- fabric_workspaces(token = managed_token)
-```
-
-Managed-identity support is API-specific. Check the *Microsoft Entra supported
-identities* table on the relevant Fabric REST API page. The current Fabric
+Some Fabric APIs support managed identities. Other environments may use
+workload identity federation or an organization-specific token broker. Pass an
+existing token or a token-provider function through `token` for these cases.
+Support is API-specific, so check the relevant Fabric
 [identity-support documentation](https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support)
-explains the tenant switch and this per-API requirement.
-
-### Custom token brokers
-
-For workload identity federation, an external secret store, or another token
-broker, pass a function. It can accept `audience` and `force_refresh`:
-
-```{r, eval = FALSE}
-provider <- function(audience, force_refresh = FALSE) {
-  # Acquire a token for `audience`; bypass your cache when force_refresh is TRUE
-  my_token_broker(audience, refresh = force_refresh)
-}
-
-files <- fabric_onelake_list(
-  "Analytics",
-  "Curated.Lakehouse",
-  token = provider
-)
-```
-
-The callback must return one bearer-token string (or a list containing an
-`access_token` or `token` field). This is also the escape hatch for
-authentication methods not implemented by 'AzureAuth'.
+and `?fabric_workspaces` before choosing this route.
 
 ## Set Fabric permissions by workload
 
-Getting a token proves an identity; it does not grant that identity access to
-Fabric data. The quick-start section described the basic access requirement.
-For production use or troubleshooting a particular function, configure the
-relevant layers below:
+Getting a token proves an identity; it does not grant access to Fabric data.
+For a production workflow, check three layers:
 
-1. For service principals and managed identities, a Fabric administrator
-   normally enables *Service principals can use Fabric APIs* under
-   *Admin portal > Tenant settings > Developer settings*. Scope the setting
-   to a dedicated Entra security group where possible. See
-   [Fabric identity support](https://learn.microsoft.com/en-us/rest/api/fabric/articles/identity-support).
-2. Add the user, service principal, managed identity, or an appropriate group
-   to the workspace, or grant item-level permissions. Fabric
-   [workspace roles](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)
-   are Admin, Member, Contributor, and Viewer. Use the least-privileged role
-   that permits the required operation.
-3. Grant workload-specific data permissions. Workspace visibility and data
-   access are not always the same permission.
+1. the tenant setting allows that identity type to use the API;
+2. the user or application can access the workspace or item; and
+3. the workload-specific data permission allows the requested operation.
+
+Use the least-privileged role that supports the task. Fabric's
+[workspace-role documentation](https://learn.microsoft.com/en-us/fabric/fundamentals/roles-workspaces)
+explains the standard roles; each workload guide lists its additional access
+requirements.
 
 ## Signing out (token cache)
 
