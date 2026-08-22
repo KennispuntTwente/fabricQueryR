@@ -135,7 +135,7 @@
   # Prepare retry state once for reuse in the remaining work
 
   can_retry <- if (is.null(idempotent)) {
-    method <- toupper(req$method %||% "GET")
+    method <- toupper(httr2::req_get_method(req))
     method %in% c("GET", "HEAD", "OPTIONS", "PUT", "DELETE")
   } else {
     isTRUE(idempotent)

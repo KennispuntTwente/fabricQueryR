@@ -87,7 +87,9 @@ conditions.
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated. Requests also check service addresses more
-carefully and give clearer retry, timeout, and error messages.
+carefully and give clearer retry, timeout, and error messages. Retry decisions
+now use httr2's effective request method, so a body-implied POST is not replayed
+unless its caller explicitly marks it idempotent.
 
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse

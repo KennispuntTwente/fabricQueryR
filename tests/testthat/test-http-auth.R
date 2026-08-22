@@ -761,6 +761,28 @@ test_that("POST requests retry only with an explicit idempotency decision", {
   expect_equal(calls, 2L)
 })
 
+test_that("body-implied POST requests are not retried by default", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(500L)
+  })
+  request <- httr2::request("https://example.test/items") |>
+    httr2::req_body_json(list(name = "created-once"))
+
+  expect_null(request$method)
+  expect_identical(httr2::req_get_method(request), "POST")
+  expect_error(
+    .httr2_perform(
+      request,
+      max_tries = 3L,
+      .sleep = function(...) rlang::abort("unexpected retry")
+    ),
+    "HTTP 500"
+  )
+  expect_identical(calls, 1L)
+})
+
 test_that("HTTP errors include diagnostics and redact secrets", {
   httr2::local_mocked_responses(function(req) {
     json_response(
