@@ -12,8 +12,8 @@
 #' Refresh and monitor a Power BI semantic model
 #'
 #' Start a semantic-model refresh, inspect recent refreshes and execution
-#' details, wait for completion, or cancel a refresh. The easiest target is a
-#' record returned by [fabric_semantic_models()]
+#' details, wait for completion, or cancel an enhanced refresh. The easiest
+#' target is a record returned by [fabric_semantic_models()]
 #'
 #' @param connstr Optional semantic-model record from
 #'   [fabric_semantic_models()] or [fabric_item()], or a Power BI connection
@@ -67,9 +67,11 @@
 #' @param error_on_failure Whether failed, timed-out, cancelled, or disabled
 #'   refreshes raise a typed error. Use `FALSE` to inspect the returned detail
 #' @param cancel_on_timeout Whether a client-side wait timeout should request
-#'   cancellation before raising its timeout error
+#'   cancellation before raising its timeout error. Cancellation is available
+#'   only for enhanced refreshes
 #' @param cancel Optional function checked between status updates. If it returns
-#'   `TRUE`, fabricQueryR requests cancellation and stops waiting
+#'   `TRUE`, fabricQueryR requests cancellation and stops waiting. Cancellation
+#'   is available only for enhanced refreshes
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -91,6 +93,12 @@
 #' attempt timeout, but requires a capacity-backed model. Only one refresh can
 #' run for a semantic model at a time
 #'
+#' Standard and service-principal refresh responses can expose the accepted
+#' refresh ID through `RequestId` rather than `x-ms-request-id` or `Location`.
+#' fabricQueryR recognizes either response form. Standard-refresh status and
+#' waiting fall back to refresh history when request-specific execution details
+#' are unavailable. Cancellation is available only for enhanced refreshes
+#'
 #' `Transactional` is the safe commit default. `PartialBatch` can expose a
 #' partially refreshed model after failure and cannot apply an incremental
 #' refresh policy. Each retry receives its own attempt timeout, while Power BI
@@ -101,7 +109,9 @@
 #' `fabric_pbi_refresh_status()` and `fabric_pbi_refresh_wait()` return a
 #' `fabric_pbi_refresh_detail` with `state`, service status fields, UTC times,
 #' processing objects, attempts, engine messages, parsed service errors, a
-#' browser `details_url`, and the untouched response in `raw`
+#' browser `details_url`, and the untouched response in `raw`. When a standard
+#' refresh falls back to history, details are limited to the fields available
+#' there
 #' `fabric_pbi_refresh_history()` returns a list of the same detail records
 #'
 #' Power BI can report a successful refresh with warnings, but Microsoft notes
@@ -111,18 +121,20 @@
 #' refresh-detail page
 #'
 #' @section Permissions and service limits:
-#' Starting and cancelling require `Dataset.ReadWrite.All` and semantic-model
-#' Write permission. History and status accept `Dataset.Read.All` or
-#' `Dataset.ReadWrite.All`, but history callers still need model Write
-#' permission. A service principal may call the APIs when the tenant allows it
-#' and the principal has sufficient workspace/model access; email notification
-#' options do not apply to service-principal requests
+#' Starting any refresh and cancelling an enhanced refresh require
+#' `Dataset.ReadWrite.All` and semantic-model Write permission. History and
+#' status accept
+#' `Dataset.Read.All` or `Dataset.ReadWrite.All`, but history callers still need
+#' model Write permission. A service principal may call the APIs when the tenant
+#' allows it and the principal has sufficient workspace/model access; email
+#' notification options do not apply to service-principal requests
 #'
 #' Shared capacity permits at most eight scheduled and API refresh requests per
 #' day and does not support enhanced refresh. Capacity-backed models have no
-#' fixed API-refresh count but can queue or throttle under load. Cancellation
-#' is supported for Import and Composite models in Premium, PPU, Embedded, or
-#' Fabric capacity and requires Contributor, Member, or Admin workspace access
+#' fixed API-refresh count but can queue or throttle under load.
+#' Enhanced-refresh cancellation is supported for Import and Composite models
+#' in Premium, PPU, Embedded, or Fabric capacity and requires Contributor,
+#' Member, or Admin workspace access
 #'
 #' Direct Lake refresh is a usually short metadata framing operation, not an
 #' import of OneLake data. Automatic Direct Lake updates are enabled by default,
@@ -158,8 +170,12 @@
 #' result$state
 #' result$details_url
 #'
-#' # An active refresh can instead be cancelled when it is no longer needed
-#' refresh_to_cancel <- fabric_pbi_refresh(model)
+#' # An active enhanced refresh can be cancelled when it is no longer needed
+#' refresh_to_cancel <- fabric_pbi_refresh(
+#'   model,
+#'   mode = "enhanced",
+#'   type = "Full"
+#' )
 #' fabric_pbi_refresh_cancel(refresh_to_cancel)
 #'
 #' # Choose a table shown in the model, then refresh only that table
@@ -319,46 +335,13 @@ fabric_pbi_refresh_history <- function(
 
   # Power BI returns a bounded history collection rather than paginated continuation links
 
-  request <- httr2::request(.pbi_refresh_collection_url(api_base, target))
-  if (!is.null(top)) {
-    request <- httr2::req_url_query(request, `$top` = top)
-  }
-  response <- .pbi_refresh_request(
-    "GET",
-    request$url,
+  values <- .pbi_refresh_history_values(
+    api_base,
+    target,
     credential,
-    idempotent = TRUE
+    top = top
   )
-  values <- response$body$value %||% list()
-  details <- lapply(values, function(value) {
-    refresh_id <- value$requestId
-    if (
-      !is.character(refresh_id) ||
-        length(refresh_id) != 1L ||
-        !fabric_is_guid(refresh_id)
-    ) {
-      .fabric_abort(
-        "Power BI returned refresh history without a valid requestId",
-        class = c(
-          "fabric_pbi_refresh_protocol_error",
-          "fabric_pbi_refresh_error"
-        )
-      )
-    }
-    handle <- .pbi_refresh_handle(
-      refresh_id = refresh_id,
-      target = target,
-      credential = credential,
-      api_base = api_base,
-      mode = if (identical(value$refreshType, "ViaEnhancedApi")) {
-        "enhanced"
-      } else {
-        "standard"
-      }
-    )
-    .pbi_refresh_detail(value, handle, status_code = 200L, history = TRUE)
-  })
-  structure(details, class = c("fabric_pbi_refresh_history", "list"))
+  .pbi_refresh_history_details(values, target, credential, api_base)
 }
 
 #' @rdname fabric_pbi_refresh
@@ -560,7 +543,19 @@ fabric_pbi_refresh_wait <- function(
       next
     }
 
-    last <- .pbi_refresh_get_status(context)
+    last <- tryCatch(
+      .pbi_refresh_get_status(context),
+      fabric_pbi_refresh_not_found = function(cnd) {
+        if (!identical(context$refresh$mode, "standard")) {
+          rlang::cnd_signal(cnd)
+        }
+        NULL
+      }
+    )
+    if (is.null(last)) {
+      retry_after <- NULL
+      next
+    }
     retry_after <- last$retry_after
     .fabric_poll_progress_update(progress, last$state)
     if (last$state %in% .fabric_pbi_refresh_active_states) {
@@ -1061,7 +1056,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   list(
     status_code = status,
     location = httr2::resp_header(response, "location"),
-    request_id = httr2::resp_header(response, "x-ms-request-id"),
+    request_id = httr2::resp_header(response, "x-ms-request-id") %||%
+      httr2::resp_header(response, "requestid"),
     retry_after = .httr2_retry_after(response),
     body = if (nzchar(text)) {
       httr2::resp_body_json(response, simplifyVector = FALSE)
@@ -1106,6 +1102,75 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     )
   }
   refresh_id
+}
+
+# Read raw refresh-history values with an optional service-side row limit
+.pbi_refresh_history_values <- function(
+  api_base,
+  target,
+  credential,
+  top = NULL
+) {
+  request <- httr2::request(.pbi_refresh_collection_url(api_base, target))
+  if (!is.null(top)) {
+    request <- httr2::req_url_query(request, `$top` = top)
+  }
+  response <- .pbi_refresh_request(
+    "GET",
+    request$url,
+    credential,
+    idempotent = TRUE
+  )
+  response$body$value %||% list()
+}
+
+# Validate one request ID from the refresh-history collection
+.pbi_refresh_history_id <- function(value) {
+  refresh_id <- value$requestId
+  if (
+    !is.character(refresh_id) ||
+      length(refresh_id) != 1L ||
+      !fabric_is_guid(refresh_id)
+  ) {
+    .fabric_abort(
+      "Power BI returned refresh history without a valid requestId",
+      class = c(
+        "fabric_pbi_refresh_protocol_error",
+        "fabric_pbi_refresh_error"
+      )
+    )
+  }
+  refresh_id
+}
+
+# Validate and collect request IDs from refresh-history values
+.pbi_refresh_history_ids <- function(values) {
+  vapply(values, .pbi_refresh_history_id, character(1))
+}
+
+# Normalize raw refresh-history values into the public list contract
+.pbi_refresh_history_details <- function(
+  values,
+  target,
+  credential,
+  api_base
+) {
+  details <- lapply(values, function(value) {
+    refresh_id <- .pbi_refresh_history_id(value)
+    handle <- .pbi_refresh_handle(
+      refresh_id = refresh_id,
+      target = target,
+      credential = credential,
+      api_base = api_base,
+      mode = if (identical(value$refreshType, "ViaEnhancedApi")) {
+        "enhanced"
+      } else {
+        "standard"
+      }
+    )
+    .pbi_refresh_detail(value, handle, status_code = 200L, history = TRUE)
+  })
+  structure(details, class = c("fabric_pbi_refresh_history", "list"))
 }
 
 # Create a reusable, serialization-safe refresh handle
@@ -1180,22 +1245,65 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 
 # Read one status response and convert it to the public detail contract
 .pbi_refresh_get_status <- function(context) {
-  response <- .pbi_refresh_request(
-    "GET",
-    .pbi_refresh_item_url(context$api_base, context$target, context$id),
-    context$credential,
-    idempotent = TRUE
+  standard <- identical(context$refresh$mode, "standard")
+  response <- tryCatch(
+    .pbi_refresh_request(
+      "GET",
+      .pbi_refresh_item_url(context$api_base, context$target, context$id),
+      context$credential,
+      idempotent = TRUE
+    ),
+    fabric_http_error = function(cnd) {
+      if (standard && isTRUE(cnd$status %in% c(400L, 404L))) {
+        return(NULL)
+      }
+      rlang::cnd_signal(cnd)
+    }
   )
+  if (!is.null(response)) {
+    return(.pbi_refresh_detail(
+      response$body,
+      context$refresh,
+      status_code = response$status_code,
+      retry_after = response$retry_after
+    ))
+  }
+
+  values <- .pbi_refresh_history_values(
+    context$api_base,
+    context$target,
+    context$credential
+  )
+  ids <- .pbi_refresh_history_ids(values)
+  index <- match(tolower(context$id), tolower(ids))
+  if (is.na(index)) {
+    .fabric_abort(
+      sprintf(
+        "Power BI refresh %s is not available in refresh history",
+        context$id
+      ),
+      class = c("fabric_pbi_refresh_not_found", "fabric_pbi_refresh_error")
+    )
+  }
   .pbi_refresh_detail(
-    response$body,
+    values[[index]],
     context$refresh,
-    status_code = response$status_code,
-    retry_after = response$retry_after
+    status_code = 200L,
+    history = TRUE
   )
 }
 
 # Send cancellation using an already-resolved refresh context
 .pbi_refresh_cancel_context <- function(context) {
+  if (identical(context$refresh$mode, "standard")) {
+    .fabric_abort(
+      "Standard Power BI refreshes cannot be cancelled",
+      class = c(
+        "fabric_pbi_refresh_unsupported_operation",
+        "fabric_pbi_refresh_error"
+      )
+    )
+  }
   .pbi_refresh_request(
     "DELETE",
     .pbi_refresh_item_url(context$api_base, context$target, context$id),

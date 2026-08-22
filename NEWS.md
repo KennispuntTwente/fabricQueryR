@@ -59,7 +59,9 @@ documented connection, location, and type-specific fields locally.
 
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes, including refreshes limited
-to selected tables or partitions.
+to selected tables or partitions. Standard refresh status falls back to
+refresh history when request-specific details are unavailable; cancellation
+remains available only for enhanced refreshes.
 
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item

@@ -1,33 +1,21 @@
-test_that("standard refresh submission returns a reusable handle", {
-  call <- NULL
+test_that("service-principal standard refresh uses the RequestId header", {
+  requests <- list()
   local_mocked_bindings(
-    .pbi_refresh_request = function(
-      method,
-      url,
-      credential,
-      payload = NULL,
-      idempotent = NULL
-    ) {
-      call <<- list(
-        method = method,
-        url = url,
-        credential = credential,
-        payload = payload,
-        idempotent = idempotent
-      )
-      list(
+    .httr2_perform = function(req, ...) {
+      requests[[length(requests) + 1L]] <<- list(req = req, args = list(...))
+      httr2::new_response(
+        method = req$method,
+        url = req$url,
         status_code = 202L,
-        location = paste0(url, "/", pbi_refresh_id),
-        request_id = pbi_refresh_id,
-        retry_after = 7,
-        body = list()
+        headers = list(RequestId = pbi_refresh_id, `Retry-After` = "7"),
+        body = charToRaw("")
       )
     }
   )
 
   refresh <- fabric_pbi_refresh(
     pbi_refresh_test_model(),
-    notify_option = "mailonfailure",
+    notify_option = NULL,
     token = "test-token",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
@@ -38,10 +26,12 @@ test_that("standard refresh submission returns a reusable handle", {
   expect_identical(refresh$workspace_id, pbi_refresh_workspace_id)
   expect_identical(refresh$dataset_id, pbi_refresh_dataset_id)
   expect_identical(refresh$retry_after, 7)
-  expect_identical(call$method, "POST")
-  expect_false(call$idempotent)
+  expect_length(requests, 1L)
+  submission <- requests[[1L]]
+  expect_identical(submission$req$method, "POST")
+  expect_false(submission$args$idempotent)
   expect_match(
-    call$url,
+    submission$req$url,
     paste0(
       "/groups/",
       pbi_refresh_workspace_id,
@@ -51,8 +41,8 @@ test_that("standard refresh submission returns a reusable handle", {
     ),
     fixed = TRUE
   )
-  expect_equal(call$payload, list(notifyOption = "MailOnFailure"))
-  expect_s3_class(call$credential, "fabric_credential")
+  expect_identical(submission$req$body$type, "raw")
+  expect_length(submission$req$body$data, 0L)
 })
 
 test_that("standard refresh defaults follow the known authentication flow", {
@@ -361,24 +351,29 @@ test_that("request encoding preserves arrays and sends empty standard bodies", {
   local_mocked_bindings(
     .httr2_perform = function(req, ...) {
       requests[[length(requests) + 1L]] <<- list(req = req, args = list(...))
+      response_headers <- if (length(requests) == 1L) {
+        list(RequestId = pbi_refresh_id)
+      } else {
+        list(`x-ms-request-id` = pbi_refresh_id)
+      }
       httr2::new_response(
         method = req$method,
         url = req$url,
         status_code = 202L,
-        headers = list(`x-ms-request-id` = pbi_refresh_id),
+        headers = response_headers,
         body = charToRaw("")
       )
     }
   )
 
-  .pbi_refresh_request(
+  response <- .pbi_refresh_request(
     "POST",
     "https://powerbi.test/v1.0/myorg/refreshes",
     fabric_credential(token = "test-token"),
     payload = list(objects = list(list(table = "Facts"))),
     idempotent = FALSE
   )
-  .pbi_refresh_request(
+  empty_response <- .pbi_refresh_request(
     "POST",
     "https://powerbi.test/v1.0/myorg/refreshes",
     fabric_credential(token = "test-token"),
@@ -395,6 +390,8 @@ test_that("request encoding preserves arrays and sends empty standard bodies", {
   expect_match(encoded, '"objects":\\[\\{"table":"Facts"\\}\\]')
   expect_false(first$args$idempotent)
   expect_identical(first$args$audience, .fabric_audience$power_bi)
+  expect_identical(response$request_id, pbi_refresh_id)
+  expect_identical(empty_response$request_id, pbi_refresh_id)
   expect_identical(requests[[2L]]$req$body$type, "raw")
   expect_length(requests[[2L]]$req$body$data, 0L)
 })
@@ -561,6 +558,139 @@ test_that("status accepts handles and raw request IDs", {
     ),
     "cannot be combined"
   )
+})
+
+test_that("standard refresh uses request details when they are available", {
+  call <- NULL
+  local_mocked_bindings(
+    .pbi_refresh_request = function(method, url, credential, ...) {
+      call <<- list(method = method, url = url, args = list(...))
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(status = "Completed", initiatedBy = "OnDemand")
+      )
+    }
+  )
+
+  detail <- fabric_pbi_refresh_status(
+    pbi_refresh_test_handle(mode = "standard"),
+    .sleep = function(seconds) NULL
+  )
+
+  expect_identical(detail$state, "Completed")
+  expect_identical(detail$refresh_type, "OnDemand")
+  expect_identical(call$method, "GET")
+  expect_true(call$args$idempotent)
+  expect_match(call$url, paste0("/refreshes/", pbi_refresh_id), fixed = TRUE)
+})
+
+test_that("unsupported standard details fall back to collection history", {
+  calls <- list()
+  local_mocked_bindings(
+    .pbi_refresh_request = function(method, url, credential, ...) {
+      calls[[length(calls) + 1L]] <<- url
+      if (grepl(paste0("/refreshes/", pbi_refresh_id), url, fixed = TRUE)) {
+        .fabric_abort(
+          "Request-specific details are unavailable",
+          class = "fabric_http_error",
+          status = 404L
+        )
+      }
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(
+          value = list(list(
+            requestId = pbi_refresh_id,
+            refreshType = "ViaApi",
+            status = "Unknown"
+          ))
+        )
+      )
+    }
+  )
+
+  detail <- fabric_pbi_refresh_status(
+    pbi_refresh_test_handle(mode = "standard"),
+    .sleep = function(seconds) NULL
+  )
+
+  expect_identical(detail$state, "InProgress")
+  expect_identical(detail$refresh_type, "ViaApi")
+  expect_length(calls, 2L)
+  expect_match(calls[[1L]], paste0("/refreshes/", pbi_refresh_id), fixed = TRUE)
+  expect_match(calls[[2L]], "/refreshes$", perl = TRUE)
+})
+
+test_that("standard detail fallback preserves transport errors", {
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      .fabric_abort(
+        "The status request lost its connection",
+        class = c("fabric_http_transport_error", "fabric_http_error")
+      )
+    }
+  )
+
+  condition <- rlang::catch_cnd(fabric_pbi_refresh_status(
+    pbi_refresh_test_handle(mode = "standard"),
+    .sleep = function(seconds) NULL
+  ))
+
+  expect_s3_class(condition, "fabric_http_transport_error")
+  expect_match(conditionMessage(condition), "lost its connection", fixed = TRUE)
+})
+
+test_that("standard refresh wait retries missing history until completion", {
+  item_calls <- 0L
+  history_calls <- 0L
+  now <- as.POSIXct("2026-08-13 08:00:00", tz = "UTC")
+  local_mocked_bindings(
+    .pbi_refresh_request = function(method, url, credential, ...) {
+      if (grepl(paste0("/refreshes/", pbi_refresh_id), url, fixed = TRUE)) {
+        item_calls <<- item_calls + 1L
+        .fabric_abort(
+          "Request-specific details are unavailable",
+          class = "fabric_http_error",
+          status = 404L
+        )
+      }
+      history_calls <<- history_calls + 1L
+      value <- if (history_calls == 1L) {
+        list()
+      } else {
+        list(list(
+          requestId = pbi_refresh_id,
+          refreshType = "ViaApi",
+          status = if (history_calls == 2L) "Unknown" else "Completed"
+        ))
+      }
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(value = value)
+      )
+    }
+  )
+
+  detail <- fabric_pbi_refresh_wait(
+    pbi_refresh_test_handle(mode = "standard"),
+    poll_interval = 0,
+    timeout = 1,
+    .sleep = function(seconds) now <<- now + seconds,
+    .now = function() now
+  )
+
+  expect_identical(detail$state, "Completed")
+  expect_identical(item_calls, 3L)
+  expect_identical(history_calls, 3L)
 })
 
 test_that("wait observes active attempts and returns completion", {
@@ -783,6 +913,23 @@ test_that("cancel uses the request-specific DELETE route", {
   expect_identical(call$method, "DELETE")
   expect_true(call$args$idempotent)
   expect_match(call$url, paste0("/refreshes/", pbi_refresh_id), fixed = TRUE)
+})
+
+test_that("standard refresh cancellation fails before an HTTP request", {
+  requested <- FALSE
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      requested <<- TRUE
+    }
+  )
+
+  condition <- rlang::catch_cnd(fabric_pbi_refresh_cancel(
+    pbi_refresh_test_handle(mode = "standard")
+  ))
+
+  expect_s3_class(condition, "fabric_pbi_refresh_unsupported_operation")
+  expect_match(conditionMessage(condition), "cannot be cancelled", fixed = TRUE)
+  expect_identical(requested, FALSE)
 })
 
 test_that("connection strings resolve through the existing DAX target lookup", {

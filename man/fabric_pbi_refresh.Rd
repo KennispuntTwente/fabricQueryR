@@ -184,10 +184,12 @@ service retry hint and otherwise checks every two seconds}
 refreshes raise a typed error. Use \code{FALSE} to inspect the returned detail}
 
 \item{cancel_on_timeout}{Whether a client-side wait timeout should request
-cancellation before raising its timeout error}
+cancellation before raising its timeout error. Cancellation is available
+only for enhanced refreshes}
 
 \item{cancel}{Optional function checked between status updates. If it returns
-\code{TRUE}, fabricQueryR requests cancellation and stops waiting}
+\code{TRUE}, fabricQueryR requests cancellation and stops waiting. Cancellation
+is available only for enhanced refreshes}
 }
 \value{
 \code{fabric_pbi_refresh()} returns a \code{fabric_pbi_refresh} handle
@@ -196,8 +198,8 @@ Status and wait return a \code{fabric_pbi_refresh_detail}; history returns a
 }
 \description{
 Start a semantic-model refresh, inspect recent refreshes and execution
-details, wait for completion, or cancel a refresh. The easiest target is a
-record returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}
+details, wait for completion, or cancel an enhanced refresh. The easiest
+target is a record returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}
 }
 \section{Standard and enhanced refresh}{
 
@@ -207,6 +209,12 @@ enhanced refresh is selected when any processing option is supplied. It can
 target tables or partitions, retry, change commit behavior, and set an
 attempt timeout, but requires a capacity-backed model. Only one refresh can
 run for a semantic model at a time
+
+Standard and service-principal refresh responses can expose the accepted
+refresh ID through \code{RequestId} rather than \code{x-ms-request-id} or \code{Location}.
+fabricQueryR recognizes either response form. Standard-refresh status and
+waiting fall back to refresh history when request-specific execution details
+are unavailable. Cancellation is available only for enhanced refreshes
 
 \code{Transactional} is the safe commit default. \code{PartialBatch} can expose a
 partially refreshed model after failure and cannot apply an incremental
@@ -220,7 +228,9 @@ limits the entire refresh including retries to 24 hours
 \code{fabric_pbi_refresh_status()} and \code{fabric_pbi_refresh_wait()} return a
 \code{fabric_pbi_refresh_detail} with \code{state}, service status fields, UTC times,
 processing objects, attempts, engine messages, parsed service errors, a
-browser \code{details_url}, and the untouched response in \code{raw}
+browser \code{details_url}, and the untouched response in \code{raw}. When a standard
+refresh falls back to history, details are limited to the fields available
+there
 \code{fabric_pbi_refresh_history()} returns a list of the same detail records
 
 Power BI can report a successful refresh with warnings, but Microsoft notes
@@ -232,18 +242,20 @@ refresh-detail page
 
 \section{Permissions and service limits}{
 
-Starting and cancelling require \code{Dataset.ReadWrite.All} and semantic-model
-Write permission. History and status accept \code{Dataset.Read.All} or
-\code{Dataset.ReadWrite.All}, but history callers still need model Write
-permission. A service principal may call the APIs when the tenant allows it
-and the principal has sufficient workspace/model access; email notification
-options do not apply to service-principal requests
+Starting any refresh and cancelling an enhanced refresh require
+\code{Dataset.ReadWrite.All} and semantic-model Write permission. History and
+status accept
+\code{Dataset.Read.All} or \code{Dataset.ReadWrite.All}, but history callers still need
+model Write permission. A service principal may call the APIs when the tenant
+allows it and the principal has sufficient workspace/model access; email
+notification options do not apply to service-principal requests
 
 Shared capacity permits at most eight scheduled and API refresh requests per
 day and does not support enhanced refresh. Capacity-backed models have no
-fixed API-refresh count but can queue or throttle under load. Cancellation
-is supported for Import and Composite models in Premium, PPU, Embedded, or
-Fabric capacity and requires Contributor, Member, or Admin workspace access
+fixed API-refresh count but can queue or throttle under load.
+Enhanced-refresh cancellation is supported for Import and Composite models
+in Premium, PPU, Embedded, or Fabric capacity and requires Contributor,
+Member, or Admin workspace access
 
 Direct Lake refresh is a usually short metadata framing operation, not an
 import of OneLake data. Automatic Direct Lake updates are enabled by default,
@@ -265,8 +277,12 @@ result <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
 result$state
 result$details_url
 
-# An active refresh can instead be cancelled when it is no longer needed
-refresh_to_cancel <- fabric_pbi_refresh(model)
+# An active enhanced refresh can be cancelled when it is no longer needed
+refresh_to_cancel <- fabric_pbi_refresh(
+  model,
+  mode = "enhanced",
+  type = "Full"
+)
 fabric_pbi_refresh_cancel(refresh_to_cancel)
 
 # Choose a table shown in the model, then refresh only that table
