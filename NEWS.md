@@ -112,7 +112,8 @@ results, including through discovered workspace-private OneLake endpoints.
 Unshredded Variant tables can now be queried when `columns` excludes all
 Variant-containing fields; decoded Variant values and shredded Variant remain
 unsupported. The `dest_dir` argument has been removed; tables using unsupported
-Delta features should be read through SQL or Spark instead.
+Delta features should be read through SQL or Spark instead. Variant preflight
+uses the current delta-rs schema serialization API.
 
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.

@@ -829,7 +829,7 @@ fabric_delta_check_protocol <- function(
 # Return top-level fields whose Delta type contains Variant. The Python schema
 # supplies its canonical Delta JSON, so no physical Parquet fields are exposed.
 fabric_delta_variant_columns <- function(schema) {
-  schema_json <- reticulate::py_to_r(schema$json())
+  schema_json <- reticulate::py_to_r(schema$to_json())
   decoded <- try(
     jsonlite::fromJSON(schema_json, simplifyVector = FALSE),
     silent = TRUE

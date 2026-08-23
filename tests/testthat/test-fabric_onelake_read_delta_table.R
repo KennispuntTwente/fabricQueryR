@@ -637,7 +637,7 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   )
   expect_match(conditionMessage(unsupported), "Fabric PySpark notebook")
 
-  schema <- list(json = function() {
+  schema <- list(to_json = function() {
     jsonlite::toJSON(
       list(
         type = "struct",
@@ -705,8 +705,22 @@ test_that("Delta protocol preflight rejects unsupported reader features", {
   )
 })
 
+test_that("Variant schema uses delta-rs string serialization", {
+  schema <- list(
+    json = \() list(type = "struct", fields = list()),
+    to_json = function() {
+      paste0(
+        '{"type":"struct","fields":[',
+        '{"name":"payload","type":"variant"}]}'
+      )
+    }
+  )
+
+  expect_identical(fabric_delta_variant_columns(schema), "payload")
+})
+
 test_that("unshredded Variant permits only non-Variant projections", {
-  schema <- list(json = function() {
+  schema <- list(to_json = function() {
     jsonlite::toJSON(
       list(
         type = "struct",
