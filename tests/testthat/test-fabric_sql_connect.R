@@ -384,7 +384,7 @@ test_that("SQL timeouts are not constrained by the TCP port range", {
 test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
   captured <- NULL
   connection <- structure(list(), class = "test_connection")
-  token <- "token+/ with=?&reserved"
+  token <- "token+/with=?&reserved"
   local_mocked_bindings(
     fabric_sql_load_adbc_driver = function(...) "mssql",
     .fabric_sql_db_connect = function(...) {
@@ -664,9 +664,11 @@ test_that("ADBC parameter translation ignores SQL literals and comments", {
 
 test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
   connection <- structure(list(), class = "test_connection")
-  fake_stream <- structure(list(id = 1L), class = "nanoarrow_array_stream")
+  fake_stream <- nanoarrow::basic_array_stream(list(data.frame(id = 1L)))
+  query_result <- structure(list(), class = "test_result")
   connect_args <- NULL
   query_args <- NULL
+  cleared <- FALSE
   disconnected <- FALSE
   disconnect_force <- NULL
   local_mocked_bindings(
@@ -686,7 +688,12 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
         params = params,
         result = result
       )
-      fake_stream
+      .fabric_sql_own_arrow_stream(fake_stream, query_result, con)
+    },
+    .fabric_sql_db_clear_result = function(result) {
+      expect_identical(result, query_result)
+      cleared <<- TRUE
+      invisible(TRUE)
     },
     .fabric_sql_db_disconnect = function(con, force = FALSE) {
       disconnected <<- TRUE
@@ -705,14 +712,20 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
     verbose = FALSE
   )
 
-  expect_identical(result, fake_stream)
+  expect_s3_class(result, "nanoarrow_array_stream")
   expect_equal(connect_args$backend, "adbc")
   expect_equal(connect_args$adbc_driver, "mssql")
   expect_equal(query_args$sql, "SELECT @p1 AS value, '?' AS literal")
   expect_identical(query_args$params, list("@p1" = 42L))
   expect_equal(query_args$result, "arrow_stream")
+  expect_false(cleared)
+  expect_false(disconnected)
+
+  nanoarrow::nanoarrow_pointer_release(result)
+  gc()
+  expect_true(cleared)
   expect_true(disconnected)
-  expect_false(disconnect_force)
+  expect_true(disconnect_force)
 })
 
 test_that("ADBC bind frames preserve SQL Server placeholder names", {
@@ -780,10 +793,10 @@ test_that("ADBC bind failures clear the result before disconnecting", {
   expect_true(cleared)
 })
 
-test_that("ADBC bound Arrow queries fetch before clearing their result", {
+test_that("ADBC bound Arrow queries own their result until release", {
   connection <- structure(list(), class = "AdbiConnection")
   query_result <- structure(list(), class = "test_result")
-  stream <- structure(list(), class = "nanoarrow_array_stream")
+  stream <- nanoarrow::basic_array_stream(list(data.frame(value = 42L)))
   events <- character()
   params <- list("@p1" = 42L)
   local_mocked_bindings(
@@ -810,6 +823,12 @@ test_that("ADBC bound Arrow queries fetch before clearing their result", {
       expect_identical(result, query_result)
       events <<- c(events, "clear")
       invisible(TRUE)
+    },
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
+      expect_identical(con, connection)
+      expect_true(force)
+      events <<- c(events, "disconnect")
+      invisible(TRUE)
     }
   )
 
@@ -820,14 +839,21 @@ test_that("ADBC bound Arrow queries fetch before clearing their result", {
     result = "arrow_stream"
   )
 
-  expect_identical(result, stream)
-  expect_identical(events, c("send", "bind", "fetch", "clear"))
+  expect_s3_class(result, "nanoarrow_array_stream")
+  expect_identical(events, c("send", "bind", "fetch"))
+
+  nanoarrow::nanoarrow_pointer_release(result)
+  gc()
+  expect_identical(events, c("send", "bind", "fetch", "clear", "disconnect"))
+  nanoarrow::nanoarrow_pointer_release(result)
+  gc()
+  expect_identical(events, c("send", "bind", "fetch", "clear", "disconnect"))
 })
 
-test_that("ODBC bound Arrow queries bind outside dbGetQueryArrow", {
+test_that("ODBC bound Arrow queries own their result until release", {
   connection <- structure(list(), class = "OdbcConnection")
   query_result <- structure(list(), class = "test_result")
-  stream <- structure(list(), class = "nanoarrow_array_stream")
+  stream <- nanoarrow::basic_array_stream(list(data.frame(value = 42L)))
   events <- character()
   params <- list(42L)
   local_mocked_bindings(
@@ -854,6 +880,12 @@ test_that("ODBC bound Arrow queries bind outside dbGetQueryArrow", {
       expect_identical(result, query_result)
       events <<- c(events, "clear")
       invisible(TRUE)
+    },
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
+      expect_identical(con, connection)
+      expect_true(force)
+      events <<- c(events, "disconnect")
+      invisible(TRUE)
     }
   )
 
@@ -864,20 +896,88 @@ test_that("ODBC bound Arrow queries bind outside dbGetQueryArrow", {
     result = "arrow_stream"
   )
 
-  expect_identical(result, stream)
-  expect_identical(events, c("send", "bind", "fetch", "clear"))
+  expect_s3_class(result, "nanoarrow_array_stream")
+  expect_identical(events, c("send", "bind", "fetch"))
+
+  nanoarrow::nanoarrow_pointer_release(result)
+  gc()
+  expect_identical(events, c("send", "bind", "fetch", "clear", "disconnect"))
+})
+
+test_that("unbound Arrow queries use an owned DBI result", {
+  connection <- structure(list(), class = "OdbcConnection")
+  query_result <- structure(list(), class = "test_result")
+  stream <- nanoarrow::basic_array_stream(list(data.frame(value = 1L)))
+  events <- character()
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(con, sql, result) {
+      expect_identical(con, connection)
+      expect_identical(sql, "SELECT 1 AS value")
+      expect_identical(result, "arrow_stream")
+      events <<- c(events, "send")
+      query_result
+    },
+    .fabric_sql_db_bind = function(...) {
+      rlang::abort("an unbound query must not bind")
+    },
+    .fabric_sql_db_fetch = function(result, shape) {
+      expect_identical(result, query_result)
+      expect_identical(shape, "arrow_stream")
+      events <<- c(events, "fetch")
+      stream
+    },
+    .fabric_sql_db_clear_result = function(result) {
+      expect_identical(result, query_result)
+      events <<- c(events, "clear")
+      invisible(TRUE)
+    },
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
+      expect_identical(con, connection)
+      expect_true(force)
+      events <<- c(events, "disconnect")
+      invisible(TRUE)
+    }
+  )
+
+  result <- .fabric_sql_db_get_query(
+    connection,
+    "SELECT 1 AS value",
+    result = "arrow_stream"
+  )
+
+  expect_s3_class(result, "nanoarrow_array_stream")
+  expect_identical(events, c("send", "fetch"))
+
+  nanoarrow::nanoarrow_pointer_release(result)
+  gc()
+  expect_identical(events, c("send", "fetch", "clear", "disconnect"))
 })
 
 test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {
   skip_if_not_installed("arrow")
   connection <- structure(list(), class = "test_connection")
+  query_result <- structure(list(), class = "test_result")
   stream <- nanoarrow::basic_array_stream(
     list(data.frame(id = 1:2, value = c("a", "b")))
   )
+  cleared <- 0L
+  disconnected <- 0L
   local_mocked_bindings(
     fabric_sql_connect = function(...) connection,
-    .fabric_sql_db_get_query = function(...) stream,
-    .fabric_sql_db_disconnect = function(...) invisible(TRUE)
+    .fabric_sql_db_get_query = function(...) {
+      .fabric_sql_own_arrow_stream(stream, query_result, connection)
+    },
+    .fabric_sql_db_clear_result = function(result) {
+      expect_identical(result, query_result)
+      cleared <<- cleared + 1L
+      invisible(TRUE)
+    },
+    .fabric_sql_db_disconnect = function(con, force = FALSE) {
+      expect_identical(con, connection)
+      expect_true(force)
+      disconnected <<- disconnected + 1L
+      invisible(TRUE)
+    }
   )
 
   result <- fabric_sql_query(
@@ -888,13 +988,21 @@ test_that("Arrow streams convert directly to arrow RecordBatchReader objects", {
     verbose = FALSE
   )
   reader <- arrow::as_record_batch_reader(result)
-  table <- reader$read_table()
+  rm(result)
+  gc()
+  expect_identical(cleared, 0L)
+  expect_identical(disconnected, 0L)
 
-  expect_s3_class(reader, "RecordBatchReader")
+  table <- reader$read_table()
+  rm(reader)
+  gc()
+
   expect_equal(
     as.data.frame(table),
     data.frame(id = 1:2, value = c("a", "b"))
   )
+  expect_identical(cleared, 1L)
+  expect_identical(disconnected, 1L)
 })
 
 test_that("failed Arrow queries force connection cleanup", {

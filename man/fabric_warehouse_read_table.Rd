@@ -45,7 +45,10 @@ supply its schema when this argument is omitted.}
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
 batches. The 'adbi' driver may fetch the complete result before returning
-the stream, so this option does not guarantee bounded-memory retrieval}
+the stream, so this option does not guarantee bounded-memory retrieval.
+An Arrow stream owns its DBI result and connection until the stream is
+released; consume it promptly or release it explicitly with
+\code{\link[nanoarrow:nanoarrow_pointer_release]{nanoarrow::nanoarrow_pointer_release()}}}
 
 \item{backend}{SQL connection backend, \code{"odbc"} or \code{"adbc"}.}
 

@@ -132,7 +132,8 @@ default `database = NULL` infers the database when possible;
 `fabric_sql_query()` is limited to one read-only statement, so use
 `fabric_sql_connect()` for other SQL work. View discovery reads definitions
 from `sys.sql_modules` so definitions longer than 4,000 characters are not
-silently truncated.
+silently truncated. Lazy Arrow query streams now retain their DBI result and
+connection until the stream is released.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete

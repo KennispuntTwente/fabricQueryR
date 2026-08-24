@@ -51,7 +51,10 @@ correctly than building a query with \code{paste()}}
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
 batches. The 'adbi' driver may fetch the complete result before returning
-the stream, so this option does not guarantee bounded-memory retrieval}
+the stream, so this option does not guarantee bounded-memory retrieval.
+An Arrow stream owns its DBI result and connection until the stream is
+released; consume it promptly or release it explicitly with
+\code{\link[nanoarrow:nanoarrow_pointer_release]{nanoarrow::nanoarrow_pointer_release()}}}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database

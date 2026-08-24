@@ -481,7 +481,10 @@ fabric_sql_connect <- function(
 #' @param result Return a `"tibble"` for ordinary R analysis, or a single-use
 #'   `"arrow_stream"` to avoid data-frame conversion and retain Arrow-native
 #'   batches. The 'adbi' driver may fetch the complete result before returning
-#'   the stream, so this option does not guarantee bounded-memory retrieval
+#'   the stream, so this option does not guarantee bounded-memory retrieval.
+#'   An Arrow stream owns its DBI result and connection until the stream is
+#'   released; consume it promptly or release it explicitly with
+#'   [nanoarrow::nanoarrow_pointer_release()]
 #' @param idempotent Logical. Set to `TRUE` only if running the entire statement
 #'   a second time has no unwanted effect (usually a plain `SELECT`). This
 #'   permits a retry when it is unclear whether Fabric executed the first
@@ -676,11 +679,11 @@ fabric_sql_query <- function(
       },
       error = function(error) list(value = NULL, error = error),
       finally = {
-        if (!is.null(con)) {
+        if (!is.null(con) && !preserve_stream) {
           try(
             .fabric_sql_db_disconnect(
               con,
-              force = !preserve_stream
+              force = TRUE
             ),
             silent = TRUE
           )
@@ -1582,20 +1585,59 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   result = c("tibble", "arrow_stream")
 ) {
   result <- match.arg(result)
-  if (
-    !is.null(params) &&
-      (inherits(con, "AdbiConnection") || identical(result, "arrow_stream"))
-  ) {
+  if (identical(result, "arrow_stream")) {
     query_result <- .fabric_sql_db_send_query(con, sql, result)
-    on.exit(.fabric_sql_db_clear_result(query_result), add = TRUE)
+    stream_owned <- FALSE
+    on.exit(
+      if (!stream_owned) {
+        try(.fabric_sql_db_clear_result(query_result), silent = TRUE)
+      },
+      add = TRUE
+    )
+    if (!is.null(params)) {
+      .fabric_sql_db_bind(query_result, params)
+    }
+    stream <- .fabric_sql_db_fetch(query_result, result)
+    stream <- .fabric_sql_own_arrow_stream(stream, query_result, con)
+    stream_owned <- TRUE
+    return(stream)
+  }
+
+  if (!is.null(params) && inherits(con, "AdbiConnection")) {
+    query_result <- .fabric_sql_db_send_query(con, sql, result)
+    on.exit(
+      try(.fabric_sql_db_clear_result(query_result), silent = TRUE),
+      add = TRUE
+    )
     .fabric_sql_db_bind(query_result, params)
     return(.fabric_sql_db_fetch(query_result, result))
   }
-
-  if (identical(result, "arrow_stream")) {
-    return(DBI::dbGetQueryArrow(con, sql, params = params))
-  }
   DBI::dbGetQuery(con, sql, params = params)
+}
+
+# Bind a lazy Arrow stream to the DBI result and connection that produce it.
+# The finalizer is idempotent because both explicit pointer release and garbage
+# collection may reach it.
+.fabric_sql_own_arrow_stream <- function(stream, query_result, con) {
+  cleanup <- local({
+    released <- FALSE
+    owned_result <- query_result
+    owned_connection <- con
+    function() {
+      if (released) {
+        return(invisible(NULL))
+      }
+      released <<- TRUE
+      try(.fabric_sql_db_clear_result(owned_result), silent = TRUE)
+      try(
+        .fabric_sql_db_disconnect(owned_connection, force = TRUE),
+        silent = TRUE
+      )
+      invisible(NULL)
+    }
+  })
+
+  nanoarrow::array_stream_set_finalizer(stream, cleanup)
 }
 
 # Send `sql` through `con` for the selected `result`. Returns a DBI result object
