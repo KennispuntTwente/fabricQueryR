@@ -92,19 +92,18 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     fixed = TRUE
   )
 
-  json_null <- session$run(
-    paste(
-      "from IPython.display import JSON",
-      "JSON({'present': 'value', 'missing': None})",
-      sep = "\n"
-    ),
-    kind = "pyspark",
+  sql_null <- session$run(
+    "SELECT 'value' AS present, CAST(NULL AS STRING) AS missing",
+    kind = "sql",
     timeout = 300,
     poll_interval = 2
   )
-  expect_true("application/json" %in% names(json_null$output$data))
-  expect_identical(json_null$output$parsed$present, "value")
-  expect_null(json_null$output$parsed$missing)
+  expect_contains(names(sql_null$output$data), "application/json")
+  expect_identical(sql_null$output$parsed$present, "value")
+  expect_identical(sql_null$output$parsed$missing, NA_character_)
+  expect_null(
+    sql_null$output$data[["application/json"]]$data[[1L]][[2L]]
+  )
 
   scala <- session$run(
     "println(\"FABRICQUERYR_SCALA_OK\")",
