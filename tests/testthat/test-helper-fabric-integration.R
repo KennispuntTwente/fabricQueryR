@@ -80,44 +80,6 @@ test_that("opt-in live fixtures skip even in required integration mode", {
   expect_match(condition$message, "Opt-in fixture is opt-in")
 })
 
-test_that("the required User Data Function lane rejects missing URLs", {
-  withr::local_envvar(c(
-    FABRIC_INTEGRATION_REQUIRED = "true",
-    FABRIC_FUNCTION_INTEGRATION_REQUIRED = "true",
-    FABRICQUERYR_TEST_MISSING_FUNCTION = NA
-  ))
-
-  expect_error(
-    fabric_test_function_environment(
-      "FABRICQUERYR_TEST_MISSING_FUNCTION",
-      "User Data Function fixture"
-    ),
-    paste(
-      "User Data Function fixture requires",
-      "FABRICQUERYR_TEST_MISSING_FUNCTION"
-    ),
-    fixed = TRUE
-  )
-})
-
-test_that("missing User Data Function URLs remain optional locally", {
-  withr::local_envvar(c(
-    FABRIC_INTEGRATION_REQUIRED = "true",
-    FABRIC_FUNCTION_INTEGRATION_REQUIRED = NA,
-    FABRICQUERYR_TEST_MISSING_FUNCTION = NA
-  ))
-
-  condition <- tryCatch(
-    fabric_test_function_environment(
-      "FABRICQUERYR_TEST_MISSING_FUNCTION",
-      "User Data Function fixture"
-    ),
-    skip = identity
-  )
-  expect_s3_class(condition, "skip")
-  expect_match(condition$message, "is opt-in locally", fixed = TRUE)
-})
-
 test_that("required runtime lanes reject missing or inconsistent configuration", {
   withr::local_envvar(c(
     FABRIC_INTEGRATION_REQUIRED = "true",

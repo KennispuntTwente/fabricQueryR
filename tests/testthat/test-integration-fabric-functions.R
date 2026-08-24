@@ -1,16 +1,17 @@
 # Fabric integration coverage: invoking published user data functions
-# Live coverage uses externally published fixtures because Microsoft's current
+# Live coverage is opt-in because Microsoft's current
 # item-management API does not support the service principal used to provision
 # the disposable CI sandbox. Point these variables at three published public
 # functions with the signatures exercised below and provide the normal Power BI
-# integration token. Missing URLs skip local runs and fail the dedicated CI lane
+# integration token. Local delegated runs can provision the fixture in a Fabric
+# workspace without weakening the package's standard integration environment
 
 test_that("Fabric public functions return scalar and structured live outputs", {
-  scalar_url <- fabric_test_function_environment(
+  scalar_url <- fabric_test_optional_environment(
     "FABRIC_TEST_FUNCTION_SCALAR_URL",
     "Live Fabric user data function coverage"
   )
-  structured_url <- fabric_test_function_environment(
+  structured_url <- fabric_test_optional_environment(
     "FABRIC_TEST_FUNCTION_STRUCTURED_URL",
     "Live Fabric user data function coverage"
   )
@@ -54,7 +55,7 @@ test_that("Fabric public functions return scalar and structured live outputs", {
 })
 
 test_that("Fabric UserThrownError remains an inspectable live result", {
-  error_url <- fabric_test_function_environment(
+  error_url <- fabric_test_optional_environment(
     "FABRIC_TEST_FUNCTION_ERROR_URL",
     "Live Fabric user data function error coverage"
   )
