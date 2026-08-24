@@ -68,6 +68,39 @@ test_that("token NULL delegates acquisition and caching to AzureAuth", {
   expect_true(calls[[1L]]$use_cache)
 })
 
+test_that("automatic credentials stay within Microsoft Fabric hosts", {
+  expect_invisible(
+    fabric_require_explicit_custom_token(
+      "https://workspace.z1.api.fabric.microsoft.com/path",
+      NULL,
+      "api"
+    )
+  )
+  expect_invisible(
+    fabric_require_explicit_custom_token(
+      "https://gateway.example/path",
+      "explicit-token",
+      "api"
+    )
+  )
+
+  error <- rlang::catch_cnd(
+    fabric_require_explicit_custom_token(
+      "https://api.fabric.microsoft.com.attacker.example/path",
+      NULL,
+      "api"
+    )
+  )
+
+  expect_s3_class(error, "fabric_custom_endpoint_requires_token")
+  expect_identical(
+    error$endpoint_host,
+    "api.fabric.microsoft.com.attacker.example"
+  )
+  expect_identical(error$argument, "api")
+  expect_match(conditionMessage(error), "supply token explicitly", fixed = TRUE)
+})
+
 test_that("automatic AzureAuth credentials refresh invalid and forced tokens", {
   acquired <- fake_azure_token()
   acquisitions <- 0L

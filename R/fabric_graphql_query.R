@@ -149,7 +149,10 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let 'fabricQueryR' use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+#'   host. A custom API endpoint, including an API Management gateway, requires
+#'   an explicitly supplied token or provider so an automatically acquired
+#'   Fabric credential is not forwarded to another host
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param audience OAuth audience/scope passed to the credential. `NULL`
@@ -762,6 +765,7 @@ graphql_request_context <- function(
     workspace_id = workspace_id,
     api_base = api_base
   )
+  fabric_require_explicit_custom_token(endpoint, token, "api")
   credential <- fabric_credential(
     tenant_id = tenant_id,
     client_id = client_id,

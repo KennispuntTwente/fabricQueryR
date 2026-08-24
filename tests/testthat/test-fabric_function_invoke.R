@@ -150,6 +150,21 @@ test_that("public function URLs enforce the documented trusted route", {
   )
 })
 
+test_that("custom function hosts require an explicit credential", {
+  custom_url <- sub(
+    "api.fabric.microsoft.com",
+    "functions.example",
+    function_test_url,
+    fixed = TRUE
+  )
+
+  error <- rlang::catch_cnd(fabric_function_invoke(custom_url))
+
+  expect_s3_class(error, "fabric_custom_endpoint_requires_token")
+  expect_identical(error$endpoint_host, "functions.example")
+  expect_identical(error$argument, "function_url")
+})
+
 test_that("function execution failures remain inspectable results", {
   responses <- list(
     function_test_response(

@@ -170,6 +170,40 @@ fabric_credential <- function(
   )
 }
 
+# Keep automatic Azure sign-in inside the Microsoft Fabric credential boundary.
+# Returns `endpoint` invisibly after requiring an explicit credential for any
+# caller-selected host outside api.fabric.microsoft.com.
+fabric_require_explicit_custom_token <- function(
+  endpoint,
+  token,
+  argument = "endpoint"
+) {
+  if (!is.null(token)) {
+    return(invisible(endpoint))
+  }
+
+  parsed <- try(httr2::url_parse(endpoint), silent = TRUE)
+  host <- if (inherits(parsed, "try-error")) {
+    ""
+  } else {
+    parsed$hostname %||% ""
+  }
+  if (fabric_host_matches(host, "api.fabric.microsoft.com")) {
+    return(invisible(endpoint))
+  }
+
+  .fabric_abort(
+    paste0(
+      argument,
+      " uses a custom host; supply token explicitly so fabricQueryR does ",
+      "not send an automatically acquired Fabric credential to that host"
+    ),
+    class = "fabric_custom_endpoint_requires_token",
+    endpoint_host = host,
+    argument = argument
+  )
+}
+
 # Serialize an audience vector into a collision-free environment key
 # Returns a portable ASCII key while preserving punctuation and vector bounds
 .fabric_audience_cache_key <- function(audience) {

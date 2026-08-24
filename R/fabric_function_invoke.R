@@ -83,7 +83,10 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, with the Azure CLI application ID as fallback.
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let 'fabricQueryR' use its normal sign-in flow.
+#'   to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+#'   host. A custom `function_url` requires an explicitly supplied token or
+#'   provider so an automatically acquired Fabric credential is not forwarded
+#'   to another host.
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()].
 #' @param audience OAuth audience/scope passed to the credential. `NULL`
@@ -149,6 +152,7 @@ fabric_function_invoke <- function(
   function_validate_byte_limit(max_response_bytes, "max_response_bytes")
 
   endpoint <- function_validate_url(function_url)
+  fabric_require_explicit_custom_token(endpoint, token, "function_url")
   payload <- function_serialize_parameters(parameters)
   payload_bytes <- charToRaw(enc2utf8(payload))
   if (length(payload_bytes) > .fabric_function_request_limit) {

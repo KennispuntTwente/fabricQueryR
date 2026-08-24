@@ -40,6 +40,25 @@ test_that("Livy selects identity-aware OAuth audiences", {
   )
 })
 
+test_that("custom Livy hosts require an explicit credential", {
+  session_error <- rlang::catch_cnd(fabric_livy_session(
+    "https://livy.example/livy",
+    verbose = FALSE
+  ))
+  batch_error <- rlang::catch_cnd(fabric_livy_batch_submit(
+    "https://livy.example/livy",
+    file = "abfss://container@example.dfs.core.windows.net/job.py",
+    verbose = FALSE
+  ))
+
+  expect_s3_class(session_error, "fabric_custom_endpoint_requires_token")
+  expect_identical(session_error$endpoint_host, "livy.example")
+  expect_identical(session_error$argument, "livy_url")
+  expect_s3_class(batch_error, "fabric_custom_endpoint_requires_token")
+  expect_identical(batch_error$endpoint_host, "livy.example")
+  expect_identical(batch_error$argument, "livy_url")
+})
+
 test_that("Livy requests use the audience stored on the credential", {
   requested <- NULL
   bigint_as_char <- NULL

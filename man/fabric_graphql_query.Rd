@@ -59,7 +59,10 @@ that could be applied twice}
 \code{FABRICQUERYR_CLIENT_ID}, with the Azure CLI application ID as fallback}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let 'fabricQueryR' use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+host. A custom API endpoint, including an API Management gateway, requires
+an explicitly supplied token or provider so an automatically acquired
+Fabric credential is not forwarded to another host}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}

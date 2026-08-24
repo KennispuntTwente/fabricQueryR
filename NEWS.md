@@ -91,7 +91,10 @@ carefully and give clearer retry, timeout, and error messages. Retry decisions
 now use httr2's effective request method, so a body-implied POST is not replayed
 unless its caller explicitly marks it idempotent. Automatic AzureAuth cache keys
 now preserve punctuation and vector boundaries in custom audiences so distinct
-scope sets cannot reuse the wrong cached token.
+scope sets cannot reuse the wrong cached token. User Data Function, GraphQL,
+and Livy requests now require an explicitly supplied token or provider for a
+custom host, preventing automatic Fabric sign-in credentials from crossing a
+caller-selected endpoint boundary.
 
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse

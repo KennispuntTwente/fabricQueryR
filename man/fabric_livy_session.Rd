@@ -87,7 +87,8 @@ supplied to Spark}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let 'fabricQueryR' use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+host. A custom \code{livy_url} requires an explicitly supplied token or provider}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}

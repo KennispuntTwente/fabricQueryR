@@ -619,6 +619,17 @@ test_that("GraphQL pagination accepts an explicitly supplied custom endpoint", {
   expect_length(pages$pages, 1L)
 })
 
+test_that("custom GraphQL hosts require an explicit credential", {
+  error <- rlang::catch_cnd(fabric_graphql_query(
+    "https://gateway.example/graphql",
+    query = "{ products { id } }"
+  ))
+
+  expect_s3_class(error, "fabric_custom_endpoint_requires_token")
+  expect_identical(error$endpoint_host, "gateway.example")
+  expect_identical(error$argument, "api")
+})
+
 test_that("fabric_graphql_collect binds evolving nested rows exactly", {
   first <- graphql_parse_response(list(
     data = list(

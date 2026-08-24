@@ -39,7 +39,8 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let 'fabricQueryR' use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+#'   host. A custom `livy_url` requires an explicitly supplied token or provider
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scope. Most users should leave this `NULL`;
@@ -190,6 +191,8 @@ fabric_livy_batch_submit <- function(
   )
 
   # Resolve authentication separately from the service route
+  endpoint <- fabric_livy_resolve_url(livy_url)
+  fabric_require_explicit_custom_token(endpoint, token, "livy_url")
   credential <- fabric_livy_credential(
     tenant_id,
     client_id,
@@ -199,7 +202,7 @@ fabric_livy_batch_submit <- function(
   )
 
   collection <- fabric_livy_endpoint(
-    fabric_livy_resolve_url(livy_url),
+    endpoint,
     "batches"
   )
 
