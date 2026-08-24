@@ -57,8 +57,10 @@
 #' @param top Maximum history entries to return. Power BI retains 20 to 60
 #'   recent entries, depending on their age
 #' @param refresh A `fabric_pbi_refresh` handle returned by
-#'   `fabric_pbi_refresh()`, a `fabric_pbi_refresh_detail`, or a refresh GUID
-#'   Raw GUIDs require the semantic-model target arguments as well
+#'   `fabric_pbi_refresh()` or a `fabric_pbi_refresh_detail`. Status and
+#'   cancellation functions also accept a refresh GUID when the semantic-model
+#'   target arguments are supplied; `fabric_pbi_refresh_wait()` requires a
+#'   handle or detail because it has no separate target arguments
 #' @param refresh_id Alternative refresh GUID. Do not combine it with a handle
 #'   or GUID supplied through `refresh`
 #' @param poll_interval Minimum seconds between checks. `NULL` honors the

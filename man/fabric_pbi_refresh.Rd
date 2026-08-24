@@ -168,8 +168,10 @@ normally correct}
 recent entries, depending on their age}
 
 \item{refresh}{A \code{fabric_pbi_refresh} handle returned by
-\code{fabric_pbi_refresh()}, a \code{fabric_pbi_refresh_detail}, or a refresh GUID
-Raw GUIDs require the semantic-model target arguments as well}
+\code{fabric_pbi_refresh()} or a \code{fabric_pbi_refresh_detail}. Status and
+cancellation functions also accept a refresh GUID when the semantic-model
+target arguments are supplied; \code{fabric_pbi_refresh_wait()} requires a
+handle or detail because it has no separate target arguments}
 
 \item{refresh_id}{Alternative refresh GUID. Do not combine it with a handle
 or GUID supplied through \code{refresh}}

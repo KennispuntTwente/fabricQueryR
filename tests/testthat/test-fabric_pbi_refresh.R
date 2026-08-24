@@ -591,6 +591,23 @@ test_that("status accepts handles and raw request IDs", {
   )
 })
 
+test_that("wait requires context that a raw refresh ID does not carry", {
+  requested <- FALSE
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      requested <<- TRUE
+      stop("unexpected request")
+    }
+  )
+
+  expect_error(
+    fabric_pbi_refresh_wait(pbi_refresh_id),
+    "fabric_pbi_refresh handle or detail record",
+    fixed = TRUE
+  )
+  expect_false(requested)
+})
+
 test_that("standard refresh uses request details when they are available", {
   call <- NULL
   local_mocked_bindings(
