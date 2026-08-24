@@ -67,6 +67,9 @@
 #'   returned row; retaining `TRUE` usually gives a more consistent tibble
 #'   Used only by `api = "json"`; Arrow has a schema and always represents
 #'   nulls explicitly
+#' @param timeout Positive finite client-side timeout in seconds for the DAX
+#'   execution HTTP request. This is distinct from the Arrow API's server-side
+#'   `arrow_options$queryTimeout` property
 #' @param api_base Power BI REST API base URL. The default
 #'   `"https://api.powerbi.com/v1.0/myorg"` is correct for the commercial cloud;
 #'   override it only for a test service that implements the same endpoint and
@@ -152,7 +155,8 @@ fabric_pbi_dax_query <- function(
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
-  arrow_options = list()
+  arrow_options = list(),
+  timeout = 300
 ) {
   # 1 Validate query and target inputs -------------------------------------------------------------
 
@@ -174,6 +178,15 @@ fabric_pbi_dax_query <- function(
       is.na(include_nulls)
   ) {
     .fabric_abort("include_nulls must be TRUE or FALSE")
+  }
+  if (
+    !is.numeric(timeout) ||
+      length(timeout) != 1L ||
+      is.na(timeout) ||
+      !is.finite(timeout) ||
+      timeout <= 0
+  ) {
+    .fabric_abort("timeout must be one positive finite number of seconds")
   }
 
   # Discovery records may safely supply IDs and a connection string together
@@ -352,6 +365,7 @@ fabric_pbi_dax_query <- function(
       dax = dax,
       group_id = workspace_id,
       include_nulls = include_nulls,
+      timeout = timeout,
       api_base = api_base,
       impersonated_user = impersonated_user
     ))
@@ -365,6 +379,7 @@ fabric_pbi_dax_query <- function(
     dataset_id = dataset_id,
     dax = dax,
     group_id = workspace_id,
+    timeout = timeout,
     api_base = api_base,
     options = arrow_options,
     result = result
@@ -606,6 +621,7 @@ pbi_resolve_ids_from_connstr <- function(
 #' @param dax DAX query
 #' @param group_id Optional workspace (group) GUID. If supplied, the request is made to the group-scoped endpoint
 #' @param include_nulls Logical; whether to include NULLs in response serialization
+#' @param timeout Positive client-side request timeout in seconds
 #' @param api_base API base URL
 #' @param impersonated_user Optional impersonated user principal name
 #' @return A tibble
@@ -618,6 +634,7 @@ pbi_execute_dax <- function(
   dax,
   group_id = NULL,
   include_nulls = TRUE,
+  timeout = 300,
   api_base = "https://api.powerbi.com/v1.0/myorg",
   impersonated_user = NULL
 ) {
@@ -642,7 +659,8 @@ pbi_execute_dax <- function(
   }
 
   req <- httr2::request(path) |>
-    httr2::req_body_json(body)
+    httr2::req_body_json(body) |>
+    httr2::req_timeout(timeout)
 
   out <- .httr2_json(
     req,
@@ -650,7 +668,8 @@ pbi_execute_dax <- function(
     bigint_as_char = TRUE,
     credential = credential,
     audience = .fabric_audience$power_bi,
-    idempotent = TRUE
+    idempotent = TRUE,
+    request_timeout = timeout
   )
   pbi_parse_dax_response(out)
 }
@@ -804,6 +823,7 @@ pbi_execute_dax_arrow <- function(
   dataset_id,
   dax,
   group_id = NULL,
+  timeout = 300,
   api_base = "https://api.powerbi.com/v1.0/myorg",
   options = list(),
   result = c("tibble", "arrow_stream")
@@ -836,7 +856,8 @@ pbi_execute_dax_arrow <- function(
     httr2::req_headers(
       Accept = "application/vnd.apache.arrow.stream"
     ) |>
-    httr2::req_body_json(body)
+    httr2::req_body_json(body) |>
+    httr2::req_timeout(timeout)
 
   # Stage the response so large Arrow streams do not need a second raw copy
   payload <- tempfile("fabricqueryr-dax-", fileext = ".arrow")
@@ -855,7 +876,8 @@ pbi_execute_dax_arrow <- function(
     credential = credential,
     audience = .fabric_audience$power_bi,
     idempotent = TRUE,
-    download_path = payload
+    download_path = payload,
+    request_timeout = timeout
   )
 
   # Lazy streams take ownership of the staged file through cleanup metadata

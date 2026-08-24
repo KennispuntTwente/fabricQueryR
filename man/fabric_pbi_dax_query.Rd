@@ -20,7 +20,8 @@ fabric_pbi_dax_query(
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
-  arrow_options = list()
+  arrow_options = list(),
+  timeout = 300
 )
 }
 \arguments{
@@ -87,6 +88,10 @@ properties. Supported names are \code{applicationContext}, \code{culture},
 \code{queryTimeout}, \code{resultSetRowCountLimit}, \code{roles}, and \code{schemaOnly}. The
 required \code{query} property is supplied from \code{dax}. Used only by
 \code{api = "arrow"}}
+
+\item{timeout}{Positive finite client-side timeout in seconds for the DAX
+execution HTTP request. This is distinct from the Arrow API's server-side
+\code{arrow_options$queryTimeout} property}
 }
 \value{
 A tibble for one result table. Multiple Arrow result tables are

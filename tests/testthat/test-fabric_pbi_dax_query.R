@@ -208,6 +208,7 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
       dax,
       group_id,
       include_nulls,
+      timeout,
       api_base,
       impersonated_user
     ) {
@@ -217,6 +218,7 @@ test_that("fabric_pbi_dax_query uses a supplied access token", {
       )
       expect_equal(dataset_id, pbi_test_dataset_id)
       expect_equal(group_id, pbi_test_workspace_id)
+      expect_equal(timeout, 300)
       expect_null(impersonated_user)
       tibble::tibble(result = 3L)
     },
@@ -250,6 +252,7 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
       dax,
       group_id,
       include_nulls,
+      timeout,
       api_base,
       impersonated_user
     ) {
@@ -259,6 +262,7 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
       )
       expect_equal(dataset_id, pbi_test_dataset_id)
       expect_equal(group_id, pbi_test_workspace_id)
+      expect_equal(timeout, 17)
       expect_equal(impersonated_user, "reader@example.com")
       tibble::tibble(value = 42L)
     }
@@ -269,6 +273,7 @@ test_that("fabric_pbi_dax_query accepts direct IDs without name lookup", {
     workspace_id = pbi_test_workspace_id,
     dataset_id = pbi_test_dataset_id,
     token = "token",
+    timeout = 17,
     impersonated_user = "reader@example.com"
   )
 
@@ -309,6 +314,7 @@ test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
       dataset_id,
       dax,
       group_id,
+      timeout,
       api_base,
       options,
       result
@@ -321,6 +327,7 @@ test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
       expect_equal(dataset_id, pbi_test_dataset_id)
       expect_equal(group_id, pbi_test_workspace_id)
       expect_equal(dax, "EVALUATE ROW(\"value\", 1)")
+      expect_equal(timeout, 19)
       expect_equal(options$effectiveUsername, "reader@example.com")
       expect_equal(options$queryTimeout, 30)
       expect_equal(result, "tibble")
@@ -335,6 +342,7 @@ test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
     token = "token",
     impersonated_user = "reader@example.com",
     api = "arrow",
+    timeout = 19,
     arrow_options = list(queryTimeout = 30)
   )
 
@@ -409,6 +417,27 @@ test_that("DAX target selectors cannot silently override each other", {
     "conflicts with the discovered SemanticModel id",
     class = "fabric_pbi_target_conflict"
   )
+})
+
+test_that("DAX client timeout is positive and validated before authentication", {
+  invalid <- list(NULL, 0, -1, NA_real_, Inf, c(1, 2), "30")
+  for (timeout in invalid) {
+    error <- rlang::catch_cnd(
+      fabric_pbi_dax_query(
+        dax = "EVALUATE ROW()",
+        workspace_id = pbi_test_workspace_id,
+        dataset_id = pbi_test_dataset_id,
+        timeout = timeout,
+        token = "unsafe\ncredential"
+      ),
+      classes = "error"
+    )
+    expect_match(
+      conditionMessage(error),
+      "timeout must be one positive finite number of seconds",
+      fixed = TRUE
+    )
+  }
 })
 
 test_that("DAX response parser promotes mixed-size Whole Numbers", {
@@ -573,6 +602,7 @@ test_that("DAX execution preserves JSON whole numbers outside 2^53", {
   local_mocked_bindings(
     .httr2_json = function(req, bigint_as_char, ...) {
       expect_true(bigint_as_char)
+      expect_equal(req$options$timeout_ms, 17000)
       list(
         results = list(list(
           tables = list(list(
@@ -591,7 +621,8 @@ test_that("DAX execution preserves JSON whole numbers outside 2^53", {
   result <- pbi_execute_dax(
     credential = fabric_credential(token = "token"),
     dataset_id = "dataset",
-    dax = "EVALUATE ROW()"
+    dax = "EVALUATE ROW()",
+    timeout = 17
   )
 
   expect_identical(result$positive, "9007199254740993")
@@ -618,13 +649,15 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
       credential,
       audience,
       idempotent,
-      download_path
+      download_path,
+      request_timeout
     ) {
       expect_match(
         req$url,
         "/groups/workspace/datasets/dataset/executeDaxQueries$"
       )
       expect_true(idempotent)
+      expect_equal(request_timeout, 17)
       expect_identical(audience, .fabric_audience$power_bi)
       expect_equal(
         req$headers$Accept,
@@ -633,6 +666,7 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
       expect_equal(req$body$data$query, "EVALUATE ROW(\"value\", 1)")
       expect_equal(req$body$data$culture, "en-US")
       expect_equal(req$body$data$queryTimeout, 60)
+      expect_equal(req$options$timeout_ms, 17000)
       expect_true(req$body$data$executionMetrics)
       expect_s3_class(req$body$data$roles, "AsIs")
       encoded <- jsonlite::toJSON(
@@ -660,6 +694,7 @@ test_that("Arrow DAX execution sends documented endpoint and request body", {
     dataset_id = "dataset",
     dax = "EVALUATE ROW(\"value\", 1)",
     group_id = "workspace",
+    timeout = 17,
     options = list(
       culture = "en-US",
       queryTimeout = 60,
