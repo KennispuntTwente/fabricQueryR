@@ -375,6 +375,12 @@ fabric_livy_validate_abfs_uri <- function(value, name) {
     warning = function(...) NA_character_,
     error = function(...) NA_character_
   )
+  decoded_path_without_ascii_spaces <- gsub(
+    " ",
+    "",
+    decoded_path,
+    fixed = TRUE
+  )
 
   unsafe_text <- function(x) {
     is.null(x) ||
@@ -399,12 +405,12 @@ fabric_livy_validate_abfs_uri <- function(value, name) {
     is.null(parsed$query) &&
     is.null(parsed$fragment) &&
     !unsafe_text(raw_path) &&
-    !unsafe_text(decoded_path) &&
+    !unsafe_text(decoded_path_without_ascii_spaces) &&
     startsWith(raw_path, "/") &&
     nzchar(sub("^/+", "", raw_path)) &&
     !any(segments %in% c(".", "..")) &&
     !grepl("%(?![0-9A-Fa-f]{2})", value, perl = TRUE) &&
-    !grepl("(?i)%(?:0[0-9a-f]|1[0-9a-f]|20|5c|7f)", value, perl = TRUE)
+    !grepl("(?i)%(?:0[0-9a-f]|1[0-9a-f]|5c|7f)", value, perl = TRUE)
 
   if (!isTRUE(valid)) {
     .fabric_abort(

@@ -45,7 +45,8 @@ endpoint}, or use an item from \code{\link[=fabric_lakehouses]{fabric_lakehouses
 application file. It must contain a filesystem/container, host, and
 non-root path, without a password, port, query, fragment, backslash, or dot
 path segment. After uploading a script under a Lakehouse's \verb{Files/} area,
-its \strong{Properties} dialog can copy this path}
+its \strong{Properties} dialog can copy this path. Spaces in path segments must
+be percent-encoded as \verb{\%20}; raw spaces and authority whitespace are invalid}
 
 \item{name}{Optional readable job name shown in Fabric monitoring}
 

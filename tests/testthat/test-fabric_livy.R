@@ -1482,6 +1482,15 @@ test_that("Livy batch application paths are safe absolute ABFS URIs", {
       "file"
     )
   )
+  expect_invisible(
+    fabric_livy_validate_abfs_uri(
+      paste0(
+        "abfss://container@account.dfs.core.windows.net/",
+        "jobs/main%20file.py"
+      ),
+      "file"
+    )
+  )
 
   invalid_uris <- c(
     "job.py",
@@ -1495,11 +1504,21 @@ test_that("Livy batch application paths are safe absolute ABFS URIs", {
     "abfss://container@account.example/",
     "abfss://container@account.example/jobs/main.py?sig=secret",
     "abfss://container@account.example/jobs/main.py#fragment",
+    "abfss://con tainer@account.example/jobs/main.py",
+    "abfss://con%20tainer@account.example/jobs/main.py",
+    "abfss://container@account name.example/jobs/main.py",
+    "abfss://container@account%20name.example/jobs/main.py",
     "abfss://container@account.example/jobs/../main.py",
     "abfss://container@account.example/jobs/%2e%2e/main.py",
+    "abfss://container@account.example/jobs/.%2e/main.py",
+    "abfss://container@account.example/jobs/%2e%2e%2fmain.py",
     "abfss://container@account.example/jobs\\main.py",
     "abfss://container@account.example/jobs/main file.py",
-    "abfss://container@account.example/jobs/main%20file.py",
+    "abfss://container@account.example/jobs/main%09file.py",
+    "abfss://container@account.example/jobs/main%7Ffile.py",
+    "abfss://container@account.example/jobs/main%C2%85file.py",
+    "abfss://container@account.example/jobs/main%C2%A0file.py",
+    "abfss://container@account.example/jobs/main%5cfile.py",
     "abfss://container@account.example/jobs/main%00.py",
     "abfss://container@account.example/jobs/main%ZZ.py"
   )

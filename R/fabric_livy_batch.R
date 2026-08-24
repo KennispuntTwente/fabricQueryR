@@ -12,7 +12,8 @@
 #'   application file. It must contain a filesystem/container, host, and
 #'   non-root path, without a password, port, query, fragment, backslash, or dot
 #'   path segment. After uploading a script under a Lakehouse's `Files/` area,
-#'   its **Properties** dialog can copy this path
+#'   its **Properties** dialog can copy this path. Spaces in path segments must
+#'   be percent-encoded as `%20`; raw spaces and authority whitespace are invalid
 #' @param name Optional readable job name shown in Fabric monitoring
 #' @param class_name Main class for a Java/Scala application; leave `NULL` for
 #'   Python or R scripts

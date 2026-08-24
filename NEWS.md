@@ -11,6 +11,8 @@ functions, avoiding copied IDs and endpoints in most workflows.
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
 option for running one piece of Spark code. Batch application paths are now
 validated as absolute ABFS/ABFSS URIs before authentication or submission.
+Properly percent-encoded path spaces are accepted while raw or authority
+whitespace and encoded control characters remain rejected.
 Timeout conditions now retain the live session, statement, or batch handle for
 in-process status checks and cancellation, while keeping serializable metadata.
 Mixed, raw, and nested fallback output columns remain list-columns instead of
