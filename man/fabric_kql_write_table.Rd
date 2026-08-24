@@ -82,8 +82,9 @@ multi-file write.}
 \item{creation_time}{Optional extent creation time passed to
 \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}
 
-\item{timeout}{Positive number of seconds allowed for submission and tracked
-status waiting after upload.}
+\item{timeout}{Positive number of seconds shared by submission and tracked
+status waiting after upload. Time spent submitting reduces the time
+available for polling.}
 
 \item{poll_interval}{Minimum seconds between ingestion status requests.}
 

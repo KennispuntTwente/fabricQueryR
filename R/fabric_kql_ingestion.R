@@ -1740,8 +1740,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   multi-file write.
 #' @param creation_time Optional extent creation time passed to
 #'   [fabric_kql_ingest()].
-#' @param timeout Positive number of seconds allowed for submission and tracked
-#'   status waiting after upload.
+#' @param timeout Positive number of seconds shared by submission and tracked
+#'   status waiting after upload. Time spent submitting reduces the time
+#'   available for polling.
 #' @param poll_interval Minimum seconds between ingestion status requests.
 #' @param error_on_failure Raise a typed error for a confirmed failed or
 #'   canceled ingestion. Set `FALSE` to return the failed result and its staging
@@ -1883,8 +1884,8 @@ fabric_kql_write_table <- function(
   if (!isTRUE(create_if_missing) && !is.null(query_cluster)) {
     .fabric_abort("query_cluster requires create_if_missing = TRUE")
   }
-  if (isTRUE(create_if_missing) && !is.function(.now)) {
-    .fabric_abort(".now must be a function")
+  if (!is.function(.sleep) || !is.function(.now)) {
+    .fabric_abort(".sleep and .now must be functions")
   }
   kusto_ingestion_number(timeout, "timeout", minimum = 0, strict = TRUE)
   kusto_ingestion_number(
@@ -2143,6 +2144,14 @@ fabric_kql_write_table <- function(
   for (index in seq_along(staging_paths)) {
     source_ids[[index]] <- kusto_ingestion_source_id(source_ids)
   }
+  write_started <- .now()
+  write_deadline <- write_started + timeout
+  submission_timeout <- kusto_write_remaining_timeout(
+    write_deadline,
+    timeout,
+    .now,
+    staging_path
+  )
   ingestion <- tryCatch(
     fabric_kql_ingest(
       cluster,
@@ -2163,10 +2172,22 @@ fabric_kql_write_table <- function(
       creation_time = creation_time,
       delete_after_download = identical(staging$method, "Storage") &&
         isTRUE(cleanup),
-      timeout = timeout,
+      timeout = submission_timeout,
       token = credential
     ),
     error = function(error) {
+      if (kusto_write_condition_inherits(error, "fabric_http_deadline_error")) {
+        kusto_write_timeout_error(
+          staging_path,
+          parent = error,
+          ambiguous = TRUE,
+          message = paste0(
+            "Kusto submission exceeded the write deadline without returning ",
+            "a tracking handle; staging was retained because ingestion may ",
+            "still have been accepted"
+          )
+        )
+      }
       kusto_write_ambiguous_error(
         error,
         staging_path,
@@ -2177,17 +2198,40 @@ fabric_kql_write_table <- function(
       )
     }
   )
+  status_timeout <- kusto_write_remaining_timeout(
+    write_deadline,
+    timeout,
+    .now,
+    staging_path,
+    ingestion = ingestion
+  )
   status <- tryCatch(
     fabric_kql_ingestion_status(
       ingestion,
       wait = TRUE,
-      timeout = timeout,
+      timeout = status_timeout,
       poll_interval = poll_interval,
       error_on_failure = FALSE,
       .sleep = .sleep,
       .now = .now
     ),
     error = function(error) {
+      if (
+        inherits(error, "fabric_kql_ingestion_timeout") ||
+          kusto_write_condition_inherits(error, "fabric_http_deadline_error")
+      ) {
+        kusto_write_timeout_error(
+          staging_path,
+          ingestion = ingestion,
+          parent = error,
+          ambiguous = TRUE,
+          message = paste0(
+            "The KQL write deadline expired before a terminal ingestion ",
+            "result was confirmed; staging was retained because the ",
+            "operation may still be running"
+          )
+        )
+      }
       kusto_write_ambiguous_error(
         error,
         staging_path,
@@ -2896,6 +2940,81 @@ kusto_write_ambiguous_error <- function(
     ingestion = ingestion,
     parent = error
   )
+}
+
+# Return the positive portion of one shared post-upload write deadline
+kusto_write_remaining_timeout <- function(
+  deadline,
+  timeout,
+  .now,
+  staging_path,
+  ingestion = NULL
+) {
+  remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+  if (is.finite(remaining) && remaining > 0) {
+    return(min(timeout, remaining))
+  }
+  if (is.null(ingestion)) {
+    kusto_write_timeout_error(
+      staging_path,
+      message = paste0(
+        "The KQL write deadline expired before ingestion submission started; ",
+        "staging was retained"
+      )
+    )
+  }
+  kusto_write_timeout_error(
+    staging_path,
+    ingestion = ingestion,
+    ambiguous = TRUE,
+    message = paste0(
+      "The KQL write deadline expired after ingestion was submitted; staging ",
+      "was retained because the operation may still be running"
+    )
+  )
+}
+
+# Raise a timeout that distinguishes a local pre-submit expiry from ambiguity
+kusto_write_timeout_error <- function(
+  staging_path,
+  ingestion = NULL,
+  parent = NULL,
+  ambiguous = FALSE,
+  message
+) {
+  classes <- c("fabric_kql_write_timeout", "fabric_kql_write_error")
+  if (isTRUE(ambiguous)) {
+    classes <- c(
+      "fabric_kql_write_timeout",
+      "fabric_kql_write_ambiguous",
+      "fabric_kql_write_error"
+    )
+  }
+  .fabric_abort(
+    message,
+    class = classes,
+    staging_path = staging_path,
+    staging_retained = TRUE,
+    operation_id = ingestion$id %||% ingestion$operation_id %||% NULL,
+    ingestion = ingestion,
+    parent = parent
+  )
+}
+
+# Inspect wrapped conditions without exposing or copying their diagnostic data
+kusto_write_condition_inherits <- function(error, class) {
+  seen <- list()
+  while (inherits(error, "condition")) {
+    if (inherits(error, class)) {
+      return(TRUE)
+    }
+    if (any(vapply(seen, identical, logical(1), y = error))) {
+      return(FALSE)
+    }
+    seen[[length(seen) + 1L]] <- error
+    error <- error$parent
+  }
+  FALSE
 }
 
 # Build the stable high-level result after status and cleanup are known

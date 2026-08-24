@@ -55,7 +55,10 @@ load existing files or R and Arrow data into Eventhouse, monitor the load, and
 export large query results to OneLake or other supported storage. A
 destination table can be created when needed. `fabric_kql_write_table()` now
 rejects multi-file writes that combine per-blob ingestion with one shared
-idempotency key, preventing successful tracking results with omitted parts.
+idempotency key, preventing successful tracking results with omitted parts. Its
+post-upload timeout is now one shared deadline: submission time reduces the
+time available for status polling, and timeout conditions retain the tracking
+handle whenever submission completed.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R

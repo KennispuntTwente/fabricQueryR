@@ -735,6 +735,149 @@ test_that("ambiguous submission retains the complete staging file", {
   expect_equal(cleanup_calls, 0L)
 })
 
+test_that("Eventhouse writer shares one post-upload deadline", {
+  skip_if_not_installed("arrow")
+  now <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  submission_timeout <- NULL
+  status_timeout <- NULL
+  submission_calls <- 0L
+  status_calls <- 0L
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration()
+    },
+    onelake_upload_target = function(...) tibble::tibble(),
+    fabric_kql_ingest = function(..., timeout) {
+      submission_calls <<- submission_calls + 1L
+      submission_timeout <<- timeout
+      now <<- now + 3
+      kql_write_test_ingestion()
+    },
+    fabric_kql_ingestion_status = function(..., timeout) {
+      status_calls <<- status_calls + 1L
+      status_timeout <<- timeout
+      kql_write_test_status()
+    }
+  )
+
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1L),
+    database = "Telemetry",
+    cleanup = FALSE,
+    timeout = 10,
+    token = "test-token",
+    storage_token = "storage-token",
+    .now = function() now
+  )
+
+  expect_s3_class(result, "fabric_kql_write_result")
+  expect_identical(submission_calls, 1L)
+  expect_identical(status_calls, 1L)
+  expect_equal(submission_timeout, 10)
+  expect_equal(status_timeout, 7)
+})
+
+test_that("Eventhouse writer retains its handle when the deadline is spent", {
+  skip_if_not_installed("arrow")
+  now <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  ingestion <- kql_write_test_ingestion()
+  submission_calls <- 0L
+  status_calls <- 0L
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration()
+    },
+    onelake_upload_target = function(...) tibble::tibble(),
+    fabric_kql_ingest = function(...) {
+      submission_calls <<- submission_calls + 1L
+      now <<- now + 10
+      ingestion
+    },
+    fabric_kql_ingestion_status = function(...) {
+      status_calls <<- status_calls + 1L
+      kql_write_test_status()
+    }
+  )
+
+  error <- rlang::catch_cnd(fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1L),
+    database = "Telemetry",
+    timeout = 10,
+    token = "test-token",
+    storage_token = "storage-token",
+    .now = function() now
+  ))
+
+  expect_s3_class(error, "fabric_kql_write_timeout")
+  expect_s3_class(error, "fabric_kql_write_ambiguous")
+  expect_identical(error$ingestion, ingestion)
+  expect_identical(error$operation_id, ingestion$id)
+  expect_true(error$staging_retained)
+  expect_identical(submission_calls, 1L)
+  expect_identical(status_calls, 0L)
+})
+
+test_that("Eventhouse writer does not submit after its deadline", {
+  skip_if_not_installed("arrow")
+  started <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  clock_calls <- 0L
+  submission_calls <- 0L
+  status_calls <- 0L
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration()
+    },
+    onelake_upload_target = function(...) tibble::tibble(),
+    fabric_kql_ingest = function(...) {
+      submission_calls <<- submission_calls + 1L
+      kql_write_test_ingestion()
+    },
+    fabric_kql_ingestion_status = function(...) {
+      status_calls <<- status_calls + 1L
+      kql_write_test_status()
+    }
+  )
+  clock <- function() {
+    clock_calls <<- clock_calls + 1L
+    if (clock_calls == 1L) started else started + 10
+  }
+
+  error <- rlang::catch_cnd(fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1L),
+    database = "Telemetry",
+    timeout = 10,
+    token = "test-token",
+    storage_token = "storage-token",
+    .now = clock
+  ))
+
+  expect_s3_class(error, "fabric_kql_write_timeout")
+  expect_false(inherits(error, "fabric_kql_write_ambiguous"))
+  expect_null(error$ingestion)
+  expect_true(error$staging_retained)
+  expect_identical(submission_calls, 0L)
+  expect_identical(status_calls, 0L)
+})
+
+test_that("Eventhouse writer validates polling hooks before authentication", {
+  error <- rlang::catch_cnd(fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1L),
+    database = "Telemetry",
+    token = function(...) stop("must not authenticate"),
+    .now = 1
+  ))
+
+  expect_match(conditionMessage(error), ".now must be functions", fixed = TRUE)
+})
+
 test_that("confirmed failure follows the staging retention policy", {
   skip_if_not_installed("arrow")
   cleanup_calls <- 0L
