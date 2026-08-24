@@ -1180,3 +1180,85 @@ test_that("token accepts strings and validates provider results", {
     fixed = TRUE
   )
 })
+
+test_that("bearer tokens reject whitespace and control characters", {
+  invalid <- c(
+    " leading",
+    "trailing ",
+    "embedded space",
+    "tab\tvalue",
+    "carriage\rreturn",
+    "line\nfeed",
+    paste0("delete", intToUtf8(127L), "value"),
+    paste0("nonbreaking", intToUtf8(160L), "space"),
+    paste0("zero", intToUtf8(8203L), "width"),
+    "   "
+  )
+  for (token in invalid) {
+    error <- rlang::catch_cnd(fabric_credential(token = token))
+    expect_match(
+      conditionMessage(error),
+      "whitespace or control characters",
+      fixed = TRUE
+    )
+    expect_false(grepl(token, conditionMessage(error), fixed = TRUE))
+  }
+
+  valid <- "abc.DEF_ghi~+/-=="
+  expect_identical(
+    fabric_get_token(fabric_credential(token = valid), .fabric_audience$fabric),
+    valid
+  )
+})
+
+test_that("every bearer-token provider is revalidated", {
+  invalid <- "unsafe\r\nX-Injected: value"
+  providers <- list(
+    fabric_credential(token = function() invalid),
+    fabric_credential(token = function() list(access_token = invalid)),
+    fabric_azure_token_credential(fake_azure_token(invalid)),
+    structure(
+      list(provider = function(...) invalid),
+      class = "fabric_credential"
+    )
+  )
+
+  for (credential in providers) {
+    error <- rlang::catch_cnd(
+      fabric_get_token(credential, .fabric_audience$fabric),
+      classes = "error"
+    )
+    expect_match(
+      conditionMessage(error),
+      "whitespace or control characters",
+      fixed = TRUE
+    )
+    expect_false(grepl(invalid, conditionMessage(error), fixed = TRUE))
+  }
+})
+
+test_that("unsafe callback tokens fail before an HTTP request", {
+  requests <- 0L
+  credential <- fabric_credential(token = function() "unsafe\nvalue")
+  httr2::local_mocked_responses(function(req) {
+    requests <<- requests + 1L
+    json_response(url = req$url)
+  })
+
+  error <- rlang::catch_cnd(
+    .httr2_json(
+      httr2::request("https://example.test/items"),
+      credential = credential,
+      audience = .fabric_audience$fabric
+    ),
+    classes = "error"
+  )
+
+  expect_match(
+    conditionMessage(error),
+    "whitespace or control characters",
+    fixed = TRUE
+  )
+  expect_identical(requests, 0L)
+  expect_false(grepl("unsafe", conditionMessage(error), fixed = TRUE))
+})

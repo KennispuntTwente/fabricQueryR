@@ -403,6 +403,16 @@ fabric_validate_bearer_token <- function(token, label) {
   ) {
     .fabric_abort(paste0(label, " must be one non-empty string"))
   }
+  unsafe <- tryCatch(
+    grepl("[\\p{Z}\\p{C}]", token, perl = TRUE),
+    warning = function(...) TRUE,
+    error = function(...) TRUE
+  )
+  if (isTRUE(unsafe)) {
+    .fabric_abort(
+      paste0(label, " must not contain whitespace or control characters")
+    )
+  }
   invisible(token)
 }
 
@@ -453,6 +463,7 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
       "The token provider must return one non-empty bearer token"
     )
   }
+  fabric_validate_bearer_token(token, "The token provider result")
   token
 }
 
@@ -470,5 +481,7 @@ fabric_get_token <- function(credential, audience, force_refresh = FALSE) {
   if (!inherits(credential, "fabric_credential")) {
     .fabric_abort("Invalid Fabric credential")
   }
-  credential$provider(audience, force_refresh = force_refresh)
+  token <- credential$provider(audience, force_refresh = force_refresh)
+  fabric_validate_bearer_token(token, "The credential provider result")
+  token
 }

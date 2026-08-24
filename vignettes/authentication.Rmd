@@ -206,6 +206,9 @@ responsible for authentication and `auth_args` is not used. See
 `?fabric_workspaces` and the 'AzureAuth'
 [authentication scenarios](https://azure.r-universe.dev/AzureAuth/doc/scenarios.html)
 for the complete argument details.
+Supply the bearer token exactly as issued: leading, trailing, or embedded
+whitespace and control characters are rejected rather than trimmed or sent in
+an HTTP header.
 
 ## Choosing an advanced authentication method
 
