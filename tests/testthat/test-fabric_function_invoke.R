@@ -431,6 +431,21 @@ test_that("function authentication chooses flow-appropriate audiences", {
     calls[[2L]]$resource,
     c(.fabric_audience$user_data_function, "offline_access")
   )
+  expect_identical(
+    .fabric_audience$user_data_function,
+    paste0(
+      "https://analysis.windows.net/powerbi/api/",
+      "UserDataFunction.Execute.All"
+    )
+  )
+  broader <- paste0(
+    "https://analysis.windows.net/powerbi/api/",
+    "Item.Execute.All"
+  )
+  expect_identical(
+    function_resolve_audience(broader, token = "token", auth_args = list()),
+    broader
+  )
 })
 
 test_that("function invocation validates arguments before authentication", {

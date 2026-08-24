@@ -124,7 +124,10 @@ now preserve punctuation and vector boundaries in custom audiences so distinct
 scope sets cannot reuse the wrong cached token. User Data Function, GraphQL,
 and Livy requests now require an explicitly supplied token or provider for a
 custom host, preventing automatic Fabric sign-in credentials from crossing a
-caller-selected endpoint boundary. Supplied and acquired bearer tokens are
+caller-selected endpoint boundary. User Data Function documentation now
+identifies `UserDataFunction.Execute.All` as the least-privilege delegated
+default and `Item.Execute.All` as a broader explicit alternative; both still
+require item Execute permission. Supplied and acquired bearer tokens are
 rejected before use if they contain whitespace or control characters that
 could corrupt or inject an HTTP header. Paged collection calls now fail with a
 typed, body-free protocol error when a service returns a malformed envelope,

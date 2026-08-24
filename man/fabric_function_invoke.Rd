@@ -53,8 +53,10 @@ to another host.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{audience}{OAuth audience/scope passed to the credential. \code{NULL}
-selects the documented scope from the authentication flow. Set this only
-for a custom token provider or unusual identity flow.}
+selects \code{UserDataFunction.Execute.All} for delegated sign-in or the Power
+BI \code{.default} audience for client credentials. To use Microsoft's broader
+alternative, pass
+\code{"https://analysis.windows.net/powerbi/api/Item.Execute.All"} explicitly.}
 }
 \value{
 A \code{fabric_function_result} list with \code{function_name},
@@ -87,13 +89,13 @@ use \code{\link[=I]{I()}} around a one-element value when it must remain a JSON 
 
 \section{Permissions and authentication}{
 
-Interactive authentication requires the Power BI delegated permission
-\code{UserDataFunction.Execute.All} or \code{Item.Execute.All}, plus Execute permission
-on the user data functions item. Service-to-service callers can use an
-application credential with the Power BI \code{.default} audience and the
-required tenant and item access. Most users can leave \code{audience = NULL};
-'fabricQueryR' selects the documented delegated scope or application
-audience for the authentication flow.
+Delegated authentication defaults to the narrower Power BI permission
+\code{UserDataFunction.Execute.All}. Microsoft also accepts the broader
+\code{Item.Execute.All} permission; use it only when the app registration grants
+that scope, and pass its full scope URL explicitly through \code{audience}. Either
+delegated scope still requires Execute permission on the user data functions
+item. Service-to-service callers can use an application credential with the
+Power BI \code{.default} audience and the required tenant and item access.
 
 Application authentication for the public invocation endpoint is distinct
 from authentication used by connections inside the function. Microsoft

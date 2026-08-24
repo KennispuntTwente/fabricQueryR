@@ -262,3 +262,23 @@ test_that("GraphQL documentation states the attached-object limit", {
   expect_match(normalized, "multiple API items", fixed = TRUE)
   expect_match(normalized, "stored procedures", fixed = TRUE)
 })
+
+test_that("user-data-function docs distinguish delegated execution scopes", {
+  path <- test_path(
+    "..",
+    "..",
+    "vignettes",
+    "user-data-functions.Rmd"
+  )
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  normalized <- gsub("[[:space:]]+", " ", source)
+
+  expect_match(normalized, "least-privilege", fixed = TRUE)
+  expect_match(normalized, "UserDataFunction.Execute.All", fixed = TRUE)
+  expect_match(normalized, "Item.Execute.All", fixed = TRUE)
+  expect_match(normalized, "select it explicitly", fixed = TRUE)
+  expect_match(normalized, "item Execute permission", fixed = TRUE)
+})
