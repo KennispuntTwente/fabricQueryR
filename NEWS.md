@@ -15,7 +15,9 @@ option for running one piece of Spark code.
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and
 Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 `fabric_onelake_list()`, `fabric_onelake_metadata()`, and
-`fabric_onelake_delete()` list, inspect, and delete files.
+`fabric_onelake_delete()` list, inspect, and delete files. Ranged downloads now
+require a matching partial-content response instead of silently accepting a
+server or proxy that returns the complete file.
 
 * `fabric_lakehouse_schemas()`, `fabric_lakehouse_table()`,
 `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,

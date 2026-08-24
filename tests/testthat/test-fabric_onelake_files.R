@@ -659,9 +659,15 @@ test_that("OneLake download supports ranges, ETags, and staged destinations", {
   captured <- list()
   httr2::local_mocked_responses(function(req) {
     captured[[length(captured) + 1L]] <<- req
+    ranged <- !is.null(req$headers$Range)
     onelake_test_response(
-      status = if (is.null(req$headers$Range)) 200L else 206L,
-      body = charToRaw("alpha"),
+      status = if (ranged) 206L else 200L,
+      headers = if (ranged) {
+        list(`Content-Range` = "bytes 1-3/5")
+      } else {
+        list()
+      },
+      body = charToRaw(if (ranged) "lph" else "alpha"),
       url = req$url
     )
   })
@@ -674,7 +680,7 @@ test_that("OneLake download supports ranges, ETags, and staged destinations", {
     if_match = "\"etag\"",
     token = "token"
   )
-  expect_identical(rawToChar(value), "alpha")
+  expect_identical(rawToChar(value), "lph")
   expect_equal(captured[[1L]]$headers$Range, "bytes=1-3")
   expect_equal(captured[[1L]]$headers[["If-Match"]], "\"etag\"")
   expect_equal(onelake_if_match("0x8DA58EE365"), "\"0x8DA58EE365\"")
@@ -720,6 +726,81 @@ test_that("OneLake download supports ranges, ETags, and staged destinations", {
     normalizePath(dest, winslash = "/", mustWork = TRUE)
   )
   expect_equal(readChar(dest, nchars = 5L, useBytes = TRUE), "alpha")
+})
+
+test_that("OneLake ranged downloads reject invalid partial responses", {
+  responses <- list(
+    onelake_test_response(status = 200L, body = charToRaw("alpha")),
+    onelake_test_response(status = 206L, body = charToRaw("lph")),
+    onelake_test_response(
+      status = 206L,
+      headers = list(`Content-Range` = "bytes 0-2/5"),
+      body = charToRaw("alp")
+    ),
+    onelake_test_response(status = 200L, body = charToRaw("alpha"))
+  )
+  calls <- 0L
+  local_mocked_bindings(
+    .httr2_perform = function(req, download_path = NULL, ...) {
+      calls <<- calls + 1L
+      if (!is.null(download_path)) {
+        writeBin(charToRaw("alpha"), download_path)
+      }
+      responses[[calls]]
+    }
+  )
+
+  errors <- lapply(seq_len(3L), function(index) {
+    rlang::catch_cnd(fabric_onelake_download(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/a.txt",
+      range = c(1, 3),
+      token = "token"
+    ))
+  })
+
+  for (error in errors) {
+    expect_s3_class(error, "fabric_onelake_range_response_error")
+  }
+  expect_identical(errors[[1L]]$status_code, 200L)
+  expect_null(errors[[2L]]$response_start)
+  expect_identical(errors[[3L]]$response_start, 0)
+
+  dest <- tempfile("onelake-invalid-range-")
+  on.exit(unlink(dest), add = TRUE)
+  disk_error <- rlang::catch_cnd(fabric_onelake_download(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/a.txt",
+    dest = dest,
+    range = c(1, 3),
+    token = "token"
+  ))
+
+  expect_s3_class(disk_error, "fabric_onelake_range_response_error")
+  expect_false(file.exists(dest))
+})
+
+test_that("OneLake open-ended ranges require the remaining file interval", {
+  httr2::local_mocked_responses(function(req) {
+    onelake_test_response(
+      status = 206L,
+      headers = list(`Content-Range` = "bytes 2-4/5"),
+      body = charToRaw("pha"),
+      url = req$url
+    )
+  })
+
+  value <- fabric_onelake_download(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/a.txt",
+    range = 2,
+    token = "token"
+  )
+
+  expect_identical(rawToChar(value), "pha")
 })
 
 test_that("failed download replacement restores the original destination", {
