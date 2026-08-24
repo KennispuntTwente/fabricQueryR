@@ -68,6 +68,8 @@ fabric_lakehouse_read_table(
 - result:
 
   Return a `"tibble"` or a disk-backed, single-use `"arrow_stream"`.
+  Release a stream with `stream[["release"]]()` when using 'nanoarrow'
+  directly, or close the 'arrow' reader that takes ownership of it
 
 - verbose:
 
@@ -99,7 +101,7 @@ fabric_lakehouse_read_table(
 ## Value
 
 A tibble, or a disk-backed `nanoarrow_array_stream` when
-`result = "arrow_stream"`.
+`result = "arrow_stream"`. Explicit release deletes its temporary file.
 
 ## References
 
@@ -129,5 +131,7 @@ stream <- fabric_lakehouse_read_table(
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)
+rows <- reader$read_table()
+reader$Close()
 } # }
 ```

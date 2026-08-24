@@ -167,9 +167,9 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity</p></dd>
 <dt id="arg-notify-option">notify_option<a class="anchor" aria-label="anchor" href="#arg-notify-option"></a></dt>
 <dd><p>Standard-refresh email behavior for delegated calls:
 <code>"NoNotification"</code>, <code>"MailOnFailure"</code>, or <code>"MailOnCompletion"</code>. When
-omitted, no notification option is sent, which is safe for opaque
-service-principal token providers. Delegated callers can request email
-explicitly. Omit this for enhanced refreshes</p></dd>
+omitted, automatic delegated 'AzureAuth' uses <code>"NoNotification"</code> because
+Power BI requires this field. No option is inferred for service-principal
+authentication or opaque token providers. Omit this for enhanced refreshes</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
@@ -251,8 +251,10 @@ recent entries, depending on their age</p></dd>
 
 <dt id="arg-refresh">refresh<a class="anchor" aria-label="anchor" href="#arg-refresh"></a></dt>
 <dd><p>A <code>fabric_pbi_refresh</code> handle returned by
-<code>fabric_pbi_refresh()</code>, a <code>fabric_pbi_refresh_detail</code>, or a refresh GUID
-Raw GUIDs require the semantic-model target arguments as well</p></dd>
+<code>fabric_pbi_refresh()</code> or a <code>fabric_pbi_refresh_detail</code>. Status and
+cancellation functions also accept a refresh GUID when the semantic-model
+target arguments are supplied; <code>fabric_pbi_refresh_wait()</code> requires a
+handle or detail because it has no separate target arguments</p></dd>
 
 
 <dt id="arg-refresh-id">refresh_id<a class="anchor" aria-label="anchor" href="#arg-refresh-id"></a></dt>

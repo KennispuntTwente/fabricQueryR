@@ -239,10 +239,15 @@ stream <- fabric_lakehouse_read_table(
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)
+orders <- reader$read_table()
+reader$Close()
 ```
 
-The stream is disk-backed and single-use. `version` can select an
-earlier Delta table version when that history is still available:
+The stream is disk-backed and single-use. Close the Arrow reader when
+finished so its staged temporary file is deleted; if you consume the
+‘nanoarrow’ stream directly, call `stream[["release"]]()`. Do not rely
+on garbage collection for this cleanup. `version` can select an earlier
+Delta table version when that history is still available:
 
 ``` r
 

@@ -187,10 +187,10 @@ fabric_job_cancel(
 
 - job:
 
-  A `fabric_job` returned by `fabric_job_run()`, or a job instance GUID.
-  When a GUID is supplied, also provide `workspace`, `item`, and enough
-  type information to reconstruct the status URL. The handle is simpler
-  because it already stores that context
+  A `fabric_job` returned by `fabric_job_run()` or a
+  `fabric_job_instance` returned by a status, wait, or history function.
+  Status and cancellation functions also accept a job instance GUID when
+  `workspace`, `item`, and enough type information are supplied
 
 - job_instance_id:
 

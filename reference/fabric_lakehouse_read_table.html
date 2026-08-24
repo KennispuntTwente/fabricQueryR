@@ -106,7 +106,8 @@ argument is omitted.</p></dd>
 
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
 <dd><p>Return a <code>"tibble"</code> or a disk-backed, single-use
-<code>"arrow_stream"</code>.</p></dd>
+<code>"arrow_stream"</code>. Release a stream with <code>stream[["release"]]()</code> when using
+'nanoarrow' directly, or close the 'arrow' reader that takes ownership of it</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -140,7 +141,7 @@ on a discovered record is preferred when this argument is omitted.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A tibble, or a disk-backed <code>nanoarrow_array_stream</code> when
-<code>result = "arrow_stream"</code>.</p>
+<code>result = "arrow_stream"</code>. Explicit release deletes its temporary file.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -167,6 +168,8 @@ on a discovered record is preferred when this argument is omitted.</p></dd>
 <span class="r-in"><span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="va">reader</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">reader</span><span class="op">$</span><span class="fu">Close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

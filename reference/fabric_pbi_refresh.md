@@ -131,9 +131,10 @@ fabric_pbi_refresh_cancel(
 
   Standard-refresh email behavior for delegated calls:
   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
-  omitted, no notification option is sent, which is safe for opaque
-  service-principal token providers. Delegated callers can request email
-  explicitly. Omit this for enhanced refreshes
+  omitted, automatic delegated 'AzureAuth' uses `"NoNotification"`
+  because Power BI requires this field. No option is inferred for
+  service-principal authentication or opaque token providers. Omit this
+  for enhanced refreshes
 
 - type:
 
@@ -212,9 +213,11 @@ fabric_pbi_refresh_cancel(
 
 - refresh:
 
-  A `fabric_pbi_refresh` handle returned by `fabric_pbi_refresh()`, a
-  `fabric_pbi_refresh_detail`, or a refresh GUID Raw GUIDs require the
-  semantic-model target arguments as well
+  A `fabric_pbi_refresh` handle returned by `fabric_pbi_refresh()` or a
+  `fabric_pbi_refresh_detail`. Status and cancellation functions also
+  accept a refresh GUID when the semantic-model target arguments are
+  supplied; `fabric_pbi_refresh_wait()` requires a handle or detail
+  because it has no separate target arguments
 
 - refresh_id:
 

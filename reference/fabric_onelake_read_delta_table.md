@@ -103,7 +103,8 @@ fabric_onelake_read_delta_table(
 ## Value
 
 A tibble, or a disk-backed, lazy, single-use Arrow stream when
-`result = "arrow_stream"`
+`result = "arrow_stream"`. Explicitly release that stream, or close an
+'arrow' reader that takes ownership of it, to delete its temporary file
 
 ## Basic use
 
@@ -122,7 +123,11 @@ For a large table, or one containing nested data, set
 `result = "arrow_stream"` to process rows in batches instead of
 collecting them all into R memory. The stream is disk-backed and can be
 read only once, so enough temporary disk space must be available for the
-selected data
+selected data. Release the stream deterministically when finished: call
+`stream[["release"]]()` when using 'nanoarrow' directly, or call
+`reader$Close()` after `arrow::as_record_batch_reader(stream)`. Do not
+rely on garbage collection to delete the staged file, particularly on
+Windows
 
 ## Column types
 
@@ -202,5 +207,7 @@ stream <- fabric_onelake_read_delta_table(
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)
+rows <- reader$read_table()
+reader$Close()
 } # }
 ```

@@ -188,7 +188,8 @@ documented <code>/operations/{id}/result</code> resource</p>
 <p><code>fabric_operation_status()</code> preserves Fabric's status, progress, timestamps,
 request identifiers, and structured error. Status values added by Fabric in
 the future remain inspectable, but <code>fabric_operation_wait()</code> stops with a
-typed error instead of polling an unfamiliar value indefinitely</p>
+typed error instead of polling an unfamiliar value indefinitely. The
+documented <code>Undefined</code>, <code>NotStarted</code>, and <code>Running</code> values remain pending</p>
 <p>Some workload APIs, including Lakehouse table loading, expose completion in
 their state response and do not provide a separate <code>/result</code> resource. For
 those operations, <code>fabric_operation_result()</code> returns the terminal state

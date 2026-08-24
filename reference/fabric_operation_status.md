@@ -143,7 +143,8 @@ the documented `/operations/{id}/result` resource
 timestamps, request identifiers, and structured error. Status values
 added by Fabric in the future remain inspectable, but
 `fabric_operation_wait()` stops with a typed error instead of polling an
-unfamiliar value indefinitely
+unfamiliar value indefinitely. The documented `Undefined`, `NotStarted`,
+and `Running` values remain pending
 
 Some workload APIs, including Lakehouse table loading, expose completion
 in their state response and do not provide a separate `/result`

@@ -144,7 +144,8 @@ processing</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A tibble, or a disk-backed, lazy, single-use Arrow stream when
-<code>result = "arrow_stream"</code></p>
+<code>result = "arrow_stream"</code>. Explicitly release that stream, or close an
+'arrow' reader that takes ownership of it, to delete its temporary file</p>
     </div>
     <div class="section level2">
     <h2 id="basic-use">Basic use<a class="anchor" aria-label="anchor" href="#basic-use"></a></h2>
@@ -165,7 +166,11 @@ which rows are selected</p>
 <p>For a large table, or one containing nested data, set
 <code>result = "arrow_stream"</code> to process rows in batches instead of collecting
 them all into R memory. The stream is disk-backed and can be read only once,
-so enough temporary disk space must be available for the selected data</p>
+so enough temporary disk space must be available for the selected data.
+Release the stream deterministically when finished: call
+<code>stream[["release"]]()</code> when using 'nanoarrow' directly, or call
+<code>reader$Close()</code> after <code>arrow::as_record_batch_reader(stream)</code>. Do not rely
+on garbage collection to delete the staged file, particularly on Windows</p>
     </div>
     <div class="section level2">
     <h2 id="column-types">Column types<a class="anchor" aria-label="anchor" href="#column-types"></a></h2>
@@ -228,6 +233,8 @@ logs. If the reader cannot open a Warehouse table, use <code><a href="fabric_sql
 <span class="r-in"><span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="va">reader</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">reader</span><span class="op">$</span><span class="fu">Close</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

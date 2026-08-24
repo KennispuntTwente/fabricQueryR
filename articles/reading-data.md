@@ -248,7 +248,13 @@ stream <- fabric_lakehouse_read_table(
 )
 
 reader <- arrow::as_record_batch_reader(stream)
+orders <- reader$read_table()
+reader$Close()
 ```
+
+Close an Arrow reader after use. For disk-backed OneLake Delta streams,
+this also deletes the staged temporary file; when consuming one directly
+through ‘nanoarrow’, call `stream[["release"]]()` instead.
 
 See the [‘arrow’ R package](https://arrow.apache.org/docs/r/) for more
 information on working with Arrow streams and record batches.

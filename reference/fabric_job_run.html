@@ -225,10 +225,10 @@ supplied explicitly</p></dd>
 
 
 <dt id="arg-job">job<a class="anchor" aria-label="anchor" href="#arg-job"></a></dt>
-<dd><p>A <code>fabric_job</code> returned by <code>fabric_job_run()</code>, or a job instance
-GUID. When a GUID is supplied, also provide <code>workspace</code>, <code>item</code>, and
-enough type information to reconstruct the status URL. The handle is
-simpler because it already stores that context</p></dd>
+<dd><p>A <code>fabric_job</code> returned by <code>fabric_job_run()</code> or a
+<code>fabric_job_instance</code> returned by a status, wait, or history function.
+Status and cancellation functions also accept a job instance GUID when
+<code>workspace</code>, <code>item</code>, and enough type information are supplied</p></dd>
 
 
 <dt id="arg-job-instance-id">job_instance_id<a class="anchor" aria-label="anchor" href="#arg-job-instance-id"></a></dt>
