@@ -371,17 +371,18 @@ test_that("delegated DAX queries can target My Workspace", {
 })
 
 test_that("delegated default standard refresh satisfies the Power BI contract", {
-  fabric_test_delegated_auth_config()
+  auth <- fabric_test_delegated_auth_config()
   dataset_id <- fabric_test_optional_environment(
     "FABRIC_TEST_PERSONAL_DATASET_ID",
     "My Workspace delegated refresh coverage"
   )
-  token <- fabric_test_token("FABRIC_TEST_PBI_TOKEN")
 
   refresh <- fabric_pbi_refresh(
     dataset_id = dataset_id,
     my_workspace = TRUE,
-    token = token
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
   )
   completed <- fabric_pbi_refresh_wait(
     refresh,

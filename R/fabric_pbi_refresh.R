@@ -29,9 +29,9 @@
 #'   controls and requires Premium, PPU, Embedded, or Fabric capacity
 #' @param notify_option Standard-refresh email behavior for delegated calls:
 #'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
-#'   omitted, no notification option is sent, which is safe for opaque
-#'   service-principal token providers. Delegated callers can request email
-#'   explicitly. Omit this for enhanced refreshes
+#'   omitted, automatic delegated 'AzureAuth' uses `"NoNotification"` because
+#'   Power BI requires this field. No option is inferred for service-principal
+#'   authentication or opaque token providers. Omit this for enhanced refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
 #'   `"Calculate"`, `"DataOnly"`, `"Automatic"`, or `"Defragment"`
 #' @param commit_mode Enhanced commit behavior. `"Transactional"` preserves the
@@ -253,7 +253,14 @@ fabric_pbi_refresh <- function(
     effective_date = effective_date,
     max_parallelism = max_parallelism,
     retry_count = retry_count,
-    refresh_timeout = timeout
+    refresh_timeout = timeout,
+    default_notify_option = if (
+      is.null(token) && !fabric_uses_client_credentials(auth_args)
+    ) {
+      "NoNotification"
+    } else {
+      NULL
+    }
   )
   url <- .pbi_refresh_collection_url(api_base, target)
 
@@ -788,7 +795,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   effective_date,
   max_parallelism,
   retry_count,
-  refresh_timeout
+  refresh_timeout,
+  default_notify_option = NULL
 ) {
   mode <- match.arg(mode, c("automatic", "standard", "enhanced"))
   enhanced_values <- list(
@@ -809,6 +817,9 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     .fabric_abort(
       "Enhanced refresh options cannot be used with mode = \"standard\""
     )
+  }
+  if (identical(mode, "standard") && is.null(notify_option)) {
+    notify_option <- default_notify_option
   }
   if (identical(mode, "enhanced") && !is.null(notify_option)) {
     .fabric_abort("notify_option cannot be used with an enhanced refresh")

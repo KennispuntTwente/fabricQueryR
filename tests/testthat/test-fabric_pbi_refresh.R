@@ -44,7 +44,7 @@ test_that("service-principal standard refresh uses the RequestId header", {
   expect_length(submission$req$body$data, 0L)
 })
 
-test_that("standard refresh defaults are safe for opaque principals", {
+test_that("standard refresh defaults follow the known principal type", {
   payloads <- list()
   credential <- fabric_credential(token = "test-token")
   local_mocked_bindings(
@@ -97,11 +97,37 @@ test_that("standard refresh defaults are safe for opaque principals", {
     api_base = "https://powerbi.test/v1.0/myorg"
   )
 
-  expect_length(payloads[[1L]], 0L)
+  expect_equal(payloads[[1L]], list(notifyOption = "NoNotification"))
   expect_length(payloads[[2L]], 0L)
   expect_length(payloads[[3L]], 0L)
   expect_length(payloads[[4L]], 0L)
   expect_equal(payloads[[5L]], list(notifyOption = "MailOnFailure"))
+})
+
+test_that("delegated standard refresh serializes its required notification", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      request <<- req
+      httr2::new_response(
+        method = req$method,
+        url = req$url,
+        status_code = 202L,
+        headers = list(RequestId = pbi_refresh_id),
+        body = charToRaw("")
+      )
+    }
+  )
+
+  fabric_pbi_refresh(
+    pbi_refresh_test_model(),
+    tenant_id = "tenant-id",
+    client_id = "client-id",
+    api_base = "https://powerbi.test/v1.0/myorg"
+  )
+
+  expect_identical(request$body$type, "json")
+  expect_equal(request$body$data, list(notifyOption = "NoNotification"))
 })
 
 test_that("enhanced refresh builds documented processing controls", {

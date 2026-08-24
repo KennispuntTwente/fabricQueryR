@@ -79,6 +79,11 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* Standard semantic-model refreshes acquired through delegated 'AzureAuth' now
+default to `notifyOption = "NoNotification"`, satisfying Power BI's required
+request contract while continuing to omit that field for known service
+principals and opaque token providers.
+
 * Generic JSON results returned by Livy now preserve JSON `null` values instead
 of converting them to empty objects during output simplification.
 
