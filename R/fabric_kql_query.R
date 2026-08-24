@@ -408,7 +408,8 @@ kusto_read_identifier <- function(value) {
 #'   from the Kusto `servertimeout` request property
 #' @param retain_raw_frames Logical. Attach the complete decoded Kusto frame
 #'   response as `kusto_raw_frames`. Keep `FALSE` for normal queries to avoid
-#'   retaining a second copy of large result data
+#'   retaining a second copy of large result data, including on partial-error
+#'   conditions
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -1166,14 +1167,15 @@ kusto_parse_response <- function(
 
   # Attach metadata and check completion before returning the completed result
 
+  raw_frames <- if (isTRUE(retain_raw_frames)) frames else NULL
   result <- kusto_attach_metadata(
     result,
-    if (isTRUE(retain_raw_frames)) frames else NULL,
+    raw_frames,
     completion,
     auxiliary_results,
     metadata
   )
-  kusto_check_completion(completion, result, frames, metadata)
+  kusto_check_completion(completion, result, raw_frames, metadata)
   result
 }
 
@@ -1193,8 +1195,9 @@ kusto_attach_metadata <- function(
     NULL
   attr(result, "kusto_request_id") <- metadata$request_id %||% NULL
   attr(result, "kusto_activity_id") <- metadata$activity_id %||% NULL
-  attr(result, "kusto_response_headers") <- metadata$response_headers %||%
-    list()
+  attr(result, "kusto_response_headers") <- .httr2_redact_object(
+    metadata$response_headers %||% list()
+  )
   result
 }
 

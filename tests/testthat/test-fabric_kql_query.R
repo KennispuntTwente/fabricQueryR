@@ -749,7 +749,12 @@ test_that("Kusto results retain auxiliary frames and correlation metadata", {
       client_request_id = "client-id",
       request_id = "request-id",
       activity_id = "activity-id",
-      response_headers = list(`x-ms-request-id` = "request-id")
+      response_headers = list(
+        `x-ms-request-id` = "request-id",
+        Authorization = "Bearer response-secret",
+        `Set-Cookie` = "session=cookie-secret; Secure",
+        `x-custom-detail` = "token=custom-secret&status=visible"
+      )
     )
   )
 
@@ -765,6 +770,12 @@ test_that("Kusto results retain auxiliary frames and correlation metadata", {
   expect_identical(attr(result, "kusto_request_id"), "request-id")
   expect_identical(attr(result, "kusto_activity_id"), "activity-id")
   expect_identical(attr(result, "kusto_raw_frames"), frames)
+  headers <- attr(result, "kusto_response_headers")
+  expect_identical(headers$`x-ms-request-id`, "request-id")
+  expect_identical(headers$Authorization, "<redacted>")
+  expect_identical(headers$`Set-Cookie`, "<redacted>")
+  expect_match(headers$`x-custom-detail`, "<redacted>", fixed = TRUE)
+  expect_false(grepl("custom-secret", headers$`x-custom-detail`, fixed = TRUE))
   expect_null(attr(kusto_parse_response(frames), "kusto_raw_frames"))
 })
 
@@ -784,18 +795,39 @@ test_that("Kusto partial failures retain returned data and diagnostics", {
       list(list(code = "PartialError", message = "one shard failed"))
     )
   )
-  error <- expect_error(
-    kusto_parse_response(
-      frames,
-      metadata = list(request_id = "request-id", activity_id = "activity-id")
-    ),
-    class = "fabric_kql_partial_error"
+  metadata <- list(
+    request_id = "request-id",
+    activity_id = "activity-id",
+    response_headers = list(
+      `x-ms-request-id` = "request-id",
+      Authorization = "Bearer partial-secret",
+      `Set-Cookie` = "session=partial-cookie-secret",
+      `x-custom-detail` = "token=partial-custom-secret"
+    )
   )
+  error <- rlang::catch_cnd(kusto_parse_response(frames, metadata = metadata))
+  retained_error <- rlang::catch_cnd(kusto_parse_response(
+    frames,
+    retain_raw_frames = TRUE,
+    metadata = metadata
+  ))
 
+  expect_s3_class(error, "fabric_kql_partial_error")
   expect_identical(error$partial_data$value, 42L)
-  expect_identical(error$raw_frames, frames)
+  expect_null(error$raw_frames)
   expect_identical(error$request_id, "request-id")
   expect_identical(error$activity_id, "activity-id")
+  error_headers <- attr(error$partial_data, "kusto_response_headers")
+  expect_identical(error_headers$`x-ms-request-id`, "request-id")
+  expect_identical(error_headers$Authorization, "<redacted>")
+  expect_identical(error_headers$`Set-Cookie`, "<redacted>")
+  expect_false(grepl(
+    "partial-custom-secret",
+    error_headers$`x-custom-detail`,
+    fixed = TRUE
+  ))
+  expect_s3_class(retained_error, "fabric_kql_partial_error")
+  expect_identical(retained_error$raw_frames, frames)
 })
 
 test_that("Kusto v2 parser rejects malformed envelopes and rows", {

@@ -40,7 +40,9 @@ database's read-only SQL analytics endpoint.
 
 * `fabric_kql_tables()`, `fabric_kql_query()`, and `fabric_kql_read_table()`
 discover Eventhouse tables and bring query or table results into R as typed R
-objects.
+objects. KQL partial-result errors now honor `retain_raw_frames = FALSE`, and
+response-header metadata is redacted before it is attached to results or
+errors.
 
 * `fabric_kql_ingest()`, `fabric_kql_write_table()`, and `fabric_kql_export()`
 load existing files or R and Arrow data into Eventhouse, monitor the load, and

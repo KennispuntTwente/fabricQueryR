@@ -49,7 +49,8 @@ from the Kusto \code{servertimeout} request property}
 
 \item{retain_raw_frames}{Logical. Attach the complete decoded Kusto frame
 response as \code{kusto_raw_frames}. Keep \code{FALSE} for normal queries to avoid
-retaining a second copy of large result data}
+retaining a second copy of large result data, including on partial-error
+conditions}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}
