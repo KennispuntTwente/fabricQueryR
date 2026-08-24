@@ -149,10 +149,10 @@ A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
 A discovered workspace-specific endpoint is used unless this argument is
 supplied explicitly}
 
-\item{job}{A \code{fabric_job} returned by \code{\link[=fabric_job_run]{fabric_job_run()}}, or a job instance
-GUID. When a GUID is supplied, also provide \code{workspace}, \code{item}, and
-enough type information to reconstruct the status URL. The handle is
-simpler because it already stores that context}
+\item{job}{A \code{fabric_job} returned by \code{\link[=fabric_job_run]{fabric_job_run()}} or a
+\code{fabric_job_instance} returned by a status, wait, or history function.
+Status and cancellation functions also accept a job instance GUID when
+\code{workspace}, \code{item}, and enough type information are supplied}
 
 \item{job_instance_id}{Alternative argument for a job instance GUID. Do not
 supply it together with a \code{fabric_job} handle}

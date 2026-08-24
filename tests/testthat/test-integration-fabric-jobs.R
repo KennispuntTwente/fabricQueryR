@@ -189,6 +189,14 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   )))
   refreshed <- fabric_job_status(history[[1L]], respect_retry_after = FALSE)
   expect_equal(refreshed$id, history[[1L]]$id)
+  waited <- fabric_job_wait(
+    history[[1L]],
+    poll_interval = 2,
+    timeout = 120,
+    error_on_failure = FALSE
+  )
+  expect_s3_class(waited, "fabric_job_instance")
+  expect_equal(waited$id, history[[1L]]$id)
 
   start <- as.POSIXct(Sys.Date() + 2, tz = "UTC")
   end <- start + (14 * 24 * 60 * 60)

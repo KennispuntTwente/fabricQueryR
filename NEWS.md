@@ -79,6 +79,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_job_wait()` now accepts `fabric_job_instance` records returned by job
+history and status calls, as its documentation promises.
+
 * `FabricLivySession$statements()` now follows the current Livy statement
 collection contract: one unpaginated request returning `statements` and
 `total_statements`. The undocumented `page_size` argument and `from`/`size`

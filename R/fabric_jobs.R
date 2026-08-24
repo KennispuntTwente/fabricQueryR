@@ -285,10 +285,10 @@ fabric_job_run <- function(
   )
 }
 
-#' @param job A `fabric_job` returned by [fabric_job_run()], or a job instance
-#'   GUID. When a GUID is supplied, also provide `workspace`, `item`, and
-#'   enough type information to reconstruct the status URL. The handle is
-#'   simpler because it already stores that context
+#' @param job A `fabric_job` returned by [fabric_job_run()] or a
+#'   `fabric_job_instance` returned by a status, wait, or history function.
+#'   Status and cancellation functions also accept a job instance GUID when
+#'   `workspace`, `item`, and enough type information are supplied
 #' @param job_instance_id Alternative argument for a job instance GUID. Do not
 #'   supply it together with a `fabric_job` handle
 #' @param respect_retry_after Whether to wait for Fabric's recommended first
@@ -446,8 +446,16 @@ fabric_job_wait <- function(
     !missing(client_id) ||
     !is.null(token) ||
     length(auth_args) > 0L
-  if (!inherits(job, "fabric_job")) {
-    .fabric_abort("`job` must be a `fabric_job` returned by fabric_job_run()")
+  if (
+    !inherits(job, "fabric_job") &&
+      !inherits(job, "fabric_job_instance")
+  ) {
+    .fabric_abort(
+      paste0(
+        "`job` must be a `fabric_job` returned by fabric_job_run() or a ",
+        "`fabric_job_instance` returned by a status, wait, or history function"
+      )
+    )
   }
   .fabric_job_scalar_number(timeout, "timeout", minimum = 0)
   if (!is.null(poll_interval)) {

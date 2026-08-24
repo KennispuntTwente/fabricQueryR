@@ -61,6 +61,17 @@ test_that("job history follows Fabric pagination and returns refreshable records
   refreshed <- fabric_job_status(history[[1L]], respect_retry_after = FALSE)
   expect_s3_class(refreshed, "fabric_job_instance")
   expect_equal(refreshed$id, history[[1L]]$id)
+
+  waited <- fabric_job_wait(
+    history[[1L]],
+    poll_interval = 0,
+    timeout = 1,
+    .sleep = function(seconds) invisible(seconds),
+    .now = function() as.POSIXct("2026-08-24", tz = "UTC")
+  )
+  expect_s3_class(waited, "fabric_job_instance")
+  expect_equal(waited$id, history[[1L]]$id)
+  expect_equal(waited$status, "Completed")
 })
 
 test_that("schedule constructors cover every documented configuration", {
