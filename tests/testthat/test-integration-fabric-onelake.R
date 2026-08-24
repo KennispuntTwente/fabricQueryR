@@ -941,7 +941,12 @@ test_that("unshredded Fabric Variant permits non-Variant projections", {
         arrow::as_record_batch_reader(value)$read_table()
       )
     }
-    expect_identical(value$event_id, 1:4, label = result)
+    expected <- if (identical(result, "tibble")) {
+      as.character(1:4)
+    } else {
+      1:4
+    }
+    expect_identical(value$event_id, expected, label = result)
   }
 })
 
