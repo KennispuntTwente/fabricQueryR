@@ -472,7 +472,7 @@
       "continuationUri",
       "continuationToken"
     )
-    continuation_values <- setNames(
+    continuation_values <- stats::setNames(
       vector("list", length(continuation_fields)),
       continuation_fields
     )
