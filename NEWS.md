@@ -79,6 +79,11 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `FabricLivySession$statements()` now follows the current Livy statement
+collection contract: one unpaginated request returning `statements` and
+`total_statements`. The undocumented `page_size` argument and `from`/`size`
+query parameters have been removed.
+
 * Disk-backed Delta streams now retry staged-file deletion after closing their
 connection on Windows. Their documentation and examples now require explicit
 release, and cover both direct 'nanoarrow' and transferred 'arrow' ownership.

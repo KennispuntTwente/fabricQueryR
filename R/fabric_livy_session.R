@@ -490,78 +490,43 @@ FabricLivySession <- R6::R6Class(
     },
 
     #' @description List every statement in this execution context
-    #' @param page_size Positive number of statements requested per Livy page
     #' @returns The raw Livy statements response
-    statements = function(page_size = 100L) {
+    statements = function() {
       private$assert_open()
+
+      response <- fabric_livy_json(
+        "GET",
+        private$statement_collection(),
+        fabric_livy_handle_credential(private$credential_ref)
+      )
+      statements <- response$statements
       if (
-        !is.numeric(page_size) ||
-          length(page_size) != 1L ||
-          is.na(page_size) ||
-          !is.finite(page_size) ||
-          page_size < 1 ||
-          page_size != floor(page_size)
+        is.null(statements) ||
+          !is.list(statements)
       ) {
-        .fabric_abort("page_size must be one positive whole number")
-      }
-      page_size <- as.integer(page_size)
-      offset <- 0L
-      result <- NULL
-      statements <- list()
-
-      repeat {
-        request <- httr2::request(private$statement_collection()) |>
-          httr2::req_url_query(from = offset, size = page_size)
-        page <- fabric_livy_json(
-          "GET",
-          request$url,
-          fabric_livy_handle_credential(private$credential_ref)
+        .fabric_abort(
+          "Livy returned a malformed statement collection",
+          class = "fabric_livy_protocol_error"
         )
-        page_statements <- page$statements %||% list()
-        if (!is.list(page_statements)) {
-          .fabric_abort(
-            "Livy returned malformed statement pagination",
-            class = "fabric_livy_protocol_error"
-          )
-        }
-        page_from <- page$from %||% offset
-        if (
-          !is.numeric(page_from) ||
-            length(page_from) != 1L ||
-            is.na(page_from) ||
-            page_from != offset
-        ) {
-          .fabric_abort(
-            "Livy returned a non-contiguous statement page",
-            class = "fabric_livy_protocol_error"
-          )
-        }
-        result <- result %||% page
-        statements <- c(statements, page_statements)
-        total <- page$total %||% length(statements)
-        if (
-          !is.numeric(total) ||
-            length(total) != 1L ||
-            is.na(total) ||
-            !is.finite(total) ||
-            total < 0 ||
-            total != floor(total)
-        ) {
-          .fabric_abort(
-            "Livy returned an invalid statement total",
-            class = "fabric_livy_protocol_error"
-          )
-        }
-        if (!length(page_statements) || length(statements) >= total) {
-          break
-        }
-        offset <- offset + length(page_statements)
+      }
+      total <- response$total_statements
+      if (
+        !is.numeric(total) ||
+          length(total) != 1L ||
+          is.na(total) ||
+          !is.finite(total) ||
+          total < 0 ||
+          total != floor(total) ||
+          total != length(statements)
+      ) {
+        .fabric_abort(
+          "Livy returned an invalid statement total",
+          class = "fabric_livy_protocol_error"
+        )
       }
 
-      result$from <- 0L
-      result$total <- as.integer(result$total %||% length(statements))
-      result$statements <- statements
-      result
+      response$total_statements <- as.integer(total)
+      response
     },
 
     #' @description Reset a regular session's inactivity timeout

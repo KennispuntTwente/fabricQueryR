@@ -233,14 +233,7 @@ session$close()
   List every statement in this execution context
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivySession$statements(page_size = 100L)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{page_size}}{Positive number of statements requested per Livy page}
-    }
+    \preformatted{FabricLivySession$statements()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{

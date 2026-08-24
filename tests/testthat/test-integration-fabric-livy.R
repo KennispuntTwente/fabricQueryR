@@ -184,6 +184,19 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     "2026-08-10 12:30:01.125"
   )
 
+  statements <- session$statements()
+  expect_identical(
+    statements$total_statements,
+    length(statements$statements)
+  )
+  statement_ids <- vapply(
+    statements$statements,
+    `[[`,
+    integer(1),
+    "id"
+  )
+  expect_true(all(c(assignment$id, reused$id, sql$id) %in% statement_ids))
+
   failed <- session$submit(
     "raise RuntimeError('FABRICQUERYR_INTENTIONAL_STATEMENT_FAILURE')",
     kind = "pyspark"

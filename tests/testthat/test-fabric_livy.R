@@ -224,10 +224,9 @@ test_that("submit returns an inspectable and cancellable statement", {
       if (method == "POST" && grepl("/cancel$", url)) {
         return(list(msg = "canceled"))
       }
-      if (method == "GET" && grepl("/statements\\?", url)) {
+      if (method == "GET" && grepl("/statements$", url)) {
         return(list(
-          from = 0L,
-          total = 1L,
+          total_statements = 1L,
           statements = list(list(id = 9L, state = "waiting"))
         ))
       }
@@ -257,7 +256,7 @@ test_that("submit returns an inspectable and cancellable statement", {
   session$close()
 })
 
-test_that("session statement listing follows Livy offset pages", {
+test_that("session statement listing follows the Livy collection contract", {
   urls <- character()
   local_mocked_bindings(
     fabric_livy_json = function(method, url, ...) {
@@ -265,14 +264,11 @@ test_that("session statement listing follows Livy offset pages", {
         return(list(id = "session", state = "idle"))
       }
       urls <<- c(urls, url)
-      offset <- as.integer(httr2::url_parse(url)$query$from)
       list(
-        from = offset,
-        total = 3L,
-        statements = lapply(
-          seq.int(offset + 1L, min(offset + 2L, 3L)),
-          function(id) list(id = id, state = "available")
-        )
+        total_statements = 3L,
+        statements = lapply(1:3, function(id) {
+          list(id = id, state = "available")
+        })
       )
     },
     fabric_livy_ok = function(...) TRUE
@@ -283,15 +279,44 @@ test_that("session statement listing follows Livy offset pages", {
     verbose = FALSE
   )
 
-  result <- session$statements(page_size = 2L)
+  result <- session$statements()
 
-  expect_identical(result$from, 0L)
-  expect_identical(result$total, 3L)
+  expect_identical(result$total_statements, 3L)
   expect_equal(vapply(result$statements, `[[`, integer(1), "id"), 1:3)
-  expect_length(urls, 2L)
-  expect_match(urls[[1L]], "from=0")
-  expect_match(urls[[2L]], "from=2")
-  expect_error(session$statements(page_size = 1.5), "positive whole number")
+  expect_length(urls, 1L)
+  expect_match(urls, "/statements$")
+  expect_false(grepl("?", urls, fixed = TRUE))
+  session$close()
+})
+
+test_that("session statement listing rejects inconsistent collections", {
+  local_mocked_bindings(
+    fabric_livy_json = local({
+      responses <- list(
+        list(id = "session", state = "idle"),
+        list(
+          total_statements = 2L,
+          statements = list(list(id = 1L, state = "available"))
+        )
+      )
+      function(...) {
+        response <- responses[[1L]]
+        responses <<- responses[-1L]
+        response
+      }
+    }),
+    fabric_livy_ok = function(...) TRUE
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "token",
+    verbose = FALSE
+  )
+
+  expect_error(
+    session$statements(),
+    class = "fabric_livy_protocol_error"
+  )
   session$close()
 })
 
