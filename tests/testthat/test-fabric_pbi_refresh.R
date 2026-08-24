@@ -675,6 +675,49 @@ test_that("unsupported standard details fall back to collection history", {
   expect_match(calls[[2L]], "/refreshes$", perl = TRUE)
 })
 
+test_that("raw standard refresh IDs resolve through collection history", {
+  calls <- list()
+  local_mocked_bindings(
+    .pbi_refresh_request = function(method, url, credential, ...) {
+      calls[[length(calls) + 1L]] <<- list(method = method, url = url)
+      if (grepl(paste0("/refreshes/", pbi_refresh_id), url, fixed = TRUE)) {
+        .fabric_abort(
+          "Request-specific details are unavailable",
+          class = "fabric_http_error",
+          status = 404L
+        )
+      }
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(
+          value = list(list(
+            requestId = toupper(pbi_refresh_id),
+            refreshType = "ViaApi",
+            status = "Completed"
+          ))
+        )
+      )
+    }
+  )
+
+  detail <- fabric_pbi_refresh_status(
+    refresh_id = pbi_refresh_id,
+    workspace_id = pbi_refresh_workspace_id,
+    dataset_id = pbi_refresh_dataset_id,
+    token = "test-token",
+    api_base = "https://powerbi.test/v1.0/myorg",
+    .sleep = function(seconds) NULL
+  )
+
+  expect_identical(detail$state, "Completed")
+  expect_identical(detail$refresh$mode, "standard")
+  expect_length(calls, 2L)
+  expect_identical(vapply(calls, `[[`, character(1), "method"), c("GET", "GET"))
+})
+
 test_that("standard detail fallback preserves transport errors", {
   local_mocked_bindings(
     .pbi_refresh_request = function(...) {
@@ -692,6 +735,33 @@ test_that("standard detail fallback preserves transport errors", {
 
   expect_s3_class(condition, "fabric_http_transport_error")
   expect_match(conditionMessage(condition), "lost its connection", fixed = TRUE)
+})
+
+test_that("raw refresh fallback preserves non-availability HTTP errors", {
+  calls <- 0L
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      calls <<- calls + 1L
+      .fabric_abort(
+        "The refresh service is unavailable",
+        class = "fabric_http_error",
+        status = 503L
+      )
+    }
+  )
+
+  condition <- rlang::catch_cnd(fabric_pbi_refresh_status(
+    refresh_id = pbi_refresh_id,
+    workspace_id = pbi_refresh_workspace_id,
+    dataset_id = pbi_refresh_dataset_id,
+    token = "test-token",
+    api_base = "https://powerbi.test/v1.0/myorg",
+    .sleep = function(seconds) NULL
+  ))
+
+  expect_s3_class(condition, "fabric_http_error")
+  expect_identical(condition$status, 503L)
+  expect_identical(calls, 1L)
 })
 
 test_that("standard refresh wait retries missing history until completion", {
@@ -980,6 +1050,88 @@ test_that("standard refresh cancellation fails before an HTTP request", {
   expect_s3_class(condition, "fabric_pbi_refresh_unsupported_operation")
   expect_match(conditionMessage(condition), "cannot be cancelled", fixed = TRUE)
   expect_identical(requested, FALSE)
+})
+
+test_that("raw standard refresh cancellation is rejected from history", {
+  calls <- list()
+  local_mocked_bindings(
+    .pbi_refresh_request = function(method, url, credential, ...) {
+      calls[[length(calls) + 1L]] <<- list(method = method, url = url)
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(
+          value = list(list(
+            requestId = pbi_refresh_id,
+            refreshType = "ViaApi",
+            status = "Completed"
+          ))
+        )
+      )
+    }
+  )
+
+  condition <- rlang::catch_cnd(fabric_pbi_refresh_cancel(
+    refresh_id = pbi_refresh_id,
+    workspace_id = pbi_refresh_workspace_id,
+    dataset_id = pbi_refresh_dataset_id,
+    token = "test-token",
+    api_base = "https://powerbi.test/v1.0/myorg"
+  ))
+
+  expect_s3_class(condition, "fabric_pbi_refresh_unsupported_operation")
+  expect_length(calls, 1L)
+  expect_identical(calls[[1L]]$method, "GET")
+  expect_match(calls[[1L]]$url, "/refreshes$", perl = TRUE)
+})
+
+test_that("raw enhanced refresh cancellation is classified before DELETE", {
+  calls <- list()
+  local_mocked_bindings(
+    .pbi_refresh_request = function(method, url, credential, ...) {
+      calls[[length(calls) + 1L]] <<- list(method = method, url = url)
+      body <- if (identical(method, "GET")) {
+        list(
+          value = list(list(
+            requestId = pbi_refresh_id,
+            refreshType = "ViaEnhancedApi",
+            status = "Unknown"
+          ))
+        )
+      } else {
+        list()
+      }
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = body
+      )
+    }
+  )
+
+  result <- withVisible(fabric_pbi_refresh_cancel(
+    refresh_id = pbi_refresh_id,
+    workspace_id = pbi_refresh_workspace_id,
+    dataset_id = pbi_refresh_dataset_id,
+    token = "test-token",
+    api_base = "https://powerbi.test/v1.0/myorg"
+  ))
+
+  expect_false(result$visible)
+  expect_identical(result$value, TRUE)
+  expect_identical(
+    vapply(calls, `[[`, character(1), "method"),
+    c("GET", "DELETE")
+  )
+  expect_match(
+    calls[[2L]]$url,
+    paste0("/refreshes/", pbi_refresh_id),
+    fixed = TRUE
+  )
 })
 
 test_that("connection strings resolve through the existing DAX target lookup", {

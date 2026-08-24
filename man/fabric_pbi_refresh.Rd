@@ -215,7 +215,9 @@ Standard and service-principal refresh responses can expose the accepted
 refresh ID through \code{RequestId} rather than \code{x-ms-request-id} or \code{Location}.
 'fabricQueryR' recognizes either response form. Standard-refresh status and
 waiting fall back to refresh history when request-specific execution details
-are unavailable. Cancellation is available only for enhanced refreshes
+are unavailable. For a raw refresh ID, history also determines whether
+cancellation is supported before a DELETE request is sent. Cancellation is
+available only for enhanced refreshes
 
 \code{Transactional} is the safe commit default. \code{PartialBatch} can expose a
 partially refreshed model after failure and cannot apply an incremental

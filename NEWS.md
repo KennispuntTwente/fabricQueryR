@@ -70,7 +70,9 @@ refresh history when request-specific details are unavailable; cancellation
 remains available only for enhanced refreshes. Standard refreshes now omit
 `notifyOption` by default so opaque static or callback service-principal tokens
 do not accidentally send an inapplicable mail-notification option; delegated
-callers can request notifications explicitly.
+callers can request notifications explicitly. Status and cancellation calls
+given only a raw refresh ID now resolve its standard or enhanced mode from
+history before falling back or sending a cancellation request.
 
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item

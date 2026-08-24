@@ -98,7 +98,9 @@
 #' refresh ID through `RequestId` rather than `x-ms-request-id` or `Location`.
 #' 'fabricQueryR' recognizes either response form. Standard-refresh status and
 #' waiting fall back to refresh history when request-specific execution details
-#' are unavailable. Cancellation is available only for enhanced refreshes
+#' are unavailable. For a raw refresh ID, history also determines whether
+#' cancellation is supported before a DELETE request is sent. Cancellation is
+#' available only for enhanced refreshes
 #'
 #' `Transactional` is the safe commit default. `PartialBatch` can expose a
 #' partially refreshed model after failure and cannot apply an incremental
@@ -546,7 +548,7 @@ fabric_pbi_refresh_wait <- function(
     last <- tryCatch(
       .pbi_refresh_get_status(context),
       fabric_pbi_refresh_not_found = function(cnd) {
-        if (!identical(context$refresh$mode, "standard")) {
+        if (!context$refresh$mode %in% c("standard", "unknown")) {
           rlang::cnd_signal(cnd)
         }
         NULL
@@ -556,6 +558,7 @@ fabric_pbi_refresh_wait <- function(
       retry_after <- NULL
       next
     }
+    context$refresh <- last$refresh
     retry_after <- last$retry_after
     .fabric_poll_progress_update(progress, last$state)
     if (last$state %in% .fabric_pbi_refresh_active_states) {
@@ -1146,6 +1149,36 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   vapply(values, .pbi_refresh_history_id, character(1))
 }
 
+# Find one raw refresh-history value for a resolved refresh context
+.pbi_refresh_history_value <- function(context) {
+  values <- .pbi_refresh_history_values(
+    context$api_base,
+    context$target,
+    context$credential
+  )
+  ids <- .pbi_refresh_history_ids(values)
+  index <- match(tolower(context$id), tolower(ids))
+  if (is.na(index)) {
+    .fabric_abort(
+      sprintf(
+        "Power BI refresh %s is not available in refresh history",
+        context$id
+      ),
+      class = c("fabric_pbi_refresh_not_found", "fabric_pbi_refresh_error")
+    )
+  }
+  values[[index]]
+}
+
+# Classify one refresh-history value into the public request mode
+.pbi_refresh_history_mode <- function(value) {
+  if (identical(value$refreshType, "ViaEnhancedApi")) {
+    "enhanced"
+  } else {
+    "standard"
+  }
+}
+
 # Normalize raw refresh-history values into the public list contract
 .pbi_refresh_history_details <- function(
   values,
@@ -1160,11 +1193,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       target = target,
       credential = credential,
       api_base = api_base,
-      mode = if (identical(value$refreshType, "ViaEnhancedApi")) {
-        "enhanced"
-      } else {
-        "standard"
-      }
+      mode = .pbi_refresh_history_mode(value)
     )
     .pbi_refresh_detail(value, handle, status_code = 200L, history = TRUE)
   })
@@ -1243,7 +1272,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 
 # Read one status response and convert it to the public detail contract
 .pbi_refresh_get_status <- function(context) {
-  standard <- identical(context$refresh$mode, "standard")
+  history_fallback <- context$refresh$mode %in% c("standard", "unknown")
   response <- tryCatch(
     .pbi_refresh_request(
       "GET",
@@ -1252,7 +1281,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       idempotent = TRUE
     ),
     fabric_http_error = function(cnd) {
-      if (standard && isTRUE(cnd$status %in% c(400L, 404L))) {
+      if (history_fallback && isTRUE(cnd$status %in% c(400L, 404L))) {
         return(NULL)
       }
       rlang::cnd_signal(cnd)
@@ -1267,25 +1296,14 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     ))
   }
 
-  values <- .pbi_refresh_history_values(
-    context$api_base,
-    context$target,
-    context$credential
-  )
-  ids <- .pbi_refresh_history_ids(values)
-  index <- match(tolower(context$id), tolower(ids))
-  if (is.na(index)) {
-    .fabric_abort(
-      sprintf(
-        "Power BI refresh %s is not available in refresh history",
-        context$id
-      ),
-      class = c("fabric_pbi_refresh_not_found", "fabric_pbi_refresh_error")
-    )
+  value <- .pbi_refresh_history_value(context)
+  refresh <- context$refresh
+  if (identical(refresh$mode, "unknown")) {
+    refresh$mode <- .pbi_refresh_history_mode(value)
   }
   .pbi_refresh_detail(
-    values[[index]],
-    context$refresh,
+    value,
+    refresh,
     status_code = 200L,
     history = TRUE
   )
@@ -1293,6 +1311,10 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 
 # Send cancellation using an already-resolved refresh context
 .pbi_refresh_cancel_context <- function(context) {
+  if (identical(context$refresh$mode, "unknown")) {
+    value <- .pbi_refresh_history_value(context)
+    context$refresh$mode <- .pbi_refresh_history_mode(value)
+  }
   if (identical(context$refresh$mode, "standard")) {
     .fabric_abort(
       "Standard Power BI refreshes cannot be cancelled",
