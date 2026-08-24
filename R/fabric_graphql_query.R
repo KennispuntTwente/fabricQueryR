@@ -107,7 +107,7 @@
 #'
 #' Most users can leave `audience = NULL`; 'fabricQueryR' chooses the
 #' documented scope for the sign-in flow. Set it only for a custom identity
-#' provider. HTTPS and route validation do not prove hostname ownership or token
+#' provider. HTTPS and URL-shape validation do not prove hostname ownership or token
 #' audience. Use a custom API Management or gateway host only when your
 #' organization controls it, with a token or provider issued for that host's
 #' intended audience

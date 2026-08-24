@@ -128,7 +128,7 @@ caller-selected endpoint boundary. User Data Function documentation now
 identifies `UserDataFunction.Execute.All` as the least-privilege delegated
 default and `Item.Execute.All` as a broader explicit alternative; both still
 require item Execute permission. Endpoint documentation now explains that
-HTTPS and path checks do not establish hostname ownership or token audience,
+HTTPS and URL-shape checks do not establish hostname ownership or token audience,
 and limits custom gateways to organization-controlled hosts with credentials
 issued for their intended audience. Supplied and acquired bearer tokens are
 rejected before use if they contain whitespace or control characters that

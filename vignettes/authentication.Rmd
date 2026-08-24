@@ -225,7 +225,7 @@ your organization controls the host, and use a token issued for the gateway's
 intended audience. Set `audience` explicitly when the token provider uses that
 argument to acquire the gateway credential.
 
-HTTPS and route/path validation reject malformed endpoint input, but do not
+HTTPS and URL-shape validation reject malformed endpoint input, but do not
 prove that your organization owns the hostname, that the gateway forwards a
 request safely, or that a supplied token has the correct audience. Confirm
 those properties with the gateway owner before sending credentials or data.
