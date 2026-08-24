@@ -764,6 +764,157 @@ test_that("ADBC Arrow binding preserves SQL Server placeholder names", {
   expect_identical(bound[["@p1"]], I(42L))
 })
 
+test_that("SQL connection adapters construct ODBC and ADBC connections", {
+  skip_if_not_installed("odbc")
+  skip_if_not_installed("adbi")
+  skip_if_not_installed("adbcdrivermanager")
+
+  odbc_driver <- structure(list(name = "odbc"), class = "test_odbc_driver")
+  managed_driver <- structure(list(name = "adbc"), class = "adbc_driver")
+  adbi_driver <- structure(list(driver = managed_driver), class = "test_adbi")
+  connection_calls <- list()
+  manager_calls <- character()
+
+  local_mocked_bindings(
+    odbc = function() odbc_driver,
+    .package = "odbc"
+  )
+  local_mocked_bindings(
+    adbc_driver = function(driver) {
+      manager_calls <<- c(manager_calls, driver)
+      managed_driver
+    },
+    .package = "adbcdrivermanager"
+  )
+  local_mocked_bindings(
+    adbi = function(driver) {
+      expect_identical(driver, managed_driver)
+      adbi_driver
+    },
+    .package = "adbi"
+  )
+  local_mocked_bindings(
+    dbConnect = function(driver, ...) {
+      connection_calls[[length(connection_calls) + 1L]] <<- list(
+        driver = driver,
+        args = list(...)
+      )
+      structure(
+        list(index = length(connection_calls)),
+        class = if (identical(driver, adbi_driver)) {
+          "AdbiConnection"
+        } else {
+          "OdbcConnection"
+        }
+      )
+    },
+    .package = "DBI"
+  )
+
+  odbc_connection <- .fabric_sql_db_connect(
+    "odbc",
+    server = "sql.fabric.microsoft.com"
+  )
+  adbc_connection <- .fabric_sql_db_connect(
+    "adbc",
+    adbc_driver = "adbc_mssql",
+    uri = "sql.fabric.microsoft.com"
+  )
+  direct_connection <- .fabric_sql_db_connect(
+    "adbc",
+    adbc_driver = managed_driver,
+    uri = "sql.fabric.microsoft.com"
+  )
+
+  expect_s3_class(odbc_connection, "OdbcConnection")
+  expect_s3_class(adbc_connection, "AdbiConnection")
+  expect_s3_class(direct_connection, "AdbiConnection")
+  expect_identical(connection_calls[[1L]]$driver, odbc_driver)
+  expect_identical(
+    connection_calls[[1L]]$args$server,
+    "sql.fabric.microsoft.com"
+  )
+  expect_identical(manager_calls, "adbc_mssql")
+  expect_identical(connection_calls[[2L]]$driver, adbi_driver)
+  expect_identical(connection_calls[[3L]]$driver, adbi_driver)
+})
+
+test_that("SQL query adapters preserve result shape and disconnect semantics", {
+  connection <- structure(list(), class = "OdbcConnection")
+  adbc_connection <- structure(list(), class = "AdbiConnection")
+  tabular_result <- structure(list(kind = "tabular"), class = "DBIResult")
+  arrow_result <- structure(list(kind = "arrow"), class = "DBIResultArrow")
+  arrow_stream <- structure(list(kind = "stream"), class = "test_arrow_stream")
+  calls <- list()
+
+  record <- function(name, ...) {
+    calls[[length(calls) + 1L]] <<- c(list(name = name), list(...))
+  }
+  local_mocked_bindings(
+    dbSendQuery = function(conn, statement, immediate = NULL, ...) {
+      record("send", conn = conn, statement = statement, immediate = immediate)
+      tabular_result
+    },
+    dbSendQueryArrow = function(conn, statement, immediate = NULL, ...) {
+      record(
+        "send_arrow",
+        conn = conn,
+        statement = statement,
+        immediate = immediate
+      )
+      arrow_result
+    },
+    dbFetch = function(res, ...) {
+      record("fetch", result = res)
+      data.frame(value = 1L)
+    },
+    dbFetchArrow = function(res, ...) {
+      record("fetch_arrow", result = res)
+      arrow_stream
+    },
+    dbDisconnect = function(conn, ...) {
+      record("disconnect", conn = conn, args = list(...))
+      invisible(TRUE)
+    },
+    .package = "DBI"
+  )
+
+  expect_identical(
+    .fabric_sql_db_send_query(connection, "SELECT 1", "tibble"),
+    tabular_result
+  )
+  expect_identical(
+    .fabric_sql_db_send_query(connection, "SELECT 2", "arrow_stream"),
+    arrow_result
+  )
+  expect_identical(
+    .fabric_sql_db_fetch(tabular_result, "tibble"),
+    data.frame(value = 1L)
+  )
+  expect_identical(
+    .fabric_sql_db_fetch(arrow_result, "arrow_stream"),
+    arrow_stream
+  )
+  expect_true(.fabric_sql_db_disconnect(connection, force = TRUE))
+  expect_true(.fabric_sql_db_disconnect(adbc_connection, force = TRUE))
+
+  expect_identical(
+    vapply(calls, `[[`, character(1), "name"),
+    c(
+      "send",
+      "send_arrow",
+      "fetch",
+      "fetch_arrow",
+      "disconnect",
+      "disconnect"
+    )
+  )
+  expect_false(calls[[1L]]$immediate)
+  expect_false(calls[[2L]]$immediate)
+  expect_length(calls[[5L]]$args, 0L)
+  expect_identical(calls[[6L]]$args$force, TRUE)
+})
+
 test_that("ADBC bind failures clear the result before disconnecting", {
   connection <- structure(list(), class = "AdbiConnection")
   query_result <- structure(list(), class = "test_result")

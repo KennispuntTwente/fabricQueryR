@@ -265,6 +265,100 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   expect_false(status_args$error_on_failure)
 })
 
+test_that("Kusto ingestion handles recover only live credentials", {
+  credential <- structure(
+    list(provider = function(...) "token"),
+    class = "fabric_credential"
+  )
+
+  expect_identical(
+    kusto_ingestion_credential(list(credential = credential)),
+    credential
+  )
+
+  protected <- kusto_ingestion_credential_reference(credential)
+  weak_reference <- protected$reference
+  expect_identical(
+    kusto_ingestion_credential(list(credential = weak_reference)),
+    credential
+  )
+
+  protected$key <- NULL
+  gc()
+  error <- rlang::catch_cnd(
+    kusto_ingestion_credential(list(credential = weak_reference)),
+    classes = "error"
+  )
+  expect_s3_class(error, "fabric_kql_ingestion_credential_error")
+  expect_match(conditionMessage(error), "supply token")
+
+  expect_error(
+    kusto_ingestion_credential(list()),
+    class = "fabric_kql_ingestion_credential_error"
+  )
+})
+
+test_that("staging cleanup adapters delete only their parent directory", {
+  target <- list(
+    workspace = "workspace-id",
+    item = "item-id",
+    path = "Files/.fabricQueryR/write-id/part.parquet"
+  )
+  credential <- structure(list(id = "credential"), class = "fabric_credential")
+  calls <- list()
+  fail <- FALSE
+  local_mocked_bindings(
+    onelake_delete_target = function(
+      target,
+      credential,
+      recursive,
+      is_directory
+    ) {
+      if (fail) {
+        rlang::abort("cleanup failed")
+      }
+      calls[[length(calls) + 1L]] <<- list(
+        target = target,
+        credential = credential,
+        recursive = recursive,
+        is_directory = is_directory
+      )
+      invisible(TRUE)
+    }
+  )
+
+  cleanup <- list(
+    lakehouse = .fabric_lakehouse_remove_staging,
+    warehouse = .fabric_warehouse_remove_staging,
+    onelake = .fabric_onelake_remove_staging
+  )
+  expect_true(all(vapply(
+    cleanup,
+    function(adapter) adapter(target, credential),
+    logical(1)
+  )))
+  expect_length(calls, 3L)
+  for (call in calls) {
+    expect_identical(call$target$path, "Files/.fabricQueryR/write-id")
+    expect_identical(call$target$workspace, target$workspace)
+    expect_identical(call$target$item, target$item)
+    expect_identical(call$credential, credential)
+    expect_true(call$recursive)
+    expect_true(call$is_directory)
+  }
+  expect_identical(
+    target$path,
+    "Files/.fabricQueryR/write-id/part.parquet"
+  )
+
+  fail <- TRUE
+  expect_false(any(vapply(
+    cleanup,
+    function(adapter) adapter(target, credential),
+    logical(1)
+  )))
+})
+
 test_that("Eventhouse writer requires a Storage credential for fixed tokens", {
   skip_if_not_installed("arrow")
   local_mocked_bindings(

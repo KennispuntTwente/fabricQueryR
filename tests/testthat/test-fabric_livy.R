@@ -480,6 +480,55 @@ test_that("Livy fallback columns simplify only uniform scalar types", {
   }
 })
 
+test_that("the Livy request adapter preserves its HTTP contract", {
+  captured <- NULL
+  credential <- list(livy_audience = "https://custom.fabric.example/.default")
+  deadline <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  local_mocked_bindings(
+    .httr2_perform = function(
+      req,
+      credential,
+      audience,
+      idempotent,
+      accepted_status,
+      deadline
+    ) {
+      captured <<- list(
+        req = req,
+        credential = credential,
+        audience = audience,
+        idempotent = idempotent,
+        accepted_status = accepted_status,
+        deadline = deadline
+      )
+      invisible(list(status = "ok"))
+    }
+  )
+
+  value <- fabric_livy_ok(
+    method = "DELETE",
+    url = "https://api.fabric.microsoft.com/v1/workspaces/w/livy/sessions/7",
+    credential = credential,
+    payload = list(args = character(), code = "stop()"),
+    idempotent = TRUE,
+    accepted_status = c(200L, 404L),
+    deadline = deadline
+  )
+
+  expect_true(value)
+  expect_identical(captured$req$method, "DELETE")
+  expect_identical(captured$req$body$data$code, "stop()")
+  expect_s3_class(captured$req$body$data$args, "AsIs")
+  expect_identical(captured$credential, credential)
+  expect_identical(
+    captured$audience,
+    "https://custom.fabric.example/.default"
+  )
+  expect_true(captured$idempotent)
+  expect_identical(captured$accepted_status, c(200L, 404L))
+  expect_identical(captured$deadline, deadline)
+})
+
 test_that("Livy table MIME output is parsed into a tibble", {
   result <- fabric_livy_output(
     response = list(

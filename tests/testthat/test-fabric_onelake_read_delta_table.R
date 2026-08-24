@@ -685,6 +685,139 @@ test_that("Python failures are classified and bearer tokens are redacted", {
   expect_identical(translated$delta_features, "VariantType")
 })
 
+test_that("the production Delta adapter configures and owns its query", {
+  table_args <- NULL
+  registered <- NULL
+  executed <- NULL
+  converted_version <- NULL
+
+  table <- new.env(parent = emptyenv())
+  table$protocol <- function() list(reader_features = character())
+  table$schema <- function() list()
+
+  reader <- new.env(parent = emptyenv())
+  builder <- new.env(parent = emptyenv())
+  builder$register <- function(name, value) {
+    registered <<- list(name = name, value = value)
+    invisible(NULL)
+  }
+  builder$execute <- function(query) {
+    executed <<- query
+    reader
+  }
+
+  delta_python <- new.env(parent = emptyenv())
+  delta_python$builtins <- list(
+    int = function(value) {
+      converted_version <<- value
+      paste0("python-int:", value)
+    }
+  )
+  delta_python$deltalake <- list(
+    DeltaTable = function(...) {
+      table_args <<- list(...)
+      table
+    },
+    QueryBuilder = function() builder
+  )
+
+  local_mocked_bindings(.delta_python = delta_python)
+  local_mocked_bindings(
+    dict = function(..., convert = TRUE) {
+      expect_false(convert)
+      list(...)
+    },
+    py_to_r = identity,
+    .package = "reticulate"
+  )
+
+  actual <- fabric_delta_python_reader(
+    table_uri = "abfss://workspace@onelake/table",
+    bearer_token = "storage-token",
+    storage_endpoint = "https://private.blob.fabric.microsoft.com",
+    version = 42,
+    columns = c("id", "a\"b"),
+    limit = 5
+  )
+
+  expect_identical(actual, reader)
+  expect_identical(table_args$table_uri, "abfss://workspace@onelake/table")
+  expect_identical(
+    table_args$storage_options,
+    list(
+      use_fabric_endpoint = "true",
+      bearer_token = "storage-token",
+      azure_storage_endpoint = "https://private.blob.fabric.microsoft.com"
+    )
+  )
+  expect_identical(converted_version, "42")
+  expect_identical(table_args$version, "python-int:42")
+  expect_identical(registered$name, "fabric_delta_table")
+  expect_identical(registered$value, table)
+  expect_identical(
+    executed,
+    'SELECT "id", "a""b" FROM "fabric_delta_table" LIMIT 5'
+  )
+  expect_identical(attr(actual, "fabric_delta_table", exact = TRUE), table)
+  expect_identical(
+    attr(actual, "fabric_delta_query_builder", exact = TRUE),
+    builder
+  )
+})
+
+test_that("Delta stream adapters preserve owners and collect scalar data", {
+  source_schema <- nanoarrow::na_struct(list(id = nanoarrow::na_int32()))
+  target_schema <- nanoarrow::na_struct(list(id = nanoarrow::na_int32()))
+  converted_to <- NULL
+
+  table <- new.env(parent = emptyenv())
+  table$version <- function() 17L
+  reader <- new.env(parent = emptyenv())
+  reader$schema <- source_schema
+  attr(reader, "fabric_delta_table") <- table
+
+  local_mocked_bindings(
+    as_nanoarrow_array_stream = function(x, schema = NULL, ...) {
+      expect_identical(x, reader)
+      expect_s3_class(schema, "nanoarrow_schema")
+      new.env(parent = emptyenv())
+    },
+    infer_nanoarrow_schema = function(stream) target_schema,
+    infer_nanoarrow_ptype = function(schema) {
+      expect_identical(schema, target_schema)
+      data.frame(id = double())
+    },
+    convert_array_stream = function(stream, to) {
+      converted_to <<- to
+      data.frame(id = c(1, 2))
+    },
+    .package = "nanoarrow"
+  )
+  local_mocked_bindings(
+    py_to_r = identity,
+    .package = "reticulate"
+  )
+
+  stream <- fabric_delta_reader_stream(reader, collect = FALSE)
+  expect_identical(
+    attr(stream, "fabric_delta_python_owner", exact = TRUE),
+    reader
+  )
+  expect_s3_class(
+    attr(stream, "fabric_delta_source_schema", exact = TRUE),
+    "nanoarrow_schema"
+  )
+  expect_identical(
+    attr(stream, "fabric_delta_snapshot_version", exact = TRUE),
+    17
+  )
+
+  value <- fabric_delta_collect_reader(reader)
+  expect_s3_class(value, "tbl_df")
+  expect_identical(value$id, c(1, 2))
+  expect_s3_class(converted_to, "data.frame")
+})
+
 test_that("Delta protocol preflight rejects unsupported reader features", {
   protocol <- function(features) {
     list(reader_features = features)
