@@ -42,7 +42,10 @@ must match the syntax in \code{code}}
 \code{FABRICQUERYR_CLIENT_ID}, then the Azure CLI application ID}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
-to let 'fabricQueryR' use its normal sign-in flow}
+to let 'fabricQueryR' use its normal sign-in flow. HTTPS validation does
+not prove ownership or token audience for a custom host; use one only when
+your organization controls it, with a token or provider issued for its
+intended audience}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}

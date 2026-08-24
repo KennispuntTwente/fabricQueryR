@@ -282,3 +282,20 @@ test_that("user-data-function docs distinguish delegated execution scopes", {
   expect_match(normalized, "select it explicitly", fixed = TRUE)
   expect_match(normalized, "item Execute permission", fixed = TRUE)
 })
+
+test_that("authentication docs define the custom-endpoint trust boundary", {
+  path <- test_path("..", "..", "vignettes", "authentication.Rmd")
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  normalized <- gsub("[[:space:]]+", " ", source)
+
+  expect_match(normalized, "Prefer discovered records", fixed = TRUE)
+  expect_match(normalized, "Fabric portal", fixed = TRUE)
+  expect_match(normalized, "Azure API Management", fixed = TRUE)
+  expect_match(normalized, "organization controls the host", fixed = TRUE)
+  expect_match(normalized, "token issued for", fixed = TRUE)
+  expect_match(normalized, "do not prove", fixed = TRUE)
+  expect_match(normalized, "correct audience", fixed = TRUE)
+})

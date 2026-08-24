@@ -42,7 +42,10 @@
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
 #'   to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
-#'   host. A custom `livy_url` requires an explicitly supplied token or provider
+#'   host. A custom `livy_url` requires an explicitly supplied token or provider.
+#'   HTTPS validation does not prove ownership or token audience; use a custom
+#'   host only when your organization controls it, with a credential issued for
+#'   its intended audience
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scopes. For delegated sign-in, `NULL`

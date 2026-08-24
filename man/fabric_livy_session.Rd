@@ -88,7 +88,10 @@ supplied to Spark}
 
 \item{token}{Optional access token or token-provider function. Leave \code{NULL}
 to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
-host. A custom \code{livy_url} requires an explicitly supplied token or provider}
+host. A custom \code{livy_url} requires an explicitly supplied token or provider.
+HTTPS validation does not prove ownership or token audience; use a custom
+host only when your organization controls it, with a credential issued for
+its intended audience}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}

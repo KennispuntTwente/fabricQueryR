@@ -39,7 +39,10 @@
 #'
 #' The function URL is a credential boundary. Tokens are sent to the explicitly
 #' supplied HTTPS endpoint. URLs containing credentials,
-#' query parameters, fragments, or nonstandard ports are rejected.
+#' query parameters, fragments, or nonstandard ports are rejected. HTTPS and
+#' route validation do not prove hostname ownership or token audience. Use a
+#' custom host only when your organization controls it, with a token or provider
+#' issued for that host's intended audience.
 #'
 #' @section Results, retries, and limits:
 #' Fabric reports `Succeeded`, `BadRequest`, `Failed`, `Timeout`, and

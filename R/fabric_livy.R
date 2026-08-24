@@ -18,7 +18,10 @@
 #' @param client_id Microsoft Entra application/client ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID
 #' @param token Optional access token or token-provider function. Leave `NULL`
-#'   to let 'fabricQueryR' use its normal sign-in flow
+#'   to let 'fabricQueryR' use its normal sign-in flow. HTTPS validation does
+#'   not prove ownership or token audience for a custom host; use one only when
+#'   your organization controls it, with a token or provider issued for its
+#'   intended audience
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
 #' @param audience Optional sign-in scopes. For delegated sign-in, `NULL`
