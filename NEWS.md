@@ -79,40 +79,6 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
-* Long-running-operation polling now treats Fabric's documented `Undefined`
-state as pending, alongside `NotStarted` and `Running`.
-
-* SQL query validation now recognizes nested T-SQL block comments, so harmless
-keywords inside nested comments no longer cause valid Fabric SQL reads to be
-rejected.
-
-* `fabric_job_wait()` now accepts `fabric_job_instance` records returned by job
-history and status calls, as its documentation promises.
-
-* `FabricLivySession$statements()` now follows the current Livy statement
-collection contract: one unpaginated request returning `statements` and
-`total_statements`. The undocumented `page_size` argument and `from`/`size`
-query parameters have been removed.
-
-* Disk-backed Delta streams now retry staged-file deletion after closing their
-connection on Windows. Their documentation and examples now require explicit
-release, and cover both direct 'nanoarrow' and transferred 'arrow' ownership.
-
-* Minimum dependency versions now reflect the APIs used by the package:
-'httr2' 1.2.0, 'cli' 3.0.0, and 'testthat' 3.2.0.
-
-* Standard semantic-model refreshes acquired through delegated 'AzureAuth' now
-default to `notifyOption = "NoNotification"`, satisfying Power BI's required
-request contract while continuing to omit that field for known service
-principals and opaque token providers.
-
-* Generic JSON results returned by Livy now preserve JSON `null` values instead
-of converting them to empty objects during output simplification.
-
-* `fabric_onelake_read_file()` now closes Arrow readers before deleting
-downloaded Parquet and CSV stream files, preventing retained temporary files on
-Windows after explicit stream release.
-
 * Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
