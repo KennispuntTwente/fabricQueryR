@@ -54,9 +54,13 @@ fabric_livy_batch_submit(
 
 - file:
 
-  ABFS/ABFSS URI of the main Python, R, or Java/Scala application file.
-  After uploading a script under a Lakehouse's `Files/` area, its
-  **Properties** dialog can copy this path
+  Absolute ABFS/ABFSS URI of the main Python, R, or Java/Scala
+  application file. It must contain a filesystem/container, host, and
+  non-root path, without a password, port, query, fragment, backslash,
+  or dot path segment. After uploading a script under a Lakehouse's
+  `Files/` area, its **Properties** dialog can copy this path. Spaces in
+  path segments must be percent-encoded as `%20`; raw spaces and
+  authority whitespace are invalid
 
 - name:
 
@@ -128,7 +132,11 @@ fabric_livy_batch_submit(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  'fabricQueryR' use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+  host. A custom `livy_url` requires an explicitly supplied token or
+  provider. HTTPS validation does not prove ownership or token audience;
+  use a custom host only when your organization controls it, with a
+  credential issued for its intended audience
 
 - auth_args:
 
@@ -137,8 +145,11 @@ fabric_livy_batch_submit(
 
 - audience:
 
-  Optional sign-in scope. Most users should leave this `NULL`; set it
-  only for a custom token provider or identity flow
+  Optional sign-in scopes. For delegated sign-in, `NULL` requests the
+  four required Livy scopes listed below. An explicit vector replaces
+  those defaults, so include every required scope plus any optional
+  `Code.Access*` scope the Spark code needs. Client credentials require
+  one `.default` audience
 
 - verbose:
 
@@ -162,8 +173,11 @@ fabric_livy_batch_submit(
   Logical. When waiting at submission time, request cancellation if the
   local timeout expires. Defaults to `TRUE`, so a timed out call does
   not normally leave Spark compute running unattended. The structured
-  timeout condition contains stable public batch metadata in its `batch`
-  field, including when cancellation fails or is disabled
+  timeout condition contains the live
+  [FabricLivyBatch](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyBatch.md)
+  object in `handle`, for status checks or cancellation in the current R
+  process, and stable public metadata in `batch`. A serialized handle
+  intentionally loses its in-process credential
 
 ## Value
 
@@ -181,9 +195,12 @@ this function does not upload a local script. Use
 [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
 first when needed
 
-The signed-in identity needs Lakehouse read and execute access,
-permission for code to access Fabric and storage, and an appropriate
-workspace role
+Delegated sign-in requires `Lakehouse.Execute.All`,
+`Lakehouse.Read.All`, `Code.AccessFabric.All`, and
+`Code.AccessStorage.All`. Add `Code.AccessAzureKeyvault.All`,
+`Code.AccessAzureDataLake.All`, `Code.AccessAzureDataExplorer.All`, or
+`Code.AccessSQL.All` only when Spark accesses that Azure service at
+runtime. The signed-in identity also needs an appropriate workspace role
 
 ## See also
 

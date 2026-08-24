@@ -88,7 +88,10 @@ fabric_graphql_query(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  'fabricQueryR' use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+  host. A custom API endpoint, including an API Management gateway,
+  requires an explicitly supplied token or provider so an automatically
+  acquired Fabric credential is not forwarded to another host
 
 - auth_args:
 
@@ -146,7 +149,10 @@ connection instead
 
 Most users can leave `audience = NULL`; 'fabricQueryR' chooses the
 documented scope for the sign-in flow. Set it only for a custom identity
-provider
+provider. HTTPS and URL-shape validation do not prove hostname ownership
+or token audience. Use a custom API Management or gateway host only when
+your organization controls it, with a token or provider issued for that
+host's intended audience
 
 ## Retries and service limits
 
@@ -158,7 +164,11 @@ Fabric returns at most 100 items by default and permits at most 100,000
 items across pagination. Each response is limited to 64 MB, each request
 to 100 seconds, and query nesting to 10 levels. Use smaller pages and
 filtered query partitions when a result could approach these service
-limits
+limits. One GraphQL API item can have at most 1,000 source objects
+attached across its data sources; this is not a limit of 1,000 data
+sources. Split objects from multiple sources across multiple API items,
+or use stored procedures or another abstraction for a single large
+source
 
 Large integers outside R's exact numeric range are returned as character
 values so identifiers and other large integer fields are not rounded

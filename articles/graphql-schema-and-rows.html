@@ -190,7 +190,12 @@ explicit recovery:</p>
 <span>  <span class="op">}</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>For large results, use smaller pages and stable filtered partitions.
-See the Fabric limits documentation before designing a high-volume API
+Schema design has a separate limit: one GraphQL API item can have at
+most 1,000 source objects attached across its data sources. This is not
+a limit of 1,000 data sources. For multiple sources, split the objects
+across multiple API items. For one large source, consider stored
+procedures or another abstraction that exposes fewer objects. See the
+Fabric limits documentation before designing a high-volume API
 workflow.</p>
 <p>See Microsoft’s documentation for <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export" class="external-link">introspection
 and schema export</a>, <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits" class="external-link">GraphQL

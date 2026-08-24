@@ -86,11 +86,21 @@ types.</p>
 checks Fabric until the job finishes or the 15-minute local deadline is
 reached. <code>cancel_on_timeout = TRUE</code> asks Fabric to cancel the
 run if that deadline is exceeded.</p>
+<p>Submission and polling use Fabric’s stable Core Job Scheduler by
+default. If a Notebook workflow needs the beta status fields, such as
+its exit value, opt in explicitly:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">detailed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_status</a></span><span class="op">(</span></span>
+<span>  <span class="va">job</span>,</span>
+<span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  respect_retry_after <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">detailed</span><span class="op">$</span><span class="va">exit_value</span></span></code></pre></div>
 <p>Running a job needs Execute permission. Reading history needs Read
 permission, while changing schedules normally needs Write access. If an
 on-demand run works but schedule creation does not, ask the item owner
 to check your Write access.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_instances.html">fabric_job_instances</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">invoke_type</span></span>
@@ -98,7 +108,7 @@ to check your Write access.</p>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">start_time</span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">failure_reason</span></span></code></pre></div>
 <p>Refresh a history entry directly without copying its instance ID:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_status</a></span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -108,7 +118,7 @@ to check your Write access.</p>
 schedule in Fabric. Boundaries are UTC instants, while recurring clock
 times use a Windows time-zone identifier so Fabric can apply
 daylight-saving rules.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">daily</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Daily"</span>,</span>
 <span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span>
@@ -122,7 +132,7 @@ select a numbered day or an ordinal weekday. See
 <code><a href="../reference/fabric_job_schedule_config.html">?fabric_job_schedule_config</a></code> for those shapes. Use a Windows
 time zone such as <code>"W. Europe Standard Time"</code>, not an IANA
 name such as <code>"Europe/Amsterdam"</code>.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">weekly</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Weekly"</span>,</span>
 <span>  start_time <span class="op">=</span> <span class="st">"2026-10-01T00:00:00Z"</span>,</span>
@@ -137,12 +147,12 @@ name such as <code>"Europe/Amsterdam"</code>.</p>
 </h2>
 <p>Create one schedule from a validated configuration, then list the
 schedules for the item:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_create</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedules</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span></code></pre></div>
 <p>Disable or restart a schedule without rebuilding its
 configuration:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">disabled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_update</a></span><span class="op">(</span></span>
 <span>  <span class="va">notebook</span>,</span>
 <span>  <span class="va">schedule</span>,</span>
@@ -162,7 +172,7 @@ only after inspecting recent job history and correcting the cause.</p>
 </h2>
 <p>Deletion is permanent and never inferred from a create or update
 conflict. It requires explicit confirmation:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_delete</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">schedule</span>, confirm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>Microsoft documents scheduler throttling, maximum job duration and
 concurrency, schedule expiry after prolonged user inactivity, and

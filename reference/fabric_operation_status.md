@@ -113,8 +113,9 @@ fabric_operation_result(
 
 - wait:
 
-  Whether to wait for a running operation. When `FALSE`, a non-terminal
-  operation raises `fabric_operation_not_ready`
+  Whether to wait for a running operation. When `FALSE`, one state
+  request is made immediately without honoring a stored future polling
+  hint; a non-terminal operation raises `fabric_operation_not_ready`.
 
 ## Value
 

@@ -81,9 +81,25 @@ enough information to derive each public URL.</p>
 hardcoding it):</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">function_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span></span></code></pre></div>
-<p>The caller needs Execute permission on the item. If sign-in succeeds
-but the call is denied, ask the item owner or Fabric administrator to
-check item access and the relevant tenant setting.</p>
+<p>The caller needs Execute permission on the item. A delegated sign-in
+also needs one Power BI delegated permission. By default, ‘fabricQueryR’
+requests the least-privilege <code>UserDataFunction.Execute.All</code>
+scope. Microsoft also accepts the broader <code>Item.Execute.All</code>
+scope, but it does not replace the caller’s item Execute permission. If
+the app registration grants only that broader scope, select it
+explicitly:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
+<span>  <span class="va">function_url</span>,</span>
+<span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>customerName <span class="op">=</span> <span class="st">"Ada"</span>, priority <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span>,</span>
+<span>  audience <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"https://analysis.windows.net/powerbi/api/"</span>,</span>
+<span>    <span class="st">"Item.Execute.All"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>If sign-in succeeds but the call is denied, ask the item owner or
+Fabric administrator to check item Execute access and the relevant
+tenant setting.</p>
 </div>
 <div class="section level2">
 <h2 id="make-a-first-call">Make a first call<a class="anchor" aria-label="anchor" href="#make-a-first-call"></a>
@@ -91,7 +107,7 @@ check item access and the relevant tenant setting.</p>
 <p>Parameter names must match the published Python function. For a
 function with <code>customerName</code> and <code>priority</code>
 inputs:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="va">function_url</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -108,7 +124,7 @@ inputs:</p>
 </h2>
 <p>The request body is one named JSON object. Its names must match the
 published function’s camelCase parameters:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">structured_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="va">function_url</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -124,7 +140,7 @@ Named atomic vectors and data frames are also accepted as top-level
 parameter objects; a named list gives the clearest control over nested
 JSON shapes.</p>
 <p>The result is a list which can be inspected:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">structured_result</span><span class="op">$</span><span class="va">function_name</span></span>
 <span><span class="va">structured_result</span><span class="op">$</span><span class="va">invocation_id</span></span>
 <span><span class="va">structured_result</span><span class="op">$</span><span class="va">status</span></span>
@@ -141,7 +157,7 @@ step.</p>
 <p>A function can write data or call another service, so invocation
 POSTs are not retried by default. If a function is read-only or
 implements its own durable idempotency key, opt in explicitly:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="va">function_url</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>requestId <span class="op">=</span> <span class="st">"stable-business-key"</span><span class="op">)</span>,</span>

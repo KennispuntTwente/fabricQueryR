@@ -128,7 +128,11 @@ fabric_livy_session(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  'fabricQueryR' use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+  host. A custom `livy_url` requires an explicitly supplied token or
+  provider. HTTPS validation does not prove ownership or token audience;
+  use a custom host only when your organization controls it, with a
+  credential issued for its intended audience
 
 - auth_args:
 
@@ -137,8 +141,11 @@ fabric_livy_session(
 
 - audience:
 
-  Optional sign-in scope. Most users should leave this `NULL`; set it
-  only for a custom token provider or identity flow
+  Optional sign-in scopes. For delegated sign-in, `NULL` requests the
+  four required Livy scopes listed below. An explicit vector replaces
+  those defaults, so include every required scope plus any optional
+  `Code.Access*` scope the Spark code needs. Client credentials require
+  one `.default` audience
 
 - verbose:
 
@@ -162,9 +169,20 @@ statements
 
 No network request is made when an open object is garbage collected.
 Call `$close()` explicitly, and use `on.exit(session$close())` inside
-functions The signed-in identity needs Lakehouse read and execute
-access, permission for code to access Fabric and storage, and an
-appropriate workspace role
+functions Delegated sign-in requires `Lakehouse.Execute.All`,
+`Lakehouse.Read.All`, `Code.AccessFabric.All`, and
+`Code.AccessStorage.All`. Add `Code.AccessAzureKeyvault.All`,
+`Code.AccessAzureDataLake.All`, `Code.AccessAzureDataExplorer.All`, or
+`Code.AccessSQL.All` only when Spark accesses that Azure service at
+runtime. The signed-in identity also needs an appropriate workspace role
+
+## Timeouts
+
+A `fabric_livy_timeout_error` contains the exact session or statement
+object in its `handle` field, so it can be polled or cancelled in the
+current R process. The kind-specific `session` or `statement` field
+contains safe, serializable metadata; a serialized handle intentionally
+loses its in-process credential
 
 ## See also
 

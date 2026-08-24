@@ -155,9 +155,13 @@ tryCatch(
 )
 ```
 
-For large results, use smaller pages and stable filtered partitions. See
-the Fabric limits documentation before designing a high-volume API
-workflow.
+For large results, use smaller pages and stable filtered partitions.
+Schema design has a separate limit: one GraphQL API item can have at
+most 1,000 source objects attached across its data sources. This is not
+a limit of 1,000 data sources. For multiple sources, split the objects
+across multiple API items. For one large source, consider stored
+procedures or another abstraction that exposes fewer objects. See the
+Fabric limits documentation before designing a high-volume API workflow.
 
 See Microsoft’s documentation for [introspection and schema
 export](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-introspection-schema-export),

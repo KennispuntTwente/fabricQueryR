@@ -62,7 +62,10 @@ fabric_livy_query(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  'fabricQueryR' use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow. HTTPS validation does not
+  prove ownership or token audience for a custom host; use one only when
+  your organization controls it, with a token or provider issued for its
+  intended audience
 
 - auth_args:
 
@@ -71,8 +74,11 @@ fabric_livy_query(
 
 - audience:
 
-  Optional sign-in scope. Most users should leave this `NULL`; set it
-  only for a custom token provider or identity flow
+  Optional sign-in scopes. For delegated sign-in, `NULL` requests the
+  four required Livy scopes listed below. An explicit vector replaces
+  those defaults, so include every required scope plus any optional
+  `Code.Access*` scope the Spark code needs. Client credentials require
+  one `.default` audience
 
 - environment_id:
 
@@ -132,7 +138,10 @@ A delegated caller needs the `Lakehouse.Execute.All`,
 `Lakehouse.Read.All`, `Code.AccessFabric.All`, and
 `Code.AccessStorage.All` scopes and must be a Contributor in the
 workspace. A service principal must also be added to the workspace as a
-Contributor
+Contributor. Add `Code.AccessAzureKeyvault.All`,
+`Code.AccessAzureDataLake.All`, `Code.AccessAzureDataExplorer.All`, or
+`Code.AccessSQL.All` only when the Spark code accesses that Azure
+service at runtime
 
 Spark long and decimal columns are returned as character values when
 needed to preserve them exactly. Dates and timestamps with a time zone

@@ -72,7 +72,10 @@ fabric_sql_query(
   `"arrow_stream"` to avoid data-frame conversion and retain
   Arrow-native batches. The 'adbi' driver may fetch the complete result
   before returning the stream, so this option does not guarantee
-  bounded-memory retrieval
+  bounded-memory retrieval. An Arrow stream owns its DBI result and
+  connection until the stream is released; consume it promptly or
+  release it explicitly with
+  [`nanoarrow::nanoarrow_pointer_release()`](https://arrow.apache.org/nanoarrow/latest/r/reference/nanoarrow_pointer_is_valid.html)
 
 - database:
 

@@ -210,7 +210,31 @@ becomes responsible for authentication and `auth_args` is not used. See
 [`?fabric_workspaces`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md)
 and the ‘AzureAuth’ [authentication
 scenarios](https://azure.r-universe.dev/AzureAuth/doc/scenarios.html)
-for the complete argument details.
+for the complete argument details. Supply the bearer token exactly as
+issued: leading, trailing, or embedded whitespace and control characters
+are rejected rather than trimmed or sent in an HTTP header.
+
+## Treat endpoint URLs as credential boundaries
+
+Prefer discovered records when a function accepts them. When discovery
+cannot provide an invocation endpoint, copy the complete URL from the
+Fabric portal. These routes keep both the service address and the Fabric
+item identity visible to the caller.
+
+A custom host, including one fronted by your organization through Azure
+API Management or another gateway, is an explicit opt-in. ‘fabricQueryR’
+refuses to acquire and forward its normal Fabric credential
+automatically; supply `token` as a bearer token or token-provider
+function. Use a custom endpoint only when your organization controls the
+host, and use a token issued for the gateway’s intended audience. Set
+`audience` explicitly when the token provider uses that argument to
+acquire the gateway credential.
+
+HTTPS and URL-shape validation reject malformed endpoint input, but do
+not prove that your organization owns the hostname, that the gateway
+forwards a request safely, or that a supplied token has the correct
+audience. Confirm those properties with the gateway owner before sending
+credentials or data.
 
 ## Choosing an advanced authentication method
 

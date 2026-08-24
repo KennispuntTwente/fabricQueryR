@@ -26,9 +26,28 @@ hardcoding it):
 function_url <- Sys.getenv("FABRIC_FUNCTION_URL")
 ```
 
-The caller needs Execute permission on the item. If sign-in succeeds but
-the call is denied, ask the item owner or Fabric administrator to check
-item access and the relevant tenant setting.
+The caller needs Execute permission on the item. A delegated sign-in
+also needs one Power BI delegated permission. By default, ‘fabricQueryR’
+requests the least-privilege `UserDataFunction.Execute.All` scope.
+Microsoft also accepts the broader `Item.Execute.All` scope, but it does
+not replace the caller’s item Execute permission. If the app
+registration grants only that broader scope, select it explicitly:
+
+``` r
+
+result <- fabric_function_invoke(
+  function_url,
+  parameters = list(customerName = "Ada", priority = 2L),
+  audience = paste0(
+    "https://analysis.windows.net/powerbi/api/",
+    "Item.Execute.All"
+  )
+)
+```
+
+If sign-in succeeds but the call is denied, ask the item owner or Fabric
+administrator to check item Execute access and the relevant tenant
+setting.
 
 ## Make a first call
 

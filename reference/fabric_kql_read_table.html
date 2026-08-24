@@ -116,7 +116,8 @@ from the Kusto <code>servertimeout</code> request property</p></dd>
 <dt id="arg-retain-raw-frames">retain_raw_frames<a class="anchor" aria-label="anchor" href="#arg-retain-raw-frames"></a></dt>
 <dd><p>Logical. Attach the complete decoded Kusto frame
 response as <code>kusto_raw_frames</code>. Keep <code>FALSE</code> for normal queries to avoid
-retaining a second copy of large result data</p></dd>
+retaining a second copy of large result data, including on partial-error
+conditions</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>

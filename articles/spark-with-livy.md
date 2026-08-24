@@ -17,9 +17,52 @@ shared environments.
 You need a Fabric workspace on supported capacity, a Lakehouse with a
 Livy endpoint, and the *tenant admin setting for the Livy API enabled*.
 
-A delegated caller needs all four of these Microsoft Entra scopes: -
-`Lakehouse.Execute.All` - `Lakehouse.Read.All` -
-`Code.AccessFabric.All` - `Code.AccessStorage.All`
+A delegated caller needs all four of these Microsoft Entra scopes:
+
+- `Lakehouse.Execute.All`
+- `Lakehouse.Read.All`
+- `Code.AccessFabric.All`
+- `Code.AccessStorage.All`
+
+With delegated sign-in and `audience = NULL`, ‘fabricQueryR’ requests
+those four scopes. The following `Code.*` scopes are optional; add one
+only when the Spark code needs the corresponding Azure service at
+runtime:
+
+| Optional scope | Runtime access |
+|----|----|
+| `Code.AccessAzureKeyvault.All` | Azure Key Vault secrets, keys, or certificates |
+| `Code.AccessAzureDataLake.All` | Azure Data Lake Storage Gen1 |
+| `Code.AccessAzureDataExplorer.All` | Azure Data Explorer (Kusto) |
+| `Code.AccessSQL.All` | Azure SQL |
+
+An explicit `audience` replaces the defaults rather than extending them.
+For example, include all four required scopes when adding Azure SQL
+access:
+
+``` r
+
+livy_scopes <- paste0(
+  "https://api.fabric.microsoft.com/",
+  c(
+    "Lakehouse.Execute.All",
+    "Lakehouse.Read.All",
+    "Code.AccessFabric.All",
+    "Code.AccessStorage.All",
+    "Code.AccessSQL.All"
+  )
+)
+
+result <- fabric_livy_query(
+  lakehouse,
+  code = "SELECT * FROM external_sql_table",
+  kind = "sql",
+  audience = livy_scopes
+)
+```
+
+Client-credentials authentication instead uses the single Fabric/Power
+BI `.default` audience selected by the package.
 
 The signed-in user must be a *Contributor* in the workspace containing
 the Livy endpoint and data-source items. For unattended authentication,
@@ -142,11 +185,21 @@ batch$result()
 ```
 
 The application file must already be available through an ABFS or ABFSS
-path. Upload it with
+path. Percent-encode spaces and other URL-reserved characters in file
+path segments; raw spaces and whitespace in the workspace or filesystem
+authority are invalid. Upload the file with
 [`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
 first when necessary. With `wait = FALSE`, the function returns a
 `FabricLivyBatch` object immediately; call its `$wait()`, `$result()`,
 or `$logs()` methods later.
+
+If a session, statement, or batch wait times out, the
+`fabric_livy_timeout_error` condition keeps the exact live object in its
+`handle` field. You can inspect `$status()` or request `$cancel()`
+through that handle in the current R process. The kind-specific
+`session`, `statement`, or `batch` field contains safe metadata for
+logging; after serialization, a handle intentionally no longer carries
+its credential.
 
 ## Use an Environment for repeatable configuration
 

@@ -78,7 +78,8 @@ fabric_kql_read_table(
 
   Logical. Attach the complete decoded Kusto frame response as
   `kusto_raw_frames`. Keep `FALSE` for normal queries to avoid retaining
-  a second copy of large result data
+  a second copy of large result data, including on partial-error
+  conditions
 
 - tenant_id:
 

@@ -80,7 +80,7 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
 <span>  respect_retry_after <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  notebook_details <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -98,7 +98,7 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  notebook_details <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
@@ -242,11 +242,10 @@ status-check time. Keep <code>TRUE</code> for normal use</p></dd>
 
 
 <dt id="arg-notebook-details">notebook_details<a class="anchor" aria-label="anchor" href="#arg-notebook-details"></a></dt>
-<dd><p>For Notebook jobs, whether to query the beta Notebook
-status endpoint for exit values and compute details. The default preserves
-the richer result. Set to <code>FALSE</code> to use only the stable Core Job Scheduler
-status endpoint; <code>exit_value</code> and workload-specific <code>properties</code> may then
-be unavailable</p></dd>
+<dd><p>For Notebook jobs, whether to opt into the beta
+Notebook status endpoint for exit values and compute details. The default
+<code>FALSE</code> uses only the stable Core Job Scheduler status endpoint;
+<code>exit_value</code> and workload-specific <code>properties</code> may then be unavailable.</p></dd>
 
 
 <dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
@@ -306,10 +305,12 @@ Omit the tag when job status must reliably signal notebook failure. Otherwise,
 have the notebook report its outcome with <code>notebookutils.notebook.exit()</code>.
 The former <code>mssparkutils</code> namespace remains backward compatible but Microsoft
 recommends migrating because it will be retired</p>
-<p>Notebook submission uses the released workload-specific route so Fabric
-applies per-run parameters and compute settings. The richer workload-specific
-status endpoint is still queried by default for notebook exit values, with
-the stable Core status endpoint as its fallback.</p>
+<p>Notebook submission uses the stable Core Job Scheduler route with job type
+<code>RunNotebook</code>, including per-run parameters and compute settings. Status and
+waiting also use the stable Core endpoint by default. Set
+<code>notebook_details = TRUE</code> to opt into the beta Notebook status endpoint when
+exit values or workload-specific properties are required; the Core endpoint
+remains its fallback.</p>
     </div>
     <div class="section level2">
     <h2 id="permissions-and-status-handling">Permissions and status handling<a class="anchor" aria-label="anchor" href="#permissions-and-status-handling"></a></h2>
@@ -323,6 +324,8 @@ Fabric reports an unfamiliar state instead of waiting indefinitely</p>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/" class="external-link">Core Job Scheduler REST API</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/run-on-demand-item-job" class="external-link">Run an on-demand item job</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/get-notebook-job-instance%28beta%29" class="external-link">Get a Notebook job instance (beta)</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api" class="external-link">Manage and execute notebooks with public APIs</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler" class="external-link">Fabric job scheduler</a></p>
     </div>
@@ -341,8 +344,12 @@ Fabric reports an unfamiliar state instead of waiting indefinitely</p>
 <span class="r-in"><span><span class="va">current</span> <span class="op">&lt;-</span> <span class="fu">fabric_job_status</span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">current</span><span class="op">$</span><span class="va">status</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># For a normal run, wait and inspect its final status and exit value</span></span></span>
-<span class="r-in"><span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu">fabric_job_wait</span><span class="op">(</span><span class="va">job</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Opt into beta Notebook details only when an exit value is required</span></span></span>
+<span class="r-in"><span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu">fabric_job_wait</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">job</span>,</span></span>
+<span class="r-in"><span>  timeout <span class="op">=</span> <span class="fl">900</span>,</span></span>
+<span class="r-in"><span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">completed</span><span class="op">$</span><span class="va">status</span></span></span>
 <span class="r-in"><span><span class="va">completed</span><span class="op">$</span><span class="va">exit_value</span></span></span>
 <span class="r-in"><span></span></span>

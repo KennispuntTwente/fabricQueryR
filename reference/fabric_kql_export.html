@@ -174,7 +174,8 @@ and <code>"zstd"</code>.</p></dd>
 
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
-<dd><p>Positive total client-side wait limit in seconds.</p></dd>
+<dd><p>Positive total client-side limit in seconds, shared by
+submission, status polling, and retrieval of artifact details.</p></dd>
 
 
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
@@ -220,7 +221,11 @@ function polls <code>.show operations</code> until Kusto reports a terminal stat
 calls <code>.show operation ... details</code> for the authoritative artifact paths and
 record counts. Kusto does not remove files written before a failed export, so
 a failure or timeout identifies the destination and operation ID but never
-reports partial files as a successful result.</p>
+reports partial files as a successful result.
+If Kusto has already reported <code>Completed</code> but the artifact-details request
+exhausts the client deadline, the resulting details-timeout condition records
+<code>operation_completed = TRUE</code>; it does not imply that the export is still
+running or failed.</p>
 <p>Storage connection strings are emitted as obfuscated Kusto string literals
 and are redacted from returned objects and conditions. If a submission fails
 before its operation ID is received, inspect the destination and Kusto

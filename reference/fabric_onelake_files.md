@@ -182,7 +182,9 @@ fabric_onelake_delete(
 
   Optional inclusive zero-based byte range. Supply one value for all
   bytes from that offset onward, or two values for `start` through `end`
-  Leave `NULL` to download the entire file
+  Leave `NULL` to download the entire file. A ranged request must
+  receive a matching HTTP 206 `Content-Range` response whose body has
+  the claimed size
 
 - overwrite:
 
@@ -262,9 +264,18 @@ setting and the item's data permissions
 
 Existing files are protected unless `overwrite = TRUE`. Uploads and
 downloads are staged before replacing their destination, so an
-interrupted transfer does not normally leave a partial file. Use
-`if_match` when a file should be replaced only if it has not changed
-since you inspected it
+interrupted transfer does not normally leave a partial file. Local
+downloads are published with an atomic same-directory rename or hard
+link and fail closed when the filesystem cannot provide the required
+primitive. Use `if_match` when a OneLake file should be replaced only if
+it has not changed since you inspected it
+
+A response failure during an upload's final rename can leave the
+server-side outcome unknown. In that case a
+`fabric_onelake_commit_ambiguous` error reports absolute target and
+staging URLs plus their relative paths. Automatic cleanup is not
+attempted, but a committed rename may already have consumed the staging
+path, so the condition reports its presence as unknown
 
 ## References
 

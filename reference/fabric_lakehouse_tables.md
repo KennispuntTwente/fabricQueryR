@@ -107,8 +107,10 @@ fabric_lakehouse_write_table(
 
 - detail:
 
-  Whether table discovery should retrieve per-table column metadata. Set
-  to `FALSE` to make only schema and table-list requests.
+  Whether table discovery should retrieve per-table column metadata.
+  Detail retrieval enriches the listing snapshot and never removes a
+  listed row if a table disappears concurrently. Set to `FALSE` to make
+  only schema and table-list requests.
 
 - page_size:
 

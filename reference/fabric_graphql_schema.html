@@ -102,7 +102,10 @@ that could be applied twice</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let 'fabricQueryR' use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+host. A custom API endpoint, including an API Management gateway, requires
+an explicitly supplied token or provider so an automatically acquired
+Fabric credential is not forwarded to another host</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>

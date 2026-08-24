@@ -69,7 +69,9 @@ use Kusto's queued-ingestion REST API, which is currently in preview</p>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  .deadline <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_kql_ingestion_status</span><span class="op">(</span></span>
@@ -88,7 +90,8 @@ use Kusto's queued-ingestion REST API, which is currently in preview</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
-<span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
+<span>  .now <span class="op">=</span> <span class="va">Sys.time</span>,</span>
+<span>  .deadline <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -208,6 +211,11 @@ reuse an in-process handle credential unless authentication is overridden</p></d
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code></p></dd>
 
 
+<dt id="arg--deadline">.deadline<a class="anchor" aria-label="anchor" href="#arg--deadline"></a></dt>
+<dd><p>Internal absolute POSIX date-time used when a higher-level
+operation composes submission and status polling under one deadline</p></dd>
+
+
 <dt id="arg-ingestion">ingestion<a class="anchor" aria-label="anchor" href="#arg-ingestion"></a></dt>
 <dd><p>A <code>fabric_kql_ingestion</code> handle or a non-empty operation ID</p></dd>
 
@@ -230,7 +238,7 @@ raises a typed error. Use <code>FALSE</code> to inspect the returned status</p><
 
 
 <dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
-<dd><p>Internal hooks for deterministic polling tests</p></dd>
+<dd><p>Internal hooks for deterministic deadline and polling tests</p></dd>
 
 </dl></div>
     <div class="section level2">

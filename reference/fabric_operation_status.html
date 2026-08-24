@@ -155,8 +155,9 @@ failed state directly</p></dd>
 
 
 <dt id="arg-wait">wait<a class="anchor" aria-label="anchor" href="#arg-wait"></a></dt>
-<dd><p>Whether to wait for a running operation. When <code>FALSE</code>, a
-non-terminal operation raises <code>fabric_operation_not_ready</code></p></dd>
+<dd><p>Whether to wait for a running operation. When <code>FALSE</code>, one state
+request is made immediately without honoring a stored future polling hint;
+a non-terminal operation raises <code>fabric_operation_not_ready</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

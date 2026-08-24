@@ -168,7 +168,11 @@ supplied to Spark</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let 'fabricQueryR' use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+host. A custom <code>livy_url</code> requires an explicitly supplied token or provider.
+HTTPS validation does not prove ownership or token audience; use a custom
+host only when your organization controls it, with a credential issued for
+its intended audience</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -177,8 +181,11 @@ to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
-<dd><p>Optional sign-in scope. Most users should leave this <code>NULL</code>;
-set it only for a custom token provider or identity flow</p></dd>
+<dd><p>Optional sign-in scopes. For delegated sign-in, <code>NULL</code>
+requests the four required Livy scopes listed below. An explicit vector
+replaces those defaults, so include every required scope plus any optional
+<code>Code.Access*</code> scope the Spark code needs. Client credentials require one
+<code>.default</code> audience</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -204,8 +211,22 @@ at the same time; it is not needed for several sequential statements</p>
 
 <p>No network request is made when an open object is garbage collected. Call
 <code>$close()</code> explicitly, and use <code>on.exit(session$close())</code> inside functions
-The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role</p>
+Delegated sign-in requires <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>,
+<code>Code.AccessFabric.All</code>, and <code>Code.AccessStorage.All</code>. Add
+<code>Code.AccessAzureKeyvault.All</code>, <code>Code.AccessAzureDataLake.All</code>,
+<code>Code.AccessAzureDataExplorer.All</code>, or <code>Code.AccessSQL.All</code> only when Spark
+accesses that Azure service at runtime. The signed-in identity also needs an
+appropriate workspace role</p>
+    </div>
+    <div class="section level2">
+    <h2 id="timeouts">Timeouts<a class="anchor" aria-label="anchor" href="#timeouts"></a></h2>
+
+
+<p>A <code>fabric_livy_timeout_error</code> contains the exact session or statement object
+in its <code>handle</code> field, so it can be polled or cancelled in the current R
+process. The kind-specific <code>session</code> or <code>statement</code> field contains safe,
+serializable metadata; a serialized handle intentionally loses its
+in-process credential</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

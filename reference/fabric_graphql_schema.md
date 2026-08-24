@@ -62,7 +62,10 @@ fabric_graphql_schema(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  'fabricQueryR' use its normal sign-in flow
+  'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+  host. A custom API endpoint, including an API Management gateway,
+  requires an explicitly supplied token or provider so an automatically
+  acquired Fabric credential is not forwarded to another host
 
 - auth_args:
 

@@ -99,7 +99,10 @@ must match the syntax in <code>code</code></p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let 'fabricQueryR' use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow. HTTPS validation does
+not prove ownership or token audience for a custom host; use one only when
+your organization controls it, with a token or provider issued for its
+intended audience</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -108,8 +111,11 @@ to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
-<dd><p>Optional sign-in scope. Most users should leave this <code>NULL</code>;
-set it only for a custom token provider or identity flow</p></dd>
+<dd><p>Optional sign-in scopes. For delegated sign-in, <code>NULL</code>
+requests the four required Livy scopes listed below. An explicit vector
+replaces those defaults, so include every required scope plus any optional
+<code>Code.Access*</code> scope the Spark code needs. Client credentials require one
+<code>.default</code> audience</p></dd>
 
 
 <dt id="arg-environment-id">environment_id<a class="anchor" aria-label="anchor" href="#arg-environment-id"></a></dt>
@@ -168,7 +174,10 @@ R application file, use <code><a href="fabric_livy_batch_submit.html">fabric_liv
 <p>A delegated caller needs the <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>,
 <code>Code.AccessFabric.All</code>, and <code>Code.AccessStorage.All</code> scopes and must be a
 Contributor in the workspace. A service principal must also be added to the
-workspace as a Contributor</p>
+workspace as a Contributor. Add <code>Code.AccessAzureKeyvault.All</code>,
+<code>Code.AccessAzureDataLake.All</code>, <code>Code.AccessAzureDataExplorer.All</code>, or
+<code>Code.AccessSQL.All</code> only when the Spark code accesses that Azure service at
+runtime</p>
 <p>Spark long and decimal columns are returned as character values when needed
 to preserve them exactly. Dates and timestamps with a time zone use R
 temporal classes; timestamps without a time zone remain wall-clock text

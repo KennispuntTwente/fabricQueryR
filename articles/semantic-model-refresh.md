@@ -59,7 +59,9 @@ sales <- fabric_pbi_dax_query(
 The normal JSON mode returns one tibble and is the simplest option. The
 later `api = "arrow"` mode is useful for richer types, multiple result
 tables, or a stream, but requires a capacity-backed model and additional
-tenant settings.
+tenant settings. The `timeout` argument bounds the client HTTP request.
+For Arrow queries, `arrow_options$queryTimeout` separately controls the
+server-side query limit.
 
 ## Check access before refreshing
 

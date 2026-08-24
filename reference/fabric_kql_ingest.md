@@ -31,7 +31,9 @@ fabric_kql_ingest(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  .deadline = NULL,
+  .now = Sys.time
 )
 
 fabric_kql_ingestion_status(
@@ -50,7 +52,8 @@ fabric_kql_ingestion_status(
   token = NULL,
   auth_args = list(),
   .sleep = Sys.sleep,
-  .now = Sys.time
+  .now = Sys.time,
+  .deadline = NULL
 )
 ```
 
@@ -168,6 +171,11 @@ fabric_kql_ingestion_status(
   Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
 
+- .deadline:
+
+  Internal absolute POSIX date-time used when a higher-level operation
+  composes submission and status polling under one deadline
+
 - ingestion:
 
   A `fabric_kql_ingestion` handle or a non-empty operation ID
@@ -191,7 +199,7 @@ fabric_kql_ingestion_status(
 
 - .sleep, .now:
 
-  Internal hooks for deterministic polling tests
+  Internal hooks for deterministic deadline and polling tests
 
 ## Value
 

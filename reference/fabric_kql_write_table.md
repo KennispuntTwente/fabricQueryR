@@ -124,8 +124,9 @@ fabric_kql_write_table(
 
 - timeout:
 
-  Positive number of seconds allowed for submission and tracked status
-  waiting after upload.
+  Positive number of seconds shared by submission and tracked status
+  waiting after upload. Time spent submitting reduces the time available
+  for polling.
 
 - poll_interval:
 

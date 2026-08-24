@@ -34,6 +34,20 @@ checks Fabric until the job finishes or the 15-minute local deadline is
 reached. `cancel_on_timeout = TRUE` asks Fabric to cancel the run if
 that deadline is exceeded.
 
+Submission and polling use Fabric’s stable Core Job Scheduler by
+default. If a Notebook workflow needs the beta status fields, such as
+its exit value, opt in explicitly:
+
+``` r
+
+detailed <- fabric_job_status(
+  job,
+  notebook_details = TRUE,
+  respect_retry_after = FALSE
+)
+detailed$exit_value
+```
+
 Running a job needs Execute permission. Reading history needs Read
 permission, while changing schedules normally needs Write access. If an
 on-demand run works but schedule creation does not, ask the item owner

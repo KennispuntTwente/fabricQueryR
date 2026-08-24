@@ -127,7 +127,8 @@ fabric_kql_export(
 
 - timeout:
 
-  Positive total client-side wait limit in seconds.
+  Positive total client-side limit in seconds, shared by submission,
+  status polling, and retrieval of artifact details.
 
 - poll_interval:
 
@@ -171,7 +172,10 @@ state, then calls `.show operation ... details` for the authoritative
 artifact paths and record counts. Kusto does not remove files written
 before a failed export, so a failure or timeout identifies the
 destination and operation ID but never reports partial files as a
-successful result.
+successful result. If Kusto has already reported `Completed` but the
+artifact-details request exhausts the client deadline, the resulting
+details-timeout condition records `operation_completed = TRUE`; it does
+not imply that the export is still running or failed.
 
 Storage connection strings are emitted as obfuscated Kusto string
 literals and are redacted from returned objects and conditions. If a

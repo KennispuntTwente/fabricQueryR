@@ -308,7 +308,9 @@ run for a semantic model at a time</p>
 refresh ID through <code>RequestId</code> rather than <code>x-ms-request-id</code> or <code>Location</code>.
 'fabricQueryR' recognizes either response form. Standard-refresh status and
 waiting fall back to refresh history when request-specific execution details
-are unavailable. Cancellation is available only for enhanced refreshes</p>
+are unavailable. For a raw refresh ID, history also determines whether
+cancellation is supported before a DELETE request is sent. Cancellation is
+available only for enhanced refreshes</p>
 <p><code>Transactional</code> is the safe commit default. <code>PartialBatch</code> can expose a
 partially refreshed model after failure and cannot apply an incremental
 refresh policy. Each retry receives its own attempt timeout, while Power BI

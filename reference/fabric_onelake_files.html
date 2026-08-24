@@ -226,7 +226,8 @@ destination download is staged before it replaces an existing file</p></dd>
 <dt id="arg-range">range<a class="anchor" aria-label="anchor" href="#arg-range"></a></dt>
 <dd><p>Optional inclusive zero-based byte range. Supply one value for
 all bytes from that offset onward, or two values for <code>start</code> through <code>end</code>
-Leave <code>NULL</code> to download the entire file</p></dd>
+Leave <code>NULL</code> to download the entire file. A ranged request must receive a
+matching HTTP 206 <code>Content-Range</code> response whose body has the claimed size</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
@@ -312,8 +313,15 @@ that tenant setting and the item's data permissions</p>
 
 <p>Existing files are protected unless <code>overwrite = TRUE</code>. Uploads and downloads
 are staged before replacing their destination, so an interrupted transfer
-does not normally leave a partial file. Use <code>if_match</code> when a file should be
-replaced only if it has not changed since you inspected it</p>
+does not normally leave a partial file. Local downloads are published with an
+atomic same-directory rename or hard link and fail closed when the filesystem
+cannot provide the required primitive. Use <code>if_match</code> when a OneLake file
+should be replaced only if it has not changed since you inspected it</p>
+<p>A response failure during an upload's final rename can leave the server-side
+outcome unknown. In that case a <code>fabric_onelake_commit_ambiguous</code> error
+reports absolute target and staging URLs plus their relative paths. Automatic
+cleanup is not attempted, but a committed rename may already have consumed
+the staging path, so the condition reports its presence as unknown</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

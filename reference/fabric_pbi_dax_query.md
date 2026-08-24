@@ -24,7 +24,8 @@ fabric_pbi_dax_query(
   impersonated_user = NULL,
   api = c("json", "arrow"),
   result = c("tibble", "arrow_stream"),
-  arrow_options = list()
+  arrow_options = list(),
+  timeout = 300
 )
 ```
 
@@ -125,6 +126,12 @@ fabric_pbi_dax_query(
   `queryTimeout`, `resultSetRowCountLimit`, `roles`, and `schemaOnly`.
   The required `query` property is supplied from `dax`. Used only by
   `api = "arrow"`
+
+- timeout:
+
+  Positive finite client-side timeout in seconds for the DAX execution
+  HTTP request. This is distinct from the Arrow API's server-side
+  `arrow_options$queryTimeout` property
 
 ## Value
 

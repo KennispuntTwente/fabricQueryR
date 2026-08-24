@@ -67,7 +67,10 @@ fabric_function_invoke(
 - token:
 
   Optional access token or token-provider function. Leave `NULL` to let
-  'fabricQueryR' use its normal sign-in flow.
+  'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+  host. A custom `function_url` requires an explicitly supplied token or
+  provider so an automatically acquired Fabric credential is not
+  forwarded to another host.
 
 - auth_args:
 
@@ -76,9 +79,12 @@ fabric_function_invoke(
 
 - audience:
 
-  OAuth audience/scope passed to the credential. `NULL` selects the
-  documented scope from the authentication flow. Set this only for a
-  custom token provider or unusual identity flow.
+  OAuth audience/scope passed to the credential. `NULL` selects
+  `UserDataFunction.Execute.All` for delegated sign-in or the Power BI
+  `.default` audience for client credentials. To use Microsoft's broader
+  alternative, pass
+  `"https://analysis.windows.net/powerbi/api/Item.Execute.All"`
+  explicitly.
 
 ## Value
 
@@ -106,13 +112,14 @@ around a one-element value when it must remain a JSON array.
 
 ## Permissions and authentication
 
-Interactive authentication requires the Power BI delegated permission
-`UserDataFunction.Execute.All` or `Item.Execute.All`, plus Execute
-permission on the user data functions item. Service-to-service callers
-can use an application credential with the Power BI `.default` audience
-and the required tenant and item access. Most users can leave
-`audience = NULL`; 'fabricQueryR' selects the documented delegated scope
-or application audience for the authentication flow.
+Delegated authentication defaults to the narrower Power BI permission
+`UserDataFunction.Execute.All`. Microsoft also accepts the broader
+`Item.Execute.All` permission; use it only when the app registration
+grants that scope, and pass its full scope URL explicitly through
+`audience`. Either delegated scope still requires Execute permission on
+the user data functions item. Service-to-service callers can use an
+application credential with the Power BI `.default` audience and the
+required tenant and item access.
 
 Application authentication for the public invocation endpoint is
 distinct from authentication used by connections inside the function.
@@ -124,7 +131,10 @@ connection can still fail.
 
 The function URL is a credential boundary. Tokens are sent to the
 explicitly supplied HTTPS endpoint. URLs containing credentials, query
-parameters, fragments, or nonstandard ports are rejected.
+parameters, fragments, or nonstandard ports are rejected. HTTPS and
+route validation do not prove hostname ownership or token audience. Use
+a custom host only when your organization controls it, with a token or
+provider issued for that host's intended audience.
 
 ## Results, retries, and limits
 

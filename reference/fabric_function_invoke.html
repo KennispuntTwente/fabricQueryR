@@ -108,7 +108,10 @@ response body. The default is 32 MiB, slightly above Fabric's documented
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let 'fabricQueryR' use its normal sign-in flow.</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+host. A custom <code>function_url</code> requires an explicitly supplied token or
+provider so an automatically acquired Fabric credential is not forwarded
+to another host.</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -118,8 +121,10 @@ to let 'fabricQueryR' use its normal sign-in flow.</p></dd>
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
 <dd><p>OAuth audience/scope passed to the credential. <code>NULL</code>
-selects the documented scope from the authentication flow. Set this only
-for a custom token provider or unusual identity flow.</p></dd>
+selects <code>UserDataFunction.Execute.All</code> for delegated sign-in or the Power
+BI <code>.default</code> audience for client credentials. To use Microsoft's broader
+alternative, pass
+<code>"https://analysis.windows.net/powerbi/api/Item.Execute.All"</code> explicitly.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -150,13 +155,13 @@ use <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</
     <h2 id="permissions-and-authentication">Permissions and authentication<a class="anchor" aria-label="anchor" href="#permissions-and-authentication"></a></h2>
 
 
-<p>Interactive authentication requires the Power BI delegated permission
-<code>UserDataFunction.Execute.All</code> or <code>Item.Execute.All</code>, plus Execute permission
-on the user data functions item. Service-to-service callers can use an
-application credential with the Power BI <code>.default</code> audience and the
-required tenant and item access. Most users can leave <code>audience = NULL</code>;
-'fabricQueryR' selects the documented delegated scope or application
-audience for the authentication flow.</p>
+<p>Delegated authentication defaults to the narrower Power BI permission
+<code>UserDataFunction.Execute.All</code>. Microsoft also accepts the broader
+<code>Item.Execute.All</code> permission; use it only when the app registration grants
+that scope, and pass its full scope URL explicitly through <code>audience</code>. Either
+delegated scope still requires Execute permission on the user data functions
+item. Service-to-service callers can use an application credential with the
+Power BI <code>.default</code> audience and the required tenant and item access.</p>
 <p>Application authentication for the public invocation endpoint is distinct
 from authentication used by connections inside the function. Microsoft
 currently does not support using a service principal through connections
@@ -165,7 +170,10 @@ service principal can therefore invoke a compatible function while a
 function that relies on an unsupported managed connection can still fail.</p>
 <p>The function URL is a credential boundary. Tokens are sent to the explicitly
 supplied HTTPS endpoint. URLs containing credentials,
-query parameters, fragments, or nonstandard ports are rejected.</p>
+query parameters, fragments, or nonstandard ports are rejected. HTTPS and
+route validation do not prove hostname ownership or token audience. Use a
+custom host only when your organization controls it, with a token or provider
+issued for that host's intended audience.</p>
     </div>
     <div class="section level2">
     <h2 id="results-retries-and-limits">Results, retries, and limits<a class="anchor" aria-label="anchor" href="#results-retries-and-limits"></a></h2>

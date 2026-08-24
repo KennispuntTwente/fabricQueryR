@@ -272,7 +272,31 @@ audience for each Fabric service.</p>
 supply <code>token</code>, it becomes responsible for authentication and
 <code>auth_args</code> is not used. See <code><a href="../reference/fabric_workspaces.html">?fabric_workspaces</a></code>
 and the ‘AzureAuth’ <a href="https://azure.r-universe.dev/AzureAuth/doc/scenarios.html" class="external-link">authentication
-scenarios</a> for the complete argument details.</p>
+scenarios</a> for the complete argument details. Supply the bearer token
+exactly as issued: leading, trailing, or embedded whitespace and control
+characters are rejected rather than trimmed or sent in an HTTP
+header.</p>
+</div>
+<div class="section level2">
+<h2 id="treat-endpoint-urls-as-credential-boundaries">Treat endpoint URLs as credential boundaries<a class="anchor" aria-label="anchor" href="#treat-endpoint-urls-as-credential-boundaries"></a>
+</h2>
+<p>Prefer discovered records when a function accepts them. When
+discovery cannot provide an invocation endpoint, copy the complete URL
+from the Fabric portal. These routes keep both the service address and
+the Fabric item identity visible to the caller.</p>
+<p>A custom host, including one fronted by your organization through
+Azure API Management or another gateway, is an explicit opt-in.
+‘fabricQueryR’ refuses to acquire and forward its normal Fabric
+credential automatically; supply <code>token</code> as a bearer token or
+token-provider function. Use a custom endpoint only when your
+organization controls the host, and use a token issued for the gateway’s
+intended audience. Set <code>audience</code> explicitly when the token
+provider uses that argument to acquire the gateway credential.</p>
+<p>HTTPS and URL-shape validation reject malformed endpoint input, but
+do not prove that your organization owns the hostname, that the gateway
+forwards a request safely, or that a supplied token has the correct
+audience. Confirm those properties with the gateway owner before sending
+credentials or data.</p>
 </div>
 <div class="section level2">
 <h2 id="choosing-an-advanced-authentication-method">Choosing an advanced authentication method<a class="anchor" aria-label="anchor" href="#choosing-an-advanced-authentication-method"></a>

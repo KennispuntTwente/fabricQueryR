@@ -106,7 +106,10 @@ source rows and SQL is a better fit.</p>
 <p>The normal JSON mode returns one tibble and is the simplest option.
 The later <code>api = "arrow"</code> mode is useful for richer types,
 multiple result tables, or a stream, but requires a capacity-backed
-model and additional tenant settings.</p>
+model and additional tenant settings. The <code>timeout</code> argument
+bounds the client HTTP request. For Arrow queries,
+<code>arrow_options$queryTimeout</code> separately controls the
+server-side query limit.</p>
 </div>
 <div class="section level2">
 <h2 id="check-access-before-refreshing">Check access before refreshing<a class="anchor" aria-label="anchor" href="#check-access-before-refreshing"></a>

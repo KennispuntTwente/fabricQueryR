@@ -161,7 +161,9 @@ schema; otherwise provide the destination schema explicitly.</p></dd>
 
 <dt id="arg-detail">detail<a class="anchor" aria-label="anchor" href="#arg-detail"></a></dt>
 <dd><p>Whether table discovery should retrieve per-table column
-metadata. Set to <code>FALSE</code> to make only schema and table-list requests.</p></dd>
+metadata. Detail retrieval enriches the listing snapshot and never removes
+a listed row if a table disappears concurrently. Set to <code>FALSE</code> to make
+only schema and table-list requests.</p></dd>
 
 
 <dt id="arg-page-size">page_size<a class="anchor" aria-label="anchor" href="#arg-page-size"></a></dt>

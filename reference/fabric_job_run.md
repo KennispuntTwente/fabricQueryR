@@ -42,7 +42,7 @@ fabric_job_status(
   auth_args = list(),
   api_base = .fabric_api_base,
   respect_retry_after = TRUE,
-  notebook_details = TRUE,
+  notebook_details = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -60,7 +60,7 @@ fabric_job_wait(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  notebook_details = TRUE,
+  notebook_details = FALSE,
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -204,11 +204,10 @@ fabric_job_cancel(
 
 - notebook_details:
 
-  For Notebook jobs, whether to query the beta Notebook status endpoint
-  for exit values and compute details. The default preserves the richer
-  result. Set to `FALSE` to use only the stable Core Job Scheduler
-  status endpoint; `exit_value` and workload-specific `properties` may
-  then be unavailable
+  For Notebook jobs, whether to opt into the beta Notebook status
+  endpoint for exit values and compute details. The default `FALSE` uses
+  only the stable Core Job Scheduler status endpoint; `exit_value` and
+  workload-specific `properties` may then be unavailable.
 
 - .sleep, .now:
 
@@ -264,11 +263,12 @@ failure. Otherwise, have the notebook report its outcome with
 remains backward compatible but Microsoft recommends migrating because
 it will be retired
 
-Notebook submission uses the released workload-specific route so Fabric
-applies per-run parameters and compute settings. The richer
-workload-specific status endpoint is still queried by default for
-notebook exit values, with the stable Core status endpoint as its
-fallback.
+Notebook submission uses the stable Core Job Scheduler route with job
+type `RunNotebook`, including per-run parameters and compute settings.
+Status and waiting also use the stable Core endpoint by default. Set
+`notebook_details = TRUE` to opt into the beta Notebook status endpoint
+when exit values or workload-specific properties are required; the Core
+endpoint remains its fallback.
 
 ## Permissions and status handling
 
@@ -282,6 +282,12 @@ waiting indefinitely
 
 [Core Job Scheduler REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+
+[Run an on-demand item
+job](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/run-on-demand-item-job)
+
+[Get a Notebook job instance
+(beta)](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/get-notebook-job-instance%28beta%29)
 
 [Manage and execute notebooks with public
 APIs](https://learn.microsoft.com/en-us/fabric/data-engineering/notebook-public-api)
@@ -304,8 +310,12 @@ job <- fabric_job_run(notebook)
 current <- fabric_job_status(job)
 current$status
 
-# For a normal run, wait and inspect its final status and exit value
-completed <- fabric_job_wait(job, timeout = 900)
+# Opt into beta Notebook details only when an exit value is required
+completed <- fabric_job_wait(
+  job,
+  timeout = 900,
+  notebook_details = TRUE
+)
 completed$status
 completed$exit_value
 

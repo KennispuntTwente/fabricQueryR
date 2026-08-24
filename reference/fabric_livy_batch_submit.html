@@ -93,9 +93,12 @@ endpoint</strong>, or use an item from <code><a href="fabric_typed_items.html">f
 
 
 <dt id="arg-file">file<a class="anchor" aria-label="anchor" href="#arg-file"></a></dt>
-<dd><p>ABFS/ABFSS URI of the main Python, R, or Java/Scala application
-file. After uploading a script under a Lakehouse's <code>Files/</code> area, its
-<strong>Properties</strong> dialog can copy this path</p></dd>
+<dd><p>Absolute ABFS/ABFSS URI of the main Python, R, or Java/Scala
+application file. It must contain a filesystem/container, host, and
+non-root path, without a password, port, query, fragment, backslash, or dot
+path segment. After uploading a script under a Lakehouse's <code>Files/</code> area,
+its <strong>Properties</strong> dialog can copy this path. Spaces in path segments must
+be percent-encoded as <code>%20</code>; raw spaces and authority whitespace are invalid</p></dd>
 
 
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
@@ -172,7 +175,11 @@ workload has been sized deliberately</p></dd>
 
 <dt id="arg-token">token<a class="anchor" aria-label="anchor" href="#arg-token"></a></dt>
 <dd><p>Optional access token or token-provider function. Leave <code>NULL</code>
-to let 'fabricQueryR' use its normal sign-in flow</p></dd>
+to let 'fabricQueryR' use its normal sign-in flow for a Microsoft Fabric
+host. A custom <code>livy_url</code> requires an explicitly supplied token or provider.
+HTTPS validation does not prove ownership or token audience; use a custom
+host only when your organization controls it, with a credential issued for
+its intended audience</p></dd>
 
 
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
@@ -181,8 +188,11 @@ to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 
 
 <dt id="arg-audience">audience<a class="anchor" aria-label="anchor" href="#arg-audience"></a></dt>
-<dd><p>Optional sign-in scope. Most users should leave this <code>NULL</code>;
-set it only for a custom token provider or identity flow</p></dd>
+<dd><p>Optional sign-in scopes. For delegated sign-in, <code>NULL</code>
+requests the four required Livy scopes listed below. An explicit vector
+replaces those defaults, so include every required scope plus any optional
+<code>Code.Access*</code> scope the Spark code needs. Client credentials require one
+<code>.default</code> audience</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -207,8 +217,10 @@ object</p></dd>
 <dd><p>Logical. When waiting at submission time, request
 cancellation if the local timeout expires. Defaults to <code>TRUE</code>, so a timed
 out call does not normally leave Spark compute running unattended. The
-structured timeout condition contains stable public batch metadata in its
-<code>batch</code> field, including when cancellation fails or is disabled</p></dd>
+structured timeout condition contains the live <a href="FabricLivyBatch.html">FabricLivyBatch</a> object in
+<code>handle</code>, for status checks or cancellation in the current R process, and
+stable public metadata in <code>batch</code>. A serialized handle intentionally loses
+its in-process credential</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -225,8 +237,12 @@ submitting with <code>wait = FALSE</code></p>
 application file must already be accessible through an ABFS/ABFSS URI; this
 function does not upload a local script. Use <code><a href="fabric_onelake_files.html">fabric_onelake_upload()</a></code> first
 when needed</p>
-<p>The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role</p>
+<p>Delegated sign-in requires <code>Lakehouse.Execute.All</code>, <code>Lakehouse.Read.All</code>,
+<code>Code.AccessFabric.All</code>, and <code>Code.AccessStorage.All</code>. Add
+<code>Code.AccessAzureKeyvault.All</code>, <code>Code.AccessAzureDataLake.All</code>,
+<code>Code.AccessAzureDataExplorer.All</code>, or <code>Code.AccessSQL.All</code> only when Spark
+accesses that Azure service at runtime. The signed-in identity also needs an
+appropriate workspace role</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
