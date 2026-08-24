@@ -141,7 +141,7 @@ destination download is staged before it replaces an existing file}
 \item{range}{Optional inclusive zero-based byte range. Supply one value for
 all bytes from that offset onward, or two values for \code{start} through \code{end}
 Leave \code{NULL} to download the entire file. A ranged request must receive a
-matching HTTP 206 \code{Content-Range} response}
+matching HTTP 206 \code{Content-Range} response whose body has the claimed size}
 
 \item{overwrite}{Whether an existing local or OneLake file may be replaced
 Existing files are protected by default}

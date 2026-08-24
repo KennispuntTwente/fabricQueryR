@@ -782,6 +782,52 @@ test_that("OneLake ranged downloads reject invalid partial responses", {
   expect_false(file.exists(dest))
 })
 
+test_that("OneLake ranged downloads verify the received byte count", {
+  payload <- raw()
+  local_mocked_bindings(
+    .httr2_perform = function(req, download_path = NULL, ...) {
+      if (!is.null(download_path)) {
+        writeBin(payload, download_path)
+      }
+      onelake_test_response(
+        status = 206L,
+        headers = list(`Content-Range` = "bytes 1-3/5"),
+        body = payload,
+        url = req$url
+      )
+    }
+  )
+
+  for (received in list(charToRaw("lp"), charToRaw("lpha"))) {
+    payload <- received
+    memory_error <- rlang::catch_cnd(fabric_onelake_download(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/a.txt",
+      range = c(1, 3),
+      token = "token"
+    ))
+    expect_s3_class(memory_error, "fabric_onelake_range_response_error")
+    expect_equal(memory_error$expected_length, 3)
+    expect_equal(memory_error$observed_length, length(received))
+
+    dest <- tempfile("onelake-invalid-range-length-")
+    on.exit(unlink(dest, force = TRUE), add = TRUE)
+    disk_error <- rlang::catch_cnd(fabric_onelake_download(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/a.txt",
+      dest = dest,
+      range = c(1, 3),
+      token = "token"
+    ))
+    expect_s3_class(disk_error, "fabric_onelake_range_response_error")
+    expect_equal(disk_error$expected_length, 3)
+    expect_equal(disk_error$observed_length, length(received))
+    expect_false(file.exists(dest))
+  }
+})
+
 test_that("OneLake open-ended ranges require the remaining file interval", {
   httr2::local_mocked_responses(function(req) {
     onelake_test_response(

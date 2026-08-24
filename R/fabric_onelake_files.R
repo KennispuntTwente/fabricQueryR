@@ -76,7 +76,7 @@
 #' @param range Optional inclusive zero-based byte range. Supply one value for
 #'   all bytes from that offset onward, or two values for `start` through `end`
 #'   Leave `NULL` to download the entire file. A ranged request must receive a
-#'   matching HTTP 206 `Content-Range` response
+#'   matching HTTP 206 `Content-Range` response whose body has the claimed size
 #' @param dest Optional local destination. When `NULL`, download returns a raw
 #'   vector held in R memory. Supply a path to stream large files to disk. A
 #'   destination download is staged before it replaces an existing file
@@ -1471,8 +1471,8 @@ onelake_validate_range <- function(range) {
 }
 
 # Validate that a ranged download returned exactly the requested byte interval.
-# Returns invisibly after checking the status and Content-Range response header.
-onelake_validate_range_response <- function(response, range) {
+# Returns invisibly after checking status, Content-Range, and received byte count.
+onelake_validate_range_response <- function(response, range, observed_length) {
   if (is.null(range)) {
     return(invisible(response))
   }
@@ -1505,6 +1505,21 @@ onelake_validate_range_response <- function(response, range) {
   response_start <- values[[1L]]
   response_end <- values[[2L]]
   response_total <- values[[3L]]
+  response_length <- if (
+    is.finite(response_start) &&
+      is.finite(response_end) &&
+      response_end >= response_start
+  ) {
+    response_end - response_start + 1
+  } else {
+    NA_real_
+  }
+  observed_valid <- is.numeric(observed_length) &&
+    length(observed_length) == 1L &&
+    !is.na(observed_length) &&
+    is.finite(observed_length) &&
+    observed_length >= 0 &&
+    observed_length == floor(observed_length)
   expected_end <- if (is.finite(response_total) && response_total > 0) {
     if (length(range) == 2L) {
       min(range[[2L]], response_total - 1)
@@ -1519,7 +1534,9 @@ onelake_validate_range_response <- function(response, range) {
     response_start == range[[1L]] &&
     response_end >= response_start &&
     response_total > response_end &&
-    response_end == expected_end
+    response_end == expected_end &&
+    observed_valid &&
+    observed_length == response_length
 
   if (!isTRUE(valid)) {
     .fabric_abort(
@@ -1532,7 +1549,17 @@ onelake_validate_range_response <- function(response, range) {
       requested_end = if (length(range) == 2L) range[[2L]] else NULL,
       response_start = if (is.finite(response_start)) response_start else NULL,
       response_end = if (is.finite(response_end)) response_end else NULL,
-      response_total = if (is.finite(response_total)) response_total else NULL
+      response_total = if (is.finite(response_total)) response_total else NULL,
+      expected_length = if (is.finite(response_length)) {
+        response_length
+      } else {
+        NULL
+      },
+      observed_length = if (observed_valid) {
+        as.numeric(observed_length)
+      } else {
+        NULL
+      }
     )
   }
 
@@ -1574,13 +1601,13 @@ onelake_download_target <- function(
       credential = credential,
       audience = .fabric_audience$storage
     )
-    onelake_validate_range_response(response, range)
-
-    if (is.raw(response$body) && length(response$body) == 0L) {
-      return(raw())
+    bytes <- if (is.raw(response$body) && length(response$body) == 0L) {
+      raw()
+    } else {
+      httr2::resp_body_raw(response)
     }
-
-    return(httr2::resp_body_raw(response))
+    onelake_validate_range_response(response, range, length(bytes))
+    return(bytes)
   }
 
   # 3 Stage and commit a file download -------------------------------------------------------------
@@ -1612,7 +1639,8 @@ onelake_download_target <- function(
     audience = .fabric_audience$storage,
     download_path = temporary
   )
-  onelake_validate_range_response(response, range)
+  observed_length <- unname(file.info(temporary, extra_cols = FALSE)$size[[1L]])
+  onelake_validate_range_response(response, range, observed_length)
   onelake_commit_download(temporary, dest, overwrite = overwrite)
   invisible(normalizePath(dest, winslash = "/", mustWork = TRUE))
 }
