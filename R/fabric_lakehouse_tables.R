@@ -27,7 +27,9 @@
 #'   discovered schema-enabled Lakehouse supplies its documented default
 #'   schema; otherwise provide the destination schema explicitly.
 #' @param detail Whether table discovery should retrieve per-table column
-#'   metadata. Set to `FALSE` to make only schema and table-list requests.
+#'   metadata. Detail retrieval enriches the listing snapshot and never removes
+#'   a listed row if a table disappears concurrently. Set to `FALSE` to make
+#'   only schema and table-list requests.
 #' @param page_size Optional maximum records requested per table API page, from
 #'   1 to the Fabric List Tables maximum of 100. All continuation values are
 #'   followed regardless of this value.
@@ -954,10 +956,9 @@ fabric_lakehouse_write_table <- function(
             rlang::cnd_signal(error)
           }
         )
-        if (is.null(detail_record)) {
-          next
+        if (!is.null(detail_record)) {
+          record <- utils::modifyList(record, detail_record)
         }
-        record <- utils::modifyList(record, detail_record)
       }
       rows[[length(rows) + 1L]] <- .fabric_onelake_table_row(
         record,

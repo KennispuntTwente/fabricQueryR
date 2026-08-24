@@ -517,7 +517,7 @@ test_that("Lakehouse discovery can target one schema without detail requests", {
   expect_length(tables$columns[[1L]], 0L)
 })
 
-test_that("Lakehouse discovery skips tables removed before detail requests", {
+test_that("Lakehouse detail enrichment retains its listing snapshot", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {
     calls <<- c(calls, req$url)
@@ -526,7 +526,8 @@ test_that("Lakehouse discovery skips tables removed before detail requests", {
         list(
           data = list(
             list(name = "removed", type = "Managed", format = "Delta"),
-            list(name = "current", type = "Managed", format = "Delta")
+            list(name = "current", type = "Managed", format = "Delta"),
+            list(name = "after", type = "External", format = "Delta")
           ),
           continuationToken = NULL
         ),
@@ -538,7 +539,8 @@ test_that("Lakehouse discovery skips tables removed before detail requests", {
         list(
           tables = list(
             list(name = "removed", schema_name = "dbo"),
-            list(name = "current", schema_name = "dbo")
+            list(name = "current", schema_name = "dbo"),
+            list(name = "after", schema_name = "dbo")
           ),
           next_page_token = NULL
         ),
@@ -552,11 +554,21 @@ test_that("Lakehouse discovery skips tables removed before detail requests", {
         url = req$url
       ))
     }
+    if (grepl("current", req$url, fixed = TRUE)) {
+      return(lakehouse_table_test_response(
+        list(
+          name = "current",
+          schema_name = "dbo",
+          columns = list(list(name = "id", type_name = "long"))
+        ),
+        url = req$url
+      ))
+    }
     lakehouse_table_test_response(
       list(
-        name = "current",
+        name = "after",
         schema_name = "dbo",
-        columns = list(list(name = "id", type_name = "long"))
+        columns = list(list(name = "value", type_name = "string"))
       ),
       url = req$url
     )
@@ -568,9 +580,13 @@ test_that("Lakehouse discovery skips tables removed before detail requests", {
     token = "test-token"
   )
 
-  expect_equal(tables$name, "current")
-  expect_equal(tables$columns[[1L]][[1L]]$name, "id")
-  expect_length(calls, 4L)
+  expect_equal(tables$name, c("removed", "current", "after"))
+  expect_length(tables$columns[[1L]], 0L)
+  expect_equal(tables$columns[[2L]][[1L]]$name, "id")
+  expect_equal(tables$columns[[3L]][[1L]]$name, "value")
+  expect_identical(tables$raw[[1L]]$name, "removed")
+  expect_identical(tables$fabric_raw[[1L]]$type, "Managed")
+  expect_length(calls, 5L)
 })
 
 test_that("schema discovery falls back when Fabric rejects List Tables", {

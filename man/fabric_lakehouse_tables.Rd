@@ -80,7 +80,9 @@ discovered schema-enabled Lakehouse supplies its documented default
 schema; otherwise provide the destination schema explicitly.}
 
 \item{detail}{Whether table discovery should retrieve per-table column
-metadata. Set to \code{FALSE} to make only schema and table-list requests.}
+metadata. Detail retrieval enriches the listing snapshot and never removes
+a listed row if a table disappears concurrently. Set to \code{FALSE} to make
+only schema and table-list requests.}
 
 \item{page_size}{Optional maximum records requested per table API page, from
 1 to the Fabric List Tables maximum of 100. All continuation values are

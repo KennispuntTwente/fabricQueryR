@@ -31,7 +31,9 @@ of being deleted while a late commit may still be completing.
 Lakehouse schemas and tables, read them, load CSV or Parquet files, and write
 data frames or Arrow data. Both ordinary and schema-enabled Lakehouses are
 supported. Singular table helpers now accept ordinary named-list records as
-documented, in addition to one-row data frames and discovered records.
+documented, in addition to one-row data frames and discovered records. Detail
+enrichment now retains every table in the listing snapshot when a concurrent
+deletion makes an individual detail request return `TableNotFound`.
 
 * `fabric_warehouse_schemas()`, `fabric_warehouse_table()`,
 `fabric_warehouse_tables()`, `fabric_warehouse_read_table()`, and
