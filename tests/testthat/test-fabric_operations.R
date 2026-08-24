@@ -646,3 +646,60 @@ test_that("result retrieval can refuse to wait", {
   )
   expect_equal(condition$operation_status$status, "Running")
 })
+
+test_that("non-waiting result retrieval ignores future polling hints", {
+  now <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  status_url <- paste0(
+    "https://api.fabric.microsoft.com/v1/operations/",
+    operation_test_id
+  )
+  operation <- structure(
+    list(
+      id = operation_test_id,
+      location = status_url,
+      status_url = status_url,
+      result_url = paste0(status_url, "/result"),
+      result_expected = TRUE,
+      retry_after = 120,
+      submitted_at = now,
+      next_poll_at = now + 120,
+      api_base = "https://api.fabric.microsoft.com/v1",
+      immediate = FALSE,
+      .result = NULL,
+      credential = NULL,
+      .credential_key = NULL,
+      .credential_required = TRUE
+    ),
+    class = "fabric_operation"
+  )
+  requests <- 0L
+  sleeps <- 0L
+  httr2::local_mocked_responses(function(req) {
+    requests <<- requests + 1L
+    operation_test_response(
+      body = list(status = "Running", percentComplete = 5L),
+      headers = list(`Retry-After` = "120"),
+      url = req$url
+    )
+  })
+
+  error <- rlang::catch_cnd(
+    fabric_operation_result(
+      operation,
+      wait = FALSE,
+      token = "test-token",
+      timeout = 10,
+      .now = function() now,
+      .sleep = function(...) {
+        sleeps <<- sleeps + 1L
+        rlang::abort("unexpected sleep")
+      }
+    ),
+    classes = "error"
+  )
+
+  expect_s3_class(error, "fabric_operation_not_ready")
+  expect_identical(error$operation_status$status, "Running")
+  expect_identical(requests, 1L)
+  expect_identical(sleeps, 0L)
+})

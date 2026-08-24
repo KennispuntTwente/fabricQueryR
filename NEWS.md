@@ -98,7 +98,9 @@ runs use the released workload endpoint that applies per-run parameters and
 compute settings.
 
 * `fabric_operation_*()` functions resume, monitor, and retrieve the results of
-longer-running Fabric tasks such as Lakehouse loads.
+longer-running Fabric tasks such as Lakehouse loads. Non-waiting result lookup
+now reads one state snapshot immediately instead of sleeping until a stored
+future polling hint.
 
 ## Changed
 

@@ -82,8 +82,9 @@ Fabric's \code{Retry-After} value and otherwise uses a two-second fallback}
 \code{fabric_operation_failed} condition. Set to \code{FALSE} to inspect the returned
 failed state directly}
 
-\item{wait}{Whether to wait for a running operation. When \code{FALSE}, a
-non-terminal operation raises \code{fabric_operation_not_ready}}
+\item{wait}{Whether to wait for a running operation. When \code{FALSE}, one state
+request is made immediately without honoring a stored future polling hint;
+a non-terminal operation raises \code{fabric_operation_not_ready}.}
 }
 \value{
 \code{fabric_operation_status()} and \code{fabric_operation_wait()} return a

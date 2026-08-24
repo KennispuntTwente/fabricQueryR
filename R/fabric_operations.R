@@ -215,8 +215,9 @@ fabric_operation_wait <- function(
   )
 }
 
-#' @param wait Whether to wait for a running operation. When `FALSE`, a
-#'   non-terminal operation raises `fabric_operation_not_ready`
+#' @param wait Whether to wait for a running operation. When `FALSE`, one state
+#'   request is made immediately without honoring a stored future polling hint;
+#'   a non-terminal operation raises `fabric_operation_not_ready`.
 #' @rdname fabric_operation_status
 #' @export
 fabric_operation_result <- function(
@@ -288,7 +289,7 @@ fabric_operation_result <- function(
     .fabric_operation_read_state(
       context$operation,
       context$credential,
-      respect_retry_after = TRUE,
+      respect_retry_after = FALSE,
       deadline = deadline,
       .sleep = .sleep,
       .now = .now
