@@ -117,6 +117,18 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   }
 
   for (format in names(fixtures)) {
+    released <- fabric_onelake_read_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      paste0("Files/data.", format),
+      result = "arrow_stream",
+      token = "token"
+    )
+    released_path <- attr(released, "fabric_onelake_file_path", exact = TRUE)
+    withr::defer(unlink(released_path, force = TRUE))
+    released[["release"]]()
+    expect_false(file.exists(released_path))
+
     stream <- fabric_onelake_read_file(
       "workspace",
       "lakehouse.Lakehouse",
@@ -125,13 +137,14 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
       token = "token"
     )
     local_path <- attr(stream, "fabric_onelake_file_path", exact = TRUE)
-    on.exit(unlink(local_path, force = TRUE), add = TRUE)
+    withr::defer(unlink(local_path, force = TRUE))
     expect_s3_class(stream, "nanoarrow_array_stream")
     expect_true(file.exists(local_path))
-    streamed <- as.data.frame(
-      arrow::as_record_batch_reader(stream)$read_table()
-    )
+    reader <- arrow::as_record_batch_reader(stream)
+    streamed <- as.data.frame(reader$read_table())
     expect_equal(streamed, data)
+    reader$Close()
+    expect_false(file.exists(local_path))
   }
 })
 

@@ -1108,6 +1108,21 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
   expect_equal(object_read$id, object_data$id)
   expect_equal(object_read$amount, object_data$amount)
   expect_equal(object_read$loaded_on, object_data$loaded_on)
+  object_stream <- fabric_onelake_read_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    object_path,
+    result = "arrow_stream",
+    token = token
+  )
+  object_stream_path <- attr(
+    object_stream,
+    "fabric_onelake_file_path",
+    exact = TRUE
+  )
+  on.exit(unlink(object_stream_path, force = TRUE), add = TRUE)
+  object_stream[["release"]]()
+  expect_false(file.exists(object_stream_path))
 
   fabric_onelake_upload(
     manifest$workspace_id,

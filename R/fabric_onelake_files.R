@@ -1812,10 +1812,7 @@ onelake_commit_new_download <- function(temporary, dest) {
   complete <- FALSE
   on.exit(
     if (!complete) {
-      if (!is.null(input)) {
-        try(input$close(), silent = TRUE)
-      }
-      unlink(path, force = TRUE)
+      .fabric_onelake_release_object_file(reader, input, path)
     },
     add = TRUE
   )
@@ -1834,13 +1831,15 @@ onelake_commit_new_download <- function(temporary, dest) {
       }
       stream <- nanoarrow::as_nanoarrow_array_stream(reader)
       cleanup <- local({
+        local_reader <- reader
         local_input <- input
         local_path <- path
         function() {
-          if (!is.null(local_input)) {
-            try(local_input$close(), silent = TRUE)
-          }
-          unlink(local_path, force = TRUE)
+          .fabric_onelake_release_object_file(
+            local_reader,
+            local_input,
+            local_path
+          )
         }
       })
       stream <- nanoarrow::array_stream_set_finalizer(stream, cleanup)
@@ -1857,6 +1856,27 @@ onelake_commit_new_download <- function(temporary, dest) {
       )
     }
   )
+}
+
+# Close Arrow owners before removing a downloaded object file. Returns whether
+# the file is absent after a small bounded retry for Windows handle release
+.fabric_onelake_release_object_file <- function(reader, input, path) {
+  if (!is.null(reader)) {
+    try(reader$Close(), silent = TRUE)
+  }
+  if (!is.null(input)) {
+    try(input$close(), silent = TRUE)
+  }
+
+  for (attempt in seq_len(3L)) {
+    if (!file.exists(path) || unlink(path, force = TRUE) == 0L) {
+      return(invisible(TRUE))
+    }
+    if (attempt < 3L) {
+      Sys.sleep(0.01)
+    }
+  }
+  invisible(!file.exists(path))
 }
 
 # Normalize raw bytes or a local file `source`. Returns its kind, value, and size

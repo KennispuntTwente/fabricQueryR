@@ -79,6 +79,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_onelake_read_file()` now closes Arrow readers before deleting
+downloaded Parquet and CSV stream files, preventing retained temporary files on
+Windows after explicit stream release.
+
 * Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
