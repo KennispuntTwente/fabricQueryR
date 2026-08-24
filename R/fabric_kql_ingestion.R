@@ -2176,7 +2176,7 @@ fabric_kql_write_table <- function(
       token = credential
     ),
     error = function(error) {
-      if (kusto_write_condition_inherits(error, "fabric_http_deadline_error")) {
+      if (kusto_condition_inherits(error, "fabric_http_deadline_error")) {
         kusto_write_timeout_error(
           staging_path,
           parent = error,
@@ -2218,7 +2218,7 @@ fabric_kql_write_table <- function(
     error = function(error) {
       if (
         inherits(error, "fabric_kql_ingestion_timeout") ||
-          kusto_write_condition_inherits(error, "fabric_http_deadline_error")
+          kusto_condition_inherits(error, "fabric_http_deadline_error")
       ) {
         kusto_write_timeout_error(
           staging_path,
@@ -3002,7 +3002,7 @@ kusto_write_timeout_error <- function(
 }
 
 # Inspect wrapped conditions without exposing or copying their diagnostic data
-kusto_write_condition_inherits <- function(error, class) {
+kusto_condition_inherits <- function(error, class) {
   seen <- list()
   while (inherits(error, "condition")) {
     if (inherits(error, class)) {
@@ -3070,6 +3070,10 @@ kusto_write_result <- function(
 #' record counts. Kusto does not remove files written before a failed export, so
 #' a failure or timeout identifies the destination and operation ID but never
 #' reports partial files as a successful result.
+#' If Kusto has already reported `Completed` but the artifact-details request
+#' exhausts the client deadline, the resulting details-timeout condition records
+#' `operation_completed = TRUE`; it does not imply that the export is still
+#' running or failed.
 #'
 #' Storage connection strings are emitted as obfuscated Kusto string literals
 #' and are redacted from returned objects and conditions. If a submission fails
@@ -3118,7 +3122,8 @@ kusto_write_result <- function(
 #' @param parquet_row_group_size Optional positive Parquet row-group row count.
 #' @param parquet_datetime_precision Optional `"millisecond"` or
 #'   `"microsecond"` precision for Parquet datetime values.
-#' @param timeout Positive total client-side wait limit in seconds.
+#' @param timeout Positive total client-side limit in seconds, shared by
+#'   submission, status polling, and retrieval of artifact details.
 #' @param poll_interval Positive seconds between operation status requests.
 #' @inheritParams fabric_kql_query
 #' @param .sleep,.now Internal hooks for deterministic polling tests.
@@ -3288,6 +3293,7 @@ fabric_kql_export <- function(
 
   last <- NULL
   progress <- .fabric_poll_progress("KQL export", operation_id)
+  on.exit(.fabric_poll_progress_done(progress), add = TRUE)
   repeat {
     elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
     if (!is.finite(elapsed) || elapsed >= timeout) {
@@ -3364,7 +3370,6 @@ fabric_kql_export <- function(
       last
     )
   }
-  .fabric_poll_progress_done(progress)
   detail_response <- tryCatch(
     kusto_export_management(
       target,
@@ -3375,40 +3380,34 @@ fabric_kql_export <- function(
       operation = "Details"
     ),
     fabric_http_deadline_error = function(error) {
-      kusto_export_timeout_error(
+      kusto_export_details_error(
         operation_id,
         target,
         destination,
         properties$format,
-        timeout,
         last,
+        timeout = TRUE,
         parent = error
       )
     },
     error = function(error) {
-      .fabric_abort(
-        paste0(
-          "KQL export ",
-          operation_id,
-          " completed, but its artifact details could not be retrieved; ",
-          "use .show operation ",
-          operation_id,
-          " details before resubmitting."
+      kusto_export_details_error(
+        operation_id,
+        target,
+        destination,
+        properties$format,
+        last,
+        timeout = kusto_condition_inherits(
+          error,
+          "fabric_http_deadline_error"
         ),
-        class = c(
-          "fabric_kql_export_details_error",
-          "fabric_kql_export_error"
-        ),
-        operation_id = operation_id,
-        database = target$database,
-        destination = destination$display,
-        format = properties$format,
-        last_status = last,
         parent = error
       )
     }
   )
   artifacts <- kusto_export_artifacts(detail_response$tables)
+  .fabric_poll_progress_done(progress)
+  progress <- NULL
   structure(
     list(
       operation_id = operation_id,
@@ -4125,6 +4124,57 @@ kusto_export_timeout_error <- function(
       "destination before resubmitting."
     ),
     class = c("fabric_kql_export_timeout", "fabric_kql_export_error"),
+    operation_id = operation_id,
+    database = target$database,
+    destination = destination$display,
+    format = format,
+    last_status = status,
+    parent = parent
+  )
+}
+
+# Distinguish a completed export whose artifact details missed the deadline
+kusto_export_details_error <- function(
+  operation_id,
+  target,
+  destination,
+  format,
+  status,
+  timeout = FALSE,
+  parent = NULL
+) {
+  if (isTRUE(timeout)) {
+    message <- paste0(
+      "KQL export ",
+      operation_id,
+      " completed, but its artifact details were not retrieved before the ",
+      "client deadline; use .show operation ",
+      operation_id,
+      " details before resubmitting."
+    )
+    classes <- c(
+      "fabric_kql_export_details_timeout",
+      "fabric_kql_export_details_error",
+      "fabric_kql_export_error"
+    )
+  } else {
+    message <- paste0(
+      "KQL export ",
+      operation_id,
+      " completed, but its artifact details could not be retrieved; use ",
+      ".show operation ",
+      operation_id,
+      " details before resubmitting."
+    )
+    classes <- c(
+      "fabric_kql_export_details_error",
+      "fabric_kql_export_error"
+    )
+  }
+  .fabric_abort(
+    message,
+    class = classes,
+    operation_completed = TRUE,
     operation_id = operation_id,
     database = target$database,
     destination = destination$display,

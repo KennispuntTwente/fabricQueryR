@@ -58,7 +58,8 @@ rejects multi-file writes that combine per-blob ingestion with one shared
 idempotency key, preventing successful tracking results with omitted parts. Its
 post-upload timeout is now one shared deadline: submission time reduces the
 time available for status polling, and timeout conditions retain the tracking
-handle whenever submission completed.
+handle whenever submission completed. Export artifact-detail timeouts now state
+that the export itself completed instead of reporting it as still running.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R

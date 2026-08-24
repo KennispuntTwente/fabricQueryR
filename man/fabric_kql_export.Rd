@@ -82,7 +82,8 @@ and \code{"zstd"}.}
 \item{parquet_datetime_precision}{Optional \code{"millisecond"} or
 \code{"microsecond"} precision for Parquet datetime values.}
 
-\item{timeout}{Positive total client-side wait limit in seconds.}
+\item{timeout}{Positive total client-side limit in seconds, shared by
+submission, status polling, and retrieval of artifact details.}
 
 \item{poll_interval}{Positive seconds between operation status requests.}
 
@@ -121,6 +122,10 @@ calls \verb{.show operation ... details} for the authoritative artifact paths an
 record counts. Kusto does not remove files written before a failed export, so
 a failure or timeout identifies the destination and operation ID but never
 reports partial files as a successful result.
+If Kusto has already reported \code{Completed} but the artifact-details request
+exhausts the client deadline, the resulting details-timeout condition records
+\code{operation_completed = TRUE}; it does not imply that the export is still
+running or failed.
 
 Storage connection strings are emitted as obfuscated Kusto string literals
 and are redacted from returned objects and conditions. If a submission fails

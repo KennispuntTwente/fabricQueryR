@@ -221,6 +221,52 @@ test_that("KQL export timeout retains its operation ID without replay", {
   expect_match(conditionMessage(error), "may still be running", fixed = TRUE)
 })
 
+test_that("KQL export distinguishes a completed artifact-details timeout", {
+  calls <- 0L
+  commands <- character()
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      calls <<- calls + 1L
+      commands[[calls]] <<- req$body$data$csl
+      if (calls == 1L) {
+        return(kusto_export_test_response(kusto_export_test_operation()))
+      }
+      if (calls == 2L) {
+        return(kusto_export_test_response(
+          kusto_export_test_status("Completed", "Done")
+        ))
+      }
+      rlang::abort(
+        "request deadline exhausted",
+        class = "fabric_http_deadline_error"
+      )
+    }
+  )
+
+  error <- rlang::catch_cnd(
+    fabric_kql_export(
+      "https://cluster.z1.kusto.fabric.microsoft.com",
+      query = "Events",
+      database = "Telemetry",
+      destination = kusto_export_test_target(),
+      path = "Files/details-timeout",
+      token = "token"
+    ),
+    classes = "error"
+  )
+
+  expect_s3_class(error, "fabric_kql_export_details_timeout")
+  expect_s3_class(error, "fabric_kql_export_details_error")
+  expect_false(inherits(error, "fabric_kql_export_timeout"))
+  expect_true(error$operation_completed)
+  expect_identical(error$operation_id, kusto_export_test_id)
+  expect_identical(error$last_status$state, "Completed")
+  expect_identical(error$format, "parquet")
+  expect_identical(calls, 3L)
+  expect_identical(sum(startsWith(commands, ".export async")), 1L)
+  expect_match(conditionMessage(error), "completed, but its", fixed = TRUE)
+})
+
 test_that("KQL export treats a missing tracking ID as ambiguous", {
   calls <- 0L
   local_mocked_bindings(
