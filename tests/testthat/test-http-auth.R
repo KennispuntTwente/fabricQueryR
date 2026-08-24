@@ -900,7 +900,9 @@ test_that("secret redaction consumes complete quoted and nested values", {
   variants <- paste0(
     '{"AccessToken":"one","client-secret":"two",',
     '"apiKey":"three","SharedAccessSignature":"four",',
-    '"sig":"five","signature":"six"}',
+    '"sig":"five","signature":"six",',
+    '"accountKey":"nine","secret-access-key":"ten",',
+    '"connection_string":"eleven","privateKey":"twelve"}',
     "\nhttps://example.test/path?api-key=seven&sig=eight&safe=visible"
   )
   variants_redacted <- .httr2_redact(variants)
@@ -913,7 +915,11 @@ test_that("secret redaction consumes complete quoted and nested values", {
     "five",
     "six",
     "seven",
-    "eight"
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve"
   )) {
     expect_false(
       grepl(paste0('[=:\"]', secret), variants_redacted),
@@ -926,16 +932,27 @@ test_that("secret redaction consumes complete quoted and nested values", {
     `client-secret` = "two",
     apiKey = "three",
     SharedAccessSignature = "four",
-    nested = list(signature = "five", safe = "visible")
+    accountKey = "five",
+    nested = list(
+      signature = "six",
+      secret_access_key = "seven",
+      connectionString = "eight",
+      safe = "visible"
+    )
   )
   redacted_object <- .httr2_redact_object(variant_object)
   expect_true(all(vapply(
-    redacted_object[1:4],
+    redacted_object[1:5],
     identical,
     logical(1),
     "<redacted>"
   )))
-  expect_equal(redacted_object$nested$signature, "<redacted>")
+  expect_true(all(vapply(
+    redacted_object$nested[1:3],
+    identical,
+    logical(1),
+    "<redacted>"
+  )))
   expect_equal(redacted_object$nested$safe, "visible")
 })
 

@@ -482,6 +482,20 @@ fabric_onelake_shortcut_delete <- function(
       class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
     )
   }
+  allowed_fields <- .fabric_shortcut_target_fields(name)
+  unsupported <- setdiff(names(details) %||% character(), allowed_fields)
+  if (length(unsupported)) {
+    .fabric_abort(
+      paste0(
+        "A raw ",
+        name,
+        " target contains unsupported field",
+        if (length(unsupported) == 1L) " " else "s ",
+        paste(unsupported, collapse = ", ")
+      ),
+      class = c("fabric_shortcut_target_error", "fabric_shortcut_error")
+    )
+  }
   if (identical(name, "oneLake")) {
     required <- c("workspaceId", "itemId", "path")
     if (!all(required %in% names(details))) {
@@ -497,6 +511,30 @@ fabric_onelake_shortcut_delete <- function(
     details <- .fabric_shortcut_external_target(details, name)
   }
   stats::setNames(list(details), name)
+}
+
+.fabric_shortcut_target_fields <- function(type) {
+  switch(
+    type,
+    oneLake = c("workspaceId", "itemId", "path"),
+    adlsGen2 = c("connectionId", "location", "subpath"),
+    amazonS3 = c("connectionId", "location", "subpath"),
+    azureBlobStorage = c("connectionId", "location", "subpath"),
+    googleCloudStorage = c("connectionId", "location", "subpath"),
+    oneDriveSharePoint = c(
+      "connectionId",
+      "location",
+      "subpath",
+      "updateFabricItemSensitivity"
+    ),
+    s3Compatible = c("connectionId", "location", "bucket", "subpath"),
+    dataverse = c(
+      "connectionId",
+      "deltaLakeFolder",
+      "environmentDomain",
+      "tableName"
+    )
+  )
 }
 
 .fabric_shortcut_external_target <- function(details, type) {
@@ -675,7 +713,7 @@ fabric_onelake_shortcut_delete <- function(
       class = c("fabric_shortcut_protocol_error", "fabric_shortcut_error")
     )
   }
-  target <- record$target %||% list()
+  target <- .httr2_redact_object(record$target %||% list())
   if (!is.list(target)) {
     .fabric_abort(
       "Fabric returned invalid shortcut target details",
@@ -708,8 +746,8 @@ fabric_onelake_shortcut_delete <- function(
     one_lake_path = .fabric_shortcut_optional_string(one_lake$path),
     is_transform = isTRUE(record$isShortcutTransform),
     target = target,
-    transform = record$transform %||% list(),
-    raw = record
+    transform = .httr2_redact_object(record$transform %||% list()),
+    raw = .httr2_redact_object(record)
   )
 }
 

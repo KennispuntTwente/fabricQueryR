@@ -59,6 +59,10 @@ structure, required fields, connection identifiers, embedded credentials, and
 generic URL safety; Fabric remains authoritative for source- and
 destination-specific rules.
 
+* `fabric_onelake_shortcut_create()` now rejects fields outside Microsoft's
+documented target schemas and recognizes common storage-key and connection-string
+names as credentials. Shortcut responses also redact those fields recursively.
+
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes, including refreshes limited
 to selected tables or partitions. Standard refresh status falls back to

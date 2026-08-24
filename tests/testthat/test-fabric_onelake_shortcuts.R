@@ -343,6 +343,34 @@ test_that("shortcut validation stops unsafe requests locally", {
     ),
     "must not contain credential fields"
   )
+  for (field in c("accountKey", "secretAccessKey", "connectionString")) {
+    details <- list(
+      connectionId = shortcut_test_connection_id,
+      location = "https://account.dfs.core.windows.net"
+    )
+    details[[field]] <- "credential-value"
+    error <- rlang::catch_cnd(invoke(
+      target = list(adlsGen2 = details),
+      target_path = NULL
+    ))
+    expect_s3_class(error, "fabric_shortcut_target_error")
+    expect_match(
+      conditionMessage(error),
+      "must not contain credential fields",
+      fixed = TRUE
+    )
+  }
+  details <- list(
+    connectionId = shortcut_test_connection_id,
+    location = "https://account.dfs.core.windows.net",
+    futureOption = "unexpected"
+  )
+  error <- rlang::catch_cnd(invoke(
+    target = list(adlsGen2 = details),
+    target_path = NULL
+  ))
+  expect_s3_class(error, "fabric_shortcut_target_error")
+  expect_match(conditionMessage(error), "unsupported field futureOption")
   expect_error(
     invoke(
       target = list(adlsGen2 = list()),
@@ -417,4 +445,19 @@ test_that("shortcut validation stops unsafe requests locally", {
     class = "fabric_shortcut_protocol_error"
   )
   expect_equal(calls, 0L)
+})
+
+test_that("shortcut records redact credential fields returned by Fabric", {
+  record <- shortcut_test_onelake_record()
+  record$target$oneLake$accountKey <- "returned-secret"
+  record$diagnostics <- list(connectionString = "returned-connection")
+
+  result <- .fabric_shortcut_tibble(list(record))
+
+  expect_equal(result$target[[1L]]$oneLake$accountKey, "<redacted>")
+  expect_equal(result$raw[[1L]]$diagnostics$connectionString, "<redacted>")
+  expect_false(grepl(
+    "returned-secret|returned-connection",
+    paste(capture.output(str(result)), collapse = "\n")
+  ))
 })
