@@ -79,6 +79,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* Minimum dependency versions now reflect the APIs used by the package:
+'httr2' 1.2.0, 'cli' 3.0.0, and 'testthat' 3.2.0.
+
 * Standard semantic-model refreshes acquired through delegated 'AzureAuth' now
 default to `notifyOption = "NoNotification"`, satisfying Power BI's required
 request contract while continuing to omit that field for known service

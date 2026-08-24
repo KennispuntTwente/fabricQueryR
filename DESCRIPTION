@@ -49,7 +49,7 @@ Suggests:
     odbc,
     purrr,
     rmarkdown,
-    testthat (>= 3.0.0),
+    testthat (>= 3.2.0),
     vctrs,
     waldo,
     withr
@@ -60,12 +60,12 @@ Roxygen: list(markdown = TRUE)
 Imports: 
     AzureAuth,
     bit64,
-    httr2,
+    httr2 (>= 1.2.0),
     R6,
     dplyr,
     tibble,
     jsonlite,
-    cli,
+    cli (>= 3.0.0),
     nanoarrow (>= 0.8.0),
     reticulate (>= 1.41),
     rlang,

@@ -9,3 +9,16 @@ test_that("package title represents read and write capabilities", {
   expect_match(title, "Microsoft Fabric", fixed = TRUE)
   expect_match(title, "Access|Manage")
 })
+
+test_that("declared dependency floors cover APIs used by the package", {
+  description_path <- test_path("..", "..", "DESCRIPTION")
+  if (!file.exists(description_path)) {
+    skip("Package source DESCRIPTION is not available")
+  }
+
+  description <- read.dcf(description_path)
+
+  expect_match(description[[1L, "Imports"]], "httr2 \\(>= 1\\.2\\.0\\)")
+  expect_match(description[[1L, "Imports"]], "cli \\(>= 3\\.0\\.0\\)")
+  expect_match(description[[1L, "Suggests"]], "testthat \\(>= 3\\.2\\.0\\)")
+})
