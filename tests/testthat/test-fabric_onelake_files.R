@@ -1263,7 +1263,7 @@ test_that("OneLake parent creation validates concurrent winners", {
   }
 })
 
-test_that("ambiguous OneLake upload renames retain their staging path", {
+test_that("ambiguous OneLake upload renames report unknown staging state", {
   for (failure in c("transport", "server")) {
     calls <- list()
     local_mocked_bindings(
@@ -1311,7 +1311,26 @@ test_that("ambiguous OneLake upload renames retain their staging path", {
     )
     expect_identical(error$precondition, "if-none-match")
     expect_identical(error$content_length, 7L)
-    expect_true(error$staging_retained)
+    expect_identical(error$workspace, "Analytics")
+    expect_identical(error$item, "Curated.Lakehouse")
+    expect_identical(
+      error$target_url,
+      paste0(
+        "https://onelake.dfs.fabric.microsoft.com/Analytics/",
+        "Curated.Lakehouse/",
+        error$target_path
+      )
+    )
+    expect_identical(
+      error$staging_url,
+      paste0(
+        "https://onelake.dfs.fabric.microsoft.com/Analytics/",
+        "Curated.Lakehouse/",
+        error$staging_path
+      )
+    )
+    expect_true(is.na(error$staging_retained))
+    expect_true(error$staging_may_exist)
     expect_match(error$commit_error$message, "connection reset|internal error")
     expect_false(any(vapply(
       calls,

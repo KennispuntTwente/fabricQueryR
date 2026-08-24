@@ -225,8 +225,9 @@ should be replaced only if it has not changed since you inspected it
 
 A response failure during an upload's final rename can leave the server-side
 outcome unknown. In that case a \code{fabric_onelake_commit_ambiguous} error
-reports safe target and staging paths and leaves the unique staging file for
-reconciliation instead of racing it with automatic cleanup
+reports absolute target and staging URLs plus their relative paths. Automatic
+cleanup is not attempted, but a committed rename may already have consumed
+the staging path, so the condition reports its presence as unknown
 }
 
 \examples{

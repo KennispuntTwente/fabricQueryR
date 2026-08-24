@@ -40,8 +40,9 @@
 #'
 #' A response failure during an upload's final rename can leave the server-side
 #' outcome unknown. In that case a `fabric_onelake_commit_ambiguous` error
-#' reports safe target and staging paths and leaves the unique staging file for
-#' reconciliation instead of racing it with automatic cleanup
+#' reports absolute target and staging URLs plus their relative paths. Automatic
+#' cleanup is not attempted, but a committed rename may already have consumed
+#' the staging path, so the condition reports its presence as unknown
 #'
 #' @param workspace Workspace name, ID, record from [fabric_workspaces()], or a
 #'   complete OneLake HTTPS/ABFSS path
@@ -2218,15 +2219,20 @@ onelake_abort_ambiguous_upload_commit <- function(
   .fabric_abort(
     paste0(
       "The final OneLake upload rename has an unknown outcome; inspect the ",
-      "target and staging paths before retrying"
+      "target and staging URLs before retrying"
     ),
     class = "fabric_onelake_commit_ambiguous",
+    workspace = target$workspace,
+    item = target$item,
     target_path = target$path,
     staging_path = temporary$path,
+    target_url = onelake_path_url(target),
+    staging_url = onelake_path_url(temporary),
     overwrite = overwrite,
     precondition = precondition,
     content_length = upload_size,
-    staging_retained = TRUE,
+    staging_retained = NA,
+    staging_may_exist = TRUE,
     commit_error = list(
       message = .httr2_redact(conditionMessage(error)),
       class = class(error),

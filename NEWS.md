@@ -29,8 +29,9 @@ atomic rename or hard link and fail closed instead of exposing partial bytes or
 temporarily removing an existing destination.
 Concurrent OneLake uploads now create parents conditionally and verify that a
 race winner is a directory. If the final remote rename has an unknown outcome,
-the unique staging path is retained and returned in a typed diagnostic instead
-of being deleted while a late commit may still be completing.
+the typed diagnostic reports absolute target and staging URLs and marks staging
+presence as unknown. Automatic cleanup is skipped while a late commit may still
+be completing.
 
 * `fabric_lakehouse_schemas()`, `fabric_lakehouse_table()`,
 `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,
