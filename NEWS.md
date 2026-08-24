@@ -9,7 +9,8 @@ functions, avoiding copied IDs and endpoints in most workflows.
 
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
-option for running one piece of Spark code.
+option for running one piece of Spark code. Batch application paths are now
+validated as absolute ABFS/ABFSS URIs before authentication or submission.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

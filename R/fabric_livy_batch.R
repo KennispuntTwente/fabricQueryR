@@ -8,9 +8,11 @@
 #' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
 #'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
 #'   endpoint**, or use an item from [fabric_lakehouses()]
-#' @param file ABFS/ABFSS URI of the main Python, R, or Java/Scala application
-#'   file. After uploading a script under a Lakehouse's `Files/` area, its
-#'   **Properties** dialog can copy this path
+#' @param file Absolute ABFS/ABFSS URI of the main Python, R, or Java/Scala
+#'   application file. It must contain a filesystem/container, host, and
+#'   non-root path, without a password, port, query, fragment, backslash, or dot
+#'   path segment. After uploading a script under a Lakehouse's `Files/` area,
+#'   its **Properties** dialog can copy this path
 #' @param name Optional readable job name shown in Fabric monitoring
 #' @param class_name Main class for a Java/Scala application; leave `NULL` for
 #'   Python or R scripts
@@ -137,7 +139,7 @@ fabric_livy_batch_submit <- function(
   # Validate all local settings before submitting an application that cannot be
   # changed after Fabric accepts it
 
-  fabric_livy_check_string(file, "file")
+  fabric_livy_validate_abfs_uri(file, "file")
   fabric_livy_check_flag(wait, "wait")
   fabric_livy_check_flag(cancel_on_timeout, "cancel_on_timeout")
   fabric_livy_check_flag(verbose, "verbose")

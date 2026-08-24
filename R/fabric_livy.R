@@ -327,6 +327,75 @@ fabric_livy_check_string <- function(value, name, allow_null = FALSE) {
   invisible(value)
 }
 
+# Check a Fabric Livy batch application path as an absolute ABFS(S) URI. The
+# authority's userinfo is the filesystem/container name, not a bearer
+# credential, so passwords and other authority decorations are never valid
+# here.
+fabric_livy_validate_abfs_uri <- function(value, name) {
+  fabric_livy_check_string(value, name)
+
+  parsed <- tryCatch(
+    httr2::url_parse(value),
+    error = function(...) NULL
+  )
+  raw_path <- sub(
+    "^[A-Za-z][A-Za-z0-9+.-]*://[^/]*",
+    "",
+    value,
+    perl = TRUE
+  )
+  raw_path <- sub("[?#].*$", "", raw_path, perl = TRUE)
+  decoded_path <- tryCatch(
+    utils::URLdecode(raw_path),
+    warning = function(...) NA_character_,
+    error = function(...) NA_character_
+  )
+
+  unsafe_text <- function(x) {
+    is.null(x) ||
+      length(x) != 1L ||
+      is.na(x) ||
+      grepl("[\\p{Z}\\p{C}\\\\]", x, perl = TRUE)
+  }
+  segments <- if (is.na(decoded_path)) {
+    character()
+  } else {
+    strsplit(decoded_path, "/", fixed = TRUE)[[1L]]
+  }
+
+  valid <- !is.null(parsed) &&
+    parsed$scheme %in% c("abfs", "abfss") &&
+    !unsafe_text(parsed$username) &&
+    nzchar(parsed$username) &&
+    !unsafe_text(parsed$hostname) &&
+    nzchar(parsed$hostname) &&
+    is.null(parsed$password) &&
+    is.null(parsed$port) &&
+    is.null(parsed$query) &&
+    is.null(parsed$fragment) &&
+    !unsafe_text(raw_path) &&
+    !unsafe_text(decoded_path) &&
+    startsWith(raw_path, "/") &&
+    nzchar(sub("^/+", "", raw_path)) &&
+    !any(segments %in% c(".", "..")) &&
+    !grepl("%(?![0-9A-Fa-f]{2})", value, perl = TRUE) &&
+    !grepl("(?i)%(?:0[0-9a-f]|1[0-9a-f]|20|5c|7f)", value, perl = TRUE)
+
+  if (!isTRUE(valid)) {
+    .fabric_abort(
+      paste0(
+        name,
+        " must be an absolute ABFS or ABFSS URI with a filesystem, host, ",
+        "and non-root path, without credentials, a port, query, fragment, ",
+        "unsafe whitespace, backslashes, or dot segments"
+      ),
+      class = c("fabric_livy_abfs_uri_error", "fabric_livy_error")
+    )
+  }
+
+  invisible(value)
+}
+
 # Check an optional Fabric item identifier as a canonical GUID
 fabric_livy_check_guid <- function(value, name, allow_null = TRUE) {
   if (is.null(value) && isTRUE(allow_null)) {

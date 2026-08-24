@@ -871,7 +871,7 @@ test_that("batch jobs expose success logs and structured results", {
 
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/sessions",
-    file = "abfss://workspace/lakehouse/Files/fixture.py",
+    file = livy_test_application_uri,
     name = "unit-batch",
     args = c("success"),
     conf = list("spark.test" = "yes"),
@@ -961,7 +961,7 @@ test_that("batch failures and cancellation preserve service details", {
   )
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/batches",
-    file = "abfss://workspace/lakehouse/Files/failure.py",
+    file = livy_test_application_uri,
     token = "token",
     verbose = FALSE
   )
@@ -998,7 +998,7 @@ test_that("batch timeout can request cancellation", {
   )
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/batches",
-    file = "abfss://workspace/lakehouse/Files/slow.py",
+    file = livy_test_application_uri,
     token = "token",
     verbose = FALSE
   )
@@ -1037,7 +1037,7 @@ test_that("batch timeout retains a bounded cleanup cancellation failure", {
   )
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/batches",
-    file = "job.py",
+    file = livy_test_application_uri,
     token = "token",
     verbose = FALSE
   )
@@ -1112,7 +1112,7 @@ test_that("top-level batch waiting cancels on timeout and exposes its handle", {
   error <- expect_error(
     fabric_livy_batch_submit(
       "https://example.test/livy/batches",
-      file = "abfss://workspace/lakehouse/Files/slow.py",
+      file = livy_test_application_uri,
       token = "token",
       verbose = FALSE,
       wait = TRUE,
@@ -1293,7 +1293,7 @@ test_that("Livy input and endpoint validation is explicit", {
   expect_error(
     fabric_livy_batch_submit(
       "https://example.test/base",
-      file = "job.py",
+      file = livy_test_application_uri,
       tags = list(run = NA_character_),
       token = "token"
     ),
@@ -1324,7 +1324,7 @@ test_that("Livy input and endpoint validation is explicit", {
   expect_error(
     fabric_livy_batch_submit(
       "https://api.fabric.microsoft.com/livy",
-      file = "abfss://workspace/lakehouse/Files/job.py",
+      file = livy_test_application_uri,
       target_lakehouse_id = "../not-a-lakehouse-guid",
       token = token
     ),
@@ -1332,6 +1332,61 @@ test_that("Livy input and endpoint validation is explicit", {
     fixed = TRUE
   )
   expect_equal(auth_calls, 0L)
+})
+
+test_that("Livy batch application paths are safe absolute ABFS URIs", {
+  expect_invisible(
+    fabric_livy_validate_abfs_uri(livy_test_application_uri, "file")
+  )
+  expect_invisible(
+    fabric_livy_validate_abfs_uri(
+      "ABFS://container@account.dfs.core.windows.net/jobs/main.py",
+      "file"
+    )
+  )
+
+  invalid_uris <- c(
+    "job.py",
+    "https://account.example/jobs/main.py",
+    "abfss://account.example/jobs/main.py",
+    "abfss://@account.example/jobs/main.py",
+    "abfss://container@/jobs/main.py",
+    "abfss://container:secret@account.example/jobs/main.py",
+    "abfss://container:@account.example/jobs/main.py",
+    "abfss://container@account.example:443/jobs/main.py",
+    "abfss://container@account.example/",
+    "abfss://container@account.example/jobs/main.py?sig=secret",
+    "abfss://container@account.example/jobs/main.py#fragment",
+    "abfss://container@account.example/jobs/../main.py",
+    "abfss://container@account.example/jobs/%2e%2e/main.py",
+    "abfss://container@account.example/jobs\\main.py",
+    "abfss://container@account.example/jobs/main file.py",
+    "abfss://container@account.example/jobs/main%20file.py",
+    "abfss://container@account.example/jobs/main%00.py",
+    "abfss://container@account.example/jobs/main%ZZ.py"
+  )
+  resolve_calls <- 0L
+  local_mocked_bindings(
+    fabric_livy_resolve_url = function(...) {
+      resolve_calls <<- resolve_calls + 1L
+      stop("must not resolve an endpoint")
+    }
+  )
+
+  for (uri in invalid_uris) {
+    error <- rlang::catch_cnd(
+      fabric_livy_batch_submit(
+        "https://api.fabric.microsoft.com/livy",
+        file = uri,
+        token = "token",
+        verbose = FALSE
+      ),
+      classes = "error"
+    )
+    expect_true(inherits(error, "fabric_livy_abfs_uri_error"), info = uri)
+    expect_false(grepl(uri, conditionMessage(error), fixed = TRUE), info = uri)
+  }
+  expect_identical(resolve_calls, 0L)
 })
 
 test_that("Livy wait arguments are validated before remote side effects", {
@@ -1357,7 +1412,7 @@ test_that("Livy wait arguments are validated before remote side effects", {
   expect_error(
     fabric_livy_batch_submit(
       "https://example.test/livy/batches",
-      file = "job.py",
+      file = livy_test_application_uri,
       wait = TRUE,
       poll_interval = -1,
       token = "token"
@@ -1407,7 +1462,7 @@ test_that("batch result validates error_on_failure before refresh", {
   )
   batch <- fabric_livy_batch_submit(
     "https://example.test/livy/batches",
-    file = "job.py",
+    file = livy_test_application_uri,
     token = "token",
     verbose = FALSE
   )

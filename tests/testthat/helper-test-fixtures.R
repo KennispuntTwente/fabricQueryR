@@ -496,6 +496,11 @@ livy_test_credential <- function() {
   fabric_credential(token = "token")
 }
 
+livy_test_application_uri <- paste0(
+  "abfss://workspace@onelake.dfs.fabric.microsoft.com/",
+  "lakehouse.Lakehouse/Files/job.py"
+)
+
 
 # test-fabric_onelake_files.R
 onelake_test_response <- function(

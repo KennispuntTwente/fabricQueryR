@@ -41,9 +41,11 @@ fabric_livy_batch_submit(
 Lakehouse record. Copy the batch-job URL from \strong{Lakehouse settings > Livy
 endpoint}, or use an item from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}}
 
-\item{file}{ABFS/ABFSS URI of the main Python, R, or Java/Scala application
-file. After uploading a script under a Lakehouse's \verb{Files/} area, its
-\strong{Properties} dialog can copy this path}
+\item{file}{Absolute ABFS/ABFSS URI of the main Python, R, or Java/Scala
+application file. It must contain a filesystem/container, host, and
+non-root path, without a password, port, query, fragment, backslash, or dot
+path segment. After uploading a script under a Lakehouse's \verb{Files/} area,
+its \strong{Properties} dialog can copy this path}
 
 \item{name}{Optional readable job name shown in Fabric monitoring}
 
