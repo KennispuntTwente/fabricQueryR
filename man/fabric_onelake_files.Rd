@@ -222,6 +222,11 @@ does not normally leave a partial file. Local downloads are published with an
 atomic same-directory rename or hard link and fail closed when the filesystem
 cannot provide the required primitive. Use \code{if_match} when a OneLake file
 should be replaced only if it has not changed since you inspected it
+
+A response failure during an upload's final rename can leave the server-side
+outcome unknown. In that case a \code{fabric_onelake_commit_ambiguous} error
+reports safe target and staging paths and leaves the unique staging file for
+reconciliation instead of racing it with automatic cleanup
 }
 
 \examples{

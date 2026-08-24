@@ -20,6 +20,10 @@ require a matching partial-content response instead of silently accepting a
 server or proxy that returns the complete file. Disk downloads now publish by
 atomic rename or hard link and fail closed instead of exposing partial bytes or
 temporarily removing an existing destination.
+Concurrent OneLake uploads now create parents conditionally and verify that a
+race winner is a directory. If the final remote rename has an unknown outcome,
+the unique staging path is retained and returned in a typed diagnostic instead
+of being deleted while a late commit may still be completing.
 
 * `fabric_lakehouse_schemas()`, `fabric_lakehouse_table()`,
 `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,

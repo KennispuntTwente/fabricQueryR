@@ -38,6 +38,11 @@
 #' cannot provide the required primitive. Use `if_match` when a OneLake file
 #' should be replaced only if it has not changed since you inspected it
 #'
+#' A response failure during an upload's final rename can leave the server-side
+#' outcome unknown. In that case a `fabric_onelake_commit_ambiguous` error
+#' reports safe target and staging paths and leaves the unique staging file for
+#' reconciliation instead of racing it with automatic cleanup
+#'
 #' @param workspace Workspace name, ID, record from [fabric_workspaces()], or a
 #'   complete OneLake HTTPS/ABFSS path
 #' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
@@ -1940,15 +1945,50 @@ onelake_create_parents <- function(target, credential) {
     )
 
     if (!inherits(status, "httr2_response")) {
+      onelake_validate_parent_directory(status, parent_path)
       next
     }
-    req <- onelake_request(onelake_path_url(parent), "PUT") |>
+    req <- onelake_request(
+      onelake_path_url(parent),
+      "PUT",
+      headers = list(`If-None-Match` = "*")
+    ) |>
       httr2::req_url_query(resource = "directory") |>
       httr2::req_body_raw(raw())
-    .httr2_perform(
+    response <- .httr2_perform(
       req,
       credential = credential,
-      audience = .fabric_audience$storage
+      audience = .fabric_audience$storage,
+      accepted_status = c(409L, 412L)
+    )
+    if (httr2::resp_status(response) %in% c(409L, 412L)) {
+      winner <- onelake_metadata_target(
+        parent,
+        credential,
+        accepted_status = 404L
+      )
+      onelake_validate_parent_directory(winner, parent_path)
+    }
+  }
+  invisible(TRUE)
+}
+
+# Require one existing OneLake parent to be a directory. Returns invisibly or
+# raises a safe conflict that does not retain an authenticated response.
+onelake_validate_parent_directory <- function(metadata, parent_path) {
+  directory <- !inherits(metadata, "httr2_response") &&
+    is.data.frame(metadata) &&
+    nrow(metadata) == 1L &&
+    "is_directory" %in% names(metadata) &&
+    isTRUE(metadata$is_directory[[1L]])
+  if (!directory) {
+    .fabric_abort(
+      paste0(
+        "OneLake upload parent is not an existing directory: ",
+        parent_path
+      ),
+      class = "fabric_onelake_parent_conflict",
+      parent_path = parent_path
     )
   }
   invisible(TRUE)
@@ -1995,8 +2035,9 @@ onelake_upload_target <- function(
   temporary <- onelake_upload_temporary_target(target)
   committed <- FALSE
   temporary_may_exist <- FALSE
+  rename_uncertain <- FALSE
   on.exit(
-    if (temporary_may_exist && !committed) {
+    if (temporary_may_exist && !committed && !rename_uncertain) {
       try(
         onelake_delete_target(
           temporary,
@@ -2122,17 +2163,76 @@ onelake_upload_target <- function(
   ) |>
     httr2::req_url_query(mode = "posix") |>
     httr2::req_body_raw(raw())
-  response <- .httr2_perform(
-    rename,
-    credential = credential,
-    audience = .fabric_audience$storage,
-    idempotent = FALSE
+  ambiguous <- function(error) {
+    rename_uncertain <<- TRUE
+    onelake_abort_ambiguous_upload_commit(
+      error,
+      target = target,
+      temporary = temporary,
+      upload_size = upload$size,
+      overwrite = overwrite,
+      if_match = if_match
+    )
+  }
+  response <- tryCatch(
+    .httr2_perform(
+      rename,
+      credential = credential,
+      audience = .fabric_audience$storage,
+      idempotent = FALSE
+    ),
+    fabric_http_transport_error = ambiguous,
+    fabric_http_deadline_error = ambiguous,
+    fabric_http_error = function(error) {
+      status <- error$status %||% NA_integer_
+      if (is.na(status) || status >= 500L) {
+        return(ambiguous(error))
+      }
+      rlang::cnd_signal(error)
+    }
   )
   committed <- TRUE
   if (!is.null(progress)) {
     cli::cli_progress_done(id = progress)
   }
   onelake_response_metadata(response, target, content_length = upload$size)
+}
+
+# Raise a safe, resumable diagnostic when a final upload rename may have been
+# committed despite a response failure. This function does not return.
+onelake_abort_ambiguous_upload_commit <- function(
+  error,
+  target,
+  temporary,
+  upload_size,
+  overwrite,
+  if_match
+) {
+  precondition <- if (!is.null(if_match)) {
+    "if-match"
+  } else if (!isTRUE(overwrite)) {
+    "if-none-match"
+  } else {
+    "overwrite"
+  }
+  .fabric_abort(
+    paste0(
+      "The final OneLake upload rename has an unknown outcome; inspect the ",
+      "target and staging paths before retrying"
+    ),
+    class = "fabric_onelake_commit_ambiguous",
+    target_path = target$path,
+    staging_path = temporary$path,
+    overwrite = overwrite,
+    precondition = precondition,
+    content_length = upload_size,
+    staging_retained = TRUE,
+    commit_error = list(
+      message = .httr2_redact(conditionMessage(error)),
+      class = class(error),
+      status = error$status %||% NULL
+    )
+  )
 }
 
 # Validate upload chunk-size `value`. Returns bytes as a number within OneLake's

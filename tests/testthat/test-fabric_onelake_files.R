@@ -1179,6 +1179,150 @@ test_that("OneLake upload cleans up an ambiguously failed temporary create", {
   expect_false(grepl("recursive=", calls[[2L]]$url, fixed = TRUE))
 })
 
+test_that("OneLake upload rejects an existing file as a parent", {
+  calls <- list()
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      calls[[length(calls) + 1L]] <<- req
+      onelake_test_response(
+        headers = list(`x-ms-resource-type` = "file"),
+        url = req$url
+      )
+    }
+  )
+
+  error <- rlang::catch_cnd(fabric_onelake_upload(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/not-a-directory/file.txt",
+    source = charToRaw("content"),
+    token = "token"
+  ))
+
+  expect_s3_class(error, "fabric_onelake_parent_conflict")
+  expect_identical(error$parent_path, "Files/not-a-directory")
+  expect_length(calls, 1L)
+  expect_identical(calls[[1L]]$method, "HEAD")
+  expect_false(grepl("fabricqueryr-upload", calls[[1L]]$url, fixed = TRUE))
+})
+
+test_that("OneLake parent creation validates concurrent winners", {
+  calls <- list()
+  winner <- "directory"
+  local_mocked_bindings(
+    .httr2_perform = function(
+      req,
+      ...,
+      accepted_status = integer()
+    ) {
+      calls[[length(calls) + 1L]] <<- list(
+        req = req,
+        accepted_status = accepted_status
+      )
+      index <- length(calls)
+      if (index == 1L) {
+        return(onelake_test_response(404L, url = req$url))
+      }
+      if (index == 2L) {
+        return(onelake_test_response(412L, url = req$url))
+      }
+      headers <- if (identical(winner, "missing")) {
+        list()
+      } else {
+        list(`x-ms-resource-type` = winner)
+      }
+      onelake_test_response(
+        status = if (identical(winner, "missing")) 404L else 200L,
+        headers = headers,
+        url = req$url
+      )
+    }
+  )
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/nested/file.txt"
+  )
+  credential <- fabric_credential(token = "token")
+
+  expect_invisible(onelake_create_parents(target, credential))
+  expect_identical(
+    vapply(calls, function(call) call$req$method, character(1)),
+    c("HEAD", "PUT", "HEAD")
+  )
+  expect_identical(calls[[2L]]$req$headers[["If-None-Match"]], "*")
+  expect_identical(calls[[2L]]$accepted_status, c(409L, 412L))
+
+  for (winner_value in c("file", "missing")) {
+    calls <- list()
+    winner <- winner_value
+    error <- rlang::catch_cnd(onelake_create_parents(target, credential))
+    expect_s3_class(error, "fabric_onelake_parent_conflict")
+    expect_identical(error$parent_path, "Files/nested")
+    expect_length(calls, 3L)
+  }
+})
+
+test_that("ambiguous OneLake upload renames retain their staging path", {
+  for (failure in c("transport", "server")) {
+    calls <- list()
+    local_mocked_bindings(
+      .httr2_perform = function(req, ...) {
+        calls[[length(calls) + 1L]] <<- req
+        rename <- !is.null(req$headers[["x-ms-rename-source"]])
+        if (rename && identical(failure, "transport")) {
+          .fabric_abort(
+            "connection reset after request transmission",
+            class = c("fabric_http_transport_error", "fabric_http_error"),
+            call = NULL,
+            .trace = FALSE
+          )
+        }
+        if (rename) {
+          .fabric_abort(
+            "OneLake returned an internal error",
+            class = "fabric_http_error",
+            status = 503L,
+            call = NULL,
+            .trace = FALSE
+          )
+        }
+        onelake_test_response(
+          status = if (identical(req$method, "PUT")) 201L else 200L,
+          url = req$url
+        )
+      }
+    )
+
+    error <- rlang::catch_cnd(fabric_onelake_upload(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/ambiguous.txt",
+      source = charToRaw("content"),
+      token = "secret-token-value"
+    ))
+
+    expect_s3_class(error, "fabric_onelake_commit_ambiguous")
+    expect_identical(error$target_path, "Files/ambiguous.txt")
+    expect_match(
+      error$staging_path,
+      "Files/.fabricqueryr-upload-",
+      fixed = TRUE
+    )
+    expect_identical(error$precondition, "if-none-match")
+    expect_identical(error$content_length, 7L)
+    expect_true(error$staging_retained)
+    expect_match(error$commit_error$message, "connection reset|internal error")
+    expect_false(any(vapply(
+      calls,
+      function(req) identical(req$method, "DELETE"),
+      logical(1)
+    )))
+    diagnostic <- paste(capture.output(str(error)), collapse = "\n")
+    expect_false(grepl("secret-token-value", diagnostic, fixed = TRUE))
+  }
+})
+
 test_that("OneLake upload preserves conflict errors and creates nested parents", {
   calls <- list()
   httr2::local_mocked_responses(function(req) {
@@ -1217,6 +1361,15 @@ test_that("OneLake upload preserves conflict errors and creates nested parents",
   )
   expect_match(calls[[2L]]$url, "Files/nested\\?resource=directory")
   expect_match(calls[[4L]]$url, "Files/nested/deeper\\?resource=directory")
+  expect_identical(calls[[2L]]$headers[["If-None-Match"]], "*")
+  expect_identical(calls[[4L]]$headers[["If-None-Match"]], "*")
+  deletes <- calls[vapply(
+    calls,
+    function(req) identical(req$method, "DELETE"),
+    logical(1)
+  )]
+  expect_length(deletes, 1L)
+  expect_match(deletes[[1L]]$url, "fabricqueryr-upload", fixed = TRUE)
 })
 
 test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
