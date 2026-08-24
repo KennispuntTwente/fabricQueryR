@@ -1,4 +1,4 @@
-.fabric_operation_active_states <- c("NotStarted", "Running")
+.fabric_operation_active_states <- c("Undefined", "NotStarted", "Running")
 .fabric_operation_poll_fallback <- 2
 
 #' Monitor Microsoft Fabric long-running operations
@@ -40,7 +40,8 @@
 #' `fabric_operation_status()` preserves Fabric's status, progress, timestamps,
 #' request identifiers, and structured error. Status values added by Fabric in
 #' the future remain inspectable, but `fabric_operation_wait()` stops with a
-#' typed error instead of polling an unfamiliar value indefinitely
+#' typed error instead of polling an unfamiliar value indefinitely. The
+#' documented `Undefined`, `NotStarted`, and `Running` values remain pending
 #'
 #' Some workload APIs, including Lakehouse table loading, expose completion in
 #' their state response and do not provide a separate `/result` resource. For

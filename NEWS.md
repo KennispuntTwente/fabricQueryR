@@ -79,6 +79,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* Long-running-operation polling now treats Fabric's documented `Undefined`
+state as pending, alongside `NotStarted` and `Running`.
+
 * SQL query validation now recognizes nested T-SQL block comments, so harmless
 keywords inside nested comments no longer cause valid Fabric SQL reads to be
 rejected.

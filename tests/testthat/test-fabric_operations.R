@@ -278,6 +278,35 @@ test_that("wait reports structured failures and unfamiliar states", {
   expect_equal(unknown$operation_status$status, "PausedForCapacity")
 })
 
+test_that("wait treats documented Undefined operation state as pending", {
+  clock <- operation_test_clock()
+  calls <- 0L
+  states <- c("Undefined", "Running", "Succeeded")
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    operation_test_response(
+      body = list(
+        status = states[[calls]],
+        percentComplete = c(0L, 50L, 100L)[[calls]]
+      ),
+      url = req$url
+    )
+  })
+
+  result <- fabric_operation_wait(
+    operation_test_id,
+    token = "test-token",
+    poll_interval = 0,
+    timeout = 10,
+    .sleep = clock$sleep,
+    .now = clock$now
+  )
+
+  expect_identical(result$status, "Succeeded")
+  expect_equal(calls, 3L)
+  expect_equal(clock$delays(), c(2, 2))
+})
+
 test_that("running operations time out without replaying initiation", {
   clock <- operation_test_clock()
   calls <- 0L

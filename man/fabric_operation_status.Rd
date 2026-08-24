@@ -118,7 +118,8 @@ documented \verb{/operations/\{id\}/result} resource
 \code{fabric_operation_status()} preserves Fabric's status, progress, timestamps,
 request identifiers, and structured error. Status values added by Fabric in
 the future remain inspectable, but \code{fabric_operation_wait()} stops with a
-typed error instead of polling an unfamiliar value indefinitely
+typed error instead of polling an unfamiliar value indefinitely. The
+documented \code{Undefined}, \code{NotStarted}, and \code{Running} values remain pending
 
 Some workload APIs, including Lakehouse table loading, expose completion in
 their state response and do not provide a separate \verb{/result} resource. For
