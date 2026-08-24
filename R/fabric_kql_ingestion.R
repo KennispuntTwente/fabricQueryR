@@ -136,7 +136,9 @@
 #'   reuse an in-process handle credential unless authentication is overridden
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
-#' @param .sleep,.now Internal hooks for deterministic polling tests
+#' @param .deadline Internal absolute POSIX date-time used when a higher-level
+#'   operation composes submission and status polling under one deadline
+#' @param .sleep,.now Internal hooks for deterministic deadline and polling tests
 #'
 #' @return `fabric_kql_ingest()` returns a `fabric_kql_ingestion` handle with
 #'   the operation ID and source IDs. `fabric_kql_ingestion_status()` returns a
@@ -223,7 +225,9 @@ fabric_kql_ingest <- function(
     unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
   ),
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  .deadline = NULL,
+  .now = Sys.time
 ) {
   # 1 Validate the target and request metadata -----------------------------------------------------
 
@@ -277,6 +281,9 @@ fabric_kql_ingest <- function(
   )
   zip_pattern <- kusto_ingestion_optional_text(zip_pattern, "zip_pattern")
   kusto_ingestion_number(timeout, "timeout", minimum = 0, strict = TRUE)
+  if (!is.function(.now)) {
+    .fabric_abort(".now must be a function")
+  }
 
   # 2 Build the documented preview payload --------------------------------------------------------
 
@@ -332,7 +339,9 @@ fabric_kql_ingest <- function(
     target,
     body,
     credential,
-    timeout = timeout
+    timeout = timeout,
+    deadline = .deadline,
+    .now = .now
   )
   kusto_ingestion_handle(
     operation_id = response$operation_id,
@@ -367,7 +376,8 @@ fabric_kql_ingestion_status <- function(
   token = NULL,
   auth_args = list(),
   .sleep = Sys.sleep,
-  .now = Sys.time
+  .now = Sys.time,
+  .deadline = NULL
 ) {
   # 1 Validate polling behavior and recover the operation context ---------------------------------
 
@@ -398,8 +408,7 @@ fabric_kql_ingestion_status <- function(
     auth_args = auth_args,
     override_auth = override_auth
   )
-  started <- .now()
-  deadline <- started + timeout
+  deadline <- .deadline %||% (.now() + timeout)
 
   # 2 Read one snapshot or poll until terminal -----------------------------------------------------
 
@@ -416,7 +425,8 @@ fabric_kql_ingestion_status <- function(
       kusto_ingestion_get_status(
         context,
         details = details,
-        deadline = deadline
+        deadline = deadline,
+        .now = .now
       ),
       fabric_http_deadline_error = function(error) {
         kusto_ingestion_timeout_error(context, timeout, last, error)
@@ -427,8 +437,8 @@ fabric_kql_ingestion_status <- function(
       break
     }
 
-    elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
-    if (!is.finite(elapsed) || elapsed >= timeout) {
+    remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+    if (!is.finite(remaining) || remaining <= 0) {
       kusto_ingestion_timeout_error(context, timeout, last)
     }
     delay <- max(
@@ -436,8 +446,9 @@ fabric_kql_ingestion_status <- function(
       poll_interval,
       last$retry_after %||% 0
     )
-    .sleep(min(delay, timeout - elapsed))
-    if (as.numeric(difftime(.now(), started, units = "secs")) >= timeout) {
+    .sleep(min(delay, remaining))
+    remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+    if (!is.finite(remaining) || remaining <= 0) {
       kusto_ingestion_timeout_error(context, timeout, last)
     }
   }
@@ -794,7 +805,14 @@ kusto_ingestion_source_id <- function(exclude = character()) {
 
 # Send the non-retriable submission request. Returns the validated operation ID
 # plus a service request ID used to construct the public handle
-kusto_ingestion_submit <- function(target, body, credential, timeout) {
+kusto_ingestion_submit <- function(
+  target,
+  body,
+  credential,
+  timeout,
+  deadline = NULL,
+  .now = Sys.time
+) {
   client_request_id <- .kusto_next_ingestion_request_id("Submit")
   request <- httr2::request(kusto_ingestion_url(target)) |>
     httr2::req_headers(
@@ -817,7 +835,9 @@ kusto_ingestion_submit <- function(target, body, credential, timeout) {
       request,
       credential = credential,
       audience = .fabric_audience$kusto,
-      idempotent = FALSE
+      idempotent = FALSE,
+      deadline = deadline,
+      .now = .now
     ),
     error = function(error) {
       safe_error <- kusto_storage_redact_condition(error)
@@ -1004,7 +1024,12 @@ kusto_ingestion_context <- function(
 }
 
 # Retrieve one status response and normalize it into the public status record
-kusto_ingestion_get_status <- function(context, details, deadline) {
+kusto_ingestion_get_status <- function(
+  context,
+  details,
+  deadline,
+  .now = Sys.time
+) {
   client_request_id <- .kusto_next_ingestion_request_id("Status")
   request <- httr2::request(
     kusto_ingestion_url(context$target, context$id)
@@ -1023,7 +1048,8 @@ kusto_ingestion_get_status <- function(context, details, deadline) {
     credential = context$credential,
     audience = .fabric_audience$kusto,
     idempotent = TRUE,
-    deadline = deadline
+    deadline = deadline,
+    .now = .now
   )
   payload <- tryCatch(
     httr2::resp_body_json(
@@ -2173,7 +2199,9 @@ fabric_kql_write_table <- function(
       delete_after_download = identical(staging$method, "Storage") &&
         isTRUE(cleanup),
       timeout = submission_timeout,
-      token = credential
+      token = credential,
+      .deadline = write_deadline,
+      .now = .now
     ),
     error = function(error) {
       if (kusto_condition_inherits(error, "fabric_http_deadline_error")) {
@@ -2213,7 +2241,8 @@ fabric_kql_write_table <- function(
       poll_interval = poll_interval,
       error_on_failure = FALSE,
       .sleep = .sleep,
-      .now = .now
+      .now = .now,
+      .deadline = write_deadline
     ),
     error = function(error) {
       if (

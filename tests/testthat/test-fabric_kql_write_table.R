@@ -832,8 +832,14 @@ test_that("ambiguous submission retains the complete staging file", {
 test_that("Eventhouse writer shares one post-upload deadline", {
   skip_if_not_installed("arrow")
   now <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  expected_deadline <- now + 10
+  clock <- function() now
   submission_timeout <- NULL
+  submission_deadline <- NULL
+  submission_clock <- NULL
   status_timeout <- NULL
+  status_deadline <- NULL
+  status_clock <- NULL
   submission_calls <- 0L
   status_calls <- 0L
   local_mocked_bindings(
@@ -841,15 +847,19 @@ test_that("Eventhouse writer shares one post-upload deadline", {
       kql_write_test_configuration()
     },
     onelake_upload_target = function(...) tibble::tibble(),
-    fabric_kql_ingest = function(..., timeout) {
+    fabric_kql_ingest = function(..., timeout, .deadline, .now) {
       submission_calls <<- submission_calls + 1L
       submission_timeout <<- timeout
+      submission_deadline <<- .deadline
+      submission_clock <<- .now
       now <<- now + 3
       kql_write_test_ingestion()
     },
-    fabric_kql_ingestion_status = function(..., timeout) {
+    fabric_kql_ingestion_status = function(..., timeout, .deadline, .now) {
       status_calls <<- status_calls + 1L
       status_timeout <<- timeout
+      status_deadline <<- .deadline
+      status_clock <<- .now
       kql_write_test_status()
     }
   )
@@ -863,7 +873,7 @@ test_that("Eventhouse writer shares one post-upload deadline", {
     timeout = 10,
     token = "test-token",
     storage_token = "storage-token",
-    .now = function() now
+    .now = clock
   )
 
   expect_s3_class(result, "fabric_kql_write_result")
@@ -871,6 +881,10 @@ test_that("Eventhouse writer shares one post-upload deadline", {
   expect_identical(status_calls, 1L)
   expect_equal(submission_timeout, 10)
   expect_equal(status_timeout, 7)
+  expect_identical(submission_deadline, expected_deadline)
+  expect_identical(status_deadline, expected_deadline)
+  expect_identical(submission_clock, clock)
+  expect_identical(status_clock, clock)
 })
 
 test_that("Eventhouse writer retains its handle when the deadline is spent", {

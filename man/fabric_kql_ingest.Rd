@@ -28,7 +28,9 @@ fabric_kql_ingest(
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
-  auth_args = list()
+  auth_args = list(),
+  .deadline = NULL,
+  .now = Sys.time
 )
 
 fabric_kql_ingestion_status(
@@ -47,7 +49,8 @@ fabric_kql_ingestion_status(
   token = NULL,
   auth_args = list(),
   .sleep = Sys.sleep,
-  .now = Sys.time
+  .now = Sys.time,
+  .deadline = NULL
 )
 }
 \arguments{
@@ -119,6 +122,9 @@ reuse an in-process handle credential unless authentication is overridden}
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
+\item{.deadline}{Internal absolute POSIX date-time used when a higher-level
+operation composes submission and status polling under one deadline}
+
 \item{ingestion}{A \code{fabric_kql_ingestion} handle or a non-empty operation ID}
 
 \item{details}{Whether status should include per-source detail records}
@@ -130,7 +136,7 @@ reuse an in-process handle credential unless authentication is overridden}
 \item{error_on_failure}{Whether a terminal failed or canceled ingestion
 raises a typed error. Use \code{FALSE} to inspect the returned status}
 
-\item{.sleep, .now}{Internal hooks for deterministic polling tests}
+\item{.sleep, .now}{Internal hooks for deterministic deadline and polling tests}
 }
 \value{
 \code{fabric_kql_ingest()} returns a \code{fabric_kql_ingestion} handle with

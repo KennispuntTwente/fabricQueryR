@@ -276,6 +276,47 @@ test_that("submission failures are not replayed after throttling", {
   expect_match(conditionMessage(error), "not replayed", fixed = TRUE)
 })
 
+test_that("queued ingestion counts token acquisition against its deadline", {
+  started <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
+  now <- started
+  token_calls <- 0L
+  requests <- 0L
+  credential <- fabric_credential(token = function(...) {
+    token_calls <<- token_calls + 1L
+    now <<- now + 6
+    "token"
+  })
+  local_mocked_bindings(
+    req_perform = function(req, path = NULL) {
+      requests <<- requests + 1L
+      kusto_ingestion_test_response(
+        list(ingestionOperationId = "must-not-submit"),
+        url = req$url
+      )
+    },
+    .package = "httr2"
+  )
+
+  error <- rlang::catch_cnd(kusto_ingestion_submit(
+    target = list(
+      url = "https://ingest-cluster.kusto.fabric.microsoft.com",
+      database = "Telemetry",
+      table = "Raw"
+    ),
+    body = list(blobs = I(list()), properties = list(enableTracking = TRUE)),
+    credential = credential,
+    timeout = 10,
+    deadline = started + 5,
+    .now = function() now
+  ))
+
+  expect_s3_class(error, "fabric_kql_ingestion_submission_error")
+  expect_s3_class(error$parent, "fabric_http_deadline_error")
+  expect_identical(token_calls, 1L)
+  expect_identical(requests, 0L)
+  expect_identical(now, started + 6)
+})
+
 test_that("submission permission failures retain HTTP diagnostics", {
   httr2::local_mocked_responses(function(req) {
     kusto_ingestion_test_response(
@@ -606,7 +647,7 @@ test_that("wait timeout is distinct from the running service operation", {
   clock_calls <- 0L
   clock <- function() {
     clock_calls <<- clock_calls + 1L
-    started + if (clock_calls >= 2L) 1 else 0
+    started + if (clock_calls >= 4L) 1 else 0
   }
   error <- tryCatch(
     fabric_kql_ingestion_status(

@@ -67,9 +67,10 @@ export large query results to OneLake or other supported storage. A
 destination table can be created when needed. `fabric_kql_write_table()` now
 rejects multi-file writes that combine per-blob ingestion with one shared
 idempotency key, preventing successful tracking results with omitted parts. Its
-post-upload timeout is now one shared deadline: submission time reduces the
-time available for status polling, and timeout conditions retain the tracking
-handle whenever submission completed. Export artifact-detail timeouts now state
+post-upload timeout is now one shared absolute deadline across token
+acquisition, submission, status requests, and polling sleeps. Timeout conditions
+retain the tracking handle whenever submission completed. Export artifact-detail
+timeouts now state
 that the export itself completed instead of reporting it as still running.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
