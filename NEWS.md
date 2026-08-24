@@ -118,7 +118,9 @@ and Livy requests now require an explicitly supplied token or provider for a
 custom host, preventing automatic Fabric sign-in credentials from crossing a
 caller-selected endpoint boundary. Supplied and acquired bearer tokens are
 rejected before use if they contain whitespace or control characters that
-could corrupt or inject an HTTP header.
+could corrupt or inject an HTTP header. Paged collection calls now fail with a
+typed, body-free protocol error when a service returns a malformed envelope,
+record array, next link, or continuation token.
 
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse

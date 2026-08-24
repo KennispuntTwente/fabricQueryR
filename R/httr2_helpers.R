@@ -423,21 +423,103 @@
       credential = credential,
       audience = audience
     )
-    page_values <- page[[value_key]] %||% list()
+    if (!is.list(page) || is.null(names(page))) {
+      .httr2_collection_abort(
+        page_number,
+        "<body>",
+        "must be a JSON object"
+      )
+    }
+    value_positions <- which(names(page) == value_key)
+    if (length(value_positions) != 1L) {
+      .httr2_collection_abort(
+        page_number,
+        value_key,
+        "must occur exactly once"
+      )
+    }
+    page_values <- page[[value_positions]]
+    if (!is.list(page_values) || !is.null(names(page_values))) {
+      .httr2_collection_abort(
+        page_number,
+        value_key,
+        "must be a JSON array"
+      )
+    }
+    invalid_member <- which(
+      !vapply(
+        page_values,
+        function(value) is.list(value) && !is.null(names(value)),
+        logical(1)
+      )
+    )
+    if (length(invalid_member)) {
+      .httr2_collection_abort(
+        page_number,
+        value_key,
+        paste0(
+          "must contain only JSON objects; member ",
+          invalid_member[[1L]],
+          " is invalid"
+        )
+      )
+    }
     values <- c(values, page_values)
 
-    next_link <- page[["@odata.nextLink"]] %||%
-      page[["odata.nextLink"]] %||%
-      page$continuationUri
-    if (!is.null(next_link) && nzchar(next_link)) {
+    continuation_fields <- c(
+      "@odata.nextLink",
+      "odata.nextLink",
+      "continuationUri",
+      "continuationToken"
+    )
+    continuation_values <- setNames(
+      vector("list", length(continuation_fields)),
+      continuation_fields
+    )
+    for (field in continuation_fields) {
+      positions <- which(names(page) == field)
+      if (length(positions) > 1L) {
+        .httr2_collection_abort(
+          page_number,
+          field,
+          "must occur at most once"
+        )
+      }
+      if (!length(positions) || is.null(page[[positions]])) {
+        next
+      }
+      value <- page[[positions]]
+      if (
+        !is.character(value) ||
+          length(value) != 1L ||
+          is.na(value)
+      ) {
+        .httr2_collection_abort(
+          page_number,
+          field,
+          "must be one non-missing string or null"
+        )
+      }
+      continuation_values[[field]] <- value
+    }
+
+    next_link <- NULL
+    for (field in continuation_fields[1:3]) {
+      value <- continuation_values[[field]]
+      if (!is.null(value) && nzchar(value)) {
+        next_link <- value
+        break
+      }
+    }
+    if (!is.null(next_link)) {
       next_url <- .httr2_continuation_url(url, next_url, next_link)
       continuation_token <- NULL
       offset_pagination <- FALSE
       next
     }
-    continuation_token <- page$continuationToken
+    continuation_token <- continuation_values$continuationToken
     if (!is.null(continuation_token) && nzchar(continuation_token)) {
-      continuation_token <- utils::URLdecode(as.character(continuation_token))
+      continuation_token <- utils::URLdecode(continuation_token)
       next_url <- url
       offset_pagination <- FALSE
       next
@@ -458,6 +540,28 @@
   # Return collected values in the stable form expected by the caller
 
   values
+}
+
+# Raise a typed, body-free collection-envelope protocol error
+.httr2_collection_abort <- function(page_number, field, detail) {
+  .fabric_abort(
+    paste0(
+      "Collection page ",
+      page_number,
+      " field `",
+      field,
+      "` ",
+      detail
+    ),
+    class = c(
+      "fabric_collection_protocol_error",
+      "fabric_pagination_protocol_error"
+    ),
+    page_number = as.integer(page_number),
+    field = field,
+    call = NULL,
+    .trace = FALSE
+  )
 }
 
 # Check whether `name` identifies a secret field. Returns one logical value used

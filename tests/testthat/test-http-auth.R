@@ -1159,6 +1159,88 @@ test_that("shared pagination resolves relative links and rejects new origins", {
   )
 })
 
+test_that("shared pagination validates every collection envelope", {
+  credential <- fabric_credential(token = "token")
+  page <- NULL
+  calls <- 0L
+  local_mocked_bindings(
+    .httr2_json = function(...) {
+      calls <<- calls + 1L
+      page
+    }
+  )
+  cases <- list(
+    top_level_array = list(list(id = "one")),
+    missing_value = list(error = "raw-service-secret"),
+    null_value = list(value = NULL),
+    scalar_value = list(value = "one"),
+    object_value = list(value = list(id = "one")),
+    empty_object_value = list(
+      value = structure(list(), names = character())
+    ),
+    scalar_member = list(value = list("one")),
+    array_member = list(value = list(list("one"))),
+    multiple_next_links = list(
+      value = list(),
+      `@odata.nextLink` = c("?page=2", "?page=3")
+    ),
+    missing_next_link = list(
+      value = list(),
+      continuationUri = NA_character_
+    ),
+    object_token = list(
+      value = list(),
+      continuationToken = list(token = "next")
+    )
+  )
+
+  for (name in names(cases)) {
+    page <- cases[[name]]
+    calls <- 0L
+    error <- rlang::catch_cnd(
+      .httr2_collection(
+        "https://example.test/items",
+        credential,
+        .fabric_audience$fabric
+      ),
+      classes = "error"
+    )
+    expect_s3_class(error, "fabric_collection_protocol_error")
+    expect_s3_class(error, "fabric_pagination_protocol_error")
+    expect_identical(error$page_number, 1L)
+    expect_true(nzchar(error$field))
+    expect_identical(calls, 1L)
+    expect_false(
+      grepl("raw-service-secret", conditionMessage(error), fixed = TRUE)
+    )
+  }
+})
+
+test_that("shared pagination accepts explicit empty arrays and null endings", {
+  credential <- fabric_credential(token = "token")
+  calls <- 0L
+  local_mocked_bindings(
+    .httr2_json = function(...) {
+      calls <<- calls + 1L
+      list(
+        value = list(),
+        `@odata.nextLink` = NULL,
+        continuationUri = "",
+        continuationToken = NULL
+      )
+    }
+  )
+
+  values <- .httr2_collection(
+    "https://example.test/items",
+    credential,
+    .fabric_audience$fabric
+  )
+
+  expect_identical(values, list())
+  expect_identical(calls, 1L)
+})
+
 test_that("token accepts strings and validates provider results", {
   expect_error(
     fabric_credential(token = ""),
