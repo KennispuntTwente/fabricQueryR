@@ -32,7 +32,11 @@
 #' For a large table, or one containing nested data, set
 #' `result = "arrow_stream"` to process rows in batches instead of collecting
 #' them all into R memory. The stream is disk-backed and can be read only once,
-#' so enough temporary disk space must be available for the selected data
+#' so enough temporary disk space must be available for the selected data.
+#' Release the stream deterministically when finished: call
+#' `stream[["release"]]()` when using 'nanoarrow' directly, or call
+#' `reader$Close()` after `arrow::as_record_batch_reader(stream)`. Do not rely
+#' on garbage collection to delete the staged file, particularly on Windows
 #'
 #' @section Column types:
 #' Common dates, timestamps, numbers, text, and logical values are converted to
@@ -106,7 +110,8 @@
 #'   processing
 #'
 #' @return A tibble, or a disk-backed, lazy, single-use Arrow stream when
-#'   `result = "arrow_stream"`
+#'   `result = "arrow_stream"`. Explicitly release that stream, or close an
+#'   'arrow' reader that takes ownership of it, to delete its temporary file
 #' @export
 #'
 #' @examples
@@ -134,6 +139,8 @@
 #'   result = "arrow_stream"
 #' )
 #' reader <- arrow::as_record_batch_reader(stream)
+#' rows <- reader$read_table()
+#' reader$Close()
 #' }
 fabric_onelake_read_delta_table <- function(
   table_path,
@@ -1008,10 +1015,7 @@ fabric_delta_spool_stream <- function(stream) {
     spool_connection <- connection
     spool_path <- path
     function() {
-      if (isOpen(spool_connection)) {
-        close(spool_connection)
-      }
-      unlink(spool_path)
+      .fabric_delta_release_spool(spool_connection, spool_path)
     }
   })
   local_stream <- tryCatch(
@@ -1035,6 +1039,25 @@ fabric_delta_spool_stream <- function(stream) {
   }
   complete <- TRUE
   local_stream
+}
+
+# Close a staged Arrow connection before deleting its file. Returns whether the
+# file is absent after a small bounded retry for Windows handle release
+.fabric_delta_release_spool <- function(connection, path) {
+  open <- try(isOpen(connection), silent = TRUE)
+  if (isTRUE(open)) {
+    try(close(connection), silent = TRUE)
+  }
+
+  for (attempt in seq_len(3L)) {
+    if (!file.exists(path) || unlink(path, force = TRUE) == 0L) {
+      return(invisible(TRUE))
+    }
+    if (attempt < 3L) {
+      Sys.sleep(0.01)
+    }
+  }
+  invisible(!file.exists(path))
 }
 
 #' Detect timestamp-without-time-zone Arrow formats

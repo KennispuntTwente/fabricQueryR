@@ -483,6 +483,7 @@ test_that("staged Delta streams remain readable without their remote reader", {
 
   stream <- fabric_delta_spool_stream(source)
   path <- attr(stream, "fabric_delta_spool_path", exact = TRUE)
+  withr::defer(unlink(path, force = TRUE))
 
   expect_true(file.exists(path))
   expect_equal(
@@ -493,6 +494,23 @@ test_that("staged Delta streams remain readable without their remote reader", {
     attr(stream, "fabric_delta_snapshot_version", exact = TRUE),
     42
   )
+  stream[["release"]]()
+  expect_false(file.exists(path))
+})
+
+test_that("an Arrow reader releases its staged Delta stream", {
+  skip_if_not_installed("arrow")
+  source <- nanoarrow::as_nanoarrow_array_stream(data.frame(id = 1:3))
+  stream <- fabric_delta_spool_stream(source)
+  path <- attr(stream, "fabric_delta_spool_path", exact = TRUE)
+  withr::defer(unlink(path, force = TRUE))
+
+  reader <- arrow::as_record_batch_reader(stream)
+  expect_equal(reader$read_table()$num_rows, 3L)
+  expect_true(file.exists(path))
+  reader$Close()
+
+  expect_false(file.exists(path))
 })
 
 test_that("Arrow schemas normalize scalar types for safe collection", {

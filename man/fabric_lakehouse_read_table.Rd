@@ -42,7 +42,8 @@ argument is omitted.}
 \item{version}{Optional non-negative Delta table version for time travel.}
 
 \item{result}{Return a \code{"tibble"} or a disk-backed, single-use
-\code{"arrow_stream"}.}
+\code{"arrow_stream"}. Release a stream with \code{stream[["release"]]()} when using
+'nanoarrow' directly, or close the 'arrow' reader that takes ownership of it}
 
 \item{verbose}{Whether to report authentication and read progress.}
 
@@ -62,7 +63,7 @@ on a discovered record is preferred when this argument is omitted.}
 }
 \value{
 A tibble, or a disk-backed \code{nanoarrow_array_stream} when
-\code{result = "arrow_stream"}.
+\code{result = "arrow_stream"}. Explicit release deletes its temporary file.
 }
 \description{
 Provides the symmetric read counterpart to \code{\link[=fabric_lakehouse_write_table]{fabric_lakehouse_write_table()}}.
@@ -88,6 +89,8 @@ stream <- fabric_lakehouse_read_table(
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)
+rows <- reader$read_table()
+reader$Close()
 }
 }
 \references{

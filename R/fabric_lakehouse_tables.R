@@ -231,7 +231,8 @@ NULL
 #' @param limit Optional non-negative maximum number of rows to return.
 #' @param version Optional non-negative Delta table version for time travel.
 #' @param result Return a `"tibble"` or a disk-backed, single-use
-#'   `"arrow_stream"`.
+#'   `"arrow_stream"`. Release a stream with `stream[["release"]]()` when using
+#'   'nanoarrow' directly, or close the 'arrow' reader that takes ownership of it
 #' @param verbose Whether to report authentication and read progress.
 #' @param tenant_id Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`.
@@ -244,7 +245,7 @@ NULL
 #'   on a discovered record is preferred when this argument is omitted.
 #'
 #' @return A tibble, or a disk-backed `nanoarrow_array_stream` when
-#'   `result = "arrow_stream"`.
+#'   `result = "arrow_stream"`. Explicit release deletes its temporary file.
 #' @references
 #' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
 #'
@@ -268,6 +269,8 @@ NULL
 #'   result = "arrow_stream"
 #' )
 #' reader <- arrow::as_record_batch_reader(stream)
+#' rows <- reader$read_table()
+#' reader$Close()
 #' }
 fabric_lakehouse_read_table <- function(
   lakehouse,

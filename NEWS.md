@@ -79,6 +79,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* Disk-backed Delta streams now retry staged-file deletion after closing their
+connection on Windows. Their documentation and examples now require explicit
+release, and cover both direct 'nanoarrow' and transferred 'arrow' ownership.
+
 * Minimum dependency versions now reflect the APIs used by the package:
 'httr2' 1.2.0, 'cli' 3.0.0, and 'testthat' 3.2.0.
 
