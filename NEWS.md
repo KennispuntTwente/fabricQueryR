@@ -72,7 +72,8 @@ that the export itself completed instead of reporting it as still running.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R
-objects.
+objects. Documentation now identifies Fabric's 1,000 attached-source-object
+limit per GraphQL API item and its multi-item and abstraction workarounds.
 
 * `fabric_function_invoke()` calls published Fabric User Data Functions from R.
 

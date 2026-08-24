@@ -127,7 +127,11 @@ to repeat
 Fabric returns at most 100 items by default and permits at most 100,000 items
 across pagination. Each response is limited to 64 MB, each request to 100
 seconds, and query nesting to 10 levels. Use smaller pages and filtered query
-partitions when a result could approach these service limits
+partitions when a result could approach these service limits. One GraphQL API
+item can have at most 1,000 source objects attached across its data sources;
+this is not a limit of 1,000 data sources. Split objects from multiple sources
+across multiple API items, or use stored procedures or another abstraction
+for a single large source
 
 Large integers outside R's exact numeric range are returned as
 character values so identifiers and other large integer fields are not

@@ -243,3 +243,22 @@ test_that("Livy vignette documents current access prerequisites", {
   expect_match(source, "Code.AccessSQL.All", fixed = TRUE)
   expect_match(source, "replaces the defaults", fixed = TRUE)
 })
+
+test_that("GraphQL documentation states the attached-object limit", {
+  path <- test_path(
+    "..",
+    "..",
+    "vignettes",
+    "graphql-schema-and-rows.Rmd"
+  )
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  normalized <- gsub("[[:space:]]+", " ", source)
+
+  expect_match(normalized, "at most 1,000 source", fixed = TRUE)
+  expect_match(normalized, "not a limit of 1,000 data sources", fixed = TRUE)
+  expect_match(normalized, "multiple API items", fixed = TRUE)
+  expect_match(normalized, "stored procedures", fixed = TRUE)
+})
