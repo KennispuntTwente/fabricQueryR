@@ -17,7 +17,9 @@ Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 `fabric_onelake_list()`, `fabric_onelake_metadata()`, and
 `fabric_onelake_delete()` list, inspect, and delete files. Ranged downloads now
 require a matching partial-content response instead of silently accepting a
-server or proxy that returns the complete file.
+server or proxy that returns the complete file. Disk downloads now publish by
+atomic rename or hard link and fail closed instead of exposing partial bytes or
+temporarily removing an existing destination.
 
 * `fabric_lakehouse_schemas()`, `fabric_lakehouse_table()`,
 `fabric_lakehouse_tables()`, `fabric_lakehouse_read_table()`,

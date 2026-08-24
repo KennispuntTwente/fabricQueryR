@@ -33,8 +33,10 @@
 #' @section Safe file replacement:
 #' Existing files are protected unless `overwrite = TRUE`. Uploads and downloads
 #' are staged before replacing their destination, so an interrupted transfer
-#' does not normally leave a partial file. Use `if_match` when a file should be
-#' replaced only if it has not changed since you inspected it
+#' does not normally leave a partial file. Local downloads are published with an
+#' atomic same-directory rename or hard link and fail closed when the filesystem
+#' cannot provide the required primitive. Use `if_match` when a OneLake file
+#' should be replaced only if it has not changed since you inspected it
 #'
 #' @param workspace Workspace name, ID, record from [fabric_workspaces()], or a
 #'   complete OneLake HTTPS/ABFSS path
@@ -1624,61 +1626,27 @@ onelake_commit_download <- function(temporary, dest, overwrite) {
     .fabric_abort("Destination already exists; set overwrite = TRUE")
   }
 
-  if (!file.exists(dest)) {
-    if (!overwrite) {
-      return(onelake_commit_new_download(temporary, dest))
-    }
-
-    if (.onelake_file_rename(temporary, dest)) {
-      return(invisible(TRUE))
-    }
-
-    if (dir.exists(dest)) {
-      .fabric_abort("Destination became a directory during download")
-    }
-
-    if (file.exists(dest)) {
-      return(onelake_commit_download(temporary, dest, overwrite = TRUE))
-    }
-    .fabric_abort("Could not commit the downloaded file")
+  if (!overwrite) {
+    return(onelake_commit_new_download(temporary, dest))
   }
 
-  # 2 Protect and replace an existing file ---------------------------------------------------------
+  # 2 Atomically publish or replace the destination ------------------------------------------------
 
-  # Protect and replace an existing file before any operation can replace existing data
-
-  backup <- tempfile(".fabricqueryr-backup-", tmpdir = dirname(dest))
-  if (!.onelake_file_rename(dest, backup)) {
-    .fabric_abort(
-      "Could not protect the existing destination before replacing it"
-    )
-  }
+  # A same-directory rename is the only operation that exposes the staged bytes
 
   if (.onelake_file_rename(temporary, dest)) {
-    if (unlink(backup, force = TRUE) != 0L) {
-      .fabric_warn(
-        c(
-          "Backup cleanup failed after the downloaded file replaced its destination",
-          "i" = "The backup remains at {.path {backup}}"
-        ),
-        .format = TRUE
-      )
-    }
-
     return(invisible(TRUE))
   }
 
-  restored <- .onelake_file_rename(backup, dest)
-  if (!restored) {
-    .fabric_abort(c(
-      "Could not commit the downloaded file or restore the destination.",
-      "i" = cli::format_inline(
-        "The original file remains at {.path {backup}}."
-      )
-    ))
+  if (dir.exists(dest)) {
+    .fabric_abort("Destination became a directory during download")
   }
   .fabric_abort(
-    "Could not commit the downloaded file; the original destination was restored"
+    paste0(
+      "Could not atomically commit the downloaded file; the staged file and ",
+      "any existing destination were left unchanged"
+    ),
+    class = "fabric_onelake_atomic_commit_unavailable"
   )
 }
 
@@ -1690,7 +1658,15 @@ onelake_commit_new_download <- function(temporary, dest) {
   # Try an atomic hard link first to preserve the safest available behavior
 
   if (.onelake_file_link(temporary, dest)) {
-    unlink(temporary, force = TRUE)
+    if (.onelake_file_unlink(temporary) != 0L) {
+      .fabric_warn(
+        c(
+          "The download was committed, but its staging link could not be removed.",
+          "i" = "The staging link remains at {.path {temporary}}."
+        ),
+        .format = TRUE
+      )
+    }
     return(invisible(TRUE))
   }
 
@@ -1702,50 +1678,15 @@ onelake_commit_new_download <- function(temporary, dest) {
     .fabric_abort("Destination already exists; set overwrite = TRUE")
   }
 
-  # 2 Fall back to exclusive copy ------------------------------------------------------------------
-
-  # Exclusive creation keeps overwrite = FALSE safe even across filesystems
-
-  destination <- tryCatch(
-    file(dest, open = "wxb"),
-    error = identity
+  .fabric_abort(
+    paste0(
+      "The filesystem could not atomically publish the download without ",
+      "overwriting an existing path"
+    ),
+    class = "fabric_onelake_atomic_commit_unavailable",
+    staging_path = temporary,
+    destination_path = dest
   )
-
-  if (inherits(destination, "error")) {
-    if (dir.exists(dest)) {
-      .fabric_abort("Destination became a directory during download")
-    }
-
-    if (file.exists(dest)) {
-      .fabric_abort("Destination already exists; set overwrite = TRUE")
-    }
-    .fabric_abort("Could not commit the downloaded file", parent = destination)
-  }
-  source <- file(temporary, open = "rb")
-  committed <- FALSE
-  on.exit(
-    {
-      try(close(source), silent = TRUE)
-      try(close(destination), silent = TRUE)
-      if (!committed) {
-        unlink(dest, force = TRUE)
-      }
-    },
-    add = TRUE
-  )
-
-  repeat {
-    chunk <- readBin(source, what = "raw", n = 8L * 1024L * 1024L)
-    if (!length(chunk)) {
-      break
-    }
-    writeBin(chunk, destination)
-  }
-  close(source)
-  close(destination)
-  committed <- TRUE
-  unlink(temporary, force = TRUE)
-  invisible(TRUE)
 }
 
 # Rename local `from` to `to`. Returns the base-R result and remains a small test
@@ -1758,6 +1699,12 @@ onelake_commit_new_download <- function(temporary, dest) {
 # test seam for the no-overwrite download path
 .onelake_file_link <- function(from, to) {
   file.link(from, to)
+}
+
+# Remove one local staging path. Returns the base-R status and remains a small
+# test seam for post-commit cleanup failures
+.onelake_file_unlink <- function(path) {
+  unlink(path, force = TRUE)
 }
 
 # Resolve an explicit or extension-derived object file format

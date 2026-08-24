@@ -218,8 +218,10 @@ that tenant setting and the item's data permissions
 
 Existing files are protected unless \code{overwrite = TRUE}. Uploads and downloads
 are staged before replacing their destination, so an interrupted transfer
-does not normally leave a partial file. Use \code{if_match} when a file should be
-replaced only if it has not changed since you inspected it
+does not normally leave a partial file. Local downloads are published with an
+atomic same-directory rename or hard link and fail closed when the filesystem
+cannot provide the required primitive. Use \code{if_match} when a OneLake file
+should be replaced only if it has not changed since you inspected it
 }
 
 \examples{

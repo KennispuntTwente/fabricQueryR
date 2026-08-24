@@ -803,11 +803,12 @@ test_that("OneLake open-ended ranges require the remaining file interval", {
   expect_identical(rawToChar(value), "pha")
 })
 
-test_that("failed download replacement restores the original destination", {
+test_that("failed atomic replacement leaves the original destination intact", {
   dest <- tempfile("onelake-existing-")
   on.exit(unlink(dest), add = TRUE)
   writeBin(charToRaw("original"), dest)
   rename_calls <- 0L
+  destination_was_present <- FALSE
   local_mocked_bindings(
     .httr2_perform = function(req, download_path = NULL, ...) {
       writeBin(charToRaw("replacement"), download_path)
@@ -815,30 +816,47 @@ test_that("failed download replacement restores the original destination", {
     },
     .onelake_file_rename = function(from, to) {
       rename_calls <<- rename_calls + 1L
-      if (rename_calls == 2L) {
-        return(FALSE)
-      }
-      file.rename(from, to)
+      destination_was_present <<- file.exists(to) &&
+        identical(
+          readChar(to, nchars = 8L, useBytes = TRUE),
+          "original"
+        )
+      FALSE
     }
   )
 
-  expect_error(
-    fabric_onelake_download(
-      "Analytics",
-      "Curated.Lakehouse",
-      "Files/a.txt",
-      dest = dest,
-      overwrite = TRUE,
-      token = "token"
-    ),
-    "original destination was restored",
-    fixed = TRUE
-  )
+  error <- rlang::catch_cnd(fabric_onelake_download(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/a.txt",
+    dest = dest,
+    overwrite = TRUE,
+    token = "token"
+  ))
+
+  expect_s3_class(error, "fabric_onelake_atomic_commit_unavailable")
   expect_equal(
     readChar(dest, nchars = 8L, useBytes = TRUE),
     "original"
   )
-  expect_equal(rename_calls, 3L)
+  expect_identical(rename_calls, 1L)
+  expect_true(destination_was_present)
+})
+
+test_that("atomic replacement publishes one complete staged download", {
+  temporary <- tempfile("onelake-staged-")
+  dest <- tempfile("onelake-existing-")
+  on.exit(unlink(c(temporary, dest), force = TRUE), add = TRUE)
+  writeBin(charToRaw("replacement"), temporary)
+  writeBin(charToRaw("original"), dest)
+
+  expect_invisible(onelake_commit_download(temporary, dest, overwrite = TRUE))
+
+  expect_false(file.exists(temporary))
+  expect_identical(
+    readChar(dest, nchars = 11L, useBytes = TRUE),
+    "replacement"
+  )
 })
 
 test_that("OneLake download never replaces a directory destination", {
@@ -906,6 +924,46 @@ test_that("no-overwrite download commit preserves one race winner", {
   )
   expect_equal(readChar(dest, nchars = 6L, useBytes = TRUE), "winner")
   expect_true(file.exists(temporary))
+})
+
+test_that("no-overwrite publication fails closed without a hard link", {
+  temporary <- tempfile("onelake-staged-")
+  dest <- tempfile("onelake-unpublished-")
+  on.exit(unlink(c(temporary, dest), force = TRUE), add = TRUE)
+  writeBin(charToRaw("download"), temporary)
+  local_mocked_bindings(
+    .onelake_file_link = function(from, to) FALSE
+  )
+
+  error <- rlang::catch_cnd(onelake_commit_new_download(temporary, dest))
+
+  expect_s3_class(error, "fabric_onelake_atomic_commit_unavailable")
+  expect_false(file.exists(dest))
+  expect_true(file.exists(temporary))
+  expect_identical(
+    readChar(temporary, nchars = 8L, useBytes = TRUE),
+    "download"
+  )
+})
+
+test_that("committed hard links survive staging cleanup failures", {
+  temporary <- tempfile("onelake-staged-")
+  dest <- tempfile("onelake-linked-")
+  on.exit(unlink(c(temporary, dest), force = TRUE), add = TRUE)
+  writeBin(charToRaw("download"), temporary)
+  local_mocked_bindings(
+    .onelake_file_unlink = function(path) 1L
+  )
+
+  expect_warning(
+    expect_invisible(onelake_commit_new_download(temporary, dest)),
+    "staging link could not be removed",
+    fixed = TRUE
+  )
+
+  expect_true(file.exists(temporary))
+  expect_true(file.exists(dest))
+  expect_identical(readChar(dest, nchars = 8L, useBytes = TRUE), "download")
 })
 
 test_that("OneLake download returns raw zero bytes for an empty file", {
