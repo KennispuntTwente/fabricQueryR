@@ -365,6 +365,34 @@ test_that("statement JSON output is parsed independently of lifecycle", {
   expect_equal(result$duration_sec, 2)
 })
 
+test_that("generic statement JSON preserves null values", {
+  result <- fabric_livy_output(
+    response = list(
+      id = 4L,
+      state = "available",
+      output = list(
+        status = "ok",
+        data = list(
+          "application/json" = list(
+            present = "value",
+            missing = NULL,
+            nested = list(missing = NULL),
+            values = list(1L, NULL, 3L)
+          )
+        )
+      )
+    ),
+    started_local = as.POSIXct("2026-01-01", tz = "UTC"),
+    completed_local = as.POSIXct("2026-01-01 00:00:01", tz = "UTC"),
+    url = "https://example.test/statements/4"
+  )
+
+  expect_identical(result$output$parsed$present, "value")
+  expect_null(result$output$parsed$missing)
+  expect_null(result$output$parsed$nested$missing)
+  expect_identical(result$output$parsed$values, c(1L, NA_integer_, 3L))
+})
+
 test_that("Livy table MIME output is parsed into a tibble", {
   result <- fabric_livy_output(
     response = list(

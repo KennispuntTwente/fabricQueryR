@@ -79,6 +79,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* Generic JSON results returned by Livy now preserve JSON `null` values instead
+of converting them to empty objects during output simplification.
+
 * `fabric_onelake_read_file()` now closes Arrow readers before deleting
 downloaded Parquet and CSV stream files, preventing retained temporary files on
 Windows after explicit stream release.
