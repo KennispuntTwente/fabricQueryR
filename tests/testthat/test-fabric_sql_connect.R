@@ -616,6 +616,26 @@ test_that("fabric_sql_query accepts exactly one read-only SELECT", {
       "/* ; DELETE INTO */ -- ; EXEC\n;"
     )
   ))
+  expect_silent(fabric_sql_validate_query_statement(
+    paste0(
+      "SELECT /* outer comment /* nested ; SELECT * INTO dbo.hidden */ ",
+      "still inside outer */ 1 AS value"
+    )
+  ))
+  expect_error(
+    fabric_sql_validate_query_statement(
+      paste0(
+        "SELECT /* outer /* nested INTO dbo.hidden */ outer */ * ",
+        "INTO dbo.copy FROM dbo.source"
+      )
+    ),
+    class = "fabric_sql_statement_error"
+  )
+  expect_error(
+    fabric_sql_validate_query_statement("SELECT 1 /* outer /* nested */"),
+    "unterminated block comment",
+    fixed = TRUE
+  )
 })
 
 test_that("ADBC parameter translation ignores SQL literals and comments", {

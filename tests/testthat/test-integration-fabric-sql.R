@@ -115,6 +115,19 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(as.numeric(result$row_count), 3, info = backend)
     expect_equal(as.numeric(result$amount_sum), 30.5, info = backend)
 
+    nested_comment <- fabric_sql_query(
+      server = lakehouse$sql_endpoint,
+      database = lakehouse$display_name,
+      sql = paste0(
+        "SELECT /* outer /* SELECT * INTO dbo.fabricqueryr_hidden */ ",
+        "outer */ CAST(42 AS int) AS value"
+      ),
+      backend = backend,
+      token = fabric_test_token("FABRIC_TEST_SQL_TOKEN"),
+      verbose = FALSE
+    )
+    expect_equal(as.numeric(nested_comment$value), 42, info = backend)
+
     empty <- fabric_sql_query(
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,

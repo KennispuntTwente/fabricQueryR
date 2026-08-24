@@ -874,18 +874,27 @@ fabric_sql_top_level_tokens <- function(sql) {
       next
     }
 
-    # Block comments are skipped as one unit and must have a closing marker
+    # T-SQL block comments nest, so every opening marker needs its own close
     if (identical(char, "/") && identical(next_char, "*")) {
       flush()
-      remainder <- paste0(
-        chars[seq.int(index + 2L, length(chars))],
-        collapse = ""
-      )
-      close <- regexpr("*/", remainder, fixed = TRUE)[[1L]]
-      if (close < 0L) {
+      comment_depth <- 1L
+      index <- index + 2L
+      while (index <= length(chars) && comment_depth > 0L) {
+        comment_char <- chars[[index]]
+        following <- if (index < length(chars)) chars[[index + 1L]] else ""
+        if (identical(comment_char, "/") && identical(following, "*")) {
+          comment_depth <- comment_depth + 1L
+          index <- index + 2L
+        } else if (identical(comment_char, "*") && identical(following, "/")) {
+          comment_depth <- comment_depth - 1L
+          index <- index + 2L
+        } else {
+          index <- index + 1L
+        }
+      }
+      if (comment_depth > 0L) {
         .fabric_abort("sql contains an unterminated block comment")
       }
-      index <- index + close + 3L
       next
     }
 

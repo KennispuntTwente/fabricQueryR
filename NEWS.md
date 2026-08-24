@@ -79,6 +79,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* SQL query validation now recognizes nested T-SQL block comments, so harmless
+keywords inside nested comments no longer cause valid Fabric SQL reads to be
+rejected.
+
 * `fabric_job_wait()` now accepts `fabric_job_instance` records returned by job
 history and status calls, as its documentation promises.
 
