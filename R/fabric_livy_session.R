@@ -60,6 +60,13 @@
 #' The signed-in identity needs Lakehouse read and execute access, permission for
 #' code to access Fabric and storage, and an appropriate workspace role
 #'
+#' @section Timeouts:
+#' A `fabric_livy_timeout_error` contains the exact session or statement object
+#' in its `handle` field, so it can be polled or cancelled in the current R
+#' process. The kind-specific `session` or `statement` field contains safe,
+#' serializable metadata; a serialized handle intentionally loses its
+#' in-process credential
+#'
 #' @seealso
 #' [Microsoft session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
 #' [high-concurrency Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy)

@@ -405,6 +405,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
   expect_identical(timeout_error$batch$url, slow$url)
   expect_identical(timeout_error$batch$state, slow$state)
   expect_true(timeout_error$batch$cancel_requested)
+  expect_identical(timeout_error$handle, slow)
   expect_true(timeout_error$cancel_accepted)
   expect_null(timeout_error$cancel_error)
   expect_true(slow$cancel_requested)

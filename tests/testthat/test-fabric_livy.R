@@ -1013,6 +1013,7 @@ test_that("batch timeout can request cancellation", {
   expect_s3_class(error$batch, "fabric_livy_batch_metadata")
   expect_identical(error$batch$id, batch$id)
   expect_identical(error$batch$url, batch$url)
+  expect_identical(error$handle, batch)
   expect_identical(error$kind, "batch")
   expect_identical(error$last_state, "starting")
   expect_identical(error$last_response, batch$response)
@@ -1032,7 +1033,12 @@ test_that("batch timeout retains a bounded cleanup cancellation failure", {
     fabric_livy_ok = function(..., deadline = NULL) {
       expect_s3_class(deadline, "POSIXct")
       expect_gt(deadline, Sys.time())
-      rlang::abort("cancellation deadline exhausted")
+      rlang::abort(
+        paste0(
+          "cancellation deadline exhausted; ",
+          "Authorization: Bearer sentinel-cancel-secret"
+        )
+      )
     }
   )
   batch <- fabric_livy_batch_submit(
@@ -1052,6 +1058,15 @@ test_that("batch timeout retains a bounded cleanup cancellation failure", {
     "cancellation deadline exhausted",
     fixed = TRUE
   )
+  expect_s3_class(error$cancel_error, "fabric_livy_cancellation_error")
+  expect_false(
+    grepl(
+      "sentinel-cancel-secret",
+      rawToChar(serialize(error, NULL, ascii = TRUE)),
+      fixed = TRUE
+    )
+  )
+  expect_identical(error$handle, batch)
   expect_false(batch$cancel_requested)
 })
 
@@ -1125,7 +1140,11 @@ test_that("top-level batch waiting cancels on timeout and exposes its handle", {
   expect_s3_class(error$batch, "fabric_livy_batch_metadata")
   expect_identical(error$batch$id, "slow-batch")
   expect_true(error$batch$cancel_requested)
+  expect_s3_class(error$handle, "FabricLivyBatch")
+  expect_identical(error$handle$status(refresh = FALSE)$id, "slow-batch")
   expect_identical(calls, c("POST", "DELETE"))
+  expect_identical(error$handle$status()$state, "running")
+  expect_identical(calls, c("POST", "DELETE", "GET"))
 })
 
 test_that("Livy handles and timeout errors do not serialize credentials", {
@@ -1177,7 +1196,20 @@ test_that("Livy handles and timeout errors do not serialize credentials", {
   serialized_error <- rawToChar(serialize(error, NULL, ascii = TRUE))
   expect_s3_class(error$batch, "fabric_livy_batch_metadata")
   expect_identical(error$batch$id, "batch-id")
+  expect_identical(error$handle, handles[[1L]])
   expect_false(grepl(secrets[["static"]], serialized_error, fixed = TRUE))
+
+  restored_error <- unserialize(serialize(error, NULL))
+  credential_error <- rlang::catch_cnd(
+    restored_error$handle$status(),
+    classes = "error"
+  )
+  expect_s3_class(credential_error, "fabric_livy_credential_error")
+  expect_match(
+    conditionMessage(credential_error),
+    "no longer has an in-process credential",
+    fixed = TRUE
+  )
 
   restored <- unserialize(serialize(handles[[1L]], NULL))
   expect_error(

@@ -11,6 +11,8 @@ functions, avoiding copied IDs and endpoints in most workflows.
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
 option for running one piece of Spark code. Batch application paths are now
 validated as absolute ABFS/ABFSS URIs before authentication or submission.
+Timeout conditions now retain the live session, statement, or batch handle for
+in-process status checks and cancellation, while keeping serializable metadata.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

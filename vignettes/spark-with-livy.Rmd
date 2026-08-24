@@ -148,6 +148,13 @@ Upload it with `fabric_onelake_upload()` first when necessary. With
 `wait = FALSE`, the function returns a `FabricLivyBatch` object immediately;
 call its `$wait()`, `$result()`, or `$logs()` methods later.
 
+If a session, statement, or batch wait times out, the
+`fabric_livy_timeout_error` condition keeps the exact live object in its
+`handle` field. You can inspect `$status()` or request `$cancel()` through that
+handle in the current R process. The kind-specific `session`, `statement`, or
+`batch` field contains safe metadata for logging; after serialization, a handle
+intentionally no longer carries its credential.
+
 ## Use an Environment for repeatable configuration
 
 A published Fabric Environment can hold Spark settings and libraries shared by

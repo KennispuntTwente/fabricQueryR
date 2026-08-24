@@ -223,6 +223,22 @@ fabric_livy_query <- function(
   )
 }
 
+# Convert cancellation failures into diagnostics that cannot retain an
+# authenticated request, response, or callback environment.
+.fabric_livy_cancellation_condition <- function(error) {
+  if (is.null(error)) {
+    return(NULL)
+  }
+  structure(
+    list(
+      message = .httr2_redact(conditionMessage(error)),
+      call = NULL,
+      original_class = class(error)
+    ),
+    class = c("fabric_livy_cancellation_error", "error", "condition")
+  )
+}
+
 # Shared Fabric Livy helpers -----------------------------------------------------------------------
 
 .fabric_livy_session_terminal_states <- c(
@@ -758,10 +774,11 @@ fabric_livy_abort_timeout <- function(
     message = paste0("Timed out waiting for the Livy ", kind),
     class = "fabric_livy_timeout_error",
     kind = kind,
+    handle = handle,
     last_response = .httr2_redact_object(response),
     last_state = fabric_livy_state(response),
     cancel_accepted = cancel_accepted,
-    cancel_error = cancel_error
+    cancel_error = .fabric_livy_cancellation_condition(cancel_error)
   )
   data[[field]] <- fabric_livy_handle_metadata(kind, handle)
   data$call <- NULL

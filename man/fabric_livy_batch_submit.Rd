@@ -112,8 +112,10 @@ object}
 \item{cancel_on_timeout}{Logical. When waiting at submission time, request
 cancellation if the local timeout expires. Defaults to \code{TRUE}, so a timed
 out call does not normally leave Spark compute running unattended. The
-structured timeout condition contains stable public batch metadata in its
-\code{batch} field, including when cancellation fails or is disabled}
+structured timeout condition contains the live \link{FabricLivyBatch} object in
+\code{handle}, for status checks or cancellation in the current R process, and
+stable public metadata in \code{batch}. A serialized handle intentionally loses
+its in-process credential}
 }
 \value{
 A \link{FabricLivyBatch} 'R6' object. Inspect its \verb{$state}, call

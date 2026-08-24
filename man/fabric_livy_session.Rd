@@ -122,6 +122,15 @@ The signed-in identity needs Lakehouse read and execute access, permission for
 code to access Fabric and storage, and an appropriate workspace role
 }
 
+\section{Timeouts}{
+
+A \code{fabric_livy_timeout_error} contains the exact session or statement object
+in its \code{handle} field, so it can be polled or cancelled in the current R
+process. The kind-specific \code{session} or \code{statement} field contains safe,
+serializable metadata; a serialized handle intentionally loses its
+in-process credential
+}
+
 \examples{
 \dontrun{
 # Discover the Lakehouse whose Livy endpoint will host the Spark session

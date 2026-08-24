@@ -56,8 +56,10 @@
 #' @param cancel_on_timeout Logical. When waiting at submission time, request
 #'   cancellation if the local timeout expires. Defaults to `TRUE`, so a timed
 #'   out call does not normally leave Spark compute running unattended. The
-#'   structured timeout condition contains stable public batch metadata in its
-#'   `batch` field, including when cancellation fails or is disabled
+#'   structured timeout condition contains the live [FabricLivyBatch] object in
+#'   `handle`, for status checks or cancellation in the current R process, and
+#'   stable public metadata in `batch`. A serialized handle intentionally loses
+#'   its in-process credential
 #'
 #' @return A [FabricLivyBatch] 'R6' object. Inspect its `$state`, call
 #'   `$result()` for structured metadata and logs, and call `$wait()` later when
