@@ -115,7 +115,7 @@ test_that("job item-name lookup uses the workspace-specific endpoint", {
   )
 })
 
-test_that("notebook run builds typed release payload and job handle", {
+test_that("notebook run uses the typed Core scheduler route", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -173,12 +173,13 @@ test_that("notebook run builds typed release payload and job handle", {
   expect_match(
     call$url,
     paste0(
-      "/notebooks/11111111-1111-1111-1111-111111111111/",
-      "jobs/execute/instances?beta=false"
+      "/items/11111111-1111-1111-1111-111111111111/",
+      "jobs/RunNotebook/instances"
     ),
     fixed = TRUE
   )
-  expect_false(grepl("jobType=RunNotebook", call$url, fixed = TRUE))
+  expect_false(grepl("/notebooks/", call$url, fixed = TRUE))
+  expect_false(grepl("beta=", call$url, fixed = TRUE))
   expect_equal(call$payload$executionData$compute, "Spark")
   expect_equal(
     call$payload$executionData$computeConfiguration$defaultLakehouse,
@@ -565,7 +566,7 @@ test_that("status normalizes documented metadata and notebook exit value", {
     }
   )
 
-  result <- fabric_job_status(job_test_handle())
+  result <- fabric_job_status(job_test_handle(), notebook_details = TRUE)
 
   expect_s3_class(result, "fabric_job_instance")
   expect_equal(result$status, "Completed")
@@ -760,7 +761,8 @@ test_that("notebook completion without an exit reconciles scheduler failure", {
     fabric_job_wait(
       job_test_handle(),
       poll_interval = 0,
-      timeout = 1
+      timeout = 1,
+      notebook_details = TRUE
     ),
     classes = "error"
   )
@@ -785,7 +787,7 @@ test_that("core timestamps without an explicit UTC suffix are parsed as UTC", {
   expect_equal(format(parsed, tz = "UTC"), "2023-04-22 06:35:00")
 })
 
-test_that("notebook status falls back to the core scheduler", {
+test_that("beta notebook status falls back to the Core scheduler", {
   urls <- character()
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -809,7 +811,10 @@ test_that("notebook status falls back to the core scheduler", {
     }
   )
 
-  result <- fabric_job_status(job_test_handle())
+  result <- fabric_job_status(
+    job_test_handle(),
+    notebook_details = TRUE
+  )
 
   expect_equal(result$status, "InProgress")
   expect_true(result$visible)
@@ -818,7 +823,7 @@ test_that("notebook status falls back to the core scheduler", {
   expect_match(urls[[2L]], "/items/", fixed = TRUE)
 })
 
-test_that("notebook status can stay on the stable Core scheduler", {
+test_that("notebook status defaults to the stable Core scheduler", {
   urls <- character()
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -843,7 +848,6 @@ test_that("notebook status can stay on the stable Core scheduler", {
 
   result <- fabric_job_status(
     job_test_handle(),
-    notebook_details = FALSE,
     respect_retry_after = FALSE
   )
 
@@ -896,7 +900,8 @@ test_that("status represents delays in both notebook job stores", {
 
   result <- .fabric_job_get_status(
     .fabric_job_context(job_test_handle()),
-    allow_not_found = TRUE
+    allow_not_found = TRUE,
+    notebook_details = TRUE
   )
 
   expect_equal(result$status, "NotStarted")
@@ -1121,14 +1126,7 @@ test_that("wait tolerates visibility delays until its timeout", {
       accepted_status = integer()
     ) {
       expect_equal(method, "GET")
-      if (grepl("/notebooks/", url, fixed = TRUE)) {
-        expect_equal(accepted_status, c(400L, 404L, 410L))
-        return(list(
-          status_code = 404L,
-          retry_after = NULL,
-          body = list()
-        ))
-      }
+      expect_false(grepl("/notebooks/", url, fixed = TRUE))
       expect_equal(accepted_status, 404L)
       polls <<- polls + 1L
       if (polls <= 15L) {

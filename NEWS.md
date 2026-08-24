@@ -94,8 +94,9 @@ history before falling back or sending a cancellation request.
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item
 jobs. They also inspect run history and manage recurring schedules. Notebook
-runs use the released workload endpoint that applies per-run parameters and
-compute settings.
+runs now use the stable Core Job Scheduler `RunNotebook` route. Status and wait
+calls also default to the stable Core endpoint; beta Notebook details are an
+explicit `notebook_details = TRUE` opt-in.
 
 * `fabric_operation_*()` functions resume, monitor, and retrieve the results of
 longer-running Fabric tasks such as Lakehouse loads. Non-waiting result lookup

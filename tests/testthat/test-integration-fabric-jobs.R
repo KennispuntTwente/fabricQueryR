@@ -33,7 +33,8 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   completed <- fabric_job_wait(
     completed_job,
     timeout = 900,
-    cancel_on_timeout = TRUE
+    cancel_on_timeout = TRUE,
+    notebook_details = TRUE
   )
   expect_s3_class(completed, "fabric_job_instance")
   expect_equal(completed$status, "Completed")
@@ -44,17 +45,24 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   expect_true(nzchar(completed$root_activity_id))
   expect_s3_class(completed$start_time, "POSIXct")
   expect_s3_class(completed$end_time, "POSIXct")
-  status <- fabric_job_status(completed_job)
-  expect_s3_class(status, "fabric_job_instance")
-  expect_equal(status$id, completed$id)
-  expect_equal(status$status, "Completed")
   stable_status <- fabric_job_status(
     completed_job,
-    notebook_details = FALSE,
     respect_retry_after = FALSE
   )
+  expect_s3_class(stable_status, "fabric_job_instance")
   expect_equal(stable_status$id, completed$id)
   expect_equal(stable_status$status, "Completed")
+  detailed_status <- fabric_job_status(
+    completed_job,
+    notebook_details = TRUE,
+    respect_retry_after = FALSE
+  )
+  expect_equal(detailed_status$id, completed$id)
+  expect_equal(detailed_status$status, "Completed")
+  expect_equal(
+    detailed_status$exit_value,
+    "fabricqueryr-job-success:integration"
+  )
 
   # The failure run deliberately avoids high-concurrency mode. Fabric keeps a
   # shared session alive when one of its statements fails, so a high-concurrency
