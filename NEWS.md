@@ -13,6 +13,8 @@ option for running one piece of Spark code. Batch application paths are now
 validated as absolute ABFS/ABFSS URIs before authentication or submission.
 Timeout conditions now retain the live session, statement, or batch handle for
 in-process status checks and cancellation, while keeping serializable metadata.
+Mixed, raw, and nested fallback output columns remain list-columns instead of
+being silently coerced to a different scalar type.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,
 `fabric_onelake_download()`, and `fabric_onelake_upload()` move files and

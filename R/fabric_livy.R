@@ -1288,12 +1288,22 @@ fabric_livy_convert_column <- function(values, type) {
 # retains a list-column for mixed, nested, or large values
 fabric_livy_simplify_column <- function(values) {
   present <- Filter(Negate(is.null), values)
+  types <- vapply(present, typeof, character(1))
+  supported_types <- c(
+    "character",
+    "integer",
+    "double",
+    "logical",
+    "complex"
+  )
   scalar_atomic <- length(present) &&
     all(vapply(
       present,
       function(value) is.atomic(value) && length(value) == 1L,
       logical(1)
-    ))
+    )) &&
+    length(unique(types)) == 1L &&
+    types[[1L]] %in% supported_types
   if (!scalar_atomic) {
     return(values)
   }

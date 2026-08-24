@@ -437,6 +437,49 @@ test_that("generic statement JSON preserves null values", {
   expect_identical(result$output$parsed$values, c(1L, NA_integer_, 3L))
 })
 
+test_that("Livy fallback columns simplify only uniform scalar types", {
+  simplifiable <- list(
+    character = list(
+      values = list("one", NULL, "two"),
+      expected = c("one", NA_character_, "two")
+    ),
+    integer = list(
+      values = list(1L, NULL, 2L),
+      expected = c(1L, NA_integer_, 2L)
+    ),
+    double = list(
+      values = list(1, NULL, 2.5),
+      expected = c(1, NA_real_, 2.5)
+    ),
+    logical = list(
+      values = list(TRUE, NULL, FALSE),
+      expected = c(TRUE, NA, FALSE)
+    ),
+    complex = list(
+      values = list(1 + 2i, NULL, 3 + 4i),
+      expected = c(1 + 2i, NA_complex_, 3 + 4i)
+    )
+  )
+  for (case in simplifiable) {
+    expect_identical(
+      fabric_livy_simplify_column(case$values),
+      case$expected
+    )
+  }
+
+  fallback <- list(
+    mixed = list(1L, "two"),
+    numeric_mixture = list(1L, 2),
+    raw = list(as.raw(1L), NULL),
+    nested = list(list(value = 1L), NULL),
+    non_scalar = list(c(1L, 2L), 3L),
+    all_null = list(NULL, NULL)
+  )
+  for (case in fallback) {
+    expect_identical(fabric_livy_simplify_column(case), case)
+  }
+})
+
 test_that("Livy table MIME output is parsed into a tibble", {
   result <- fabric_livy_output(
     response = list(
