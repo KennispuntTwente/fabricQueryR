@@ -1,7 +1,16 @@
 test_that("Livy selects identity-aware OAuth audiences", {
+  required_delegated <- paste0(
+    "https://api.fabric.microsoft.com/",
+    c(
+      "Lakehouse.Execute.All",
+      "Lakehouse.Read.All",
+      "Code.AccessFabric.All",
+      "Code.AccessStorage.All"
+    )
+  )
   expect_identical(
     fabric_livy_audience(NULL, NULL, list(auth_type = "device_code")),
-    .fabric_audience$livy_delegated
+    required_delegated
   )
   expect_identical(
     fabric_livy_audience(
@@ -15,6 +24,11 @@ test_that("Livy selects identity-aware OAuth audiences", {
     fabric_livy_audience("https://custom.test/.default", "token"),
     "https://custom.test/.default"
   )
+  with_sql <- c(
+    required_delegated,
+    "https://api.fabric.microsoft.com/Code.AccessSQL.All"
+  )
+  expect_identical(fabric_livy_audience(with_sql, "token"), with_sql)
   expect_error(
     fabric_livy_audience(
       .fabric_audience$livy_delegated,

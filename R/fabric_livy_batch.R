@@ -45,8 +45,11 @@
 #'   host. A custom `livy_url` requires an explicitly supplied token or provider
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
-#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow
+#' @param audience Optional sign-in scopes. For delegated sign-in, `NULL`
+#'   requests the four required Livy scopes listed below. An explicit vector
+#'   replaces those defaults, so include every required scope plus any optional
+#'   `Code.Access*` scope the Spark code needs. Client credentials require one
+#'   `.default` audience
 #' @param verbose Logical. Show submission and lifecycle messages
 #' @param wait Logical. `FALSE` returns immediately so other R work can
 #'   continue; `TRUE` waits for a terminal state before returning the same
@@ -70,8 +73,12 @@
 #' function does not upload a local script. Use [fabric_onelake_upload()] first
 #' when needed
 #'
-#' The signed-in identity needs Lakehouse read and execute access, permission for
-#' code to access Fabric and storage, and an appropriate workspace role
+#' Delegated sign-in requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
+#' `Code.AccessFabric.All`, and `Code.AccessStorage.All`. Add
+#' `Code.AccessAzureKeyvault.All`, `Code.AccessAzureDataLake.All`,
+#' `Code.AccessAzureDataExplorer.All`, or `Code.AccessSQL.All` only when Spark
+#' accesses that Azure service at runtime. The signed-in identity also needs an
+#' appropriate workspace role
 #'
 #' @seealso
 #' [Microsoft Fabric batch jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-batch)

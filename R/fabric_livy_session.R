@@ -43,8 +43,11 @@
 #'   host. A custom `livy_url` requires an explicitly supplied token or provider
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
-#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow
+#' @param audience Optional sign-in scopes. For delegated sign-in, `NULL`
+#'   requests the four required Livy scopes listed below. An explicit vector
+#'   replaces those defaults, so include every required scope plus any optional
+#'   `Code.Access*` scope the Spark code needs. Client credentials require one
+#'   `.default` audience
 #' @param verbose Logical. Show session lifecycle messages
 #'
 #' @return A newly created [FabricLivySession]. It may still be starting; call
@@ -57,8 +60,12 @@
 #' @section Cleanup and permissions:
 #' No network request is made when an open object is garbage collected. Call
 #' `$close()` explicitly, and use `on.exit(session$close())` inside functions
-#' The signed-in identity needs Lakehouse read and execute access, permission for
-#' code to access Fabric and storage, and an appropriate workspace role
+#' Delegated sign-in requires `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
+#' `Code.AccessFabric.All`, and `Code.AccessStorage.All`. Add
+#' `Code.AccessAzureKeyvault.All`, `Code.AccessAzureDataLake.All`,
+#' `Code.AccessAzureDataExplorer.All`, or `Code.AccessSQL.All` only when Spark
+#' accesses that Azure service at runtime. The signed-in identity also needs an
+#' appropriate workspace role
 #'
 #' @section Timeouts:
 #' A `fabric_livy_timeout_error` contains the exact session or statement object

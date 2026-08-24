@@ -93,8 +93,11 @@ host. A custom \code{livy_url} requires an explicitly supplied token or provider
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
-\item{audience}{Optional sign-in scope. Most users should leave this \code{NULL};
-set it only for a custom token provider or identity flow}
+\item{audience}{Optional sign-in scopes. For delegated sign-in, \code{NULL}
+requests the four required Livy scopes listed below. An explicit vector
+replaces those defaults, so include every required scope plus any optional
+\verb{Code.Access*} scope the Spark code needs. Client credentials require one
+\code{.default} audience}
 
 \item{verbose}{Logical. Show session lifecycle messages}
 }
@@ -118,8 +121,12 @@ at the same time; it is not needed for several sequential statements
 
 No network request is made when an open object is garbage collected. Call
 \verb{$close()} explicitly, and use \code{on.exit(session$close())} inside functions
-The signed-in identity needs Lakehouse read and execute access, permission for
-code to access Fabric and storage, and an appropriate workspace role
+Delegated sign-in requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
+\code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All}. Add
+\code{Code.AccessAzureKeyvault.All}, \code{Code.AccessAzureDataLake.All},
+\code{Code.AccessAzureDataExplorer.All}, or \code{Code.AccessSQL.All} only when Spark
+accesses that Azure service at runtime. The signed-in identity also needs an
+appropriate workspace role
 }
 
 \section{Timeouts}{

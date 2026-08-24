@@ -21,8 +21,11 @@
 #'   to let 'fabricQueryR' use its normal sign-in flow
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()]
-#' @param audience Optional sign-in scope. Most users should leave this `NULL`;
-#'   set it only for a custom token provider or identity flow
+#' @param audience Optional sign-in scopes. For delegated sign-in, `NULL`
+#'   requests the four required Livy scopes listed below. An explicit vector
+#'   replaces those defaults, so include every required scope plus any optional
+#'   `Code.Access*` scope the Spark code needs. Client credentials require one
+#'   `.default` audience
 #' @param environment_id Optional GUID of a published Fabric Environment whose
 #'   libraries and Spark settings should be used. Leave `NULL` to use the
 #'   Lakehouse/workspace defaults
@@ -57,7 +60,10 @@
 #' A delegated caller needs the `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
 #' `Code.AccessFabric.All`, and `Code.AccessStorage.All` scopes and must be a
 #' Contributor in the workspace. A service principal must also be added to the
-#' workspace as a Contributor
+#' workspace as a Contributor. Add `Code.AccessAzureKeyvault.All`,
+#' `Code.AccessAzureDataLake.All`, `Code.AccessAzureDataExplorer.All`, or
+#' `Code.AccessSQL.All` only when the Spark code accesses that Azure service at
+#' runtime
 #'
 #' Spark long and decimal columns are returned as character values when needed
 #' to preserve them exactly. Dates and timestamps with a time zone use R

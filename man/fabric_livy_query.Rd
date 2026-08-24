@@ -47,8 +47,11 @@ to let 'fabricQueryR' use its normal sign-in flow}
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
-\item{audience}{Optional sign-in scope. Most users should leave this \code{NULL};
-set it only for a custom token provider or identity flow}
+\item{audience}{Optional sign-in scopes. For delegated sign-in, \code{NULL}
+requests the four required Livy scopes listed below. An explicit vector
+replaces those defaults, so include every required scope plus any optional
+\verb{Code.Access*} scope the Spark code needs. Client credentials require one
+\code{.default} audience}
 
 \item{environment_id}{Optional GUID of a published Fabric Environment whose
 libraries and Spark settings should be used. Leave \code{NULL} to use the
@@ -97,7 +100,10 @@ R application file, use \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch
 A delegated caller needs the \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
 \code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All} scopes and must be a
 Contributor in the workspace. A service principal must also be added to the
-workspace as a Contributor
+workspace as a Contributor. Add \code{Code.AccessAzureKeyvault.All},
+\code{Code.AccessAzureDataLake.All}, \code{Code.AccessAzureDataExplorer.All}, or
+\code{Code.AccessSQL.All} only when the Spark code accesses that Azure service at
+runtime
 
 Spark long and decimal columns are returned as character values when needed
 to preserve them exactly. Dates and timestamps with a time zone use R
