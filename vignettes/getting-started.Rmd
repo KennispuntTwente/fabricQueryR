@@ -73,7 +73,7 @@ the different ways to authenticate in more detail.
 
 Start by listing the workspaces that your account can access:
 
-```{r, eval = FALSE}
+```{r tutorial-test-list-workspaces, eval = FALSE}
 # List all workspaces you can access
 workspaces <- fabric_workspaces()
 ```
@@ -82,7 +82,7 @@ The result is a list of workspaces you have access to.
 If the list is empty, check that your account has been granted access to a workspace in the Fabric portal.
 If the list is not empty, select a specific workspace:
 
-```{r, eval = FALSE}
+```{r tutorial-test-select-first, eval = FALSE}
 # Select the first workspace in the list
 workspace <- workspaces[[1L]]
 workspace$displayName
@@ -91,7 +91,7 @@ workspace$displayName
 For a script that will run repeatedly,
 selecting by exact name is more robust:
 
-```{r, eval = FALSE}
+```{r tutorial-test-select-by-name, eval = FALSE}
 # Select a workspace by name
 workspaces <- fabric_workspaces()
 matches <- Filter(
@@ -104,7 +104,7 @@ workspace <- matches[[1L]]
 
 Now list all items in the workspace, or ask directly for items of a specific type:
 
-```{r, eval = FALSE}
+```{r tutorial-test-list-items, eval = FALSE}
 # List all items in the workspace
 items <- fabric_items(workspace)
 items
@@ -124,7 +124,7 @@ details by hand.
 If the workspace contains a Lakehouse, 
 reading one managed table is a simple first workflow:
 
-```{r, eval = FALSE}
+```{r tutorial-test-read-lakehouse, eval = FALSE}
 # List the tables in the Lakehouse
 tables <- fabric_lakehouse_tables(lakehouse)
 tables[c("schema", "name", "type")]

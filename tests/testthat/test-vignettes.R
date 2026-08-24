@@ -105,6 +105,98 @@ test_that("every vignette knits and all example code parses", {
   }
 })
 
+test_that("the getting-started workflow executes against its documented API", {
+  path <- test_path("..", "..", "vignettes", "getting-started.Rmd")
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+
+  labels <- paste0(
+    "tutorial-test-",
+    c(
+      "list-workspaces",
+      "select-first",
+      "select-by-name",
+      "list-items",
+      "read-lakehouse"
+    )
+  )
+  chunks <- vignette_r_chunks(path)
+  chunk_labels <- sub(
+    "^```\\{r[ ,]+([^, }]+).*$",
+    "\\1",
+    vapply(chunks, `[[`, character(1), "header")
+  )
+  expect_identical(chunk_labels[chunk_labels %in% labels], labels)
+  if (!all(labels %in% chunk_labels)) {
+    return(invisible(NULL))
+  }
+  selected <- chunks[match(labels, chunk_labels)]
+  expect_length(selected, 5L)
+
+  tutorial <- new.env(parent = baseenv())
+  tutorial$calls <- character()
+  tutorial$head <- utils::head
+  tutorial$fabric_workspaces <- function() {
+    tutorial$calls <- c(tutorial$calls, "workspaces")
+    list(
+      list(displayName = "Analytics workspace", id = "workspace-1"),
+      list(displayName = "Archive", id = "workspace-2")
+    )
+  }
+  tutorial$fabric_items <- function(workspace) {
+    tutorial$calls <- c(tutorial$calls, "items")
+    expect_identical(workspace$id, "workspace-1")
+    list(list(displayName = "Patients", type = "Lakehouse"))
+  }
+  tutorial$fabric_lakehouses <- function(workspace) {
+    tutorial$calls <- c(tutorial$calls, "lakehouses")
+    expect_identical(workspace$id, "workspace-1")
+    list(list(displayName = "Clinical", id = "lakehouse-1"))
+  }
+  tutorial$fabric_lakehouse_tables <- function(lakehouse) {
+    tutorial$calls <- c(tutorial$calls, "tables")
+    expect_identical(lakehouse$id, "lakehouse-1")
+    data.frame(
+      schema = "dbo",
+      name = "Patients",
+      type = "Managed",
+      stringsAsFactors = FALSE
+    )
+  }
+  tutorial$fabric_lakehouse_read_table <- function(
+    lakehouse,
+    table,
+    limit
+  ) {
+    tutorial$calls <- c(tutorial$calls, "read")
+    tutorial$read <- list(
+      lakehouse = lakehouse,
+      table = table,
+      limit = limit
+    )
+    data.frame(id = 1:2, name = c("Ada", "Grace"))
+  }
+
+  values <- lapply(selected, function(chunk) {
+    eval(
+      parse(text = paste(chunk$body, collapse = "\n")),
+      envir = tutorial
+    )
+  })
+
+  expect_length(values, 5L)
+  expect_identical(
+    tutorial$calls,
+    c("workspaces", "workspaces", "items", "lakehouses", "tables", "read")
+  )
+  expect_identical(tutorial$workspace$id, "workspace-1")
+  expect_identical(tutorial$lakehouse$id, "lakehouse-1")
+  expect_identical(tutorial$read$table$name, "Patients")
+  expect_identical(tutorial$read$limit, 100L)
+  expect_identical(tutorial$rows$name, c("Ada", "Grace"))
+})
+
 test_that("vignettes do not index unnamed discovery results by display name", {
   vignette_dir <- test_path("..", "..", "vignettes")
   if (!dir.exists(vignette_dir)) {
