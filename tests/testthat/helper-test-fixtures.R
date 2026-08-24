@@ -16,10 +16,11 @@ fabric_test_delta_runtime_python <- function(root) {
   )
 }
 
-fabric_test_select_delta_runtime <- function() {
-  oracle <- fabric_test_require_delta_oracle()
-  python <- fabric_test_delta_runtime_python(oracle$root)
-  expect_true(startsWith(python, paste0(oracle$root, "/.venv/")))
+# Select one Python interpreter only for the caller's test frame. Once
+# reticulate is initialized its interpreter cannot be changed, so verify it
+# instead of mutating process state.
+fabric_test_local_python <- function(python, .local_envir = parent.frame()) {
+  python <- normalizePath(python, winslash = "/", mustWork = TRUE)
   if (reticulate::py_available(initialize = FALSE)) {
     selected <- normalizePath(
       reticulate::py_config()$python,
@@ -31,8 +32,19 @@ fabric_test_select_delta_runtime <- function() {
       "reticulate was initialized with a different Python interpreter"
     )
   } else {
-    Sys.setenv(RETICULATE_PYTHON = python)
+    withr::local_envvar(
+      c(RETICULATE_PYTHON = python),
+      .local_envir = .local_envir
+    )
   }
+  invisible(python)
+}
+
+fabric_test_select_delta_runtime <- function(.local_envir = parent.frame()) {
+  oracle <- fabric_test_require_delta_oracle()
+  python <- fabric_test_delta_runtime_python(oracle$root)
+  expect_true(startsWith(python, paste0(oracle$root, "/.venv/")))
+  fabric_test_local_python(python, .local_envir = .local_envir)
   oracle
 }
 
@@ -773,13 +785,9 @@ fake_azure_token <- function(access_token = "azure-token", valid = TRUE) {
 # Fabric integration coverage: schema-aware table metadata and managed
 # CSV/Parquet loads through the Lakehouse preview APIs
 
-fabric_test_use_table_delta_runtime <- function() {
-  if (
-    reticulate::py_available(initialize = FALSE) ||
-      nzchar(Sys.getenv("RETICULATE_PYTHON"))
-  ) {
-    return(invisible(NULL))
-  }
+fabric_test_use_table_delta_runtime <- function(
+  .local_envir = parent.frame()
+) {
   root <- fabric_test_delta_oracle_root()
   relative <- if (.Platform$OS.type == "windows") {
     file.path(".venv", "Scripts", "python.exe")
@@ -791,12 +799,9 @@ fabric_test_use_table_delta_runtime <- function() {
     !file.exists(python),
     "The locked delta-rs Python environment has not been installed"
   )
-  Sys.setenv(
-    RETICULATE_PYTHON = normalizePath(
-      python,
-      winslash = "/",
-      mustWork = TRUE
-    )
+  fabric_test_local_python(
+    python,
+    .local_envir = .local_envir
   )
   invisible(NULL)
 }
@@ -818,13 +823,7 @@ fabric_test_lakehouse_table_target <- function(manifest, lakehouse) {
 # test-integration-fabric-onelake.R
 # Fabric integration coverage: OneLake files and the production delta-rs path
 
-fabric_test_use_delta_runtime <- function() {
-  if (
-    reticulate::py_available(initialize = FALSE) ||
-      nzchar(Sys.getenv("RETICULATE_PYTHON"))
-  ) {
-    return(invisible(NULL))
-  }
+fabric_test_use_delta_runtime <- function(.local_envir = parent.frame()) {
   root <- fabric_test_delta_oracle_root()
   relative <- if (.Platform$OS.type == "windows") {
     file.path(".venv", "Scripts", "python.exe")
@@ -836,12 +835,9 @@ fabric_test_use_delta_runtime <- function() {
     !file.exists(python),
     "The locked delta-rs Python environment has not been installed"
   )
-  Sys.setenv(
-    RETICULATE_PYTHON = normalizePath(
-      python,
-      winslash = "/",
-      mustWork = TRUE
-    )
+  fabric_test_local_python(
+    python,
+    .local_envir = .local_envir
   )
   invisible(NULL)
 }

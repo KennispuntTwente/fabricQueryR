@@ -1,3 +1,43 @@
+test_that("test Python selection restores an initially unset environment", {
+  python <- normalizePath(Sys.which("R"), winslash = "/", mustWork = TRUE)
+  withr::local_envvar(c(RETICULATE_PYTHON = NA_character_))
+  local_mocked_bindings(
+    py_available = function(...) FALSE,
+    .package = "reticulate"
+  )
+
+  select_python <- function() {
+    fabric_test_local_python(python)
+    expect_identical(Sys.getenv("RETICULATE_PYTHON"), python)
+    invisible(NULL)
+  }
+  select_python()
+
+  expect_identical(
+    Sys.getenv("RETICULATE_PYTHON", unset = NA_character_),
+    NA_character_
+  )
+})
+
+test_that("test Python selection restores a prior value after an error", {
+  python <- normalizePath(Sys.which("R"), winslash = "/", mustWork = TRUE)
+  withr::local_envvar(c(RETICULATE_PYTHON = "pre-existing-python"))
+  local_mocked_bindings(
+    py_available = function(...) FALSE,
+    .package = "reticulate"
+  )
+
+  select_python <- function() {
+    fabric_test_local_python(python)
+    expect_identical(Sys.getenv("RETICULATE_PYTHON"), python)
+    rlang::abort("intentional selection failure")
+  }
+  error <- rlang::catch_cnd(select_python(), classes = "error")
+
+  expect_match(conditionMessage(error), "intentional selection failure")
+  expect_identical(Sys.getenv("RETICULATE_PYTHON"), "pre-existing-python")
+})
+
 test_that("fabric_delta_config reports the initialized locked runtime", {
   fabric_test_select_delta_runtime()
 
@@ -105,9 +145,7 @@ test_that("the production reader consumes deterministic delta-rs fixtures", {
 test_that("the production bridge has a narrow tibble contract", {
   oracle <- fabric_test_require_delta_oracle()
   python <- fabric_test_delta_runtime_python(oracle$root)
-  if (!reticulate::py_available(initialize = FALSE)) {
-    Sys.setenv(RETICULATE_PYTHON = python)
-  }
+  fabric_test_local_python(python)
 
   directory <- tempfile("delta-rs-scalar-fixtures-")
   dir.create(directory)
@@ -197,9 +235,7 @@ test_that("the production bridge has a narrow tibble contract", {
 test_that("the production Arrow stream is lazy and R Arrow compatible", {
   oracle <- fabric_test_require_delta_oracle()
   python <- fabric_test_delta_runtime_python(oracle$root)
-  if (!reticulate::py_available(initialize = FALSE)) {
-    Sys.setenv(RETICULATE_PYTHON = python)
-  }
+  fabric_test_local_python(python)
 
   directory <- tempfile("delta-rs-stream-fixtures-")
   dir.create(directory)
