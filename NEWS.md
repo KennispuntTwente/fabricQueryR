@@ -22,7 +22,8 @@ Parquet, CSV, or Arrow data between R, local storage, and OneLake.
 `fabric_lakehouse_load_table()`, and `fabric_lakehouse_write_table()` discover
 Lakehouse schemas and tables, read them, load CSV or Parquet files, and write
 data frames or Arrow data. Both ordinary and schema-enabled Lakehouses are
-supported.
+supported. Singular table helpers now accept ordinary named-list records as
+documented, in addition to one-row data frames and discovered records.
 
 * `fabric_warehouse_schemas()`, `fabric_warehouse_table()`,
 `fabric_warehouse_tables()`, `fabric_warehouse_read_table()`, and

@@ -101,7 +101,7 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
 
   table <- fabric_lakehouse_table(
     lakehouse_table_test_item(),
-    tibble::tibble(name = "\u00e9xport_\u6570\u636e", schema = "sales"),
+    list(name = "\u00e9xport_\u6570\u636e", schema = "sales"),
     token = provider
   )
 
@@ -121,6 +121,22 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
     ignore.case = TRUE
   )
   expect_equal(audiences, c(.fabric_audience$fabric, .fabric_audience$storage))
+})
+
+test_that("OneLake table targets accept named-list aliases and schema overrides", {
+  aliases <- .fabric_onelake_table_target(
+    list(table = "orders", schema_name = "curated"),
+    schema = NULL,
+    default_schema = "dbo"
+  )
+  override <- .fabric_onelake_table_target(
+    list(name = "orders", schema = "curated"),
+    schema = "reporting",
+    default_schema = "dbo"
+  )
+
+  expect_identical(aliases, list(table = "orders", schema = "curated"))
+  expect_identical(override, list(table = "orders", schema = "reporting"))
 })
 
 test_that("Lakehouse reader resolves discovered item and table records", {

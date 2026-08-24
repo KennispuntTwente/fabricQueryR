@@ -368,6 +368,9 @@ fabric_warehouse_table <- function(
 
 .fabric_onelake_table_target <- function(table, schema, default_schema) {
   record <- fabric_as_record(table)
+  if (is.null(record) && is.list(table)) {
+    record <- table
+  }
   if (!is.null(record)) {
     table <- fabric_record_value(record, "name", "table", "displayName")
     schema <- schema %||% fabric_record_value(record, "schema", "schema_name")
