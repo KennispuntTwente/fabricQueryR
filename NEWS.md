@@ -71,19 +71,6 @@ token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated.
 
-* `fabric_job_run()` uses Fabric's released Notebook endpoint so per-run
-parameters and compute settings are applied to Notebook jobs.
-
-* `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
-provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
-snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and
-`fabric_sql_query()` accept the same discovered items and portal connection
-strings. Queries can use parameters and return a tibble or Arrow stream. The
-default `database = NULL` infers the database when possible;
-`fabric_sql_query()` is limited to one read-only statement, so use
-`fabric_sql_connect()` for other SQL work. Unparameterized Arrow queries execute
-directly, while parameterized Arrow queries remain prepared and bound.
-
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
