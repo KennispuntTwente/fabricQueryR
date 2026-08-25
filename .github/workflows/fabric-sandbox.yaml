@@ -165,4 +165,5 @@ jobs:
             echo "- Interactive admin object ID: \`$TF_VAR_test_principal_id\`"
             echo "- Re-run this workflow with **rebuild** to reset it from source."
             echo "- Run it with **teardown** to remove it."
+            echo "- From the repository root, source \`playground/sandbox.R\` and \`playground/playground.R\` to try the package features."
           } >> "$GITHUB_STEP_SUMMARY"
