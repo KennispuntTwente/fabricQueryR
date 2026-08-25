@@ -1,6 +1,16 @@
+.playground_test_path <- function(...) {
+  playground <- test_path("..", "..", "playground")
+  skip_if_not(
+    dir.exists(playground),
+    "playground/ is intentionally excluded from the built package"
+  )
+
+  file.path(playground, ...)
+}
+
 test_that("playground R files parse", {
   files <- list.files(
-    test_path("..", "..", "playground"),
+    .playground_test_path(),
     pattern = "[.]R$",
     full.names = TRUE
   )
@@ -17,11 +27,11 @@ test_that("playground R files parse", {
 test_that("playground exposes persistent sandbox demos", {
   environment <- new.env(parent = globalenv())
   sys.source(
-    test_path("..", "..", "playground", "sandbox.R"),
+    .playground_test_path("sandbox.R"),
     envir = environment
   )
   sys.source(
-    test_path("..", "..", "playground", "playground.R"),
+    .playground_test_path("playground.R"),
     envir = environment
   )
 
@@ -55,10 +65,7 @@ test_that("playground exposes persistent sandbox demos", {
 })
 
 test_that("playground examples do not embed live Fabric endpoints", {
-  files <- file.path(
-    test_path("..", "..", "playground"),
-    c("playground.R", "sandbox.R")
-  )
+  files <- .playground_test_path(c("playground.R", "sandbox.R"))
   source <- paste(
     unlist(lapply(files, readLines, warn = FALSE), use.names = FALSE),
     collapse = "\n"
