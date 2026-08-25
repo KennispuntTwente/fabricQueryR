@@ -1,6 +1,15 @@
 # Shared fixtures must load before shuffled test expressions
 
 # test-delta-rs-oracle.R
+fabric_test_python_path <- function(python) {
+  # Preserve a virtualenv executable's final symlink. Resolving it selects the
+  # base interpreter without the virtualenv's installed packages on Unix.
+  file.path(
+    normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
+    basename(python)
+  )
+}
+
 fabric_test_delta_runtime_python <- function(root) {
   relative <- if (.Platform$OS.type == "windows") {
     file.path(".venv", "Scripts", "python.exe")
@@ -10,28 +19,16 @@ fabric_test_delta_runtime_python <- function(root) {
   python <- file.path(root, relative)
   # On Unix, the venv executable is commonly a symlink to the base Python
   # Resolving that final component makes reticulate bypass the venv packages
-  file.path(
-    normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
-    basename(python)
-  )
+  fabric_test_python_path(python)
 }
 
 # Select one Python interpreter only for the caller's test frame. Once
 # reticulate is initialized its interpreter cannot be changed, so verify it
 # instead of mutating process state.
 fabric_test_local_python <- function(python, .local_envir = parent.frame()) {
-  # Preserve a virtualenv executable's final symlink. Resolving it selects the
-  # base interpreter without the virtualenv's installed packages on Unix.
-  python <- file.path(
-    normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
-    basename(python)
-  )
+  python <- fabric_test_python_path(python)
   if (reticulate::py_available(initialize = FALSE)) {
-    selected <- normalizePath(
-      reticulate::py_config()$python,
-      winslash = "/",
-      mustWork = TRUE
-    )
+    selected <- fabric_test_python_path(reticulate::py_config()$python)
     fabric_test_skip_or_fail(
       !identical(tolower(selected), tolower(python)),
       "reticulate was initialized with a different Python interpreter"

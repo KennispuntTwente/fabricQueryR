@@ -61,6 +61,25 @@ test_that("test Python selection preserves a virtualenv symlink", {
   )
 })
 
+test_that("test Python selection recognizes an initialized virtualenv", {
+  skip_if(.Platform$OS.type == "windows")
+  root <- withr::local_tempdir()
+  base_python <- file.path(root, "base-python")
+  file.create(base_python)
+  bin <- file.path(root, ".venv", "bin")
+  dir.create(bin, recursive = TRUE)
+  python <- file.path(bin, "python")
+  skip_if_not(file.symlink(base_python, python))
+  withr::local_envvar(c(FABRIC_INTEGRATION_REQUIRED = "true"))
+  local_mocked_bindings(
+    py_available = function(...) TRUE,
+    py_config = function() list(python = python),
+    .package = "reticulate"
+  )
+
+  expect_no_error(fabric_test_local_python(python))
+})
+
 test_that("fabric_delta_config reports the initialized locked runtime", {
   fabric_test_select_delta_runtime()
 
