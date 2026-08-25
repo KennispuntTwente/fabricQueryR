@@ -90,9 +90,9 @@
 #' The former `mssparkutils` namespace remains backward compatible but Microsoft
 #' recommends migrating because it will be retired
 #'
-#' Notebook submission uses the stable Core Job Scheduler route with job type
-#' `RunNotebook`, including per-run parameters and compute settings. Status and
-#' waiting also use the stable Core endpoint by default. Set
+#' Notebook submission uses the released workload-specific route so Fabric
+#' applies per-run parameters and compute settings. Status and waiting use the
+#' stable Core endpoint by default. Set
 #' `notebook_details = TRUE` to opt into the beta Notebook status endpoint when
 #' exit values or workload-specific properties are required; the Core endpoint
 #' remains its fallback.
@@ -106,6 +106,8 @@
 #' [Core Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 #'
 #' [Run an on-demand item job](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/run-on-demand-item-job)
+#'
+#' [Run an on-demand notebook](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/run-on-demand-notebook)
 #'
 #' [Get a Notebook job instance (beta)](https://learn.microsoft.com/en-us/rest/api/fabric/notebook/background-jobs/get-notebook-job-instance%28beta%29)
 #'
@@ -1116,11 +1118,9 @@ print.fabric_job_instance <- function(x, ...) {
     route$route,
     notebook = paste0(
       prefix,
-      "/items/",
+      "/notebooks/",
       target$item_id,
-      "/jobs/",
-      route$job_type,
-      "/instances"
+      "/jobs/execute/instances?beta=false"
     ),
     spark_job_definition = paste0(
       prefix,

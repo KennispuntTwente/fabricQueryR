@@ -293,9 +293,10 @@ result <- fabric_job_wait(job, timeout = 900)
 result$status
 ```
 
-Notebook submission and status use Fabric's stable Core Job Scheduler by
-default. Request `notebook_details = TRUE` only when the beta Notebook status
-fields, such as an exit value, are needed.
+Notebook submission uses Fabric's released workload-specific route so run
+parameters and compute settings are applied. Status uses the stable Core Job
+Scheduler by default. Request `notebook_details = TRUE` only when the beta
+Notebook status fields, such as an exit value, are needed.
 
 The [job automation vignette](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html)
 covers run history, cancellation, and recurring schedules.

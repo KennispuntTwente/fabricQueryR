@@ -71,6 +71,9 @@ token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated.
 
+* `fabric_job_run()` uses Fabric's released Notebook endpoint so per-run
+parameters and compute settings are applied to Notebook jobs.
+
 * `fabric_sql_tables()`, `fabric_sql_views()`, and `fabric_sql_read_table()`
 provide symmetric discovery and reads across Lakehouses, Warehouses, Warehouse
 snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and
