@@ -86,9 +86,10 @@ types.</p>
 checks Fabric until the job finishes or the 15-minute local deadline is
 reached. <code>cancel_on_timeout = TRUE</code> asks Fabric to cancel the
 run if that deadline is exceeded.</p>
-<p>Submission and polling use Fabric’s stable Core Job Scheduler by
-default. If a Notebook workflow needs the beta status fields, such as
-its exit value, opt in explicitly:</p>
+<p>Notebook submission uses Fabric’s released workload-specific route so
+run parameters and compute settings are applied. Polling uses the stable
+Core Job Scheduler by default. If a Notebook workflow needs the beta
+status fields, such as its exit value, opt in explicitly:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">detailed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_status</a></span><span class="op">(</span></span>
 <span>  <span class="va">job</span>,</span>
