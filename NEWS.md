@@ -81,7 +81,8 @@ snapshots, and Fabric SQL Databases. `fabric_sql_connect()` and
 strings. Queries can use parameters and return a tibble or Arrow stream. The
 default `database = NULL` infers the database when possible;
 `fabric_sql_query()` is limited to one read-only statement, so use
-`fabric_sql_connect()` for other SQL work.
+`fabric_sql_connect()` for other SQL work. Unparameterized Arrow queries execute
+directly, while parameterized Arrow queries remain prepared and bound.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete

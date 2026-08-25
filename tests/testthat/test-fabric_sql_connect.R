@@ -884,7 +884,12 @@ test_that("SQL query adapters preserve result shape and disconnect semantics", {
     tabular_result
   )
   expect_identical(
-    .fabric_sql_db_send_query(connection, "SELECT 2", "arrow_stream"),
+    .fabric_sql_db_send_query(
+      connection,
+      "SELECT 2",
+      "arrow_stream",
+      immediate = TRUE
+    ),
     arrow_result
   )
   expect_identical(
@@ -910,7 +915,7 @@ test_that("SQL query adapters preserve result shape and disconnect semantics", {
     )
   )
   expect_false(calls[[1L]]$immediate)
-  expect_false(calls[[2L]]$immediate)
+  expect_true(calls[[2L]]$immediate)
   expect_length(calls[[5L]]$args, 0L)
   expect_identical(calls[[6L]]$args$force, TRUE)
 })
@@ -951,10 +956,16 @@ test_that("ADBC bound Arrow queries own their result until release", {
   events <- character()
   params <- list("@p1" = 42L)
   local_mocked_bindings(
-    .fabric_sql_db_send_query = function(con, sql, result) {
+    .fabric_sql_db_send_query = function(
+      con,
+      sql,
+      result,
+      immediate = FALSE
+    ) {
       expect_identical(con, connection)
       expect_identical(sql, "SELECT @p1 AS value")
       expect_identical(result, "arrow_stream")
+      expect_false(immediate)
       events <<- c(events, "send")
       query_result
     },
@@ -1008,10 +1019,16 @@ test_that("ODBC bound Arrow queries own their result until release", {
   events <- character()
   params <- list(42L)
   local_mocked_bindings(
-    .fabric_sql_db_send_query = function(con, sql, result) {
+    .fabric_sql_db_send_query = function(
+      con,
+      sql,
+      result,
+      immediate = FALSE
+    ) {
       expect_identical(con, connection)
       expect_identical(sql, "SELECT CAST(? AS int) AS value")
       expect_identical(result, "arrow_stream")
+      expect_false(immediate)
       events <<- c(events, "send")
       query_result
     },
@@ -1061,10 +1078,16 @@ test_that("unbound Arrow queries use an owned DBI result", {
   stream <- nanoarrow::basic_array_stream(list(data.frame(value = 1L)))
   events <- character()
   local_mocked_bindings(
-    .fabric_sql_db_send_query = function(con, sql, result) {
+    .fabric_sql_db_send_query = function(
+      con,
+      sql,
+      result,
+      immediate = FALSE
+    ) {
       expect_identical(con, connection)
       expect_identical(sql, "SELECT 1 AS value")
       expect_identical(result, "arrow_stream")
+      expect_true(immediate)
       events <<- c(events, "send")
       query_result
     },

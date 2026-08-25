@@ -1586,7 +1586,12 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 ) {
   result <- match.arg(result)
   if (identical(result, "arrow_stream")) {
-    query_result <- .fabric_sql_db_send_query(con, sql, result)
+    query_result <- .fabric_sql_db_send_query(
+      con,
+      sql,
+      result,
+      immediate = is.null(params)
+    )
     stream_owned <- FALSE
     on.exit(
       if (!stream_owned) {
@@ -1640,13 +1645,13 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   nanoarrow::array_stream_set_finalizer(stream, cleanup)
 }
 
-# Send `sql` through `con` for the selected `result`. Returns a DBI result object
-# and remains isolated for driver-compatibility tests
-.fabric_sql_db_send_query <- function(con, sql, result) {
+# Send `sql` through `con` for the selected `result`. Returns a direct or
+# prepared DBI result object and remains isolated for driver-compatibility tests
+.fabric_sql_db_send_query <- function(con, sql, result, immediate = FALSE) {
   if (identical(result, "arrow_stream")) {
-    return(DBI::dbSendQueryArrow(con, sql, immediate = FALSE))
+    return(DBI::dbSendQueryArrow(con, sql, immediate = immediate))
   }
-  DBI::dbSendQuery(con, sql, immediate = FALSE)
+  DBI::dbSendQuery(con, sql, immediate = immediate)
 }
 
 # Bind named `params` to a DBI `result`. Returns the DBI binding result and keeps
