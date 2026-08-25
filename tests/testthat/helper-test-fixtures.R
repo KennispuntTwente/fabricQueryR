@@ -20,7 +20,12 @@ fabric_test_delta_runtime_python <- function(root) {
 # reticulate is initialized its interpreter cannot be changed, so verify it
 # instead of mutating process state.
 fabric_test_local_python <- function(python, .local_envir = parent.frame()) {
-  python <- normalizePath(python, winslash = "/", mustWork = TRUE)
+  # Preserve a virtualenv executable's final symlink. Resolving it selects the
+  # base interpreter without the virtualenv's installed packages on Unix.
+  python <- file.path(
+    normalizePath(dirname(python), winslash = "/", mustWork = TRUE),
+    basename(python)
+  )
   if (reticulate::py_available(initialize = FALSE)) {
     selected <- normalizePath(
       reticulate::py_config()$python,

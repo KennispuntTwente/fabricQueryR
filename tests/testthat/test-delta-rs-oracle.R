@@ -38,6 +38,29 @@ test_that("test Python selection restores a prior value after an error", {
   expect_identical(Sys.getenv("RETICULATE_PYTHON"), "pre-existing-python")
 })
 
+test_that("test Python selection preserves a virtualenv symlink", {
+  skip_if(.Platform$OS.type == "windows")
+  root <- withr::local_tempdir()
+  base_python <- file.path(root, "base-python")
+  file.create(base_python)
+  bin <- file.path(root, ".venv", "bin")
+  dir.create(bin, recursive = TRUE)
+  python <- file.path(bin, "python")
+  skip_if_not(file.symlink(base_python, python))
+  withr::local_envvar(c(RETICULATE_PYTHON = base_python))
+  local_mocked_bindings(
+    py_available = function(...) FALSE,
+    .package = "reticulate"
+  )
+
+  fabric_test_local_python(python)
+
+  expect_identical(
+    Sys.getenv("RETICULATE_PYTHON"),
+    file.path(normalizePath(bin, winslash = "/"), "python")
+  )
+})
+
 test_that("fabric_delta_config reports the initialized locked runtime", {
   fabric_test_select_delta_runtime()
 
