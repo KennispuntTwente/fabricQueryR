@@ -664,7 +664,9 @@ test_that("Livy vignette executes query and shared-session examples", {
   closed <- FALSE
   runs <- 0L
   session <- list(
-    close = function() closed <<- TRUE,
+    close = function() {
+      closed <<- TRUE
+    },
     wait = function() invisible(TRUE),
     run = function(code, kind) {
       runs <<- runs + 1L
