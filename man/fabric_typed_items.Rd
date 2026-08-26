@@ -103,11 +103,11 @@ returned record has that type. The records otherwise keep all fields
 returned by Fabric, including fields added by the service in the future
 
 Folder recursion, workspace-specific private-link routing, authentication,
-and \code{detail_errors} have the same behavior as in \code{\link[=fabric_items]{fabric_items()}}. The four
-new helpers do not currently make workload-specific detail requests. Their
-core records contain the IDs and type needed by \code{\link[=fabric_job_run]{fabric_job_run()}} where
-applicable, and 'fabricQueryR' does not yet consume an additional target from
-Environment or User Data Function details
+and \code{detail_errors} have the same behavior as in \code{\link[=fabric_items]{fabric_items()}}. With
+\code{detail = TRUE}, each helper calls its documented workload-specific Get API
+and preserves fields such as Spark job and Environment properties. The User
+Data Function detail endpoint supports delegated users but not service
+principals or managed identities; those callers can use \code{detail = FALSE}
 }
 
 \examples{
@@ -158,4 +158,12 @@ functions <- fabric_user_data_functions(workspace)
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments}{List environments}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions}{List User Data Functions}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/get-data-pipeline}{Get data pipeline}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/get-spark-job-definition}{Get Spark job definition}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/get-environment}{Get environment}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/get-user-data-function}{Get User Data Function}
 }

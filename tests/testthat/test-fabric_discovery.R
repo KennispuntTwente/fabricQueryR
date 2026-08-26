@@ -871,6 +871,68 @@ test_that("detail enrichment skips item types without a detail route", {
   expect_match(detail_urls, "/warehouses/warehouse-id$", perl = TRUE)
 })
 
+test_that("typed workload discovery uses its documented detail routes", {
+  routes <- c(
+    DataPipeline = "dataPipelines",
+    SparkJobDefinition = "sparkJobDefinitions",
+    Environment = "environments",
+    UserDataFunction = "userDataFunctions"
+  )
+  detail_urls <- character()
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = "workspace-id",
+        displayName = "Analytics",
+        raw = list(type = "Workspace")
+      )
+    },
+    .httr2_collection = function(...) {
+      lapply(seq_along(routes), function(index) {
+        list(
+          id = paste0("item-", index),
+          displayName = names(routes)[[index]],
+          type = names(routes)[[index]]
+        )
+      })
+    },
+    .httr2_json = function(req, ...) {
+      detail_urls <<- c(detail_urls, req$url)
+      route <- sub(".*/([^/]+)/[^/]+$", "\\1", req$url)
+      type <- names(routes)[match(route, routes)]
+      list(
+        id = sub(".*/", "", req$url),
+        displayName = type,
+        type = type,
+        workspaceId = "workspace-id",
+        properties = list(detailRoute = route)
+      )
+    }
+  )
+
+  items <- fabric_items("Analytics", detail = TRUE, token = "token")
+
+  expect_length(items, 4L)
+  expect_identical(
+    vapply(items, function(item) item$properties$detailRoute, character(1)),
+    unname(routes)
+  )
+  expect_identical(
+    detail_urls,
+    paste0(
+      .fabric_api_base,
+      "/workspaces/workspace-id/",
+      unname(routes),
+      "/item-",
+      seq_along(routes)
+    )
+  )
+  expect_identical(
+    unname(vapply(names(routes), fabric_item_route, character(1))),
+    unname(routes)
+  )
+})
+
 test_that("personal workspace identity builds a documented v2 DAX target", {
   local_mocked_bindings(
     fabric_resolve_workspace = function(...) {

@@ -544,11 +544,11 @@ fabric_item <- function(
 #' returned by Fabric, including fields added by the service in the future
 #'
 #' Folder recursion, workspace-specific private-link routing, authentication,
-#' and `detail_errors` have the same behavior as in [fabric_items()]. The four
-#' new helpers do not currently make workload-specific detail requests. Their
-#' core records contain the IDs and type needed by [fabric_job_run()] where
-#' applicable, and 'fabricQueryR' does not yet consume an additional target from
-#' Environment or User Data Function details
+#' and `detail_errors` have the same behavior as in [fabric_items()]. With
+#' `detail = TRUE`, each helper calls its documented workload-specific Get API
+#' and preserves fields such as Spark job and Environment properties. The User
+#' Data Function detail endpoint supports delegated users but not service
+#' principals or managed identities; those callers can use `detail = FALSE`
 #'
 #' @inheritParams fabric_items
 #' @param ... Authentication and API arguments forwarded to [fabric_items()]
@@ -566,6 +566,14 @@ fabric_item <- function(
 #' [List environments](https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments)
 #'
 #' [List User Data Functions](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions)
+#'
+#' [Get data pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/get-data-pipeline)
+#'
+#' [Get Spark job definition](https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/get-spark-job-definition)
+#'
+#' [Get environment](https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/get-environment)
+#'
+#' [Get User Data Function](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/get-user-data-function)
 #' @examples
 #' \dontrun{
 #' # Discover a workspace once, then reuse its record for typed discovery
@@ -1179,6 +1187,10 @@ fabric_item_route <- function(type) {
     eventhouse = "eventhouses",
     kqldatabase = "kqlDatabases",
     notebook = "notebooks",
+    datapipeline = "dataPipelines",
+    sparkjobdefinition = "sparkJobDefinitions",
+    environment = "environments",
+    userdatafunction = "userDataFunctions",
     graphqlapi = "graphQLApis"
   )
   index <- match(tolower(type), names(routes))
