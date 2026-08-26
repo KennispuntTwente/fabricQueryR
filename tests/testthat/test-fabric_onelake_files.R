@@ -582,6 +582,60 @@ test_that("OneLake listing rejects repeated continuation tokens", {
   expect_equal(calls, 2L)
 })
 
+test_that("OneLake listing enforces page and total-time limits", {
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files"
+  )
+  credential <- fabric_credential(token = "storage-token")
+  calls <- 0L
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      calls <<- calls + 1L
+      onelake_test_response(
+        body = list(paths = list()),
+        headers = list("x-ms-continuation" = paste0("page-", calls)),
+        url = req$url
+      )
+    }
+  )
+
+  page_error <- expect_error(
+    onelake_list_target(
+      target,
+      credential,
+      max_pages = 2L,
+      pagination_timeout = 60
+    ),
+    class = "fabric_onelake_pagination_error"
+  )
+  expect_identical(page_error$max_pages, 2L)
+  expect_identical(calls, 2L)
+
+  started <- as.POSIXct("2026-08-26 12:00:00", tz = "UTC")
+  times <- started + c(0, 0, 2)
+  time_index <- 0L
+  now <- function() {
+    time_index <<- time_index + 1L
+    times[[time_index]]
+  }
+  calls <- 0L
+  time_error <- expect_error(
+    onelake_list_target(
+      target,
+      credential,
+      max_pages = 10L,
+      pagination_timeout = 1,
+      .now = now
+    ),
+    class = "fabric_onelake_pagination_error"
+  )
+  expect_match(conditionMessage(time_error), "total time limit", fixed = TRUE)
+  expect_s3_class(time_error$deadline, "POSIXct")
+  expect_identical(calls, 1L)
+})
+
 test_that("OneLake listing can begin from a lexicographic path", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {

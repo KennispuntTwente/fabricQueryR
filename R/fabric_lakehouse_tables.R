@@ -1005,12 +1005,23 @@ fabric_lakehouse_write_table <- function(
   query,
   credential,
   page_size,
-  error_class
+  error_class,
+  max_pages = getOption("fabricqueryr.onelake.max_pages", 10000L),
+  pagination_timeout = getOption(
+    "fabricqueryr.onelake.pagination_timeout",
+    300
+  ),
+  .now = Sys.time
 ) {
   records <- list()
   page_token <- NULL
   page <- 0L
   seen_urls <- character()
+  limits <- .fabric_onelake_pagination_limits(
+    max_pages,
+    pagination_timeout,
+    .now
+  )
   repeat {
     request_query <- c(
       list(httr2::request(url)),
@@ -1023,12 +1034,22 @@ fabric_lakehouse_write_table <- function(
     request_query <- request_query[!vapply(request_query, is.null, logical(1))]
     request <- do.call(httr2::req_url_query, request_query)
     page <- page + 1L
-    seen_urls <- .httr2_pagination_guard(request$url, seen_urls, page)
+    seen_urls <- .httr2_pagination_guard(
+      request$url,
+      seen_urls,
+      page,
+      max_pages = limits$max_pages,
+      deadline = limits$deadline,
+      .now = .now,
+      error_class = error_class
+    )
     body <- .httr2_json(
       request,
       simplifyVector = FALSE,
       credential = credential,
-      audience = .fabric_audience$storage
+      audience = .fabric_audience$storage,
+      deadline = limits$deadline,
+      .now = .now
     )
     values <- body[[field]] %||% list()
     if (!is.list(values)) {

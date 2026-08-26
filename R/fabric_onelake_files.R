@@ -1235,7 +1235,13 @@ onelake_list_target <- function(
   credential,
   recursive = FALSE,
   page_size = 5000L,
-  begin_from = NULL
+  begin_from = NULL,
+  max_pages = getOption("fabricqueryr.onelake.max_pages", 10000L),
+  pagination_timeout = getOption(
+    "fabricqueryr.onelake.pagination_timeout",
+    300
+  ),
+  .now = Sys.time
 ) {
   # 1 Validate list options ------------------------------------------------------------------------
 
@@ -1277,6 +1283,11 @@ onelake_list_target <- function(
     collapse = "/"
   )
   continuation <- NULL
+  limits <- .fabric_onelake_pagination_limits(
+    max_pages,
+    pagination_timeout,
+    .now
+  )
 
   # 2 Read directory pages -------------------------------------------------------------------------
 
@@ -1313,12 +1324,18 @@ onelake_list_target <- function(
     seen_urls <- .httr2_pagination_guard(
       req$url,
       seen_urls,
-      page_number
+      page_number,
+      max_pages = limits$max_pages,
+      deadline = limits$deadline,
+      .now = .now,
+      error_class = c("fabric_onelake_pagination_error", "fabric_onelake_error")
     )
     response <- .httr2_perform(
       req,
       credential = credential,
-      audience = .fabric_audience$storage
+      audience = .fabric_audience$storage,
+      deadline = limits$deadline,
+      .now = .now
     )
     body <- httr2::resp_body_json(response, simplifyVector = FALSE)
     records <- c(records, body$paths %||% list())
@@ -2345,7 +2362,13 @@ onelake_delete_target <- function(
   credential,
   recursive = FALSE,
   if_match = NULL,
-  is_directory = NULL
+  is_directory = NULL,
+  max_pages = getOption("fabricqueryr.onelake.max_pages", 10000L),
+  pagination_timeout = getOption(
+    "fabricqueryr.onelake.pagination_timeout",
+    300
+  ),
+  .now = Sys.time
 ) {
   # 1 Validate the target type and options ---------------------------------------------------------
 
@@ -2384,6 +2407,11 @@ onelake_delete_target <- function(
   continuation <- NULL
   page_number <- 0L
   seen_urls <- character()
+  limits <- .fabric_onelake_pagination_limits(
+    max_pages,
+    pagination_timeout,
+    .now
+  )
   repeat {
     req <- onelake_request(
       onelake_path_url(target),
@@ -2407,16 +2435,57 @@ onelake_delete_target <- function(
     seen_urls <- .httr2_pagination_guard(
       req$url,
       seen_urls,
-      page_number
+      page_number,
+      max_pages = limits$max_pages,
+      deadline = limits$deadline,
+      .now = .now,
+      error_class = c("fabric_onelake_pagination_error", "fabric_onelake_error")
     )
     response <- .httr2_perform(
       req,
       credential = credential,
       audience = .fabric_audience$storage,
-      accepted_status = 404L
+      accepted_status = 404L,
+      deadline = limits$deadline,
+      .now = .now
     )
     continuation <- httr2::resp_header(response, "x-ms-continuation")
     if (is.null(continuation) || !nzchar(continuation)) break
   }
   invisible(TRUE)
+}
+
+# Validate and establish limits shared by all OneLake continuation loops
+.fabric_onelake_pagination_limits <- function(
+  max_pages,
+  pagination_timeout,
+  .now = Sys.time
+) {
+  if (
+    !is.numeric(pagination_timeout) ||
+      length(pagination_timeout) != 1L ||
+      is.na(pagination_timeout) ||
+      !is.finite(pagination_timeout) ||
+      pagination_timeout <= 0
+  ) {
+    .fabric_abort(
+      "pagination_timeout must be one positive number",
+      class = c("fabric_onelake_pagination_error", "fabric_onelake_error")
+    )
+  }
+  started <- .now()
+  if (
+    !inherits(started, "POSIXt") ||
+      length(started) != 1L ||
+      is.na(started)
+  ) {
+    .fabric_abort(
+      ".now must return one POSIX date-time",
+      class = c("fabric_onelake_pagination_error", "fabric_onelake_error")
+    )
+  }
+  list(
+    max_pages = max_pages,
+    deadline = started + pagination_timeout
+  )
 }

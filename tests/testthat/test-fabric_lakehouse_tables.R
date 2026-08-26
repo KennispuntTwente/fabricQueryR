@@ -877,6 +877,39 @@ test_that("Lakehouse discovery does not reuse a fixed Fabric token", {
   expect_identical(calls, 0L)
 })
 
+test_that("OneLake table metadata enforces a maximum page count", {
+  calls <- 0L
+  local_mocked_bindings(
+    .httr2_json = function(...) {
+      calls <<- calls + 1L
+      list(
+        tables = list(),
+        next_page_token = paste0("page-", calls)
+      )
+    }
+  )
+
+  error <- expect_error(
+    .fabric_onelake_table_pages(
+      "https://onelake.table.fabric.microsoft.com/delta/tables",
+      field = "tables",
+      query = list(catalog_name = lakehouse_table_test_id),
+      credential = fabric_credential(token = "storage-token"),
+      page_size = 1L,
+      error_class = c(
+        "fabric_lakehouse_protocol_error",
+        "fabric_lakehouse_error"
+      ),
+      max_pages = 2L,
+      pagination_timeout = 60
+    ),
+    class = "fabric_lakehouse_protocol_error"
+  )
+
+  expect_identical(error$max_pages, 2L)
+  expect_identical(calls, 2L)
+})
+
 test_that("Lakehouse paths follow the Fabric relativePath grammar", {
   valid <- c(
     "Files",

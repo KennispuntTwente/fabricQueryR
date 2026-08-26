@@ -885,18 +885,58 @@
   url,
   seen_urls,
   page,
-  max_pages = 10000L
+  max_pages = 10000L,
+  deadline = NULL,
+  .now = Sys.time,
+  error_class = "fabric_pagination_error"
 ) {
+  if (
+    !is.numeric(max_pages) ||
+      length(max_pages) != 1L ||
+      is.na(max_pages) ||
+      !is.finite(max_pages) ||
+      max_pages < 1 ||
+      max_pages > .Machine$integer.max ||
+      max_pages != floor(max_pages)
+  ) {
+    .fabric_abort(
+      "max_pages must be one positive whole number",
+      class = error_class
+    )
+  }
+  if (
+    !is.null(deadline) &&
+      (!inherits(deadline, "POSIXt") ||
+        length(deadline) != 1L ||
+        is.na(deadline))
+  ) {
+    .fabric_abort(
+      "pagination deadline must be NULL or one POSIX date-time",
+      class = error_class
+    )
+  }
+  if (!is.null(deadline) && .now() >= deadline) {
+    .fabric_abort(
+      "Pagination exceeded its total time limit",
+      class = error_class,
+      deadline = deadline
+    )
+  }
   if (page > as.integer(max_pages)) {
-    .fabric_abort(sprintf(
-      "Pagination exceeded the maximum of %d pages",
-      as.integer(max_pages)
-    ))
+    .fabric_abort(
+      sprintf(
+        "Pagination exceeded the maximum of %d pages",
+        as.integer(max_pages)
+      ),
+      class = error_class,
+      max_pages = as.integer(max_pages)
+    )
   }
 
   if (url %in% seen_urls) {
     .fabric_abort(
-      "The service returned a repeated pagination URL or continuation token"
+      "The service returned a repeated pagination URL or continuation token",
+      class = error_class
     )
   }
   c(seen_urls, url)
