@@ -275,6 +275,48 @@ test_that("ODBC passthrough attributes merge without token override", {
   )
 })
 
+test_that("ODBC access tokens reject conflicting authentication options", {
+  conflicting <- list(
+    list(UID = "user@example.com"),
+    list(pwd = "secret"),
+    list(Authentication = "ActiveDirectoryPassword"),
+    list(TRUSTED_CONNECTION = "yes")
+  )
+
+  for (option in conflicting) {
+    error <- expect_error(
+      do.call(
+        fabric_sql_connect,
+        c(
+          list(
+            server = "server.datawarehouse.fabric.microsoft.com",
+            token = "sql-token",
+            verbose = FALSE
+          ),
+          option
+        )
+      ),
+      class = "fabric_sql_authentication_error"
+    )
+    expect_identical(error$conflicting_options, names(option))
+    expect_identical(error$location, "...")
+  }
+
+  for (attributes in conflicting) {
+    error <- expect_error(
+      fabric_sql_connect(
+        "server.datawarehouse.fabric.microsoft.com",
+        token = "sql-token",
+        attributes = attributes,
+        verbose = FALSE
+      ),
+      class = "fabric_sql_authentication_error"
+    )
+    expect_identical(error$conflicting_options, names(attributes))
+    expect_identical(error$location, "attributes")
+  }
+})
+
 test_that("SQL accepts an explicitly supplied custom endpoint", {
   local_mocked_bindings(
     fabric_sql_require_backend = function(...) invisible(TRUE),

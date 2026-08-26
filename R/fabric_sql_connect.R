@@ -229,7 +229,9 @@ fabric_sql_connection_info <- function(
 #'   named `access_token` argument is consumed here as a deprecated alias for
 #'   `token` and is not forwarded. For ODBC, a caller-supplied `attributes`
 #'   named list is merged with the package-managed `azure_token`; that protected
-#'   attribute cannot be overridden
+#'   attribute cannot be overridden. ODBC authentication options `UID`, `PWD`,
+#'   `Authentication`, and `Trusted_Connection` cannot be combined with the
+#'   package-managed access token
 #'
 #' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
 #'   finished. For an ADBC connection with child results still registered,
@@ -1297,10 +1299,38 @@ fabric_sql_validate_endpoint <- function(server) {
   host
 }
 
+# Reject connection-string authentication that conflicts with an access token
+fabric_sql_reject_odbc_auth_options <- function(option_names, location) {
+  normalized <- tolower(option_names %||% character())
+  conflicting <- normalized %in%
+    c(
+      "uid",
+      "pwd",
+      "authentication",
+      "trusted_connection"
+    )
+  if (!any(conflicting)) {
+    return(invisible(NULL))
+  }
+  conflicts <- unique(option_names[conflicting])
+  .fabric_abort(
+    paste0(
+      "ODBC access-token authentication cannot be combined with ",
+      paste(conflicts, collapse = ", "),
+      " in ",
+      location
+    ),
+    class = c("fabric_sql_authentication_error", "fabric_sql_option_error"),
+    conflicting_options = conflicts,
+    location = location
+  )
+}
+
 # Separate caller ODBC connection arguments and attributes from `dots`. Returns
-# both lists while protecting the package-managed Azure token attribute
+# both lists while protecting the package-managed access-token authentication
 fabric_sql_odbc_options <- function(dots) {
-  positions <- which(names(dots) == "attributes")
+  dot_names <- names(dots) %||% character()
+  positions <- which(tolower(dot_names) == "attributes")
   if (length(positions) > 1L) {
     .fabric_abort("attributes may be supplied only once in ...")
   }
@@ -1329,6 +1359,8 @@ fabric_sql_odbc_options <- function(dots) {
       "attributes in ... cannot override the package-managed azure_token"
     )
   }
+  fabric_sql_reject_odbc_auth_options(names(dots), "...")
+  fabric_sql_reject_odbc_auth_options(attribute_names, "attributes")
   list(dots = dots, attributes = attributes)
 }
 
