@@ -68,6 +68,44 @@ test_that("token NULL delegates acquisition and caching to AzureAuth", {
   expect_true(calls[[1L]]$use_cache)
 })
 
+test_that("secondary services require audience-aware credentials", {
+  primary <- fabric_credential(token = "fabric-token")
+
+  error <- rlang::catch_cnd(
+    fabric_service_credential(
+      primary,
+      argument = "storage_token",
+      caller = "fabric_lakehouse_tables()"
+    )
+  )
+
+  expect_s3_class(error, "fabric_multi_audience_auth_error")
+  expect_s3_class(error, "fabric_auth_error")
+  expect_identical(error$argument, "storage_token")
+  expect_match(conditionMessage(error), "audience-aware token provider")
+
+  storage <- fabric_service_credential(
+    primary,
+    service_token = "storage-token",
+    argument = "storage_token",
+    caller = "fabric_lakehouse_tables()"
+  )
+  expect_identical(
+    fabric_get_token(storage, .fabric_audience$storage),
+    "storage-token"
+  )
+
+  provider <- fabric_credential(token = function(audience, ...) audience[[1L]])
+  expect_identical(
+    fabric_service_credential(
+      provider,
+      argument = "storage_token",
+      caller = "fabric_lakehouse_tables()"
+    ),
+    provider
+  )
+})
+
 test_that("automatic credentials stay within Microsoft Fabric hosts", {
   expect_invisible(
     fabric_require_explicit_custom_token(

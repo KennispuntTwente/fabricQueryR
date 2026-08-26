@@ -18,7 +18,8 @@ fabric_lakehouse_tables(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_lakehouse_load_table(
@@ -63,7 +64,8 @@ fabric_lakehouse_write_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  storage_token = NULL
 )
 }
 \arguments{
@@ -104,6 +106,12 @@ needs Storage and loading needs Fabric.}
 
 \item{table_api_base}{OneLake Delta table API base URL. Most users should
 keep the default.}
+
+\item{storage_token}{Optional separate Azure Storage token or token-provider
+function for \code{fabric_lakehouse_tables()} and
+\code{fabric_lakehouse_write_table()}. Supply it when \code{token} is a fixed bearer
+token or \code{AzureToken}; automatic and callback credentials obtain both
+audiences themselves.}
 
 \item{table}{Destination Delta table name. Fabric's Load Table API permits
 1 to 256 ASCII letters, numbers, and underscores and requires at least one

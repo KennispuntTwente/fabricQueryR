@@ -345,6 +345,37 @@ test_that("Warehouse table reader validates before target resolution", {
   expect_equal(calls, 0L)
 })
 
+test_that("Warehouse writer does not reuse fixed tokens across services", {
+  skip_if_not_installed("arrow")
+
+  storage_error <- expect_error(
+    fabric_warehouse_write_table(
+      warehouse_write_test_warehouse(),
+      "orders",
+      data.frame(id = 1L),
+      staging_lakehouse = warehouse_write_test_lakehouse(),
+      token = "fabric-token",
+      verbose = FALSE
+    ),
+    class = "fabric_multi_audience_auth_error"
+  )
+  expect_identical(storage_error$argument, "storage_token")
+
+  sql_error <- expect_error(
+    fabric_warehouse_write_table(
+      warehouse_write_test_warehouse(),
+      "orders",
+      data.frame(id = 1L),
+      staging_lakehouse = warehouse_write_test_lakehouse(),
+      token = "fabric-token",
+      storage_token = "storage-token",
+      verbose = FALSE
+    ),
+    class = "fabric_multi_audience_auth_error"
+  )
+  expect_identical(sql_error$argument, "sql_token")
+})
+
 test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
   skip_if_not_installed("arrow")
   uploads <- list()
@@ -394,7 +425,9 @@ test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
     table = "sales]orders",
     data = value,
     staging_lakehouse = warehouse_write_test_lakehouse(),
-    token = "test-token",
+    token = "fabric-token",
+    storage_token = "storage-token",
+    sql_token = "sql-token",
     verbose = FALSE
   )
 
@@ -435,6 +468,14 @@ test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
   )
   expect_s3_class(uploads[[1L]]$credential, "fabric_credential")
   expect_s3_class(connect_args$token, "fabric_credential")
+  expect_identical(
+    fabric_get_token(uploads[[1L]]$credential, .fabric_audience$storage),
+    "storage-token"
+  )
+  expect_identical(
+    fabric_get_token(connect_args$token, .fabric_audience$sql),
+    "sql-token"
+  )
   expect_false(connect_args$read_only)
 })
 
@@ -469,7 +510,9 @@ test_that("Warehouse writer uploads bounded Parquet parts", {
     data.frame(id = 1:5),
     staging_lakehouse = warehouse_write_test_lakehouse(),
     max_rows_per_file = 2,
-    token = "test-token",
+    token = "fabric-token",
+    storage_token = "storage-token",
+    sql_token = "sql-token",
     verbose = FALSE
   )
 
@@ -520,7 +563,9 @@ test_that("Warehouse overwrite is one explicit transaction", {
     data.frame(id = 1:2),
     staging_lakehouse = warehouse_write_test_lakehouse(),
     mode = "overwrite",
-    token = "test-token",
+    token = "fabric-token",
+    storage_token = "storage-token",
+    sql_token = "sql-token",
     verbose = FALSE
   )
 
@@ -565,7 +610,9 @@ test_that("Warehouse writer creates a missing table with transactional CTAS", {
     data.frame(id = 1:2, label = c("a", "b")),
     staging_lakehouse = warehouse_write_test_lakehouse(),
     create_if_missing = TRUE,
-    token = "test-token",
+    token = "fabric-token",
+    storage_token = "storage-token",
+    sql_token = "sql-token",
     verbose = FALSE
   )
 
@@ -615,7 +662,9 @@ test_that("drop overwrite recreates the table with CTAS", {
     staging_lakehouse = warehouse_write_test_lakehouse(),
     mode = "Overwrite",
     overwrite_method = "Drop",
-    token = "test-token",
+    token = "fabric-token",
+    storage_token = "storage-token",
+    sql_token = "sql-token",
     verbose = FALSE
   )
 
@@ -713,7 +762,9 @@ test_that("Warehouse writer stops before COPY when destination names differ", {
       data.frame(id = 1L, label = "one"),
       staging_lakehouse = warehouse_write_test_lakehouse(),
       keep_staging_on_failure = FALSE,
-      token = "test-token",
+      token = "fabric-token",
+      storage_token = "storage-token",
+      sql_token = "sql-token",
       verbose = FALSE
     ),
     error = identity
@@ -771,7 +822,9 @@ test_that("Warehouse writer rolls back and retains ambiguous SQL staging", {
       staging_lakehouse = warehouse_write_test_lakehouse(),
       mode = "Overwrite",
       keep_staging_on_failure = FALSE,
-      token = "test-token",
+      token = "fabric-token",
+      storage_token = "storage-token",
+      sql_token = "sql-token",
       verbose = FALSE
     ),
     class = "fabric_warehouse_write_error"
@@ -805,7 +858,9 @@ test_that("Warehouse writer can remove staging after a pre-SQL failure", {
       data.frame(id = 1L),
       staging_lakehouse = warehouse_write_test_lakehouse(),
       keep_staging_on_failure = FALSE,
-      token = "test-token",
+      token = "fabric-token",
+      storage_token = "storage-token",
+      sql_token = "sql-token",
       verbose = FALSE
     ),
     class = "fabric_warehouse_write_error"
@@ -852,7 +907,9 @@ test_that("Warehouse writer streams a lazy Arrow Dataset", {
     arrow::open_dataset(directory),
     staging_lakehouse = warehouse_write_test_lakehouse(),
     max_rows_per_file = 2,
-    token = "test-token",
+    token = "fabric-token",
+    storage_token = "storage-token",
+    sql_token = "sql-token",
     verbose = FALSE
   )
 
@@ -874,7 +931,9 @@ test_that("Warehouse writer validates destinations before network I/O", {
       "orders",
       data,
       staging_lakehouse = staging_lakehouse,
-      token = "test-token",
+      token = "fabric-token",
+      storage_token = "storage-token",
+      sql_token = "sql-token",
       verbose = FALSE,
       ...
     )

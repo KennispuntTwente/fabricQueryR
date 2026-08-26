@@ -277,6 +277,36 @@ fabric_require_trusted_credential_endpoint <- function(
   )
 }
 
+# Resolve a secondary service credential without reusing a fixed token for a
+# different audience. Automatic and callback credentials are audience-aware.
+fabric_service_credential <- function(
+  credential,
+  service_token = NULL,
+  argument,
+  caller
+) {
+  if (!is.null(service_token)) {
+    return(fabric_credential(token = service_token))
+  }
+  if (
+    inherits(credential, "fabric_credential") &&
+      credential$type %in% c("AzureAuth", "callback")
+  ) {
+    return(credential)
+  }
+  .fabric_abort(
+    paste0(
+      caller,
+      " requires ",
+      argument,
+      " when token is a fixed bearer token or AzureToken; supply the ",
+      "service token separately or use an audience-aware token provider"
+    ),
+    class = c("fabric_multi_audience_auth_error", "fabric_auth_error"),
+    argument = argument
+  )
+}
+
 # Serialize an audience vector into a collision-free environment key
 # Returns a portable ASCII key while preserving punctuation and vector bounds
 .fabric_audience_cache_key <- function(audience) {

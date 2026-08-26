@@ -29,7 +29,9 @@ fabric_warehouse_write_table(
   auth_args = list(),
   api_base = .fabric_api_base,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-  verbose = TRUE
+  verbose = TRUE,
+  storage_token = NULL,
+  sql_token = NULL
 )
 }
 \arguments{
@@ -106,6 +108,12 @@ Lakehouse name or GUID must be discovered.}
 a workspace-specific address discovered from Fabric is used when available}
 
 \item{verbose}{Whether to report SQL connection progress.}
+
+\item{storage_token}{Optional separate Azure Storage token or token-provider
+function. Supply it when \code{token} is fixed rather than audience-aware.}
+
+\item{sql_token}{Optional separate Azure SQL token or token-provider
+function. Supply it when \code{token} is fixed rather than audience-aware.}
 }
 \value{
 A \code{fabric_warehouse_write_result} list containing destination and

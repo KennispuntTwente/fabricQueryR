@@ -80,6 +80,11 @@
 #' @param token Optional access token or audience-aware token-provider function.
 #'   Table discovery needs both Fabric- and Storage-audience tokens; staging
 #'   needs Storage and loading needs Fabric.
+#' @param storage_token Optional separate Azure Storage token or token-provider
+#'   function for `fabric_lakehouse_tables()` and
+#'   `fabric_lakehouse_write_table()`. Supply it when `token` is a fixed bearer
+#'   token or `AzureToken`; automatic and callback credentials obtain both
+#'   audiences themselves.
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param api_base Fabric REST API base URL. Most users should keep the default.
@@ -383,7 +388,8 @@ fabric_lakehouse_tables <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   # 1 Validate options and resolve the Lakehouse --------------------------------------------------
 
@@ -407,6 +413,12 @@ fabric_lakehouse_tables <- function(
     client_id = client_id,
     token = token,
     auth_args = auth_args
+  )
+  storage_credential <- fabric_service_credential(
+    credential,
+    storage_token,
+    "storage_token",
+    "fabric_lakehouse_tables()"
   )
   target <- .fabric_lakehouse_target(
     lakehouse,
@@ -432,7 +444,7 @@ fabric_lakehouse_tables <- function(
     schema = schema,
     detail = detail,
     page_size = page_size,
-    credential = credential,
+    credential = storage_credential,
     table_base = table_base,
     fabric_records = fabric_records,
     error_class = c(
@@ -581,7 +593,8 @@ fabric_lakehouse_write_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  storage_token = NULL
 ) {
   # 1 Validate local inputs before authentication or network I/O ---------------------------------
 
@@ -640,6 +653,12 @@ fabric_lakehouse_write_table <- function(
     token = token,
     auth_args = auth_args
   )
+  storage_credential <- fabric_service_credential(
+    credential,
+    storage_token,
+    "storage_token",
+    "fabric_lakehouse_write_table()"
+  )
   target <- .fabric_lakehouse_target(
     lakehouse,
     workspace,
@@ -673,7 +692,7 @@ fabric_lakehouse_write_table <- function(
     for (index in seq_along(storage_targets)) {
       onelake_upload_target(
         storage_targets[[index]],
-        credential,
+        storage_credential,
         source = serialized$paths[[index]],
         overwrite = FALSE,
         if_match = NULL,
@@ -689,7 +708,7 @@ fabric_lakehouse_write_table <- function(
       .fabric_lakehouse_write_abort(
         error,
         storage_target,
-        credential,
+        storage_credential,
         staging_path,
         keep_staging_on_failure
       )
@@ -708,7 +727,7 @@ fabric_lakehouse_write_table <- function(
       .fabric_lakehouse_write_abort(
         error,
         storage_target,
-        credential,
+        storage_credential,
         staging_path,
         keep_staging_on_failure
       )
@@ -724,7 +743,7 @@ fabric_lakehouse_write_table <- function(
       .fabric_lakehouse_write_abort(
         error,
         storage_target,
-        credential,
+        storage_credential,
         staging_path,
         keep_staging_on_failure
       )
@@ -735,7 +754,10 @@ fabric_lakehouse_write_table <- function(
 
   staging_retained <- TRUE
   if (isTRUE(cleanup)) {
-    removed <- .fabric_lakehouse_remove_staging(storage_target, credential)
+    removed <- .fabric_lakehouse_remove_staging(
+      storage_target,
+      storage_credential
+    )
     staging_retained <- !removed
     if (!removed) {
       .fabric_warn(

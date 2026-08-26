@@ -358,6 +358,10 @@ fabric_warehouse_read_table <- function(
 #' @param max_rows_per_file Optional exact maximum rows per staged part.
 #' @param backend SQL connection backend, `"odbc"` or `"adbc"`.
 #' @param verbose Whether to report SQL connection progress.
+#' @param storage_token Optional separate Azure Storage token or token-provider
+#'   function. Supply it when `token` is fixed rather than audience-aware.
+#' @param sql_token Optional separate Azure SQL token or token-provider
+#'   function. Supply it when `token` is fixed rather than audience-aware.
 #' @param api_base Fabric REST API base used when a Warehouse or staging
 #'   Lakehouse name or GUID must be discovered.
 #' @inheritParams fabric_sql_connect
@@ -443,7 +447,9 @@ fabric_warehouse_write_table <- function(
   auth_args = list(),
   api_base = .fabric_api_base,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-  verbose = TRUE
+  verbose = TRUE,
+  storage_token = NULL,
+  sql_token = NULL
 ) {
   # 1 Validate and serialize without collecting lazy Arrow inputs --------------------------------
 
@@ -495,6 +501,18 @@ fabric_warehouse_write_table <- function(
     token = token,
     auth_args = auth_args
   )
+  storage_credential <- fabric_service_credential(
+    credential,
+    storage_token,
+    "storage_token",
+    "fabric_warehouse_write_table()"
+  )
+  sql_credential <- fabric_service_credential(
+    credential,
+    sql_token,
+    "sql_token",
+    "fabric_warehouse_write_table()"
+  )
   destination <- .fabric_warehouse_resolve_item(
     warehouse,
     workspace,
@@ -543,7 +561,7 @@ fabric_warehouse_write_table <- function(
     for (index in seq_along(storage_targets)) {
       onelake_upload_target(
         storage_targets[[index]],
-        credential,
+        storage_credential,
         source = serialized$paths[[index]],
         overwrite = FALSE,
         if_match = NULL,
@@ -559,7 +577,7 @@ fabric_warehouse_write_table <- function(
       .fabric_warehouse_write_abort(
         error,
         storage_target,
-        credential,
+        storage_credential,
         staging_path,
         keep_staging_on_failure,
         ambiguous = FALSE
@@ -573,7 +591,7 @@ fabric_warehouse_write_table <- function(
     .fabric_warehouse_connect(
       destination$record,
       backend = backend,
-      token = credential,
+      token = sql_credential,
       read_only = FALSE,
       verbose = verbose
     ),
@@ -581,7 +599,7 @@ fabric_warehouse_write_table <- function(
       .fabric_warehouse_write_abort(
         error,
         storage_target,
-        credential,
+        storage_credential,
         staging_path,
         keep_staging_on_failure,
         ambiguous = FALSE
@@ -620,7 +638,7 @@ fabric_warehouse_write_table <- function(
         .fabric_warehouse_write_abort(
           error,
           storage_target,
-          credential,
+          storage_credential,
           staging_path,
           keep_staging_on_failure,
           ambiguous = FALSE
@@ -643,7 +661,7 @@ fabric_warehouse_write_table <- function(
         .fabric_warehouse_write_abort(
           error,
           storage_target,
-          credential,
+          storage_credential,
           staging_path,
           keep_staging_on_failure,
           ambiguous = FALSE
@@ -695,7 +713,7 @@ fabric_warehouse_write_table <- function(
       .fabric_warehouse_write_abort(
         error,
         storage_target,
-        credential,
+        storage_credential,
         staging_path,
         keep_staging_on_failure,
         ambiguous = sql_started
@@ -717,7 +735,10 @@ fabric_warehouse_write_table <- function(
 
   staging_retained <- TRUE
   if (isTRUE(cleanup)) {
-    removed <- .fabric_warehouse_remove_staging(storage_target, credential)
+    removed <- .fabric_warehouse_remove_staging(
+      storage_target,
+      storage_credential
+    )
     staging_retained <- !removed
     if (!removed) {
       .fabric_warn(

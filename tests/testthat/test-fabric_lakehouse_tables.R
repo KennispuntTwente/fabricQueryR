@@ -507,7 +507,8 @@ test_that("Lakehouse discovery can target one schema without detail requests", {
     lakehouse_table_test_item(),
     schema = "sales",
     detail = FALSE,
-    token = "test-token"
+    token = "fabric-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(tables$full_name, "sales.orders")
@@ -577,7 +578,8 @@ test_that("Lakehouse detail enrichment retains its listing snapshot", {
   tables <- fabric_lakehouse_tables(
     lakehouse_table_test_item(),
     schema = "dbo",
-    token = "test-token"
+    token = "fabric-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(tables$name, c("removed", "current", "after"))
@@ -627,7 +629,8 @@ test_that("schema discovery falls back when Fabric rejects List Tables", {
     lakehouse_table_test_item(),
     schema = "sales",
     detail = FALSE,
-    token = "test-token"
+    token = "fabric-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(tables$name, "orders")
@@ -855,6 +858,25 @@ test_that("Lakehouse table inputs fail before requests are sent", {
   expect_equal(calls, 0L)
 })
 
+test_that("Lakehouse discovery does not reuse a fixed Fabric token", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    lakehouse_table_test_response(url = req$url)
+  })
+
+  error <- expect_error(
+    fabric_lakehouse_tables(
+      lakehouse_table_test_item(),
+      token = "fabric-token"
+    ),
+    class = "fabric_multi_audience_auth_error"
+  )
+
+  expect_identical(error$argument, "storage_token")
+  expect_identical(calls, 0L)
+})
+
 test_that("Lakehouse paths follow the Fabric relativePath grammar", {
   valid <- c(
     "Files",
@@ -923,7 +945,8 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
     onelake_upload_target = function(target, credential, source, ...) {
       uploaded <<- list(
         target = target,
-        data = as.data.frame(arrow::read_parquet(source))
+        data = as.data.frame(arrow::read_parquet(source)),
+        credential = credential
       )
       tibble::tibble(path = target$path)
     },
@@ -968,7 +991,8 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
     table = "orders",
     data = value,
     staging_root = "Files/staging",
-    token = "test-token"
+    token = "fabric-token",
+    storage_token = "storage-token"
   )
 
   expect_s3_class(result, "fabric_lakehouse_write_result")
@@ -984,6 +1008,10 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
   expect_equal(uploaded$data$kind, c("a", "b"))
   expect_equal(as.character(uploaded$data$id[[1L]]), "9007199254740993")
   expect_true(is.na(uploaded$data[[unicode_name]][[2L]]))
+  expect_identical(
+    fabric_get_token(uploaded$credential, .fabric_audience$storage),
+    "storage-token"
+  )
 })
 
 test_that("Lakehouse writer loads bounded Parquet folders", {
@@ -1021,7 +1049,8 @@ test_that("Lakehouse writer loads bounded Parquet folders", {
     "orders",
     data.frame(id = 1:5),
     max_rows_per_file = 2,
-    token = "test-token"
+    token = "fabric-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(result$rows, 5)
@@ -1101,7 +1130,8 @@ test_that("Lakehouse writer reports retained staging on load failure", {
       lakehouse_table_test_item(),
       table = "orders",
       data = data.frame(id = 1L),
-      token = "test-token"
+      token = "fabric-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_lakehouse_write_error"
   )
@@ -1119,7 +1149,8 @@ test_that("Lakehouse writer reports retained staging on load failure", {
       table = "orders",
       data = data.frame(id = 1L),
       keep_staging_on_failure = FALSE,
-      token = "test-token"
+      token = "fabric-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_lakehouse_write_error"
   )
@@ -1151,7 +1182,8 @@ test_that("Lakehouse writer never removes staging after an ambiguous timeout", {
       table = "orders",
       data = data.frame(id = 1L),
       keep_staging_on_failure = FALSE,
-      token = "test-token"
+      token = "fabric-token",
+      storage_token = "storage-token"
     ),
     class = "fabric_lakehouse_write_error"
   )
@@ -1220,7 +1252,8 @@ test_that("Lakehouse writer streams a lazy Arrow Dataset", {
     lakehouse_table_test_item(),
     "orders",
     dataset,
-    token = "test-token"
+    token = "fabric-token",
+    storage_token = "storage-token"
   )
 
   expect_equal(result$rows, 5)
