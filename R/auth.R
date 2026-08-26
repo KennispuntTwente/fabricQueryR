@@ -15,7 +15,7 @@
     "https://api.fabric.microsoft.com/Code.AccessFabric.All",
     "https://api.fabric.microsoft.com/Code.AccessStorage.All"
   ),
-  sql = "https://database.windows.net/.default",
+  sql = "https://database.windows.net//.default",
   storage = "https://storage.azure.com/.default",
   kusto = "https://api.kusto.windows.net/.default"
 )

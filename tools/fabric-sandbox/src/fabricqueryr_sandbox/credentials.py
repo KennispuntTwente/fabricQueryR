@@ -21,7 +21,7 @@ ENVIRONMENT_TOKEN_VARIABLES = {
     "https://analysis.windows.net/powerbi/api/.default": (
         "FABRIC_TEST_PBI_TOKEN"
     ),
-    "https://database.windows.net/.default": "FABRIC_TEST_SQL_TOKEN",
+    "https://database.windows.net//.default": "FABRIC_TEST_SQL_TOKEN",
     STORAGE_SCOPE: "FABRIC_TEST_STORAGE_TOKEN",
     "https://api.kusto.windows.net/.default": "FABRIC_TEST_KUSTO_TOKEN",
 }

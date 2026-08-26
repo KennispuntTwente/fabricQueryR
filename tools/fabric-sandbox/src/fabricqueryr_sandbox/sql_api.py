@@ -10,7 +10,7 @@ from collections.abc import Callable
 import pyodbc
 
 
-SQL_AUDIENCE = "https://database.windows.net/.default"
+SQL_AUDIENCE = "https://database.windows.net//.default"
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 SQL_FIXTURE_TABLE = "fabricqueryr_sql_types"
 SQL_FIXTURE_VIEW = "fabricqueryr_sql_types_view"

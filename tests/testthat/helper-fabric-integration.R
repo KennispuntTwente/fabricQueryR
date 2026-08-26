@@ -119,7 +119,7 @@ fabric_test_manifest <- function() {
 fabric_test_token_variables <- c(
   "https://api.fabric.microsoft.com/.default" = "FABRIC_TEST_API_TOKEN",
   "https://analysis.windows.net/powerbi/api/.default" = "FABRIC_TEST_PBI_TOKEN",
-  "https://database.windows.net/.default" = "FABRIC_TEST_SQL_TOKEN",
+  "https://database.windows.net//.default" = "FABRIC_TEST_SQL_TOKEN",
   "https://storage.azure.com/.default" = "FABRIC_TEST_STORAGE_TOKEN",
   "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
 )

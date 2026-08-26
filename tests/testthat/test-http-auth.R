@@ -159,6 +159,29 @@ test_that("client credentials omit offline_access", {
   expect_equal(calls[[1L]]$password, "secret")
 })
 
+test_that("AzureAuth requests the SQL resource's trailing-slash scope", {
+  calls <- list()
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      calls[[1L]] <<- list(...)
+      fake_azure_token()
+    },
+    .package = "AzureAuth"
+  )
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(password = "secret")
+  )
+
+  fabric_get_token(credential, .fabric_audience$sql)
+
+  expect_identical(
+    calls[[1L]]$resource,
+    "https://database.windows.net//.default"
+  )
+})
+
 test_that("AzureAuth caches multi-scope delegated tokens", {
   calls <- list()
   local_mocked_bindings(

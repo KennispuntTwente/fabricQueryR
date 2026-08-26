@@ -590,7 +590,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     assert [call[1] for call in token_calls] == [
         "https://api.fabric.microsoft.com/.default",
         "https://storage.azure.com/.default",
-        "https://database.windows.net/.default",
+        "https://database.windows.net//.default",
         "https://api.kusto.windows.net/.default",
         "https://analysis.windows.net/powerbi/api/.default",
     ]
@@ -664,7 +664,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "seed_sql",
         "warehouse.sql.test",
         "TestWarehouse",
-        "token-for-https://database.windows.net/.default",
+        "token-for-https://database.windows.net//.default",
         True,
     ) in calls
     delta_log_calls = [
@@ -691,7 +691,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "seed_sql",
             "warehouse.sql.test",
             "TestWarehouse",
-            "token-for-https://database.windows.net/.default",
+            "token-for-https://database.windows.net//.default",
             True,
         )
     )
@@ -699,7 +699,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "wait_for_sql_fixture",
         "mirrored.sql.test",
         "TestMirroredDatabase",
-        "token-for-https://database.windows.net/.default",
+        "token-for-https://database.windows.net//.default",
         "fabricqueryr_mirror_types",
     ) in calls
     assert calls.index(graphql_call) > max(
@@ -712,7 +712,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "Initial Catalog=TestSQLDatabase-internal"
         ),
         "TestSQLDatabase-internal",
-        "token-for-https://database.windows.net/.default",
+        "token-for-https://database.windows.net//.default",
         False,
     ) in calls
     assert ("seed_power_bi", cached_credential, "workspace-id") in calls

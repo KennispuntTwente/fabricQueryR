@@ -302,7 +302,7 @@ fabric_local_acquire_tokens <- function(
   audiences = c(
     Fabric = "https://api.fabric.microsoft.com/.default",
     `Power BI` = "https://analysis.windows.net/powerbi/api/.default",
-    SQL = "https://database.windows.net/.default",
+    SQL = "https://database.windows.net//.default",
     OneLake = "https://storage.azure.com/.default",
     Kusto = "https://api.kusto.windows.net/.default"
   )
@@ -406,7 +406,7 @@ fabric_local_test_audiences <- function(filter) {
   all <- c(
     Fabric = "https://api.fabric.microsoft.com/.default",
     `Power BI` = "https://analysis.windows.net/powerbi/api/.default",
-    SQL = "https://database.windows.net/.default",
+    SQL = "https://database.windows.net//.default",
     OneLake = "https://storage.azure.com/.default",
     Kusto = "https://api.kusto.windows.net/.default"
   )
@@ -711,7 +711,7 @@ run_fabric_integration_tests <- function(
   token_variables <- c(
     "https://api.fabric.microsoft.com/.default" = "FABRIC_TEST_API_TOKEN",
     "https://analysis.windows.net/powerbi/api/.default" = "FABRIC_TEST_PBI_TOKEN",
-    "https://database.windows.net/.default" = "FABRIC_TEST_SQL_TOKEN",
+    "https://database.windows.net//.default" = "FABRIC_TEST_SQL_TOKEN",
     "https://storage.azure.com/.default" = "FABRIC_TEST_STORAGE_TOKEN",
     "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
   )
