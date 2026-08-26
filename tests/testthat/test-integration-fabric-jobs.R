@@ -288,3 +288,72 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   ))
   created_ids <- setdiff(created_ids, weekly$id)
 })
+
+test_that("workload schedule defaults complete live create-list-delete lifecycles", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  cases <- list(
+    JobFixtures = "RunNotebook",
+    TestSparkJob = "SparkJob",
+    TestArrowSemanticModel = "Refresh"
+  )
+  start <- as.POSIXct(Sys.Date() + 2, tz = "UTC")
+  configuration <- fabric_job_schedule_config(
+    "Daily",
+    start_time = start,
+    end_time = start + (14 * 24 * 60 * 60),
+    time_zone = "UTC",
+    times = "05:41"
+  )
+  created <- list()
+  on.exit(
+    {
+      for (entry in created) {
+        try(
+          fabric_job_schedule_delete(
+            entry$item,
+            entry$id,
+            confirm = TRUE,
+            token = token
+          ),
+          silent = TRUE
+        )
+      }
+    },
+    add = TRUE
+  )
+
+  for (name in names(cases)) {
+    fixture <- fabric_test_manifest_item(manifest, name)
+    item <- list(
+      id = fixture$id,
+      workspaceId = manifest$workspace_id,
+      type = fixture$type,
+      displayName = fixture$display_name
+    )
+    schedule <- fabric_job_schedule_create(
+      item,
+      configuration,
+      enabled = FALSE,
+      token = token
+    )
+    created[[length(created) + 1L]] <- list(item = item, id = schedule$id)
+
+    expect_identical(schedule$job_type, cases[[name]], info = name)
+    listed <- fabric_job_schedules(item, token = token)
+    expect_true(
+      schedule$id %in% vapply(listed, `[[`, character(1), "id"),
+      info = name
+    )
+  }
+
+  for (entry in created) {
+    expect_true(fabric_job_schedule_delete(
+      entry$item,
+      entry$id,
+      confirm = TRUE,
+      token = token
+    ))
+  }
+  created <- list()
+})
