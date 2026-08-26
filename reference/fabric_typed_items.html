@@ -143,11 +143,11 @@ other executable items supported by <code><a href="fabric_job_run.html">fabric_j
 returned record has that type. The records otherwise keep all fields
 returned by Fabric, including fields added by the service in the future</p>
 <p>Folder recursion, workspace-specific private-link routing, authentication,
-and <code>detail_errors</code> have the same behavior as in <code><a href="fabric_items.html">fabric_items()</a></code>. The four
-new helpers do not currently make workload-specific detail requests. Their
-core records contain the IDs and type needed by <code><a href="fabric_job_run.html">fabric_job_run()</a></code> where
-applicable, and 'fabricQueryR' does not yet consume an additional target from
-Environment or User Data Function details</p>
+and <code>detail_errors</code> have the same behavior as in <code><a href="fabric_items.html">fabric_items()</a></code>. With
+<code>detail = TRUE</code>, each helper calls its documented workload-specific Get API
+and preserves fields such as Spark job and Environment properties. The User
+Data Function detail endpoint supports delegated users but not service
+principals or managed identities; those callers can use <code>detail = FALSE</code></p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
@@ -156,6 +156,10 @@ Environment or User Data Function details</p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/list-spark-job-definitions" class="external-link">List Spark job definitions</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/list-environments" class="external-link">List environments</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions" class="external-link">List User Data Functions</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/items/get-data-pipeline" class="external-link">Get data pipeline</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/sparkjobdefinition/items/get-spark-job-definition" class="external-link">Get Spark job definition</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/environment/items/get-environment" class="external-link">Get environment</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/get-user-data-function" class="external-link">Get User Data Function</a></p>
     </div>
 
     <div class="section level2">

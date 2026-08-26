@@ -124,13 +124,15 @@ Omit it when <code>item</code> is a discovered record containing <code>workspace
 
 
 <dt id="arg-job-type">job_type<a class="anchor" aria-label="anchor" href="#arg-job-type"></a></dt>
-<dd><p>Schedule job type. Data pipelines, Dataflows, and Data Build
-Tool Jobs default to <code>"Execute"</code>. For a Dataflow publish schedule, set
-<code>job_type = "ApplyChanges"</code> explicitly. Other item types default to
-<code>"DefaultJob"</code>, as shown in the Core Job Scheduler examples. Supply an
-explicit value for another workload-specific schedule job type. When
-passing one of these item types as a GUID instead of a discovered item,
-also supply <code>item_type</code> or set the documented <code>job_type</code> explicitly.</p></dd>
+<dd><p>Schedule job type. Notebooks default to <code>"RunNotebook"</code>,
+Spark job definitions to <code>"SparkJob"</code>, semantic models to <code>"Refresh"</code>,
+and data pipelines, Dataflows, and Data Build Tool Jobs to <code>"Execute"</code>.
+For a Dataflow publish schedule, set <code>job_type = "ApplyChanges"</code>
+explicitly. Unknown item types retain the Core Scheduler's <code>"DefaultJob"</code>
+fallback. Supply an explicit value for another workload-specific schedule
+job type. When passing one of these item types as a GUID instead of a
+discovered item, also supply <code>item_type</code> or set the documented <code>job_type</code>
+explicitly.</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>

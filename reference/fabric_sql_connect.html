@@ -177,7 +177,9 @@ wait progressively longer, up to 60 seconds</p></dd>
 named <code>access_token</code> argument is consumed here as a deprecated alias for
 <code>token</code> and is not forwarded. For ODBC, a caller-supplied <code>attributes</code>
 named list is merged with the package-managed <code>azure_token</code>; that protected
-attribute cannot be overridden</p></dd>
+attribute cannot be overridden. ODBC authentication options <code>UID</code>, <code>PWD</code>,
+<code>Authentication</code>, and <code>Trusted_Connection</code> cannot be combined with the
+package-managed access token</p></dd>
 
 </dl></div>
     <div class="section level2">

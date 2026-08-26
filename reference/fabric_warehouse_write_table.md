@@ -36,7 +36,9 @@ fabric_warehouse_write_table(
   auth_args = list(),
   api_base = .fabric_api_base,
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
-  verbose = TRUE
+  verbose = TRUE,
+  storage_token = NULL,
+  sql_token = NULL
 )
 ```
 
@@ -169,6 +171,16 @@ fabric_warehouse_write_table(
 - verbose:
 
   Whether to report SQL connection progress.
+
+- storage_token:
+
+  Optional separate Azure Storage token or token-provider function.
+  Supply it when `token` is fixed rather than audience-aware.
+
+- sql_token:
+
+  Optional separate Azure SQL token or token-provider function. Supply
+  it when `token` is fixed rather than audience-aware.
 
 ## Value
 

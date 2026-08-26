@@ -137,7 +137,9 @@ fabric_sql_connect(
   deprecated alias for `token` and is not forwarded. For ODBC, a
   caller-supplied `attributes` named list is merged with the
   package-managed `azure_token`; that protected attribute cannot be
-  overridden
+  overridden. ODBC authentication options `UID`, `PWD`,
+  `Authentication`, and `Trusted_Connection` cannot be combined with the
+  package-managed access token
 
 ## Value
 

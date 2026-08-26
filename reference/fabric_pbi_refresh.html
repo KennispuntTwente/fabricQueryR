@@ -66,7 +66,8 @@ target is a record returned by <code><a href="fabric_typed_items.html">fabric_se
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span></span>
+<span>  api_base <span class="op">=</span> <span class="st">"https://api.powerbi.com/v1.0/myorg"</span>,</span>
+<span>  principal_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"delegated"</span>, <span class="st">"service_principal"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_pbi_refresh_history</span><span class="op">(</span></span>
@@ -168,8 +169,9 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity</p></dd>
 <dd><p>Standard-refresh email behavior for delegated calls:
 <code>"NoNotification"</code>, <code>"MailOnFailure"</code>, or <code>"MailOnCompletion"</code>. When
 omitted, automatic delegated 'AzureAuth' uses <code>"NoNotification"</code> because
-Power BI requires this field. No option is inferred for service-principal
-authentication or opaque token providers. Omit this for enhanced refreshes</p></dd>
+Power BI requires this field. Service-principal calls omit the field. With
+an opaque token or provider, supply this or identify the principal through
+<code>principal_type</code>. Omit this for enhanced refreshes</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>
@@ -242,6 +244,14 @@ in-process credential unless new authentication arguments are supplied</p></dd>
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Power BI REST API base URL. The commercial-cloud default is
 normally correct</p></dd>
+
+
+<dt id="arg-principal-type">principal_type<a class="anchor" aria-label="anchor" href="#arg-principal-type"></a></dt>
+<dd><p>Identity used for a standard refresh. <code>"auto"</code>
+distinguishes the package's automatic delegated and client-credential
+flows. A supplied token or provider is opaque, so either supply
+<code>notify_option</code> for a delegated call or set this to <code>"service_principal"</code>.
+Enhanced refreshes do not use this setting</p></dd>
 
 
 <dt id="arg-top">top<a class="anchor" aria-label="anchor" href="#arg-top"></a></dt>

@@ -83,7 +83,9 @@ data frame.</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
 <span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  sql_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -211,6 +213,16 @@ a workspace-specific address discovered from Fabric is used when available</p></
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Whether to report SQL connection progress.</p></dd>
+
+
+<dt id="arg-storage-token">storage_token<a class="anchor" aria-label="anchor" href="#arg-storage-token"></a></dt>
+<dd><p>Optional separate Azure Storage token or token-provider
+function. Supply it when <code>token</code> is fixed rather than audience-aware.</p></dd>
+
+
+<dt id="arg-sql-token">sql_token<a class="anchor" aria-label="anchor" href="#arg-sql-token"></a></dt>
+<dd><p>Optional separate Azure SQL token or token-provider
+function. Supply it when <code>token</code> is fixed rather than audience-aware.</p></dd>
 
 </dl></div>
     <div class="section level2">

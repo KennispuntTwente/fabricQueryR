@@ -71,7 +71,7 @@ can also be supplied.</p>
 <span>  encoding <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  compression_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  distribution <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"per_shard"</span>, <span class="st">"per_node"</span>, <span class="st">"single"</span><span class="op">)</span>,</span>
-<span>  size_limit <span class="op">=</span> <span class="fl">100</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">^</span><span class="fl">2</span>,</span>
+<span>  size_limit <span class="op">=</span> <span class="fl">1e+08</span>,</span>
 <span>  parquet_row_group_size <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  parquet_datetime_precision <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">900</span>,</span>
@@ -160,8 +160,8 @@ and <code>"zstd"</code>.</p></dd>
 
 
 <dt id="arg-size-limit">size_limit<a class="anchor" aria-label="anchor" href="#arg-size-limit"></a></dt>
-<dd><p>Maximum uncompressed bytes per artifact, from 100 MiB to
-4 GiB.</p></dd>
+<dd><p>Maximum uncompressed bytes per artifact, from 100 MB to
+4 GB (100,000,000 to 4,000,000,000 bytes).</p></dd>
 
 
 <dt id="arg-parquet-row-group-size">parquet_row_group_size<a class="anchor" aria-label="anchor" href="#arg-parquet-row-group-size"></a></dt>
@@ -238,7 +238,7 @@ operation history before trying again.</p>
 <p><code>format</code> supports Kusto's <code>parquet</code>, <code>csv</code>, <code>tsv</code>, and <code>json</code> exporters.
 <code>compressed = TRUE</code> enables the selected <code>compression_type</code>, or Kusto's
 default codec when it is omitted. <code>size_limit</code> is the uncompressed target
-size of each artifact and must be from 100 MiB through 4 GiB. Text header and
+size of each artifact and must be from 100 MB through 4 GB. Text header and
 encoding options, and Parquet row-group and datetime-precision options, are
 accepted only for their applicable formats.</p>
     </div>

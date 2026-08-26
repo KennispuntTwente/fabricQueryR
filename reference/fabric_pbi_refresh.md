@@ -28,7 +28,8 @@ fabric_pbi_refresh(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg"
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  principal_type = c("auto", "delegated", "service_principal")
 )
 
 fabric_pbi_refresh_history(
@@ -132,9 +133,9 @@ fabric_pbi_refresh_cancel(
   Standard-refresh email behavior for delegated calls:
   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
   omitted, automatic delegated 'AzureAuth' uses `"NoNotification"`
-  because Power BI requires this field. No option is inferred for
-  service-principal authentication or opaque token providers. Omit this
-  for enhanced refreshes
+  because Power BI requires this field. Service-principal calls omit the
+  field. With an opaque token or provider, supply this or identify the
+  principal through `principal_type`. Omit this for enhanced refreshes
 
 - type:
 
@@ -205,6 +206,14 @@ fabric_pbi_refresh_cancel(
 
   Power BI REST API base URL. The commercial-cloud default is normally
   correct
+
+- principal_type:
+
+  Identity used for a standard refresh. `"auto"` distinguishes the
+  package's automatic delegated and client-credential flows. A supplied
+  token or provider is opaque, so either supply `notify_option` for a
+  delegated call or set this to `"service_principal"`. Enhanced
+  refreshes do not use this setting
 
 - top:
 
