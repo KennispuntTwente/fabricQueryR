@@ -507,6 +507,36 @@ test_that("history normalizes attempts, errors, times, and detail links", {
   expect_match(call$url, "%24top=5")
 })
 
+test_that("history preserves an ended refresh with unknown status", {
+  handle <- pbi_refresh_test_handle(mode = "standard")
+  ended <- .pbi_refresh_detail(
+    list(
+      status = "Unknown",
+      endTime = "2026-08-13T08:02:00Z"
+    ),
+    handle,
+    status_code = 200L,
+    history = TRUE
+  )
+  active <- .pbi_refresh_detail(
+    list(status = "Unknown"),
+    handle,
+    status_code = 200L,
+    history = TRUE
+  )
+  empty_end <- .pbi_refresh_detail(
+    list(status = "Unknown", endTime = ""),
+    handle,
+    status_code = 200L,
+    history = TRUE
+  )
+
+  expect_identical(ended$state, "Unknown")
+  expect_s3_class(ended$end_time, "POSIXct")
+  expect_identical(active$state, "InProgress")
+  expect_identical(empty_end$state, "InProgress")
+})
+
 test_that("detail states preserve queue, warning, cancellation, and timeout", {
   handle <- pbi_refresh_test_handle()
   queued <- .pbi_refresh_detail(

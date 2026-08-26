@@ -1365,12 +1365,14 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   has_warnings <- "warning" %in% message_types
   has_errors <- "error" %in% message_types
   service_error <- .pbi_refresh_service_error(body$serviceExceptionJson)
+  end_time <- .pbi_refresh_time(body$endTime)
   state <- .pbi_refresh_state(
     status = body$status,
     extended_status = body$extendedStatus,
     status_code = status_code,
     has_warnings = has_warnings,
-    history = history
+    history = history,
+    ended = !is.null(end_time)
   )
   refresh_type <- body$refreshType %||% body$initiatedBy
   details_url <- .pbi_refresh_details_url(refresh)
@@ -1389,7 +1391,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       current_refresh_type = body$currentRefreshType,
       commit_mode = body$commitMode,
       start_time = .pbi_refresh_time(body$startTime),
-      end_time = .pbi_refresh_time(body$endTime),
+      end_time = end_time,
       number_of_attempts = body$numberOfAttempts %||% length(attempts),
       attempts = attempts,
       objects = body$objects %||% list(),
@@ -1450,7 +1452,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   extended_status,
   status_code,
   has_warnings,
-  history
+  history,
+  ended = FALSE
 ) {
   extended <- tolower(extended_status %||% "")
   general <- tolower(status %||% "unknown")
@@ -1491,7 +1494,9 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     return("TimedOut")
   }
   if (
-    general == "unknown" && (identical(status_code, 202L) || isTRUE(history))
+    general == "unknown" &&
+      !isTRUE(ended) &&
+      (identical(status_code, 202L) || isTRUE(history))
   ) {
     return("InProgress")
   }
