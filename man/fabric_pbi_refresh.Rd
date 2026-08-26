@@ -28,7 +28,8 @@ fabric_pbi_refresh(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg"
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  principal_type = c("auto", "delegated", "service_principal")
 )
 
 fabric_pbi_refresh_history(
@@ -115,8 +116,9 @@ controls and requires Premium, PPU, Embedded, or Fabric capacity}
 \item{notify_option}{Standard-refresh email behavior for delegated calls:
 \code{"NoNotification"}, \code{"MailOnFailure"}, or \code{"MailOnCompletion"}. When
 omitted, automatic delegated 'AzureAuth' uses \code{"NoNotification"} because
-Power BI requires this field. No option is inferred for service-principal
-authentication or opaque token providers. Omit this for enhanced refreshes}
+Power BI requires this field. Service-principal calls omit the field. With
+an opaque token or provider, supply this or identify the principal through
+\code{principal_type}. Omit this for enhanced refreshes}
 
 \item{type}{Enhanced processing type: \code{"Full"}, \code{"ClearValues"},
 \code{"Calculate"}, \code{"DataOnly"}, \code{"Automatic"}, or \code{"Defragment"}}
@@ -163,6 +165,12 @@ in-process credential unless new authentication arguments are supplied}
 
 \item{api_base}{Power BI REST API base URL. The commercial-cloud default is
 normally correct}
+
+\item{principal_type}{Identity used for a standard refresh. \code{"auto"}
+distinguishes the package's automatic delegated and client-credential
+flows. A supplied token or provider is opaque, so either supply
+\code{notify_option} for a delegated call or set this to \code{"service_principal"}.
+Enhanced refreshes do not use this setting}
 
 \item{top}{Maximum history entries to return. Power BI retains 20 to 60
 recent entries, depending on their age}

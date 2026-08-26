@@ -75,7 +75,8 @@ test_that("service-principal standard refresh omits email notification", {
     workspace_id = manifest$workspace_id,
     dataset_id = semantic_model$id,
     notify_option = NULL,
-    token = fabric_test_token_provider()
+    token = fabric_test_token_provider(),
+    principal_type = "service_principal"
   )
   completed <- fabric_pbi_refresh_wait(
     refresh,

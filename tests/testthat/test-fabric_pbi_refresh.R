@@ -16,7 +16,8 @@ test_that("service-principal standard refresh uses the RequestId header", {
   refresh <- fabric_pbi_refresh(
     pbi_refresh_test_model(),
     token = "test-token",
-    api_base = "https://powerbi.test/v1.0/myorg"
+    api_base = "https://powerbi.test/v1.0/myorg",
+    principal_type = "service_principal"
   )
 
   expect_s3_class(refresh, "fabric_pbi_refresh")
@@ -83,11 +84,19 @@ test_that("standard refresh defaults follow the known principal type", {
   fabric_pbi_refresh(
     pbi_refresh_test_model(),
     token = "opaque-token",
+    principal_type = "service_principal",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
   fabric_pbi_refresh(
     pbi_refresh_test_model(),
     token = function(...) "opaque-callback-token",
+    principal_type = "service_principal",
+    api_base = "https://powerbi.test/v1.0/myorg"
+  )
+  fabric_pbi_refresh(
+    pbi_refresh_test_model(),
+    token = "delegated-token",
+    principal_type = "delegated",
     api_base = "https://powerbi.test/v1.0/myorg"
   )
   fabric_pbi_refresh(
@@ -101,7 +110,40 @@ test_that("standard refresh defaults follow the known principal type", {
   expect_length(payloads[[2L]], 0L)
   expect_length(payloads[[3L]], 0L)
   expect_length(payloads[[4L]], 0L)
-  expect_equal(payloads[[5L]], list(notifyOption = "MailOnFailure"))
+  expect_equal(payloads[[5L]], list(notifyOption = "NoNotification"))
+  expect_equal(payloads[[6L]], list(notifyOption = "MailOnFailure"))
+})
+
+test_that("opaque standard refresh credentials require principal context", {
+  calls <- 0L
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      calls <<- calls + 1L
+      stop("unexpected request")
+    }
+  )
+
+  for (token in list("opaque-token", function(...) "provider-token")) {
+    expect_error(
+      fabric_pbi_refresh(
+        pbi_refresh_test_model(),
+        token = token,
+        api_base = "https://powerbi.test/v1.0/myorg"
+      ),
+      class = "fabric_pbi_refresh_auth_error"
+    )
+  }
+  expect_error(
+    fabric_pbi_refresh(
+      pbi_refresh_test_model(),
+      notify_option = "NoNotification",
+      token = "service-principal-token",
+      principal_type = "service_principal",
+      api_base = "https://powerbi.test/v1.0/myorg"
+    ),
+    class = "fabric_pbi_refresh_auth_error"
+  )
+  expect_identical(calls, 0L)
 })
 
 test_that("delegated standard refresh serializes its required notification", {
@@ -1191,7 +1233,8 @@ test_that("connection strings resolve through the existing DAX target lookup", {
       "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;",
       "Initial Catalog=Model;"
     ),
-    token = "test-token"
+    token = "test-token",
+    principal_type = "service_principal"
   )
 
   expect_match(

@@ -30,8 +30,9 @@
 #' @param notify_option Standard-refresh email behavior for delegated calls:
 #'   `"NoNotification"`, `"MailOnFailure"`, or `"MailOnCompletion"`. When
 #'   omitted, automatic delegated 'AzureAuth' uses `"NoNotification"` because
-#'   Power BI requires this field. No option is inferred for service-principal
-#'   authentication or opaque token providers. Omit this for enhanced refreshes
+#'   Power BI requires this field. Service-principal calls omit the field. With
+#'   an opaque token or provider, supply this or identify the principal through
+#'   `principal_type`. Omit this for enhanced refreshes
 #' @param type Enhanced processing type: `"Full"`, `"ClearValues"`,
 #'   `"Calculate"`, `"DataOnly"`, `"Automatic"`, or `"Defragment"`
 #' @param commit_mode Enhanced commit behavior. `"Transactional"` preserves the
@@ -84,6 +85,11 @@
 #'   [AzureAuth::get_azure_token()]
 #' @param api_base Power BI REST API base URL. The commercial-cloud default is
 #'   normally correct
+#' @param principal_type Identity used for a standard refresh. `"auto"`
+#'   distinguishes the package's automatic delegated and client-credential
+#'   flows. A supplied token or provider is opaque, so either supply
+#'   `notify_option` for a delegated call or set this to `"service_principal"`.
+#'   Enhanced refreshes do not use this setting
 #' @param .sleep,.now Internal hooks for deterministic polling tests
 #'
 #' @section Standard and enhanced refresh:
@@ -220,13 +226,19 @@ fabric_pbi_refresh <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = "https://api.powerbi.com/v1.0/myorg"
+  api_base = "https://api.powerbi.com/v1.0/myorg",
+  principal_type = c("auto", "delegated", "service_principal")
 ) {
   # 1 Resolve the semantic model -------------------------------------------------------------------
 
   # Reuse the DAX target rules so query and refresh workflows accept the same inputs
 
   mode <- match.arg(mode)
+  principal_type <- .pbi_refresh_principal_type(
+    principal_type,
+    token,
+    auth_args
+  )
   api_base <- pbi_api_base(api_base)
   credential <- fabric_credential(
     tenant_id = tenant_id,
@@ -258,14 +270,35 @@ fabric_pbi_refresh <- function(
     max_parallelism = max_parallelism,
     retry_count = retry_count,
     refresh_timeout = timeout,
-    default_notify_option = if (
-      is.null(token) && !fabric_uses_client_credentials(auth_args)
-    ) {
+    default_notify_option = if (identical(principal_type, "delegated")) {
       "NoNotification"
     } else {
       NULL
     }
   )
+  if (
+    identical(request$mode, "standard") &&
+      identical(principal_type, "unknown") &&
+      !length(request$payload)
+  ) {
+    .fabric_abort(
+      paste0(
+        "A standard refresh with an opaque token requires notify_option for ",
+        "delegated authentication or principal_type = \"service_principal\""
+      ),
+      class = c("fabric_pbi_refresh_auth_error", "fabric_pbi_refresh_error")
+    )
+  }
+  if (
+    identical(request$mode, "standard") &&
+      identical(principal_type, "service_principal") &&
+      length(request$payload)
+  ) {
+    .fabric_abort(
+      "notify_option does not apply to service-principal refreshes",
+      class = c("fabric_pbi_refresh_auth_error", "fabric_pbi_refresh_error")
+    )
+  }
   url <- .pbi_refresh_collection_url(api_base, target)
 
   # 3 Submit once and retain the refresh identity --------------------------------------------------
@@ -915,6 +948,25 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     payload$type <- "Automatic"
   }
   list(mode = mode, payload = payload)
+}
+
+# Resolve whether a standard-refresh caller needs a notification payload
+.pbi_refresh_principal_type <- function(principal_type, token, auth_args) {
+  principal_type <- match.arg(
+    principal_type,
+    c("auto", "delegated", "service_principal")
+  )
+  if (!identical(principal_type, "auto")) {
+    return(principal_type)
+  }
+  if (!is.null(token)) {
+    return("unknown")
+  }
+  if (fabric_uses_client_credentials(auth_args)) {
+    "service_principal"
+  } else {
+    "delegated"
+  }
 }
 
 # Reconstruct the credential and target from a handle or raw request ID
