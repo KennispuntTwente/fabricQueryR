@@ -416,7 +416,7 @@ test_that("KQL export validates destinations and format-specific properties", {
       NULL,
       NULL,
       "per_shard",
-      100 * 1024^2,
+      100e6,
       NULL,
       NULL
     ),
@@ -433,7 +433,7 @@ test_that("KQL export validates destinations and format-specific properties", {
       NULL,
       "gzip",
       "single",
-      100 * 1024^2,
+      100e6,
       NULL,
       NULL
     ),
@@ -450,7 +450,7 @@ test_that("KQL export validates destinations and format-specific properties", {
       NULL,
       NULL,
       "per_shard",
-      100 * 1024^2 - 1,
+      100e6 - 1,
       NULL,
       NULL
     ),
@@ -511,4 +511,28 @@ test_that("KQL export validates destinations and format-specific properties", {
   ))
   expect_false(grepl(unnamed_secret, status, fixed = TRUE))
   expect_match(status, "<redacted>", fixed = TRUE)
+})
+
+test_that("KQL export uses Fabric's decimal file-size boundaries", {
+  properties <- function(size_limit) {
+    kusto_export_properties(
+      format = "parquet",
+      compressed = TRUE,
+      include_headers = NULL,
+      name_prefix = NULL,
+      file_extension = NULL,
+      encoding = NULL,
+      compression_type = NULL,
+      distribution = "per_shard",
+      size_limit = size_limit,
+      parquet_row_group_size = NULL,
+      parquet_datetime_precision = NULL
+    )
+  }
+
+  expect_identical(properties(100e6)$sizeLimit, 100e6)
+  expect_identical(properties(4e9)$sizeLimit, 4e9)
+  expect_error(properties(100e6 - 1), "size_limit")
+  expect_error(properties(4e9 + 1), "4 GB", fixed = TRUE)
+  expect_error(properties(4 * 1024^3), "4 GB", fixed = TRUE)
 })

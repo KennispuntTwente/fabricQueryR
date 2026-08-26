@@ -3113,7 +3113,7 @@ kusto_write_result <- function(
 #' `format` supports Kusto's `parquet`, `csv`, `tsv`, and `json` exporters.
 #' `compressed = TRUE` enables the selected `compression_type`, or Kusto's
 #' default codec when it is omitted. `size_limit` is the uncompressed target
-#' size of each artifact and must be from 100 MiB through 4 GiB. Text header and
+#' size of each artifact and must be from 100 MB through 4 GB. Text header and
 #' encoding options, and Parquet row-group and datetime-precision options, are
 #' accepted only for their applicable formats.
 #'
@@ -3146,8 +3146,8 @@ kusto_write_result <- function(
 #'   `"gzip"`; Parquet also supports `"snappy"`, `"lz4_raw"`, `"brotli"`,
 #'   and `"zstd"`.
 #' @param distribution Kusto export distribution hint.
-#' @param size_limit Maximum uncompressed bytes per artifact, from 100 MiB to
-#'   4 GiB.
+#' @param size_limit Maximum uncompressed bytes per artifact, from 100 MB to
+#'   4 GB (100,000,000 to 4,000,000,000 bytes).
 #' @param parquet_row_group_size Optional positive Parquet row-group row count.
 #' @param parquet_datetime_precision Optional `"millisecond"` or
 #'   `"microsecond"` precision for Parquet datetime values.
@@ -3206,7 +3206,7 @@ fabric_kql_export <- function(
   encoding = NULL,
   compression_type = NULL,
   distribution = c("per_shard", "per_node", "single"),
-  size_limit = 100 * 1024^2,
+  size_limit = 100e6,
   parquet_row_group_size = NULL,
   parquet_datetime_precision = NULL,
   timeout = 900,
@@ -3659,11 +3659,11 @@ kusto_export_properties <- function(
   kusto_ingestion_number(
     size_limit,
     "size_limit",
-    minimum = 100 * 1024^2,
+    minimum = 100e6,
     whole = TRUE
   )
-  if (size_limit > 4 * 1024^3) {
-    .fabric_abort("size_limit must not exceed 4 GiB")
+  if (size_limit > 4e9) {
+    .fabric_abort("size_limit must not exceed 4 GB (4,000,000,000 bytes)")
   }
   if (!is.null(parquet_row_group_size)) {
     kusto_ingestion_number(

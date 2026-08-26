@@ -20,7 +20,7 @@ fabric_kql_export(
   encoding = NULL,
   compression_type = NULL,
   distribution = c("per_shard", "per_node", "single"),
-  size_limit = 100 * 1024^2,
+  size_limit = 1e+08,
   parquet_row_group_size = NULL,
   parquet_datetime_precision = NULL,
   timeout = 900,
@@ -74,8 +74,8 @@ and \code{"zstd"}.}
 
 \item{distribution}{Kusto export distribution hint.}
 
-\item{size_limit}{Maximum uncompressed bytes per artifact, from 100 MiB to
-4 GiB.}
+\item{size_limit}{Maximum uncompressed bytes per artifact, from 100 MB to
+4 GB (100,000,000 to 4,000,000,000 bytes).}
 
 \item{parquet_row_group_size}{Optional positive Parquet row-group row count.}
 
@@ -138,7 +138,7 @@ operation history before trying again.
 \code{format} supports Kusto's \code{parquet}, \code{csv}, \code{tsv}, and \code{json} exporters.
 \code{compressed = TRUE} enables the selected \code{compression_type}, or Kusto's
 default codec when it is omitted. \code{size_limit} is the uncompressed target
-size of each artifact and must be from 100 MiB through 4 GiB. Text header and
+size of each artifact and must be from 100 MB through 4 GB. Text header and
 encoding options, and Parquet row-group and datetime-precision options, are
 accepted only for their applicable formats.
 }
