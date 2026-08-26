@@ -25,6 +25,32 @@
   c("resource", "tenant", "app", "version")
 )
 
+.fabric_audience_hosts <- list(
+  fabric = "api.fabric.microsoft.com",
+  power_bi = c(
+    "api.fabric.microsoft.com",
+    "api.powerbi.com",
+    "analysis.windows.net"
+  ),
+  storage = c(
+    "onelake.dfs.fabric.microsoft.com",
+    "dfs.fabric.microsoft.com",
+    "onelake.fabric.microsoft.com",
+    "onelake.table.fabric.microsoft.com"
+  ),
+  kusto = c(
+    "kusto.fabric.microsoft.com",
+    "kusto.windows.net",
+    "kusto.data.microsoft.com"
+  ),
+  sql = c(
+    "database.windows.net",
+    "fabric.microsoft.com",
+    "pbidedicated.microsoft.com",
+    "pbidedicated.windows.net"
+  )
+)
+
 #' Create an internal audience-aware credential
 #'
 #' @param tenant_id Entra tenant ID
@@ -172,11 +198,12 @@ fabric_credential <- function(
 
 # Keep automatic Azure sign-in inside the Microsoft Fabric credential boundary.
 # Returns `endpoint` invisibly after requiring an explicit credential for any
-# caller-selected host outside api.fabric.microsoft.com.
+# caller-selected host outside the supplied Microsoft service suffixes.
 fabric_require_explicit_custom_token <- function(
   endpoint,
   token,
-  argument = "endpoint"
+  argument = "endpoint",
+  allowed_hosts = .fabric_audience_hosts$fabric
 ) {
   if (!is.null(token)) {
     return(invisible(endpoint))
@@ -188,7 +215,12 @@ fabric_require_explicit_custom_token <- function(
   } else {
     parsed$hostname %||% ""
   }
-  if (fabric_host_matches(host, "api.fabric.microsoft.com")) {
+  trusted <- any(vapply(
+    allowed_hosts,
+    function(suffix) fabric_host_matches(host, suffix),
+    logical(1)
+  ))
+  if (trusted) {
     return(invisible(endpoint))
   }
 
@@ -201,6 +233,47 @@ fabric_require_explicit_custom_token <- function(
     class = "fabric_custom_endpoint_requires_token",
     endpoint_host = host,
     argument = argument
+  )
+}
+
+# Choose the Microsoft-owned host suffixes associated with one token audience.
+# Unknown audiences stay inside the narrow Fabric REST boundary by default.
+fabric_trusted_hosts_for_audience <- function(audience) {
+  if (identical(audience, .fabric_audience$power_bi)) {
+    return(.fabric_audience_hosts$power_bi)
+  }
+  if (identical(audience, .fabric_audience$storage)) {
+    return(.fabric_audience_hosts$storage)
+  }
+  if (identical(audience, .fabric_audience$kusto)) {
+    return(.fabric_audience_hosts$kusto)
+  }
+  if (identical(audience, .fabric_audience$sql)) {
+    return(.fabric_audience_hosts$sql)
+  }
+  .fabric_audience_hosts$fabric
+}
+
+# Prevent an automatically acquired token from crossing its Microsoft service
+# boundary. Caller-supplied credentials remain an explicit opt-in.
+fabric_require_trusted_credential_endpoint <- function(
+  endpoint,
+  credential,
+  audience,
+  argument = "request endpoint"
+) {
+  if (
+    is.null(credential) ||
+      !inherits(credential, "fabric_credential") ||
+      !identical(credential$type, "AzureAuth")
+  ) {
+    return(invisible(endpoint))
+  }
+  fabric_require_explicit_custom_token(
+    endpoint,
+    token = NULL,
+    argument = argument,
+    allowed_hosts = fabric_trusted_hosts_for_audience(audience)
   )
 }
 

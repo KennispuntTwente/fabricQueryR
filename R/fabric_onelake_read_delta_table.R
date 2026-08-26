@@ -177,6 +177,12 @@ fabric_onelake_read_delta_table <- function(
     dfs_base = if (dfs_base_supplied) dfs_base else NULL,
     item_type = item_type
   )
+  fabric_require_explicit_custom_token(
+    resolved$target$dfs_base,
+    token,
+    "dfs_base",
+    allowed_hosts = .fabric_audience_hosts$storage
+  )
   version <- fabric_delta_validate_whole_number(
     version,
     "version",

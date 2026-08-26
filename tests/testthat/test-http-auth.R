@@ -101,6 +101,124 @@ test_that("automatic credentials stay within Microsoft Fabric hosts", {
   expect_match(conditionMessage(error), "supply token explicitly", fixed = TRUE)
 })
 
+test_that("automatic credentials use service-specific Microsoft hosts", {
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client"
+  )
+  trusted <- list(
+    list(
+      "https://api.fabric.microsoft.com/v1/workspaces",
+      .fabric_audience$fabric
+    ),
+    list(
+      "https://api.powerbi.com/v1.0/myorg/groups",
+      .fabric_audience$power_bi
+    ),
+    list(
+      "https://wabi-europe.analysis.windows.net/explore/querydata?synchronous=true",
+      .fabric_audience$power_bi
+    ),
+    list(
+      "https://onelake.dfs.fabric.microsoft.com/workspace/item/Files",
+      .fabric_audience$storage
+    ),
+    list(
+      "https://workspace.z12.dfs.fabric.microsoft.com/workspace/item/Files",
+      .fabric_audience$storage
+    ),
+    list(
+      "https://westeurope-api.onelake.fabric.microsoft.com/workspace/item/Files",
+      .fabric_audience$storage
+    ),
+    list(
+      "https://onelake.table.fabric.microsoft.com/delta/workspaces",
+      .fabric_audience$storage
+    ),
+    list(
+      "https://cluster.z1.kusto.fabric.microsoft.com/v2/rest/query",
+      .fabric_audience$kusto
+    ),
+    list(
+      "https://tenant.database.windows.net",
+      .fabric_audience$sql
+    )
+  )
+
+  for (case in trusted) {
+    expect_invisible(
+      fabric_require_trusted_credential_endpoint(
+        case[[1L]],
+        credential,
+        case[[2L]]
+      )
+    )
+  }
+})
+
+test_that("public HTTP APIs block automatic credentials on custom hosts", {
+  tenant_id <- "tenant"
+  client_id <- "client"
+  workspace_id <- "11111111-1111-1111-1111-111111111111"
+  item_id <- "22222222-2222-2222-2222-222222222222"
+  calls <- list(
+    fabric_rest = function() {
+      fabric_workspaces(
+        tenant_id = tenant_id,
+        client_id = client_id,
+        api_base = "https://gateway.example/v1"
+      )
+    },
+    power_bi = function() {
+      fabric_pbi_dax_query(
+        dax = "EVALUATE ROW(\"value\", 1)",
+        workspace_id = workspace_id,
+        dataset_id = item_id,
+        tenant_id = tenant_id,
+        client_id = client_id,
+        api_base = "https://gateway.example/v1.0/myorg"
+      )
+    },
+    kusto = function() {
+      fabric_kql_query(
+        "https://gateway.example",
+        query = "print value = 1",
+        database = "database",
+        tenant_id = tenant_id,
+        client_id = client_id
+      )
+    },
+    onelake_table = function() {
+      fabric_lakehouse_tables(
+        lakehouse_table_test_item(),
+        tenant_id = tenant_id,
+        client_id = client_id,
+        table_api_base = "https://gateway.example/delta"
+      )
+    }
+  )
+
+  local_mocked_bindings(
+    get_azure_token = function(...) fake_azure_token(),
+    .package = "AzureAuth"
+  )
+  httr2::local_mocked_responses(function(req) {
+    json_response(
+      body = list(data = list()),
+      url = req$url
+    )
+  })
+
+  for (name in names(calls)) {
+    error <- rlang::catch_cnd(calls[[name]](), classes = "error")
+    expect_s3_class(
+      error,
+      "fabric_custom_endpoint_requires_token"
+    )
+    expect_identical(error$endpoint_host, "gateway.example")
+  }
+})
+
 test_that("automatic AzureAuth credentials refresh invalid and forced tokens", {
   acquired <- fake_azure_token()
   acquisitions <- 0L

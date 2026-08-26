@@ -142,6 +142,12 @@
     .fabric_abort("return_error_response must be TRUE or FALSE")
   }
 
+  fabric_require_trusted_credential_endpoint(
+    req$url,
+    credential,
+    audience
+  )
+
   # 2 Prepare retry state --------------------------------------------------------------------------
 
   # Prepare retry state once for reuse in the remaining work

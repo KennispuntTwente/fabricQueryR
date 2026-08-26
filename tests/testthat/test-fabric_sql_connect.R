@@ -360,6 +360,37 @@ test_that("SQL accepts an explicitly supplied custom endpoint", {
   )
 })
 
+test_that("SQL entry points reject automatic credentials for custom hosts", {
+  local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE)
+  )
+  connect_error <- rlang::catch_cnd(
+    fabric_sql_connect(
+      "sql.example.test",
+      tenant_id = "tenant",
+      client_id = "client",
+      verbose = FALSE
+    ),
+    classes = "error"
+  )
+  query_error <- rlang::catch_cnd(
+    fabric_sql_query(
+      "sql.example.test",
+      "SELECT 1",
+      tenant_id = "tenant",
+      client_id = "client",
+      verbose = FALSE
+    ),
+    classes = "error"
+  )
+
+  for (error in list(connect_error, query_error)) {
+    expect_s3_class(error, "fabric_custom_endpoint_requires_token")
+    expect_identical(error$endpoint_host, "sql.example.test")
+    expect_identical(error$argument, "server")
+  }
+})
+
 test_that("SQL timeouts are not constrained by the TCP port range", {
   expect_silent(fabric_sql_timeout(86400))
   expect_silent(fabric_sql_timeout(0))

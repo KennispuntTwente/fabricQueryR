@@ -335,6 +335,12 @@ fabric_sql_connect <- function(
     port = port
   )
   info$server <- fabric_sql_validate_endpoint(info$server)
+  fabric_require_explicit_custom_token(
+    paste0("https://", info$server),
+    token,
+    "server",
+    allowed_hosts = .fabric_audience_hosts$sql
+  )
   if (is.null(token)) {
     inform(
       verbose,
@@ -590,6 +596,21 @@ fabric_sql_query <- function(
   fabric_sql_retry_settings(max_tries, retry_delay)
   fabric_sql_require_backend(backend, result = result)
 
+  target_type <- match.arg(target_type)
+  endpoint <- fabric_sql_connection_info(
+    server = server,
+    database = database,
+    target_type = target_type,
+    port = port
+  )
+  endpoint$server <- fabric_sql_validate_endpoint(endpoint$server)
+  fabric_require_explicit_custom_token(
+    paste0("https://", endpoint$server),
+    token,
+    "server",
+    allowed_hosts = .fabric_audience_hosts$sql
+  )
+
   # 2 Prepare authentication and parameters --------------------------------------------------------
 
   # Prepare authentication and parameters once for reuse in the remaining work
@@ -620,7 +641,7 @@ fabric_sql_query <- function(
     list(
       server = server,
       database = database,
-      target_type = match.arg(target_type),
+      target_type = target_type,
       backend = backend,
       tenant_id = tenant_id,
       client_id = client_id,
