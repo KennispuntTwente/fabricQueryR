@@ -333,6 +333,25 @@ def test_live_power_bi_suite_cancels_an_enhanced_refresh():
     assert 'expect_identical(detail$state, "Cancelled")' in tests
 
 
+def test_delegated_power_bi_suite_requires_a_personal_dataset():
+    repository_root = Path(__file__).parents[3]
+    tests = (
+        repository_root
+        / "tests/testthat/test-integration-fabric-power-bi.R"
+    ).read_text()
+
+    required_dataset = (
+        'fabric_test_required_environment(\n'
+        '    "FABRIC_TEST_PERSONAL_DATASET_ID"'
+    )
+    optional_dataset = (
+        'fabric_test_optional_environment(\n'
+        '    "FABRIC_TEST_PERSONAL_DATASET_ID"'
+    )
+    assert tests.count(required_dataset) == 2
+    assert optional_dataset not in tests
+
+
 def test_persistent_sandbox_workflow_is_idempotent_and_manually_removed():
     repository_root = Path(__file__).parents[3]
     workflow = (

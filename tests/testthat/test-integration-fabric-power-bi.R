@@ -355,7 +355,7 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
 
 test_that("delegated DAX queries can target My Workspace", {
   fabric_test_delegated_auth_config()
-  dataset_id <- fabric_test_optional_environment(
+  dataset_id <- fabric_test_required_environment(
     "FABRIC_TEST_PERSONAL_DATASET_ID",
     "My Workspace DAX coverage"
   )
@@ -373,7 +373,7 @@ test_that("delegated DAX queries can target My Workspace", {
 
 test_that("delegated default standard refresh satisfies the Power BI contract", {
   auth <- fabric_test_delegated_auth_config()
-  dataset_id <- fabric_test_optional_environment(
+  dataset_id <- fabric_test_required_environment(
     "FABRIC_TEST_PERSONAL_DATASET_ID",
     "My Workspace delegated refresh coverage"
   )

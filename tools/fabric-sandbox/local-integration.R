@@ -10,8 +10,8 @@
 # AzureAuth's client-credentials flow. Its final fallback is AzureAuth's normal
 # interactive sign-in
 #
-# Interactive runs exercise the package's delegated AzureAuth path. Set
-# FABRIC_TEST_PERSONAL_DATASET_ID to also query a semantic model in My
+# Interactive runs exercise the package's delegated AzureAuth path and require
+# FABRIC_TEST_PERSONAL_DATASET_ID to query and refresh a semantic model in My
 # Workspace. A separate valid low-privilege token plus a workspace it cannot
 # access can be supplied through FABRIC_TEST_LIMITED_API_TOKEN and
 # FABRIC_TEST_DENIED_WORKSPACE_ID to exercise typed permission failures. The
