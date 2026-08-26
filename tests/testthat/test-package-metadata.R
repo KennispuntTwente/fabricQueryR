@@ -19,6 +19,6 @@ test_that("declared dependency floors cover APIs used by the package", {
   description <- read.dcf(description_path)
 
   expect_match(description[[1L, "Imports"]], "httr2 \\(>= 1\\.2\\.0\\)")
-  expect_match(description[[1L, "Imports"]], "cli \\(>= 3\\.0\\.0\\)")
+  expect_match(description[[1L, "Imports"]], "cli \\(>= 3\\.4\\.0\\)")
   expect_match(description[[1L, "Suggests"]], "testthat \\(>= 3\\.2\\.0\\)")
 })

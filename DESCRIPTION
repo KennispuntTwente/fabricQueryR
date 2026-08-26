@@ -65,7 +65,7 @@ Imports:
     dplyr,
     tibble,
     jsonlite,
-    cli (>= 3.0.0),
+    cli (>= 3.4.0),
     nanoarrow (>= 0.8.0),
     reticulate (>= 1.41),
     rlang,
