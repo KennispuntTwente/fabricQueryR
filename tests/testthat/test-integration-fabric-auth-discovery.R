@@ -246,7 +246,12 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
 
 test_that("Fabric long-running operations complete a live Warehouse creation", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token_provider()
+  provisioned_token <- fabric_test_token_provider()
+  audiences <- character()
+  token <- function(audience, force_refresh = FALSE) {
+    audiences <<- c(audiences, audience)
+    provisioned_token(audience, force_refresh = force_refresh)
+  }
   credential <- fabric_credential(token = token)
   display_name <- paste0(
     "fabricqueryr_operation_",
@@ -332,6 +337,14 @@ test_that("Fabric long-running operations complete a live Warehouse creation", {
   )
   expect_true(fabric_is_guid(operation$id))
   expect_true(is.numeric(operation$retry_after))
+  operation_host <- httr2::url_parse(operation$status_url)$hostname
+  expect_true(
+    fabric_host_matches(operation_host, "analysis.windows.net"),
+    info = paste(
+      "Live Warehouse creation must exercise Fabric's regional LRO route; got",
+      operation_host
+    )
+  )
 
   initial_state <- fabric_operation_status(operation)
   expect_s3_class(initial_state, "fabric_operation_state")
@@ -353,6 +366,10 @@ test_that("Fabric long-running operations complete a live Warehouse creation", {
   expect_identical(result$value$displayName, display_name)
   expect_identical(result$value$type, "Warehouse")
   expect_identical(result$value$workspaceId, manifest$workspace_id)
+  expect_true(
+    .fabric_audience$power_bi %in% audiences,
+    info = "Regional LRO polling must acquire a Power BI audience token"
+  )
 
   cleanup(strict = TRUE)
   expect_true(cleaned)

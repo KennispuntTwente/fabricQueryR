@@ -220,6 +220,20 @@ def test_auth_lane_acquires_an_optional_least_privilege_identity():
     assert auth_tests.count("fabric_test_optional_environment(") == 2
 
 
+def test_live_lro_suite_requires_a_regional_power_bi_route():
+    repository_root = Path(__file__).parents[3]
+    auth_tests = (
+        repository_root
+        / "tests/testthat/test-integration-fabric-auth-discovery.R"
+    ).read_text()
+
+    lro_test = auth_tests.split(
+        'test_that("Fabric long-running operations', maxsplit=1
+    )[1].split("\ntest_that(", maxsplit=1)[0]
+    assert 'fabric_host_matches(operation_host, "analysis.windows.net")' in lro_test
+    assert ".fabric_audience$power_bi %in% audiences" in lro_test
+
+
 def test_delta_matrices_install_the_locked_delta_rs_oracle():
     repository_root = Path(__file__).parents[3]
     workflow = (
