@@ -27,6 +27,27 @@ test_that("SQL integration rejects parser-confused ADBC endpoints before auth", 
   expect_identical(acquired, FALSE)
 })
 
+test_that("fabric_sql_query acquires a live SQL token through AzureAuth", {
+  backend <- fabric_test_sql_backends()[[1L]]
+  manifest <- fabric_test_manifest()
+  lakehouse <- manifest$items$TestLakehouse
+  auth <- fabric_test_azure_auth_config()
+
+  result <- fabric_sql_query(
+    server = lakehouse$sql_endpoint,
+    database = lakehouse$display_name,
+    sql = "SELECT CAST(1 AS int) AS authenticated",
+    backend = backend,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    token = NULL,
+    auth_args = auth$auth_args,
+    verbose = FALSE
+  )
+
+  expect_identical(as.numeric(result$authenticated), 1)
+})
+
 test_that("fabric_sql_connect opens a usable connection and disconnects", {
   backends <- fabric_test_sql_backends()
   manifest <- fabric_test_manifest()
