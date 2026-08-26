@@ -76,13 +76,15 @@ the item type and workspace ID.}
 \item{workspace}{Workspace GUID, exact display name, or a workspace record.
 Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
 
-\item{job_type}{Schedule job type. Data pipelines, Dataflows, and Data Build
-Tool Jobs default to \code{"Execute"}. For a Dataflow publish schedule, set
-\code{job_type = "ApplyChanges"} explicitly. Other item types default to
-\code{"DefaultJob"}, as shown in the Core Job Scheduler examples. Supply an
-explicit value for another workload-specific schedule job type. When
-passing one of these item types as a GUID instead of a discovered item,
-also supply \code{item_type} or set the documented \code{job_type} explicitly.}
+\item{job_type}{Schedule job type. Notebooks default to \code{"RunNotebook"},
+Spark job definitions to \code{"SparkJob"}, semantic models to \code{"Refresh"},
+and data pipelines, Dataflows, and Data Build Tool Jobs to \code{"Execute"}.
+For a Dataflow publish schedule, set \code{job_type = "ApplyChanges"}
+explicitly. Unknown item types retain the Core Scheduler's \code{"DefaultJob"}
+fallback. Supply an explicit value for another workload-specific schedule
+job type. When passing one of these item types as a GUID instead of a
+discovered item, also supply \code{item_type} or set the documented \code{job_type}
+explicitly.}
 
 \item{item_type}{Optional Fabric item type when \code{item} is a GUID. A discovered
 item supplies this automatically.}

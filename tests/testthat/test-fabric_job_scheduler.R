@@ -195,7 +195,7 @@ test_that("schedule listing normalizes common fields and preserves future data",
   )
   local_mocked_bindings(
     .httr2_collection = function(url, ...) {
-      expect_match(url, "/jobs/DefaultJob/schedules$", perl = TRUE)
+      expect_match(url, "/jobs/RunNotebook/schedules$", perl = TRUE)
       list(future)
     }
   )
@@ -251,7 +251,7 @@ test_that("schedule creation sends the documented payload and preserves arrays",
 
   expect_s3_class(schedule, "fabric_job_schedule")
   expect_equal(call$method, "POST")
-  expect_match(call$url, "/jobs/DefaultJob/schedules$", perl = TRUE)
+  expect_match(call$url, "/jobs/RunNotebook/schedules$", perl = TRUE)
   expect_false(call$idempotent)
   expect_equal(call$payload$configuration$type, "Weekly")
   expect_equal(schedule$execution_data$parameters$marker, "scheduled")
@@ -441,7 +441,7 @@ test_that("schedule deletion requires confirmation and uses the exact route", {
   expect_equal(call$method, "DELETE")
   expect_match(
     call$url,
-    paste0("/jobs/DefaultJob/schedules/", schedule_id, "$"),
+    paste0("/jobs/RunNotebook/schedules/", schedule_id, "$"),
     perl = TRUE
   )
   expect_true(call$arguments$idempotent)
@@ -457,6 +457,18 @@ test_that("workloads infer their documented schedule job type", {
     }
   )
 
+  fabric_job_schedules(
+    scheduler_test_item("Notebook"),
+    token = "test-token"
+  )
+  fabric_job_schedules(
+    scheduler_test_item("SparkJobDefinition"),
+    token = "test-token"
+  )
+  fabric_job_schedules(
+    scheduler_test_item("SemanticModel"),
+    token = "test-token"
+  )
   fabric_job_schedules(
     scheduler_test_item("DataPipeline"),
     token = "test-token"
@@ -479,11 +491,14 @@ test_that("workloads infer their documented schedule job type", {
     token = "test-token"
   )
 
-  expect_match(urls[[1L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[2L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[3L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[1L]], "/jobs/RunNotebook/schedules$", perl = TRUE)
+  expect_match(urls[[2L]], "/jobs/SparkJob/schedules$", perl = TRUE)
+  expect_match(urls[[3L]], "/jobs/Refresh/schedules$", perl = TRUE)
   expect_match(urls[[4L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[5L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
+  expect_match(urls[[5L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[6L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[7L]], "/jobs/Execute/schedules$", perl = TRUE)
+  expect_match(urls[[8L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
 })
 
 test_that("DataPipeline schedule creation uses and records Execute", {

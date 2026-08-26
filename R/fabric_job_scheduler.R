@@ -229,13 +229,15 @@ fabric_job_schedule_config <- function(
 #' in the current REST contract.
 #'
 #' @inheritParams fabric_job_instances
-#' @param job_type Schedule job type. Data pipelines, Dataflows, and Data Build
-#'   Tool Jobs default to `"Execute"`. For a Dataflow publish schedule, set
-#'   `job_type = "ApplyChanges"` explicitly. Other item types default to
-#'   `"DefaultJob"`, as shown in the Core Job Scheduler examples. Supply an
-#'   explicit value for another workload-specific schedule job type. When
-#'   passing one of these item types as a GUID instead of a discovered item,
-#'   also supply `item_type` or set the documented `job_type` explicitly.
+#' @param job_type Schedule job type. Notebooks default to `"RunNotebook"`,
+#'   Spark job definitions to `"SparkJob"`, semantic models to `"Refresh"`,
+#'   and data pipelines, Dataflows, and Data Build Tool Jobs to `"Execute"`.
+#'   For a Dataflow publish schedule, set `job_type = "ApplyChanges"`
+#'   explicitly. Unknown item types retain the Core Scheduler's `"DefaultJob"`
+#'   fallback. Supply an explicit value for another workload-specific schedule
+#'   job type. When passing one of these item types as a GUID instead of a
+#'   discovered item, also supply `item_type` or set the documented `job_type`
+#'   explicitly.
 #' @param configuration A value returned by
 #'   [fabric_job_schedule_config()]. Advanced callers may pass a named list in
 #'   the documented Fabric `ScheduleConfig` shape. Known types are validated;
@@ -587,22 +589,25 @@ print.fabric_job_schedule <- function(x, ...) {
   )
 }
 
-# Infer the schedule job type for workloads whose Fabric job type differs from
-# the Core Scheduler examples. Returns an explicit value unchanged
+# Infer the documented schedule job type for known Fabric item workloads.
+# Returns an explicit value unchanged and preserves DefaultJob for unknown types
 .fabric_job_schedule_type <- function(item_type, job_type) {
   if (!is.null(job_type)) {
     return(job_type)
   }
 
   normalized <- gsub("[^a-z0-9]", "", tolower(item_type %||% ""))
-  if (
-    normalized %in%
-      c("datapipeline", "pipeline", "dataflow", "databuildtooljob")
-  ) {
-    "Execute"
-  } else {
+  switch(
+    normalized,
+    notebook = "RunNotebook",
+    sparkjobdefinition = "SparkJob",
+    semanticmodel = "Refresh",
+    datapipeline = "Execute",
+    pipeline = "Execute",
+    dataflow = "Execute",
+    databuildtooljob = "Execute",
     "DefaultJob"
-  }
+  )
 }
 
 .fabric_job_route_name <- function(item_type) {
