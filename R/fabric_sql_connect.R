@@ -187,8 +187,10 @@ fabric_sql_connection_info <- function(
 #' `backend = "odbc"` is the default and works well for ordinary 'DBI' use. It
 #' requires Microsoft ODBC Driver 18 or newer. Use `backend = "adbc"` when you
 #' want a native Arrow result path, typically for larger analytical results
-#' ADBC requires the external `mssql` driver; install it separately with
-#' `dbc install mssql`
+#' ADBC requires version 1.5.0 or newer of the external `mssql` driver, where
+#' Fabric Data Warehouse support was introduced. Install or update it separately
+#' with `dbc install mssql`. The connected driver must report its version through
+#' the standard ADBC information API
 #'
 #' @section Connection and permissions:
 #' Discovery records and complete portal connection strings normally include
@@ -211,7 +213,8 @@ fabric_sql_connection_info <- function(
 #' @param odbc_driver ODBC driver name. ODBC Driver 18 for SQL Server is the
 #'   default
 #' @param adbc_driver ADBC driver name or shared-library path. The separately
-#'   installed ADBC Driver Foundry `mssql` driver is the default
+#'   installed ADBC Driver Foundry `mssql` driver version 1.5.0 or newer is the
+#'   default requirement
 #' @param encrypt Whether the driver encrypts the connection. Keep the secure
 #'   default, `"yes"`, for Fabric
 #' @param trust_server_certificate Whether to accept a server certificate
@@ -244,6 +247,8 @@ fabric_sql_connection_info <- function(
 #' [Lakehouse SQL analytics endpoint](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint)
 #'
 #' [Download Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
+#'
+#' [ADBC `mssql` driver changelog](https://adbc-drivers.org/drivers/mssql/changelog.html)
 #' @export
 #'
 #' @examples
@@ -445,6 +450,18 @@ fabric_sql_connect <- function(
     )
 
     if (!inherits(connection, "error")) {
+      if (identical(backend, "adbc")) {
+        tryCatch(
+          fabric_sql_validate_adbc_driver(connection, adbc_driver),
+          error = function(error) {
+            try(
+              .fabric_sql_db_disconnect(connection, force = TRUE),
+              silent = TRUE
+            )
+            stop(error)
+          }
+        )
+      }
       inform(verbose, "Connected", type = "success")
       return(connection)
     }
@@ -1012,6 +1029,111 @@ fabric_sql_load_adbc_driver <- function(adbc_driver) {
       )
     }
   )
+}
+
+# Require the first mssql release that explicitly supports Fabric Warehouse
+fabric_sql_validate_adbc_driver <- function(connection, adbc_driver) {
+  if (!inherits(connection, "AdbiConnection")) {
+    return(invisible(TRUE))
+  }
+  version <- tryCatch(
+    fabric_sql_adbc_driver_version(connection),
+    error = function(error) {
+      .fabric_abort(
+        paste0(
+          "Could not verify the ADBC mssql driver version. The driver must ",
+          "report version 1.5.0 or newer through ADBC GetInfo."
+        ),
+        class = c(
+          "fabric_sql_driver_version_error",
+          "fabric_sql_driver_error",
+          "fabric_sql_connection_error"
+        ),
+        parent = error
+      )
+    }
+  )
+  fabric_sql_require_adbc_driver_version(version, adbc_driver)
+  invisible(TRUE)
+}
+
+# Read ADBC_INFO_DRIVER_VERSION from an established Adbi connection
+fabric_sql_adbc_driver_version <- function(connection) {
+  stream <- adbcdrivermanager::adbc_connection_get_info(
+    methods::slot(connection, "connection"),
+    101L
+  )
+  info <- nanoarrow::convert_array_stream(stream)
+  version <- fabric_sql_adbc_info_string(info)
+  if (is.null(version)) {
+    .fabric_abort("The ADBC driver did not report ADBC_INFO_DRIVER_VERSION")
+  }
+  version
+}
+
+# Find the string member in ADBC's dense-union GetInfo result
+fabric_sql_adbc_info_string <- function(value) {
+  if (is.list(value) && "string_value" %in% names(value)) {
+    candidate <- as.character(value[["string_value"]])
+    candidate <- candidate[!is.na(candidate) & nzchar(candidate)]
+    if (length(candidate)) {
+      return(candidate[[1L]])
+    }
+  }
+  if (is.list(value)) {
+    for (child in value) {
+      candidate <- fabric_sql_adbc_info_string(child)
+      if (!is.null(candidate)) {
+        return(candidate)
+      }
+    }
+  }
+  NULL
+}
+
+# Validate one reported driver version against Fabric's compatibility floor
+fabric_sql_require_adbc_driver_version <- function(version, adbc_driver) {
+  version <- as.character(version)
+  matched <- regmatches(
+    version,
+    regexpr("[0-9]+(?:\\.[0-9]+){1,3}", version, perl = TRUE)
+  )
+  if (
+    length(version) != 1L ||
+      is.na(version) ||
+      !length(matched) ||
+      !nzchar(matched)
+  ) {
+    .fabric_abort(
+      "The ADBC mssql driver reported an unrecognizable version",
+      class = c(
+        "fabric_sql_driver_version_error",
+        "fabric_sql_driver_error",
+        "fabric_sql_connection_error"
+      )
+    )
+  }
+  if (package_version(matched) < package_version("1.5.0")) {
+    .fabric_abort(
+      paste0(
+        "ADBC driver '",
+        adbc_driver,
+        "' reported version ",
+        matched,
+        "; Microsoft Fabric SQL requires mssql 1.5.0 or newer. ",
+        "Update it with `dbc install mssql`."
+      ),
+      class = c(
+        "fabric_sql_driver_version_error",
+        "fabric_sql_driver_error",
+        "fabric_sql_connection_error"
+      ),
+      driver = adbc_driver,
+      driver_version = matched,
+      minimum_driver_version = "1.5.0"
+    )
+  }
+  invisible(matched)
 }
 
 # Build an ADBC SQL Server URI from resolved `info` and connection settings

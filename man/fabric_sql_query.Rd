@@ -84,7 +84,8 @@ to let 'fabricQueryR' use its normal sign-in flow}
 default}
 
 \item{adbc_driver}{ADBC driver name or shared-library path. The separately
-installed ADBC Driver Foundry \code{mssql} driver is the default}
+installed ADBC Driver Foundry \code{mssql} driver version 1.5.0 or newer is the
+default requirement}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
 \code{server}; otherwise the standard SQL port, 1433, is used}

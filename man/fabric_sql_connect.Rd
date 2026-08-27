@@ -62,7 +62,8 @@ to let 'fabricQueryR' use its normal sign-in flow}
 default}
 
 \item{adbc_driver}{ADBC driver name or shared-library path. The separately
-installed ADBC Driver Foundry \code{mssql} driver is the default}
+installed ADBC Driver Foundry \code{mssql} driver version 1.5.0 or newer is the
+default requirement}
 
 \item{port}{Optional TCP port. An explicit value overrides a port in
 \code{server}; otherwise the standard SQL port, 1433, is used}
@@ -118,8 +119,10 @@ source system, Spark, or another appropriate writer to change their data
 \code{backend = "odbc"} is the default and works well for ordinary 'DBI' use. It
 requires Microsoft ODBC Driver 18 or newer. Use \code{backend = "adbc"} when you
 want a native Arrow result path, typically for larger analytical results
-ADBC requires the external \code{mssql} driver; install it separately with
-\verb{dbc install mssql}
+ADBC requires version 1.5.0 or newer of the external \code{mssql} driver, where
+Fabric Data Warehouse support was introduced. Install or update it separately
+with \verb{dbc install mssql}. The connected driver must report its version through
+the standard ADBC information API
 }
 
 \section{Connection and permissions}{
@@ -157,4 +160,6 @@ DBI::dbDisconnect(adbc_con)
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint}{Lakehouse SQL analytics endpoint}
 
 \href{https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server}{Download Microsoft ODBC Driver 18 for SQL Server}
+
+\href{https://adbc-drivers.org/drivers/mssql/changelog.html}{ADBC \code{mssql} driver changelog}
 }

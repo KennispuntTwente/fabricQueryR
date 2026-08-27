@@ -526,6 +526,35 @@ test_that("missing ADBC drivers fail before authentication with install guidance
   expect_match(conditionMessage(error), "adbcdrivermanager", fixed = TRUE)
 })
 
+test_that("ADBC SQL rejects drivers older than Fabric support", {
+  expect_identical(
+    fabric_sql_adbc_info_string(list(
+      info_value = list(list(string_value = "1.5.0"))
+    )),
+    "1.5.0"
+  )
+  expect_identical(
+    fabric_sql_require_adbc_driver_version("mssql 1.5.0", "mssql"),
+    "1.5.0"
+  )
+  expect_identical(
+    fabric_sql_require_adbc_driver_version("v1.6.0+release", "mssql"),
+    "1.6.0"
+  )
+  error <- expect_error(
+    fabric_sql_require_adbc_driver_version("1.4.1", "mssql"),
+    class = "fabric_sql_driver_version_error"
+  )
+  expect_match(conditionMessage(error), "1.5.0 or newer", fixed = TRUE)
+  expect_identical(error$driver_version, "1.4.1")
+  expect_identical(error$minimum_driver_version, "1.5.0")
+  expect_error(
+    fabric_sql_require_adbc_driver_version("development", "mssql"),
+    "unrecognizable version",
+    class = "fabric_sql_driver_version_error"
+  )
+})
+
 test_that("SQL connections retry transient Fabric failures with fresh tokens", {
   attempts <- 0L
   refreshes <- logical()
