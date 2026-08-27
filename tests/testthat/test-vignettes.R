@@ -660,17 +660,32 @@ test_that("Livy vignette executes query and shared-session examples", {
     skip("Package vignette source is not available in installed test runs")
   }
   workspace <- list(displayName = "Analytics workspace", id = "workspace-id")
+  archive <- list(displayName = "Archive", id = "archive-id")
   lakehouse <- list(id = "lakehouse-id")
+  discovery_calls <- 0L
+  lakehouse_workspace <- NULL
+  query_calls <- list()
+  session_lakehouse <- NULL
+  session_events <- character()
+  session_runs <- list()
   closed <- FALSE
-  runs <- 0L
   session <- list(
     close = function() {
       closed <<- TRUE
+      session_events <<- c(session_events, "close")
     },
-    wait = function() invisible(TRUE),
+    wait = function() {
+      session_events <<- c(session_events, "wait")
+      invisible(TRUE)
+    },
     run = function(code, kind) {
-      runs <<- runs + 1L
-      list(output = list(parsed = if (runs == 2L) 42L else NULL))
+      session_events <<- c(session_events, "run")
+      session_runs[[length(session_runs) + 1L]] <<- list(
+        code = code,
+        kind = kind
+      )
+      parsed <- if (identical(code, "print(shared_value + 2)")) 42L else NULL
+      list(output = list(parsed = parsed))
     }
   )
 
@@ -678,16 +693,66 @@ test_that("Livy vignette executes query and shared-session examples", {
     path,
     c(3L, 2L, 4:6),
     bindings = list(
-      fabric_workspaces = function(...) list(workspace),
-      fabric_lakehouses = function(...) list(lakehouse),
-      fabric_livy_query = function(...) {
+      fabric_workspaces = function(...) {
+        discovery_calls <<- discovery_calls + 1L
+        list(archive, workspace)
+      },
+      fabric_lakehouses = function(selected_workspace, ...) {
+        lakehouse_workspace <<- selected_workspace
+        list(lakehouse)
+      },
+      fabric_livy_query = function(lakehouse, code, kind, ...) {
+        query_calls[[length(query_calls) + 1L]] <<- list(
+          lakehouse = lakehouse,
+          code = code,
+          kind = kind,
+          options = list(...)
+        )
         list(output = list(parsed = data.frame(id = 1L)))
       },
-      fabric_livy_session = function(...) session
+      fabric_livy_session = function(selected_lakehouse, ...) {
+        session_lakehouse <<- selected_lakehouse
+        session
+      }
     )
   )
 
   expect_identical(example$answer$output$parsed, 42L)
+  expect_identical(discovery_calls, 1L)
+  expect_identical(lakehouse_workspace, workspace)
+  expect_length(query_calls, 3L)
+  expect_identical(query_calls[[1L]]$lakehouse, lakehouse)
+  expect_identical(query_calls[[1L]]$kind, "sql")
+  expect_identical(query_calls[[1L]]$code, "SELECT * FROM external_sql_table")
+  expect_identical(
+    query_calls[[1L]]$options$audience,
+    paste0(
+      "https://api.fabric.microsoft.com/",
+      c(
+        "Lakehouse.Execute.All",
+        "Lakehouse.Read.All",
+        "Code.AccessFabric.All",
+        "Code.AccessStorage.All",
+        "Code.AccessSQL.All"
+      )
+    )
+  )
+  expect_identical(query_calls[[2L]]$kind, "sql")
+  expect_identical(
+    query_calls[[2L]]$code,
+    "SELECT 1 AS id, 'hello from Spark' AS message"
+  )
+  expect_identical(query_calls[[3L]]$kind, "sparkr")
+  expect_match(query_calls[[3L]]$code, "SELECT [*] FROM orders LIMIT 100")
+  expect_identical(session_lakehouse, lakehouse)
+  expect_identical(session_events, c("wait", "run", "run", "close"))
+  expect_identical(
+    session_runs,
+    list(
+      list(code = "shared_value = 40", kind = "pyspark"),
+      list(code = "print(shared_value + 2)", kind = "pyspark")
+    )
+  )
   expect_true(closed)
 })
 
