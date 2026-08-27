@@ -986,8 +986,7 @@ print.fabric_job_instance <- function(x, ...) {
     location = httr2::resp_header(response, "location"),
     retry_after = .httr2_retry_after(response),
     body = if (isTRUE(parse_json) && status != 204L) {
-      out <- httr2::resp_body_string(response)
-      if (nzchar(out)) {
+      if (httr2::resp_has_body(response)) {
         httr2::resp_body_json(response, simplifyVector = FALSE)
       } else {
         list()

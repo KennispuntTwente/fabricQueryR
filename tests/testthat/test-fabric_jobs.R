@@ -490,6 +490,33 @@ test_that("job POST requests carry an explicit zero-length body", {
   expect_length(request$body$data, 0L)
 })
 
+test_that("job submissions accept successful responses without bodies", {
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      httr2::response(
+        status_code = 202L,
+        headers = list(
+          Location = paste0(
+            "https://api.fabric.test/v1/jobs/instances/",
+            "33333333-3333-3333-3333-333333333333"
+          ),
+          `Retry-After` = "60"
+        )
+      )
+    }
+  )
+
+  job <- fabric_job_run(
+    job_test_item(),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1"
+  )
+
+  expect_s3_class(job, "fabric_job")
+  expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
+  expect_identical(job$retry_after, 60)
+})
+
 test_that("job POST requests preserve one-element schema arrays", {
   request <- NULL
   local_mocked_bindings(
