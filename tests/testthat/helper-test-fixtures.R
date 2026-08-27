@@ -1,5 +1,45 @@
 # Shared fixtures must load before shuffled test expressions
 
+pbi_test_dense_union <- function(
+  type_ids,
+  offsets,
+  children,
+  child_types,
+  type_codes = seq_along(children) - 1L,
+  as_arrow = TRUE,
+  validate = TRUE
+) {
+  schema <- nanoarrow::na_dense_union(child_types)
+  schema$format <- paste0("+ud:", paste(type_codes, collapse = ","))
+  type_buffer <- nanoarrow::nanoarrow_buffer_init()
+  nanoarrow::nanoarrow_buffer_append(type_buffer, as.raw(type_ids))
+  offset_buffer <- nanoarrow::nanoarrow_buffer_init()
+  nanoarrow::nanoarrow_buffer_append(offset_buffer, as.integer(offsets))
+  child_arrays <- Map(
+    function(child, type) {
+      if (inherits(child, "ArrowObject")) {
+        return(nanoarrow::as_nanoarrow_array(child))
+      }
+      nanoarrow::as_nanoarrow_array(child, schema = type)
+    },
+    children,
+    child_types
+  )
+  array <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::nanoarrow_array_init(schema),
+    list(
+      length = length(type_ids),
+      buffers = list(type_buffer, offset_buffer),
+      children = child_arrays
+    ),
+    validate = validate
+  )
+  if (as_arrow) {
+    return(arrow::as_arrow_array(array))
+  }
+  list(array = array, schema = schema)
+}
+
 # test-delta-rs-oracle.R
 fabric_test_python_path <- function(python) {
   # Preserve a virtualenv executable's final symlink. Resolving it selects the
