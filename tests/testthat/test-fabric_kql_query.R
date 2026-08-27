@@ -22,28 +22,39 @@ test_that("KQL table discovery returns listing and schema metadata", {
       list("Metrics", "11111111-1111-4111-8111-111111111111", "", "")
     )
   )
-  schema <- function(name, type) {
-    kusto_export_test_table(
-      c(TableName = "String", Schema = "String"),
-      list(list(
-        name,
-        as.character(jsonlite::toJSON(
-          list(OrderedColumns = list(list(Name = "id", Type = type))),
-          auto_unbox = TRUE
-        ))
-      ))
-    )
-  }
+  schema <- kusto_export_test_table(
+    c(DatabaseSchema = "String"),
+    list(list(as.character(jsonlite::toJSON(
+      list(
+        Databases = list(
+          Telemetry = list(
+            Name = "Telemetry",
+            Tables = list(
+              Events = list(
+                Name = "Events",
+                OrderedColumns = list(list(
+                  Name = "id",
+                  Type = "System.Int32"
+                ))
+              ),
+              Metrics = list(
+                Name = "Metrics",
+                OrderedColumns = list(list(
+                  Name = "id",
+                  Type = "System.Double"
+                ))
+              )
+            )
+          )
+        )
+      ),
+      auto_unbox = TRUE
+    ))))
+  )
   httr2::local_mocked_responses(function(req) {
     command <- req$body$data$csl
     commands <<- c(commands, command)
-    table <- if (identical(command, ".show tables")) {
-      listing
-    } else if (grepl("Events", command, fixed = TRUE)) {
-      schema("Events", "System.Int32")
-    } else {
-      schema("Metrics", "System.Double")
-    }
+    table <- if (identical(command, ".show tables")) listing else schema
     kusto_export_test_response(table)
   })
 
@@ -73,11 +84,10 @@ test_that("KQL table discovery returns listing and schema metadata", {
     commands,
     c(
       ".show tables",
-      ".show table ['Events'] schema as json",
-      ".show table ['Metrics'] schema as json"
+      ".show database ['Telemetry'] schema as json"
     )
   )
-  expect_equal(audiences, rep(.fabric_audience$kusto, 3L))
+  expect_equal(audiences, rep(.fabric_audience$kusto, 2L))
 })
 
 test_that("KQL table discovery can skip detail and retain an empty shape", {

@@ -1,12 +1,12 @@
 #' Discover Microsoft Fabric KQL tables
 #'
 #' Lists tables in a Fabric KQL database through Kusto's management endpoint.
-#' With `detail = TRUE`, retrieves each table's JSON schema and exposes its
-#' ordered columns while retaining the complete metadata response.
+#' With `detail = TRUE`, retrieves the database JSON schema once and exposes
+#' each table's ordered columns while retaining its complete metadata.
 #'
 #' @inheritParams fabric_kql_query
-#' @param detail Whether to retrieve the JSON schema for every table. Set to
-#'   `FALSE` to issue only the database-level table-list command.
+#' @param detail Whether to retrieve the database JSON schema and map it to
+#'   every table. Set to `FALSE` to issue only the table-list command.
 #'
 #' @return A tibble with table `name`, `database`, `folder`, `description`,
 #'   list-column `columns`, parsed `schema_metadata`, and the unmodified listing
@@ -15,7 +15,7 @@
 #' @references
 #' [Kusto `.show tables` command](https://learn.microsoft.com/en-us/kusto/management/show-tables-command?view=microsoft-fabric)
 #'
-#' [Kusto `.show table schema` command](https://learn.microsoft.com/en-us/kusto/management/show-table-schema-command?view=microsoft-fabric)
+#' [Kusto `.show database schema` command](https://learn.microsoft.com/en-us/kusto/management/show-schema-database?view=microsoft-fabric)
 #' @export
 #'
 #' @examples
@@ -86,35 +86,54 @@ fabric_kql_tables <- function(
   result$database <- rep(target$database, nrow(result))
 
   if (isTRUE(detail) && nrow(result)) {
+    database_identifier <- kusto_entity_identifier(
+      target$database,
+      "database",
+      error_class
+    )
+    schema_response <- kusto_execute_management(
+      target = target,
+      command = paste(
+        ".show database",
+        database_identifier,
+        "schema as json"
+      ),
+      credential = credential,
+      deadline = deadline,
+      idempotent = TRUE,
+      operation = "GetDatabaseSchema",
+      request_prefix = "Tables",
+      error_class = error_class
+    )
+    schema_table <- kusto_management_table(
+      schema_response$tables,
+      "DatabaseSchema",
+      error_class
+    )
+    if (nrow(schema_table) != 1L) {
+      .fabric_abort(
+        "Kusto did not return exactly one database schema",
+        class = error_class
+      )
+    }
+    schema_text <- as.character(
+      kusto_export_column(schema_table, "DatabaseSchema")[[1L]]
+    )
+    database_metadata <- kusto_table_schema_metadata(
+      schema_text,
+      error_class
+    )
+    schema_tables <- kusto_database_schema_tables(
+      database_metadata,
+      target$database,
+      error_class
+    )
     for (index in seq_len(nrow(result))) {
-      identifier <- kusto_entity_identifier(
+      metadata <- kusto_database_table_schema(
+        schema_tables,
         result$name[[index]],
-        "table",
         error_class
       )
-      schema_response <- kusto_execute_management(
-        target = target,
-        command = paste(
-          ".show table",
-          identifier,
-          "schema as json"
-        ),
-        credential = credential,
-        deadline = deadline,
-        idempotent = TRUE,
-        operation = "GetTable",
-        request_prefix = "Tables",
-        error_class = error_class
-      )
-      schema_table <- kusto_management_table(
-        schema_response$tables,
-        c("TableName", "Schema"),
-        error_class
-      )
-      schema_text <- as.character(
-        kusto_export_column(schema_table, "Schema")[[1L]]
-      )
-      metadata <- kusto_table_schema_metadata(schema_text, error_class)
       result$columns[[index]] <- metadata$OrderedColumns %||%
         metadata$orderedColumns %||%
         list()
@@ -123,6 +142,68 @@ fabric_kql_tables <- function(
   }
 
   result
+}
+
+kusto_database_schema_tables <- function(metadata, database, error_class) {
+  databases <- metadata$Databases %||% metadata$databases
+  if (!is.list(databases) || is.null(names(databases))) {
+    .fabric_abort(
+      "Kusto database schema JSON is missing Databases metadata",
+      class = error_class
+    )
+  }
+  names_in_metadata <- vapply(
+    databases,
+    function(value) {
+      if (!is.list(value)) {
+        return("")
+      }
+      as.character(value$Name %||% value$name %||% "")
+    },
+    character(1)
+  )
+  matches <- which(
+    names(databases) == database |
+      names_in_metadata == database
+  )
+  if (length(matches) != 1L) {
+    .fabric_abort(
+      "Kusto database schema did not identify the requested database once",
+      class = error_class
+    )
+  }
+  tables <- databases[[matches]]$Tables %||% databases[[matches]]$tables
+  if (is.null(tables)) {
+    return(list())
+  }
+  if (!is.list(tables) || is.null(names(tables))) {
+    .fabric_abort(
+      "Kusto database schema contains invalid Tables metadata",
+      class = error_class
+    )
+  }
+  tables
+}
+
+kusto_database_table_schema <- function(tables, table, error_class) {
+  names_in_metadata <- vapply(
+    tables,
+    function(value) {
+      if (!is.list(value)) {
+        return("")
+      }
+      as.character(value$Name %||% value$name %||% "")
+    },
+    character(1)
+  )
+  matches <- which(names(tables) == table | names_in_metadata == table)
+  if (length(matches) != 1L) {
+    .fabric_abort(
+      paste0("Kusto database schema did not identify table '", table, "' once"),
+      class = error_class
+    )
+  }
+  tables[[matches]]
 }
 
 kusto_table_inventory <- function(table) {

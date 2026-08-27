@@ -26,8 +26,8 @@ here}
 \item{database}{KQL database display name. Supply it with a copied Query URI
 or an Eventhouse record; omit it when \code{cluster} is a KQLDatabase record}
 
-\item{detail}{Whether to retrieve the JSON schema for every table. Set to
-\code{FALSE} to issue only the database-level table-list command.}
+\item{detail}{Whether to retrieve the database JSON schema and map it to
+every table. Set to \code{FALSE} to issue only the table-list command.}
 
 \item{timeout}{Positive client-side HTTP timeout in seconds. This is separate
 from the Kusto \code{servertimeout} request property}
@@ -51,8 +51,8 @@ row in \code{raw}.
 }
 \description{
 Lists tables in a Fabric KQL database through Kusto's management endpoint.
-With \code{detail = TRUE}, retrieves each table's JSON schema and exposes its
-ordered columns while retaining the complete metadata response.
+With \code{detail = TRUE}, retrieves the database JSON schema once and exposes
+each table's ordered columns while retaining its complete metadata.
 }
 \examples{
 \dontrun{
@@ -66,5 +66,5 @@ events <- fabric_kql_read_table(database, tables[1L, ], limit = 1000)
 \references{
 \href{https://learn.microsoft.com/en-us/kusto/management/show-tables-command?view=microsoft-fabric}{Kusto \verb{.show tables} command}
 
-\href{https://learn.microsoft.com/en-us/kusto/management/show-table-schema-command?view=microsoft-fabric}{Kusto \verb{.show table schema} command}
+\href{https://learn.microsoft.com/en-us/kusto/management/show-schema-database?view=microsoft-fabric}{Kusto \verb{.show database schema} command}
 }
