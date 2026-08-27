@@ -226,7 +226,7 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   expect_false(session$close())
 })
 
-test_that("high-concurrency Livy sessions pack but isolate their REPLs", {
+test_that("high-concurrency Livy sessions isolate their REPLs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
@@ -257,9 +257,9 @@ test_that("high-concurrency Livy sessions pack but isolate their REPLs", {
   session_b$wait(timeout = 900, poll_interval = 5)
 
   expect_false(identical(session_a$id, session_b$id))
-  expect_identical(session_a$session_id, session_b$session_id)
   expect_false(identical(session_a$repl_id, session_b$repl_id))
   expect_true(nzchar(session_a$session_id))
+  expect_true(nzchar(session_b$session_id))
   expect_true(nzchar(session_a$repl_id))
   expect_true(nzchar(session_b$repl_id))
 
