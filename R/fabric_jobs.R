@@ -2557,9 +2557,12 @@ print.fabric_job_instance <- function(x, ...) {
 # text is inserted into a request URL
 .fabric_job_path_segment <- function(value, name) {
   .fabric_job_nonempty(value, name)
-  if (!grepl("^[A-Za-z0-9._-]+$", value)) {
+  if (value %in% c(".", "..") || !grepl("^[A-Za-z0-9._-]+$", value)) {
     .fabric_abort(sprintf(
-      "`%s` may contain only letters, numbers, dot, underscore, and hyphen",
+      paste0(
+        "`%s` must be one safe path segment containing only letters, ",
+        "numbers, dot, underscore, and hyphen"
+      ),
       name
     ))
   }

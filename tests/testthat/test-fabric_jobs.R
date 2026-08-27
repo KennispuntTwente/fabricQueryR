@@ -323,6 +323,20 @@ test_that("data pipeline run retains explicit legacy core contract", {
   expect_null(call$payload)
 })
 
+test_that("job types reject URI dot segments", {
+  for (job_type in c(".", "..")) {
+    expect_error(
+      .fabric_job_route("CustomItem", job_type),
+      "safe path segment",
+      fixed = TRUE
+    )
+  }
+  expect_equal(
+    .fabric_job_route("CustomItem", "Refresh.v2")$job_type,
+    "Refresh.v2"
+  )
+})
+
 test_that("job submission rejects missing or malformed Location headers", {
   response <- list(status_code = 202L, location = NULL, retry_after = NULL)
   local_mocked_bindings(
