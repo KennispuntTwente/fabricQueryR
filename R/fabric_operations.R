@@ -945,7 +945,9 @@ fabric_operation_result <- function(
     default_status
   }
   expects_result <- result_expected %||%
-    (is.null(parsed) || identical(parsed$kind, "core"))
+    (is.null(parsed) ||
+      identical(parsed$kind, "core") ||
+      isTRUE(parsed$is_result))
   if (
     isTRUE(expects_result) &&
       !is.null(parsed) &&
@@ -976,6 +978,17 @@ fabric_operation_result <- function(
   current_url,
   api_base
 ) {
+  unsafe_path <- grepl(
+    "(?:^|/)(?:[.]|%2e){1,2}(?:/|$)|%(?:2f|5c)",
+    location,
+    ignore.case = TRUE,
+    perl = TRUE
+  )
+  if (unsafe_path) {
+    .fabric_operation_abort_protocol(
+      "Fabric returned an invalid or untrusted operation Location header"
+    )
+  }
   candidate <- try(
     httr2::url_modify_relative(current_url, location),
     silent = TRUE
@@ -1030,8 +1043,40 @@ fabric_operation_result <- function(
   } else {
     regmatches(parsed$path, lakehouse_route)[[1L]]
   }
-  match <- if (length(core_match) >= 2L) core_match else lakehouse_match
-  kind <- if (length(core_match) >= 2L) "core" else "state_only"
+  scoped_route <- if (inherits(parsed, "try-error")) {
+    NULL
+  } else {
+    regexec(
+      paste0(
+        "^/(?:v1/)?workspaces/",
+        guid,
+        "/(?:[a-z0-9-]+/)*operations/(",
+        guid,
+        ")(/result)?/?$"
+      ),
+      parsed$path %||% "",
+      ignore.case = TRUE
+    )
+  }
+  scoped_match <- if (is.null(scoped_route)) {
+    character()
+  } else {
+    regmatches(parsed$path, scoped_route)[[1L]]
+  }
+  match <- if (length(core_match) >= 2L) {
+    core_match
+  } else if (length(lakehouse_match) >= 2L) {
+    lakehouse_match
+  } else {
+    scoped_match
+  }
+  kind <- if (length(core_match) >= 2L) {
+    "core"
+  } else if (length(lakehouse_match) >= 2L) {
+    "state_only"
+  } else {
+    "workload_scoped"
+  }
   valid <- !inherits(parsed, "try-error") &&
     identical(tolower(parsed$scheme %||% ""), "https") &&
     nzchar(host) &&
@@ -1050,7 +1095,7 @@ fabric_operation_result <- function(
   list(
     url = candidate,
     id = match[[2L]],
-    is_result = identical(kind, "core") &&
+    is_result = !identical(kind, "state_only") &&
       length(match) >= 3L &&
       nzchar(match[[3L]]),
     kind = kind

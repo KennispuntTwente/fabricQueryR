@@ -446,6 +446,74 @@ test_that("operation headers can independently provide Location or ID", {
   expect_true(from_id$result_expected)
 })
 
+test_that("workload-scoped operation locations remain resumable", {
+  workspace_id <- "11111111-2222-3333-4444-555555555555"
+  item_id <- "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  status_url <- paste0(
+    "https://api.fabric.microsoft.com/v1/workspaces/",
+    workspace_id,
+    "/warehouses/",
+    item_id,
+    "/operations/",
+    operation_test_id
+  )
+  parsed <- .fabric_operation_urls(
+    operation_id = NULL,
+    location = status_url,
+    current_url = "https://api.fabric.microsoft.com/v1",
+    api_base = "https://api.fabric.microsoft.com/v1"
+  )
+  with_result <- .fabric_operation_urls(
+    operation_id = operation_test_id,
+    location = status_url,
+    current_url = status_url,
+    api_base = "https://api.fabric.microsoft.com/v1",
+    result_expected = TRUE
+  )
+  from_result <- .fabric_operation_urls(
+    operation_id = NULL,
+    location = paste0(status_url, "/result"),
+    current_url = status_url,
+    api_base = "https://api.fabric.microsoft.com/v1"
+  )
+
+  expect_equal(parsed$status_url, status_url)
+  expect_false(parsed$result_expected)
+  expect_null(parsed$result_url)
+  expect_true(with_result$result_expected)
+  expect_equal(with_result$result_url, paste0(status_url, "/result"))
+  expect_true(from_result$result_expected)
+  expect_equal(from_result$status_url, status_url)
+  expect_equal(from_result$result_url, paste0(status_url, "/result"))
+})
+
+test_that("workload-scoped operation locations reject unsafe route segments", {
+  workspace_id <- "11111111-2222-3333-4444-555555555555"
+  base <- paste0(
+    "https://api.fabric.microsoft.com/v1/workspaces/",
+    workspace_id,
+    "/"
+  )
+  unsafe <- c(
+    paste0(base, "../operations/", operation_test_id),
+    paste0(base, "warehouses%2fother/operations/", operation_test_id),
+    paste0(base, "warehouses/item.name/operations/", operation_test_id),
+    paste0(base, "warehouses/item_name/operations/", operation_test_id)
+  )
+
+  for (location in unsafe) {
+    expect_error(
+      .fabric_operation_urls(
+        operation_id = NULL,
+        location = location,
+        current_url = "https://api.fabric.microsoft.com/v1",
+        api_base = "https://api.fabric.microsoft.com/v1"
+      ),
+      class = "fabric_operation_protocol_error"
+    )
+  }
+})
+
 test_that("a successful bare core operation ID retrieves its result", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {
