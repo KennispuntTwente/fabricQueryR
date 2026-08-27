@@ -68,7 +68,7 @@ Imports:
     cli (>= 3.4.0),
     nanoarrow (>= 0.8.0),
     reticulate (>= 1.41),
-    rlang,
+    rlang (>= 0.4.10),
     utils
 URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.github.io/fabricQueryR/
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues

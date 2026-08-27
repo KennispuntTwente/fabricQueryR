@@ -20,5 +20,6 @@ test_that("declared dependency floors cover APIs used by the package", {
 
   expect_match(description[[1L, "Imports"]], "httr2 \\(>= 1\\.2\\.0\\)")
   expect_match(description[[1L, "Imports"]], "cli \\(>= 3\\.4\\.0\\)")
+  expect_match(description[[1L, "Imports"]], "rlang \\(>= 0\\.4\\.10\\)")
   expect_match(description[[1L, "Suggests"]], "testthat \\(>= 3\\.2\\.0\\)")
 })
