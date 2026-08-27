@@ -458,7 +458,7 @@ fabric_sql_connect <- function(
               .fabric_sql_db_disconnect(connection, force = TRUE),
               silent = TRUE
             )
-            stop(error)
+            rlang::cnd_signal(error)
           }
         )
       }
