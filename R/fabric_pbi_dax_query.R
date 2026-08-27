@@ -26,8 +26,11 @@
 #' Decimal128 and Decimal256 columns are returned as exact character values in
 #' a tibble. Power BI Variant columns are returned as list-columns whose cells
 #' contain `type` and `value` fields and inherit from `fabric_pbi_variant`, so
-#' mixed scalar types remain distinguishable. `result = "arrow_stream"` retains
-#' native Arrow decimal and dense-union types.
+#' mixed scalar types remain distinguishable. Variant Currency values are exact
+#' character scalars. Variant whole numbers are `bit64::integer64` scalars,
+#' except the minimum signed 64-bit value, which is character because 'bit64'
+#' reserves that bit pattern for missing values. `result = "arrow_stream"`
+#' retains native Arrow decimal and dense-union types.
 #' The Power BI administrator must enable both **Dataset Execute Queries REST
 #' API** under Developer settings and **Allow XMLA endpoints and Analyze in
 #' Excel with on-premises semantic models** under Integration settings.
@@ -1125,38 +1128,185 @@ pbi_dax_arrow_dense_union <- function(column) {
   values <- lapply(column$chunks, function(chunk) {
     array <- nanoarrow::as_nanoarrow_array(chunk)
     schema <- nanoarrow::as_nanoarrow_schema(chunk$type)
-    type_codes <- as.integer(strsplit(
-      sub("^\\+ud:", "", schema$format),
-      ",",
-      fixed = TRUE
-    )[[1L]])
-    type_ids <- as.integer(as.vector(array$buffers[[1L]]))
-    offsets <- as.integer(as.vector(array$buffers[[2L]]))
-    positions <- seq.int(array$offset + 1L, length.out = array$length)
-    type_ids <- type_ids[positions]
-    offsets <- offsets[positions]
-    children <- lapply(array$children, nanoarrow::convert_array)
-    child_index <- match(type_ids, type_codes)
-    if (
-      anyNA(child_index) ||
-        any(offsets < 0L) ||
-        any(offsets + 1L > lengths(children)[child_index])
-    ) {
-      .fabric_abort("Power BI returned an invalid Arrow Variant column")
-    }
-    lapply(seq_along(child_index), function(index) {
-      child <- child_index[[index]]
-      value <- children[[child]][offsets[[index]] + 1L]
-      structure(
-        list(
-          type = schema$children[[child]]$name,
-          value = value
-        ),
-        class = c("fabric_pbi_variant", "list")
-      )
-    })
+    pbi_dax_arrow_dense_union_array(array, schema)
   })
   unlist(values, recursive = FALSE)
+}
+
+# Decode one dense-union chunk after validating its physical Arrow layout
+pbi_dax_arrow_dense_union_array <- function(array, schema) {
+  format <- schema$format %||% ""
+  valid_format <- length(format) == 1L &&
+    !is.na(format) &&
+    grepl("^\\+ud:[0-9]+(?:,[0-9]+)*$", format, perl = TRUE)
+  if (!valid_format) {
+    pbi_abort_dax_arrow_variant()
+  }
+  type_codes <- suppressWarnings(as.integer(strsplit(
+    sub("^\\+ud:", "", format),
+    ","
+  )[[1L]]))
+  valid_codes <- !anyNA(type_codes) &&
+    !anyDuplicated(type_codes) &&
+    all(type_codes >= 0L & type_codes <= 127L) &&
+    length(type_codes) == length(schema$children) &&
+    length(type_codes) == length(array$children)
+  if (!valid_codes) {
+    pbi_abort_dax_arrow_variant()
+  }
+
+  array_offset <- as.numeric(array$offset)
+  array_length <- as.numeric(array$length)
+  valid_shape <- length(array$buffers) >= 2L &&
+    length(array_offset) == 1L &&
+    length(array_length) == 1L &&
+    is.finite(array_offset) &&
+    is.finite(array_length) &&
+    array_offset >= 0 &&
+    array_length >= 0 &&
+    array_offset == floor(array_offset) &&
+    array_length == floor(array_length) &&
+    array_offset + array_length <= .Machine$integer.max
+  if (!valid_shape) {
+    pbi_abort_dax_arrow_variant()
+  }
+  type_ids <- tryCatch(
+    as.integer(as.vector(array$buffers[[1L]])),
+    error = function(error) {
+      pbi_abort_dax_arrow_variant(error)
+    }
+  )
+  offsets <- tryCatch(
+    as.integer(as.vector(array$buffers[[2L]])),
+    error = function(error) {
+      pbi_abort_dax_arrow_variant(error)
+    }
+  )
+  positions <- seq.int(array_offset + 1, length.out = array_length)
+  valid_positions <- !anyNA(positions) &&
+    all(positions >= 1L) &&
+    all(positions <= length(type_ids)) &&
+    all(positions <= length(offsets))
+  if (!valid_positions) {
+    pbi_abort_dax_arrow_variant()
+  }
+  type_ids <- type_ids[positions]
+  offsets <- offsets[positions]
+  child_index <- match(type_ids, type_codes)
+  child_lengths <- vapply(
+    array$children,
+    function(child) as.numeric(child$length),
+    numeric(1)
+  )
+  valid_child_lengths <- !anyNA(child_lengths) &&
+    all(is.finite(child_lengths)) &&
+    all(child_lengths >= 0) &&
+    all(child_lengths == floor(child_lengths))
+  valid_offsets <- valid_child_lengths &&
+    !anyNA(child_index) &&
+    !anyNA(offsets) &&
+    all(offsets >= 0L) &&
+    all(offsets < child_lengths[child_index])
+  if (valid_offsets) {
+    valid_offsets <- all(vapply(
+      seq_along(child_lengths),
+      function(child) {
+        selected <- offsets[child_index == child]
+        length(selected) < 2L || !is.unsorted(selected)
+      },
+      logical(1)
+    ))
+  }
+  if (!valid_offsets) {
+    pbi_abort_dax_arrow_variant()
+  }
+
+  children <- Map(
+    pbi_dax_arrow_variant_child,
+    array$children,
+    schema$children
+  )
+  if (!all(as.numeric(lengths(children)) == child_lengths)) {
+    pbi_abort_dax_arrow_variant()
+  }
+  child_names <- vapply(
+    schema$children,
+    pbi_dax_arrow_variant_child_name,
+    character(1)
+  )
+  lapply(seq_along(child_index), function(index) {
+    child <- child_index[[index]]
+    value <- children[[child]][[offsets[[index]] + 1L]]
+    structure(
+      list(type = child_names[[child]], value = value),
+      class = c("fabric_pbi_variant", "list")
+    )
+  })
+}
+
+# Convert one documented Variant child without losing decimal or int64 values
+pbi_dax_arrow_variant_child <- function(array, schema) {
+  format <- as.character(schema$format %||% "")
+  if (length(format) != 1L || is.na(format)) {
+    pbi_abort_dax_arrow_variant()
+  }
+  convert <- function(to = NULL) {
+    tryCatch(
+      nanoarrow::convert_array(array, to = to),
+      error = function(error) pbi_abort_dax_arrow_variant(error)
+    )
+  }
+  exact <- if (grepl("^d:", format)) {
+    convert(character())
+  } else {
+    NULL
+  }
+  if (identical(format, "l")) {
+    exact <- convert(character())
+    values <- suppressWarnings(bit64::as.integer64(exact))
+    return(lapply(seq_along(exact), function(index) {
+      if (!is.na(exact[[index]]) && is.na(values[index])) {
+        exact[index]
+      } else {
+        values[index]
+      }
+    }))
+  }
+  values <- exact %||% convert()
+  lapply(seq_along(values), function(index) values[index])
+}
+
+# Raise one typed error for an invalid dense-union response
+pbi_abort_dax_arrow_variant <- function(parent = NULL) {
+  .fabric_abort(
+    "Power BI returned an invalid Arrow Variant column",
+    class = "fabric_pbi_dax_arrow_error",
+    parent = parent
+  )
+}
+
+# Use the service's branch name, with a stable physical-type fallback
+pbi_dax_arrow_variant_child_name <- function(schema) {
+  name <- as.character(schema$name %||% "")
+  if (length(name) == 1L && !is.na(name) && nzchar(name)) {
+    return(name)
+  }
+  format <- as.character(schema$format %||% "")
+  if (length(format) != 1L || is.na(format)) {
+    return("variant")
+  }
+  if (grepl("^d:", format)) {
+    return("currency")
+  }
+  switch(
+    format,
+    l = "integer",
+    b = "logical",
+    tdm = "date",
+    g = "double",
+    u = "string",
+    "variant"
+  )
 }
 
 #' Decode dictionary columns before exposing Arrow DAX results to R

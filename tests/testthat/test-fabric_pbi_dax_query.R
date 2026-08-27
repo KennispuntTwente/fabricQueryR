@@ -779,6 +779,256 @@ test_that("Arrow DAX tibbles preserve decimal values exactly", {
   expect_s3_class(streamed$schema$fields[[1L]]$type, "Decimal128Type")
 })
 
+pbi_test_dense_union <- function(
+  type_ids,
+  offsets,
+  children,
+  child_types,
+  type_codes = seq_along(children) - 1L,
+  as_arrow = TRUE,
+  validate = TRUE
+) {
+  schema <- nanoarrow::na_dense_union(child_types)
+  schema$format <- paste0("+ud:", paste(type_codes, collapse = ","))
+  type_buffer <- nanoarrow::nanoarrow_buffer_init()
+  nanoarrow::nanoarrow_buffer_append(type_buffer, as.raw(type_ids))
+  offset_buffer <- nanoarrow::nanoarrow_buffer_init()
+  nanoarrow::nanoarrow_buffer_append(offset_buffer, as.integer(offsets))
+  child_arrays <- Map(
+    function(child, type) {
+      if (inherits(child, "ArrowObject")) {
+        return(nanoarrow::as_nanoarrow_array(child))
+      }
+      nanoarrow::as_nanoarrow_array(child, schema = type)
+    },
+    children,
+    child_types
+  )
+  array <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::nanoarrow_array_init(schema),
+    list(
+      length = length(type_ids),
+      buffers = list(type_buffer, offset_buffer),
+      children = child_arrays
+    ),
+    validate = validate
+  )
+  if (as_arrow) {
+    return(arrow::as_arrow_array(array))
+  }
+  list(array = array, schema = schema)
+}
+
+test_that("Arrow DAX Variant covers every documented scalar branch exactly", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  type_names <- c(
+    "integer",
+    "currency",
+    "logical",
+    "date",
+    "double",
+    "string"
+  )
+  type_codes <- c(9L, 2L, 127L, 44L, 31L, 70L)
+  integer <- arrow::as_arrow_array(c(
+    "9223372036854775807",
+    "-42",
+    "-9223372036854775808"
+  ))$cast(arrow::int64())
+  currency <- arrow::as_arrow_array(c(
+    "123456789012345.6789",
+    "-0.0100",
+    NA_character_
+  ))$cast(arrow::decimal128(19, 4))
+  children <- list(
+    integer = integer,
+    currency = currency,
+    logical = c(TRUE, FALSE, NA),
+    date = as.Date(c("1970-01-01", "2024-02-29", NA)),
+    double = arrow::as_arrow_array(c(NaN, Inf, -0, -Inf, NA_real_)),
+    string = c("", "caf\u00e9 \u6570\u636e", NA_character_)
+  )
+  child_types <- list(
+    integer = nanoarrow::na_int64(),
+    currency = nanoarrow::na_decimal128(19, 4),
+    logical = nanoarrow::na_bool(),
+    date = nanoarrow::na_date64(),
+    double = nanoarrow::na_double(),
+    string = nanoarrow::na_string()
+  )
+  type_ids <- c(rep(type_codes, 3L), type_codes[[5L]], type_codes[[5L]])
+  offsets <- c(rep(0:2, each = 6L), 3L, 4L)
+  array <- pbi_test_dense_union(
+    type_ids,
+    offsets,
+    children,
+    child_types,
+    type_codes
+  )
+  variant <- arrow::chunked_array(
+    array$Slice(0L, 7L),
+    array$Slice(7L, length(type_ids) - 7L)
+  )
+  table <- arrow::arrow_table(variant = variant)
+  path <- tempfile(fileext = ".arrows")
+  on.exit(unlink(path), add = TRUE)
+  arrow::write_ipc_stream(table, path)
+
+  result <- pbi_parse_dax_arrow_response(path)
+
+  expect_length(result$variant, length(type_ids))
+  expect_identical(
+    vapply(result$variant, `[[`, character(1), "type"),
+    c(rep(type_names, 3L), "double", "double")
+  )
+  expect_identical(
+    vapply(result$variant, inherits, logical(1), "fabric_pbi_variant"),
+    rep(TRUE, length(type_ids))
+  )
+  expect_identical(
+    result$variant[[1L]]$value,
+    bit64::as.integer64("9223372036854775807")
+  )
+  expect_identical(result$variant[[7L]]$value, bit64::as.integer64(-42))
+  expect_identical(result$variant[[13L]]$value, "-9223372036854775808")
+  expect_identical(result$variant[[2L]]$value, "123456789012345.6789")
+  expect_identical(result$variant[[8L]]$value, "-0.0100")
+  expect_identical(result$variant[[14L]]$value, NA_character_)
+  expect_identical(result$variant[[3L]]$value, TRUE)
+  expect_identical(result$variant[[9L]]$value, FALSE)
+  expect_identical(result$variant[[15L]]$value, NA)
+  expect_identical(
+    as.Date(result$variant[[4L]]$value, tz = "UTC"),
+    as.Date("1970-01-01")
+  )
+  expect_identical(
+    as.Date(result$variant[[10L]]$value, tz = "UTC"),
+    as.Date("2024-02-29")
+  )
+  expect_identical(result$variant[[16L]]$value, as.POSIXct(NA, tz = "UTC"))
+  expect_identical(is.nan(result$variant[[5L]]$value), TRUE)
+  expect_identical(result$variant[[11L]]$value, Inf)
+  expect_identical(1 / result$variant[[17L]]$value, -Inf)
+  expect_identical(result$variant[[19L]]$value, -Inf)
+  expect_identical(result$variant[[20L]]$value, NA_real_)
+  expect_identical(result$variant[[6L]]$value, "")
+  expect_identical(result$variant[[12L]]$value, "caf\u00e9 \u6570\u636e")
+  expect_identical(result$variant[[18L]]$value, NA_character_)
+})
+
+test_that("Arrow DAX Variant handles empty unions and unnamed branches", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  child_types <- list(nanoarrow::na_int64(), nanoarrow::na_string())
+  empty <- pbi_test_dense_union(
+    integer(),
+    integer(),
+    list(bit64::integer64(), character()),
+    child_types
+  )
+  unnamed <- pbi_test_dense_union(
+    c(0L, 1L),
+    c(0L, 0L),
+    list(bit64::as.integer64(7), "seven"),
+    child_types
+  )
+  reused <- pbi_test_dense_union(
+    c(0L, 0L),
+    c(0L, 0L),
+    list(integer = bit64::as.integer64(7)),
+    list(integer = nanoarrow::na_int64())
+  )
+
+  empty_result <- pbi_dax_arrow_tibble(arrow::arrow_table(
+    variant = arrow::chunked_array(empty)
+  ))
+  unnamed_result <- pbi_dax_arrow_tibble(arrow::arrow_table(
+    variant = arrow::chunked_array(unnamed)
+  ))
+  reused_result <- pbi_dax_arrow_tibble(arrow::arrow_table(
+    variant = arrow::chunked_array(reused)
+  ))
+
+  expect_length(empty_result$variant, 0L)
+  expect_identical(
+    vapply(unnamed_result$variant, `[[`, character(1), "type"),
+    c("integer", "string")
+  )
+  expect_identical(
+    unnamed_result$variant[[1L]]$value,
+    bit64::as.integer64(7)
+  )
+  expect_identical(unnamed_result$variant[[2L]]$value, "seven")
+  expect_identical(
+    lapply(reused_result$variant, `[[`, "value"),
+    list(bit64::as.integer64(7), bit64::as.integer64(7))
+  )
+})
+
+test_that("Arrow DAX Variant rejects malformed dense-union layouts", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  child_types <- list(integer = nanoarrow::na_int64())
+  invalid_type <- pbi_test_dense_union(
+    10L,
+    0L,
+    list(integer = bit64::as.integer64(1)),
+    child_types,
+    type_codes = 9L,
+    as_arrow = FALSE,
+    validate = FALSE
+  )
+  invalid_offset <- pbi_test_dense_union(
+    9L,
+    1L,
+    list(integer = bit64::as.integer64(1)),
+    child_types,
+    type_codes = 9L,
+    as_arrow = FALSE,
+    validate = FALSE
+  )
+  decreasing <- pbi_test_dense_union(
+    c(9L, 9L),
+    c(1L, 0L),
+    list(integer = bit64::as.integer64(c(1, 2))),
+    child_types,
+    type_codes = 9L,
+    as_arrow = FALSE,
+    validate = FALSE
+  )
+  malformed_schema <- pbi_test_dense_union(
+    9L,
+    0L,
+    list(integer = bit64::as.integer64(1)),
+    child_types,
+    type_codes = 9L,
+    as_arrow = FALSE
+  )
+  malformed_schema$schema <- list(
+    format = "+ud:bad",
+    children = malformed_schema$schema$children
+  )
+
+  errors <- lapply(
+    list(invalid_type, invalid_offset, decreasing, malformed_schema),
+    function(value) {
+      tryCatch(
+        pbi_dax_arrow_dense_union_array(value$array, value$schema),
+        error = identity
+      )
+    }
+  )
+  expect_identical(
+    vapply(errors, conditionMessage, character(1)),
+    rep("Power BI returned an invalid Arrow Variant column", 4L)
+  )
+  expect_identical(
+    vapply(errors, inherits, logical(1), "fabric_pbi_dax_arrow_error"),
+    rep(TRUE, 4L)
+  )
+})
+
 test_that("Arrow DAX tibbles decode Variant dense unions", {
   skip_if_not_installed("arrow")
   encoded <- paste0(
