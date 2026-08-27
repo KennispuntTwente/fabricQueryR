@@ -355,6 +355,106 @@ test_that("job submission rejects missing or malformed Location headers", {
   )
 })
 
+test_that("parameterized jobs recover collection Location instance IDs", {
+  history_url <- NULL
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 202L,
+        location = paste0(
+          "https://api.fabric.test/v1/workspaces/workspace/items/item/",
+          "jobs/instances?jobType=RunNotebook"
+        ),
+        retry_after = 5,
+        body = list()
+      )
+    },
+    .httr2_collection = function(url, credential, audience, ...) {
+      history_url <<- url
+      expect_s3_class(credential, "fabric_credential")
+      expect_identical(audience, .fabric_audience$fabric)
+      list(
+        list(
+          id = "44444444-4444-4444-4444-444444444444",
+          itemId = "11111111-1111-1111-1111-111111111111",
+          jobType = "RunNotebook",
+          invokeType = "Manual",
+          startTimeUtc = "2020-01-01T00:00:00Z"
+        ),
+        list(
+          id = "33333333-3333-3333-3333-333333333333",
+          itemId = "11111111-1111-1111-1111-111111111111",
+          jobType = "RunNotebook",
+          invokeType = "Manual",
+          startTimeUtc = format(
+            Sys.time(),
+            "%Y-%m-%dT%H:%M:%SZ",
+            tz = "UTC"
+          )
+        )
+      )
+    }
+  )
+
+  job <- fabric_job_run(
+    job_test_item(),
+    parameters = list(label = "unit"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1"
+  )
+
+  expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
+  expect_match(
+    history_url,
+    paste0(
+      "/workspaces/22222222-2222-2222-2222-222222222222/",
+      "items/11111111-1111-1111-1111-111111111111/jobs/instances"
+    ),
+    fixed = TRUE
+  )
+})
+
+test_that("parameterized job recovery refuses ambiguous history", {
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 202L,
+        location = "/jobs/instances?jobType=RunNotebook",
+        retry_after = NULL,
+        body = list()
+      )
+    },
+    .httr2_collection = function(...) {
+      started <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+      list(
+        list(
+          id = "33333333-3333-3333-3333-333333333333",
+          jobType = "RunNotebook",
+          invokeType = "Manual",
+          startTimeUtc = started
+        ),
+        list(
+          id = "44444444-4444-4444-4444-444444444444",
+          jobType = "RunNotebook",
+          invokeType = "Manual",
+          startTimeUtc = started
+        )
+      )
+    }
+  )
+
+  expect_error(
+    fabric_job_run(
+      job_test_item(),
+      parameters = list(label = "unit"),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    ),
+    "cannot be identified safely",
+    class = "fabric_job_protocol_error"
+  )
+})
+
 test_that("job POST requests carry an explicit zero-length body", {
   request <- NULL
   local_mocked_bindings(

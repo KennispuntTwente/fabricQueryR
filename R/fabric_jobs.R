@@ -81,6 +81,10 @@
 #' Start a job with `fabric_job_run()`, then pass the returned handle to
 #' `fabric_job_wait()`. The handle keeps the workspace, item, job type, and
 #' sign-in context, so later calls do not need those details again
+#' Parameterized Core jobs can return a collection `Location` without an
+#' instance GUID. In that documented case, `fabric_job_run()` reads recent job
+#' history and accepts only one matching manual run; it raises a protocol error
+#' rather than guessing when recovery is ambiguous
 #'
 #' @section High-concurrency notebooks:
 #' A `session_tag` lets related notebook runs share Spark compute, but Fabric may
@@ -99,9 +103,10 @@
 #'
 #' @section Permissions and status handling:
 #' Running and cancelling need an item execute permission. Checking or waiting
-#' also needs an item read permission. 'fabricQueryR' reconciles notebook status
-#' information from Fabric before returning it and stops with a typed error if
-#' Fabric reports an unfamiliar state instead of waiting indefinitely
+#' also needs an item read permission, as does resolving a parameterized run's
+#' collection `Location`. 'fabricQueryR' reconciles notebook status information
+#' from Fabric before returning it and stops with a typed error if Fabric reports
+#' an unfamiliar state instead of waiting indefinitely
 #' @references
 #' [Core Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 #'
@@ -241,36 +246,29 @@ fabric_job_run <- function(
   # Submit the job only after authentication and payload fields are ready
 
   url <- .fabric_job_run_url(base, target, route)
+  submitted_at <- Sys.time()
   result <- .fabric_job_request(
     "POST",
     url,
     credential,
     payload = payload,
-    idempotent = FALSE,
-    parse_json = FALSE
+    idempotent = FALSE
   )
   location <- result$location
-  if (is.null(location) || !nzchar(location)) {
-    .fabric_abort(
-      "Fabric accepted the job but did not return a Location header",
-      class = "fabric_job_protocol_error"
-    )
-  }
-  location_path <- sub("[?#].*$", "", location)
-  instance_id <- sub(".*/", "", sub("/+$", "", location_path))
-  if (!fabric_is_guid(instance_id)) {
-    .fabric_abort(
-      "Fabric returned a Location header without a valid job instance ID",
-      class = "fabric_job_protocol_error"
-    )
-  }
+  instance_id <- .fabric_job_submitted_instance_id(
+    result,
+    target,
+    route,
+    base,
+    credential,
+    submitted_at
+  )
 
   # 4 Return a reusable job handle -----------------------------------------------------------------
 
   # Store resolved context so status, wait, and cancel calls need only this
   # handle and do not have to reconstruct authentication or routing details
 
-  submitted_at <- Sys.time()
   next_poll_at <- if (is.null(result$retry_after)) {
     submitted_at
   } else {
@@ -295,6 +293,146 @@ fabric_job_run <- function(
     ),
     class = "fabric_job"
   )
+}
+
+# Recover the instance GUID from a normal or parameterized submission response
+.fabric_job_submitted_instance_id <- function(
+  result,
+  target,
+  route,
+  api_base,
+  credential,
+  submitted_at
+) {
+  location <- result$location
+  location_path <- if (
+    is.character(location) &&
+      length(location) == 1L &&
+      !is.na(location) &&
+      nzchar(location)
+  ) {
+    sub("[?#].*$", "", location)
+  } else {
+    ""
+  }
+  location_id <- sub(".*/", "", sub("/+$", "", location_path))
+  body <- result$body %||% list()
+  if (!is.list(body)) {
+    body <- list()
+  }
+  body_id <- body$id %||% body$jobInstanceId %||% body$job_instance_id
+  candidates <- unique(c(location_id, body_id))
+  candidates <- candidates[vapply(
+    candidates,
+    function(value) {
+      is.character(value) &&
+        length(value) == 1L &&
+        !is.na(value) &&
+        fabric_is_guid(value)
+    },
+    logical(1)
+  )]
+  if (length(candidates) == 1L) {
+    return(candidates[[1L]])
+  }
+  if (length(candidates) > 1L) {
+    .fabric_abort(
+      "Fabric returned conflicting job instance IDs",
+      class = "fabric_job_protocol_error"
+    )
+  }
+  collection_location <- nzchar(location_path) &&
+    grepl("/jobs/instances/?$", location_path, ignore.case = TRUE) &&
+    grepl("[?&]jobType=", location %||% "", ignore.case = TRUE)
+  if (!collection_location) {
+    message <- if (!nzchar(location_path)) {
+      "Fabric accepted the job but did not return a Location header or instance ID"
+    } else {
+      "Fabric returned a Location header without a valid job instance ID"
+    }
+    .fabric_abort(message, class = "fabric_job_protocol_error")
+  }
+  history_url <- paste0(
+    api_base,
+    "/workspaces/",
+    target$workspace_id,
+    "/items/",
+    target$item_id,
+    "/jobs/instances"
+  )
+  records <- tryCatch(
+    .httr2_collection(
+      history_url,
+      credential = credential,
+      audience = .fabric_audience$fabric
+    ),
+    error = function(error) {
+      .fabric_abort(
+        "Could not recover the parameterized job instance from recent history",
+        class = "fabric_job_protocol_error",
+        parent = error
+      )
+    }
+  )
+  matches <- Filter(
+    function(record) {
+      scalar_text <- function(value) {
+        is.character(value) &&
+          length(value) == 1L &&
+          !is.na(value) &&
+          nzchar(value)
+      }
+      if (
+        !is.list(record) ||
+          !scalar_text(record$id) ||
+          !fabric_is_guid(record$id)
+      ) {
+        return(FALSE)
+      }
+      if (
+        !is.null(record$itemId) &&
+          (!scalar_text(record$itemId) ||
+            !identical(tolower(record$itemId), tolower(target$item_id)))
+      ) {
+        return(FALSE)
+      }
+      if (
+        !scalar_text(record$jobType) ||
+          !identical(tolower(record$jobType), tolower(route$job_type))
+      ) {
+        return(FALSE)
+      }
+      if (
+        !is.null(record$invokeType) &&
+          (!scalar_text(record$invokeType) ||
+            !identical(tolower(record$invokeType), "manual"))
+      ) {
+        return(FALSE)
+      }
+      started <- try(
+        .fabric_job_time(record$startTimeUtc %||% record$startTime),
+        silent = TRUE
+      )
+      !inherits(started, "try-error") &&
+        !is.null(started) &&
+        !is.na(started) &&
+        as.numeric(started) >= as.numeric(submitted_at) - 300 &&
+        as.numeric(started) <= as.numeric(Sys.time()) + 300
+    },
+    records
+  )
+  ids <- unique(vapply(matches, `[[`, character(1), "id"))
+  if (length(ids) != 1L) {
+    .fabric_abort(
+      paste0(
+        "Fabric returned a collection Location, but recent history contained ",
+        length(ids),
+        " matching job instances; the submitted instance cannot be identified safely"
+      ),
+      class = "fabric_job_protocol_error"
+    )
+  }
+  ids[[1L]]
 }
 
 #' @param job A `fabric_job` returned by [fabric_job_run()] or a
