@@ -65,7 +65,9 @@ Kusto failure. Ambiguous failures are always retained.}
 \item{compression}{Parquet compression supported by \code{\link[arrow:write_parquet]{arrow::write_parquet()}}.}
 
 \item{target_file_size}{Soft maximum bytes per staged Parquet file. The
-service's advertised total-size and blob-count limits are still enforced.}
+service's advertised total-size and blob-count limits are still enforced.
+Storage-container staging uses block upload when a completed file exceeds
+Azure Storage's single-request Put Blob limit.}
 
 \item{max_rows_per_file}{Optional exact maximum rows per staged file.}
 

@@ -166,6 +166,59 @@ test_that("Storage staging constructs authenticated blob requests safely", {
   )
 })
 
+test_that("Storage staging block-uploads files above the Put Blob limit", {
+  requests <- list()
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      requests[[length(requests) + 1L]] <<- req
+      httr2::response(status_code = 201L)
+    }
+  )
+  source <- tempfile(fileext = ".parquet")
+  writeBin(charToRaw("parquet"), source)
+  withr::defer(unlink(source))
+  url <- paste0(
+    "https://account.blob.core.windows.net/ingest/part.parquet?",
+    "sv=2023-11-03&sp=rwd&sig=secret"
+  )
+
+  kusto_storage_upload(
+    url,
+    source,
+    single_put_limit = 4,
+    block_size = 3
+  )
+
+  expect_length(requests, 4L)
+  expect_true(all(vapply(
+    requests[1:3],
+    function(request) grepl("&comp=block&blockid=", request$url, fixed = TRUE),
+    logical(1)
+  )))
+  expect_equal(
+    vapply(
+      requests[1:3],
+      function(request) length(request$body$data),
+      integer(1)
+    ),
+    c(3L, 3L, 1L)
+  )
+  commit <- requests[[4L]]
+  expect_match(commit$url, "&comp=blocklist", fixed = TRUE)
+  expect_equal(
+    commit$headers[["x-ms-blob-content-type"]],
+    "application/vnd.apache.parquet"
+  )
+  expect_match(rawToChar(commit$body$data), "<BlockList>", fixed = TRUE)
+  expect_equal(
+    lengths(regmatches(
+      rawToChar(commit$body$data),
+      gregexpr("<Latest>", rawToChar(commit$body$data), fixed = TRUE)
+    )),
+    3L
+  )
+})
+
 test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   skip_if_not_installed("arrow")
   regional_folder <- sub(

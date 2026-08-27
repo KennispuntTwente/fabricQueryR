@@ -1756,6 +1756,8 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param compression Parquet compression supported by [arrow::write_parquet()].
 #' @param target_file_size Soft maximum bytes per staged Parquet file. The
 #'   service's advertised total-size and blob-count limits are still enforced.
+#'   Storage-container staging uses block upload when a completed file exceeds
+#'   Azure Storage's single-request Put Blob limit.
 #' @param max_rows_per_file Optional exact maximum rows per staged file.
 #' @param tags Extent tags passed to [fabric_kql_ingest()].
 #' @param ingest_if_not_exists Stable idempotency keys passed to
@@ -2826,7 +2828,29 @@ kusto_storage_blob_url <- function(
 }
 
 # Upload one complete Parquet file through a service-owned SAS container
-kusto_storage_upload <- function(url, source) {
+kusto_storage_upload <- function(
+  url,
+  source,
+  single_put_limit = 5000 * 1024^2,
+  block_size = getOption("fabricqueryr.storage.block_size", 64 * 1024^2)
+) {
+  bytes <- file.info(source)$size
+  if (
+    length(bytes) != 1L ||
+      is.na(bytes) ||
+      !is.finite(bytes) ||
+      bytes < 0
+  ) {
+    .fabric_abort("Storage staging source is not a readable file")
+  }
+  .fabric_parquet_positive_whole(single_put_limit, "single_put_limit")
+  .fabric_parquet_positive_whole(block_size, "block_size")
+  if (block_size > 1024^3) {
+    .fabric_abort("block_size must not exceed 1 GiB")
+  }
+  if (bytes > single_put_limit) {
+    return(kusto_storage_upload_blocks(url, source, bytes, block_size))
+  }
   request <- httr2::request(url) |>
     httr2::req_method("PUT") |>
     httr2::req_headers(
@@ -2839,6 +2863,68 @@ kusto_storage_upload <- function(url, source) {
     )
   .httr2_perform(request, idempotent = TRUE)
   invisible(TRUE)
+}
+
+# Stage a large blob as bounded blocks and expose it only on final commit
+kusto_storage_upload_blocks <- function(url, source, bytes, block_size) {
+  block_count <- ceiling(bytes / block_size)
+  if (block_count > 50000) {
+    .fabric_abort(
+      "Storage staging would require more than Azure's 50,000 block limit"
+    )
+  }
+  connection <- file(source, open = "rb")
+  on.exit(close(connection), add = TRUE)
+  block_ids <- character(block_count)
+  for (index in seq_len(block_count)) {
+    block <- readBin(connection, what = "raw", n = block_size)
+    if (!length(block)) {
+      .fabric_abort("Storage staging source ended before its advertised size")
+    }
+    block_ids[[index]] <- jsonlite::base64_enc(charToRaw(sprintf(
+      "%08d",
+      index
+    )))
+    request <- httr2::request(kusto_storage_component_url(
+      url,
+      "block",
+      block_id = block_ids[[index]]
+    )) |>
+      httr2::req_method("PUT") |>
+      httr2::req_headers(`x-ms-version` = "2023-11-03") |>
+      httr2::req_body_raw(block)
+    .httr2_perform(request, idempotent = TRUE)
+  }
+  block_list <- paste0(
+    '<?xml version="1.0" encoding="utf-8"?><BlockList>',
+    paste0("<Latest>", block_ids, "</Latest>", collapse = ""),
+    "</BlockList>"
+  )
+  request <- httr2::request(kusto_storage_component_url(url, "blocklist")) |>
+    httr2::req_method("PUT") |>
+    httr2::req_headers(
+      `x-ms-version` = "2023-11-03",
+      `x-ms-blob-content-type` = "application/vnd.apache.parquet"
+    ) |>
+    httr2::req_body_raw(
+      charToRaw(block_list),
+      type = "application/xml"
+    )
+  .httr2_perform(request, idempotent = TRUE)
+  invisible(TRUE)
+}
+
+# Add Storage REST component parameters after the service-provided SAS query
+kusto_storage_component_url <- function(url, component, block_id = NULL) {
+  suffix <- paste0("comp=", component)
+  if (!is.null(block_id)) {
+    suffix <- paste0(
+      suffix,
+      "&blockid=",
+      utils::URLencode(block_id, reserved = TRUE)
+    )
+  }
+  paste0(url, if (grepl("?", url, fixed = TRUE)) "&" else "?", suffix)
 }
 
 # Best-effort removal for either selected staging backend
