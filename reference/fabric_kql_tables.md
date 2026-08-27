@@ -1,9 +1,9 @@
 # Discover Microsoft Fabric KQL tables
 
 Lists tables in a Fabric KQL database through Kusto's management
-endpoint. With `detail = TRUE`, retrieves each table's JSON schema and
-exposes its ordered columns while retaining the complete metadata
-response.
+endpoint. With `detail = TRUE`, retrieves the database JSON schema once
+and exposes each table's ordered columns while retaining its complete
+metadata.
 
 ## Usage
 
@@ -40,8 +40,8 @@ fabric_kql_tables(
 
 - detail:
 
-  Whether to retrieve the JSON schema for every table. Set to `FALSE` to
-  issue only the database-level table-list command.
+  Whether to retrieve the database JSON schema and map it to every
+  table. Set to `FALSE` to issue only the table-list command.
 
 - timeout:
 
@@ -79,8 +79,8 @@ listing row in `raw`.
 [Kusto `.show tables`
 command](https://learn.microsoft.com/en-us/kusto/management/show-tables-command?view=microsoft-fabric)
 
-[Kusto `.show table schema`
-command](https://learn.microsoft.com/en-us/kusto/management/show-table-schema-command?view=microsoft-fabric)
+[Kusto `.show database schema`
+command](https://learn.microsoft.com/en-us/kusto/management/show-schema-database?view=microsoft-fabric)
 
 ## Examples
 

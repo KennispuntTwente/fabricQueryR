@@ -252,6 +252,10 @@ cancellation
 Start a job with `fabric_job_run()`, then pass the returned handle to
 `fabric_job_wait()`. The handle keeps the workspace, item, job type, and
 sign-in context, so later calls do not need those details again
+Parameterized Core jobs can return a collection `Location` without an
+instance GUID. In that documented case, `fabric_job_run()` reads recent
+job history and accepts only one matching manual run; it raises a
+protocol error rather than guessing when recovery is ambiguous
 
 ## High-concurrency notebooks
 
@@ -273,7 +277,8 @@ fallback.
 ## Permissions and status handling
 
 Running and cancelling need an item execute permission. Checking or
-waiting also needs an item read permission. 'fabricQueryR' reconciles
+waiting also needs an item read permission, as does resolving a
+parameterized run's collection `Location`. 'fabricQueryR' reconciles
 notebook status information from Fabric before returning it and stops
 with a typed error if Fabric reports an unfamiliar state instead of
 waiting indefinitely

@@ -163,12 +163,15 @@ Use `api = "arrow"` when exact semantic-model types matter, when a query
 has several `EVALUATE` statements, or when you want an Arrow stream. It
 requires the optional 'arrow' package and a model on Premium or Fabric
 capacity. Decimal128 and Decimal256 columns are returned as exact
-character values in a tibble; `result = "arrow_stream"` retains their
-native Arrow decimal types. The Power BI administrator must enable both
-**Dataset Execute Queries REST API** under Developer settings and
-**Allow XMLA endpoints and Analyze in Excel with on-premises semantic
-models** under Integration settings. Multiple result tables are returned
-in statement order as a `fabric_pbi_dax_rowsets` list
+character values in a tibble. Power BI Variant columns are returned as
+list-columns whose cells contain `type` and `value` fields and inherit
+from `fabric_pbi_variant`, so mixed scalar types remain distinguishable.
+`result = "arrow_stream"` retains native Arrow decimal and dense-union
+types. The Power BI administrator must enable both **Dataset Execute
+Queries REST API** under Developer settings and **Allow XMLA endpoints
+and Analyze in Excel with on-premises semantic models** under
+Integration settings. Multiple result tables are returned in statement
+order as a `fabric_pbi_dax_rowsets` list
 
 ## Permissions and tenant settings
 

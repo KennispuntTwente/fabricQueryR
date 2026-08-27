@@ -135,7 +135,9 @@ Kusto failure. Ambiguous failures are always retained.</p></dd>
 
 <dt id="arg-target-file-size">target_file_size<a class="anchor" aria-label="anchor" href="#arg-target-file-size"></a></dt>
 <dd><p>Soft maximum bytes per staged Parquet file. The
-service's advertised total-size and blob-count limits are still enforced.</p></dd>
+service's advertised total-size and blob-count limits are still enforced.
+Storage-container staging uses block upload when a completed file exceeds
+Azure Storage's single-request Put Blob limit.</p></dd>
 
 
 <dt id="arg-max-rows-per-file">max_rows_per_file<a class="anchor" aria-label="anchor" href="#arg-max-rows-per-file"></a></dt>

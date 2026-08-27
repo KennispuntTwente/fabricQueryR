@@ -121,7 +121,8 @@ fabric_sql_query(
 - adbc_driver:
 
   ADBC driver name or shared-library path. The separately installed ADBC
-  Driver Foundry `mssql` driver is the default
+  Driver Foundry `mssql` driver version 1.5.0 or newer is the default
+  requirement
 
 - port:
 

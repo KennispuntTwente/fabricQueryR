@@ -140,7 +140,8 @@ fabric_onelake_shortcut_delete(
   credentials. Local checks cover structure, required fields, identifier
   shape, and generic URL safety; they do not verify source-specific
   host/path rules or that a connection refers to the supplied location.
-  Fabric service validation is authoritative.
+  A raw `oneLake` target may also include its documented optional
+  `connectionId`. Fabric service validation is authoritative.
 
 - target_workspace:
 

@@ -94,7 +94,9 @@ fabric_kql_write_table(
 - target_file_size:
 
   Soft maximum bytes per staged Parquet file. The service's advertised
-  total-size and blob-count limits are still enforced.
+  total-size and blob-count limits are still enforced. Storage-container
+  staging uses block upload when a completed file exceeds Azure
+  Storage's single-request Put Blob limit.
 
 - max_rows_per_file:
 

@@ -130,7 +130,8 @@ default</p></dd>
 
 <dt id="arg-adbc-driver">adbc_driver<a class="anchor" aria-label="anchor" href="#arg-adbc-driver"></a></dt>
 <dd><p>ADBC driver name or shared-library path. The separately
-installed ADBC Driver Foundry <code>mssql</code> driver is the default</p></dd>
+installed ADBC Driver Foundry <code>mssql</code> driver version 1.5.0 or newer is the
+default requirement</p></dd>
 
 
 <dt id="arg-port">port<a class="anchor" aria-label="anchor" href="#arg-port"></a></dt>
@@ -203,8 +204,10 @@ source system, Spark, or another appropriate writer to change their data</p>
 <p><code>backend = "odbc"</code> is the default and works well for ordinary 'DBI' use. It
 requires Microsoft ODBC Driver 18 or newer. Use <code>backend = "adbc"</code> when you
 want a native Arrow result path, typically for larger analytical results
-ADBC requires the external <code>mssql</code> driver; install it separately with
-<code>dbc install mssql</code></p>
+ADBC requires version 1.5.0 or newer of the external <code>mssql</code> driver, where
+Fabric Data Warehouse support was introduced. Install or update it separately
+with <code>dbc install mssql</code>. The connected driver must report its version through
+the standard ADBC information API</p>
     </div>
     <div class="section level2">
     <h2 id="connection-and-permissions">Connection and permissions<a class="anchor" aria-label="anchor" href="#connection-and-permissions"></a></h2>
@@ -222,6 +225,7 @@ or application must have access through a workspace role or the item's
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/entra-id-authentication" class="external-link">Microsoft Entra authentication in Fabric Data Warehouse</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-sql-analytics-endpoint" class="external-link">Lakehouse SQL analytics endpoint</a></p>
 <p><a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Download Microsoft ODBC Driver 18 for SQL Server</a></p>
+<p><a href="https://adbc-drivers.org/drivers/mssql/changelog.html" class="external-link">ADBC <code>mssql</code> driver changelog</a></p>
     </div>
 
     <div class="section level2">
