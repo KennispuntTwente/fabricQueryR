@@ -126,7 +126,10 @@ Use \code{api = "arrow"} when exact semantic-model types matter, when a query ha
 several \code{EVALUATE} statements, or when you want an Arrow stream. It requires
 the optional 'arrow' package and a model on Premium or Fabric capacity.
 Decimal128 and Decimal256 columns are returned as exact character values in
-a tibble; \code{result = "arrow_stream"} retains their native Arrow decimal types.
+a tibble. Power BI Variant columns are returned as list-columns whose cells
+contain \code{type} and \code{value} fields and inherit from \code{fabric_pbi_variant}, so
+mixed scalar types remain distinguishable. \code{result = "arrow_stream"} retains
+native Arrow decimal and dense-union types.
 The Power BI administrator must enable both \strong{Dataset Execute Queries REST
 API} under Developer settings and \strong{Allow XMLA endpoints and Analyze in
 Excel with on-premises semantic models} under Integration settings.

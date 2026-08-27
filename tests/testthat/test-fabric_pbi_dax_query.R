@@ -779,6 +779,43 @@ test_that("Arrow DAX tibbles preserve decimal values exactly", {
   expect_s3_class(streamed$schema$fields[[1L]]$type, "Decimal128Type")
 })
 
+test_that("Arrow DAX tibbles decode Variant dense unions", {
+  skip_if_not_installed("arrow")
+  encoded <- paste0(
+    "/////1gBAAAQAAAAAAAKAAwABgAFAAgACgAAAAABBAAMAAAACAAIAAAABAAI",
+    "AAAABAAAAAIAAADwAAAABAAAACj///8AAAEOHAAAACwAAAAEAAAAAwAAAJAAAAB",
+    "gAAAANAAAAAcAAAB2YXJpYW50AAgADAAGAAgACAAAAAAAAQAEAAAAAwAAAAAAAA",
+    "ABAAAAAgAAAHz///8AAAEGEAAAABgAAAAEAAAAAAAAAAcAAABsb2dpY2FsANj//",
+    "/+k////AAABBRAAAAAcAAAABAAAAAAAAAAGAAAAc3RyaW5nAAAEAAQABAAAAND/",
+    "//8AAAECEAAAABgAAAAEAAAAAAAAAAcAAABpbnRlZ2VyAMT///8AAAABQAAAABA",
+    "AFAAIAAYABwAMAAAAEAAQAAAAAAABAhAAAAAcAAAABAAAAAAAAAADAAAAcm93AAg",
+    "ADAAIAAcACAAAAAAAAAFAAAAAAAAAAP////9YAQAAFAAAAAAAAAAMABYABgAFAA",
+    "gADAAMAAAAAAMEABgAAABoAAAAAAAAAAAACgAYAAwABAAIAAoAAADMAAAAEAAAA",
+    "AQAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAA",
+    "ACAAAAAAAAAABAAAAAAAAAAoAAAAAAAAABAAAAAAAAAAOAAAAAAAAAABAAAAAAAA",
+    "AEAAAAAAAAAAEAAAAAAAAABQAAAAAAAAAAAAAAAAAAAAUAAAAAAAAAAIAAAAAAAA",
+    "AFgAAAAAAAAAAwAAAAAAAABgAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAABAAAAAAAA",
+    "AAAAAAAFAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAACAAAAAAAA",
+    "AAEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAKAAAAAAAA",
+    "ABQAAAAAAAAAHgAAAAAAAAAoAAAAAAAAAAABAgAAAAAAAAAAAAAAAAAAAAAAAQAA",
+    "AAEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAADAAAAdHdvAAAAAAABAAAAAAAA",
+    "AP////8AAAAA"
+  )
+
+  result <- pbi_parse_dax_arrow_response(jsonlite::base64_dec(encoded))
+
+  expect_equal(result$row, bit64::as.integer64(c(10, 20, 30, 40)))
+  expect_s3_class(result$variant[[1L]], "fabric_pbi_variant")
+  expect_identical(
+    vapply(result$variant, `[[`, character(1), "type"),
+    c("integer", "string", "logical", "integer")
+  )
+  expect_equal(result$variant[[1L]]$value, bit64::as.integer64(1))
+  expect_identical(result$variant[[2L]]$value, "two")
+  expect_identical(result$variant[[3L]]$value, TRUE)
+  expect_true(is.na(result$variant[[4L]]$value))
+})
+
 test_that("Arrow DAX responses can be parsed from disk", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")

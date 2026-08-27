@@ -24,7 +24,10 @@
 #' several `EVALUATE` statements, or when you want an Arrow stream. It requires
 #' the optional 'arrow' package and a model on Premium or Fabric capacity.
 #' Decimal128 and Decimal256 columns are returned as exact character values in
-#' a tibble; `result = "arrow_stream"` retains their native Arrow decimal types.
+#' a tibble. Power BI Variant columns are returned as list-columns whose cells
+#' contain `type` and `value` fields and inherit from `fabric_pbi_variant`, so
+#' mixed scalar types remain distinguishable. `result = "arrow_stream"` retains
+#' native Arrow decimal and dense-union types.
 #' The Power BI administrator must enable both **Dataset Execute Queries REST
 #' API** under Developer settings and **Allow XMLA endpoints and Analyze in
 #' Excel with on-premises semantic models** under Integration settings.
@@ -1104,8 +1107,56 @@ pbi_dax_arrow_tibble <- function(table) {
       target <- target$WithMetadata(table$schema$metadata)
     }
     table <- table$cast(target)
+    fields <- table$schema$fields
   }
-  tibble::as_tibble(as.data.frame(table))
+  columns <- lapply(seq_along(fields), function(index) {
+    column <- table$column(index - 1L)
+    if (identical(fields[[index]]$type$name, "dense_union")) {
+      return(pbi_dax_arrow_dense_union(column))
+    }
+    column$as_vector()
+  })
+  names(columns) <- vapply(fields, `[[`, character(1), "name")
+  tibble::new_tibble(columns, nrow = table$num_rows)
+}
+
+# Convert an Arrow dense union into a tagged R list-column
+pbi_dax_arrow_dense_union <- function(column) {
+  values <- lapply(column$chunks, function(chunk) {
+    array <- nanoarrow::as_nanoarrow_array(chunk)
+    schema <- nanoarrow::as_nanoarrow_schema(chunk$type)
+    type_codes <- as.integer(strsplit(
+      sub("^\\+ud:", "", schema$format),
+      ",",
+      fixed = TRUE
+    )[[1L]])
+    type_ids <- as.integer(as.vector(array$buffers[[1L]]))
+    offsets <- as.integer(as.vector(array$buffers[[2L]]))
+    positions <- seq.int(array$offset + 1L, length.out = array$length)
+    type_ids <- type_ids[positions]
+    offsets <- offsets[positions]
+    children <- lapply(array$children, nanoarrow::convert_array)
+    child_index <- match(type_ids, type_codes)
+    if (
+      anyNA(child_index) ||
+        any(offsets < 0L) ||
+        any(offsets + 1L > lengths(children)[child_index])
+    ) {
+      .fabric_abort("Power BI returned an invalid Arrow Variant column")
+    }
+    lapply(seq_along(child_index), function(index) {
+      child <- child_index[[index]]
+      value <- children[[child]][offsets[[index]] + 1L]
+      structure(
+        list(
+          type = schema$children[[child]]$name,
+          value = value
+        ),
+        class = c("fabric_pbi_variant", "list")
+      )
+    })
+  })
+  unlist(values, recursive = FALSE)
 }
 
 #' Decode dictionary columns before exposing Arrow DAX results to R
