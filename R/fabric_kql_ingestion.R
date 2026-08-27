@@ -3526,9 +3526,9 @@ kusto_export_destination <- function(
     parts <- kusto_storage_connection_parts(destination)
     parsed <- try(httr2::url_parse(parts$resource), silent = TRUE)
     onelake <- !inherits(parsed, "try-error") &&
-      fabric_host_matches(
-        parsed$hostname %||% "",
-        "onelake.dfs.fabric.microsoft.com"
+      !inherits(
+        try(onelake_validate_host(parsed$hostname), silent = TRUE),
+        "try-error"
       )
     if (onelake) {
       target <- onelake_resolve_target(parts$resource)

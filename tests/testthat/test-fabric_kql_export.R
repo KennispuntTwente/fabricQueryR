@@ -368,6 +368,23 @@ test_that("KQL export validates destinations and format-specific properties", {
       "onelake.dfs.fabric.microsoft.com/",
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/",
       "Tables/dbo/not-safe;impersonate"
+    ),
+    paste0(
+      "https://westeurope-onelake.dfs.fabric.microsoft.com/",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/",
+      "Tables/dbo/not-safe"
+    ),
+    paste0(
+      "https://westeurope-api.onelake.fabric.microsoft.com/",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/",
+      "Tables/dbo/not-safe"
+    ),
+    paste0(
+      "https://bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb.z12.",
+      "blob.fabric.microsoft.com/",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/Tables/dbo/not-safe"
     )
   )
   for (destination in unsafe_onelake) {
@@ -396,6 +413,23 @@ test_that("KQL export validates destinations and format-specific properties", {
   expect_match(
     safe$connection,
     "Files/export;managed_identity=client-id",
+    fixed = TRUE
+  )
+  regional_safe <- kusto_export_destination(paste0(
+    "https://westeurope-onelake.dfs.fabric.microsoft.com/",
+    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/",
+    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/Files/export"
+  ))
+  expect_match(regional_safe$connection, ";impersonate$", perl = TRUE)
+  workspace_safe <- kusto_export_destination(paste0(
+    "https://bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb.z12.",
+    "blob.fabric.microsoft.com/",
+    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/Files/export"
+  ))
+  expect_match(workspace_safe$connection, ";impersonate$", perl = TRUE)
+  expect_match(
+    workspace_safe$connection,
+    ".z12.dfs.fabric.microsoft.com/",
     fixed = TRUE
   )
   expect_error(
