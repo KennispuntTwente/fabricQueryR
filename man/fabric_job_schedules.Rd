@@ -77,8 +77,8 @@ the item type and workspace ID.}
 Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
 
 \item{job_type}{Schedule job type. Notebooks default to \code{"RunNotebook"},
-Spark job definitions to \code{"SparkJob"}, semantic models to \code{"Refresh"},
-and data pipelines, Dataflows, and Data Build Tool Jobs to \code{"Execute"}.
+Spark job definitions to \code{"SparkJob"}, and data pipelines, Dataflows, and
+Data Build Tool Jobs to \code{"Execute"}.
 For a Dataflow publish schedule, set \code{job_type = "ApplyChanges"}
 explicitly. Unknown item types retain the Core Scheduler's \code{"DefaultJob"}
 fallback. Supply an explicit value for another workload-specific schedule
@@ -150,6 +150,10 @@ preserved; supply a named list to replace it.
 The published REST response currently exposes \code{enabled} but no standard
 auto-disable reason. \code{auto_disabled} is therefore \code{NA} unless Fabric returns
 an explicit marker. The complete response stays available in \code{raw}.
+
+Semantic-model refresh schedules use the Power BI dataset schedule API, not
+the Fabric Core Job Scheduler. These functions reject a discovered semantic
+model unless \code{job_type} is supplied explicitly for a future or custom route.
 }
 \examples{
 \dontrun{
@@ -178,6 +182,8 @@ fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 }
 \references{
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/}{Fabric Job Scheduler REST API}
+
+\href{https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/update-refresh-schedule-in-group}{Update a semantic-model refresh schedule}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute}{Schedule a Data Pipeline}
 

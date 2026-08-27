@@ -466,10 +466,6 @@ test_that("workloads infer their documented schedule job type", {
     token = "test-token"
   )
   fabric_job_schedules(
-    scheduler_test_item("SemanticModel"),
-    token = "test-token"
-  )
-  fabric_job_schedules(
     scheduler_test_item("DataPipeline"),
     token = "test-token"
   )
@@ -493,12 +489,25 @@ test_that("workloads infer their documented schedule job type", {
 
   expect_match(urls[[1L]], "/jobs/RunNotebook/schedules$", perl = TRUE)
   expect_match(urls[[2L]], "/jobs/SparkJob/schedules$", perl = TRUE)
-  expect_match(urls[[3L]], "/jobs/Refresh/schedules$", perl = TRUE)
+  expect_match(urls[[3L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[4L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[5L]], "/jobs/Execute/schedules$", perl = TRUE)
   expect_match(urls[[6L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[7L]], "/jobs/Execute/schedules$", perl = TRUE)
-  expect_match(urls[[8L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
+  expect_match(urls[[7L]], "/jobs/ScheduledSparkJob/schedules$", perl = TRUE)
+})
+
+test_that("semantic model schedules require the Power BI dataset API", {
+  expect_snapshot(
+    error = TRUE,
+    fabric_job_schedules(
+      scheduler_test_item("SemanticModel"),
+      token = "test-token"
+    )
+  )
+  expect_identical(
+    .fabric_job_schedule_type("SemanticModel", "FutureRefresh"),
+    "FutureRefresh"
+  )
 })
 
 test_that("DataPipeline schedule creation uses and records Execute", {

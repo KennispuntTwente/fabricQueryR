@@ -230,8 +230,8 @@ fabric_job_schedule_config <- function(
 #'
 #' @inheritParams fabric_job_instances
 #' @param job_type Schedule job type. Notebooks default to `"RunNotebook"`,
-#'   Spark job definitions to `"SparkJob"`, semantic models to `"Refresh"`,
-#'   and data pipelines, Dataflows, and Data Build Tool Jobs to `"Execute"`.
+#'   Spark job definitions to `"SparkJob"`, and data pipelines, Dataflows, and
+#'   Data Build Tool Jobs to `"Execute"`.
 #'   For a Dataflow publish schedule, set `job_type = "ApplyChanges"`
 #'   explicitly. Unknown item types retain the Core Scheduler's `"DefaultJob"`
 #'   fallback. Supply an explicit value for another workload-specific schedule
@@ -270,8 +270,14 @@ fabric_job_schedule_config <- function(
 #' The published REST response currently exposes `enabled` but no standard
 #' auto-disable reason. `auto_disabled` is therefore `NA` unless Fabric returns
 #' an explicit marker. The complete response stays available in `raw`.
+#'
+#' Semantic-model refresh schedules use the Power BI dataset schedule API, not
+#' the Fabric Core Job Scheduler. These functions reject a discovered semantic
+#' model unless `job_type` is supplied explicitly for a future or custom route.
 #' @references
 #' [Fabric Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+#'
+#' [Update a semantic-model refresh schedule](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/update-refresh-schedule-in-group)
 #'
 #' [Schedule a Data Pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute)
 #'
@@ -597,11 +603,19 @@ print.fabric_job_schedule <- function(x, ...) {
   }
 
   normalized <- gsub("[^a-z0-9]", "", tolower(item_type %||% ""))
+  if (identical(normalized, "semanticmodel")) {
+    .fabric_abort(
+      paste(
+        "Semantic-model refresh schedules use the Power BI dataset API,",
+        "not the Fabric Core Job Scheduler"
+      ),
+      class = "fabric_job_schedule_unsupported_item"
+    )
+  }
   switch(
     normalized,
     notebook = "RunNotebook",
     sparkjobdefinition = "SparkJob",
-    semanticmodel = "Refresh",
     datapipeline = "Execute",
     pipeline = "Execute",
     dataflow = "Execute",

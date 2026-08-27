@@ -289,13 +289,12 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   created_ids <- setdiff(created_ids, weekly$id)
 })
 
-test_that("workload schedule defaults complete live create-list-delete lifecycles", {
+test_that("notebook and Spark schedule defaults complete live lifecycles", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
   cases <- list(
     JobFixtures = "RunNotebook",
-    TestSparkJob = "SparkJob",
-    TestArrowSemanticModel = "Refresh"
+    TestSparkJob = "SparkJob"
   )
   start <- as.POSIXct(Sys.Date() + 2, tz = "UTC")
   configuration <- fabric_job_schedule_config(

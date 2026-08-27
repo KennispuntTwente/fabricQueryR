@@ -71,6 +71,10 @@ token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated.
 
+* `fabric_job_schedules()` now rejects semantic-model defaults because their
+refresh schedules use the Power BI dataset API rather than the Fabric Core Job
+Scheduler.
+
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
