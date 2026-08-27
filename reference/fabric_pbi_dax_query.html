@@ -204,8 +204,11 @@ the optional 'arrow' package and a model on Premium or Fabric capacity.
 Decimal128 and Decimal256 columns are returned as exact character values in
 a tibble. Power BI Variant columns are returned as list-columns whose cells
 contain <code>type</code> and <code>value</code> fields and inherit from <code>fabric_pbi_variant</code>, so
-mixed scalar types remain distinguishable. <code>result = "arrow_stream"</code> retains
-native Arrow decimal and dense-union types.
+mixed scalar types remain distinguishable. Variant Currency values are exact
+character scalars. Variant whole numbers are <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> scalars,
+except the minimum signed 64-bit value, which is character because 'bit64'
+reserves that bit pattern for missing values. <code>result = "arrow_stream"</code>
+retains native Arrow decimal and dense-union types.
 The Power BI administrator must enable both <strong>Dataset Execute Queries REST
 API</strong> under Developer settings and <strong>Allow XMLA endpoints and Analyze in
 Excel with on-premises semantic models</strong> under Integration settings.

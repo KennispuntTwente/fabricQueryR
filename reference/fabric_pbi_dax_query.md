@@ -166,6 +166,11 @@ capacity. Decimal128 and Decimal256 columns are returned as exact
 character values in a tibble. Power BI Variant columns are returned as
 list-columns whose cells contain `type` and `value` fields and inherit
 from `fabric_pbi_variant`, so mixed scalar types remain distinguishable.
+Variant Currency values are exact character scalars. Variant whole
+numbers are
+[`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+scalars, except the minimum signed 64-bit value, which is character
+because 'bit64' reserves that bit pattern for missing values.
 `result = "arrow_stream"` retains native Arrow decimal and dense-union
 types. The Power BI administrator must enable both **Dataset Execute
 Queries REST API** under Developer settings and **Allow XMLA endpoints
