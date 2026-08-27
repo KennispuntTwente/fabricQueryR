@@ -162,10 +162,24 @@ kusto_database_schema_tables <- function(metadata, database, error_class) {
     },
     character(1)
   )
+  pretty_names <- vapply(
+    databases,
+    function(value) {
+      if (!is.list(value)) {
+        return("")
+      }
+      as.character(value$PrettyName %||% value$prettyName %||% "")
+    },
+    character(1)
+  )
   matches <- which(
     names(databases) == database |
-      names_in_metadata == database
+      names_in_metadata == database |
+      pretty_names == database
   )
+  if (!length(matches) && length(databases) == 1L) {
+    matches <- 1L
+  }
   if (length(matches) != 1L) {
     .fabric_abort(
       "Kusto database schema did not identify the requested database once",

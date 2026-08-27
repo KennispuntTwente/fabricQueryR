@@ -128,6 +128,38 @@ test_that("KQL table discovery can skip detail and retain an empty shape", {
   expect_equal(calls, 1L)
 })
 
+test_that("KQL schema discovery resolves Fabric database display names", {
+  tables <- list(Events = list(Name = "Events"))
+  internal <- list(
+    Databases = list(
+      `11111111-1111-4111-8111-111111111111` = list(
+        Name = "11111111-1111-4111-8111-111111111111",
+        PrettyName = "Telemetry",
+        Tables = tables
+      )
+    )
+  )
+  scoped <- internal
+  scoped$Databases[[1L]]$PrettyName <- NULL
+
+  expect_identical(
+    kusto_database_schema_tables(
+      internal,
+      "Telemetry",
+      "fabric_kql_tables_error"
+    ),
+    tables
+  )
+  expect_identical(
+    kusto_database_schema_tables(
+      scoped,
+      "Telemetry",
+      "fabric_kql_tables_error"
+    ),
+    tables
+  )
+})
+
 test_that("KQL table reader delegates a safely parameterized projection", {
   captured <- NULL
   expected <- tibble::tibble(id = 1L, `display name` = "alpha")
