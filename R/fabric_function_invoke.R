@@ -197,13 +197,7 @@ fabric_function_invoke <- function(
       return_error_response = TRUE
     ),
     error = function(error) {
-      if (
-        grepl(
-          "maximum file size|filesize exceeded|file size exceeded",
-          conditionMessage(error),
-          ignore.case = TRUE
-        )
-      ) {
+      if (function_is_response_too_large_error(error)) {
         .fabric_abort(
           "Function response exceeded max_response_bytes during transfer",
           class = "fabric_function_response_too_large",
@@ -220,6 +214,37 @@ fabric_function_invoke <- function(
     response,
     max_response_bytes = max_response_bytes
   )
+}
+
+# Detect libcurl's size-limit failure through httr2's condition chain. Returns
+# one logical without depending on the localized human-readable error message
+function_is_response_too_large_error <- function(error) {
+  current <- error
+  for (depth in seq_len(20L)) {
+    if (!inherits(current, "condition")) {
+      return(FALSE)
+    }
+    if (inherits(current, "curl_error_filesize_exceeded")) {
+      return(TRUE)
+    }
+    if (inherits(current, "curl_error")) {
+      codes <- unlist(
+        current[intersect(names(current), c("code", "curl_code"))],
+        recursive = TRUE,
+        use.names = FALSE
+      )
+      codes <- suppressWarnings(as.integer(codes))
+      if (any(codes == 63L, na.rm = TRUE)) {
+        return(TRUE)
+      }
+    }
+    parent <- current$parent
+    if (is.null(parent) || identical(parent, current)) {
+      return(FALSE)
+    }
+    current <- parent
+  }
+  FALSE
 }
 
 # Validate a copied public function URL and its credential boundary. Returns a

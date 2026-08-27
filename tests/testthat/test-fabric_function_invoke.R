@@ -340,10 +340,27 @@ test_that("function response limits check headers and actual body bytes", {
 
 test_that("function response size is bounded during transport", {
   request <- NULL
+  curl_error <- structure(
+    list(
+      message = "La taille maximale du fichier a ete depassee",
+      call = NULL
+    ),
+    class = c(
+      "curl_error_filesize_exceeded",
+      "curl_error",
+      "error",
+      "condition"
+    )
+  )
+  transport_error <- rlang::error_cnd(
+    class = "httr2_failure",
+    message = "La requete HTTP a echoue",
+    parent = curl_error
+  )
   local_mocked_bindings(
     .httr2_perform = function(req, ...) {
       request <<- req
-      stop("Maximum file size exceeded")
+      rlang::cnd_signal(transport_error)
     }
   )
 
@@ -358,6 +375,17 @@ test_that("function response size is bounded during transport", {
   expect_identical(request$options$maxfilesize_large, 1024)
   expect_true(is.na(error$response_bytes))
   expect_identical(error$max_response_bytes, 1024)
+})
+
+test_that("response size classification uses curl metadata, not messages", {
+  coded <- structure(
+    list(message = "Limite depassee", call = NULL, code = 63L),
+    class = c("curl_error", "error", "condition")
+  )
+  unrelated <- simpleError("Maximum file size exceeded")
+
+  expect_true(function_is_response_too_large_error(coded))
+  expect_false(function_is_response_too_large_error(unrelated))
 })
 
 test_that("function output is preserved while conditions redact secrets", {
