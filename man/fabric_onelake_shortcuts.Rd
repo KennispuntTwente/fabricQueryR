@@ -113,7 +113,9 @@ Connection-backed targets must include the documented required fields, use
 a Fabric connection ID, and must not embed credentials. Local checks cover
 structure, required fields, identifier shape, and generic URL safety; they
 do not verify source-specific host/path rules or that a connection refers
-to the supplied location. Fabric service validation is authoritative.}
+to the supplied location. A raw \code{oneLake} target may also include its
+documented optional \code{connectionId}. Fabric service validation is
+authoritative.}
 
 \item{target_workspace}{Workspace containing a OneLake \code{target}. May be
 omitted when a discovered target contains \code{workspaceId}.}

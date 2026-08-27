@@ -27,7 +27,9 @@
 #'   a Fabric connection ID, and must not embed credentials. Local checks cover
 #'   structure, required fields, identifier shape, and generic URL safety; they
 #'   do not verify source-specific host/path rules or that a connection refers
-#'   to the supplied location. Fabric service validation is authoritative.
+#'   to the supplied location. A raw `oneLake` target may also include its
+#'   documented optional `connectionId`. Fabric service validation is
+#'   authoritative.
 #' @param target_workspace Workspace containing a OneLake `target`. May be
 #'   omitted when a discovered target contains `workspaceId`.
 #' @param target_path Item-relative `Files` or `Tables` path for a OneLake
@@ -506,6 +508,9 @@ fabric_onelake_shortcut_delete <- function(
     }
     .fabric_job_guid(details$workspaceId, "OneLake target workspace ID")
     .fabric_job_guid(details$itemId, "OneLake target item ID")
+    if (!is.null(details$connectionId)) {
+      .fabric_job_guid(details$connectionId, "OneLake target connection ID")
+    }
     details$path <- .fabric_shortcut_path(details$path, "target path")
   } else {
     details <- .fabric_shortcut_external_target(details, name)
@@ -516,7 +521,7 @@ fabric_onelake_shortcut_delete <- function(
 .fabric_shortcut_target_fields <- function(type) {
   switch(
     type,
-    oneLake = c("workspaceId", "itemId", "path"),
+    oneLake = c("workspaceId", "itemId", "path", "connectionId"),
     adlsGen2 = c("connectionId", "location", "subpath"),
     amazonS3 = c("connectionId", "location", "subpath"),
     azureBlobStorage = c("connectionId", "location", "subpath"),

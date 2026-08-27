@@ -214,6 +214,34 @@ test_that("shortcut create accepts documented connection-backed targets", {
   expect_equal(result$target_type, "AdlsGen2")
 })
 
+test_that("raw OneLake shortcut targets preserve optional connection IDs", {
+  target <- .fabric_shortcut_raw_target(list(
+    oneLake = list(
+      workspaceId = shortcut_test_target_workspace_id,
+      itemId = shortcut_test_target_item_id,
+      path = "Tables/dbo/orders",
+      connectionId = shortcut_test_connection_id
+    )
+  ))
+
+  expect_identical(
+    target$oneLake$connectionId,
+    shortcut_test_connection_id
+  )
+  expect_error(
+    .fabric_shortcut_raw_target(list(
+      oneLake = list(
+        workspaceId = shortcut_test_target_workspace_id,
+        itemId = shortcut_test_target_item_id,
+        path = "Tables/dbo/orders",
+        connectionId = "not-a-guid"
+      )
+    )),
+    "OneLake target connection ID",
+    fixed = TRUE
+  )
+})
+
 test_that("shortcut POST is never replayed after a transient response", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {
