@@ -125,8 +125,8 @@ Omit it when <code>item</code> is a discovered record containing <code>workspace
 
 <dt id="arg-job-type">job_type<a class="anchor" aria-label="anchor" href="#arg-job-type"></a></dt>
 <dd><p>Schedule job type. Notebooks default to <code>"RunNotebook"</code>,
-Spark job definitions to <code>"SparkJob"</code>, semantic models to <code>"Refresh"</code>,
-and data pipelines, Dataflows, and Data Build Tool Jobs to <code>"Execute"</code>.
+Spark job definitions to <code>"SparkJob"</code>, and data pipelines, Dataflows, and
+Data Build Tool Jobs to <code>"Execute"</code>.
 For a Dataflow publish schedule, set <code>job_type = "ApplyChanges"</code>
 explicitly. Unknown item types retain the Core Scheduler's <code>"DefaultJob"</code>
 fallback. Supply an explicit value for another workload-specific schedule
@@ -216,10 +216,14 @@ preserved; supply a named list to replace it.</p>
 <p>The published REST response currently exposes <code>enabled</code> but no standard
 auto-disable reason. <code>auto_disabled</code> is therefore <code>NA</code> unless Fabric returns
 an explicit marker. The complete response stays available in <code>raw</code>.</p>
+<p>Semantic-model refresh schedules use the Power BI dataset schedule API, not
+the Fabric Core Job Scheduler. These functions reject a discovered semantic
+model unless <code>job_type</code> is supplied explicitly for a future or custom route.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/" class="external-link">Fabric Job Scheduler REST API</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/update-refresh-schedule-in-group" class="external-link">Update a semantic-model refresh schedule</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute" class="external-link">Schedule a Data Pipeline</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute" class="external-link">Schedule Dataflow Execute</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes" class="external-link">Schedule Dataflow Apply Changes</a></p>

@@ -86,14 +86,13 @@ fabric_job_schedule_delete(
 - job_type:
 
   Schedule job type. Notebooks default to `"RunNotebook"`, Spark job
-  definitions to `"SparkJob"`, semantic models to `"Refresh"`, and data
-  pipelines, Dataflows, and Data Build Tool Jobs to `"Execute"`. For a
-  Dataflow publish schedule, set `job_type = "ApplyChanges"` explicitly.
-  Unknown item types retain the Core Scheduler's `"DefaultJob"`
-  fallback. Supply an explicit value for another workload-specific
-  schedule job type. When passing one of these item types as a GUID
-  instead of a discovered item, also supply `item_type` or set the
-  documented `job_type` explicitly.
+  definitions to `"SparkJob"`, and data pipelines, Dataflows, and Data
+  Build Tool Jobs to `"Execute"`. For a Dataflow publish schedule, set
+  `job_type = "ApplyChanges"` explicitly. Unknown item types retain the
+  Core Scheduler's `"DefaultJob"` fallback. Supply an explicit value for
+  another workload-specific schedule job type. When passing one of these
+  item types as a GUID instead of a discovered item, also supply
+  `item_type` or set the documented `job_type` explicitly.
 
 - item_type:
 
@@ -181,10 +180,18 @@ auto-disable reason. `auto_disabled` is therefore `NA` unless Fabric
 returns an explicit marker. The complete response stays available in
 `raw`.
 
+Semantic-model refresh schedules use the Power BI dataset schedule API,
+not the Fabric Core Job Scheduler. These functions reject a discovered
+semantic model unless `job_type` is supplied explicitly for a future or
+custom route.
+
 ## References
 
 [Fabric Job Scheduler REST
 API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
+
+[Update a semantic-model refresh
+schedule](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/update-refresh-schedule-in-group)
 
 [Schedule a Data
 Pipeline](https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute)
