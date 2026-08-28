@@ -342,6 +342,54 @@ test_that("bulk shortcut creation rejects malformed requests locally", {
   expect_equal(calls, 0L)
 })
 
+test_that("shortcut cache reset uses the workspace-wide LRO endpoint", {
+  request <- NULL
+  operation_id <- "77777777-7777-4777-8777-777777777777"
+  httr2::local_mocked_responses(function(req) {
+    request <<- req
+    shortcut_test_response(
+      status = 202L,
+      headers = list(
+        Location = paste0(
+          "https://api.fabric.microsoft.com/v1/operations/",
+          operation_id
+        ),
+        `x-ms-operation-id` = operation_id,
+        `Retry-After` = "5"
+      ),
+      url = req$url
+    )
+  })
+  workspace <- structure(
+    list(
+      id = shortcut_test_workspace_id,
+      displayName = "Workspace",
+      type = "Workspace"
+    ),
+    class = c("fabric_workspace", "list")
+  )
+
+  operation <- fabric_onelake_shortcut_cache_reset(
+    workspace,
+    token = "test-token"
+  )
+
+  expect_s3_class(operation, "fabric_operation")
+  expect_identical(operation$id, operation_id)
+  expect_false(operation$result_expected)
+  expect_identical(operation$retry_after, 5)
+  expect_equal(request$method, "POST")
+  expect_match(
+    request$url,
+    paste0(
+      "/workspaces/",
+      shortcut_test_workspace_id,
+      "/onelake/resetShortcutCache$"
+    )
+  )
+  expect_null(request$body)
+})
+
 test_that("raw OneLake shortcut targets preserve optional connection IDs", {
   target <- .fabric_shortcut_raw_target(list(
     oneLake = list(

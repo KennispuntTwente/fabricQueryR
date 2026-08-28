@@ -325,6 +325,10 @@ operation and optionally apply Fabric's CSV-to-Delta transform. Call
 `fabric_onelake_shortcuts_bulk_create()` and pass the returned handle to
 `fabric_operation_result()`.
 
+Use `fabric_onelake_shortcut_cache_reset()` when Fabric must discard files it
+cached while reading shortcuts in a workspace. Cache reset is also represented
+by a resumable operation handle.
+
 Deleting a shortcut removes only the link, not the destination data. In
 addition to the REST API scope, callers need Read or ReadWrite permission on
 the relevant destination path and Read permission on a shortcut target.

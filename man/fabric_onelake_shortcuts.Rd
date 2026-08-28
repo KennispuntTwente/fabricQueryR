@@ -5,6 +5,7 @@
 \alias{fabric_onelake_shortcut_get}
 \alias{fabric_onelake_shortcut_create}
 \alias{fabric_onelake_shortcuts_bulk_create}
+\alias{fabric_onelake_shortcut_cache_reset}
 \alias{fabric_onelake_shortcut_delete}
 \title{Manage OneLake shortcuts}
 \usage{
@@ -62,6 +63,16 @@ fabric_onelake_shortcuts_bulk_create(
   item_type = NULL,
   conflict_policy = c("Abort", "GenerateUniqueName", "CreateOrOverwrite",
     "OverwriteOnly"),
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
+    "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base
+)
+
+fabric_onelake_shortcut_cache_reset(
+  workspace,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -161,6 +172,8 @@ include a \code{transform} list. The only currently documented transform is
 shortcut. \code{fabric_onelake_shortcut_get()} and
 \code{fabric_onelake_shortcut_create()} return the same one-row shape.
 \code{fabric_onelake_shortcut_delete()} returns \code{TRUE} invisibly after success.
+\code{fabric_onelake_shortcut_cache_reset()} returns a \code{fabric_operation}
+handle for either immediate or asynchronous completion.
 }
 \description{
 Lists, inspects, creates or updates, and deletes shortcuts on a Fabric item.
@@ -242,4 +255,6 @@ fabric_onelake_shortcut_delete(
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security}{OneLake shortcut security and path permissions}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk}{Create shortcuts in bulk}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/reset-shortcut-cache}{Reset shortcut cache}
 }

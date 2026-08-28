@@ -59,6 +59,8 @@
 #'   shortcut. `fabric_onelake_shortcut_get()` and
 #'   `fabric_onelake_shortcut_create()` return the same one-row shape.
 #'   `fabric_onelake_shortcut_delete()` returns `TRUE` invisibly after success.
+#'   `fabric_onelake_shortcut_cache_reset()` returns a `fabric_operation`
+#'   handle for either immediate or asynchronous completion.
 #' @details
 #' Listing follows Fabric continuation links and tokens until every shortcut
 #' below `parent_path` is returned. Unknown target details and transform fields
@@ -91,6 +93,8 @@
 #' [OneLake shortcut security and path permissions](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security)
 #'
 #' [Create shortcuts in bulk](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk)
+#'
+#' [Reset shortcut cache](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/reset-shortcut-cache)
 #' @examples
 #' \dontrun{
 #' # Discover two Lakehouses in the same workspace
@@ -377,6 +381,48 @@ fabric_onelake_shortcuts_bulk_create <- function(
     api_base = context$api_base,
     idempotent = FALSE,
     result_expected = TRUE
+  )
+}
+
+#' @rdname fabric_onelake_shortcuts
+#' @export
+fabric_onelake_shortcut_cache_reset <- function(
+  workspace,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base
+) {
+  credential <- fabric_credential(
+    tenant_id = tenant_id,
+    client_id = client_id,
+    token = token,
+    auth_args = auth_args
+  )
+  base <- fabric_api_base(api_base)
+  workspace <- fabric_resolve_workspace(
+    workspace,
+    credential,
+    base,
+    use_workspace_endpoint = missing(api_base)
+  )
+  request <- httr2::request(paste0(
+    workspace$api_base,
+    "/workspaces/",
+    workspace$id,
+    "/onelake/resetShortcutCache"
+  )) |>
+    httr2::req_method("POST")
+  .fabric_operation_submit(
+    request,
+    credential = credential,
+    api_base = workspace$api_base,
+    idempotent = FALSE,
+    result_expected = FALSE
   )
 }
 
