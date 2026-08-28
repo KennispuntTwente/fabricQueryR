@@ -75,6 +75,31 @@ test_that("function parameters support empty, named-vector, and data-frame objec
   )
 })
 
+test_that("function parameters enforce Fabric camelCase naming", {
+  expect_identical(
+    function_serialize_parameters(list(orderId = 1L, line2Value = "ok")),
+    '{"orderId":1,"line2Value":"ok"}'
+  )
+
+  invalid_names <- c(
+    "snake_case",
+    "PascalCase",
+    "2value",
+    "class",
+    "for",
+    "req",
+    "context",
+    "reqInvocationId"
+  )
+  for (parameter_name in invalid_names) {
+    error <- rlang::catch_cnd(function_serialize_parameters(
+      stats::setNames(list(1L), parameter_name)
+    ))
+    expect_s3_class(error, "fabric_function_parameters_error")
+    expect_identical(error$invalid_parameter_names, parameter_name)
+  }
+})
+
 test_that("public function URLs enforce the documented trusted route", {
   expect_identical(function_validate_url(function_test_url), function_test_url)
   expect_identical(

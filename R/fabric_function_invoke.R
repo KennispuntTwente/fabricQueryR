@@ -1,5 +1,48 @@
 .fabric_function_request_limit <- 4 * 1024^2
 .fabric_function_response_limit <- 32 * 1024^2
+.fabric_function_python_keywords <- c(
+  "False",
+  "None",
+  "True",
+  "and",
+  "as",
+  "assert",
+  "async",
+  "await",
+  "break",
+  "class",
+  "continue",
+  "def",
+  "del",
+  "elif",
+  "else",
+  "except",
+  "finally",
+  "for",
+  "from",
+  "global",
+  "if",
+  "import",
+  "in",
+  "is",
+  "lambda",
+  "nonlocal",
+  "not",
+  "or",
+  "pass",
+  "raise",
+  "return",
+  "try",
+  "while",
+  "with",
+  "yield"
+)
+.fabric_function_reserved_names <- c(
+  .fabric_function_python_keywords,
+  "req",
+  "context",
+  "reqInvocationId"
+)
 
 #' Invoke a published Fabric user data function
 #'
@@ -18,7 +61,9 @@
 #' Parameter names and values must match the published Python signature. Fabric
 #' supports JSON strings, ISO 8601 datetime strings, booleans, numbers, arrays,
 #' and objects as inputs. The top-level `parameters` object therefore needs
-#' unique, non-empty names. A named atomic vector is converted to a named list;
+#' unique, non-empty camelCase names without underscores. Python keywords and
+#' Fabric's reserved `req`, `context`, and `reqInvocationId` names are rejected
+#' before a request is sent. A named atomic vector is converted to a named list;
 #' use [I()] around a one-element value when it must remain a JSON array.
 #'
 #' @section Permissions and authentication:
@@ -310,6 +355,7 @@ function_serialize_parameters <- function(parameters) {
   if (!length(parameters)) {
     return("{}")
   }
+  function_validate_parameter_names(names(parameters))
 
   encoded <- try(
     jsonlite::toJSON(
@@ -329,6 +375,26 @@ function_serialize_parameters <- function(parameters) {
     )
   }
   as.character(encoded)
+}
+
+# Validate public-function parameter names against Fabric's Python model
+# Returns invisibly after requiring camelCase, non-reserved identifiers
+function_validate_parameter_names <- function(parameter_names) {
+  valid_camel_case <- grepl("^[a-z][A-Za-z0-9]*$", parameter_names)
+  reserved <- parameter_names %in% .fabric_function_reserved_names
+  invalid <- parameter_names[!valid_camel_case | reserved]
+  if (!length(invalid)) {
+    return(invisible(TRUE))
+  }
+  .fabric_abort(
+    paste0(
+      "Fabric function parameter names must use camelCase without ",
+      "underscores and cannot be Python or Fabric reserved names: ",
+      paste(invalid, collapse = ", ")
+    ),
+    class = "fabric_function_parameters_error",
+    invalid_parameter_names = invalid
+  )
 }
 
 # Select the narrow delegated scope for user sign-in and the Power BI resource

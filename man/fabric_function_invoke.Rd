@@ -83,7 +83,9 @@ safely.
 Parameter names and values must match the published Python signature. Fabric
 supports JSON strings, ISO 8601 datetime strings, booleans, numbers, arrays,
 and objects as inputs. The top-level \code{parameters} object therefore needs
-unique, non-empty names. A named atomic vector is converted to a named list;
+unique, non-empty camelCase names without underscores. Python keywords and
+Fabric's reserved \code{req}, \code{context}, and \code{reqInvocationId} names are rejected
+before a request is sent. A named atomic vector is converted to a named list;
 use \code{\link[=I]{I()}} around a one-element value when it must remain a JSON array.
 }
 
