@@ -80,6 +80,56 @@ test_that("connection-string delimiters only open at value boundaries", {
   expect_equal(spaced$database, "Sales; Archive")
 })
 
+test_that("SQL connection strings reject conflicting target aliases", {
+  duplicate_server <- rlang::catch_cnd(fabric_sql_connection_info(paste0(
+    "Server=one.datawarehouse.fabric.microsoft.com;",
+    "Server=two.datawarehouse.fabric.microsoft.com;"
+  )))
+  expect_s3_class(duplicate_server, "fabric_sql_target_error")
+  expect_identical(duplicate_server$conflicting_options, "server")
+  expect_identical(
+    duplicate_server$conflicting_values,
+    c(
+      "one.datawarehouse.fabric.microsoft.com",
+      "two.datawarehouse.fabric.microsoft.com"
+    )
+  )
+
+  server_alias <- rlang::catch_cnd(fabric_sql_connection_info(paste0(
+    "Server=one.datawarehouse.fabric.microsoft.com;",
+    "Data Source=two.datawarehouse.fabric.microsoft.com;"
+  )))
+  expect_s3_class(server_alias, "fabric_sql_target_error")
+  expect_identical(
+    server_alias$conflicting_options,
+    c("server", "datasource")
+  )
+
+  database_alias <- rlang::catch_cnd(fabric_sql_connection_info(paste0(
+    "Server=one.datawarehouse.fabric.microsoft.com;",
+    "Database=Sales;Initial Catalog=Archive;"
+  )))
+  expect_s3_class(database_alias, "fabric_sql_target_error")
+  expect_identical(
+    database_alias$conflicting_options,
+    c("initialcatalog", "database")
+  )
+})
+
+test_that("SQL connection strings accept identical target aliases", {
+  parsed <- fabric_sql_connection_info(paste0(
+    "Server=tcp:one.datawarehouse.fabric.microsoft.com,1433;",
+    "Data Source=one.datawarehouse.fabric.microsoft.com,1433;",
+    "Database=Sales;Initial Catalog=Sales;"
+  ))
+  expect_identical(
+    parsed$server,
+    "one.datawarehouse.fabric.microsoft.com"
+  )
+  expect_identical(parsed$database, "Sales")
+  expect_identical(parsed$port, 1433L)
+})
+
 test_that("SQL connection info consumes discovered item rows", {
   item <- tibble::tibble(
     id = "item-id",

@@ -1627,9 +1627,28 @@ fabric_parse_sql_connection_string <- function(server) {
       position <- regexpr("=", pair, fixed = TRUE)[[1L]]
       key <- tolower(trimws(substr(pair, 1L, position - 1L)))
       key <- gsub("[ _]", "", key)
-      fields[[key]] <- fabric_unquote_connection_value(
+      if (!nzchar(key)) {
+        .fabric_abort(
+          "SQL connection-string option names cannot be empty",
+          class = "fabric_sql_target_error"
+        )
+      }
+      field_value <- fabric_unquote_connection_value(
         substr(pair, position + 1L, nchar(pair))
       )
+      if (!is.null(fields[[key]]) && !identical(fields[[key]], field_value)) {
+        .fabric_abort(
+          paste0(
+            "SQL connection-string option `",
+            key,
+            "` has conflicting values"
+          ),
+          class = "fabric_sql_target_error",
+          conflicting_options = key,
+          conflicting_values = c(fields[[key]], field_value)
+        )
+      }
+      fields[[key]] <- field_value
     }
   }
 
@@ -1637,11 +1656,31 @@ fabric_parse_sql_connection_string <- function(server) {
 
   # Resolve server and port once so later steps use one consistent value
 
-  host <- fields$server %||%
-    fields$datasource %||%
-    fields$address %||%
-    fields$addr %||%
-    fields$networkaddress
+  server_keys <- c(
+    "server",
+    "datasource",
+    "address",
+    "addr",
+    "networkaddress"
+  )
+  server_values <- unlist(fields[intersect(server_keys, names(fields))])
+  if (length(server_values)) {
+    normalized_servers <- tolower(trimws(sub(
+      "(?i)^tcp:\\s*",
+      "",
+      server_values,
+      perl = TRUE
+    )))
+    if (length(unique(normalized_servers)) > 1L) {
+      .fabric_abort(
+        "SQL target contains conflicting Server/Data Source values",
+        class = "fabric_sql_target_error",
+        conflicting_options = intersect(server_keys, names(fields)),
+        conflicting_values = unname(server_values)
+      )
+    }
+  }
+  host <- if (length(server_values)) unname(server_values[[1L]]) else NULL
   if (is.null(host)) {
     bare <- tokens[!grepl("=", tokens, fixed = TRUE)]
     if (length(bare) != 1L) {
@@ -1672,9 +1711,21 @@ fabric_parse_sql_connection_string <- function(server) {
 
   # Return parsed connection details in the stable form expected by the caller
 
-  database <- fields$initialcatalog %||%
-    fields$database %||%
-    fields$catalog
+  database_keys <- c("initialcatalog", "database", "catalog")
+  database_values <- unlist(fields[intersect(database_keys, names(fields))])
+  if (length(unique(database_values)) > 1L) {
+    .fabric_abort(
+      "SQL target contains conflicting Initial Catalog/Database values",
+      class = "fabric_sql_target_error",
+      conflicting_options = intersect(database_keys, names(fields)),
+      conflicting_values = unname(database_values)
+    )
+  }
+  database <- if (length(database_values)) {
+    unname(database_values[[1L]])
+  } else {
+    NULL
+  }
   list(server = host, database = database, port = port, fields = fields)
 }
 
