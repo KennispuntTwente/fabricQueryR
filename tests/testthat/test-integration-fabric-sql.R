@@ -749,3 +749,87 @@ test_that("Warehouse writer loads R and lazy Arrow data through OneLake", {
   DBI::dbDisconnect(con)
   connected <- FALSE
 })
+
+test_that("Warehouse writer loads through the live ADBC backend", {
+  for (package in c("DBI", "odbc", "adbi", "adbcdrivermanager", "arrow")) {
+    fabric_test_require_package(package)
+  }
+  manifest <- fabric_test_manifest()
+  warehouse_fixture <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  lakehouse_fixture <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    warehouse_fixture$id,
+    type = "Warehouse",
+    token = token
+  )
+  staging_lakehouse <- fabric_item(
+    manifest$workspace_id,
+    lakehouse_fixture$id,
+    type = "Lakehouse",
+    token = token
+  )
+  table <- "fabricqueryr_adbc_write"
+  table_sql <- paste0("[dbo].[", table, "]")
+  cleanup_connection <- fabric_sql_connect(
+    warehouse,
+    backend = "odbc",
+    token = token,
+    verbose = FALSE
+  )
+  connected <- TRUE
+  on.exit(
+    {
+      if (connected) {
+        try(
+          DBI::dbExecute(
+            cleanup_connection,
+            paste("DROP TABLE IF EXISTS", table_sql)
+          ),
+          silent = TRUE
+        )
+        try(DBI::dbDisconnect(cleanup_connection), silent = TRUE)
+      }
+    },
+    add = TRUE
+  )
+  DBI::dbExecute(
+    cleanup_connection,
+    paste("DROP TABLE IF EXISTS", table_sql)
+  )
+
+  written <- fabric_warehouse_write_table(
+    warehouse,
+    table,
+    data.frame(
+      id = 1:3,
+      label = c("adbc-a", "adbc-b", "adbc-c"),
+      amount = c(10.5, NA, 30)
+    ),
+    staging_lakehouse = staging_lakehouse,
+    mode = "Append",
+    create_if_missing = TRUE,
+    backend = "adbc",
+    token = token,
+    verbose = FALSE
+  )
+
+  expect_true(written$table_created)
+  expect_equal(written$rows, 3)
+  expect_false(written$staging_retained)
+  rows <- DBI::dbGetQuery(
+    cleanup_connection,
+    paste("SELECT id, label, amount FROM", table_sql, "ORDER BY id")
+  )
+  expect_equal(rows$id, 1:3)
+  expect_equal(rows$label, c("adbc-a", "adbc-b", "adbc-c"))
+  expect_equal(rows$amount, c(10.5, NA, 30))
+
+  DBI::dbExecute(
+    cleanup_connection,
+    paste("DROP TABLE IF EXISTS", table_sql)
+  )
+  DBI::dbDisconnect(cleanup_connection)
+  connected <- FALSE
+})
