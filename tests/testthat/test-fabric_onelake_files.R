@@ -559,6 +559,24 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
   expect_match(calls[[2L]]$url, "continuation=opaque%2B%2F%3D%20token")
 })
 
+test_that("OneLake requests use the documented storage API version", {
+  request <- onelake_request("https://onelake.dfs.fabric.microsoft.com")
+  expect_identical(request$headers[["x-ms-version"]], "2021-06-08")
+
+  withr::local_options(fabricqueryr.onelake.api_version = "2024-11-04")
+  request <- onelake_request("https://onelake.dfs.fabric.microsoft.com")
+  expect_identical(request$headers[["x-ms-version"]], "2024-11-04")
+
+  for (version in list("latest", c("2021-06-08", "2023-08-03"), NA)) {
+    withr::local_options(fabricqueryr.onelake.api_version = version)
+    error <- rlang::catch_cnd(onelake_request(
+      "https://onelake.dfs.fabric.microsoft.com"
+    ))
+    expect_s3_class(error, "rlang_error")
+    expect_match(conditionMessage(error), "must be one YYYY-MM-DD string")
+  }
+})
+
 test_that("OneLake listing rejects repeated continuation tokens", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

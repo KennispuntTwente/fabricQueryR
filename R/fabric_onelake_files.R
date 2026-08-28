@@ -36,6 +36,12 @@
 #' requested item directory raise `fabric_onelake_protocol_error`; they are not
 #' silently converted to empty or partial results
 #'
+#' @section Storage API version:
+#' Requests use OneLake's currently documented ADLS API version,
+#' `2021-06-08`. For controlled compatibility testing with a later service
+#' version, set option `fabricqueryr.onelake.api_version` to another date in
+#' `YYYY-MM-DD` form
+#'
 #' @section Safe file replacement:
 #' Existing files are protected unless `overwrite = TRUE`. Uploads and downloads
 #' are staged before replacing their destination, so an interrupted transfer
@@ -1210,11 +1216,30 @@ onelake_path_url <- function(target) {
 onelake_request <- function(url, method = "GET", headers = list()) {
   req <- httr2::request(url) |>
     httr2::req_method(method) |>
-    httr2::req_headers(`x-ms-version` = "2023-08-03")
+    httr2::req_headers(`x-ms-version` = onelake_api_version())
   if (length(headers)) {
     req <- do.call(httr2::req_headers, c(list(req), headers))
   }
   req
+}
+
+onelake_api_version <- function() {
+  version <- getOption(
+    "fabricqueryr.onelake.api_version",
+    "2021-06-08"
+  )
+  if (
+    !is.character(version) ||
+      length(version) != 1L ||
+      is.na(version) ||
+      !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", version)
+  ) {
+    .fabric_abort(paste0(
+      "option fabricqueryr.onelake.api_version must be one ",
+      "YYYY-MM-DD string"
+    ))
+  }
+  version
 }
 
 # Normalize an ETag `value` for If-Match. Returns quoted header text or `*` for

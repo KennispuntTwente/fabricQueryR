@@ -222,6 +222,14 @@ requested item directory raise \code{fabric_onelake_protocol_error}; they are no
 silently converted to empty or partial results
 }
 
+\section{Storage API version}{
+
+Requests use OneLake's currently documented ADLS API version,
+\code{2021-06-08}. For controlled compatibility testing with a later service
+version, set option \code{fabricqueryr.onelake.api_version} to another date in
+\code{YYYY-MM-DD} form
+}
+
 \section{Safe file replacement}{
 
 Existing files are protected unless \code{overwrite = TRUE}. Uploads and downloads
