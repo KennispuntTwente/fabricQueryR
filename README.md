@@ -65,6 +65,16 @@ items <- fabric_items(workspace)
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
+Search the preview OneLake catalog when discovery must span all visible
+workspaces:
+
+``` r
+sales_items <- fabric_catalog_search(
+  search = "sales",
+  types = c("Lakehouse", "Warehouse")
+)
+```
+
 ### 2. Query Fabric SQL endpoints
 
 Open a reusable 'DBI' connection to a Warehouse, SQL Database, or Lakehouse SQL
