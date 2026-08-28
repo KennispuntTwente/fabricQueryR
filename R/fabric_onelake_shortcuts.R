@@ -66,11 +66,17 @@
 #' These Core REST APIs require `OneLake.Read.All` or
 #' `OneLake.ReadWrite.All` for reads, and `OneLake.ReadWrite.All` for create and
 #' delete. Fabric documents support for users, service principals, and managed
-#' identities.
+#' identities. API scope is not sufficient by itself: listing or reading also
+#' requires item Read permission or OneLake Read permission on the destination
+#' path. Creating requires item Write or OneLake ReadWrite on the destination,
+#' plus Read access to the target path. Updating or deleting likewise requires
+#' item Write or destination-path OneLake ReadWrite permission.
 #' @references
 #' [OneLake shortcuts REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 #'
 #' [OneLake shortcut placement and limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
+#'
+#' [OneLake shortcut security and path permissions](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security)
 #' @examples
 #' \dontrun{
 #' # Discover two Lakehouses in the same workspace

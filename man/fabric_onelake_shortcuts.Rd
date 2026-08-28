@@ -163,7 +163,11 @@ Fabric's non-destructive \code{Abort}; overwrite must be requested explicitly.
 These Core REST APIs require \code{OneLake.Read.All} or
 \code{OneLake.ReadWrite.All} for reads, and \code{OneLake.ReadWrite.All} for create and
 delete. Fabric documents support for users, service principals, and managed
-identities.
+identities. API scope is not sufficient by itself: listing or reading also
+requires item Read permission or OneLake Read permission on the destination
+path. Creating requires item Write or OneLake ReadWrite on the destination,
+plus Read access to the target path. Updating or deleting likewise requires
+item Write or destination-path OneLake ReadWrite permission.
 }
 \examples{
 \dontrun{
@@ -205,4 +209,6 @@ fabric_onelake_shortcut_delete(
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/}{OneLake shortcuts REST API}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts}{OneLake shortcut placement and limitations}
+
+\href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security}{OneLake shortcut security and path permissions}
 }
