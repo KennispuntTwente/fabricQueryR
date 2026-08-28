@@ -59,7 +59,8 @@ workspace identity.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
+<span>  output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"r6"</span>, <span class="st">"list"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -113,12 +114,20 @@ to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 <dd><p>Fabric REST API base URL. Leave unchanged unless using a
 different Fabric cloud or a test service</p></dd>
 
+
+<dt id="arg-output">output<a class="anchor" aria-label="anchor" href="#arg-output"></a></dt>
+<dd><p>Discovery record representation. The default <code>"r6"</code> returns
+R6 objects with type-specific methods. Use <code>"list"</code> when a plain record is
+specifically required</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list of <code>fabric_catalog_entry</code> records. Each record also inherits
-from <code>fabric_item</code>, preserves the fields returned by Fabric, and adds
-<code>workspaceId</code> and <code>workspaceDisplayName</code> from the catalog hierarchy.</p>
+    <p>With <code>output = "r6"</code>, a list of <a href="FabricItem.html">FabricItem</a> objects or
+type-specific subclasses. With <code>output = "list"</code>, a list of
+<code>fabric_catalog_entry</code> records that also inherit from <code>fabric_item</code>. Both
+representations preserve the fields returned by Fabric and add the item
+workspace identity from the catalog hierarchy.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

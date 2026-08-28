@@ -56,15 +56,21 @@ and vignettes for configuration options and more involved workflows.
 
 ### 1. Discover workspaces and items
 
-Find the Fabric resources you can access. Typed discovery helpers return
-item records that can be passed directly to the package’s query and
-storage functions.
+Find the Fabric resources you can access. Discovery returns R6 objects
+with methods matched to each actionable item type.
 
 ``` r
 
 workspace <- fabric_workspaces()[[1L]]
-items <- fabric_items(workspace)
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
+orders <- lakehouse$read_table("orders", limit = 1000)
+
+# Service fields remain directly accessible
+lakehouse$id
+lakehouse$displayName
+
+# Convert to a plain record when another interface specifically needs one
+lakehouse_record <- lakehouse$as_list()
 ```
 
 Search the preview OneLake catalog when discovery must span all visible
@@ -417,6 +423,19 @@ was affiliated with them.
 
 Find Fabric workspaces, items, and workload-specific connection details
 
+- [`FabricItem`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricWorkspace`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricLakehouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricWarehouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricWarehouseSnapshot`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricSqlDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricMirroredDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricEventhouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricKqlDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricGraphQLApi`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricSemanticModel`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricJobItem`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  : R6 objects for discovered Microsoft Fabric resources
 - [`fabric_catalog_search()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_catalog_search.md)
   : Search the OneLake catalog
 - [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md)

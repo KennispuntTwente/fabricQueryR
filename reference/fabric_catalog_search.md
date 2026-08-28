@@ -18,7 +18,8 @@ fabric_catalog_search(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 )
 ```
 
@@ -70,11 +71,20 @@ fabric_catalog_search(
   Fabric REST API base URL. Leave unchanged unless using a different
   Fabric cloud or a test service
 
+- output:
+
+  Discovery record representation. The default `"r6"` returns R6 objects
+  with type-specific methods. Use `"list"` when a plain record is
+  specifically required
+
 ## Value
 
-A list of `fabric_catalog_entry` records. Each record also inherits from
-`fabric_item`, preserves the fields returned by Fabric, and adds
-`workspaceId` and `workspaceDisplayName` from the catalog hierarchy.
+With `output = "r6"`, a list of
+[FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+objects or type-specific subclasses. With `output = "list"`, a list of
+`fabric_catalog_entry` records that also inherit from `fabric_item`.
+Both representations preserve the fields returned by Fabric and add the
+item workspace identity from the catalog hierarchy.
 
 ## Details
 

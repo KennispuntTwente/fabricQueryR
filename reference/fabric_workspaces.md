@@ -16,7 +16,8 @@ fabric_workspaces(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 )
 ```
 
@@ -59,11 +60,19 @@ fabric_workspaces(
   Fabric REST API base URL. Leave unchanged unless using a different
   Fabric cloud or a test service
 
+- output:
+
+  Discovery record representation. The default `"r6"` returns R6 objects
+  with type-specific methods. Use `"list"` when a plain record is
+  specifically required
+
 ## Value
 
-A list with one workspace record per visible workspace. Each record
-includes its ID and display name, together with other details returned
-by Fabric
+A list with one workspace record per visible workspace. With
+`output = "r6"`, each record is a
+[FabricWorkspace](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md).
+With `output = "list"`, each record is a `fabric_workspace` list. Both
+representations preserve all fields returned by Fabric
 
 ## Details
 

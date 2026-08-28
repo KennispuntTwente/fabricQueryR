@@ -61,7 +61,8 @@ can be passed directly to query or connection functions</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
+<span>  output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"r6"</span>, <span class="st">"list"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -150,13 +151,21 @@ to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 containing <code>apiEndpoint</code>, that workspace-specific endpoint is used unless
 <code>api_base</code> is supplied explicitly</p></dd>
 
+
+<dt id="arg-output">output<a class="anchor" aria-label="anchor" href="#arg-output"></a></dt>
+<dd><p>Discovery record representation. The default <code>"r6"</code> returns
+R6 objects with type-specific methods. Use <code>"list"</code> when a plain record is
+specifically required</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with one item record per match. Every record includes common
 fields such as <code>id</code>, <code>displayName</code>, <code>type</code>, and <code>workspaceId</code>. With
-<code>detail = TRUE</code>, records also include the connection details needed by the
-matching 'fabricQueryR' functions when Fabric makes them available</p>
+<code>output = "r6"</code>, records are <a href="FabricItem.html">FabricItem</a> objects or type-specific
+subclasses. With <code>output = "list"</code>, records are <code>fabric_item</code> lists. With
+<code>detail = TRUE</code>, both representations include connection details when
+Fabric makes them available</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

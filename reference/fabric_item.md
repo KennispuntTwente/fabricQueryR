@@ -18,7 +18,8 @@ fabric_item(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 )
 ```
 
@@ -82,10 +83,19 @@ fabric_item(
   `apiEndpoint`, that workspace-specific endpoint is used unless
   `api_base` is supplied explicitly
 
+- output:
+
+  Discovery record representation. The default `"r6"` returns R6 objects
+  with type-specific methods. Use `"list"` when a plain record is
+  specifically required
+
 ## Value
 
-One `fabric_item` record containing the item's name, ID, type,
-workspace, and any connection details that Fabric makes available
+With `output = "r6"`, a
+[FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+object or type-specific subclass. With `output = "list"`, one
+`fabric_item` record containing the item's name, ID, type, workspace,
+and available connection details
 
 ## Details
 

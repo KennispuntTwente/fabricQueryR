@@ -4,6 +4,19 @@
 
 Find Fabric workspaces, items, and workload-specific connection details
 
+- [`FabricItem`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricWorkspace`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricLakehouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricWarehouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricWarehouseSnapshot`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricSqlDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricMirroredDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricEventhouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricKqlDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricGraphQLApi`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricSemanticModel`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricJobItem`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  : R6 objects for discovered Microsoft Fabric resources
 - [`fabric_catalog_search()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_catalog_search.md)
   : Search the OneLake catalog
 - [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md)
