@@ -150,7 +150,8 @@ fabric_operation_status <- function(
 
 #' @param poll_interval Minimum seconds between status requests. `NULL` honors
 #'   Fabric's `Retry-After` value and otherwise uses a two-second fallback
-#' @param timeout Maximum total seconds to wait, including status requests
+#' @param timeout Positive maximum total seconds to wait, including status
+#'   requests
 #' @param error_on_failure Whether a failed operation should raise a
 #'   `fabric_operation_failed` condition. Set to `FALSE` to inspect the returned
 #'   failed state directly
@@ -1398,16 +1399,16 @@ fabric_operation_result <- function(
 }
 
 # Validate the total operation waiting limit
-# Returns invisibly after requiring one finite non-negative number of seconds
+# Returns invisibly after requiring one finite positive number of seconds
 .fabric_operation_timeout <- function(value) {
   if (
     !is.numeric(value) ||
       length(value) != 1L ||
       is.na(value) ||
       !is.finite(value) ||
-      value < 0
+      value <= 0
   ) {
-    .fabric_abort("`timeout` must be one non-negative number")
+    .fabric_abort("`timeout` must be one positive number")
   }
   invisible(TRUE)
 }

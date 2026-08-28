@@ -715,6 +715,39 @@ test_that("result retrieval can refuse to wait", {
   expect_equal(condition$operation_status$status, "Running")
 })
 
+test_that("operation network timeouts must be positive", {
+  acquired <- FALSE
+  token <- function(...) {
+    acquired <<- TRUE
+    "test-token"
+  }
+
+  result_error <- rlang::catch_cnd(fabric_operation_result(
+    operation_test_id,
+    wait = FALSE,
+    timeout = 0,
+    token = token
+  ))
+  expect_match(
+    conditionMessage(result_error),
+    "`timeout` must be one positive number",
+    fixed = TRUE
+  )
+  expect_identical(acquired, FALSE)
+
+  wait_error <- rlang::catch_cnd(fabric_operation_wait(
+    operation_test_id,
+    timeout = 0,
+    token = token
+  ))
+  expect_match(
+    conditionMessage(wait_error),
+    "`timeout` must be one positive number",
+    fixed = TRUE
+  )
+  expect_identical(acquired, FALSE)
+})
+
 test_that("non-waiting result retrieval ignores future polling hints", {
   now <- as.POSIXct("2026-08-24 12:00:00", tz = "UTC")
   status_url <- paste0(

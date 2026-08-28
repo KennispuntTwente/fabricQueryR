@@ -76,7 +76,8 @@ status-check time before making the request}
 \item{poll_interval}{Minimum seconds between status requests. \code{NULL} honors
 Fabric's \code{Retry-After} value and otherwise uses a two-second fallback}
 
-\item{timeout}{Maximum total seconds to wait, including status requests}
+\item{timeout}{Positive maximum total seconds to wait, including status
+requests}
 
 \item{error_on_failure}{Whether a failed operation should raise a
 \code{fabric_operation_failed} condition. Set to \code{FALSE} to inspect the returned
