@@ -280,7 +280,9 @@ test_that("ODBC access tokens reject conflicting authentication options", {
     list(UID = "user@example.com"),
     list(pwd = "secret"),
     list(Authentication = "ActiveDirectoryPassword"),
-    list(TRUSTED_CONNECTION = "yes")
+    list(TRUSTED_CONNECTION = "yes"),
+    list(`Integrated Security` = "SSPI"),
+    list(`Access-Token` = "caller-token")
   )
 
   for (option in conflicting) {
@@ -315,6 +317,72 @@ test_that("ODBC access tokens reject conflicting authentication options", {
     expect_identical(error$conflicting_options, names(attributes))
     expect_identical(error$location, "attributes")
   }
+})
+
+test_that("ODBC access tokens reject target and TLS overrides", {
+  conflicting <- list(
+    list(.connection_string = "DSN=untrusted"),
+    list(Address = "tcp:attacker.example,1433"),
+    list(Addr = "tcp:attacker.example,1433"),
+    list(DSN = "untrusted"),
+    list(FileDSN = "untrusted.dsn"),
+    list(Failover_Partner = "attacker.example"),
+    list(HostnameInCertificate = "attacker.example"),
+    list(Database = "other"),
+    list(Driver = "Other Driver"),
+    list(Encrypt = "no"),
+    list(Trust_Server_Certificate = "yes")
+  )
+
+  for (option in conflicting) {
+    error <- rlang::catch_cnd(do.call(
+      fabric_sql_connect,
+      c(
+        list(
+          server = "server.datawarehouse.fabric.microsoft.com",
+          token = "sql-token",
+          verbose = FALSE
+        ),
+        option
+      )
+    ))
+    expect_s3_class(error, "fabric_sql_target_error")
+    expect_s3_class(error, "fabric_sql_option_error")
+    expect_identical(error$conflicting_options, names(option))
+    expect_identical(error$location, "...")
+  }
+
+  for (option in conflicting[-1L]) {
+    error <- rlang::catch_cnd(fabric_sql_connect(
+      "server.datawarehouse.fabric.microsoft.com",
+      token = "sql-token",
+      attributes = option,
+      verbose = FALSE
+    ))
+    expect_s3_class(error, "fabric_sql_target_error")
+    expect_identical(error$conflicting_options, names(option))
+    expect_identical(error$location, "attributes")
+  }
+})
+
+test_that("ODBC option security checks normalize punctuation and case", {
+  error <- rlang::catch_cnd(fabric_sql_connect(
+    "server.datawarehouse.fabric.microsoft.com",
+    token = "sql-token",
+    `tRuStEd.CoNnEcTiOn` = "yes",
+    verbose = FALSE
+  ))
+  expect_s3_class(error, "fabric_sql_authentication_error")
+  expect_identical(error$conflicting_options, "tRuStEd.CoNnEcTiOn")
+
+  error <- rlang::catch_cnd(fabric_sql_connect(
+    "server.datawarehouse.fabric.microsoft.com",
+    token = "sql-token",
+    `network-address` = "tcp:attacker.example,1433",
+    verbose = FALSE
+  ))
+  expect_s3_class(error, "fabric_sql_target_error")
+  expect_identical(error$conflicting_options, "network-address")
 })
 
 test_that("SQL accepts an explicitly supplied custom endpoint", {

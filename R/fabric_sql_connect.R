@@ -232,9 +232,10 @@ fabric_sql_connection_info <- function(
 #'   named `access_token` argument is consumed here as a deprecated alias for
 #'   `token` and is not forwarded. For ODBC, a caller-supplied `attributes`
 #'   named list is merged with the package-managed `azure_token`; that protected
-#'   attribute cannot be overridden. ODBC authentication options `UID`, `PWD`,
-#'   `Authentication`, and `Trusted_Connection` cannot be combined with the
-#'   package-managed access token
+#'   attribute cannot be overridden. ODBC authentication, target, driver, and
+#'   TLS options cannot be supplied through `...` because the package validates
+#'   and constructs those settings before attaching the access token. This also
+#'   excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments
 #'
 #' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
 #'   finished. For an ADBC connection with child results still registered,
@@ -1421,15 +1422,27 @@ fabric_sql_validate_endpoint <- function(server) {
   host
 }
 
+# Normalize ODBC option names across case, spaces, punctuation, and underscores
+# Returns compact names used by every security-sensitive option check
+fabric_sql_normalize_odbc_options <- function(option_names) {
+  gsub("[^[:alnum:]]", "", tolower(option_names %||% character()))
+}
+
 # Reject connection-string authentication that conflicts with an access token
 fabric_sql_reject_odbc_auth_options <- function(option_names, location) {
-  normalized <- tolower(option_names %||% character())
+  normalized <- fabric_sql_normalize_odbc_options(option_names)
   conflicting <- normalized %in%
     c(
       "uid",
       "pwd",
+      "user",
+      "userid",
+      "password",
       "authentication",
-      "trusted_connection"
+      "trustedconnection",
+      "integratedsecurity",
+      "accesstoken",
+      "azuretoken"
     )
   if (!any(conflicting)) {
     return(invisible(NULL))
@@ -1448,6 +1461,61 @@ fabric_sql_reject_odbc_auth_options <- function(option_names, location) {
   )
 }
 
+# Reject ODBC selectors that can replace package-validated connection settings
+# before the package-managed access token reaches the SQL Server driver
+fabric_sql_reject_odbc_managed_options <- function(option_names, location) {
+  normalized <- fabric_sql_normalize_odbc_options(option_names)
+  managed <- normalized %in%
+    c(
+      "connectionstring",
+      "dsn",
+      "filedsn",
+      "savefile",
+      "driver",
+      "server",
+      "datasource",
+      "address",
+      "addr",
+      "networkaddress",
+      "port",
+      "database",
+      "initialcatalog",
+      "catalog",
+      "attachdbfilename",
+      "failoverpartner",
+      "failoverpartnerspn",
+      "serverspn",
+      "hostnameincertificate",
+      "servercertificate",
+      "clientcertificate",
+      "clientkey",
+      "encrypt",
+      "trustservercertificate",
+      "applicationintent",
+      "marsconnection",
+      "multisubnetfailover",
+      "connecttimeout",
+      "connectiontimeout",
+      "logintimeout"
+    )
+  if (!any(managed)) {
+    return(invisible(NULL))
+  }
+  conflicts <- unique(option_names[managed])
+  .fabric_abort(
+    paste0(
+      "ODBC connection settings managed by fabric_sql_connect() cannot be ",
+      "supplied as ",
+      paste(conflicts, collapse = ", "),
+      " in ",
+      location
+    ),
+    class = c("fabric_sql_target_error", "fabric_sql_option_error"),
+    conflicting_options = conflicts,
+    location = location
+  )
+}
+
 # Separate caller ODBC connection arguments and attributes from `dots`. Returns
 # both lists while protecting the package-managed access-token authentication
 fabric_sql_odbc_options <- function(dots) {
@@ -1461,28 +1529,51 @@ fabric_sql_odbc_options <- function(dots) {
     dots <- dots[-positions]
   }
 
+  dot_names <- names(dots)
+  if (
+    length(dots) &&
+      (is.null(dot_names) || anyNA(dot_names) || !all(nzchar(dot_names)))
+  ) {
+    .fabric_abort("ODBC options in ... must have non-empty names")
+  }
+  normalized_dots <- fabric_sql_normalize_odbc_options(dot_names)
+  if (anyDuplicated(normalized_dots)) {
+    .fabric_abort(
+      "ODBC options in ... must have unique names ignoring punctuation and case"
+    )
+  }
+
   if (!is.list(attributes)) {
     .fabric_abort("attributes in ... must be a named list")
   }
   attribute_names <- names(attributes)
   if (
     length(attributes) &&
-      (is.null(attribute_names) || !all(nzchar(attribute_names)))
+      (is.null(attribute_names) ||
+        anyNA(attribute_names) ||
+        !all(nzchar(attribute_names)))
   ) {
     .fabric_abort("attributes in ... must be a named list")
   }
-  normalized <- tolower(attribute_names %||% character())
+  normalized <- fabric_sql_normalize_odbc_options(attribute_names)
   if (anyDuplicated(normalized)) {
-    .fabric_abort("attributes in ... must have unique names ignoring case")
+    .fabric_abort(
+      paste0(
+        "attributes in ... must have unique names ignoring punctuation and ",
+        "case"
+      )
+    )
   }
 
-  if ("azure_token" %in% normalized) {
+  if ("azuretoken" %in% normalized) {
     .fabric_abort(
       "attributes in ... cannot override the package-managed azure_token"
     )
   }
-  fabric_sql_reject_odbc_auth_options(names(dots), "...")
+  fabric_sql_reject_odbc_auth_options(dot_names, "...")
   fabric_sql_reject_odbc_auth_options(attribute_names, "attributes")
+  fabric_sql_reject_odbc_managed_options(dot_names, "...")
+  fabric_sql_reject_odbc_managed_options(attribute_names, "attributes")
   list(dots = dots, attributes = attributes)
 }
 

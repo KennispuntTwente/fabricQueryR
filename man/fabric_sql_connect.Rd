@@ -92,9 +92,10 @@ wait progressively longer, up to 60 seconds}
 named \code{access_token} argument is consumed here as a deprecated alias for
 \code{token} and is not forwarded. For ODBC, a caller-supplied \code{attributes}
 named list is merged with the package-managed \code{azure_token}; that protected
-attribute cannot be overridden. ODBC authentication options \code{UID}, \code{PWD},
-\code{Authentication}, and \code{Trusted_Connection} cannot be combined with the
-package-managed access token}
+attribute cannot be overridden. ODBC authentication, target, driver, and
+TLS options cannot be supplied through \code{...} because the package validates
+and constructs those settings before attaching the access token. This also
+excludes raw \code{.connection_string}, \code{DSN}, and \code{FileDSN} arguments}
 }
 \value{
 A live \code{DBIConnection}. Close it with \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}} when
