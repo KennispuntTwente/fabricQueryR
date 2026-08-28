@@ -155,6 +155,10 @@ exists under `Files/` in the same Lakehouse. See
 for the distinction between ordinary files and managed Delta tables, table
 loading, larger reads, and shortcuts.
 
+When only metadata existence is needed, use
+`fabric_onelake_schema_exists()` or `fabric_onelake_table_exists()` with either
+the Delta or Iceberg table protocol.
+
 ### 6. Work with OneLake files
 
 Read and write common file formats directly between R and OneLake. Lakehouse

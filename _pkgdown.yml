@@ -79,6 +79,7 @@ reference:
       - fabric_lakehouse_schemas
       - fabric_lakehouse_table
       - fabric_lakehouse_tables
+      - fabric_onelake_schema_exists
       - fabric_lakehouse_read_table
       - fabric_lakehouse_load_table
       - fabric_lakehouse_write_table
