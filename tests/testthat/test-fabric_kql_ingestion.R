@@ -695,6 +695,40 @@ test_that("malformed preview status responses raise protocol errors", {
     "invalid count",
     fixed = TRUE
   )
+  unknown <- kusto_ingestion_test_status(succeeded = 1L)
+  unknown$status$Queued <- 1L
+  error <- rlang::catch_cnd(kusto_ingestion_status_record(unknown, context))
+  expect_s3_class(error, "fabric_kql_ingestion_protocol_error")
+  expect_match(conditionMessage(error), "unknown nonzero category")
+
+  duplicate <- kusto_ingestion_test_status(succeeded = 1L)
+  duplicate$status$succeeded <- 0L
+  error <- rlang::catch_cnd(kusto_ingestion_status_record(duplicate, context))
+  expect_s3_class(error, "fabric_kql_ingestion_protocol_error")
+  expect_match(conditionMessage(error), "unique non-empty names")
+
+  too_many <- kusto_ingestion_test_status(succeeded = 2L)
+  expected_context <- context
+  expected_context$expected_count <- 1L
+  error <- rlang::catch_cnd(kusto_ingestion_status_record(
+    too_many,
+    expected_context
+  ))
+  expect_s3_class(error, "fabric_kql_ingestion_protocol_error")
+  expect_match(conditionMessage(error), "exceed the submitted blob count")
+
+  incomplete <- kusto_ingestion_test_status(succeeded = 1L)
+  expected_context$expected_count <- 2L
+  status <- kusto_ingestion_status_record(incomplete, expected_context)
+  expect_false(status$complete)
+  expect_identical(status$state, "InProgress")
+
+  future_zero <- kusto_ingestion_test_status(succeeded = 1L)
+  future_zero$status$FutureState <- 0L
+  status <- kusto_ingestion_status_record(future_zero, context)
+  expect_true(status$complete)
+  expect_identical(status$counts[["FutureState"]], 0)
+
   missing_details <- kusto_ingestion_test_status(succeeded = 1L)
   missing_details$details <- NULL
   expect_error(

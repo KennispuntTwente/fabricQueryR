@@ -201,7 +201,10 @@ failures retain \code{error_code}, \code{failure_status}, and \code{message}. So
 and raw service data are redacted so SAS tokens and embedded credentials are
 not retained in the result. Set \code{error_on_failure = FALSE} to inspect a
 terminal failure instead of receiving a typed condition carrying the same
-status in \code{last_status}
+status in \code{last_status}. When a submission handle supplies the expected blob
+count, completion requires the documented status counts to match it exactly.
+Unknown nonzero status categories and impossible totals raise a protocol
+error rather than being misreported as successful completion
 }
 
 \section{Limits and permissions}{

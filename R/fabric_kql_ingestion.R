@@ -71,7 +71,10 @@
 #' and raw service data are redacted so SAS tokens and embedded credentials are
 #' not retained in the result. Set `error_on_failure = FALSE` to inspect a
 #' terminal failure instead of receiving a typed condition carrying the same
-#' status in `last_status`
+#' status in `last_status`. When a submission handle supplies the expected blob
+#' count, completion requires the documented status counts to match it exactly.
+#' Unknown nonzero status categories and impossible totals raise a protocol
+#' error rather than being misreported as successful completion
 #'
 #' @section Limits and permissions:
 #' The preview REST API accepts at most 20 blobs per request and a maximum of
@@ -1089,9 +1092,14 @@ kusto_ingestion_status_record <- function(
     )
   }
   status_names <- names(payload$status)
-  if (is.null(status_names) || anyNA(status_names)) {
+  if (
+    is.null(status_names) ||
+      anyNA(status_names) ||
+      any(!nzchar(status_names)) ||
+      anyDuplicated(tolower(status_names))
+  ) {
     kusto_ingestion_protocol_error(
-      "Kusto ingestion status counts must be named"
+      "Kusto ingestion status counts must have unique non-empty names"
     )
   }
   counts <- vapply(
@@ -1114,6 +1122,16 @@ kusto_ingestion_status_record <- function(
     numeric(1)
   )
   names(counts) <- status_names
+  documented <- c("Succeeded", "Failed", "InProgress", "Canceled")
+  unknown <- !tolower(names(counts)) %in% tolower(documented)
+  if (any(unknown & counts > 0)) {
+    kusto_ingestion_protocol_error(paste0(
+      "Kusto ingestion status contains unknown nonzero categor",
+      if (sum(unknown & counts > 0) == 1L) "y" else "ies",
+      ": ",
+      paste(names(counts)[unknown & counts > 0], collapse = ", ")
+    ))
+  }
   count <- function(name) {
     index <- match(tolower(name), tolower(names(counts)))
     if (is.na(index)) 0 else unname(counts[[index]])
@@ -1124,9 +1142,25 @@ kusto_ingestion_status_record <- function(
   canceled <- count("Canceled")
   terminal <- succeeded + failed + canceled
   expected <- context$expected_count
+  if (
+    length(expected) != 1L ||
+      !is.numeric(expected) ||
+      (!is.na(expected) &&
+        (!is.finite(expected) || expected < 0 || expected != floor(expected)))
+  ) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion tracking has an invalid expected blob count"
+    )
+  }
+  if (!is.na(expected) && terminal + in_progress > expected) {
+    kusto_ingestion_protocol_error(paste0(
+      "Kusto ingestion status counts exceed the submitted blob count of ",
+      expected
+    ))
+  }
   complete <- in_progress == 0 &&
     terminal > 0 &&
-    (is.na(expected) || terminal >= expected)
+    (is.na(expected) || terminal == expected)
   state <- kusto_ingestion_state(
     succeeded,
     failed,
