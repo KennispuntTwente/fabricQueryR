@@ -1509,7 +1509,7 @@ onelake_list_record <- function(record, target, index) {
     !is.list(record) ||
       is.null(names(record)) ||
       anyNA(names(record)) ||
-      any(!nzchar(names(record))) ||
+      !all(nzchar(names(record))) ||
       anyDuplicated(names(record)) ||
       !all(c("name", "isDirectory") %in% names(record))
   ) {

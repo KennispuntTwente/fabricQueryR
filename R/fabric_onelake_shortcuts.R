@@ -610,7 +610,7 @@ fabric_onelake_shortcut_delete <- function(
     !is.list(request) ||
       is.null(names(request)) ||
       anyNA(names(request)) ||
-      any(!nzchar(names(request))) ||
+      !all(nzchar(names(request))) ||
       anyDuplicated(names(request))
   ) {
     .fabric_abort(
@@ -663,7 +663,7 @@ fabric_onelake_shortcut_delete <- function(
     !is.list(transform) ||
       is.null(names(transform)) ||
       anyNA(names(transform)) ||
-      any(!nzchar(names(transform))) ||
+      !all(nzchar(names(transform))) ||
       anyDuplicated(names(transform))
   ) {
     .fabric_abort(
@@ -715,7 +715,7 @@ fabric_onelake_shortcut_delete <- function(
     !is.list(properties) ||
       (length(properties) && is.null(names(properties))) ||
       anyNA(names(properties) %||% character()) ||
-      any(!nzchar(names(properties) %||% character())) ||
+      !all(nzchar(names(properties) %||% character())) ||
       anyDuplicated(names(properties) %||% character())
   ) {
     .fabric_abort(

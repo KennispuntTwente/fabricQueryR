@@ -1095,7 +1095,7 @@ kusto_ingestion_status_record <- function(
   if (
     is.null(status_names) ||
       anyNA(status_names) ||
-      any(!nzchar(status_names)) ||
+      !all(nzchar(status_names)) ||
       anyDuplicated(tolower(status_names))
   ) {
     kusto_ingestion_protocol_error(
