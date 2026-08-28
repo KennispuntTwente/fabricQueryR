@@ -30,6 +30,12 @@
 #' access OneLake. If a call returns HTTP 403 after sign-in succeeds, check both
 #' that tenant setting and the item's data permissions
 #'
+#' @section Listing integrity:
+#' Directory listing validates every JSON page and path record before returning
+#' data. Malformed envelopes, invalid metadata values, and paths outside the
+#' requested item directory raise `fabric_onelake_protocol_error`; they are not
+#' silently converted to empty or partial results
+#'
 #' @section Safe file replacement:
 #' Existing files are protected unless `overwrite = TRUE`. Uploads and downloads
 #' are staged before replacing their destination, so an interrupted transfer
@@ -1337,9 +1343,33 @@ onelake_list_target <- function(
       deadline = limits$deadline,
       .now = .now
     )
-    body <- httr2::resp_body_json(response, simplifyVector = FALSE)
-    records <- c(records, body$paths %||% list())
+    body <- tryCatch(
+      httr2::resp_body_json(response, simplifyVector = FALSE),
+      error = function(error) {
+        .fabric_abort(
+          "OneLake returned invalid directory-list JSON",
+          class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+          page_number = page_number,
+          request_id = httr2::resp_header(response, "x-ms-request-id")
+        )
+      }
+    )
+    page_records <- onelake_list_page(body, page_number)
+    records <- c(records, page_records)
     continuation <- httr2::resp_header(response, "x-ms-continuation")
+    if (
+      !is.null(continuation) &&
+        (!is.character(continuation) ||
+          length(continuation) != 1L ||
+          is.na(continuation) ||
+          grepl("[\r\n]", continuation))
+    ) {
+      .fabric_abort(
+        "OneLake returned an invalid continuation header",
+        class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+        page_number = page_number
+      )
+    }
     if (is.null(continuation) || !nzchar(continuation)) break
   }
 
@@ -1348,6 +1378,59 @@ onelake_list_target <- function(
   # Return a relative-path tibble in the stable form expected by the caller
 
   onelake_list_tibble(records, target)
+}
+
+# Validate the JSON envelope and record container for one OneLake list page
+onelake_list_page <- function(body, page_number) {
+  if (!is.list(body) || is.null(names(body))) {
+    .fabric_abort(
+      "OneLake directory-list JSON must be an object",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      page_number = page_number
+    )
+  }
+  positions <- which(names(body) == "paths")
+  if (length(positions) != 1L) {
+    .fabric_abort(
+      "OneLake directory-list JSON must contain exactly one paths field",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      page_number = page_number
+    )
+  }
+  paths <- body[[positions]]
+  if (!is.list(paths) || !is.null(names(paths))) {
+    .fabric_abort(
+      "OneLake directory-list paths must be a JSON array",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      page_number = page_number
+    )
+  }
+  invalid <- which(
+    !vapply(
+      paths,
+      function(record) {
+        is.list(record) &&
+          !is.null(names(record)) &&
+          !anyNA(names(record)) &&
+          !any(!nzchar(names(record))) &&
+          !anyDuplicated(names(record))
+      },
+      logical(1)
+    )
+  )
+  if (length(invalid)) {
+    .fabric_abort(
+      paste0(
+        "OneLake directory-list paths member ",
+        invalid[[1L]],
+        " is not a uniquely named JSON object"
+      ),
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      page_number = page_number,
+      record_number = invalid[[1L]]
+    )
+  }
+  paths
 }
 
 # Convert OneLake list `records` into paths relative to `target`. Returns a
@@ -1370,8 +1453,9 @@ onelake_list_tibble <- function(records, target) {
   }
 
   item_prefix <- paste0(target$item, "/")
-  rows <- lapply(records, function(record) {
-    full_path <- record$name %||% ""
+  rows <- lapply(seq_along(records), function(index) {
+    record <- onelake_list_record(records[[index]], target, index)
+    full_path <- record$name
     relative <- if (identical(full_path, target$item)) {
       ""
     } else if (startsWith(full_path, item_prefix)) {
@@ -1382,31 +1466,143 @@ onelake_list_tibble <- function(records, target) {
     data.frame(
       path = relative,
       name = if (nzchar(relative)) basename(relative) else "",
-      is_directory = onelake_directory_flag(record$isDirectory),
-      content_length = suppressWarnings(as.numeric(
-        record$contentLength %||% NA_real_
-      )),
-      etag = as.character(record$etag %||% NA_character_),
-      last_modified = as.character(record$lastModified %||% NA_character_),
-      owner = as.character(record$owner %||% NA_character_),
-      group = as.character(record$group %||% NA_character_),
-      permissions = as.character(record$permissions %||% NA_character_),
+      is_directory = record$is_directory,
+      content_length = record$content_length,
+      etag = record$etag,
+      last_modified = record$last_modified,
+      owner = record$owner,
+      group = record$group,
+      permissions = record$permissions,
       stringsAsFactors = FALSE
     )
   })
   tibble::as_tibble(do.call(rbind, rows))
 }
 
+onelake_list_record <- function(record, target, index) {
+  if (
+    !is.list(record) ||
+      is.null(names(record)) ||
+      anyNA(names(record)) ||
+      any(!nzchar(names(record))) ||
+      anyDuplicated(names(record)) ||
+      !all(c("name", "isDirectory") %in% names(record))
+  ) {
+    .fabric_abort(
+      "OneLake returned an invalid directory-list record",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      record_number = index
+    )
+  }
+  full_path <- record$name
+  if (
+    !is.character(full_path) ||
+      length(full_path) != 1L ||
+      is.na(full_path) ||
+      !nzchar(full_path)
+  ) {
+    .fabric_abort(
+      "OneLake returned a directory-list record without one valid name",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      record_number = index
+    )
+  }
+  safe_path <- try(onelake_normalize_path(full_path), silent = TRUE)
+  item_prefix <- paste0(target$item, "/")
+  relative <- if (identical(full_path, target$item)) {
+    ""
+  } else if (startsWith(full_path, item_prefix)) {
+    substring(full_path, nchar(item_prefix) + 1L)
+  } else {
+    NULL
+  }
+  requested <- target$path
+  within_request <- !is.null(relative) &&
+    !inherits(safe_path, "try-error") &&
+    (!nzchar(requested) ||
+      identical(tolower(relative), tolower(requested)) ||
+      startsWith(tolower(relative), paste0(tolower(requested), "/")))
+  if (!within_request) {
+    .fabric_abort(
+      "OneLake returned a path outside the requested item directory",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      record_number = index
+    )
+  }
+  length_value <- record$contentLength
+  content_length <- if (is.null(length_value)) {
+    NA_real_
+  } else {
+    suppressWarnings(try(as.numeric(length_value), silent = TRUE))
+  }
+  if (
+    !is.null(length_value) &&
+      (inherits(content_length, "try-error") ||
+        length(content_length) != 1L ||
+        is.na(content_length) ||
+        !is.finite(content_length) ||
+        content_length < 0 ||
+        content_length != floor(content_length))
+  ) {
+    .fabric_abort(
+      "OneLake returned an invalid directory-list contentLength",
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      record_number = index
+    )
+  }
+  list(
+    name = full_path,
+    is_directory = onelake_directory_flag(record$isDirectory, index),
+    content_length = content_length,
+    etag = onelake_list_optional_text(record$etag, "etag", index),
+    last_modified = onelake_list_optional_text(
+      record$lastModified,
+      "lastModified",
+      index
+    ),
+    owner = onelake_list_optional_text(record$owner, "owner", index),
+    group = onelake_list_optional_text(record$group, "group", index),
+    permissions = onelake_list_optional_text(
+      record$permissions,
+      "permissions",
+      index
+    )
+  )
+}
+
+onelake_list_optional_text <- function(value, field, index) {
+  if (is.null(value)) {
+    return(NA_character_)
+  }
+  if (!is.character(value) || length(value) != 1L || is.na(value)) {
+    .fabric_abort(
+      paste0("OneLake returned an invalid directory-list ", field),
+      class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+      record_number = index
+    )
+  }
+  value
+}
+
 # Interpret a OneLake directory `value` supplied as logical or text. Returns one
 # logical value for list and metadata results
-onelake_directory_flag <- function(value) {
-  if (isTRUE(value)) {
-    return(TRUE)
+onelake_directory_flag <- function(value, index = NULL) {
+  if (is.logical(value) && length(value) == 1L && !is.na(value)) {
+    return(value)
   }
-  is.character(value) &&
-    length(value) == 1L &&
-    !is.na(value) &&
-    identical(tolower(value), "true")
+  if (
+    is.character(value) &&
+      length(value) == 1L &&
+      !is.na(value) &&
+      tolower(value) %in% c("true", "false")
+  ) {
+    return(identical(tolower(value), "true"))
+  }
+  .fabric_abort(
+    "OneLake returned an invalid directory-list isDirectory flag",
+    class = c("fabric_onelake_protocol_error", "fabric_onelake_error"),
+    record_number = index
+  )
 }
 
 # Send a HEAD request for `target`. Returns a metadata tibble, or the accepted

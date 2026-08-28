@@ -582,6 +582,80 @@ test_that("OneLake listing rejects repeated continuation tokens", {
   expect_equal(calls, 2L)
 })
 
+test_that("OneLake listing rejects malformed JSON envelopes", {
+  malformed <- list(
+    list(value = list()),
+    list(paths = list(entry = list(name = "item/Files/a"))),
+    list(paths = list("not-an-object"))
+  )
+  for (body in malformed) {
+    httr2::local_mocked_responses(list(onelake_test_response(body = body)))
+    error <- rlang::catch_cnd(fabric_onelake_list(
+      "Analytics",
+      "Curated.Lakehouse",
+      path = "Files",
+      token = "token"
+    ))
+    expect_s3_class(error, "fabric_onelake_protocol_error")
+  }
+
+  httr2::local_mocked_responses(list(onelake_test_response(
+    body = charToRaw("{"),
+    headers = list(`content-type` = "application/json")
+  )))
+  error <- rlang::catch_cnd(fabric_onelake_list(
+    "Analytics",
+    "Curated.Lakehouse",
+    path = "Files",
+    token = "token"
+  ))
+  expect_s3_class(error, "fabric_onelake_protocol_error")
+  expect_match(conditionMessage(error), "invalid directory-list JSON")
+  expect_equal(error$page_number, 1L)
+})
+
+test_that("OneLake listing validates every returned path record", {
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files"
+  )
+  valid <- list(
+    name = "Curated.Lakehouse/Files/a.txt",
+    isDirectory = FALSE,
+    contentLength = "1"
+  )
+  invalid <- list(
+    within_item_but_outside_directory = within(valid, {
+      name <- "Curated.Lakehouse/Tables/orders"
+    }),
+    unsafe_path = within(valid, {
+      name <- "Curated.Lakehouse/Files/../outside"
+    }),
+    bad_directory = within(valid, {
+      isDirectory <- "maybe"
+    }),
+    negative_length = within(valid, {
+      contentLength <- "-1"
+    }),
+    vector_etag = within(valid, {
+      etag <- c("one", "two")
+    }),
+    missing_name = within(valid, rm(name))
+  )
+
+  for (record in invalid) {
+    error <- rlang::catch_cnd(onelake_list_tibble(list(record), target))
+    expect_s3_class(error, "fabric_onelake_protocol_error")
+    expect_equal(error$record_number, 1L)
+  }
+
+  valid$contentLength <- NULL
+  result <- onelake_list_tibble(list(valid), target)
+  expect_true(is.na(result$content_length))
+  expect_false(result$is_directory)
+})
+
 test_that("OneLake listing enforces page and total-time limits", {
   target <- onelake_resolve_target(
     "Analytics",

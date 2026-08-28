@@ -214,6 +214,14 @@ access OneLake. If a call returns HTTP 403 after sign-in succeeds, check both
 that tenant setting and the item's data permissions
 }
 
+\section{Listing integrity}{
+
+Directory listing validates every JSON page and path record before returning
+data. Malformed envelopes, invalid metadata values, and paths outside the
+requested item directory raise \code{fabric_onelake_protocol_error}; they are not
+silently converted to empty or partial results
+}
+
 \section{Safe file replacement}{
 
 Existing files are protected unless \code{overwrite = TRUE}. Uploads and downloads
