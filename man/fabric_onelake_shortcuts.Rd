@@ -4,6 +4,7 @@
 \alias{fabric_onelake_shortcuts}
 \alias{fabric_onelake_shortcut_get}
 \alias{fabric_onelake_shortcut_create}
+\alias{fabric_onelake_shortcuts_bulk_create}
 \alias{fabric_onelake_shortcut_delete}
 \title{Manage OneLake shortcuts}
 \usage{
@@ -44,6 +45,21 @@ fabric_onelake_shortcut_create(
   target_workspace = NULL,
   target_path = NULL,
   target_item_type = NULL,
+  conflict_policy = c("Abort", "GenerateUniqueName", "CreateOrOverwrite",
+    "OverwriteOnly"),
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
+    "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base
+)
+
+fabric_onelake_shortcuts_bulk_create(
+  item,
+  shortcuts,
+  workspace = NULL,
+  item_type = NULL,
   conflict_policy = c("Abort", "GenerateUniqueName", "CreateOrOverwrite",
     "OverwriteOnly"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -131,6 +147,12 @@ same path and name. \code{"GenerateUniqueName"} creates a uniquely named
 shortcut, \code{"CreateOrOverwrite"} creates or updates it, and
 \code{"OverwriteOnly"} updates an existing shortcut without creating one.}
 
+\item{shortcuts}{For bulk creation, a non-empty list of shortcut request
+lists. Each request requires \code{path}, \code{name}, and \code{target}, accepts the same
+target companion fields as \code{fabric_onelake_shortcut_create()}, and may
+include a \code{transform} list. The only currently documented transform is
+\code{csvToDelta}; see Details.}
+
 \item{confirm}{Logical. Deletion is disabled unless explicitly set to
 \code{TRUE}. Deleting a shortcut does not delete its destination data.}
 }
@@ -159,6 +181,13 @@ are preserved in list columns for forward compatibility.
 Create is deliberately not replayed automatically because its POST outcome
 can be ambiguous after a transport failure. The default conflict policy is
 Fabric's non-destructive \code{Abort}; overwrite must be requested explicitly.
+
+Bulk creation is a preview Fabric API. Its optional \code{csvToDelta} transform
+accepts \code{includeSubfolders} and a \code{properties} list containing \code{delimiter},
+\code{skipFilesWithErrors}, and \code{useFirstRowAsHeader}. Supported delimiters are
+comma, space, tab, \code{|}, \code{&}, and \verb{;}. A bulk request returns a
+\code{fabric_operation}; use \code{\link[=fabric_operation_result]{fabric_operation_result()}} to retrieve the
+per-request statuses, created shortcuts, and errors after completion.
 
 These Core REST APIs require \code{OneLake.Read.All} or
 \code{OneLake.ReadWrite.All} for reads, and \code{OneLake.ReadWrite.All} for create and
@@ -211,4 +240,6 @@ fabric_onelake_shortcut_delete(
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts}{OneLake shortcut placement and limitations}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security}{OneLake shortcut security and path permissions}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk}{Create shortcuts in bulk}
 }

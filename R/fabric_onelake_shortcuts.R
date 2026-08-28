@@ -40,6 +40,11 @@
 #'   same path and name. `"GenerateUniqueName"` creates a uniquely named
 #'   shortcut, `"CreateOrOverwrite"` creates or updates it, and
 #'   `"OverwriteOnly"` updates an existing shortcut without creating one.
+#' @param shortcuts For bulk creation, a non-empty list of shortcut request
+#'   lists. Each request requires `path`, `name`, and `target`, accepts the same
+#'   target companion fields as `fabric_onelake_shortcut_create()`, and may
+#'   include a `transform` list. The only currently documented transform is
+#'   `csvToDelta`; see Details.
 #' @param confirm Logical. Deletion is disabled unless explicitly set to
 #'   `TRUE`. Deleting a shortcut does not delete its destination data.
 #' @inheritParams fabric_workspaces
@@ -63,6 +68,13 @@
 #' can be ambiguous after a transport failure. The default conflict policy is
 #' Fabric's non-destructive `Abort`; overwrite must be requested explicitly.
 #'
+#' Bulk creation is a preview Fabric API. Its optional `csvToDelta` transform
+#' accepts `includeSubfolders` and a `properties` list containing `delimiter`,
+#' `skipFilesWithErrors`, and `useFirstRowAsHeader`. Supported delimiters are
+#' comma, space, tab, `|`, `&`, and `;`. A bulk request returns a
+#' `fabric_operation`; use [fabric_operation_result()] to retrieve the
+#' per-request statuses, created shortcuts, and errors after completion.
+#'
 #' These Core REST APIs require `OneLake.Read.All` or
 #' `OneLake.ReadWrite.All` for reads, and `OneLake.ReadWrite.All` for create and
 #' delete. Fabric documents support for users, service principals, and managed
@@ -77,6 +89,8 @@
 #' [OneLake shortcut placement and limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
 #'
 #' [OneLake shortcut security and path permissions](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security)
+#'
+#' [Create shortcuts in bulk](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk)
 #' @examples
 #' \dontrun{
 #' # Discover two Lakehouses in the same workspace
@@ -275,6 +289,99 @@ fabric_onelake_shortcut_create <- function(
 
 #' @rdname fabric_onelake_shortcuts
 #' @export
+fabric_onelake_shortcuts_bulk_create <- function(
+  item,
+  shortcuts,
+  workspace = NULL,
+  item_type = NULL,
+  conflict_policy = c(
+    "Abort",
+    "GenerateUniqueName",
+    "CreateOrOverwrite",
+    "OverwriteOnly"
+  ),
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv(
+    "FABRICQUERYR_CLIENT_ID",
+    unset = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+  ),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base
+) {
+  conflict_policy <- .fabric_shortcut_choice(
+    conflict_policy,
+    c(
+      "Abort",
+      "GenerateUniqueName",
+      "CreateOrOverwrite",
+      "OverwriteOnly"
+    ),
+    "conflict_policy"
+  )
+  if (!is.list(shortcuts) || !length(shortcuts)) {
+    .fabric_abort(
+      "`shortcuts` must be a non-empty list of shortcut request lists",
+      class = c("fabric_shortcut_bulk_error", "fabric_shortcut_error")
+    )
+  }
+  context <- .fabric_shortcut_context(
+    item,
+    workspace,
+    item_type,
+    tenant_id,
+    client_id,
+    token,
+    auth_args,
+    api_base,
+    use_workspace_endpoint = missing(api_base)
+  )
+  use_workspace_endpoint <- missing(api_base)
+  requests <- lapply(
+    seq_along(shortcuts),
+    function(index) {
+      .fabric_shortcut_bulk_request(
+        shortcuts[[index]],
+        index,
+        context,
+        use_workspace_endpoint = use_workspace_endpoint
+      )
+    }
+  )
+  identities <- tolower(vapply(
+    requests,
+    function(request) paste(request$path, request$name, sep = "/"),
+    character(1)
+  ))
+  if (anyDuplicated(identities)) {
+    .fabric_abort(
+      "`shortcuts` contains duplicate path and name combinations",
+      class = c("fabric_shortcut_bulk_error", "fabric_shortcut_error")
+    )
+  }
+
+  request <- httr2::request(
+    paste0(.fabric_shortcut_collection_url(context), "/bulkCreate")
+  ) |>
+    httr2::req_method("POST") |>
+    httr2::req_body_json(list(createShortcutRequests = requests))
+  if (!identical(conflict_policy, "Abort")) {
+    request <- httr2::req_url_query(
+      request,
+      shortcutConflictPolicy = conflict_policy
+    )
+  }
+  .fabric_operation_submit(
+    request,
+    credential = context$credential,
+    api_base = context$api_base,
+    idempotent = FALSE,
+    result_expected = TRUE
+  )
+}
+
+#' @rdname fabric_onelake_shortcuts
+#' @export
 fabric_onelake_shortcut_delete <- function(
   item,
   path,
@@ -435,6 +542,206 @@ fabric_onelake_shortcut_delete <- function(
     )
   }
   .fabric_shortcut_raw_target(target)
+}
+
+.fabric_shortcut_bulk_request <- function(
+  request,
+  index,
+  context,
+  use_workspace_endpoint
+) {
+  label <- paste0("`shortcuts[[", index, "]]`")
+  allowed <- c(
+    "path",
+    "name",
+    "target",
+    "target_workspace",
+    "target_path",
+    "target_item_type",
+    "transform"
+  )
+  if (
+    !is.list(request) ||
+      is.null(names(request)) ||
+      anyNA(names(request)) ||
+      any(!nzchar(names(request))) ||
+      anyDuplicated(names(request))
+  ) {
+    .fabric_abort(
+      paste0(label, " must be a uniquely named shortcut request list"),
+      class = c("fabric_shortcut_bulk_error", "fabric_shortcut_error")
+    )
+  }
+  unsupported <- setdiff(names(request), allowed)
+  if (length(unsupported)) {
+    .fabric_abort(
+      paste0(
+        label,
+        " contains unsupported field",
+        if (length(unsupported) == 1L) " " else "s ",
+        paste(unsupported, collapse = ", ")
+      ),
+      class = c("fabric_shortcut_bulk_error", "fabric_shortcut_error")
+    )
+  }
+  missing <- setdiff(c("path", "name", "target"), names(request))
+  if (length(missing)) {
+    .fabric_abort(
+      paste0(label, " requires path, name, and target"),
+      class = c("fabric_shortcut_bulk_error", "fabric_shortcut_error")
+    )
+  }
+
+  path <- .fabric_shortcut_path(request$path, paste0(label, "$path"))
+  .fabric_shortcut_segment(request$name, paste0(label, "$name"))
+  result <- list(
+    path = path,
+    name = request$name,
+    target = .fabric_shortcut_create_target(
+      request$target,
+      request$target_workspace,
+      request$target_path,
+      request$target_item_type,
+      context,
+      use_workspace_endpoint = use_workspace_endpoint
+    )
+  )
+  if (!is.null(request$transform)) {
+    result$transform <- .fabric_shortcut_transform(request$transform, label)
+  }
+  result
+}
+
+.fabric_shortcut_transform <- function(transform, label) {
+  if (
+    !is.list(transform) ||
+      is.null(names(transform)) ||
+      anyNA(names(transform)) ||
+      any(!nzchar(names(transform))) ||
+      anyDuplicated(names(transform))
+  ) {
+    .fabric_abort(
+      paste0(label, "$transform must be a uniquely named list"),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  allowed <- c("type", "includeSubfolders", "properties")
+  unsupported <- setdiff(names(transform), allowed)
+  if (length(unsupported)) {
+    .fabric_abort(
+      paste0(
+        label,
+        "$transform contains unsupported field",
+        if (length(unsupported) == 1L) " " else "s ",
+        paste(unsupported, collapse = ", ")
+      ),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  if (!"type" %in% names(transform)) {
+    .fabric_abort(
+      paste0(label, "$transform requires type = \"csvToDelta\""),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  transform$type <- .fabric_shortcut_transform_choice(
+    transform$type,
+    "csvToDelta",
+    paste0(label, "$transform$type")
+  )
+  if (!is.null(transform$includeSubfolders)) {
+    .fabric_shortcut_boolean(
+      transform$includeSubfolders,
+      paste0(label, "$transform$includeSubfolders")
+    )
+  }
+  if (!is.null(transform$properties)) {
+    transform$properties <- .fabric_shortcut_transform_properties(
+      transform$properties,
+      label
+    )
+  }
+  transform
+}
+
+.fabric_shortcut_transform_properties <- function(properties, label) {
+  if (
+    !is.list(properties) ||
+      (length(properties) && is.null(names(properties))) ||
+      anyNA(names(properties) %||% character()) ||
+      any(!nzchar(names(properties) %||% character())) ||
+      anyDuplicated(names(properties) %||% character())
+  ) {
+    .fabric_abort(
+      paste0(label, "$transform$properties must be a uniquely named list"),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  allowed <- c(
+    "delimiter",
+    "skipFilesWithErrors",
+    "useFirstRowAsHeader"
+  )
+  unsupported <- setdiff(names(properties) %||% character(), allowed)
+  if (length(unsupported)) {
+    .fabric_abort(
+      paste0(
+        label,
+        "$transform$properties contains unsupported field",
+        if (length(unsupported) == 1L) " " else "s ",
+        paste(unsupported, collapse = ", ")
+      ),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  if (!is.null(properties$delimiter)) {
+    properties$delimiter <- .fabric_shortcut_transform_choice(
+      properties$delimiter,
+      c(",", " ", "\t", "|", "&", ";"),
+      paste0(label, "$transform$properties$delimiter")
+    )
+  }
+  for (field in c("skipFilesWithErrors", "useFirstRowAsHeader")) {
+    if (!is.null(properties[[field]])) {
+      .fabric_shortcut_boolean(
+        properties[[field]],
+        paste0(label, "$transform$properties$", field)
+      )
+    }
+  }
+  properties
+}
+
+.fabric_shortcut_transform_choice <- function(value, choices, name) {
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    .fabric_abort(
+      paste0(name, " must be one non-empty string"),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  index <- match(tolower(value), tolower(choices))
+  if (is.na(index)) {
+    .fabric_abort(
+      paste0(name, " must be one of ", paste(choices, collapse = ", ")),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  choices[[index]]
+}
+
+.fabric_shortcut_boolean <- function(value, name) {
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    .fabric_abort(
+      paste0(name, " must be TRUE or FALSE"),
+      class = c("fabric_shortcut_transform_error", "fabric_shortcut_error")
+    )
+  }
+  invisible(value)
 }
 
 .fabric_shortcut_raw_target <- function(target) {

@@ -320,6 +320,11 @@ fabric_onelake_shortcut_create(
 )
 ```
 
+The preview bulk API can create several shortcuts in one long-running
+operation and optionally apply Fabric's CSV-to-Delta transform. Call
+`fabric_onelake_shortcuts_bulk_create()` and pass the returned handle to
+`fabric_operation_result()`.
+
 Deleting a shortcut removes only the link, not the destination data. In
 addition to the REST API scope, callers need Read or ReadWrite permission on
 the relevant destination path and Read permission on a shortcut target.

@@ -214,6 +214,134 @@ test_that("shortcut create accepts documented connection-backed targets", {
   expect_equal(result$target_type, "AdlsGen2")
 })
 
+test_that("bulk shortcut creation submits validated transforms as an LRO", {
+  request <- NULL
+  operation_id <- "66666666-6666-4666-8666-666666666666"
+  httr2::local_mocked_responses(function(req) {
+    request <<- req
+    shortcut_test_response(
+      status = 202L,
+      headers = list(
+        Location = paste0(
+          "https://api.fabric.microsoft.com/v1/operations/",
+          operation_id
+        ),
+        `x-ms-operation-id` = operation_id,
+        `Retry-After` = "3"
+      ),
+      url = req$url
+    )
+  })
+
+  operation <- fabric_onelake_shortcuts_bulk_create(
+    shortcut_test_item(),
+    shortcuts = list(
+      list(
+        path = "Files/imports",
+        name = "orders",
+        target = shortcut_test_target(),
+        target_path = "Files/csv/orders",
+        transform = list(
+          type = "CSVTODelta",
+          includeSubfolders = TRUE,
+          properties = list(
+            delimiter = "|",
+            skipFilesWithErrors = FALSE,
+            useFirstRowAsHeader = TRUE
+          )
+        )
+      ),
+      list(
+        path = "Files/imports",
+        name = "customers",
+        target = list(
+          adlsGen2 = list(
+            connectionId = shortcut_test_connection_id,
+            location = "https://account.dfs.core.windows.net",
+            subpath = "container/customers"
+          )
+        )
+      )
+    ),
+    conflict_policy = "GenerateUniqueName",
+    token = "test-token"
+  )
+  body <- request$body$data$createShortcutRequests
+
+  expect_s3_class(operation, "fabric_operation")
+  expect_identical(operation$id, operation_id)
+  expect_identical(operation$retry_after, 3)
+  expect_equal(request$method, "POST")
+  expect_match(request$url, "/shortcuts/bulkCreate[?]")
+  expect_match(
+    utils::URLdecode(request$url),
+    "shortcutConflictPolicy=GenerateUniqueName",
+    fixed = TRUE
+  )
+  expect_length(body, 2L)
+  expect_equal(body[[1L]]$target$oneLake$path, "Files/csv/orders")
+  expect_equal(body[[1L]]$transform$type, "csvToDelta")
+  expect_true(body[[1L]]$transform$includeSubfolders)
+  expect_equal(body[[1L]]$transform$properties$delimiter, "|")
+  expect_named(body[[2L]]$target, "adlsGen2")
+})
+
+test_that("bulk shortcut creation rejects malformed requests locally", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    shortcut_test_response(url = req$url)
+  })
+  invoke <- function(shortcuts) {
+    fabric_onelake_shortcuts_bulk_create(
+      shortcut_test_item(),
+      shortcuts = shortcuts,
+      token = "test-token"
+    )
+  }
+  valid <- list(
+    path = "Files/imports",
+    name = "orders",
+    target = shortcut_test_target(),
+    target_path = "Files/csv/orders"
+  )
+
+  for (shortcuts in list(NULL, list(), list("not-a-request"))) {
+    error <- rlang::catch_cnd(invoke(shortcuts))
+    expect_s3_class(error, "fabric_shortcut_bulk_error")
+  }
+  error <- rlang::catch_cnd(invoke(list(valid, valid)))
+  expect_s3_class(error, "fabric_shortcut_bulk_error")
+  expect_match(conditionMessage(error), "duplicate path and name")
+
+  missing_target <- valid
+  missing_target$target <- NULL
+  error <- rlang::catch_cnd(invoke(list(missing_target)))
+  expect_s3_class(error, "fabric_shortcut_bulk_error")
+  expect_match(conditionMessage(error), "requires path, name, and target")
+
+  bad_field <- valid
+  bad_field$unexpected <- TRUE
+  error <- rlang::catch_cnd(invoke(list(bad_field)))
+  expect_s3_class(error, "fabric_shortcut_bulk_error")
+  expect_match(conditionMessage(error), "unsupported field unexpected")
+
+  invalid_transforms <- list(
+    list(properties = list()),
+    list(type = "parquetToDelta"),
+    list(type = "csvToDelta", includeSubfolders = NA),
+    list(type = "csvToDelta", properties = list(delimiter = ":")),
+    list(type = "csvToDelta", properties = list(futureOption = TRUE))
+  )
+  for (transform in invalid_transforms) {
+    request <- valid
+    request$transform <- transform
+    error <- rlang::catch_cnd(invoke(list(request)))
+    expect_s3_class(error, "fabric_shortcut_transform_error")
+  }
+  expect_equal(calls, 0L)
+})
+
 test_that("raw OneLake shortcut targets preserve optional connection IDs", {
   target <- .fabric_shortcut_raw_target(list(
     oneLake = list(

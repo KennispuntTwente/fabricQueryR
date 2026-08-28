@@ -610,6 +610,7 @@ shortcut_test_target <- function() {
 shortcut_test_response <- function(
   body = NULL,
   status = 200L,
+  headers = list(),
   url = "https://api.fabric.microsoft.com/v1/shortcuts"
 ) {
   raw_body <- if (is.null(body)) {
@@ -617,10 +618,11 @@ shortcut_test_response <- function(
   } else {
     charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE, null = "null"))
   }
+  headers[["content-type"]] <- "application/json"
   httr2::response(
     status_code = status,
     url = url,
-    headers = list(`content-type` = "application/json"),
+    headers = headers,
     body = raw_body
   )
 }
