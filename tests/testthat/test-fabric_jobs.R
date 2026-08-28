@@ -1606,6 +1606,47 @@ test_that("cancel rethrows ambiguous failures while the job is active", {
 })
 
 test_that("job payload validation rejects ambiguous and unsafe input", {
+  item_id <- "11111111-1111-1111-1111-111111111111"
+  workspace_id <- "22222222-2222-2222-2222-222222222222"
+  duplicate_reference <- structure(
+    list("ById", "ById", item_id, workspace_id),
+    names = c("referenceType", "referenceType", "itemId", "workspaceId")
+  )
+  duplicate_error <- rlang::catch_cnd(
+    .fabric_job_validate_item_reference(duplicate_reference, "reference")
+  )
+  expect_s3_class(duplicate_error, "fabric_job_validation_error")
+
+  missing_name <- structure(list("ById"), names = NA_character_)
+  missing_name_error <- rlang::catch_cnd(
+    .fabric_job_named_list(missing_name, "reference")
+  )
+  expect_s3_class(missing_name_error, "fabric_job_validation_error")
+
+  duplicate_mount <- structure(
+    list(
+      "abfss://container@account/path",
+      "abfss://container@account/other",
+      "/mnt/data"
+    ),
+    names = c("source", "source", "mountPointPath")
+  )
+  mount_error <- rlang::catch_cnd(.fabric_job_validate_notebook_compute(
+    list(mountPoints = list(duplicate_mount)),
+    "Spark"
+  ))
+  expect_s3_class(mount_error, "fabric_job_validation_error")
+
+  duplicate_property <- structure(
+    list("spark.one", "spark.two", "value"),
+    names = c("key", "key", "value")
+  )
+  property_error <- rlang::catch_cnd(.fabric_job_validate_notebook_compute(
+    list(sparkProperties = list(duplicate_property)),
+    "Spark"
+  ))
+  expect_s3_class(property_error, "fabric_job_validation_error")
+
   expect_error(
     .fabric_job_parameters(list(Name = "one", name = "two")),
     "unique ignoring case"

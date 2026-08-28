@@ -2486,12 +2486,20 @@ print.fabric_job_instance <- function(x, ...) {
 # Check `value` as a fully named list identified by `name`. Returns the same list
 # for execution-data and parameter normalization
 .fabric_job_named_list <- function(value, name) {
+  value_names <- names(value)
   if (
     !is.list(value) ||
       (!length(value) && !identical(value, list())) ||
-      (length(value) && (is.null(names(value)) || !all(nzchar(names(value)))))
+      (length(value) &&
+        (is.null(value_names) ||
+          anyNA(value_names) ||
+          !all(nzchar(value_names)) ||
+          anyDuplicated(value_names)))
   ) {
-    .fabric_abort(sprintf("`%s` must be a named list", name))
+    .fabric_abort(
+      sprintf("`%s` must be a list with unique, non-missing names", name),
+      class = "fabric_job_validation_error"
+    )
   }
   invisible(TRUE)
 }
