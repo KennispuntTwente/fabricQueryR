@@ -297,6 +297,92 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   created_ids <- setdiff(created_ids, weekly$id)
 })
 
+test_that("Cron and monthly Fabric schedules complete live lifecycles", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  fixture <- fabric_test_manifest_item(manifest, "TestPipeline")
+  item <- list(
+    id = fixture$id,
+    workspaceId = manifest$workspace_id,
+    type = fixture$type,
+    displayName = fixture$display_name
+  )
+  start <- as.POSIXct(Sys.Date() + 2, tz = "UTC")
+  end <- start + (90 * 24 * 60 * 60)
+  configurations <- list(
+    Cron = fabric_job_schedule_config(
+      "Cron",
+      start_time = start,
+      end_time = end,
+      time_zone = "UTC",
+      interval = 37L
+    ),
+    Monthly = fabric_job_schedule_config(
+      "Monthly",
+      start_time = start,
+      end_time = end,
+      time_zone = "UTC",
+      times = "06:37",
+      recurrence = 1L,
+      day_of_month = 15L
+    )
+  )
+  created_ids <- character()
+  on.exit(
+    {
+      for (id in created_ids) {
+        try(
+          fabric_job_schedule_delete(
+            item,
+            id,
+            confirm = TRUE,
+            token = token
+          ),
+          silent = TRUE
+        )
+      }
+    },
+    add = TRUE
+  )
+
+  created <- lapply(configurations, function(configuration) {
+    schedule <- fabric_job_schedule_create(
+      item,
+      configuration,
+      enabled = FALSE,
+      token = token
+    )
+    created_ids <<- c(created_ids, schedule$id)
+    schedule
+  })
+
+  expect_false(created$Cron$enabled)
+  expect_equal(created$Cron$type, "Cron")
+  expect_equal(created$Cron$configuration$interval, 37L)
+  expect_false(created$Monthly$enabled)
+  expect_equal(created$Monthly$type, "Monthly")
+  expect_equal(created$Monthly$configuration$recurrence, 1L)
+  expect_equal(
+    created$Monthly$configuration$occurrence$occurrenceType,
+    "DayOfMonth"
+  )
+  expect_equal(created$Monthly$configuration$occurrence$dayOfMonth, 15L)
+
+  schedules <- fabric_job_schedules(item, token = token)
+  listed_ids <- vapply(schedules, `[[`, character(1), "id")
+  expect_true(all(created_ids %in% listed_ids))
+
+  for (schedule in created) {
+    expect_true(fabric_job_schedule_delete(
+      item,
+      schedule,
+      confirm = TRUE,
+      token = token
+    ))
+    created_ids <- setdiff(created_ids, schedule$id)
+  }
+})
+
 test_that("notebook and Spark schedule defaults complete live lifecycles", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
