@@ -106,9 +106,12 @@ public function URL safely.
 Parameter names and values must match the published Python signature.
 Fabric supports JSON strings, ISO 8601 datetime strings, booleans,
 numbers, arrays, and objects as inputs. The top-level `parameters`
-object therefore needs unique, non-empty names. A named atomic vector is
-converted to a named list; use [`I()`](https://rdrr.io/r/base/AsIs.html)
-around a one-element value when it must remain a JSON array.
+object therefore needs unique, non-empty camelCase names without
+underscores. Python keywords and Fabric's reserved `req`, `context`, and
+`reqInvocationId` names are rejected before a request is sent. A named
+atomic vector is converted to a named list; use
+[`I()`](https://rdrr.io/r/base/AsIs.html) around a one-element value
+when it must remain a JSON array.
 
 ## Permissions and authentication
 

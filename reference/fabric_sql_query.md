@@ -177,9 +177,10 @@ fabric_sql_query(
   deprecated alias for `token` and is not forwarded. For ODBC, a
   caller-supplied `attributes` named list is merged with the
   package-managed `azure_token`; that protected attribute cannot be
-  overridden. ODBC authentication options `UID`, `PWD`,
-  `Authentication`, and `Trusted_Connection` cannot be combined with the
-  package-managed access token
+  overridden. ODBC authentication, target, driver, and TLS options
+  cannot be supplied through `...` because the package validates and
+  constructs those settings before attaching the access token. This also
+  excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments
 
 ## Value
 

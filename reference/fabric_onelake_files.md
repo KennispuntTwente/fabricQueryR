@@ -260,6 +260,21 @@ Fabric administrator must also allow external apps to access OneLake. If
 a call returns HTTP 403 after sign-in succeeds, check both that tenant
 setting and the item's data permissions
 
+## Listing integrity
+
+Directory listing validates every JSON page and path record before
+returning data. Malformed envelopes, invalid metadata values, and paths
+outside the requested item directory raise
+`fabric_onelake_protocol_error`; they are not silently converted to
+empty or partial results
+
+## Storage API version
+
+Requests use OneLake's currently documented ADLS API version,
+`2021-06-08`. For controlled compatibility testing with a later service
+version, set option `fabricqueryr.onelake.api_version` to another date
+in `YYYY-MM-DD` form
+
 ## Safe file replacement
 
 Existing files are protected unless `overwrite = TRUE`. Uploads and

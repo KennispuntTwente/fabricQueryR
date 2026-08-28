@@ -96,6 +96,31 @@ in Fabric without copying data into R.</p>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
 <span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">fabric_onelake_shortcuts_bulk_create</span><span class="op">(</span></span>
+<span>  <span class="va">item</span>,</span>
+<span>  <span class="va">shortcuts</span>,</span>
+<span>  workspace <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  item_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  conflict_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Abort"</span>, <span class="st">"GenerateUniqueName"</span>, <span class="st">"CreateOrOverwrite"</span>,</span>
+<span>    <span class="st">"OverwriteOnly"</span><span class="op">)</span>,</span>
+<span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
+<span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
+<span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
+<span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">fabric_onelake_shortcut_cache_reset</span><span class="op">(</span></span>
+<span>  <span class="va">workspace</span>,</span>
+<span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
+<span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
+<span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
+<span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">fabric_onelake_shortcut_delete</span><span class="op">(</span></span>
 <span>  <span class="va">item</span>,</span>
 <span>  <span class="va">path</span>,</span>
@@ -209,6 +234,14 @@ shortcut, <code>"CreateOrOverwrite"</code> creates or updates it, and
 <code>"OverwriteOnly"</code> updates an existing shortcut without creating one.</p></dd>
 
 
+<dt id="arg-shortcuts">shortcuts<a class="anchor" aria-label="anchor" href="#arg-shortcuts"></a></dt>
+<dd><p>For bulk creation, a non-empty list of shortcut request
+lists. Each request requires <code>path</code>, <code>name</code>, and <code>target</code>, accepts the same
+target companion fields as <code>fabric_onelake_shortcut_create()</code>, and may
+include a <code>transform</code> list. The only currently documented transform is
+<code>csvToDelta</code>; see Details.</p></dd>
+
+
 <dt id="arg-confirm">confirm<a class="anchor" aria-label="anchor" href="#arg-confirm"></a></dt>
 <dd><p>Logical. Deletion is disabled unless explicitly set to
 <code>TRUE</code>. Deleting a shortcut does not delete its destination data.</p></dd>
@@ -219,7 +252,9 @@ shortcut, <code>"CreateOrOverwrite"</code> creates or updates it, and
     <p><code>fabric_onelake_shortcuts()</code> returns a tibble with one row per
 shortcut. <code>fabric_onelake_shortcut_get()</code> and
 <code>fabric_onelake_shortcut_create()</code> return the same one-row shape.
-<code>fabric_onelake_shortcut_delete()</code> returns <code>TRUE</code> invisibly after success.</p>
+<code>fabric_onelake_shortcut_delete()</code> returns <code>TRUE</code> invisibly after success.
+<code>fabric_onelake_shortcut_cache_reset()</code> returns a <code>fabric_operation</code>
+handle for either immediate or asynchronous completion.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -233,15 +268,28 @@ are preserved in list columns for forward compatibility.</p>
 <p>Create is deliberately not replayed automatically because its POST outcome
 can be ambiguous after a transport failure. The default conflict policy is
 Fabric's non-destructive <code>Abort</code>; overwrite must be requested explicitly.</p>
+<p>Bulk creation is a preview Fabric API. Its optional <code>csvToDelta</code> transform
+accepts <code>includeSubfolders</code> and a <code>properties</code> list containing <code>delimiter</code>,
+<code>skipFilesWithErrors</code>, and <code>useFirstRowAsHeader</code>. Supported delimiters are
+comma, space, tab, <code>|</code>, <code>&amp;</code>, and <code>;</code>. A bulk request returns a
+<code>fabric_operation</code>; use <code><a href="fabric_operation_status.html">fabric_operation_result()</a></code> to retrieve the
+per-request statuses, created shortcuts, and errors after completion.</p>
 <p>These Core REST APIs require <code>OneLake.Read.All</code> or
 <code>OneLake.ReadWrite.All</code> for reads, and <code>OneLake.ReadWrite.All</code> for create and
 delete. Fabric documents support for users, service principals, and managed
-identities.</p>
+identities. API scope is not sufficient by itself: listing or reading also
+requires item Read permission or OneLake Read permission on the destination
+path. Creating requires item Write or OneLake ReadWrite on the destination,
+plus Read access to the target path. Updating or deleting likewise requires
+item Write or destination-path OneLake ReadWrite permission.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/" class="external-link">OneLake shortcuts REST API</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts" class="external-link">OneLake shortcut placement and limitations</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security" class="external-link">OneLake shortcut security and path permissions</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk" class="external-link">Create shortcuts in bulk</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/reset-shortcut-cache" class="external-link">Reset shortcut cache</a></p>
     </div>
 
     <div class="section level2">

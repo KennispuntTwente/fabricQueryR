@@ -4,6 +4,8 @@
 
 Find Fabric workspaces, items, and workload-specific connection details
 
+- [`fabric_catalog_search()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_catalog_search.md)
+  : Search the OneLake catalog
 - [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md)
   : Discover Microsoft Fabric workspaces
 - [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
@@ -88,6 +90,9 @@ Discover, load, and read Delta Lake tables in OneLake
   [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
   [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
   : Discover and load Microsoft Fabric Lakehouse tables
+- [`fabric_onelake_schema_exists()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_schema_exists.md)
+  [`fabric_onelake_table_exists()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_schema_exists.md)
+  : Check whether a OneLake schema or table exists
 - [`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
   : Read a Microsoft Fabric Lakehouse table
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
@@ -111,6 +116,8 @@ List, inspect, download, upload, and delete files in OneLake
 - [`fabric_onelake_shortcuts()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   [`fabric_onelake_shortcut_get()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   [`fabric_onelake_shortcut_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  [`fabric_onelake_shortcuts_bulk_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+  [`fabric_onelake_shortcut_cache_reset()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   [`fabric_onelake_shortcut_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
   : Manage OneLake shortcuts
 

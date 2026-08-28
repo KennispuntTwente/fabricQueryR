@@ -43,7 +43,7 @@ access:
 ``` r
 
 livy_scopes <- paste0(
-  paste0("https://", "api.fabric.microsoft.com/"),
+  paste0("https", "://api.fabric.microsoft.com/"),
   c(
     "Lakehouse.Execute.All",
     "Lakehouse.Read.All",

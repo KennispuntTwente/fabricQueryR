@@ -269,7 +269,13 @@ List every statement in this execution context
 
 #### Usage
 
-    FabricLivySession$statements()
+    FabricLivySession$statements(page_size = 100L)
+
+#### Arguments
+
+- `page_size`:
+
+  Maximum statements requested per Livy page
 
 #### Returns
 

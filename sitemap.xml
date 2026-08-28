@@ -23,6 +23,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivyStatement.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabricQueryR-package.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_catalog_search.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_collect.html</loc></url>
@@ -52,6 +53,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_schema_exists.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.html</loc></url>

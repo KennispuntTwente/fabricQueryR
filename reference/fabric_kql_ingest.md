@@ -261,7 +261,11 @@ blob failures retain `error_code`, `failure_status`, and `message`.
 Source URLs and raw service data are redacted so SAS tokens and embedded
 credentials are not retained in the result. Set
 `error_on_failure = FALSE` to inspect a terminal failure instead of
-receiving a typed condition carrying the same status in `last_status`
+receiving a typed condition carrying the same status in `last_status`.
+When a submission handle supplies the expected blob count, completion
+requires the documented status counts to match it exactly. Unknown
+nonzero status categories and impossible totals raise a protocol error
+rather than being misreported as successful completion
 
 ## Limits and permissions
 

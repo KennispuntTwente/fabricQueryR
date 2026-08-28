@@ -103,7 +103,7 @@ fabric_operation_result(
 
 - timeout:
 
-  Maximum total seconds to wait, including status requests
+  Positive maximum total seconds to wait, including status requests
 
 - error_on_failure:
 

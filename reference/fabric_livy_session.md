@@ -189,7 +189,9 @@ loses its in-process credential
 [Microsoft session
 jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
 [high-concurrency
-Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy)
+Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy),
+and the [Apache Livy REST
+API](https://livy.apache.org/docs/latest/rest-api.html)
 
 ## Examples
 

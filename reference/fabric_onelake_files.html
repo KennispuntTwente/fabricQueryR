@@ -308,6 +308,24 @@ access OneLake. If a call returns HTTP 403 after sign-in succeeds, check both
 that tenant setting and the item's data permissions</p>
     </div>
     <div class="section level2">
+    <h2 id="listing-integrity">Listing integrity<a class="anchor" aria-label="anchor" href="#listing-integrity"></a></h2>
+
+
+<p>Directory listing validates every JSON page and path record before returning
+data. Malformed envelopes, invalid metadata values, and paths outside the
+requested item directory raise <code>fabric_onelake_protocol_error</code>; they are not
+silently converted to empty or partial results</p>
+    </div>
+    <div class="section level2">
+    <h2 id="storage-api-version">Storage API version<a class="anchor" aria-label="anchor" href="#storage-api-version"></a></h2>
+
+
+<p>Requests use OneLake's currently documented ADLS API version,
+<code>2021-06-08</code>. For controlled compatibility testing with a later service
+version, set option <code>fabricqueryr.onelake.api_version</code> to another date in
+<code>YYYY-MM-DD</code> form</p>
+    </div>
+    <div class="section level2">
     <h2 id="safe-file-replacement">Safe file replacement<a class="anchor" aria-label="anchor" href="#safe-file-replacement"></a></h2>
 
 

@@ -55,6 +55,31 @@ fabric_onelake_shortcut_create(
   api_base = .fabric_api_base
 )
 
+fabric_onelake_shortcuts_bulk_create(
+  item,
+  shortcuts,
+  workspace = NULL,
+  item_type = NULL,
+  conflict_policy = c("Abort", "GenerateUniqueName", "CreateOrOverwrite",
+    "OverwriteOnly"),
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
+    "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base
+)
+
+fabric_onelake_shortcut_cache_reset(
+  workspace,
+  tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
+  client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
+    "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
+  token = NULL,
+  auth_args = list(),
+  api_base = .fabric_api_base
+)
+
 fabric_onelake_shortcut_delete(
   item,
   path,
@@ -165,6 +190,14 @@ fabric_onelake_shortcut_delete(
   `"CreateOrOverwrite"` creates or updates it, and `"OverwriteOnly"`
   updates an existing shortcut without creating one.
 
+- shortcuts:
+
+  For bulk creation, a non-empty list of shortcut request lists. Each
+  request requires `path`, `name`, and `target`, accepts the same target
+  companion fields as `fabric_onelake_shortcut_create()`, and may
+  include a `transform` list. The only currently documented transform is
+  `csvToDelta`; see Details.
+
 - confirm:
 
   Logical. Deletion is disabled unless explicitly set to `TRUE`.
@@ -176,6 +209,8 @@ fabric_onelake_shortcut_delete(
 `fabric_onelake_shortcut_get()` and `fabric_onelake_shortcut_create()`
 return the same one-row shape. `fabric_onelake_shortcut_delete()`
 returns `TRUE` invisibly after success.
+`fabric_onelake_shortcut_cache_reset()` returns a `fabric_operation`
+handle for either immediate or asynchronous completion.
 
 ## Details
 
@@ -195,10 +230,24 @@ outcome can be ambiguous after a transport failure. The default conflict
 policy is Fabric's non-destructive `Abort`; overwrite must be requested
 explicitly.
 
+Bulk creation is a preview Fabric API. Its optional `csvToDelta`
+transform accepts `includeSubfolders` and a `properties` list containing
+`delimiter`, `skipFilesWithErrors`, and `useFirstRowAsHeader`. Supported
+delimiters are comma, space, tab, `|`, `&`, and `;`. A bulk request
+returns a `fabric_operation`; use
+[`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md)
+to retrieve the per-request statuses, created shortcuts, and errors
+after completion.
+
 These Core REST APIs require `OneLake.Read.All` or
 `OneLake.ReadWrite.All` for reads, and `OneLake.ReadWrite.All` for
 create and delete. Fabric documents support for users, service
-principals, and managed identities.
+principals, and managed identities. API scope is not sufficient by
+itself: listing or reading also requires item Read permission or OneLake
+Read permission on the destination path. Creating requires item Write or
+OneLake ReadWrite on the destination, plus Read access to the target
+path. Updating or deleting likewise requires item Write or
+destination-path OneLake ReadWrite permission.
 
 ## References
 
@@ -207,6 +256,15 @@ API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 
 [OneLake shortcut placement and
 limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
+
+[OneLake shortcut security and path
+permissions](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security)
+
+[Create shortcuts in
+bulk](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk)
+
+[Reset shortcut
+cache](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/reset-shortcut-cache)
 
 ## Examples
 

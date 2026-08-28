@@ -67,6 +67,17 @@ items <- fabric_items(workspace)
 lakehouse <- fabric_lakehouses(workspace)[[1L]]
 ```
 
+Search the preview OneLake catalog when discovery must span all visible
+workspaces:
+
+``` r
+
+sales_items <- fabric_catalog_search(
+  search = "sales",
+  types = c("Lakehouse", "Warehouse")
+)
+```
+
 ### 2. Query Fabric SQL endpoints
 
 Open a reusable ‘DBI’ connection to a Warehouse, SQL Database, or
@@ -155,6 +166,12 @@ same Lakehouse. See [Working with Fabric Lakehouses and
 OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html)
 for the distinction between ordinary files and managed Delta tables,
 table loading, larger reads, and shortcuts.
+
+When only metadata existence is needed, use
+[`fabric_onelake_schema_exists()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_schema_exists.md)
+or
+[`fabric_onelake_table_exists()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_schema_exists.md)
+with either the Delta or Iceberg table protocol.
 
 ### 6. Work with OneLake files
 
@@ -315,10 +332,11 @@ result <- fabric_job_wait(job, timeout = 900)
 result$status
 ```
 
-Notebook submission uses Fabric’s released workload-specific route so
-run parameters and compute settings are applied. Status uses the stable
-Core Job Scheduler by default. Request `notebook_details = TRUE` only
-when the beta Notebook status fields, such as an exit value, are needed.
+Notebook submission uses Fabric’s Core Job Scheduler route so run
+parameters and compute settings are applied without relying on the
+workload submission route scheduled for deprecation. Request
+`notebook_details = TRUE` only when the beta Notebook status fields,
+such as an exit value, are needed.
 
 The [job automation
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html)
@@ -344,7 +362,22 @@ fabric_onelake_shortcut_create(
 )
 ```
 
-Deleting a shortcut removes only the link, not the destination data.
+The preview bulk API can create several shortcuts in one long-running
+operation and optionally apply Fabric’s CSV-to-Delta transform. Call
+[`fabric_onelake_shortcuts_bulk_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+and pass the returned handle to
+[`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md).
+
+Use
+[`fabric_onelake_shortcut_cache_reset()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
+when Fabric must discard files it cached while reading shortcuts in a
+workspace. Cache reset is also represented by a resumable operation
+handle.
+
+Deleting a shortcut removes only the link, not the destination data. In
+addition to the REST API scope, callers need Read or ReadWrite
+permission on the relevant destination path and Read permission on a
+shortcut target.
 
 ### 14. Resume a long-running Fabric operation
 
