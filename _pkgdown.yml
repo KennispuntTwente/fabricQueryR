@@ -26,6 +26,7 @@ reference:
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
     contents:
+      - FabricItem
       - fabric_catalog_search
       - fabric_workspaces
       - fabric_items

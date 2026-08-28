@@ -56,13 +56,20 @@ and vignettes for configuration options and more involved workflows.
 
 ### 1. Discover workspaces and items
 
-Find the Fabric resources you can access. Typed discovery helpers return item
-records that can be passed directly to the package's query and storage functions.
+Find the Fabric resources you can access. Discovery returns R6 objects with
+methods matched to each actionable item type.
 
 ``` r
 workspace <- fabric_workspaces()[[1L]]
-items <- fabric_items(workspace)
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
+orders <- lakehouse$read_table("orders", limit = 1000)
+
+# Service fields remain directly accessible
+lakehouse$id
+lakehouse$displayName
+
+# Convert to a plain record when another interface specifically needs one
+lakehouse_record <- lakehouse$as_list()
 ```
 
 Search the preview OneLake catalog when discovery must span all visible

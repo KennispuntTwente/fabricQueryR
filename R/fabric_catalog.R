@@ -17,9 +17,11 @@
 #'   1000. Leave `NULL` to use Fabric's service default.
 #' @inheritParams fabric_workspaces
 #'
-#' @return A list of `fabric_catalog_entry` records. Each record also inherits
-#'   from `fabric_item`, preserves the fields returned by Fabric, and adds
-#'   `workspaceId` and `workspaceDisplayName` from the catalog hierarchy.
+#' @return With `output = "r6"`, a list of [FabricItem] objects or
+#'   type-specific subclasses. With `output = "list"`, a list of
+#'   `fabric_catalog_entry` records that also inherit from `fabric_item`. Both
+#'   representations preserve the fields returned by Fabric and add the item
+#'   workspace identity from the catalog hierarchy.
 #' @details
 #' Catalog search is a preview Fabric API. It is for metadata discovery only
 #' and does not grant access to item contents. The caller needs
@@ -59,8 +61,10 @@ fabric_catalog_search <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 ) {
+  output <- .fabric_r6_output(output)
   search <- .fabric_catalog_optional_string(search, "search")
   filter <- .fabric_catalog_optional_string(filter, "filter")
   if (!is.null(types) && !is.null(filter)) {
@@ -107,7 +111,9 @@ fabric_catalog_search <- function(
     page_size = page_size,
     credential = credential
   )
-  lapply(records, .fabric_catalog_entry)
+  lapply(records, function(entry) {
+    .fabric_catalog_entry(entry, output, credential)
+  })
 }
 
 .fabric_catalog_optional_string <- function(value, name) {
@@ -241,7 +247,12 @@ fabric_catalog_search <- function(
   list(value = value, continuation_token = continuation_token)
 }
 
-.fabric_catalog_entry <- function(entry) {
+.fabric_catalog_entry <- function(
+  entry,
+  output = c("r6", "list"),
+  credential = NULL
+) {
+  output <- .fabric_r6_output(output)
   hierarchy <- if (is.list(entry$hierarchy)) entry$hierarchy else NULL
   workspace <- if (is.list(hierarchy)) hierarchy$workspace else NULL
   valid <- is.character(entry$id) &&
@@ -272,10 +283,15 @@ fabric_catalog_search <- function(
   }
   entry$workspaceId <- workspace$id
   entry$workspaceDisplayName <- workspace$displayName
-  structure(
+  record <- structure(
     entry,
     class = c("fabric_catalog_entry", "fabric_item", "list")
   )
+  if (identical(output, "r6")) {
+    fabric_r6_record(record, class(record), credential)
+  } else {
+    record
+  }
 }
 
 .fabric_catalog_abort_protocol <- function(message, page_number = NULL) {

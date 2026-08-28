@@ -1,4 +1,4 @@
-test_that("catalog search paginates POST bodies and returns item records", {
+test_that("catalog search paginates POST bodies and returns R6 items", {
   requests <- list()
   httr2::local_mocked_responses(function(req) {
     requests[[length(requests) + 1L]] <<- req
@@ -18,8 +18,8 @@ test_that("catalog search paginates POST bodies and returns item records", {
   )
 
   expect_length(result, 2L)
-  expect_s3_class(result[[1L]], "fabric_catalog_entry")
-  expect_s3_class(result[[1L]], "fabric_item")
+  expect_s3_class(result[[1L]], "FabricLakehouse")
+  expect_s3_class(result[[1L]]$as_list(), "fabric_catalog_entry")
   expect_equal(result[[1L]]$workspaceId, catalog_test_workspace_id)
   expect_equal(result[[1L]]$workspaceDisplayName, "Sales Analytics")
   expect_equal(result[[2L]]$displayName, "Archive Lakehouse")
@@ -34,6 +34,22 @@ test_that("catalog search paginates POST bodies and returns item records", {
   )
   expect_null(requests[[1L]]$body$data$continuationToken)
   expect_equal(requests[[2L]]$body$data$continuationToken, "page-2")
+})
+
+test_that("catalog search can return plain item records explicitly", {
+  httr2::local_mocked_responses(function(req) {
+    catalog_test_response(
+      list(value = list(catalog_test_entry())),
+      req$url
+    )
+  })
+
+  result <- fabric_catalog_search(token = "test-token", output = "list")
+
+  expect_length(result, 1L)
+  expect_s3_class(result[[1L]], "fabric_catalog_entry")
+  expect_s3_class(result[[1L]], "fabric_item")
+  expect_equal(result[[1L]]$workspaceId, catalog_test_workspace_id)
 })
 
 test_that("catalog search validates filters before making requests", {

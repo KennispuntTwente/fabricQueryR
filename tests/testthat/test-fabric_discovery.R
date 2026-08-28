@@ -1,4 +1,4 @@
-test_that("fabric_workspaces follows pagination and returns workspace lists", {
+test_that("fabric_workspaces follows pagination and returns workspace objects", {
   calls <- character()
   httr2::local_mocked_responses(function(req) {
     calls <<- c(calls, req$url)
@@ -68,7 +68,10 @@ test_that("fabric_workspaces follows pagination and returns workspace lists", {
 
   expect_identical(class(result), "list")
   expect_length(result, 2L)
-  expect_true(all(purrr::map_lgl(result, inherits, "fabric_workspace")))
+  expect_equal(
+    purrr::map_lgl(result, inherits, "FabricWorkspace"),
+    rep(TRUE, 2L)
+  )
   expect_equal(
     purrr::map_chr(result, "displayName"),
     c("Analytics", "Research")
@@ -89,6 +92,25 @@ test_that("fabric_workspaces follows pagination and returns workspace lists", {
     calls[3:4],
     fixed = TRUE
   )))
+})
+
+test_that("workspace discovery can return plain records explicitly", {
+  local_mocked_bindings(
+    .httr2_collection = function(...) {
+      list(list(
+        id = "11111111-1111-4111-8111-111111111111",
+        displayName = "Analytics",
+        type = "Workspace",
+        description = "Primary"
+      ))
+    }
+  )
+
+  workspace <- fabric_workspaces(token = "token", output = "list")[[1L]]
+
+  expect_s3_class(workspace, "fabric_workspace")
+  expect_identical(workspace$displayName, "Analytics")
+  expect_identical(workspace$description, "Primary")
 })
 
 test_that("workspace resolution retrieves preferred OneLake endpoints", {
@@ -511,7 +533,7 @@ test_that("fabric_items filters and enriches Lakehouse targets", {
   lakehouse <- result[[1L]]
 
   expect_identical(class(result), "list")
-  expect_s3_class(lakehouse, "fabric_item")
+  expect_s3_class(lakehouse, "FabricLakehouse")
   expect_equal(lakehouse$type, "Lakehouse")
   expect_equal(
     lakehouse$sql_server,
@@ -563,7 +585,10 @@ test_that("item discovery records partial detail failures", {
     fixed = TRUE
   )
   expect_length(result, 2L)
-  expect_true(all(vapply(result, inherits, logical(1), "fabric_item")))
+  expect_equal(
+    vapply(result, inherits, logical(1), "FabricLakehouse"),
+    rep(TRUE, 2L)
+  )
   available <- purrr::keep(result, ~ .x$id == "available")[[1L]]
   forbidden <- purrr::keep(result, ~ .x$id == "forbidden")[[1L]]
   expect_null(available$detail_error)
@@ -1106,7 +1131,7 @@ test_that("typed helpers strictly filter records and preserve future fields", {
   pipelines <- fabric_data_pipelines("Workspace", token = "token")
 
   expect_length(pipelines, 1L)
-  expect_s3_class(pipelines[[1L]], "fabric_item")
+  expect_s3_class(pipelines[[1L]], "FabricJobItem")
   expect_identical(pipelines[[1L]]$type, "DataPipeline")
   expect_identical(
     pipelines[[1L]]$futureServiceField,
@@ -1228,7 +1253,7 @@ test_that("item collections preserve nested service records", {
 
   expect_identical(class(items), "list")
   expect_length(items, 1L)
-  expect_s3_class(items[[1L]], "fabric_item")
+  expect_s3_class(items[[1L]], "FabricJobItem")
   expect_identical(items[[1L]]$properties, record$properties)
   expect_identical(items[[1L]]$tags, record$tags)
 })
@@ -1250,7 +1275,7 @@ test_that("fabric_item resolves names and rejects type mismatches", {
     type = "Warehouse",
     token = "token"
   )
-  expect_s3_class(result, "fabric_item")
+  expect_s3_class(result, "FabricWarehouse")
   expect_equal(result$workspaceId, "workspace-id")
 
   expect_error(

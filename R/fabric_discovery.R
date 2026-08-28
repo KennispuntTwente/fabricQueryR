@@ -23,10 +23,14 @@
 #'   [AzureAuth::get_azure_token()]
 #' @param api_base Fabric REST API base URL. Leave unchanged unless using a
 #'   different Fabric cloud or a test service
+#' @param output Discovery record representation. The default `"r6"` returns
+#'   R6 objects with type-specific methods. Use `"list"` when a plain record is
+#'   specifically required
 #'
-#' @return A list with one workspace record per visible workspace. Each record
-#'   includes its ID and display name, together with other details returned by
-#'   Fabric
+#' @return A list with one workspace record per visible workspace. With
+#'   `output = "r6"`, each record is a [FabricWorkspace]. With
+#'   `output = "list"`, each record is a `fabric_workspace` list. Both
+#'   representations preserve all fields returned by Fabric
 #' @details
 #' The caller needs permission to read Fabric workspaces. Discovery uses the
 #' Fabric API and requires `Workspace.Read.All` or `Workspace.ReadWrite.All`
@@ -59,12 +63,14 @@ fabric_workspaces <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
   # Check filtering options before signing in or sending a request
 
+  output <- .fabric_r6_output(output)
   if (
     !is.null(roles) &&
       (!is.character(roles) ||
@@ -125,7 +131,7 @@ fabric_workspaces <- function(
 
   # Add a small class while keeping every field returned by Fabric
 
-  fabric_workspace_list(records)
+  fabric_workspace_list(records, output = output, credential = credential)
 }
 
 #' Discover Microsoft Fabric items
@@ -170,8 +176,10 @@ fabric_workspaces <- function(
 #'
 #' @return A list with one item record per match. Every record includes common
 #'   fields such as `id`, `displayName`, `type`, and `workspaceId`. With
-#'   `detail = TRUE`, records also include the connection details needed by the
-#'   matching 'fabricQueryR' functions when Fabric makes them available
+#'   `output = "r6"`, records are [FabricItem] objects or type-specific
+#'   subclasses. With `output = "list"`, records are `fabric_item` lists. With
+#'   `detail = TRUE`, both representations include connection details when
+#'   Fabric makes them available
 #' @details
 #' The caller needs at least access to the workspace (the Viewer role is
 #' sufficient for the core list operation). Workload enrichment additionally
@@ -221,12 +229,14 @@ fabric_items <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
 
   # Reject invalid filters before resolving a workspace or making API calls
 
+  output <- .fabric_r6_output(output)
   api_base_supplied <- !missing(api_base)
   if (
     !is.null(type) &&
@@ -370,7 +380,7 @@ fabric_items <- function(
 
   # Return discovery records in the stable form expected by the caller
 
-  fabric_item_list(records)
+  fabric_item_list(records, output = output, credential = credential)
 }
 
 #' Discover one Microsoft Fabric item
@@ -385,8 +395,9 @@ fabric_items <- function(
 #'   duplicated
 #' @inheritParams fabric_items
 #'
-#' @return One `fabric_item` record containing the item's name, ID, type,
-#'   workspace, and any connection details that Fabric makes available
+#' @return With `output = "r6"`, a [FabricItem] object or type-specific
+#'   subclass. With `output = "list"`, one `fabric_item` record containing the
+#'   item's name, ID, type, workspace, and available connection details
 #' @details
 #' The caller needs access to the workspace for the core item lookup. This
 #' singular helper always performs workload-specific enrichment as well, which
@@ -419,12 +430,14 @@ fabric_item <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 ) {
   # 1 Resolve authentication and workspace ---------------------------------------------------------
 
   # Establish the workspace first because both item lookup routes need its ID
 
+  output <- .fabric_r6_output(output)
   api_base_supplied <- !missing(api_base)
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
@@ -505,9 +518,11 @@ fabric_item <- function(
       )
     )
   }
-  fabric_item_list(list(
-    fabric_enrich_item(record, credential, base)
-  ))[[1L]]
+  fabric_item_list(
+    list(fabric_enrich_item(record, credential, base)),
+    output = output,
+    credential = credential
+  )[[1L]]
 }
 
 #' Typed Microsoft Fabric item discovery
@@ -933,6 +948,10 @@ fabric_is_guid <- function(value) {
 # Convert a discovered object or plain named list into a record. Returns `NULL`
 # for ordinary text inputs so public functions can follow their text path
 fabric_as_record <- function(value) {
+  if (inherits(value, "FabricRecord")) {
+    return(value$as_list())
+  }
+
   if (inherits(value, "data.frame")) {
     if (nrow(value) != 1L) {
       .fabric_abort("A discovered object must contain exactly one row")
@@ -952,6 +971,9 @@ fabric_as_record <- function(value) {
 # Read the first present field named in `...` from `record`. Returns that value
 # or `NULL`, allowing helpers to accept API and R-style field names
 fabric_record_value <- function(record, ...) {
+  if (inherits(record, "FabricRecord")) {
+    record <- record$as_list()
+  }
   keys <- c(...)
   for (key in keys) {
     value <- record[[key]]
@@ -1461,16 +1483,36 @@ fabric_add_derived_targets <- function(record, api_base) {
 
 # Give each workspace API record its package class. Returns a list used by
 # `fabric_workspaces()` while preserving all original fields
-fabric_workspace_list <- function(records) {
+fabric_workspace_list <- function(
+  records,
+  output = c("r6", "list"),
+  credential = NULL
+) {
+  output <- .fabric_r6_output(output)
   lapply(records, function(record) {
-    structure(record, class = c("fabric_workspace", "list"))
+    legacy_class <- c("fabric_workspace", "list")
+    if (identical(output, "r6")) {
+      fabric_r6_record(record, legacy_class, credential)
+    } else {
+      structure(record, class = legacy_class)
+    }
   })
 }
 
 # Give each item API record its package class. Returns a list used by all item
 # discovery entry points while preserving all original fields
-fabric_item_list <- function(records) {
+fabric_item_list <- function(
+  records,
+  output = c("r6", "list"),
+  credential = NULL
+) {
+  output <- .fabric_r6_output(output)
   lapply(records, function(record) {
-    structure(record, class = c("fabric_item", "list"))
+    legacy_class <- c("fabric_item", "list")
+    if (identical(output, "r6")) {
+      fabric_r6_record(record, legacy_class, credential)
+    } else {
+      structure(record, class = legacy_class)
+    }
   })
 }

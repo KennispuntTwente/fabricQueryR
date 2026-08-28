@@ -19,7 +19,8 @@ fabric_items(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 )
 }
 \arguments{
@@ -76,12 +77,18 @@ to let 'fabricQueryR' use its normal sign-in flow}
 \item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 \code{api_base} is supplied explicitly}
+
+\item{output}{Discovery record representation. The default \code{"r6"} returns
+R6 objects with type-specific methods. Use \code{"list"} when a plain record is
+specifically required}
 }
 \value{
 A list with one item record per match. Every record includes common
 fields such as \code{id}, \code{displayName}, \code{type}, and \code{workspaceId}. With
-\code{detail = TRUE}, records also include the connection details needed by the
-matching 'fabricQueryR' functions when Fabric makes them available
+\code{output = "r6"}, records are \link{FabricItem} objects or type-specific
+subclasses. With \code{output = "list"}, records are \code{fabric_item} lists. With
+\code{detail = TRUE}, both representations include connection details when
+Fabric makes them available
 }
 \description{
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and other

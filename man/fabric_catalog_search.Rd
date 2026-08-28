@@ -14,7 +14,8 @@ fabric_catalog_search(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 )
 }
 \arguments{
@@ -46,11 +47,17 @@ to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
 different Fabric cloud or a test service}
+
+\item{output}{Discovery record representation. The default \code{"r6"} returns
+R6 objects with type-specific methods. Use \code{"list"} when a plain record is
+specifically required}
 }
 \value{
-A list of \code{fabric_catalog_entry} records. Each record also inherits
-from \code{fabric_item}, preserves the fields returned by Fabric, and adds
-\code{workspaceId} and \code{workspaceDisplayName} from the catalog hierarchy.
+With \code{output = "r6"}, a list of \link{FabricItem} objects or
+type-specific subclasses. With \code{output = "list"}, a list of
+\code{fabric_catalog_entry} records that also inherit from \code{fabric_item}. Both
+representations preserve the fields returned by Fabric and add the item
+workspace identity from the catalog hierarchy.
 }
 \description{
 Searches Fabric item metadata across every workspace visible to the caller.

@@ -12,7 +12,8 @@ fabric_workspaces(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  output = c("r6", "list")
 )
 }
 \arguments{
@@ -39,11 +40,16 @@ to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{api_base}{Fabric REST API base URL. Leave unchanged unless using a
 different Fabric cloud or a test service}
+
+\item{output}{Discovery record representation. The default \code{"r6"} returns
+R6 objects with type-specific methods. Use \code{"list"} when a plain record is
+specifically required}
 }
 \value{
-A list with one workspace record per visible workspace. Each record
-includes its ID and display name, together with other details returned by
-Fabric
+A list with one workspace record per visible workspace. With
+\code{output = "r6"}, each record is a \link{FabricWorkspace}. With
+\code{output = "list"}, each record is a \code{fabric_workspace} list. Both
+representations preserve all fields returned by Fabric
 }
 \description{
 Returns the Fabric workspaces available to the signed-in user or application
