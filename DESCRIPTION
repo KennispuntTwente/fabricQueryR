@@ -9,36 +9,12 @@ Authors@R:
       person(given = "Kennispunt Twente",
              role = "fnd",
              email = "info@kennispunttwente.nl"))
-Description: 
-    Discover workspaces, items, and workload endpoints in 'Microsoft Fabric'.
-    Provides helpers to open parameterized 'DBI' connections to 'SQL' endpoints
-    of 'Lakehouse', 'Data Warehouse', and 'SQL Database' items; submit
-    'Data Analysis Expressions' ('DAX') queries to semantic model datasets in 'Microsoft
-    Fabric' and 'Power BI'; list, inspect, download, upload, and delete files
-    in 'OneLake' ('Azure Data Lake Storage Gen2'), including direct 'R' and
-    'Arrow' interchange with columnar files and shortcut lifecycle management;
-    discover and read 'Delta Lake'
-    tables in 'OneLake'; stage data frames or load existing CSV and Parquet
-    files into managed Lakehouse tables; read Warehouse tables as R or
-    streaming 'Arrow' results and bulk load data frames and lazy 'Arrow'
-    sources into existing or newly created Warehouse tables; start, monitor,
-    diagnose, and
-    cancel semantic model refreshes; invoke published Fabric User Data
-    Functions; execute
-    'Kusto Query Language' ('KQL')
-    queries and read projected tables from 'Eventhouse' databases; submit and
-    monitor tracked queued
-    ingestion from blob or 'OneLake' storage into existing 'Eventhouse' tables,
-    including bounded staging of data frames and lazy 'Arrow' data with optional
-    target-table creation; export
-    large 'KQL' query results directly to external storage with tracked
-    server-side operations;
-    call user-configured 'GraphQL'
-    APIs over Fabric data; and execute 'Spark' code via the 'Livy API'.
-    Item jobs can be submitted, monitored, waited on, and cancelled, and their
-    run history and recurring schedules can be managed through the Fabric Job
-    Scheduler APIs. Fabric Core long-running operations can be resumed,
-    monitored, and retrieved through a shared result contract.
+Description: Access 'Microsoft Fabric' workspaces, items, and workload
+    endpoints through its web application programming interfaces (APIs).
+    Connect to data in 'OneLake', 'Lakehouse', 'Warehouse', semantic model,
+    and 'Eventhouse' items, with support for 'DBI', 'Arrow', 'GraphQL', and
+    'Spark'. Manage files, tables, refreshes, jobs, schedules, ingestion,
+    and long-running operations.
 License: MIT + file LICENSE
 Suggests: 
     adbcdrivermanager,
