@@ -1,31 +1,3 @@
-catalog_test_item_id <- "11111111-1111-4111-8111-111111111111"
-catalog_test_workspace_id <- "22222222-2222-4222-8222-222222222222"
-
-catalog_test_entry <- function(name = "Sales Lakehouse") {
-  list(
-    id = catalog_test_item_id,
-    type = "Lakehouse",
-    catalogEntryType = "FabricItem",
-    displayName = name,
-    description = "Sales data",
-    hierarchy = list(
-      workspace = list(
-        id = catalog_test_workspace_id,
-        displayName = "Sales Analytics"
-      )
-    )
-  )
-}
-
-catalog_test_response <- function(body, url) {
-  httr2::response(
-    status_code = 200L,
-    url = url,
-    headers = list(`content-type` = "application/json"),
-    body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE, null = "null"))
-  )
-}
-
 test_that("catalog search paginates POST bodies and returns item records", {
   requests <- list()
   httr2::local_mocked_responses(function(req) {

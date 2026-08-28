@@ -40,6 +40,37 @@ pbi_test_dense_union <- function(
   list(array = array, schema = schema)
 }
 
+
+# test-fabric_catalog.R
+catalog_test_item_id <- "11111111-1111-4111-8111-111111111111"
+catalog_test_workspace_id <- "22222222-2222-4222-8222-222222222222"
+
+catalog_test_entry <- function(name = "Sales Lakehouse") {
+  list(
+    id = catalog_test_item_id,
+    type = "Lakehouse",
+    catalogEntryType = "FabricItem",
+    displayName = name,
+    description = "Sales data",
+    hierarchy = list(
+      workspace = list(
+        id = catalog_test_workspace_id,
+        displayName = "Sales Analytics"
+      )
+    )
+  )
+}
+
+catalog_test_response <- function(body, url) {
+  httr2::response(
+    status_code = 200L,
+    url = url,
+    headers = list(`content-type` = "application/json"),
+    body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE, null = "null"))
+  )
+}
+
+
 # test-delta-rs-oracle.R
 fabric_test_python_path <- function(python) {
   # Preserve a virtualenv executable's final symlink. Resolving it selects the
@@ -649,6 +680,47 @@ shortcut_test_onelake_record <- function(
     record$transform <- list(type = "csvToDelta")
   }
   record
+}
+
+
+# test-fabric_onelake_table_exists.R
+exists_test_workspace_id <- "11111111-1111-4111-8111-111111111111"
+exists_test_item_id <- "22222222-2222-4222-8222-222222222222"
+
+exists_test_item <- function() {
+  structure(
+    list(
+      id = exists_test_item_id,
+      workspaceId = exists_test_workspace_id,
+      displayName = "Lakehouse",
+      type = "Lakehouse",
+      defaultSchema = "curated"
+    ),
+    class = c("fabric_item", "list")
+  )
+}
+
+exists_test_response <- function(
+  req,
+  status = 200L,
+  body = NULL
+) {
+  headers <- list()
+  raw_body <- raw()
+  if (!is.null(body)) {
+    headers[["content-type"]] <- "application/json"
+    raw_body <- charToRaw(jsonlite::toJSON(
+      body,
+      auto_unbox = TRUE,
+      null = "null"
+    ))
+  }
+  httr2::response(
+    status_code = status,
+    url = req$url,
+    headers = headers,
+    body = raw_body
+  )
 }
 
 
