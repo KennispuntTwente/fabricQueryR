@@ -458,7 +458,15 @@ fabric_graphql_paginate <- function(
     api_base = api_base
   )
   pages <- list()
-  seen <- character()
+  initial_cursor <- variables[[cursor_variable]]
+  seen <- if (is.null(initial_cursor)) {
+    character()
+  } else {
+    graphql_required_string(
+      initial_cursor,
+      paste0("variables$", cursor_variable)
+    )
+  }
 
   # 3 Read pages -----------------------------------------------------------------------------------
 

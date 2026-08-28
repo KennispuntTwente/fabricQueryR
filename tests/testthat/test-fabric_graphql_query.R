@@ -534,7 +534,9 @@ test_that("GraphQL pagination reuses one AzureAuth credential", {
 })
 
 test_that("GraphQL pagination prevents loops and enforces max_pages", {
+  request_count <- 0L
   httr2::local_mocked_responses(function(req) {
+    request_count <<- request_count + 1L
     graphql_test_response(
       list(
         data = list(
@@ -558,6 +560,23 @@ test_that("GraphQL pagination prevents loops and enforces max_pages", {
     "already used",
     fixed = TRUE
   )
+  expect_identical(request_count, 2L)
+
+  request_count <- 0L
+  initial_cursor_error <- rlang::catch_cnd(fabric_graphql_paginate(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ products { hasNextPage endCursor } }",
+    variables = list(after = "same"),
+    next_cursor = fabric_graphql_cursor("products"),
+    max_pages = 3L,
+    token = "token"
+  ))
+  expect_match(
+    conditionMessage(initial_cursor_error),
+    "already used",
+    fixed = TRUE
+  )
+  expect_identical(request_count, 1L)
 
   counter <- 0L
   httr2::local_mocked_responses(function(req) {
