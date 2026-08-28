@@ -43,10 +43,10 @@ Fabric until the job finishes or the 15-minute local deadline is reached.
 `cancel_on_timeout = TRUE` asks Fabric to cancel the run if that deadline is
 exceeded.
 
-Notebook submission uses Fabric's released workload-specific route so run
-parameters and compute settings are applied. Polling uses the stable Core Job
-Scheduler by default. If a Notebook workflow needs the beta status fields,
-such as its exit value, opt in explicitly:
+Notebook submission uses Fabric's Core Job Scheduler route so run parameters
+and compute settings are applied without relying on the workload submission
+route scheduled for deprecation. If a Notebook workflow needs the beta status
+fields, such as its exit value, opt in explicitly:
 
 ```{r, eval = FALSE}
 detailed <- fabric_job_status(

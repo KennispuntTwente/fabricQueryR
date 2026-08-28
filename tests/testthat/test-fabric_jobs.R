@@ -115,7 +115,7 @@ test_that("job item-name lookup uses the workspace-specific endpoint", {
   )
 })
 
-test_that("notebook run uses the released workload-specific route", {
+test_that("notebook run uses the Core Job Scheduler route", {
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -173,12 +173,12 @@ test_that("notebook run uses the released workload-specific route", {
   expect_match(
     call$url,
     paste0(
-      "/notebooks/11111111-1111-1111-1111-111111111111/",
-      "jobs/execute/instances?beta=false"
+      "/items/11111111-1111-1111-1111-111111111111/",
+      "jobs/RunNotebook/instances"
     ),
     fixed = TRUE
   )
-  expect_false(grepl("/items/", call$url, fixed = TRUE))
+  expect_false(grepl("/notebooks/", call$url, fixed = TRUE))
   expect_equal(call$payload$executionData$compute, "Spark")
   expect_equal(
     call$payload$executionData$computeConfiguration$defaultLakehouse,
