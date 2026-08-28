@@ -79,7 +79,8 @@
 #'
 #' @seealso
 #' [Microsoft session jobs](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session),
-#' [high-concurrency Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy)
+#' [high-concurrency Livy](https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy),
+#' and the [Apache Livy REST API](https://livy.apache.org/docs/latest/rest-api.html)
 #'
 #' @examples
 #' \dontrun{
@@ -510,43 +511,84 @@ FabricLivySession <- R6::R6Class(
     },
 
     #' @description List every statement in this execution context
+    #' @param page_size Maximum statements requested per Livy page
     #' @returns The raw Livy statements response
-    statements = function() {
+    statements = function(page_size = 100L) {
       private$assert_open()
-
-      response <- fabric_livy_json(
-        "GET",
-        private$statement_collection(),
-        fabric_livy_handle_credential(private$credential_ref)
-      )
-      statements <- response$statements
       if (
-        is.null(statements) ||
-          !is.list(statements)
+        !is.numeric(page_size) ||
+          length(page_size) != 1L ||
+          is.na(page_size) ||
+          !is.finite(page_size) ||
+          page_size < 1 ||
+          page_size > .Machine$integer.max ||
+          page_size != floor(page_size)
       ) {
-        .fabric_abort(
-          "Livy returned a malformed statement collection",
-          class = "fabric_livy_protocol_error"
-        )
+        .fabric_abort("page_size must be one positive whole number")
       }
-      total <- response$total_statements
-      if (
-        !is.numeric(total) ||
-          length(total) != 1L ||
-          is.na(total) ||
-          !is.finite(total) ||
-          total < 0 ||
-          total != floor(total) ||
-          total != length(statements)
-      ) {
-        .fabric_abort(
-          "Livy returned an invalid statement total",
-          class = "fabric_livy_protocol_error"
+      page_size <- as.integer(page_size)
+      credential <- fabric_livy_handle_credential(private$credential_ref)
+      offset <- 0L
+      total <- NULL
+      statements <- list()
+      first_response <- NULL
+      seen_ids <- character()
+      repeat {
+        request <- httr2::req_url_query(
+          httr2::request(private$statement_collection()),
+          from = offset,
+          size = page_size
         )
+        response <- fabric_livy_json(
+          "GET",
+          request$url,
+          credential
+        )
+        page <- fabric_livy_statement_page(response, offset, total)
+        first_response <- first_response %||% response
+        total <- page$total
+        page_ids <- vapply(
+          page$statements,
+          function(statement) {
+            id <- statement$id
+            if (
+              !(is.character(id) || is.numeric(id)) ||
+                length(id) != 1L ||
+                is.na(id) ||
+                !nzchar(as.character(id))
+            ) {
+              .fabric_abort(
+                "Livy returned a statement without one valid id",
+                class = "fabric_livy_protocol_error"
+              )
+            }
+            as.character(id)
+          },
+          character(1)
+        )
+        if (any(page_ids %in% seen_ids) || anyDuplicated(page_ids)) {
+          .fabric_abort(
+            "Livy repeated a statement across collection pages",
+            class = "fabric_livy_protocol_error"
+          )
+        }
+        seen_ids <- c(seen_ids, page_ids)
+        statements <- c(statements, page$statements)
+        if (length(statements) == total) {
+          break
+        }
+        if (!length(page$statements)) {
+          .fabric_abort(
+            "Livy returned an empty statement page before the reported total",
+            class = "fabric_livy_protocol_error"
+          )
+        }
+        offset <- length(statements)
       }
-
-      response$total_statements <- as.integer(total)
-      response
+      first_response$statements <- statements
+      first_response$total_statements <- as.integer(total)
+      first_response$from <- 0L
+      first_response
     },
 
     #' @description Reset a regular session's inactivity timeout
@@ -639,6 +681,66 @@ FabricLivySession <- R6::R6Class(
   ),
   cloneable = FALSE
 )
+
+fabric_livy_statement_page <- function(response, offset, previous_total) {
+  if (!is.list(response) || is.null(names(response))) {
+    .fabric_abort(
+      "Livy returned a malformed statement collection",
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  statements <- response$statements
+  if (
+    is.null(statements) ||
+      !is.list(statements) ||
+      !is.null(names(statements)) ||
+      !all(vapply(
+        statements,
+        function(statement) {
+          is.list(statement) && !is.null(names(statement))
+        },
+        logical(1)
+      ))
+  ) {
+    .fabric_abort(
+      "Livy returned a malformed statement collection",
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  total <- response$total_statements
+  if (
+    !is.numeric(total) ||
+      length(total) != 1L ||
+      is.na(total) ||
+      !is.finite(total) ||
+      total < 0 ||
+      total > .Machine$integer.max ||
+      total != floor(total) ||
+      offset + length(statements) > total ||
+      (!is.null(previous_total) && total != previous_total)
+  ) {
+    .fabric_abort(
+      "Livy returned an invalid or inconsistent statement total",
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  response_offset <- response$from
+  if (
+    !is.null(response_offset) &&
+      (!is.numeric(response_offset) ||
+        length(response_offset) != 1L ||
+        is.na(response_offset) ||
+        !is.finite(response_offset) ||
+        response_offset != floor(response_offset) ||
+        response_offset != offset)
+  ) {
+    .fabric_abort(
+      "Livy returned a statement page from an unexpected offset",
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  list(statements = statements, total = as.integer(total))
+}
 
 #' A statement submitted to a Fabric Livy session
 #'

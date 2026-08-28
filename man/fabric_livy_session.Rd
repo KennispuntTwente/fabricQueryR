@@ -174,5 +174,6 @@ run_high_concurrency(lakehouse)
 }
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy-session}{Microsoft session jobs},
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy}{high-concurrency Livy}
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/high-concurrency-livy}{high-concurrency Livy},
+and the \href{https://livy.apache.org/docs/latest/rest-api.html}{Apache Livy REST API}
 }

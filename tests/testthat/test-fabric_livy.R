@@ -257,7 +257,7 @@ test_that("submit returns an inspectable and cancellable statement", {
       if (method == "POST" && grepl("/cancel$", url)) {
         return(list(msg = "canceled"))
       }
-      if (method == "GET" && grepl("/statements$", url)) {
+      if (method == "GET" && grepl("/statements", url, fixed = TRUE)) {
         return(list(
           total_statements = 1L,
           statements = list(list(id = 9L, state = "waiting"))
@@ -317,8 +317,46 @@ test_that("session statement listing follows the Livy collection contract", {
   expect_identical(result$total_statements, 3L)
   expect_equal(vapply(result$statements, `[[`, integer(1), "id"), 1:3)
   expect_length(urls, 1L)
-  expect_match(urls, "/statements$")
-  expect_false(grepl("?", urls, fixed = TRUE))
+  expect_match(urls, "/statements[?]")
+  expect_match(utils::URLdecode(urls), "from=0", fixed = TRUE)
+  expect_match(utils::URLdecode(urls), "size=100", fixed = TRUE)
+  session$close()
+})
+
+test_that("session statement listing retrieves every Livy page", {
+  urls <- character()
+  local_mocked_bindings(
+    fabric_livy_json = function(method, url, ...) {
+      if (method == "POST") {
+        return(list(id = "session", state = "idle"))
+      }
+      urls <<- c(urls, utils::URLdecode(url))
+      offset <- if (grepl("from=0", url, fixed = TRUE)) 0L else 2L
+      ids <- if (offset == 0L) 1:2 else 3L
+      list(
+        from = offset,
+        total_statements = 3L,
+        statements = lapply(ids, function(id) {
+          list(id = id, state = "available")
+        })
+      )
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "token",
+    verbose = FALSE
+  )
+
+  result <- session$statements(page_size = 2L)
+
+  expect_identical(result$total_statements, 3L)
+  expect_identical(result$from, 0L)
+  expect_equal(vapply(result$statements, `[[`, integer(1), "id"), 1:3)
+  expect_length(urls, 2L)
+  expect_match(urls[[1L]], "from=0&size=2", fixed = TRUE)
+  expect_match(urls[[2L]], "from=2&size=2", fixed = TRUE)
   session$close()
 })
 
@@ -328,7 +366,7 @@ test_that("session statement listing rejects inconsistent collections", {
       responses <- list(
         list(id = "session", state = "idle"),
         list(
-          total_statements = 2L,
+          total_statements = 0L,
           statements = list(list(id = 1L, state = "available"))
         )
       )
