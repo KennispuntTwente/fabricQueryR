@@ -54,9 +54,9 @@ fabric_kql_ingestion_status(
 )
 }
 \arguments{
-\item{cluster}{Ingestion URI, or one Eventhouse or KQLDatabase record from
+\item{cluster}{Ingestion URI, or one Eventhouse or KQLDatabase object from
 \code{\link[=fabric_eventhouses]{fabric_eventhouses()}}, \code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, or \code{\link[=fabric_item]{fabric_item()}}. A
-KQLDatabase record also supplies \code{database}. Use the \strong{Ingestion URI}, not
+KQLDatabase object also supplies \code{database}. Use the \strong{Ingestion URI}, not
 the Query URI, for direct character input}
 
 \item{table}{One existing target KQL table name}
@@ -66,7 +66,7 @@ frame of source metadata, or a list of source records. See Sources and
 storage access}
 
 \item{database}{Target KQL database display name. Omit it when \code{cluster} is a
-discovered KQLDatabase record}
+discovered KQLDatabase object}
 
 \item{format}{Kusto ingestion format. Supported file formats include \code{csv},
 \code{json}, \code{multijson}, \code{parquet}, \code{avro}, \code{orc}, and the documented delimited

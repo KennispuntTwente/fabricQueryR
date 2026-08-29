@@ -69,12 +69,12 @@ fabric_job_schedule_delete(
 )
 }
 \arguments{
-\item{item}{Item GUID, exact display name, or an item record returned by a
-discovery function. A discovered record is recommended because it includes
+\item{item}{Item GUID, exact display name, or an item object returned by a
+discovery function. A discovered object is recommended because it includes
 the item type and workspace ID.}
 
-\item{workspace}{Workspace GUID, exact display name, or a workspace record.
-Omit it when \code{item} is a discovered record containing \code{workspaceId}.}
+\item{workspace}{Workspace GUID, exact display name, or a workspace object.
+Omit it when \code{item} is a discovered object containing \code{workspaceId}.}
 
 \item{job_type}{Schedule job type. Notebooks default to \code{"RunNotebook"},
 Spark job definitions to \code{"SparkJob"}, and data pipelines, Dataflows, and

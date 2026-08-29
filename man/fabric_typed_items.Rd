@@ -47,8 +47,8 @@ fabric_user_data_functions(workspace, detail = TRUE, ...)
 fabric_graphql_apis(workspace, detail = FALSE, ...)
 }
 \arguments{
-\item{workspace}{Workspace name, ID, or record returned by
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
+\item{workspace}{Workspace name, ID, or object returned by
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; an object
 avoids an extra lookup}
 
 \item{detail}{Whether to retrieve connection details as well as names and
@@ -61,14 +61,14 @@ derived without workload detail requests}
 Do not supply \code{type}; each helper sets that value}
 }
 \value{
-A list with one \code{fabric_item} object per matching item. Each object
-contains common item metadata and applicable connection fields. See
-\code{\link[=fabric_items]{fabric_items()}} for details
+A list with one \link{FabricItem} object or type-specific R6 subclass per
+matching item. Each object contains common item metadata, applicable
+connection fields, and workload methods. See \code{\link[=fabric_items]{fabric_items()}} for details
 }
 \description{
-These shortcuts find one kind of Fabric item. Most also retrieve workload
-connection details by default, so their results can usually be passed
-straight to the next 'fabricQueryR' call. Semantic Model and GraphQL helpers
+These shortcuts find one kind of Fabric item. By default, they return R6
+objects with service fields and type-specific methods for the useful next
+actions. Most also retrieve workload connection details. Semantic Model and GraphQL helpers
 default to lightweight discovery because their executable targets are
 derived from list-level IDs and workspace fields; set \code{detail = TRUE} when
 their workload-specific properties are needed
@@ -78,28 +78,27 @@ their workload-specific properties are needed
 \itemize{
 \item \code{fabric_lakehouses()}, \code{fabric_warehouses()},
 \code{fabric_warehouse_snapshots()}, and \code{fabric_mirrored_databases()} find data
-stores that can be queried through \code{\link[=fabric_sql_query]{fabric_sql_query()}}; Lakehouses and
+stores with \verb{$sql_query()} and other SQL methods; Lakehouses and
 mirrored databases can also be accessed through OneLake
 \item \code{fabric_sql_databases()} finds transactional Fabric SQL databases
-\item \code{fabric_semantic_models()} finds the business models queried with DAX via
-\code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}
+\item \code{fabric_semantic_models()} finds business models with \verb{$dax_query()} and
+refresh lifecycle methods
 \item \code{fabric_eventhouses()} and \code{fabric_kql_databases()} find real-time data
-stores queried with \code{\link[=fabric_kql_query]{fabric_kql_query()}}
-\item \code{fabric_notebooks()} finds notebooks that can be run with
-\code{\link[=fabric_job_run]{fabric_job_run()}}
+stores with \verb{$query()}, \verb{$read_table()}, ingestion, and export methods
+\item \code{fabric_notebooks()} finds notebooks with job lifecycle and schedule methods
 \item \code{fabric_data_pipelines()} and \code{fabric_spark_job_definitions()} find the
-other executable items supported by \code{\link[=fabric_job_run]{fabric_job_run()}}
+other executable items with the same job methods
 \item \code{fabric_environments()} finds reusable Spark runtime configurations
 \item \code{fabric_user_data_functions()} finds serverless Python function items
-\item \code{fabric_graphql_apis()} finds APIs configured in Fabric for use with
-\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}
+\item \code{fabric_graphql_apis()} finds APIs configured in Fabric with \verb{$query()},
+\verb{$schema()}, and \verb{$paginate()} methods
 }
 }
 
 \section{Filtering and returned fields}{
 
 Each helper requests its exact Fabric item type and verifies that every
-returned record has that type. The records otherwise keep all fields
+returned object has that type. The objects otherwise keep all fields
 returned by Fabric, including fields added by the service in the future
 
 Folder recursion, workspace-specific private-link routing, authentication,
@@ -112,7 +111,7 @@ principals or managed identities; those callers can use \code{detail = FALSE}
 
 \examples{
 \dontrun{
-# Discover a workspace once, then reuse its record for typed discovery
+# Discover a workspace once, then reuse its object for typed discovery
 workspace <- fabric_workspaces()[[1]]
 
 # Discover data items that feed the package's query and storage helpers
@@ -126,22 +125,21 @@ eventhouses <- fabric_eventhouses(workspace)
 kql_databases <- fabric_kql_databases(workspace)
 graphql_apis <- fabric_graphql_apis(workspace)
 
-# A discovered record can be passed directly to a matching helper
-fabric_lakehouse_tables(lakehouses[[1L]])
-fabric_sql_connection_info(warehouses[[1L]])
-fabric_pbi_dax_query(
-  semantic_models[[1L]],
+# Discovered objects expose matching workload methods
+lakehouses[[1L]]$tables()
+warehouses[[1L]]$sql_connection_info()
+semantic_models[[1L]]$dax_query(
   dax = Sys.getenv("FABRIC_DAX_QUERY")
 )
 
-# Discover executable items that can be passed to fabric_job_run()
+# Runnable items expose lifecycle methods
 notebook <- fabric_notebooks(workspace)[[1]]
 pipeline <- fabric_data_pipelines(workspace)[[1]]
 spark_job <- fabric_spark_job_definitions(workspace)[[1]]
 
-fabric_job_wait(fabric_job_run(notebook), timeout = 900)
-fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
-fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
+notebook$wait(notebook$run(), timeout = 900)
+pipeline$wait(pipeline$run(), timeout = 900)
+spark_job$wait(spark_job$run(), timeout = 900)
 
 # Discover supporting Spark and serverless-function items as well
 environments <- fabric_environments(workspace)

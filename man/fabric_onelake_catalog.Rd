@@ -63,11 +63,11 @@ fabric_warehouse_table(
 )
 }
 \arguments{
-\item{lakehouse}{Lakehouse GUID, exact display name, or one Lakehouse record
+\item{lakehouse}{Lakehouse GUID, exact display name, or one Lakehouse object
 returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}.}
 
 \item{workspace}{Workspace GUID, exact display name, or discovered workspace.
-Omit it when the item record contains \code{workspaceId}.}
+Omit it when the item object contains \code{workspaceId}.}
 
 \item{page_size}{Optional maximum schemas requested per metadata page, from
 1 to 100. All continuation tokens are followed.}
@@ -88,7 +88,7 @@ resolved. Most users should keep the default.}
 \item{table_api_base}{OneLake Delta table API base URL. Most users should
 keep the default.}
 
-\item{warehouse}{Warehouse GUID, exact display name, or one Warehouse record
+\item{warehouse}{Warehouse GUID, exact display name, or one Warehouse object
 returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}}.}
 
 \item{table}{Table name, or a record containing a \code{name}, \code{table}, or

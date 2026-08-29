@@ -5,12 +5,12 @@
 #' The singular table helpers retrieve one table's full column metadata without
 #' listing every table in every schema.
 #'
-#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse record
+#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse object
 #'   returned by [fabric_lakehouses()].
-#' @param warehouse Warehouse GUID, exact display name, or one Warehouse record
+#' @param warehouse Warehouse GUID, exact display name, or one Warehouse object
 #'   returned by [fabric_warehouses()].
 #' @param workspace Workspace GUID, exact display name, or discovered workspace.
-#'   Omit it when the item record contains `workspaceId`.
+#'   Omit it when the item object contains `workspaceId`.
 #' @param table Table name, or a record containing a `name`, `table`, or
 #'   `displayName` field. A record can also supply `schema`.
 #' @param schema Schema containing `table`. Defaults to the Lakehouse default

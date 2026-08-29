@@ -27,9 +27,9 @@
 #'   R6 objects with type-specific methods. Use `"list"` when a plain record is
 #'   specifically required
 #'
-#' @return A list with one workspace record per visible workspace. With
-#'   `output = "r6"`, each record is a [FabricWorkspace]. With
-#'   `output = "list"`, each record is a `fabric_workspace` list. Both
+#' @return A list with one workspace object per visible workspace. With
+#'   `output = "r6"`, each object is a [FabricWorkspace]. With
+#'   `output = "list"`, each object is a `fabric_workspace` list. Both
 #'   representations preserve all fields returned by Fabric
 #' @details
 #' The caller needs permission to read Fabric workspaces. Discovery uses the
@@ -45,12 +45,15 @@
 #' # Sign in and list every Fabric workspace you can access
 #' workspaces <- fabric_workspaces()
 #'
-#' # Inspect the names before choosing a workspace record
+#' # Inspect a field before choosing a workspace
 #' vapply(workspaces, `[[`, character(1), "displayName")
 #' workspace <- workspaces[[1L]]
+#' workspace$displayName
 #'
-#' # Pass the discovered record directly to the next discovery step
-#' items <- fabric_items(workspace)
+#' # Continue discovery through the workspace object
+#' items <- workspace$items()
+#' lakehouse <- workspace$lakehouses()[[1L]]
+#' lakehouse$tables()
 #' }
 #' @export
 fabric_workspaces <- function(
@@ -137,11 +140,12 @@ fabric_workspaces <- function(
 #' Discover Microsoft Fabric items
 #'
 #' Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
-#' items stored in a workspace. Set `detail = TRUE` when you want records that
-#' can be passed directly to query or connection functions
+#' items stored in a workspace. By default, actionable items are returned as
+#' type-specific R6 objects whose methods perform the matching query,
+#' connection, file, Spark, or job operations
 #'
-#' @param workspace Workspace name, ID, or record returned by
-#'   [fabric_workspaces()]. A name is convenient for interactive use; a record
+#' @param workspace Workspace name, ID, or object returned by
+#'   [fabric_workspaces()]. A name is convenient for interactive use; an object
 #'   avoids an extra lookup
 #' @param type Optional Fabric API item type, for example `"Lakehouse"`,
 #'   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
@@ -170,14 +174,14 @@ fabric_workspaces <- function(
 #'   supply this together with `personal_workspace_tenant_id` when a
 #'   `dax_connection_string` is needed for a semantic model in My Workspace
 #' @inheritParams fabric_workspaces
-#' @param api_base Fabric REST API base URL. When `workspace` is a record
+#' @param api_base Fabric REST API base URL. When `workspace` is an object
 #'   containing `apiEndpoint`, that workspace-specific endpoint is used unless
 #'   `api_base` is supplied explicitly
 #'
-#' @return A list with one item record per match. Every record includes common
+#' @return A list with one item object per match. Every object includes common
 #'   fields such as `id`, `displayName`, `type`, and `workspaceId`. With
-#'   `output = "r6"`, records are [FabricItem] objects or type-specific
-#'   subclasses. With `output = "list"`, records are `fabric_item` lists. With
+#'   `output = "r6"`, results are [FabricItem] objects or type-specific
+#'   subclasses. With `output = "list"`, results are `fabric_item` lists. With
 #'   `detail = TRUE`, both representations include connection details when
 #'   Fabric makes them available
 #' @details
@@ -200,16 +204,13 @@ fabric_workspaces <- function(
 #' workspaces <- fabric_workspaces()
 #' workspace <- workspaces[[1L]]
 #'
-#' # List lightweight item records and inspect their names and types
-#' items <- fabric_items(workspace)
+#' # Continue through the workspace object and inspect service fields
+#' items <- workspace$items()
 #' vapply(items, `[[`, character(1), "displayName")
 #'
-#' # Ask for enriched records when another function needs connection details
-#' lakehouses <- fabric_items(
-#'   workspace,
-#'   type = "Lakehouse",
-#'   detail = TRUE
-#' )
+#' # Type-specific objects expose their next actions as methods
+#' lakehouse <- workspace$lakehouses()[[1L]]
+#' lakehouse$tables()
 #' }
 #' @export
 fabric_items <- function(
@@ -389,9 +390,9 @@ fabric_items <- function(
 #' Use this when you know the item's name or ID and do not need to list every
 #' item in the workspace
 #'
-#' @param item Item GUID, exact display name, or an item record returned
+#' @param item Item GUID, exact display name, or an item object returned
 #'   by a discovery function. A display name must identify exactly one item of
-#'   the requested `type`; use a GUID or discovered record when names are
+#'   the requested `type`; use a GUID or discovered object when names are
 #'   duplicated
 #' @inheritParams fabric_items
 #'
@@ -406,15 +407,15 @@ fabric_items <- function(
 #' [fabric_items()] with `detail = FALSE` when only core item metadata is needed
 #' @examples
 #' \dontrun{
-#' # Discover a workspace and obtain a lightweight Warehouse record
+#' # Discover a workspace and obtain a lightweight Warehouse object
 #' workspace <- fabric_workspaces()[[1L]]
-#' warehouses <- fabric_items(workspace, type = "Warehouse")
+#' warehouses <- workspace$items(type = "Warehouse")
 #'
-#' # Enrich that discovered record with connection details
+#' # Enrich that discovered object with connection details
 #' warehouse <- fabric_item(workspace, warehouses[[1L]])
 #'
-#' # The result can be passed directly to SQL helpers
-#' fabric_sql_connection_info(warehouse)
+#' # The enriched R6 object exposes the matching SQL methods
+#' warehouse$sql_connection_info()
 #' }
 #' @export
 fabric_item <- function(
@@ -527,9 +528,9 @@ fabric_item <- function(
 
 #' Typed Microsoft Fabric item discovery
 #'
-#' These shortcuts find one kind of Fabric item. Most also retrieve workload
-#' connection details by default, so their results can usually be passed
-#' straight to the next 'fabricQueryR' call. Semantic Model and GraphQL helpers
+#' These shortcuts find one kind of Fabric item. By default, they return R6
+#' objects with service fields and type-specific methods for the useful next
+#' actions. Most also retrieve workload connection details. Semantic Model and GraphQL helpers
 #' default to lightweight discovery because their executable targets are
 #' derived from list-level IDs and workspace fields; set `detail = TRUE` when
 #' their workload-specific properties are needed
@@ -537,25 +538,24 @@ fabric_item <- function(
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`,
 #'   `fabric_warehouse_snapshots()`, and `fabric_mirrored_databases()` find data
-#'   stores that can be queried through [fabric_sql_query()]; Lakehouses and
+#'   stores with `$sql_query()` and other SQL methods; Lakehouses and
 #'   mirrored databases can also be accessed through OneLake
 #' - `fabric_sql_databases()` finds transactional Fabric SQL databases
-#' - `fabric_semantic_models()` finds the business models queried with DAX via
-#'   [fabric_pbi_dax_query()]
+#' - `fabric_semantic_models()` finds business models with `$dax_query()` and
+#'   refresh lifecycle methods
 #' - `fabric_eventhouses()` and `fabric_kql_databases()` find real-time data
-#'   stores queried with [fabric_kql_query()]
-#' - `fabric_notebooks()` finds notebooks that can be run with
-#'   [fabric_job_run()]
+#'   stores with `$query()`, `$read_table()`, ingestion, and export methods
+#' - `fabric_notebooks()` finds notebooks with job lifecycle and schedule methods
 #' - `fabric_data_pipelines()` and `fabric_spark_job_definitions()` find the
-#'   other executable items supported by [fabric_job_run()]
+#'   other executable items with the same job methods
 #' - `fabric_environments()` finds reusable Spark runtime configurations
 #' - `fabric_user_data_functions()` finds serverless Python function items
-#' - `fabric_graphql_apis()` finds APIs configured in Fabric for use with
-#'   [fabric_graphql_query()]
+#' - `fabric_graphql_apis()` finds APIs configured in Fabric with `$query()`,
+#'   `$schema()`, and `$paginate()` methods
 #'
 #' @section Filtering and returned fields:
 #' Each helper requests its exact Fabric item type and verifies that every
-#' returned record has that type. The records otherwise keep all fields
+#' returned object has that type. The objects otherwise keep all fields
 #' returned by Fabric, including fields added by the service in the future
 #'
 #' Folder recursion, workspace-specific private-link routing, authentication,
@@ -568,9 +568,9 @@ fabric_item <- function(
 #' @inheritParams fabric_items
 #' @param ... Authentication and API arguments forwarded to [fabric_items()]
 #'   Do not supply `type`; each helper sets that value
-#' @return A list with one `fabric_item` object per matching item. Each object
-#'   contains common item metadata and applicable connection fields. See
-#'   [fabric_items()] for details
+#' @return A list with one [FabricItem] object or type-specific R6 subclass per
+#'   matching item. Each object contains common item metadata, applicable
+#'   connection fields, and workload methods. See [fabric_items()] for details
 #' @references
 #' [List items REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
 #'
@@ -591,7 +591,7 @@ fabric_item <- function(
 #' [Get User Data Function](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/get-user-data-function)
 #' @examples
 #' \dontrun{
-#' # Discover a workspace once, then reuse its record for typed discovery
+#' # Discover a workspace once, then reuse its object for typed discovery
 #' workspace <- fabric_workspaces()[[1]]
 #'
 #' # Discover data items that feed the package's query and storage helpers
@@ -605,22 +605,21 @@ fabric_item <- function(
 #' kql_databases <- fabric_kql_databases(workspace)
 #' graphql_apis <- fabric_graphql_apis(workspace)
 #'
-#' # A discovered record can be passed directly to a matching helper
-#' fabric_lakehouse_tables(lakehouses[[1L]])
-#' fabric_sql_connection_info(warehouses[[1L]])
-#' fabric_pbi_dax_query(
-#'   semantic_models[[1L]],
+#' # Discovered objects expose matching workload methods
+#' lakehouses[[1L]]$tables()
+#' warehouses[[1L]]$sql_connection_info()
+#' semantic_models[[1L]]$dax_query(
 #'   dax = Sys.getenv("FABRIC_DAX_QUERY")
 #' )
 #'
-#' # Discover executable items that can be passed to fabric_job_run()
+#' # Runnable items expose lifecycle methods
 #' notebook <- fabric_notebooks(workspace)[[1]]
 #' pipeline <- fabric_data_pipelines(workspace)[[1]]
 #' spark_job <- fabric_spark_job_definitions(workspace)[[1]]
 #'
-#' fabric_job_wait(fabric_job_run(notebook), timeout = 900)
-#' fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
-#' fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
+#' notebook$wait(notebook$run(), timeout = 900)
+#' pipeline$wait(pipeline$run(), timeout = 900)
+#' spark_job$wait(spark_job$run(), timeout = 900)
 #'
 #' # Discover supporting Spark and serverless-function items as well
 #' environments <- fabric_environments(workspace)
@@ -1058,7 +1057,7 @@ fabric_resolve_workspace <- function(
 ) {
   # 1 Reuse a supplied record ----------------------------------------------------------------------
 
-  # A discovered record may already contain a workspace-specific API endpoint
+  # A discovered object may already contain a workspace-specific API endpoint
 
   supplied <- fabric_as_record(workspace)
   if (!is.null(supplied)) {

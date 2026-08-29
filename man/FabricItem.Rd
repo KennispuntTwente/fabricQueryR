@@ -27,20 +27,40 @@ Users normally receive objects from \code{\link[=fabric_workspaces]{fabric_works
 rather than constructing them directly.
 }
 \details{
-Every object preserves the complete Fabric API record. Non-conflicting
-fields remain directly readable with \code{$}, while \verb{$get()} and \verb{$as_list()}
-provide collision-safe and plain-record access. Record fields are read-only.
+Every object includes the complete Fabric API record. Read non-conflicting
+fields directly with \code{$}; use \verb{$get()} for collision-safe field access and
+\verb{$as_list()} for a plain record. Record fields are read-only.
 
 Methods delegate to the corresponding \verb{fabric_*()} function. Their \code{...}
 arguments are forwarded unchanged, and the credential used for discovery is
-reused while the object remains in the current R process. An explicitly
+reused while the object is in the current R process. An explicitly
 supplied \code{token}, \code{tenant_id}, \code{client_id}, or \code{auth_args} takes precedence.
 
 SQL-capable resources inherit common \verb{sql_*()} methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 semantic models, and runnable job items add workload-specific methods.
-Other discovered types remain \code{FabricItem} objects with \verb{$details()} and
-record access, avoiding methods that cannot operate from discovery metadata.
+Other discovered types are returned as \code{FabricItem} objects with \verb{$details()}
+and record access. They do not expose methods that cannot operate from
+discovery metadata.
+}
+\examples{
+\dontrun{
+workspace <- fabric_workspaces()[[1L]]
+workspace$displayName
+
+lakehouse <- workspace$lakehouses()[[1L]]
+lakehouse$id
+lakehouse$tables()
+orders <- lakehouse$read_table("orders", limit = 100L)
+
+# Workload-specific subclasses expose their own lifecycle methods
+model <- workspace$semantic_models()[[1L]]
+refresh <- model$refresh()
+model$refresh_wait(refresh, timeout = 1800)
+
+# Convert only when another interface specifically requires a plain record
+lakehouse_record <- lakehouse$as_list()
+}
 }
 \section{Super class}{
 \code{FabricRecord} -> \code{FabricWorkspace}
@@ -94,7 +114,7 @@ record access, avoiding methods that cannot operate from discovery metadata.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{record}}{One named Fabric workspace record.}
-      \item{\code{legacy_class}}{Classes restored by \verb{$as_list()}.}
+      \item{\code{legacy_class}}{Classes assigned by \verb{$as_list()}.}
       \item{\code{credential}}{Optional internal authentication credential.}
     }
     \if{html}{\out{</div>}}
@@ -527,7 +547,7 @@ record access, avoiding methods that cannot operate from discovery metadata.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{record}}{One named Fabric item record.}
-      \item{\code{legacy_class}}{Classes restored by \verb{$as_list()}.}
+      \item{\code{legacy_class}}{Classes assigned by \verb{$as_list()}.}
       \item{\code{credential}}{Optional internal authentication credential.}
     }
     \if{html}{\out{</div>}}

@@ -5,8 +5,8 @@
 #' reads from a Lakehouse or Warehouse, SQL is often faster to start
 #'
 #' @param livy_url A Livy connection URL copied from the Lakehouse settings, or
-#'   an enriched Lakehouse record from [fabric_lakehouses()] or [fabric_item()]
-#'   A discovered record avoids copying workspace and Lakehouse IDs
+#'   an enriched Lakehouse object from [fabric_lakehouses()] or [fabric_item()]
+#'   A discovered object avoids copying workspace and Lakehouse IDs
 #' @param code One string containing the Spark code to run. Objects created in
 #'   this temporary session are lost after the function returns, although
 #'   writes made to Lakehouse storage persist

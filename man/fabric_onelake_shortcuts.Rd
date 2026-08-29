@@ -97,10 +97,10 @@ fabric_onelake_shortcut_delete(
 )
 }
 \arguments{
-\item{item}{Destination Fabric item name, GUID, or record returned by a
+\item{item}{Destination Fabric item name, GUID, or object returned by a
 discovery function.}
 
-\item{workspace}{Workspace name, GUID, or discovery record containing
+\item{workspace}{Workspace name, GUID, or discovery object containing
 \code{item}. May be omitted when \code{item} contains \code{workspaceId}.}
 
 \item{item_type}{Optional item type used to disambiguate a destination item

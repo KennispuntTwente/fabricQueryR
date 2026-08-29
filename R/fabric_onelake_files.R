@@ -56,7 +56,7 @@
 #' cleanup is not attempted, but a committed rename may already have consumed
 #' the staging path, so the condition reports its presence as unknown
 #'
-#' @param workspace Workspace name, ID, record from [fabric_workspaces()], or a
+#' @param workspace Workspace name, ID, object from [fabric_workspaces()], or a
 #'   complete OneLake HTTPS/ABFSS path
 #' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
 #'   `workspace` is a complete OneLake path. An item from [fabric_lakehouses()] is
@@ -186,7 +186,7 @@ NULL
 #' Arrow inputs without collecting the complete object in R memory, and decode
 #' supported OneLake files directly to a tibble or Arrow stream.
 #'
-#' @param workspace Workspace name, ID, record from [fabric_workspaces()], or a
+#' @param workspace Workspace name, ID, object from [fabric_workspaces()], or a
 #'   complete OneLake HTTPS/ABFSS path.
 #' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
 #'   `workspace` is a complete OneLake path.
@@ -212,7 +212,7 @@ NULL
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()].
 #' @param dfs_base OneLake DFS service address. A private or regional endpoint
-#'   on a discovered record is preferred when this argument is omitted.
+#'   on a discovered object is preferred when this argument is omitted.
 #' @param allow_managed_tables Whether direct writes below `Tables/` are
 #'   permitted. Keep the safe default, `FALSE`, for managed Delta tables.
 #' @param chunk_size Upload chunk size in bytes.

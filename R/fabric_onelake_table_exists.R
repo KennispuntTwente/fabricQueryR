@@ -8,7 +8,7 @@
 #' needed.
 #'
 #' @param item Fabric data item GUID, exact display name, or a discovered item
-#'   record. A record containing `workspaceId` avoids workspace discovery.
+#'   object. An object containing `workspaceId` avoids workspace discovery.
 #' @param schema Schema or Iceberg namespace name. For a table, `NULL` uses the
 #'   item's discovered default schema and otherwise falls back to `"dbo"`.
 #' @param table Table name or a record containing `name`, `table`, or

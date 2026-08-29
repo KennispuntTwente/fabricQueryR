@@ -20,13 +20,13 @@ fabric_item(
 )
 }
 \arguments{
-\item{workspace}{Workspace name, ID, or record returned by
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
+\item{workspace}{Workspace name, ID, or object returned by
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; an object
 avoids an extra lookup}
 
-\item{item}{Item GUID, exact display name, or an item record returned
+\item{item}{Item GUID, exact display name, or an item object returned
 by a discovery function. A display name must identify exactly one item of
-the requested \code{type}; use a GUID or discovered record when names are
+the requested \code{type}; use a GUID or discovered object when names are
 duplicated}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
@@ -54,7 +54,7 @@ to let 'fabricQueryR' use its normal sign-in flow}
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
-\item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
+\item{api_base}{Fabric REST API base URL. When \code{workspace} is an object
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 \code{api_base} is supplied explicitly}
 
@@ -81,14 +81,14 @@ workload-specific read scope and access to the item. Use
 }
 \examples{
 \dontrun{
-# Discover a workspace and obtain a lightweight Warehouse record
+# Discover a workspace and obtain a lightweight Warehouse object
 workspace <- fabric_workspaces()[[1L]]
-warehouses <- fabric_items(workspace, type = "Warehouse")
+warehouses <- workspace$items(type = "Warehouse")
 
-# Enrich that discovered record with connection details
+# Enrich that discovered object with connection details
 warehouse <- fabric_item(workspace, warehouses[[1L]])
 
-# The result can be passed directly to SQL helpers
-fabric_sql_connection_info(warehouse)
+# The enriched R6 object exposes the matching SQL methods
+warehouse$sql_connection_info()
 }
 }

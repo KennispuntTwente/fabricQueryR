@@ -20,7 +20,9 @@ This guide starts with one small query. It then introduces schema inspection,
 pagination, and collection into a tibble. You only need the later sections when
 the result spans several pages or contains nested fields.
 
-Start with a discovered API so its endpoint and workspace travel together:
+Start with a discovered API. The result is a read-only `FabricGraphQLApi` R6
+object, so its endpoint, workspace, and credential travel with its query,
+schema, and pagination methods:
 
 ```{r, eval = FALSE}
 library(fabricQueryR)
@@ -38,8 +40,7 @@ Fabric API was configured, so replace `products`, `id`, and `name` with fields
 from your API:
 
 ```{r, eval = FALSE}
-response <- fabric_graphql_query(
-  api,
+response <- api$query(
   query = "{ products { items { id name } } }"
 )
 
@@ -58,13 +59,13 @@ admin can enable it under *API Settings > Introspection*. Once enabled, the
 standard introspection response is available as a nested R list:
 
 ```{r, eval = FALSE}
-schema <- fabric_graphql_schema(api)
+schema <- api$schema()
 
 schema$queryType$name
 vapply(schema$types, `[[`, character(1), "name")
 ```
 
-`fabric_graphql_schema()` stops with a
+`$schema()` stops with a
 `fabric_graphql_introspection_error` when the service does not return a complete
 schema. Its message points to the administrator setting and the portal's
 *Export schema* alternative. Export remains available when runtime
@@ -77,8 +78,7 @@ Fabric normally represents a generated collection with `items`,
 and use a stable explicit ordering when pages must be repeatable:
 
 ```{r, eval = FALSE}
-pages <- fabric_graphql_paginate(
-  api,
+pages <- api$paginate(
   query = paste(
     "query Products($first: Int!, $after: String) {",
     "  products(first: $first, after: $after, orderBy: {id: ASC}) {",
@@ -133,7 +133,7 @@ remain available, while combined service errors stay in
 
 ## Treat incomplete pagination as partial data
 
-`fabric_graphql_paginate()` marks a result complete only after the API reports
+`$paginate()` marks a result complete only after the API reports
 that no next page exists. If a page limit is reached first, collection raises
 an error rather than returning an apparently complete tibble. The partial rows
 remain available for explicit recovery:

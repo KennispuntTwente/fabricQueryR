@@ -47,7 +47,7 @@ fabric_sql_read_table(
 }
 \arguments{
 \item{server}{Fabric SQL endpoint, portal connection string, or discovered
-SQL-capable item record.}
+SQL-capable item object.}
 
 \item{schema}{Optional schema filter. \code{fabric_sql_read_table()} defaults to
 the schema in a discovered table row, otherwise \code{"dbo"}.}
@@ -90,7 +90,7 @@ list-column \code{columns}, and the unmodified discovery row in \code{raw}.
 \description{
 These helpers provide a target-independent metadata and table-read layer for
 Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
-and SQL Database records, or the same direct server inputs as
+and SQL Database objects, or the same direct server inputs as
 \code{\link[=fabric_sql_query]{fabric_sql_query()}}. Discovery uses SQL catalog metadata views and is
 limited by the caller's SQL metadata permissions.
 }

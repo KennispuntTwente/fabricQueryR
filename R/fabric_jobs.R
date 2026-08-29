@@ -24,11 +24,11 @@
 #' Fabric item from R. The related functions check its progress, wait for it to
 #' finish, or request cancellation. Use Fabric's scheduler for recurring runs
 #'
-#' @param item Item GUID, exact display name, or an item record returned
-#'   by a discovery function. A discovered record is recommended because it
+#' @param item Item GUID, exact display name, or an item object returned
+#'   by a discovery function. A discovered object is recommended because it
 #'   already includes the item type and workspace ID
-#' @param workspace Workspace GUID, exact display name, or a workspace record
-#'   Omit it when `item` is a discovered record containing `workspaceId`
+#' @param workspace Workspace GUID, exact display name, or a discovered object
+#'   Omit it when `item` is a discovered object containing `workspaceId`
 #' @param job_type Fabric job type. 'fabricQueryR' uses the current typed
 #'   `"Execute"` operation for data pipelines and knows the usual values for
 #'   notebooks and Spark job definitions, so normally omit this unless running
@@ -52,7 +52,7 @@
 #'   notebook settings. In custom payload fields, wrap a one-element atomic
 #'   vector in [I()] (or use an unnamed list) when it must remain a JSON array.
 #'   The typed DataPipeline `Execute` endpoint does not accept a request body
-#' @param default_lakehouse Optional Lakehouse GUID or discovered record used to
+#' @param default_lakehouse Optional Lakehouse GUID or discovered object used to
 #'   set the notebook's default Lakehouse for this run. This changes the run
 #'   context, not the notebook's saved default
 #' @param default_lakehouse_workspace Optional workspace GUID or discovered

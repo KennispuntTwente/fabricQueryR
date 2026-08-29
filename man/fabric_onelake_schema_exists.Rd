@@ -38,7 +38,7 @@ fabric_onelake_table_exists(
 }
 \arguments{
 \item{item}{Fabric data item GUID, exact display name, or a discovered item
-record. A record containing \code{workspaceId} avoids workspace discovery.}
+object. An object containing \code{workspaceId} avoids workspace discovery.}
 
 \item{schema}{Schema or Iceberg namespace name. For a table, \code{NULL} uses the
 item's discovered default schema and otherwise falls back to \code{"dbo"}.}

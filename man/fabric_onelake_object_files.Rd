@@ -45,7 +45,7 @@ fabric_onelake_write_file(
 )
 }
 \arguments{
-\item{workspace}{Workspace name, ID, record from \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or a
+\item{workspace}{Workspace name, ID, object from \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or a
 complete OneLake HTTPS/ABFSS path.}
 
 \item{item}{Item name, GUID, or discovered Fabric item. Use \code{NULL} when
@@ -73,7 +73,7 @@ complete OneLake HTTPS/ABFSS path.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{dfs_base}{OneLake DFS service address. A private or regional endpoint
-on a discovered record is preferred when this argument is omitted.}
+on a discovered object is preferred when this argument is omitted.}
 
 \item{data}{A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
 Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.}

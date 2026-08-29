@@ -5,11 +5,11 @@
 #' metadata for every table. A returned row can be passed directly to
 #' [fabric_warehouse_read_table()].
 #'
-#' @param warehouse Warehouse GUID, exact display name, or one Warehouse record
-#'   returned by [fabric_warehouses()]. A discovered record is recommended
+#' @param warehouse Warehouse GUID, exact display name, or one Warehouse object
+#'   returned by [fabric_warehouses()]. A discovered object is recommended
 #'   because it contains the workspace and item IDs.
 #' @param workspace Workspace GUID, exact display name, or discovered workspace.
-#'   Omit it when `warehouse` is a record containing `workspaceId`.
+#'   Omit it when `warehouse` is an object containing `workspaceId`.
 #' @param schema Optional Warehouse schema. When omitted, every schema is
 #'   listed.
 #' @param detail Whether to retrieve per-table column metadata.
@@ -320,20 +320,20 @@ fabric_warehouse_read_table <- function(
 #' inputs are consumed as record batches and are not first collected into an R
 #' data frame.
 #'
-#' @param warehouse A Warehouse record returned by [fabric_warehouses()] or
+#' @param warehouse A Warehouse object returned by [fabric_warehouses()] or
 #'   [fabric_item()], or its name or GUID when `workspace` is supplied.
 #' @param table Destination table name.
 #' @param data A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
 #'   RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.
-#' @param staging_lakehouse A Lakehouse record returned by
+#' @param staging_lakehouse A Lakehouse object returned by
 #'   [fabric_lakehouses()] or [fabric_item()], or its name or GUID. Fabric does
 #'   not support a Warehouse item as the OneLake source of `COPY INTO`, so a
 #'   Lakehouse staging item is required.
-#' @param workspace Workspace name, GUID, or discovery record containing
-#'   `warehouse`. May be omitted when `warehouse` is a discovery record.
+#' @param workspace Workspace name, GUID, or discovery object containing
+#'   `warehouse`. May be omitted when `warehouse` is a discovery object.
 #' @param staging_workspace Workspace containing `staging_lakehouse`. Defaults
 #'   to the Warehouse workspace. May be omitted when `staging_lakehouse` is a
-#'   discovery record.
+#'   discovery object.
 #' @param schema Destination schema. Defaults to `"dbo"`.
 #' @param mode `"Append"` adds rows. `"Overwrite"` replaces the table contents
 #'   using `overwrite_method`.

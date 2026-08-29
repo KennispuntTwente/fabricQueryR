@@ -35,7 +35,7 @@ fabric_warehouse_write_table(
 )
 }
 \arguments{
-\item{warehouse}{A Warehouse record returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}} or
+\item{warehouse}{A Warehouse object returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}} or
 \code{\link[=fabric_item]{fabric_item()}}, or its name or GUID when \code{workspace} is supplied.}
 
 \item{table}{Destination table name.}
@@ -43,17 +43,17 @@ fabric_warehouse_write_table(
 \item{data}{A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
 RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.}
 
-\item{staging_lakehouse}{A Lakehouse record returned by
+\item{staging_lakehouse}{A Lakehouse object returned by
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}, or its name or GUID. Fabric does
 not support a Warehouse item as the OneLake source of \verb{COPY INTO}, so a
 Lakehouse staging item is required.}
 
-\item{workspace}{Workspace name, GUID, or discovery record containing
-\code{warehouse}. May be omitted when \code{warehouse} is a discovery record.}
+\item{workspace}{Workspace name, GUID, or discovery object containing
+\code{warehouse}. May be omitted when \code{warehouse} is a discovery object.}
 
 \item{staging_workspace}{Workspace containing \code{staging_lakehouse}. Defaults
 to the Warehouse workspace. May be omitted when \code{staging_lakehouse} is a
-discovery record.}
+discovery object.}
 
 \item{schema}{Destination schema. Defaults to \code{"dbo"}.}
 

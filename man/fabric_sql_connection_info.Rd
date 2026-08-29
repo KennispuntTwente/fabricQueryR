@@ -15,8 +15,8 @@ fabric_sql_connection_info(
 \arguments{
 \item{server}{A Fabric SQL server name, a complete connection string copied
 from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
-or SQL Database record returned by a discovery function. A discovered
-record is usually simplest because it also supplies the database name}
+or SQL Database object returned by a discovery function. A discovered
+object is usually simplest because it also supplies the database name}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database
@@ -33,7 +33,7 @@ hostname prevents 'fabricQueryR' from identifying it}
 \value{
 A \code{fabric_sql_connection_info} list with \code{server}, \code{database},
 \code{port}, \code{target_type}, and \code{source} (whether the input was text or a
-discovery record). No connection is opened
+discovery object). No connection is opened
 }
 \description{
 Shows the server, database, port, and item type that 'fabricQueryR' will use
@@ -42,9 +42,9 @@ for a Fabric SQL connection. Most users can pass a discovered item directly to
 }
 \examples{
 \dontrun{
-# Discover a Warehouse record that already contains its SQL endpoint
+# Discover a Warehouse object that already contains its SQL endpoint
 workspace <- fabric_workspaces()[[1L]]
-warehouse <- fabric_warehouses(workspace)[[1L]]
+warehouse <- workspace$warehouses()[[1L]]
 
 # Inspect connection details without opening a database connection
 info <- fabric_sql_connection_info(warehouse)

@@ -48,7 +48,7 @@
 #' Row-level security, SSO, user impersonation, and the Arrow endpoint have
 #' additional Power BI restrictions; see the linked Microsoft documentation
 #'
-#' @param connstr Optional semantic model record from
+#' @param connstr Optional semantic model object from
 #'   [fabric_semantic_models()] or [fabric_item()], or a Power BI connection
 #'   string. A character connection string can be, for example,
 #'   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`

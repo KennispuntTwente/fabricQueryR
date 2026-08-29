@@ -87,16 +87,16 @@
 #' string. `delete_after_download = TRUE` also requires delete permission and
 #' permanently removes successfully downloaded source blobs
 #'
-#' @param cluster Ingestion URI, or one Eventhouse or KQLDatabase record from
+#' @param cluster Ingestion URI, or one Eventhouse or KQLDatabase object from
 #'   [fabric_eventhouses()], [fabric_kql_databases()], or [fabric_item()]. A
-#'   KQLDatabase record also supplies `database`. Use the **Ingestion URI**, not
+#'   KQLDatabase object also supplies `database`. Use the **Ingestion URI**, not
 #'   the Query URI, for direct character input
 #' @param table One existing target KQL table name
 #' @param sources Existing blob or OneLake storage connection strings, a data
 #'   frame of source metadata, or a list of source records. See Sources and
 #'   storage access
 #' @param database Target KQL database display name. Omit it when `cluster` is a
-#'   discovered KQLDatabase record
+#'   discovered KQLDatabase object
 #' @param format Kusto ingestion format. Supported file formats include `csv`,
 #'   `json`, `multijson`, `parquet`, `avro`, `orc`, and the documented delimited
 #'   text formats
@@ -1772,7 +1772,7 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' unique destination present; upload errors report `staging_retained = NA` and
 #' the path to inspect.
 #'
-#' @param cluster Ingestion URI or Eventhouse/KQLDatabase discovery record; see
+#' @param cluster Ingestion URI or Eventhouse/KQLDatabase discovery object; see
 #'   [fabric_kql_ingest()].
 #' @param table Target KQL table name.
 #' @param data Data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
@@ -1817,7 +1817,7 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   `int`, `long`, `real`, and `string`. `NULL` infers them. Arrow time and
 #'   duration columns must be converted because Kusto's Parquet mapping cannot
 #'   ingest them as `timespan`.
-#' @param query_cluster Optional Kusto query-service URI or discovery record
+#' @param query_cluster Optional Kusto query-service URI or discovery object
 #'   used for table creation. A discovered `cluster` already carries this URI;
 #'   a standard Microsoft ingestion URI is converted to its paired query URI.
 #'   Supply this explicitly for a trusted custom ingestion endpoint.
@@ -3242,8 +3242,8 @@ kusto_write_result <- function(
 #' impersonation additionally needs write access equivalent to Storage Blob
 #' Data Contributor on the destination.
 #'
-#' @param cluster Query URI, or one Eventhouse or KQLDatabase discovery record.
-#'   A KQLDatabase record also supplies `database`.
+#' @param cluster Query URI, or one Eventhouse or KQLDatabase discovery object.
+#'   A KQLDatabase object also supplies `database`.
 #' @param query One non-empty KQL query. The first result set is exported.
 #' @param destination A discovered Fabric item, item name or ID, complete
 #'   OneLake path, or complete HTTPS/ABFSS Kusto storage connection string. A

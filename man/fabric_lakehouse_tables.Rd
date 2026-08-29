@@ -69,12 +69,12 @@ fabric_lakehouse_write_table(
 )
 }
 \arguments{
-\item{lakehouse}{Lakehouse GUID, exact display name, or one Lakehouse record
-returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A discovered record is recommended
+\item{lakehouse}{Lakehouse GUID, exact display name, or one Lakehouse object
+returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A discovered object is recommended
 because it includes the workspace and default schema.}
 
 \item{workspace}{Workspace GUID, exact display name, or discovered workspace.
-Omit it when \code{lakehouse} is a record containing \code{workspaceId}.}
+Omit it when \code{lakehouse} is a discovered object containing \code{workspaceId}.}
 
 \item{schema}{Optional Lakehouse schema. When omitted from
 \code{fabric_lakehouse_tables()}, every schema is listed. For loading, a
@@ -173,7 +173,7 @@ bytes.}
 \item{timeout}{Maximum total seconds to wait for an R/Arrow load.}
 
 \item{dfs_base}{OneLake DFS service address used for the staging upload.
-A workspace-specific endpoint from a discovered record is preferred when
+A workspace-specific endpoint from a discovered object is preferred when
 this argument is not supplied.}
 }
 \value{

@@ -25,16 +25,19 @@ library(fabricQueryR)
 notebook <- fabric_notebooks("Analytics workspace")[[1]]
 ```
 
+Discovery returns a read-only `FabricJobItem` R6 object. Read its service fields
+directly; its run, monitoring, and schedule methods use the item and
+authentication context.
+
 ## Run once and inspect history
 
 Start an on-demand job and wait for its terminal state:
 
 ```{r, eval = FALSE}
-job <- fabric_job_run(
-  notebook,
+job <- notebook$run(
   parameters = list(run_date = Sys.Date(), full_load = FALSE)
 )
-result <- fabric_job_wait(job, timeout = 900, cancel_on_timeout = TRUE)
+result <- notebook$wait(job, timeout = 900, cancel_on_timeout = TRUE)
 result$status
 ```
 
@@ -49,7 +52,7 @@ Scheduler by default. If a Notebook workflow needs the beta status fields,
 such as its exit value, opt in explicitly:
 
 ```{r, eval = FALSE}
-detailed <- fabric_job_status(
+detailed <- notebook$status(
   job,
   notebook_details = TRUE,
   respect_retry_after = FALSE
@@ -62,7 +65,7 @@ while changing schedules normally needs Write access. If an on-demand run works
 but schedule creation does not, ask the item owner to check your Write access.
 
 ```{r, eval = FALSE}
-history <- fabric_job_instances(notebook)
+history <- notebook$instances()
 
 history[[1]]$invoke_type
 history[[1]]$status
@@ -73,7 +76,7 @@ history[[1]]$failure_reason
 Refresh a history entry directly without copying its instance ID:
 
 ```{r, eval = FALSE}
-latest <- fabric_job_status(history[[1]])
+latest <- notebook$status(history[[1]])
 ```
 
 ## Build schedule configurations
@@ -115,21 +118,19 @@ Create one schedule from a validated configuration, then list the schedules for
 the item:
 
 ```{r, eval = FALSE}
-schedule <- fabric_job_schedule_create(notebook, weekly, enabled = TRUE)
-schedules <- fabric_job_schedules(notebook)
+schedule <- notebook$schedule_create(weekly, enabled = TRUE)
+schedules <- notebook$schedules()
 ```
 
 Disable or restart a schedule without rebuilding its configuration:
 
 ```{r, eval = FALSE}
-disabled <- fabric_job_schedule_update(
-  notebook,
+disabled <- notebook$schedule_update(
   schedule,
   enabled = FALSE
 )
 
-restarted <- fabric_job_schedule_update(
-  notebook,
+restarted <- notebook$schedule_update(
   schedule,
   enabled = TRUE
 )
@@ -144,7 +145,7 @@ Deletion is permanent and never inferred from a create or update conflict. It
 requires explicit confirmation:
 
 ```{r, eval = FALSE}
-fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
+notebook$schedule_delete(schedule, confirm = TRUE)
 ```
 
 Microsoft documents scheduler throttling, maximum job duration and concurrency,

@@ -36,9 +36,9 @@ fabric_livy_session(
 }
 \arguments{
 \item{livy_url}{A copied session or batch connection URL, Livy API base URL,
-or enriched Lakehouse record from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}
+or enriched Lakehouse object from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}
 Copy the session-job URL from \strong{Lakehouse settings > Livy endpoint}, or
-use a discovered record to avoid handling IDs manually}
+use a discovered object to avoid handling IDs manually}
 
 \item{high_concurrency}{Whether to let Fabric share Spark compute between
 several isolated workloads. Keep \code{FALSE} for a typical sequence of calls in

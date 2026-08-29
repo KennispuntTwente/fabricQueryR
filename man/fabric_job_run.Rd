@@ -80,12 +80,12 @@ fabric_job_cancel(
 )
 }
 \arguments{
-\item{item}{Item GUID, exact display name, or an item record returned
-by a discovery function. A discovered record is recommended because it
+\item{item}{Item GUID, exact display name, or an item object returned
+by a discovery function. A discovered object is recommended because it
 already includes the item type and workspace ID}
 
-\item{workspace}{Workspace GUID, exact display name, or a workspace record
-Omit it when \code{item} is a discovered record containing \code{workspaceId}}
+\item{workspace}{Workspace GUID, exact display name, or a discovered object
+Omit it when \code{item} is a discovered object containing \code{workspaceId}}
 
 \item{job_type}{Fabric job type. 'fabricQueryR' uses the current typed
 \code{"Execute"} operation for data pipelines and knows the usual values for
@@ -115,7 +115,7 @@ notebook settings. In custom payload fields, wrap a one-element atomic
 vector in \code{\link[=I]{I()}} (or use an unnamed list) when it must remain a JSON array.
 The typed DataPipeline \code{Execute} endpoint does not accept a request body}
 
-\item{default_lakehouse}{Optional Lakehouse GUID or discovered record used to
+\item{default_lakehouse}{Optional Lakehouse GUID or discovered object used to
 set the notebook's default Lakehouse for this run. This changes the run
 context, not the notebook's saved default}
 

@@ -6,7 +6,7 @@
 #' API; the reader uses the mirrored Delta log.
 #'
 #' @param mirrored_database Mirrored Database GUID, exact display name, or one
-#'   record returned by [fabric_mirrored_databases()]. A discovered record is
+#'   object returned by [fabric_mirrored_databases()]. A discovered object is
 #'   recommended because it contains workspace, OneLake, and SQL details.
 #' @param workspace Workspace GUID, exact display name, or discovered workspace.
 #'   Omit it when `mirrored_database` contains `workspaceId`.
@@ -43,7 +43,7 @@
 #'
 #' @section SQL alternative:
 #' Mirrored databases also expose a read-only SQL analytics endpoint. Pass a
-#' discovered mirrored database record to [fabric_sql_tables()],
+#' discovered mirrored database object to [fabric_sql_tables()],
 #' [fabric_sql_read_table()], or [fabric_sql_query()] when SQL permissions or
 #' SQL views are required.
 #'

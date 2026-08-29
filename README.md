@@ -64,7 +64,7 @@ workspace <- fabric_workspaces()[[1L]]
 lakehouse <- workspace$lakehouses()[[1L]]
 orders <- lakehouse$read_table("orders", limit = 1000)
 
-# Service fields remain directly accessible
+# Read service fields directly
 lakehouse$id
 lakehouse$displayName
 
@@ -88,19 +88,18 @@ Open a reusable 'DBI' connection to a Warehouse, SQL Database, or Lakehouse SQL
 analytics endpoint, or run a single query and return its result as a tibble.
 
 ``` r
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
 
-con <- fabric_sql_connect(lakehouse)
+con <- lakehouse$sql_connect()
 DBI::dbListTables(con)
 DBI::dbDisconnect(con)
 
-customers <- fabric_sql_query(
-  lakehouse,
+customers <- lakehouse$sql_query(
   "SELECT * FROM dbo.Customers WHERE region = 'West'"
 )
 ```
 
-`fabric_sql_connect()` supports both ODBC and ADBC. The default ODBC backend
+`$sql_connect()` supports both ODBC and ADBC. The default ODBC backend
 requires [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
 
 ### 3. Query a semantic model with DAX
@@ -109,10 +108,9 @@ Run a DAX query against a Fabric or Power BI semantic model and return the
 result as a tibble.
 
 ``` r
-semantic_model <- fabric_semantic_models(workspace)[[1L]]
+semantic_model <- workspace$semantic_models()[[1L]]
 
-customers <- fabric_pbi_dax_query(
-  semantic_model,
+customers <- semantic_model$dax_query(
   dax = "EVALUATE TOPN(1000, 'Customers')"
 )
 ```
@@ -126,10 +124,9 @@ Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return the
 result to the local R session.
 
 ``` r
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
 
-result <- fabric_livy_query(
-  lakehouse,
+result <- lakehouse$livy_query(
   kind = "sparkr",
   code = "print(1 + 2)"
 )
@@ -146,17 +143,16 @@ Move data between R and managed Delta tables in a Lakehouse. The writer accepts
 data frames as well as lazy Arrow sources.
 
 ``` r
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
-orders <- fabric_lakehouse_read_table(lakehouse, "orders")
+lakehouse <- workspace$lakehouses()[[1L]]
+orders <- lakehouse$read_table("orders")
 
-fabric_lakehouse_write_table(
-  lakehouse,
+lakehouse$write_table(
   table = "orders_from_r",
   data = orders
 )
 ```
 
-Use `fabric_lakehouse_load_table()` when the source CSV or Parquet data already
+Use `$load_table()` when the source CSV or Parquet data already
 exists under `Files/` in the same Lakehouse. See
 [Working with Fabric Lakehouses and OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html)
 for the distinction between ordinary files and managed Delta tables, table
@@ -172,18 +168,14 @@ Read and write common file formats directly between R and OneLake. Lakehouse
 file paths normally start with `Files/`.
 
 ``` r
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
 
-fabric_onelake_write_file(
-  workspace,
-  lakehouse,
+lakehouse$onelake_write_file(
   path = "Files/exports/orders.parquet",
   data = data.frame(id = 1:3, amount = c(10, 20, 30))
 )
 
-orders <- fabric_onelake_read_file(
-  workspace,
-  lakehouse,
+orders <- lakehouse$onelake_read_file(
   path = "Files/exports/orders.parquet"
 )
 ```
@@ -199,12 +191,11 @@ Read a Warehouse table into R or load an R or Arrow object into a Warehouse.
 Writes use a Lakehouse as temporary OneLake staging for Fabric's `COPY INTO`.
 
 ``` r
-warehouse <- fabric_warehouses(workspace)[[1L]]
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
-orders <- fabric_warehouse_read_table(warehouse, "orders")
+warehouse <- workspace$warehouses()[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
+orders <- warehouse$read_table("orders")
 
-fabric_warehouse_write_table(
-  warehouse,
+warehouse$write_table(
   table = "orders_copy",
   data = orders,
   staging_lakehouse = lakehouse,
@@ -223,15 +214,13 @@ Use KQL to query an Eventhouse database, or write an R or Arrow object to an
 existing KQL table.
 
 ``` r
-kql_database <- fabric_kql_databases(workspace)[[1L]]
+kql_database <- workspace$kql_databases()[[1L]]
 
-events <- fabric_kql_query(
-  kql_database,
+events <- kql_database$query(
   "Events | where EventType == 'Warning' | take 100"
 )
 
-fabric_kql_write_table(
-  kql_database,
+kql_database$write_table(
   table = "EventsCopy",
   data = events,
   create_if_missing = TRUE
@@ -248,10 +237,9 @@ Call an API for GraphQL item configured in Fabric. Data and GraphQL-level
 errors remain separately available in the result.
 
 ``` r
-graphql_api <- fabric_graphql_apis(workspace)[[1L]]
+graphql_api <- workspace$graphql_apis()[[1L]]
 
-result <- fabric_graphql_query(
-  graphql_api,
+result <- graphql_api$query(
   query = "{ customers { items { id name region } } }"
 )
 
@@ -282,12 +270,12 @@ for permissions, limits, and retry behavior.
 ### 11. Refresh a semantic model
 
 Start a semantic-model refresh and wait for its final state. The returned
-object retains the details needed to inspect failures.
+object includes the details needed to inspect failures.
 
 ``` r
-semantic_model <- fabric_semantic_models(workspace)[[1L]]
-refresh <- fabric_pbi_refresh(semantic_model)
-completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
+semantic_model <- workspace$semantic_models()[[1L]]
+refresh <- semantic_model$refresh()
+completed <- semantic_model$refresh_wait(refresh, timeout = 1800)
 
 completed$state
 ```
@@ -303,14 +291,13 @@ Start a notebook, data pipeline, or Spark job definition and wait for it to
 finish.
 
 ``` r
-notebook <- fabric_notebooks(workspace)[[1L]]
+notebook <- workspace$notebooks()[[1L]]
 
-job <- fabric_job_run(
-  notebook,
+job <- notebook$run(
   parameters = list(mode = "incremental")
 )
 
-result <- fabric_job_wait(job, timeout = 900)
+result <- notebook$wait(job, timeout = 900)
 result$status
 ```
 
@@ -328,12 +315,11 @@ Create a shortcut when data in another Fabric item should be available without
 being copied into the current Lakehouse.
 
 ``` r
-lakehouses <- fabric_lakehouses(workspace)
+lakehouses <- workspace$lakehouses()
 lakehouse <- lakehouses[[1L]]
 source_lakehouse <- lakehouses[[2L]]
 
-fabric_onelake_shortcut_create(
-  lakehouse,
+lakehouse$shortcut_create(
   path = "Files",
   name = "shared-orders",
   target = source_lakehouse,

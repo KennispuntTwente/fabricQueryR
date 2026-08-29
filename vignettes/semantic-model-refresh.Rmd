@@ -19,8 +19,9 @@ changes.
 Start by querying a small result. Refresh and monitoring come next, followed by
 the more specialized controls used for production models.
 
-This guide uses a discovered model so its workspace and dataset IDs travel
-together:
+This guide uses a discovered `FabricSemanticModel` R6 object. Read its service
+fields directly; its DAX and refresh methods reuse the
+workspace, dataset ID, and discovery credential:
 
 ```{r, eval = FALSE}
 library(fabricQueryR)
@@ -36,8 +37,7 @@ create and test a query in the model's *DAX query view* in Fabric, then use the
 same text from R:
 
 ```{r, eval = FALSE}
-rows <- fabric_pbi_dax_query(
-  model,
+rows <- model$dax_query(
   dax = "EVALUATE TOPN(100, 'Customers')"
 )
 
@@ -52,8 +52,7 @@ fit.
 For example, a DAX measure can be grouped by a model column:
 
 ```{r, eval = FALSE}
-sales <- fabric_pbi_dax_query(
-  model,
+sales <- model$dax_query(
   dax = paste(
     "EVALUATE",
     "SUMMARIZECOLUMNS(",
@@ -82,8 +81,8 @@ administrator to check those permissions and tenant settings.
 A standard refresh processes the complete model using Power BI defaults:
 
 ```{r, eval = FALSE}
-refresh <- fabric_pbi_refresh(model)
-completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
+refresh <- model$refresh()
+completed <- model$refresh_wait(refresh, timeout = 1800)
 
 completed$state
 completed$start_time
@@ -97,23 +96,22 @@ For example, a data-load workflow can refresh only after the source update has
 committed successfully:
 
 ```{r, eval = FALSE}
-load <- fabric_lakehouse_write_table(
-  lakehouse,
+load <- lakehouse$write_table(
   table = "Sales",
   data = new_sales,
   schema = "dbo",
   mode = "overwrite"
 )
 
-refresh <- fabric_pbi_refresh(model)
-completed <- fabric_pbi_refresh_wait(
+refresh <- model$refresh()
+completed <- model$refresh_wait(
   refresh,
   timeout = 1800,
   cancel_on_timeout = TRUE
 )
 ```
 
-Client-side `timeout` in `fabric_pbi_refresh_wait()` only bounds how long R
+Client-side `timeout` in `$refresh_wait()` only bounds how long R
 waits. Without `cancel_on_timeout = TRUE`, the Power BI refresh keeps running.
 
 ## Use enhanced refresh controls
@@ -123,8 +121,7 @@ Fabric capacity. Supplying an enhanced option selects enhanced mode
 automatically, or set `mode = "enhanced"` explicitly:
 
 ```{r, eval = FALSE}
-refresh <- fabric_pbi_refresh(
-  model,
+refresh <- model$refresh(
   mode = "enhanced",
   type = "Full",
   objects = list(
@@ -137,11 +134,11 @@ refresh <- fabric_pbi_refresh(
   timeout = "02:00:00"
 )
 
-completed <- fabric_pbi_refresh_wait(refresh, timeout = 5 * 60 * 60)
+completed <- model$refresh_wait(refresh, timeout = 5 * 60 * 60)
 ```
 
 The submission `timeout` controls an individual Power BI attempt; the numeric
-timeout in `fabric_pbi_refresh_wait()` controls how long R waits. Use
+timeout in `$refresh_wait()` controls how long R waits. Use
 `"Transactional"` when the previous model should remain available unless the
 complete refresh succeeds. See `?fabric_pbi_refresh` before using partial-batch
 commits or refresh-policy options.
@@ -151,7 +148,7 @@ commits or refresh-policy options.
 Use the status helper when a refresh takes longer than expected or fails:
 
 ```{r, eval = FALSE}
-status <- fabric_pbi_refresh_status(refresh)
+status <- model$refresh_status(refresh)
 
 status$state
 status$attempts
@@ -171,7 +168,7 @@ service timeouts, and disabled refreshes. Keep the terminal detail instead when
 building a monitoring table:
 
 ```{r, eval = FALSE}
-result <- fabric_pbi_refresh_wait(
+result <- model$refresh_wait(
   refresh,
   error_on_failure = FALSE
 )
@@ -184,14 +181,14 @@ if (result$state != "Completed") result$details_url
 Inspect recent refreshes when you need to compare duration or failure patterns:
 
 ```{r, eval = FALSE}
-history <- fabric_pbi_refresh_history(model, top = 10L)
+history <- model$refresh_history(top = 10L)
 
 history[[1]]$refresh_type
 history[[1]]$state
 history[[1]]$attempts
 
 # Refresh an old history entry from its request ID and stored model context
-latest <- fabric_pbi_refresh_status(history[[1]])
+latest <- model$refresh_status(history[[1]])
 ```
 
 ## More information

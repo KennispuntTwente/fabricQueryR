@@ -101,7 +101,7 @@ FabricRecord <- R6::R6Class(
     #' @returns A character vector.
     field_names = function() names(private$record),
 
-    #' @description Convert the object to its legacy discovery record.
+    #' @description Convert the object to a plain discovery record.
     #' @returns A `fabric_item` or `fabric_workspace` list.
     as_list = function() {
       structure(private$record, class = private$legacy_class)
@@ -162,23 +162,42 @@ FabricRecord <- R6::R6Class(
 #' [fabric_item()], the typed discovery helpers, or [fabric_catalog_search()]
 #' rather than constructing them directly.
 #'
-#' Every object preserves the complete Fabric API record. Non-conflicting
-#' fields remain directly readable with `$`, while `$get()` and `$as_list()`
-#' provide collision-safe and plain-record access. Record fields are read-only.
+#' Every object includes the complete Fabric API record. Read non-conflicting
+#' fields directly with `$`; use `$get()` for collision-safe field access and
+#' `$as_list()` for a plain record. Record fields are read-only.
 #'
 #' Methods delegate to the corresponding `fabric_*()` function. Their `...`
 #' arguments are forwarded unchanged, and the credential used for discovery is
-#' reused while the object remains in the current R process. An explicitly
+#' reused while the object is in the current R process. An explicitly
 #' supplied `token`, `tenant_id`, `client_id`, or `auth_args` takes precedence.
 #'
 #' SQL-capable resources inherit common `sql_*()` methods. Lakehouses,
 #' Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 #' semantic models, and runnable job items add workload-specific methods.
-#' Other discovered types remain `FabricItem` objects with `$details()` and
-#' record access, avoiding methods that cannot operate from discovery metadata.
+#' Other discovered types are returned as `FabricItem` objects with `$details()`
+#' and record access. They do not expose methods that cannot operate from
+#' discovery metadata.
 #'
 #' @format An [R6::R6Class] generator.
 #' @return The corresponding R6 generator.
+#' @examples
+#' \dontrun{
+#' workspace <- fabric_workspaces()[[1L]]
+#' workspace$displayName
+#'
+#' lakehouse <- workspace$lakehouses()[[1L]]
+#' lakehouse$id
+#' lakehouse$tables()
+#' orders <- lakehouse$read_table("orders", limit = 100L)
+#'
+#' # Workload-specific subclasses expose their own lifecycle methods
+#' model <- workspace$semantic_models()[[1L]]
+#' refresh <- model$refresh()
+#' model$refresh_wait(refresh, timeout = 1800)
+#'
+#' # Convert only when another interface specifically requires a plain record
+#' lakehouse_record <- lakehouse$as_list()
+#' }
 #' @name FabricItem
 NULL
 
@@ -192,7 +211,7 @@ FabricWorkspace <- R6::R6Class(
   public = list(
     #' @description Internal constructor used by discovery factories.
     #' @param record One named Fabric workspace record.
-    #' @param legacy_class Classes restored by `$as_list()`.
+    #' @param legacy_class Classes assigned by `$as_list()`.
     #' @param credential Optional internal authentication credential.
     initialize = function(
       record,
@@ -377,7 +396,7 @@ FabricItem <- R6::R6Class(
   public = list(
     #' @description Internal constructor used by discovery factories.
     #' @param record One named Fabric item record.
-    #' @param legacy_class Classes restored by `$as_list()`.
+    #' @param legacy_class Classes assigned by `$as_list()`.
     #' @param credential Optional internal authentication credential.
     initialize = function(
       record,

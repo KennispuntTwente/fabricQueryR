@@ -38,7 +38,7 @@ fabric_kql_write_table(
 )
 }
 \arguments{
-\item{cluster}{Ingestion URI or Eventhouse/KQLDatabase discovery record; see
+\item{cluster}{Ingestion URI or Eventhouse/KQLDatabase discovery object; see
 \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}
 
 \item{table}{Target KQL table name.}
@@ -116,7 +116,7 @@ canonical types are \code{bool}, \code{datetime}, \code{decimal}, \code{dynamic}
 duration columns must be converted because Kusto's Parquet mapping cannot
 ingest them as \code{timespan}.}
 
-\item{query_cluster}{Optional Kusto query-service URI or discovery record
+\item{query_cluster}{Optional Kusto query-service URI or discovery object
 used for table creation. A discovered \code{cluster} already carries this URI;
 a standard Microsoft ingestion URI is converted to its paired query URI.
 Supply this explicitly for a trusted custom ingestion endpoint.}

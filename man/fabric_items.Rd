@@ -24,8 +24,8 @@ fabric_items(
 )
 }
 \arguments{
-\item{workspace}{Workspace name, ID, or record returned by
-\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; a record
+\item{workspace}{Workspace name, ID, or object returned by
+\code{\link[=fabric_workspaces]{fabric_workspaces()}}. A name is convenient for interactive use; an object
 avoids an extra lookup}
 
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
@@ -74,7 +74,7 @@ to let 'fabricQueryR' use its normal sign-in flow}
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
 
-\item{api_base}{Fabric REST API base URL. When \code{workspace} is a record
+\item{api_base}{Fabric REST API base URL. When \code{workspace} is an object
 containing \code{apiEndpoint}, that workspace-specific endpoint is used unless
 \code{api_base} is supplied explicitly}
 
@@ -83,17 +83,18 @@ R6 objects with type-specific methods. Use \code{"list"} when a plain record is
 specifically required}
 }
 \value{
-A list with one item record per match. Every record includes common
+A list with one item object per match. Every object includes common
 fields such as \code{id}, \code{displayName}, \code{type}, and \code{workspaceId}. With
-\code{output = "r6"}, records are \link{FabricItem} objects or type-specific
-subclasses. With \code{output = "list"}, records are \code{fabric_item} lists. With
+\code{output = "r6"}, results are \link{FabricItem} objects or type-specific
+subclasses. With \code{output = "list"}, results are \code{fabric_item} lists. With
 \code{detail = TRUE}, both representations include connection details when
 Fabric makes them available
 }
 \description{
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
-items stored in a workspace. Set \code{detail = TRUE} when you want records that
-can be passed directly to query or connection functions
+items stored in a workspace. By default, actionable items are returned as
+type-specific R6 objects whose methods perform the matching query,
+connection, file, Spark, or job operations
 }
 \details{
 The caller needs at least access to the workspace (the Viewer role is
@@ -109,16 +110,13 @@ require both \code{personal_workspace_tenant_id} and \code{personal_workspace_ow
 workspaces <- fabric_workspaces()
 workspace <- workspaces[[1L]]
 
-# List lightweight item records and inspect their names and types
-items <- fabric_items(workspace)
+# Continue through the workspace object and inspect service fields
+items <- workspace$items()
 vapply(items, `[[`, character(1), "displayName")
 
-# Ask for enriched records when another function needs connection details
-lakehouses <- fabric_items(
-  workspace,
-  type = "Lakehouse",
-  detail = TRUE
-)
+# Type-specific objects expose their next actions as methods
+lakehouse <- workspace$lakehouses()[[1L]]
+lakehouse$tables()
 }
 }
 \references{

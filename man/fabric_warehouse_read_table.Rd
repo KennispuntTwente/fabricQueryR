@@ -26,14 +26,14 @@ fabric_warehouse_read_table(
 )
 }
 \arguments{
-\item{warehouse}{A Warehouse record returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}} or
+\item{warehouse}{A Warehouse object returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}} or
 \code{\link[=fabric_item]{fabric_item()}}, or its name or GUID when \code{workspace} is supplied.}
 
 \item{table}{Warehouse table name, or a record containing a \code{name}, \code{table},
 or \code{displayName} field.}
 
-\item{workspace}{Workspace name, GUID, or discovery record containing
-\code{warehouse}. May be omitted when \code{warehouse} is a discovery record.}
+\item{workspace}{Workspace name, GUID, or discovery object containing
+\code{warehouse}. May be omitted when \code{warehouse} is a discovery object.}
 
 \item{schema}{Warehouse schema. Defaults to \code{"dbo"}; a table record can
 supply its schema when this argument is omitted.}

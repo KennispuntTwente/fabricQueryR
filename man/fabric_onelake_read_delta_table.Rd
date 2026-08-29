@@ -26,10 +26,10 @@ fabric_onelake_read_delta_table(
 \arguments{
 \item{table_path}{Table name. Supply its schema separately when needed}
 
-\item{workspace_name}{Workspace name, ID, or a record returned by
+\item{workspace_name}{Workspace name, ID, or an object returned by
 \code{\link[=fabric_workspaces]{fabric_workspaces()}}}
 
-\item{lakehouse_name}{Lakehouse name, ID, or discovery record. Compatible
+\item{lakehouse_name}{Lakehouse name, ID, or discovery object. Compatible
 Warehouse and mirrored database items are also accepted}
 
 \item{schema}{Schema containing the table, or \code{NULL}. Warehouses and mirrored

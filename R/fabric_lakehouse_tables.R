@@ -17,11 +17,11 @@
 #'   uploads it to a unique `Files/` staging path, waits for the Delta load, and
 #'   removes the staged file after confirmed success by default.
 #'
-#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse record
-#'   returned by [fabric_lakehouses()]. A discovered record is recommended
+#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse object
+#'   returned by [fabric_lakehouses()]. A discovered object is recommended
 #'   because it includes the workspace and default schema.
 #' @param workspace Workspace GUID, exact display name, or discovered workspace.
-#'   Omit it when `lakehouse` is a record containing `workspaceId`.
+#'   Omit it when `lakehouse` is a discovered object containing `workspaceId`.
 #' @param schema Optional Lakehouse schema. When omitted from
 #'   `fabric_lakehouse_tables()`, every schema is listed. For loading, a
 #'   discovered schema-enabled Lakehouse supplies its documented default
@@ -91,7 +91,7 @@
 #' @param table_api_base OneLake Delta table API base URL. Most users should
 #'   keep the default.
 #' @param dfs_base OneLake DFS service address used for the staging upload.
-#'   A workspace-specific endpoint from a discovered record is preferred when
+#'   A workspace-specific endpoint from a discovered object is preferred when
 #'   this argument is not supplied.
 #'
 #' @section Preview status and permissions:
@@ -222,16 +222,16 @@ NULL
 #' Read a Microsoft Fabric Lakehouse table
 #'
 #' Provides the symmetric read counterpart to [fabric_lakehouse_write_table()].
-#' It resolves a discovered Lakehouse and table record, then delegates to the
+#' It resolves a discovered Lakehouse object and table record, then delegates to the
 #' authenticated OneLake Delta reader. Use `result = "arrow_stream"` to keep a
 #' larger result out of R memory.
 #'
-#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse record
-#'   returned by [fabric_lakehouses()]. A discovered record is recommended
+#' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse object
+#'   returned by [fabric_lakehouses()]. A discovered object is recommended
 #'   because it carries its workspace ID and default schema.
 #' @param table Table name or one row returned by [fabric_lakehouse_tables()].
 #' @param workspace Workspace GUID, exact display name, or discovered workspace.
-#'   Omit it when `lakehouse` is a record containing `workspaceId`.
+#'   Omit it when `lakehouse` is a discovered object containing `workspaceId`.
 #' @param schema Optional schema. A table record supplies its schema when this
 #'   argument is omitted.
 #' @param columns Optional unique column names to project before collection.
@@ -249,7 +249,7 @@ NULL
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()].
 #' @param dfs_base OneLake DFS service address. A private or regional endpoint
-#'   on a discovered record is preferred when this argument is omitted.
+#'   on a discovered object is preferred when this argument is omitted.
 #'
 #' @return A tibble, or a disk-backed `nanoarrow_array_stream` when
 #'   `result = "arrow_stream"`. Explicit release deletes its temporary file.
@@ -325,7 +325,7 @@ fabric_lakehouse_read_table <- function(
   if (is.null(workspace)) {
     .fabric_abort(
       paste0(
-        "workspace is required unless lakehouse is a discovered record ",
+        "workspace is required unless lakehouse is a discovered object ",
         "containing workspaceId"
       ),
       class = c("fabric_lakehouse_read_error", "fabric_delta_error")

@@ -21,8 +21,8 @@ fabric_kql_query(
 }
 \arguments{
 \item{cluster}{Query URI, or one Eventhouse or
-KQLDatabase record returned by \code{\link[=fabric_eventhouses]{fabric_eventhouses()}},
-\code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, or \code{\link[=fabric_item]{fabric_item()}}. A KQLDatabase record also
+KQLDatabase object returned by \code{\link[=fabric_eventhouses]{fabric_eventhouses()}},
+\code{\link[=fabric_kql_databases]{fabric_kql_databases()}}, or \code{\link[=fabric_item]{fabric_item()}}. A KQLDatabase object also
 supplies \code{database}. Despite the argument name, use Fabric's \strong{Query URI}
 here}
 
@@ -30,7 +30,7 @@ here}
 \code{"Events | where Severity == 'Error' | take 100"}}
 
 \item{database}{KQL database display name. Supply it with a copied Query URI
-or an Eventhouse record; omit it when \code{cluster} is a KQLDatabase record}
+or an Eventhouse object; omit it when \code{cluster} is a KQLDatabase object}
 
 \item{parameters}{Named list of values declared with
 \verb{declare query_parameters(...)} in \code{query}}

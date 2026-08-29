@@ -31,8 +31,8 @@ fabric_sql_connect(
 \arguments{
 \item{server}{A Fabric SQL server name, a complete connection string copied
 from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
-or SQL Database record returned by a discovery function. A discovered
-record is usually simplest because it also supplies the database name}
+or SQL Database object returned by a discovery function. A discovered
+object is usually simplest because it also supplies the database name}
 
 \item{database}{Optional catalog/database. An explicit value overrides a
 database found in \code{server}. For a bare endpoint, supply the item database

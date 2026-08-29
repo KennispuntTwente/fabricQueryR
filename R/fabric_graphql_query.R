@@ -130,7 +130,7 @@
 #' character values so identifiers and other large integer fields are not
 #' rounded
 #'
-#' @param api GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+#' @param api GraphQL endpoint, API ID, or one discovered GraphQLApi object. An
 #'   item from [fabric_graphql_apis()] is usually easiest
 #'   because it supplies the endpoint and workspace ID
 #' @param query One GraphQL document containing a query or mutation. Use
@@ -141,7 +141,7 @@
 #' @param operation_name Optional operation name. Supply it when the document
 #'   contains more than one named operation; otherwise leave `NULL`
 #' @param workspace_id Workspace GUID. Required when `api` is a GraphQL API
-#'   GUID, and otherwise inferred from a discovered record
+#'   GUID, and otherwise inferred from a discovered object
 #' @param error_policy How GraphQL-level errors are handled. `"return"`
 #'   lets the caller inspect partial data and errors; `"warn"` also makes errors
 #'   visible immediately; `"error"` stops and attaches the result to a

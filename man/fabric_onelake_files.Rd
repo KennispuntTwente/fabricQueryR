@@ -93,7 +93,7 @@ fabric_onelake_delete(
 )
 }
 \arguments{
-\item{workspace}{Workspace name, ID, record from \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or a
+\item{workspace}{Workspace name, ID, object from \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or a
 complete OneLake HTTPS/ABFSS path}
 
 \item{item}{Item name, GUID, or discovered Fabric item. Use \code{NULL} when

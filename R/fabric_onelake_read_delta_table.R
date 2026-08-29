@@ -83,9 +83,9 @@
 #' logs. If the reader cannot open a Warehouse table, use [fabric_sql_query()]
 #'
 #' @param table_path Table name. Supply its schema separately when needed
-#' @param workspace_name Workspace name, ID, or a record returned by
+#' @param workspace_name Workspace name, ID, or an object returned by
 #'   [fabric_workspaces()]
-#' @param lakehouse_name Lakehouse name, ID, or discovery record. Compatible
+#' @param lakehouse_name Lakehouse name, ID, or discovery object. Compatible
 #'   Warehouse and mirrored database items are also accepted
 #' @param schema Schema containing the table, or `NULL`. Warehouses and mirrored
 #'   databases default to `"dbo"` when discovery provides no default

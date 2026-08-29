@@ -19,8 +19,9 @@ from R.
 ## Find and connect to a Warehouse
 
 Start by finding the workspace and Warehouse by name. The returned `warehouse`
-object contains the IDs and SQL connection details that the other functions
-need:
+is a read-only `FabricWarehouse` R6 object. It keeps its Fabric fields, IDs,
+SQL connection details, and credential, and provides methods for the useful
+next actions:
 
 ```{r, eval = FALSE}
 library(fabricQueryR)
@@ -29,18 +30,17 @@ workspaces <- fabric_workspaces()
 matches <- Filter(\(x) identical(x$displayName, "Analytics"), workspaces)
 stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
-warehouse <- fabric_warehouses(workspace)[[1L]]
+warehouse <- workspace$warehouses()[[1L]]
 ```
 
 The SQL endpoint is the address that database tools use to reach the
 Warehouse. Because it is included in `warehouse`, you do not need to find or
 copy that address from the Fabric portal.
 
-For a single query, pass that object directly to `fabric_sql_query()`:
+For a single query, call the object's `$sql_query()` method:
 
 ```{r, eval = FALSE}
-orders <- fabric_sql_query(
-  warehouse,
+orders <- warehouse$sql_query(
   "SELECT TOP 10 * FROM dbo.orders"
 )
 ```
@@ -49,21 +49,21 @@ The function opens and closes the SQL connection for you. If you want to run
 several commands with 'DBI', open a reusable connection instead:
 
 ```{r, eval = FALSE}
-con <- fabric_sql_connect(warehouse)
+con <- warehouse$sql_connect()
 DBI::dbListTables(con)
 DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.orders")
 DBI::dbDisconnect(con)
 ```
 
-For a simple read, `fabric_warehouse_read_table()` lets you name a table and
+For a simple read, `$read_table()` lets you name a table and
 optionally select columns or limit the rows, without writing SQL. It uses SQL
 internally. `fabric_sql_read_table()` is the more general version for any
 supported Fabric SQL item.
 
-Use `fabric_sql_query()` when you need filters, joins, grouping, or other SQL.
-Use `fabric_sql_connect()` when you want to keep a connection open for several
+Use `$sql_query()` when you need filters, joins, grouping, or other SQL.
+Use `$sql_connect()` when you want to keep a connection open for several
 'DBI' calls. To add or replace many rows from an R data frame or Arrow source,
-use `fabric_warehouse_write_table()`. See `vignette("reading-data")` for more
+use `$write_table()`. See `vignette("reading-data")` for more
 reading examples.
 
 ## Prepare a staging Lakehouse for writes
@@ -73,7 +73,7 @@ package temporarily stores files there while Fabric loads them, then removes
 the files after a confirmed successful write:
 
 ```{r, eval = FALSE}
-staging_lakehouse <- fabric_lakehouses(workspace)[[1L]]
+staging_lakehouse <- workspace$lakehouses()[[1L]]
 ```
 
 ## Add rows to an existing table
@@ -83,8 +83,7 @@ to the table; it does not remove or change the rows already there. The existing
 table columns must match the R data frame:
 
 ```{r, eval = FALSE}
-written <- fabric_warehouse_write_table(
-  warehouse,
+written <- warehouse$write_table(
   table = "orders",
   data = data.frame(
     id = 1:3,
@@ -104,8 +103,7 @@ written$staging_retained
 If you want to create a new table, you can use `create_if_missing = TRUE`:
 
 ```{r, eval = FALSE}
-created <- fabric_warehouse_write_table(
-  warehouse,
+created <- warehouse$write_table(
   table = "orders_from_r",
   data = orders,
   staging_lakehouse = staging_lakehouse,
@@ -118,8 +116,7 @@ created <- fabric_warehouse_write_table(
 Use overwrite mode when the new data should replace the current rows:
 
 ```{r, eval = FALSE}
-replaced <- fabric_warehouse_write_table(
-  warehouse,
+replaced <- warehouse$write_table(
   table = "orders",
   data = replacement,
   staging_lakehouse = staging_lakehouse,
@@ -132,8 +129,7 @@ The default `"Truncate"` method preserves the existing table definition. Use
 `"Drop"` only when Fabric should infer a new definition from the incoming data:
 
 ```{r, eval = FALSE}
-recreated <- fabric_warehouse_write_table(
-  warehouse,
+recreated <- warehouse$write_table(
   table = "orders",
   data = replacement,
   staging_lakehouse = staging_lakehouse,
@@ -157,8 +153,7 @@ processed in batches instead of first being collected into an R data frame:
 ```{r, eval = FALSE}
 dataset <- arrow::open_dataset("local-parquet-directory")
 
-written <- fabric_warehouse_write_table(
-  warehouse,
+written <- warehouse$write_table(
   table = "orders",
   data = dataset,
   staging_lakehouse = staging_lakehouse

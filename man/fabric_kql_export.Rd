@@ -35,8 +35,8 @@ fabric_kql_export(
 )
 }
 \arguments{
-\item{cluster}{Query URI, or one Eventhouse or KQLDatabase discovery record.
-A KQLDatabase record also supplies \code{database}.}
+\item{cluster}{Query URI, or one Eventhouse or KQLDatabase discovery object.
+A KQLDatabase object also supplies \code{database}.}
 
 \item{query}{One non-empty KQL query. The first result set is exported.}
 

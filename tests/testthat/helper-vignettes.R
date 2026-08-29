@@ -18,6 +18,15 @@ vignette_safe_setup <- function(chunk) {
     !inherits(try(parse(text = code), silent = TRUE), "try-error")
 }
 
+vignette_mock_r6 <- function(fields = list(), methods = list(), class = NULL) {
+  object <- new.env(parent = emptyenv())
+  list2env(c(fields, methods), envir = object)
+  if (!is.null(class)) {
+    class(object) <- c(class, "R6")
+  }
+  object
+}
+
 vignette_evaluate_chunks <- function(
   path,
   indices,

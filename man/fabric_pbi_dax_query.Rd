@@ -25,7 +25,7 @@ fabric_pbi_dax_query(
 )
 }
 \arguments{
-\item{connstr}{Optional semantic model record from
+\item{connstr}{Optional semantic model object from
 \code{\link[=fabric_semantic_models]{fabric_semantic_models()}} or \code{\link[=fabric_item]{fabric_item()}}, or a Power BI connection
 string. A character connection string can be, for example,
 \code{"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"}

@@ -13,9 +13,9 @@
 #'
 #' Start a semantic-model refresh, inspect recent refreshes and execution
 #' details, wait for completion, or cancel an enhanced refresh. The easiest
-#' target is a record returned by [fabric_semantic_models()]
+#' target is an object returned by [fabric_semantic_models()]
 #'
-#' @param connstr Optional semantic-model record from
+#' @param connstr Optional semantic-model object from
 #'   [fabric_semantic_models()] or [fabric_item()], or a Power BI connection
 #'   string. Omit it when `dataset_id` is supplied
 #' @param workspace_id Optional shared-workspace GUID. For a semantic model in

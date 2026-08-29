@@ -2,20 +2,21 @@
 
 ## New
 
-* `fabric_workspaces()`, `fabric_items()`, and type-specific functions such as
-`fabric_lakehouses()` and `fabric_semantic_models()` discover common Fabric
-resources as read-only R6 objects. They retain every service field, reuse the
-discovery credential, and provide type-specific methods for workspaces, SQL
-items, Lakehouses, Warehouses, mirrored databases, Eventhouses, KQL databases,
-GraphQL APIs, semantic models, and runnable jobs. Semantic models, runnable
-jobs, and KQL items also expose status, wait, and cancellation methods for the
-asynchronous work they start. Discovered resources can be passed directly to
-other 'fabricQueryR' functions, avoiding copied IDs and endpoints in most
-workflows. Use `$as_list()` or `output = "list"` when a plain record is
-specifically required.
+* Discovery functions find the Fabric workspaces and items available to the
+signed-in user or application. Use `fabric_workspaces()` and `fabric_items()`
+for general discovery, or typed helpers such as `fabric_lakehouses()` and
+`fabric_semantic_models()` to find a specific kind of item. Discovery results
+are read-only R6 objects that include every service field, reuse the discovery
+credential, and provide type-specific methods for workspaces, SQL items,
+Lakehouses, Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL
+APIs, semantic models, and runnable jobs. Semantic models, runnable jobs, and
+KQL items also expose status, wait, and cancellation methods for asynchronous
+work. Discovered resources can be passed directly to other 'fabricQueryR'
+functions, avoiding copied IDs and endpoints in most workflows. Use
+`$as_list()` or `output = "list"` when a plain record is specifically required.
 
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
-sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
+sessions and standalone batch jobs. `fabric_livy_query()` is the simplest
 option for running one piece of Spark code.
 
 * `fabric_onelake_read_file()`, `fabric_onelake_write_file()`,

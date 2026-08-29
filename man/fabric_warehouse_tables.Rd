@@ -20,12 +20,12 @@ fabric_warehouse_tables(
 )
 }
 \arguments{
-\item{warehouse}{Warehouse GUID, exact display name, or one Warehouse record
-returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}}. A discovered record is recommended
+\item{warehouse}{Warehouse GUID, exact display name, or one Warehouse object
+returned by \code{\link[=fabric_warehouses]{fabric_warehouses()}}. A discovered object is recommended
 because it contains the workspace and item IDs.}
 
 \item{workspace}{Workspace GUID, exact display name, or discovered workspace.
-Omit it when \code{warehouse} is a record containing \code{workspaceId}.}
+Omit it when \code{warehouse} is an object containing \code{workspaceId}.}
 
 \item{schema}{Optional Warehouse schema. When omitted, every schema is
 listed.}

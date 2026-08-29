@@ -19,12 +19,12 @@ fabric_graphql_schema(
 )
 }
 \arguments{
-\item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+\item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi object. An
 item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
 because it supplies the endpoint and workspace ID}
 
 \item{workspace_id}{Workspace GUID. Required when \code{api} is a GraphQL API
-GUID, and otherwise inferred from a discovered record}
+GUID, and otherwise inferred from a discovered object}
 
 \item{timeout}{Maximum time in seconds for the request. The default allows
 Fabric's own 100-second query timeout response to arrive}

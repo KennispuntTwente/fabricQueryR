@@ -23,14 +23,14 @@ fabric_lakehouse_read_table(
 )
 }
 \arguments{
-\item{lakehouse}{Lakehouse GUID, exact display name, or one Lakehouse record
-returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A discovered record is recommended
+\item{lakehouse}{Lakehouse GUID, exact display name, or one Lakehouse object
+returned by \code{\link[=fabric_lakehouses]{fabric_lakehouses()}}. A discovered object is recommended
 because it carries its workspace ID and default schema.}
 
 \item{table}{Table name or one row returned by \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}}.}
 
 \item{workspace}{Workspace GUID, exact display name, or discovered workspace.
-Omit it when \code{lakehouse} is a record containing \code{workspaceId}.}
+Omit it when \code{lakehouse} is a discovered object containing \code{workspaceId}.}
 
 \item{schema}{Optional schema. A table record supplies its schema when this
 argument is omitted.}
@@ -59,7 +59,7 @@ argument is omitted.}
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}.}
 
 \item{dfs_base}{OneLake DFS service address. A private or regional endpoint
-on a discovered record is preferred when this argument is omitted.}
+on a discovered object is preferred when this argument is omitted.}
 }
 \value{
 A tibble, or a disk-backed \code{nanoarrow_array_stream} when
@@ -67,7 +67,7 @@ A tibble, or a disk-backed \code{nanoarrow_array_stream} when
 }
 \description{
 Provides the symmetric read counterpart to \code{\link[=fabric_lakehouse_write_table]{fabric_lakehouse_write_table()}}.
-It resolves a discovered Lakehouse and table record, then delegates to the
+It resolves a discovered Lakehouse object and table record, then delegates to the
 authenticated OneLake Delta reader. Use \code{result = "arrow_stream"} to keep a
 larger result out of R memory.
 }

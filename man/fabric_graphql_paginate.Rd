@@ -26,7 +26,7 @@ fabric_graphql_paginate(
 )
 }
 \arguments{
-\item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+\item{api}{GraphQL endpoint, API ID, or one discovered GraphQLApi object. An
 item from \code{\link[=fabric_graphql_apis]{fabric_graphql_apis()}} is usually easiest
 because it supplies the endpoint and workspace ID}
 
@@ -48,7 +48,7 @@ cursor, commonly \code{"after"}. It must match the variable declared in \code{qu
 contains more than one named operation; otherwise leave \code{NULL}}
 
 \item{workspace_id}{Workspace GUID. Required when \code{api} is a GraphQL API
-GUID, and otherwise inferred from a discovered record}
+GUID, and otherwise inferred from a discovered object}
 
 \item{error_policy}{How GraphQL-level errors are handled. \code{"return"}
 lets the caller inspect partial data and errors; \code{"warn"} also makes errors

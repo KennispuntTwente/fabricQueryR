@@ -46,9 +46,9 @@ R6 objects with type-specific methods. Use \code{"list"} when a plain record is
 specifically required}
 }
 \value{
-A list with one workspace record per visible workspace. With
-\code{output = "r6"}, each record is a \link{FabricWorkspace}. With
-\code{output = "list"}, each record is a \code{fabric_workspace} list. Both
+A list with one workspace object per visible workspace. With
+\code{output = "r6"}, each object is a \link{FabricWorkspace}. With
+\code{output = "list"}, each object is a \code{fabric_workspace} list. Both
 representations preserve all fields returned by Fabric
 }
 \description{
@@ -65,12 +65,15 @@ Fabric API and requires \code{Workspace.Read.All} or \code{Workspace.ReadWrite.A
 # Sign in and list every Fabric workspace you can access
 workspaces <- fabric_workspaces()
 
-# Inspect the names before choosing a workspace record
+# Inspect a field before choosing a workspace
 vapply(workspaces, `[[`, character(1), "displayName")
 workspace <- workspaces[[1L]]
+workspace$displayName
 
-# Pass the discovered record directly to the next discovery step
-items <- fabric_items(workspace)
+# Continue discovery through the workspace object
+items <- workspace$items()
+lakehouse <- workspace$lakehouses()[[1L]]
+lakehouse$tables()
 }
 }
 \references{

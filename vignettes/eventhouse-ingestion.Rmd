@@ -12,9 +12,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
 An Eventhouse stores event, log, and time-series data in KQL databases. In this
-guide, *ingestion* means adding rows to a KQL table. Start with
-`fabric_kql_write_table()`, which accepts an R data frame and manages staging,
-status checks, and cleanup for you.
+guide, *ingestion* means adding rows to a KQL table. Start with the discovered
+database's `$write_table()` method, which accepts an R data frame and manages
+staging, status checks, and cleanup for you.
 
 After the basic write, this guide shows how to monitor ingestion, use an
 existing storage file, scale up with Arrow, and export a large query result.
@@ -23,8 +23,9 @@ preview.
 
 ## Find a KQL database
 
-Start with a discovered KQL database. Its record contains both the query URI
-used by `fabric_kql_query()` and the ingestion URI used here:
+Start with a discovered KQL database. The result is a read-only
+`FabricKqlDatabase` R6 object. Its fields contain both the query and ingestion
+URIs, and its methods reuse that context and the discovery credential:
 
 ```{r, eval = FALSE}
 library(fabricQueryR)
@@ -39,8 +40,7 @@ Supply a destination table and an ordinary data frame or tibble. Use a new test
 table while learning:
 
 ```{r, eval = FALSE}
-written <- fabric_kql_write_table(
-  database,
+written <- database$write_table(
   table = "Events",
   data = data.frame(
     id = 1:3,
@@ -68,8 +68,8 @@ staging recovery options.
 
 ## Queue a tracked batch
 
-Use the lower-level `fabric_kql_ingest()` when the source file already exists
-in OneLake or supported blob storage. It does not upload a local file or
+Use the lower-level `$ingest()` method when the source file already exists in
+OneLake or supported blob storage. It does not upload a local file or
 serialize an R object, and the destination table must already exist.
 
 For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate a named
@@ -89,8 +89,7 @@ source string that contains credentials. Source IDs are generated when omitted
 and remain available on the returned handle:
 
 ```{r, eval = FALSE}
-ingestion <- fabric_kql_ingest(
-  database,
+ingestion <- database$ingest(
   table = "Events",
   sources = source,
   format = "csv",
@@ -105,7 +104,7 @@ ingestion$sources$source_id
 ```
 
 Use a stable `ingest_if_not_exists` key when the same logical batch may be
-submitted again. Queued ingestion is still an advanced, at-least-once workflow:
+submitted again. Queued ingestion is an advanced, at-least-once workflow:
 after an uncertain network result, inspect the tracked operation and target
 table before submitting the source again. See `?fabric_kql_ingest` for batching,
 source deletion, and storage-authentication options.
@@ -115,7 +114,7 @@ source deletion, and storage-authentication options.
 One status snapshot is useful for a scheduler that persists operation IDs:
 
 ```{r, eval = FALSE}
-snapshot <- fabric_kql_ingestion_status(ingestion)
+snapshot <- database$ingestion_status(ingestion)
 snapshot$state
 snapshot$counts
 ```
@@ -123,9 +122,8 @@ snapshot$counts
 For an interactive or single-process batch, poll with a client-side deadline:
 
 ```{r, eval = FALSE}
-result <- fabric_kql_ingestion_status(
+result <- database$ingestion_wait(
   ingestion,
-  wait = TRUE,
   timeout = 900,
   poll_interval = 2
 )
@@ -139,9 +137,8 @@ By default, a failed or partially successful batch raises an R condition. To
 inspect every terminal state as data instead:
 
 ```{r, eval = FALSE}
-result <- fabric_kql_ingestion_status(
+result <- database$ingestion_wait(
   ingestion,
-  wait = TRUE,
   error_on_failure = FALSE
 )
 
@@ -155,15 +152,14 @@ failed[c("source_id", "error_code", "failure_status", "message")]
 Query the destination after success:
 
 ```{r, eval = FALSE}
-loaded <- fabric_kql_query(
-  database,
+loaded <- database$query(
   query = "Events | where ingestion_time() > ago(1h) | take 100"
 )
 ```
 
 The caller needs permission to ingest into the destination table and read the
 source file. Keep a manually staged source until the tracked result is final and
-verified; `fabric_kql_write_table()` manages this retention rule for you.
+verified; `$write_table()` manages this retention rule for you.
 
 ## Scale up with Arrow
 
@@ -173,8 +169,7 @@ RecordBatchReader, or compatible stream to the same high-level writer:
 ```{r, eval = FALSE}
 dataset <- arrow::open_dataset("local-parquet-directory")
 
-written <- fabric_kql_write_table(
-  database,
+written <- database$write_table(
   table = "Events",
   data = dataset,
   mapping = "EventsParquet"
@@ -186,16 +181,15 @@ data frame. A supplied RecordBatchReader is single-use.
 
 ## Export a large KQL result to OneLake
 
-`fabric_kql_query()` is the right interface when the result belongs in R. When
+`$query()` is the right interface when the result belongs in R. When
 the result is too large for the client-result channel or should remain in
-Fabric, `fabric_kql_export()` runs Kusto's service-side export and writes the
+Fabric, `$export()` runs Kusto's service-side export and writes the
 first result set directly to storage:
 
 ```{r, eval = FALSE}
 lakehouse <- fabric_lakehouses("Telemetry workspace")[[1]]
 
-exported <- fabric_kql_export(
-  database,
+exported <- database$export(
   query = "Events | where observed_at > ago(7d)",
   destination = lakehouse,
   path = "Files/exports/events-weekly",

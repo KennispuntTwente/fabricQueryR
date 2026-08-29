@@ -137,45 +137,57 @@ test_that("the getting-started workflow executes against its documented API", {
   tutorial <- new.env(parent = baseenv())
   tutorial$calls <- character()
   tutorial$head <- utils::head
+  item <- vignette_mock_r6(
+    fields = list(displayName = "Patients", type = "Lakehouse")
+  )
+  lakehouse <- vignette_mock_r6(
+    fields = list(displayName = "Clinical", id = "lakehouse-1"),
+    methods = list(
+      tables = function() {
+        tutorial$calls <- c(tutorial$calls, "tables")
+        data.frame(
+          schema = "dbo",
+          name = "Patients",
+          type = "Managed",
+          stringsAsFactors = FALSE
+        )
+      },
+      read_table = function(table, limit) {
+        tutorial$calls <- c(tutorial$calls, "read")
+        tutorial$read <- list(
+          lakehouse = lakehouse,
+          table = table,
+          limit = limit
+        )
+        data.frame(id = 1:2, name = c("Ada", "Grace"))
+      }
+    ),
+    class = "FabricLakehouse"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(
+      displayName = "Analytics workspace",
+      id = "workspace-1"
+    ),
+    methods = list(
+      items = function() {
+        tutorial$calls <- c(tutorial$calls, "items")
+        list(item)
+      },
+      lakehouses = function() {
+        tutorial$calls <- c(tutorial$calls, "lakehouses")
+        list(lakehouse)
+      }
+    ),
+    class = "FabricWorkspace"
+  )
+  archive <- vignette_mock_r6(
+    fields = list(displayName = "Archive", id = "workspace-2"),
+    class = "FabricWorkspace"
+  )
   tutorial$fabric_workspaces <- function() {
     tutorial$calls <- c(tutorial$calls, "workspaces")
-    list(
-      list(displayName = "Analytics workspace", id = "workspace-1"),
-      list(displayName = "Archive", id = "workspace-2")
-    )
-  }
-  tutorial$fabric_items <- function(workspace) {
-    tutorial$calls <- c(tutorial$calls, "items")
-    expect_identical(workspace$id, "workspace-1")
-    list(list(displayName = "Patients", type = "Lakehouse"))
-  }
-  tutorial$fabric_lakehouses <- function(workspace) {
-    tutorial$calls <- c(tutorial$calls, "lakehouses")
-    expect_identical(workspace$id, "workspace-1")
-    list(list(displayName = "Clinical", id = "lakehouse-1"))
-  }
-  tutorial$fabric_lakehouse_tables <- function(lakehouse) {
-    tutorial$calls <- c(tutorial$calls, "tables")
-    expect_identical(lakehouse$id, "lakehouse-1")
-    data.frame(
-      schema = "dbo",
-      name = "Patients",
-      type = "Managed",
-      stringsAsFactors = FALSE
-    )
-  }
-  tutorial$fabric_lakehouse_read_table <- function(
-    lakehouse,
-    table,
-    limit
-  ) {
-    tutorial$calls <- c(tutorial$calls, "read")
-    tutorial$read <- list(
-      lakehouse = lakehouse,
-      table = table,
-      limit = limit
-    )
-    data.frame(id = 1:2, name = c("Ada", "Grace"))
+    list(workspace, archive)
   }
 
   values <- lapply(selected, function(chunk) {
@@ -203,8 +215,24 @@ test_that("authentication vignette executes discovery with one identity", {
     skip("Package vignette source is not available in installed test runs")
   }
   calls <- character()
-  workspace <- list(displayName = "Analytics", id = "workspace-id")
-  item <- list(displayName = "Orders", type = "Lakehouse", id = "item-id")
+  item <- vignette_mock_r6(
+    fields = list(
+      displayName = "Orders",
+      type = "Lakehouse",
+      id = "item-id"
+    ),
+    class = "FabricLakehouse"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(displayName = "Analytics", id = "workspace-id"),
+    methods = list(
+      items = function() {
+        calls <<- c(calls, "items")
+        list(item)
+      }
+    ),
+    class = "FabricWorkspace"
+  )
 
   example <- vignette_evaluate_chunks(
     path,
@@ -213,11 +241,6 @@ test_that("authentication vignette executes discovery with one identity", {
       fabric_workspaces = function(...) {
         calls <<- c(calls, "workspaces")
         list(workspace)
-      },
-      fabric_items = function(selected) {
-        calls <<- c(calls, "items")
-        expect_identical(selected$id, workspace$id)
-        list(item)
       }
     )
   )
@@ -231,40 +254,41 @@ test_that("ingestion vignette carries rows through Lakehouse writes", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  workspace <- list(displayName = "Analytics workspace", id = "workspace-id")
-  lakehouse <- list(displayName = "Lakehouse", id = "lakehouse-id")
   written <- NULL
-
-  example <- vignette_evaluate_chunks(
-    path,
-    2:4,
-    bindings = list(
-      fabric_workspaces = function(...) list(workspace),
-      fabric_lakehouses = function(selected, ...) {
-        expect_identical(selected$id, workspace$id)
-        list(lakehouse)
-      },
-      fabric_lakehouse_write_table = function(
-        target,
-        table,
-        data,
-        mode,
-        ...
-      ) {
+  lakehouse <- vignette_mock_r6(
+    fields = list(displayName = "Lakehouse", id = "lakehouse-id"),
+    methods = list(
+      write_table = function(table, data, mode, ...) {
         written <<- list(
-          target = target,
+          target = lakehouse,
           table = table,
           data = data,
           mode = mode
         )
         list(rows = nrow(data), staging_retained = FALSE)
       },
-      fabric_lakehouse_read_table = function(target, table, limit, ...) {
-        expect_identical(target$id, lakehouse$id)
+      read_table = function(table, limit, ...) {
         expect_identical(table, "orders_from_r")
         expect_identical(limit, 10L)
         written$data
       }
+    ),
+    class = "FabricLakehouse"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(
+      displayName = "Analytics workspace",
+      id = "workspace-id"
+    ),
+    methods = list(lakehouses = function() list(lakehouse)),
+    class = "FabricWorkspace"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    2:4,
+    bindings = list(
+      fabric_workspaces = function(...) list(workspace)
     )
   )
 
@@ -278,8 +302,6 @@ test_that("OneLake vignette executes listing and table-read data flow", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  workspace <- list(displayName = "Analytics workspace", id = "workspace-id")
-  lakehouse <- list(displayName = "Lakehouse", id = "lakehouse-id")
   files <- data.frame(
     path = "Files/incoming/orders.csv",
     is_directory = FALSE,
@@ -291,32 +313,37 @@ test_that("OneLake vignette executes listing and table-read data flow", {
     type = "Managed",
     format = "delta"
   )
-
-  example <- vignette_evaluate_chunks(
-    path,
-    c(2L, 5L, 9L, 10L),
-    bindings = list(
-      fabric_workspaces = function(...) list(workspace),
-      fabric_lakehouses = function(selected, ...) list(lakehouse),
-      fabric_onelake_list = function(selected, item, path, ...) {
-        expect_identical(selected$id, workspace$id)
-        expect_identical(item$id, lakehouse$id)
+  lakehouse <- vignette_mock_r6(
+    fields = list(displayName = "Lakehouse", id = "lakehouse-id"),
+    methods = list(
+      onelake_list = function(path, ...) {
         expect_identical(path, "Files/incoming")
         files
       },
-      fabric_lakehouse_tables = function(item, ...) tables,
-      fabric_lakehouse_read_table = function(
-        item,
-        table,
-        columns,
-        limit,
-        ...
-      ) {
+      tables = function(...) tables,
+      read_table = function(table, columns, limit, ...) {
         expect_identical(table$name, "orders")
         expect_identical(columns, c("order_id", "amount"))
         expect_identical(limit, 100L)
         data.frame(order_id = 1L, amount = 10.5)
       }
+    ),
+    class = "FabricLakehouse"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(
+      displayName = "Analytics workspace",
+      id = "workspace-id"
+    ),
+    methods = list(lakehouses = function() list(lakehouse)),
+    class = "FabricWorkspace"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    c(2L, 5L, 9L, 10L),
+    bindings = list(
+      fabric_workspaces = function(...) list(workspace)
     )
   )
 
@@ -329,57 +356,94 @@ test_that("reading vignette executes every non-connection backend", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  workspace <- list(displayName = "Analytics workspace", id = "workspace-id")
-  item <- function(type) list(type = type, id = paste0(type, "-id"))
   calls <- character()
   rows <- data.frame(order_id = 1L, amount = 10.5)
+  lakehouse <- vignette_mock_r6(
+    fields = list(type = "Lakehouse", id = "lakehouse-id"),
+    methods = list(
+      read_table = function(...) {
+        calls <<- c(calls, "lakehouse")
+        rows
+      },
+      onelake_read_file = function(...) {
+        calls <<- c(calls, "onelake")
+        rows
+      },
+      livy_query = function(...) {
+        calls <<- c(calls, "livy")
+        list(output = list(parsed = rows))
+      }
+    ),
+    class = "FabricLakehouse"
+  )
+  warehouse <- vignette_mock_r6(
+    fields = list(type = "Warehouse", id = "warehouse-id"),
+    methods = list(
+      sql_query = function(...) {
+        calls <<- c(calls, "sql")
+        rows
+      },
+      read_table = function(...) {
+        calls <<- c(calls, "warehouse")
+        rows
+      }
+    ),
+    class = "FabricWarehouse"
+  )
+  kql_database <- vignette_mock_r6(
+    fields = list(type = "KQLDatabase", id = "kql-id"),
+    methods = list(
+      read_table = function(...) {
+        calls <<- c(calls, "kql-table")
+        rows
+      },
+      query = function(...) {
+        calls <<- c(calls, "kql-query")
+        rows
+      }
+    ),
+    class = "FabricKqlDatabase"
+  )
+  model <- vignette_mock_r6(
+    fields = list(type = "SemanticModel", id = "model-id"),
+    methods = list(
+      dax_query = function(...) {
+        calls <<- c(calls, "dax")
+        rows
+      }
+    ),
+    class = "FabricSemanticModel"
+  )
+  api <- vignette_mock_r6(
+    fields = list(type = "GraphQLApi", id = "graphql-id"),
+    methods = list(
+      query = function(...) {
+        calls <<- c(calls, "graphql")
+        list(data = list(products = list(items = rows)))
+      }
+    ),
+    class = "FabricGraphQLApi"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(
+      displayName = "Analytics workspace",
+      id = "workspace-id"
+    ),
+    methods = list(
+      lakehouses = function(...) list(lakehouse),
+      warehouses = function(...) list(warehouse),
+      kql_databases = function(...) list(kql_database),
+      semantic_models = function(...) list(model),
+      graphql_apis = function(...) list(api)
+    ),
+    class = "FabricWorkspace"
+  )
 
   example <- vignette_evaluate_chunks(
     path,
     c(2L, 3L, 5:11),
     bindings = list(
-      fabric_workspaces = function(...) list(workspace),
-      fabric_lakehouses = function(...) list(item("lakehouse")),
-      fabric_warehouses = function(...) list(item("warehouse")),
-      fabric_kql_databases = function(...) list(item("kql")),
-      fabric_semantic_models = function(...) list(item("model")),
-      fabric_sql_query = function(...) {
-        calls <<- c(calls, "sql")
-        rows
-      },
-      fabric_lakehouse_read_table = function(...) {
-        calls <<- c(calls, "lakehouse")
-        rows
-      },
-      fabric_warehouse_read_table = function(...) {
-        calls <<- c(calls, "warehouse")
-        rows
-      },
-      fabric_kql_read_table = function(...) {
-        calls <<- c(calls, "kql-table")
-        rows
-      },
-      fabric_kql_query = function(...) {
-        calls <<- c(calls, "kql-query")
-        rows
-      },
-      fabric_pbi_dax_query = function(...) {
-        calls <<- c(calls, "dax")
-        rows
-      },
-      fabric_onelake_read_file = function(...) {
-        calls <<- c(calls, "onelake")
-        rows
-      },
-      fabric_graphql_apis = function(...) list(item("graphql")),
-      fabric_graphql_query = function(...) {
-        calls <<- c(calls, "graphql")
-        list(data = list(products = list(items = rows)))
-      },
-      fabric_livy_query = function(...) {
-        calls <<- c(calls, "livy")
-        list(output = list(parsed = rows))
-      }
+      fabric_workspaces = function(...) list(workspace)
     )
   )
 
@@ -405,20 +469,16 @@ test_that("Warehouse vignette executes discovery, query, and staged writes", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  workspace <- list(displayName = "Analytics", id = "workspace-id")
-  warehouse <- list(displayName = "Warehouse", id = "warehouse-id")
-  lakehouse <- list(displayName = "Lakehouse", id = "lakehouse-id")
   writes <- list()
-
-  example <- vignette_evaluate_chunks(
-    path,
-    c(2L, 3L, 5:7),
-    bindings = list(
-      fabric_workspaces = function(...) list(workspace),
-      fabric_warehouses = function(...) list(warehouse),
-      fabric_lakehouses = function(...) list(lakehouse),
-      fabric_sql_query = function(...) data.frame(id = 1:2),
-      fabric_warehouse_write_table = function(...) {
+  lakehouse <- vignette_mock_r6(
+    fields = list(displayName = "Lakehouse", id = "lakehouse-id"),
+    class = "FabricLakehouse"
+  )
+  warehouse <- vignette_mock_r6(
+    fields = list(displayName = "Warehouse", id = "warehouse-id"),
+    methods = list(
+      sql_query = function(...) data.frame(id = 1:2),
+      write_table = function(...) {
         arguments <- list(...)
         writes[[length(writes) + 1L]] <<- arguments
         list(
@@ -427,6 +487,23 @@ test_that("Warehouse vignette executes discovery, query, and staged writes", {
           staging_retained = FALSE
         )
       }
+    ),
+    class = "FabricWarehouse"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(displayName = "Analytics", id = "workspace-id"),
+    methods = list(
+      warehouses = function(...) list(warehouse),
+      lakehouses = function(...) list(lakehouse)
+    ),
+    class = "FabricWorkspace"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    c(2L, 3L, 5:7),
+    bindings = list(
+      fabric_workspaces = function(...) list(workspace)
     )
   )
 
@@ -441,16 +518,28 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  database <- list(id = "database-id", ingestion_service_uri = "https://ingest")
-  lakehouse <- list(id = "lakehouse-id")
   calls <- character()
-
-  example <- vignette_evaluate_chunks(
-    path,
-    c(2:9, 11L),
-    bindings = list(
-      fabric_kql_databases = function(...) list(database),
-      fabric_kql_write_table = function(..., data) {
+  status <- function(...) {
+    calls <<- c(calls, "status")
+    list(
+      state = "Succeeded",
+      counts = list(succeeded = 1L),
+      details = data.frame(
+        source_id = "source-id",
+        status = "Succeeded",
+        error_code = NA_character_,
+        failure_status = NA_character_,
+        message = NA_character_
+      )
+    )
+  }
+  database <- vignette_mock_r6(
+    fields = list(
+      id = "database-id",
+      ingestion_service_uri = "https://ingest"
+    ),
+    methods = list(
+      write_table = function(..., data) {
         calls <<- c(calls, "write")
         list(
           status = list(state = "Succeeded"),
@@ -458,33 +547,20 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
           staging_retained = FALSE
         )
       },
-      fabric_kql_ingest = function(...) {
+      ingest = function(...) {
         calls <<- c(calls, "ingest")
         list(
           id = "ingestion-id",
           sources = data.frame(source_id = "source-id")
         )
       },
-      fabric_kql_ingestion_status = function(...) {
-        calls <<- c(calls, "status")
-        list(
-          state = "Succeeded",
-          counts = list(succeeded = 1L),
-          details = data.frame(
-            source_id = "source-id",
-            status = "Succeeded",
-            error_code = NA_character_,
-            failure_status = NA_character_,
-            message = NA_character_
-          )
-        )
-      },
-      fabric_kql_query = function(...) {
+      ingestion_status = status,
+      ingestion_wait = status,
+      query = function(...) {
         calls <<- c(calls, "query")
         data.frame(id = 1L)
       },
-      fabric_lakehouses = function(...) list(lakehouse),
-      fabric_kql_export = function(...) {
+      export = function(...) {
         calls <<- c(calls, "export")
         list(
           state = "Succeeded",
@@ -492,6 +568,20 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
           artifacts = "events.parquet"
         )
       }
+    ),
+    class = "FabricKqlDatabase"
+  )
+  lakehouse <- vignette_mock_r6(
+    fields = list(id = "lakehouse-id"),
+    class = "FabricLakehouse"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    c(2:9, 11L),
+    bindings = list(
+      fabric_kql_databases = function(...) list(database),
+      fabric_lakehouses = function(...) list(lakehouse)
     )
   )
 
@@ -507,7 +597,6 @@ test_that("GraphQL vignette executes query, schema, and pagination flow", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  api <- list(id = "graphql-id")
   pages <- structure(list(page = 1L), class = "mock_pages")
   products <- data.frame(id = 1L, name = "Widget")
   products$category <- I(list(list(id = 10L, name = "Tools")))
@@ -515,26 +604,32 @@ test_that("GraphQL vignette executes query, schema, and pagination flow", {
   attr(products, "complete") <- TRUE
   attr(products, "page_count") <- 1L
   attr(products, "errors") <- list()
+  api <- vignette_mock_r6(
+    fields = list(id = "graphql-id"),
+    methods = list(
+      query = function(...) {
+        list(
+          data = list(products = list(items = products)),
+          errors = list()
+        )
+      },
+      schema = function(...) {
+        list(
+          queryType = list(name = "Query"),
+          types = list(list(name = "Query"), list(name = "Product"))
+        )
+      },
+      paginate = function(...) pages
+    ),
+    class = "FabricGraphQLApi"
+  )
 
   example <- vignette_evaluate_chunks(
     path,
     2:7,
     bindings = list(
       fabric_graphql_apis = function(...) list(api),
-      fabric_graphql_query = function(...) {
-        list(
-          data = list(products = list(items = products)),
-          errors = list()
-        )
-      },
-      fabric_graphql_schema = function(...) {
-        list(
-          queryType = list(name = "Query"),
-          types = list(list(name = "Query"), list(name = "Product"))
-        )
-      },
       fabric_graphql_cursor = function(...) "cursor-resolver",
-      fabric_graphql_paginate = function(...) pages,
       fabric_graphql_collect = function(received, ...) {
         expect_identical(received, pages)
         products
@@ -552,27 +647,22 @@ test_that("job vignette executes run, history, and schedule lifecycle", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  notebook <- list(id = "notebook-id")
   job <- list(id = "job-id")
   schedule <- list(id = "schedule-id")
   updates <- logical()
   deleted <- FALSE
-
-  example <- vignette_evaluate_chunks(
-    path,
-    2:11,
-    bindings = list(
-      fabric_notebooks = function(...) list(notebook),
-      fabric_job_run = function(item, parameters, ...) {
-        expect_identical(item$id, notebook$id)
+  notebook <- vignette_mock_r6(
+    fields = list(id = "notebook-id"),
+    methods = list(
+      run = function(parameters, ...) {
         expect_false(parameters$full_load)
         job
       },
-      fabric_job_wait = function(...) list(status = "Completed"),
-      fabric_job_status = function(...) {
+      wait = function(...) list(status = "Completed"),
+      status = function(...) {
         list(exit_value = "ok", status = "Completed")
       },
-      fabric_job_instances = function(...) {
+      instances = function(...) {
         list(list(
           invoke_type = "Manual",
           status = "Completed",
@@ -580,18 +670,27 @@ test_that("job vignette executes run, history, and schedule lifecycle", {
           failure_reason = NULL
         ))
       },
-      fabric_job_schedule_config = function(frequency, ...) {
-        list(frequency = frequency, ...)
-      },
-      fabric_job_schedule_create = function(...) schedule,
-      fabric_job_schedules = function(...) list(schedule),
-      fabric_job_schedule_update = function(..., enabled) {
+      schedule_create = function(...) schedule,
+      schedules = function(...) list(schedule),
+      schedule_update = function(..., enabled) {
         updates <<- c(updates, enabled)
         list(enabled = enabled)
       },
-      fabric_job_schedule_delete = function(...) {
+      schedule_delete = function(...) {
         deleted <<- TRUE
         invisible(TRUE)
+      }
+    ),
+    class = "FabricJobItem"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    2:11,
+    bindings = list(
+      fabric_notebooks = function(...) list(notebook),
+      fabric_job_schedule_config = function(frequency, ...) {
+        list(frequency = frequency, ...)
       }
     )
   )
@@ -608,18 +707,14 @@ test_that("semantic-model vignette executes query and refresh lifecycle", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  model <- list(id = "model-id")
   refresh <- list(id = "refresh-id")
   waits <- 0L
-
-  example <- vignette_evaluate_chunks(
-    path,
-    c(2:5, 7:10),
-    bindings = list(
-      fabric_semantic_models = function(...) list(model),
-      fabric_pbi_dax_query = function(...) data.frame(value = 1L),
-      fabric_pbi_refresh = function(...) refresh,
-      fabric_pbi_refresh_wait = function(...) {
+  model <- vignette_mock_r6(
+    fields = list(id = "model-id"),
+    methods = list(
+      dax_query = function(...) data.frame(value = 1L),
+      refresh = function(...) refresh,
+      refresh_wait = function(...) {
         waits <<- waits + 1L
         list(
           state = "Completed",
@@ -628,7 +723,7 @@ test_that("semantic-model vignette executes query and refresh lifecycle", {
           details_url = "https://app.powerbi.test/details"
         )
       },
-      fabric_pbi_refresh_status = function(...) {
+      refresh_status = function(...) {
         list(
           state = "Completed",
           attempts = list(),
@@ -638,13 +733,22 @@ test_that("semantic-model vignette executes query and refresh lifecycle", {
           details_url = "https://app.powerbi.test/details"
         )
       },
-      fabric_pbi_refresh_history = function(...) {
+      refresh_history = function(...) {
         list(list(
           refresh_type = "ViaEnhancedApi",
           state = "Completed",
           attempts = list()
         ))
       }
+    ),
+    class = "FabricSemanticModel"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    c(2:5, 7:10),
+    bindings = list(
+      fabric_semantic_models = function(...) list(model)
     )
   )
 
@@ -659,9 +763,6 @@ test_that("Livy vignette executes query and shared-session examples", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
-  workspace <- list(displayName = "Analytics workspace", id = "workspace-id")
-  archive <- list(displayName = "Archive", id = "archive-id")
-  lakehouse <- list(id = "lakehouse-id")
   discovery_calls <- 0L
   lakehouse_workspace <- NULL
   query_calls <- list()
@@ -688,20 +789,10 @@ test_that("Livy vignette executes query and shared-session examples", {
       list(output = list(parsed = parsed))
     }
   )
-
-  example <- vignette_evaluate_chunks(
-    path,
-    c(3L, 2L, 4:6),
-    bindings = list(
-      fabric_workspaces = function(...) {
-        discovery_calls <<- discovery_calls + 1L
-        list(archive, workspace)
-      },
-      fabric_lakehouses = function(selected_workspace, ...) {
-        lakehouse_workspace <<- selected_workspace
-        list(lakehouse)
-      },
-      fabric_livy_query = function(lakehouse, code, kind, ...) {
+  lakehouse <- vignette_mock_r6(
+    fields = list(id = "lakehouse-id"),
+    methods = list(
+      livy_query = function(code, kind, ...) {
         query_calls[[length(query_calls) + 1L]] <<- list(
           lakehouse = lakehouse,
           code = code,
@@ -710,9 +801,38 @@ test_that("Livy vignette executes query and shared-session examples", {
         )
         list(output = list(parsed = data.frame(id = 1L)))
       },
-      fabric_livy_session = function(selected_lakehouse, ...) {
-        session_lakehouse <<- selected_lakehouse
+      livy_session = function(...) {
+        session_lakehouse <<- lakehouse
         session
+      }
+    ),
+    class = "FabricLakehouse"
+  )
+  workspace <- vignette_mock_r6(
+    fields = list(
+      displayName = "Analytics workspace",
+      id = "workspace-id"
+    ),
+    methods = list(
+      lakehouses = function(...) {
+        lakehouse_workspace <<- workspace
+        list(lakehouse)
+      }
+    ),
+    class = "FabricWorkspace"
+  )
+  archive <- vignette_mock_r6(
+    fields = list(displayName = "Archive", id = "archive-id"),
+    class = "FabricWorkspace"
+  )
+
+  example <- vignette_evaluate_chunks(
+    path,
+    c(3L, 2L, 4:6),
+    bindings = list(
+      fabric_workspaces = function(...) {
+        discovery_calls <<- discovery_calls + 1L
+        list(archive, workspace)
       }
     )
   )
@@ -914,7 +1034,7 @@ test_that("authentication docs define the custom-endpoint trust boundary", {
   source <- paste(readLines(path, warn = FALSE), collapse = "\n")
   normalized <- gsub("[[:space:]]+", " ", source)
 
-  expect_match(normalized, "Prefer discovered records", fixed = TRUE)
+  expect_match(normalized, "Prefer discovered objects", fixed = TRUE)
   expect_match(normalized, "Fabric portal", fixed = TRUE)
   expect_match(normalized, "Azure API Management", fixed = TRUE)
   expect_match(normalized, "organization controls the host", fixed = TRUE)

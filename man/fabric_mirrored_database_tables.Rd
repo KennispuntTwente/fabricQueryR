@@ -70,7 +70,7 @@ fabric_mirrored_database_read_table(
 }
 \arguments{
 \item{mirrored_database}{Mirrored Database GUID, exact display name, or one
-record returned by \code{\link[=fabric_mirrored_databases]{fabric_mirrored_databases()}}. A discovered record is
+object returned by \code{\link[=fabric_mirrored_databases]{fabric_mirrored_databases()}}. A discovered object is
 recommended because it contains workspace, OneLake, and SQL details.}
 
 \item{workspace}{Workspace GUID, exact display name, or discovered workspace.
@@ -132,7 +132,7 @@ API; the reader uses the mirrored Delta log.
 \section{SQL alternative}{
 
 Mirrored databases also expose a read-only SQL analytics endpoint. Pass a
-discovered mirrored database record to \code{\link[=fabric_sql_tables]{fabric_sql_tables()}},
+discovered mirrored database object to \code{\link[=fabric_sql_tables]{fabric_sql_tables()}},
 \code{\link[=fabric_sql_read_table]{fabric_sql_read_table()}}, or \code{\link[=fabric_sql_query]{fabric_sql_query()}} when SQL permissions or
 SQL views are required.
 }

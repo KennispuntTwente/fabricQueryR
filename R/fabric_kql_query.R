@@ -484,14 +484,14 @@ kusto_read_identifier <- function(value) {
 #' sharing, or KQL database sharing. Authentication uses the Kusto query service
 #'
 #' @param cluster Query URI, or one Eventhouse or
-#'   KQLDatabase record returned by [fabric_eventhouses()],
-#'   [fabric_kql_databases()], or [fabric_item()]. A KQLDatabase record also
+#'   KQLDatabase object returned by [fabric_eventhouses()],
+#'   [fabric_kql_databases()], or [fabric_item()]. A KQLDatabase object also
 #'   supplies `database`. Despite the argument name, use Fabric's **Query URI**
 #'   here
 #' @param query One non-empty, read-only KQL query, for example
 #'   `"Events | where Severity == 'Error' | take 100"`
 #' @param database KQL database display name. Supply it with a copied Query URI
-#'   or an Eventhouse record; omit it when `cluster` is a KQLDatabase record
+#'   or an Eventhouse object; omit it when `cluster` is a KQLDatabase object
 #' @param parameters Named list of values declared with
 #'   `declare query_parameters(...)` in `query`
 #' @param request_properties Named list of Kusto client request options, such as

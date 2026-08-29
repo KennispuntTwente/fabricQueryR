@@ -61,9 +61,9 @@ workspace identity from the catalog hierarchy.
 }
 \description{
 Searches Fabric item metadata across every workspace visible to the caller.
-Results are lightweight discovery records that can be passed to other
-'fabricQueryR' functions when the selected operation needs only an item and
-workspace identity.
+Results are lightweight R6 discovery objects that contain the item and
+workspace identity. Type-specific results expose the methods that can run
+from that metadata.
 }
 \details{
 Catalog search is a preview Fabric API. It is for metadata discovery only
@@ -84,9 +84,9 @@ entries <- fabric_catalog_search(
   page_size = 100
 )
 
-# A result contains both the item ID and its workspace ID
+# A result contains both the item ID and its workspace ID, plus its methods
 lakehouse <- entries[[1L]]
-fabric_onelake_list(lakehouse, path = "Tables")
+lakehouse$onelake_list(path = "Tables")
 }
 }
 \references{

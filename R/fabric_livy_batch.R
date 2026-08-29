@@ -6,7 +6,7 @@
 #' variables and Spark state
 #'
 #' @param livy_url A copied Livy connection URL, Livy API base URL, or enriched
-#'   Lakehouse record. Copy the batch-job URL from **Lakehouse settings > Livy
+#'   Lakehouse object. Copy the batch-job URL from **Lakehouse settings > Livy
 #'   endpoint**, or use an item from [fabric_lakehouses()]
 #' @param file Absolute ABFS/ABFSS URI of the main Python, R, or Java/Scala
 #'   application file. It must contain a filesystem/container, host, and

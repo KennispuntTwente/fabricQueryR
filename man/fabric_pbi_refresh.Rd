@@ -96,7 +96,7 @@ fabric_pbi_refresh_cancel(
 )
 }
 \arguments{
-\item{connstr}{Optional semantic-model record from
+\item{connstr}{Optional semantic-model object from
 \code{\link[=fabric_semantic_models]{fabric_semantic_models()}} or \code{\link[=fabric_item]{fabric_item()}}, or a Power BI connection
 string. Omit it when \code{dataset_id} is supplied}
 
@@ -208,7 +208,7 @@ Status and wait return a \code{fabric_pbi_refresh_detail}; history returns a
 \description{
 Start a semantic-model refresh, inspect recent refreshes and execution
 details, wait for completion, or cancel an enhanced refresh. The easiest
-target is a record returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}
+target is an object returned by \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}
 }
 \section{Standard and enhanced refresh}{
 

@@ -22,11 +22,11 @@
 #' Fabric are collected, and each result can be passed directly to
 #' [fabric_job_status()], [fabric_job_wait()], or [fabric_job_cancel()].
 #'
-#' @param item Item GUID, exact display name, or an item record returned by a
-#'   discovery function. A discovered record is recommended because it includes
+#' @param item Item GUID, exact display name, or an item object returned by a
+#'   discovery function. A discovered object is recommended because it includes
 #'   the item type and workspace ID.
-#' @param workspace Workspace GUID, exact display name, or a workspace record.
-#'   Omit it when `item` is a discovered record containing `workspaceId`.
+#' @param workspace Workspace GUID, exact display name, or a workspace object.
+#'   Omit it when `item` is a discovered object containing `workspaceId`.
 #' @param item_type Optional Fabric item type when `item` is a GUID. A discovered
 #'   item supplies this automatically.
 #' @inheritParams fabric_job_run

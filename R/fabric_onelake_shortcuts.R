@@ -5,9 +5,9 @@
 #' raw target list supports connection-backed shortcut types already configured
 #' in Fabric without copying data into R.
 #'
-#' @param item Destination Fabric item name, GUID, or record returned by a
+#' @param item Destination Fabric item name, GUID, or object returned by a
 #'   discovery function.
-#' @param workspace Workspace name, GUID, or discovery record containing
+#' @param workspace Workspace name, GUID, or discovery object containing
 #'   `item`. May be omitted when `item` contains `workspaceId`.
 #' @param item_type Optional item type used to disambiguate a destination item
 #'   supplied by name.

@@ -2,12 +2,12 @@
 #'
 #' These helpers provide a target-independent metadata and table-read layer for
 #' Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
-#' and SQL Database records, or the same direct server inputs as
+#' and SQL Database objects, or the same direct server inputs as
 #' [fabric_sql_query()]. Discovery uses SQL catalog metadata views and is
 #' limited by the caller's SQL metadata permissions.
 #'
 #' @param server Fabric SQL endpoint, portal connection string, or discovered
-#'   SQL-capable item record.
+#'   SQL-capable item object.
 #' @param schema Optional schema filter. `fabric_sql_read_table()` defaults to
 #'   the schema in a discovered table row, otherwise `"dbo"`.
 #' @param detail Whether table or view discovery should retrieve column
