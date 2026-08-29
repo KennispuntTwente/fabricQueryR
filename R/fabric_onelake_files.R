@@ -1511,7 +1511,7 @@ onelake_list_record <- function(record, target, index) {
       anyNA(names(record)) ||
       !all(nzchar(names(record))) ||
       anyDuplicated(names(record)) ||
-      !all(c("name", "isDirectory") %in% names(record))
+      !"name" %in% names(record)
   ) {
     .fabric_abort(
       "OneLake returned an invalid directory-list record",
@@ -1612,6 +1612,9 @@ onelake_list_optional_text <- function(value, field, index) {
 # Interpret a OneLake directory `value` supplied as logical or text. Returns one
 # logical value for list and metadata results
 onelake_directory_flag <- function(value, index = NULL) {
+  if (is.null(value)) {
+    return(FALSE)
+  }
   if (is.logical(value) && length(value) == 1L && !is.na(value)) {
     return(value)
   }

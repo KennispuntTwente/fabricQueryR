@@ -668,6 +668,10 @@ test_that("OneLake listing validates every returned path record", {
     expect_equal(error$record_number, 1L)
   }
 
+  valid$isDirectory <- NULL
+  result <- onelake_list_tibble(list(valid), target)
+  expect_false(result$is_directory)
+
   valid$contentLength <- NULL
   result <- onelake_list_tibble(list(valid), target)
   expect_true(is.na(result$content_length))
