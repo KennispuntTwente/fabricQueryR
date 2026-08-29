@@ -2647,10 +2647,6 @@ onelake_delete_target <- function(
       query$recursive <- if (recursive) "true" else "false"
     }
 
-    if (is_directory && recursive) {
-      query$paginated <- "true"
-    }
-
     if (!is.null(continuation)) {
       query$continuation <- continuation
     }

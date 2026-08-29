@@ -1587,7 +1587,7 @@ test_that("OneLake upload preserves conflict errors and creates nested parents",
   expect_match(deletes[[1L]]$url, "fabricqueryr-upload", fixed = TRUE)
 })
 
-test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
+test_that("OneLake deletion is explicit, safe, conditional, and resumable", {
   expect_error(
     fabric_onelake_delete(
       "Analytics",
@@ -1644,8 +1644,15 @@ test_that("OneLake deletion is explicit, safe, conditional, and paginated", {
     vapply(calls[-1L], function(req) req$method, character(1)) == "DELETE"
   ))
   expect_match(calls[[2L]]$url, "recursive=true")
-  expect_match(calls[[2L]]$url, "paginated=true")
   expect_match(calls[[3L]]$url, "continuation=delete-token")
+  expect_identical(
+    grepl(
+      "paginated=",
+      vapply(calls[-1L], function(req) req$url, character(1)),
+      fixed = TRUE
+    ),
+    c(FALSE, FALSE)
+  )
   expect_equal(calls[[2L]]$headers[["If-Match"]], "\"etag\"")
 })
 
