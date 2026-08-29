@@ -2,19 +2,17 @@
 
 ## New
 
-* Discovery functions now return read-only R6 objects by default. They retain
-every service field, reuse the discovery credential, and provide type-specific
-methods for workspaces, SQL items, Lakehouses, Warehouses, mirrored databases,
-Eventhouses, KQL databases, GraphQL APIs, semantic models, and runnable jobs.
-Semantic models, runnable jobs, and KQL items also expose status, wait, and
-cancellation methods for the asynchronous work they start.
-Use `$as_list()` or `output = "list"` when a plain record is specifically
-required.
-
 * `fabric_workspaces()`, `fabric_items()`, and type-specific functions such as
 `fabric_lakehouses()` and `fabric_semantic_models()` discover common Fabric
-resources. Their results can be passed directly to other 'fabricQueryR'
-functions, avoiding copied IDs and endpoints in most workflows.
+resources as read-only R6 objects. They retain every service field, reuse the
+discovery credential, and provide type-specific methods for workspaces, SQL
+items, Lakehouses, Warehouses, mirrored databases, Eventhouses, KQL databases,
+GraphQL APIs, semantic models, and runnable jobs. Semantic models, runnable
+jobs, and KQL items also expose status, wait, and cancellation methods for the
+asynchronous work they start. Discovered resources can be passed directly to
+other 'fabricQueryR' functions, avoiding copied IDs and endpoints in most
+workflows. Use `$as_list()` or `output = "list"` when a plain record is
+specifically required.
 
 * `fabric_livy_session()` and `fabric_livy_batch_submit()` add reusable Spark
 sessions and standalone batch jobs. `fabric_livy_query()` remains the simplest
