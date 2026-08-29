@@ -94,9 +94,9 @@
 #' The former `mssparkutils` namespace remains backward compatible but Microsoft
 #' recommends migrating because it will be retired
 #'
-#' Notebook submission uses the Core Job Scheduler route, including per-run
-#' parameters and compute settings. Status and waiting also use the stable Core
-#' endpoint by default. Set
+#' Notebook submission uses the released workload-specific route so Fabric
+#' applies per-run parameters and compute settings. Status and waiting use the
+#' stable Core endpoint by default. Set
 #' `notebook_details = TRUE` to opt into the beta Notebook status endpoint when
 #' exit values or workload-specific properties are required; the Core endpoint
 #' remains its fallback.
@@ -1255,11 +1255,9 @@ print.fabric_job_instance <- function(x, ...) {
     route$route,
     notebook = paste0(
       prefix,
-      "/items/",
+      "/notebooks/",
       target$item_id,
-      "/jobs/",
-      route$job_type,
-      "/instances"
+      "/jobs/execute/instances?beta=false"
     ),
     spark_job_definition = paste0(
       prefix,
