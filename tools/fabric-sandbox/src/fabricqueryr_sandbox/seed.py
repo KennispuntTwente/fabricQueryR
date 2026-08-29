@@ -47,6 +47,13 @@ from .sql_api import (
 )
 
 
+RUNTIME_VERIFICATION_ERROR = (
+    "fabricqueryr-seed-error: verify and record Fabric Spark runtime"
+)
+RUNTIME_PROPAGATION_ATTEMPTS = 3
+RUNTIME_PROPAGATION_RETRY_SECONDS = 30
+
+
 def _runtime_contract(
     exit_value: object,
     settings: SandboxSettings,
@@ -70,6 +77,37 @@ def _runtime_contract(
             f"seed notebook runtime metadata does not match the lane: {value!r}"
         )
     return value
+
+
+def _run_seed_notebook(
+    api: FabricApi,
+    workspace_id: str,
+    notebook_id: str,
+    lakehouse_id: str,
+    *,
+    attempts: int = RUNTIME_PROPAGATION_ATTEMPTS,
+    retry_delay: float = RUNTIME_PROPAGATION_RETRY_SECONDS,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict[str, object]:
+    for attempt in range(1, attempts + 1):
+        try:
+            return api.run_notebook(
+                workspace_id,
+                notebook_id,
+                lakehouse_id=lakehouse_id,
+            )
+        except RuntimeError as error:
+            runtime_not_ready = str(error).startswith(
+                RUNTIME_VERIFICATION_ERROR
+            )
+            if not runtime_not_ready or attempt == attempts:
+                raise
+            print(
+                "Fabric Spark runtime has not propagated to notebook "
+                f"sessions; retrying seed ({attempt + 1}/{attempts})"
+            )
+            sleep(retry_delay)
+    raise AssertionError("unreachable")
 
 
 def _logical_delta_table_row_count(delta_table: object) -> int:
@@ -307,10 +345,11 @@ def seed(settings: SandboxSettings) -> None:
             INCOMPLETE_FIXTURE_REVISION,
             credential=credential,
         )
-        job = api.run_notebook(
+        job = _run_seed_notebook(
+            api,
             workspace_id,
             notebook["id"],
-            lakehouse_id=lakehouse["id"],
+            lakehouse["id"],
         )
         print(
             f"seed notebook completed: {job.get('id')} "

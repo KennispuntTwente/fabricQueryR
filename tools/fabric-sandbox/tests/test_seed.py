@@ -6,6 +6,7 @@ from azure.core.credentials import AccessToken
 
 from fabricqueryr_sandbox.seed import (
     _logical_delta_table_row_count,
+    _run_seed_notebook,
     _runtime_contract,
     seed,
     upload_fixtures,
@@ -61,6 +62,93 @@ def test_runtime_contract_rejects_a_mismatched_lane(tmp_path):
 
     with pytest.raises(RuntimeError, match="does not match the lane"):
         _runtime_contract(exit_value, settings)
+
+
+def test_seed_notebook_retries_while_runtime_settings_propagate():
+    attempts = []
+    sleeps = []
+
+    class Api:
+        def run_notebook(
+            self,
+            workspace_id,
+            notebook_id,
+            *,
+            lakehouse_id,
+        ):
+            attempts.append((workspace_id, notebook_id, lakehouse_id))
+            if len(attempts) < 3:
+                raise RuntimeError(
+                    "fabricqueryr-seed-error: verify and record Fabric Spark "
+                    "runtime\nExpected Fabric Runtime 2.0 Spark 4.1, got 3.5.5"
+                )
+            return {"id": "seed-job"}
+
+    job = _run_seed_notebook(
+        Api(),
+        "workspace-id",
+        "notebook-id",
+        "lakehouse-id",
+        retry_delay=5,
+        sleep=sleeps.append,
+    )
+
+    assert job == {"id": "seed-job"}
+    assert attempts == [
+        ("workspace-id", "notebook-id", "lakehouse-id"),
+        ("workspace-id", "notebook-id", "lakehouse-id"),
+        ("workspace-id", "notebook-id", "lakehouse-id"),
+    ]
+    assert sleeps == [5, 5]
+
+
+def test_seed_notebook_does_not_retry_other_failures():
+    attempts = []
+
+    class Api:
+        def run_notebook(self, *_args, **_kwargs):
+            attempts.append("run")
+            raise RuntimeError(
+                "fabricqueryr-seed-error: write basic Delta table"
+            )
+
+    with pytest.raises(RuntimeError, match="write basic Delta table"):
+        _run_seed_notebook(
+            Api(),
+            "workspace-id",
+            "notebook-id",
+            "lakehouse-id",
+            sleep=lambda _delay: None,
+        )
+
+    assert attempts == ["run"]
+
+
+def test_seed_notebook_stops_after_runtime_retry_limit():
+    attempts = []
+    sleeps = []
+
+    class Api:
+        def run_notebook(self, *_args, **_kwargs):
+            attempts.append("run")
+            raise RuntimeError(
+                "fabricqueryr-seed-error: verify and record Fabric Spark "
+                "runtime"
+            )
+
+    with pytest.raises(RuntimeError, match="verify and record"):
+        _run_seed_notebook(
+            Api(),
+            "workspace-id",
+            "notebook-id",
+            "lakehouse-id",
+            attempts=2,
+            retry_delay=5,
+            sleep=sleeps.append,
+        )
+
+    assert attempts == ["run", "run"]
+    assert sleeps == [5]
 
 
 class FakeFileClient:
