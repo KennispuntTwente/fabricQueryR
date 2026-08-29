@@ -338,11 +338,10 @@ result <- fabric_job_wait(job, timeout = 900)
 result$status
 ```
 
-Notebook submission uses Fabric’s Core Job Scheduler route so run
-parameters and compute settings are applied without relying on the
-workload submission route scheduled for deprecation. Request
-`notebook_details = TRUE` only when the beta Notebook status fields,
-such as an exit value, are needed.
+Notebook submission uses Fabric’s released workload-specific route so
+run parameters and compute settings are applied. Status uses the stable
+Core Job Scheduler by default. Request `notebook_details = TRUE` only
+when the beta Notebook status fields, such as an exit value, are needed.
 
 The [job automation
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html)

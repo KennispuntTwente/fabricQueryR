@@ -280,7 +280,7 @@
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="va">job</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span></code></pre></div>
-<p>Notebook submission uses Fabric’s Core Job Scheduler route so run parameters and compute settings are applied without relying on the workload submission route scheduled for deprecation. Request <code>notebook_details = TRUE</code> only when the beta Notebook status fields, such as an exit value, are needed.</p>
+<p>Notebook submission uses Fabric’s released workload-specific route so run parameters and compute settings are applied. Status uses the stable Core Job Scheduler by default. Request <code>notebook_details = TRUE</code> only when the beta Notebook status fields, such as an exit value, are needed.</p>
 <p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html">job automation vignette</a> covers run history, cancellation, and recurring schedules.</p>
 </div>
 <div class="section level3">

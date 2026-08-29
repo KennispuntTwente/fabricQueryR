@@ -309,9 +309,9 @@ Omit the tag when job status must reliably signal notebook failure. Otherwise,
 have the notebook report its outcome with <code>notebookutils.notebook.exit()</code>.
 The former <code>mssparkutils</code> namespace remains backward compatible but Microsoft
 recommends migrating because it will be retired</p>
-<p>Notebook submission uses the Core Job Scheduler route, including per-run
-parameters and compute settings. Status and waiting also use the stable Core
-endpoint by default. Set
+<p>Notebook submission uses the released workload-specific route so Fabric
+applies per-run parameters and compute settings. Status and waiting use the
+stable Core endpoint by default. Set
 <code>notebook_details = TRUE</code> to opt into the beta Notebook status endpoint when
 exit values or workload-specific properties are required; the Core endpoint
 remains its fallback.</p>
