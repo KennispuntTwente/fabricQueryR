@@ -1747,6 +1747,12 @@ A `fabric_graphql_pages` list.
 
 - [`FabricSemanticModel$refresh_history()`](#method-FabricSemanticModel-refresh_history)
 
+- [`FabricSemanticModel$refresh_status()`](#method-FabricSemanticModel-refresh_status)
+
+- [`FabricSemanticModel$refresh_wait()`](#method-FabricSemanticModel-refresh_wait)
+
+- [`FabricSemanticModel$refresh_cancel()`](#method-FabricSemanticModel-refresh_cancel)
+
 Inherited methods
 
 - `FabricRecord$as_list()`
@@ -1823,6 +1829,81 @@ Retrieve this semantic model's refresh history.
 
 A `fabric_pbi_refresh_history` list.
 
+------------------------------------------------------------------------
+
+### `FabricSemanticModel$refresh_status()`
+
+Retrieve one refresh status snapshot.
+
+#### Usage
+
+    FabricSemanticModel$refresh_status(refresh, ...)
+
+#### Arguments
+
+- `refresh`:
+
+  Refresh handle, detail record, or request ID.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_pbi_refresh_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md).
+
+#### Returns
+
+A `fabric_pbi_refresh_detail` record.
+
+------------------------------------------------------------------------
+
+### `FabricSemanticModel$refresh_wait()`
+
+Wait for a submitted refresh to finish.
+
+#### Usage
+
+    FabricSemanticModel$refresh_wait(refresh, ...)
+
+#### Arguments
+
+- `refresh`:
+
+  Refresh handle or detail record.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md).
+
+#### Returns
+
+A terminal `fabric_pbi_refresh_detail` record.
+
+------------------------------------------------------------------------
+
+### `FabricSemanticModel$refresh_cancel()`
+
+Cancel a submitted refresh.
+
+#### Usage
+
+    FabricSemanticModel$refresh_cancel(refresh, ...)
+
+#### Arguments
+
+- `refresh`:
+
+  Refresh handle, detail record, or request ID.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_pbi_refresh_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md).
+
+#### Returns
+
+`TRUE`, invisibly, when cancellation is accepted.
+
 ## Super classes
 
 `FabricRecord` -\> `FabricItem` -\> `FabricJobItem`
@@ -1832,6 +1913,12 @@ A `fabric_pbi_refresh_history` list.
 ### Public methods
 
 - [`FabricJobItem$run()`](#method-FabricJobItem-run)
+
+- [`FabricJobItem$status()`](#method-FabricJobItem-status)
+
+- [`FabricJobItem$wait()`](#method-FabricJobItem-wait)
+
+- [`FabricJobItem$cancel()`](#method-FabricJobItem-cancel)
 
 - [`FabricJobItem$instances()`](#method-FabricJobItem-instances)
 
@@ -1872,6 +1959,81 @@ Start an on-demand item job.
 #### Returns
 
 A `fabric_job` handle.
+
+------------------------------------------------------------------------
+
+### `FabricJobItem$status()`
+
+Retrieve one job status snapshot.
+
+#### Usage
+
+    FabricJobItem$status(job = NULL, ...)
+
+#### Arguments
+
+- `job`:
+
+  Job handle, instance record, or job instance ID.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md).
+
+#### Returns
+
+A `fabric_job_instance` record.
+
+------------------------------------------------------------------------
+
+### `FabricJobItem$wait()`
+
+Wait for a submitted job to finish.
+
+#### Usage
+
+    FabricJobItem$wait(job, ...)
+
+#### Arguments
+
+- `job`:
+
+  Job handle or instance record.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md).
+
+#### Returns
+
+A terminal `fabric_job_instance` record.
+
+------------------------------------------------------------------------
+
+### `FabricJobItem$cancel()`
+
+Cancel a submitted job.
+
+#### Usage
+
+    FabricJobItem$cancel(job = NULL, ...)
+
+#### Arguments
+
+- `job`:
+
+  Job handle, instance record, or job instance ID.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md).
+
+#### Returns
+
+`TRUE`, invisibly, when cancellation is accepted.
 
 ------------------------------------------------------------------------
 
