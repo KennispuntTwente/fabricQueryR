@@ -1,3 +1,61 @@
+r6_test_record <- function(type = "Lakehouse", credential = NULL) {
+  workspace <- identical(type, "Workspace")
+  record <- list(
+    id = if (workspace) {
+      "22222222-2222-4222-8222-222222222222"
+    } else {
+      "11111111-1111-4111-8111-111111111111"
+    },
+    displayName = type,
+    type = type
+  )
+  if (!workspace) {
+    record$workspaceId <- "22222222-2222-4222-8222-222222222222"
+  }
+  fabric_r6_record(
+    record,
+    legacy_class = if (workspace) {
+      c("fabric_workspace", "list")
+    } else {
+      c("fabric_item", "list")
+    },
+    credential = credential
+  )
+}
+
+local_r6_method_mocks <- function(function_names, calls, env = parent.frame()) {
+  mocks <- lapply(function_names, function(function_name) {
+    force(function_name)
+    function(...) {
+      calls[[function_name]] <- list(...)
+      function_name
+    }
+  })
+  names(mocks) <- function_names
+  mocks$.package <- "fabricQueryR"
+  mocks$.env <- env
+  do.call(testthat::local_mocked_bindings, mocks)
+  invisible(NULL)
+}
+
+expect_r6_delegation <- function(
+  object,
+  method,
+  args,
+  function_name,
+  calls,
+  context_name = NULL
+) {
+  result <- do.call(object[[method]], args)
+  expect_identical(result, function_name, info = method)
+  call <- calls[[function_name]]
+  expect_identical(typeof(call), "list", info = method)
+  if (!is.null(context_name)) {
+    expect_identical(call[[context_name]], object, info = method)
+  }
+  call
+}
+
 test_that("Fabric items preserve discovery fields and legacy records", {
   record <- list(
     id = "11111111-1111-4111-8111-111111111111",
@@ -28,6 +86,61 @@ test_that("Fabric items preserve discovery fields and legacy records", {
   expect_setequal(names(item), names(record))
   expect_identical(length(item), length(record))
   expect_identical(bindingIsActive("id", item), TRUE)
+})
+
+test_that("R6 records validate construction, access, and method arguments", {
+  invalid_record <- rlang::catch_cnd(
+    FabricItem$new(
+      record = "not-a-record",
+      legacy_class = c("fabric_item", "list")
+    )
+  )
+  expect_match(conditionMessage(invalid_record), "one named Fabric record")
+
+  invalid_class <- rlang::catch_cnd(
+    FabricItem$new(record = list(id = "item-id"), legacy_class = character())
+  )
+  expect_match(conditionMessage(invalid_class), "non-empty class names")
+
+  invalid_credential <- rlang::catch_cnd(
+    FabricItem$new(
+      record = list(id = "item-id"),
+      legacy_class = c("fabric_item", "list"),
+      credential = "token"
+    )
+  )
+  expect_match(
+    conditionMessage(invalid_credential),
+    "internal Fabric credential"
+  )
+
+  item <- r6_test_record("Environment")
+  read_only <- rlang::catch_cnd(item$id <- "replacement")
+  expect_s3_class(read_only, "fabric_r6_read_only_error")
+  expect_identical(item$id, "11111111-1111-4111-8111-111111111111")
+
+  invalid_name <- rlang::catch_cnd(item$get(character()))
+  expect_match(conditionMessage(invalid_name), "one non-empty field name")
+
+  unnamed <- rlang::catch_cnd(item$details(1))
+  expect_match(conditionMessage(unnamed), "must be named")
+  duplicate <- rlang::catch_cnd(item$details(item = "replacement"))
+  expect_s3_class(duplicate, "fabric_r6_argument_error")
+
+  workspace <- r6_test_record("Workspace")
+  list_output <- rlang::catch_cnd(workspace$items(output = "list"))
+  expect_s3_class(list_output, "fabric_r6_argument_error")
+
+  no_workspace <- fabric_r6_record(
+    list(id = "item-id", displayName = "orphan", type = "Environment"),
+    legacy_class = c("fabric_item", "list")
+  )
+  missing_context <- rlang::catch_cnd(no_workspace$details())
+  expect_s3_class(missing_context, "fabric_r6_context_error")
+
+  output <- capture.output(print(item))
+  expect_match(paste(output, collapse = "\n"), "Fabric Item")
+  expect_match(paste(output, collapse = "\n"), "Environment")
 })
 
 test_that("Fabric item factories select actionable R6 subclasses", {
@@ -455,4 +568,631 @@ test_that("Discovery factories return R6 by default with an explicit list mode",
   expect_s3_class(legacy, "fabric_item")
   expect_s3_class(object, "FabricLakehouse")
   expect_identical(object$as_list(), legacy)
+})
+
+test_that("R6 classes expose the complete supported method surface", {
+  expected <- list(
+    Lakehouse = c(
+      "details",
+      "sql_connection_info",
+      "sql_connect",
+      "sql_query",
+      "sql_tables",
+      "sql_views",
+      "sql_read_table",
+      "schemas",
+      "table",
+      "tables",
+      "read_table",
+      "read_delta_table",
+      "load_table",
+      "write_table",
+      "livy_query",
+      "livy_session",
+      "livy_batch_submit",
+      "onelake_list",
+      "onelake_metadata",
+      "onelake_read_file",
+      "onelake_write_file",
+      "onelake_download",
+      "onelake_upload",
+      "onelake_delete",
+      "schema_exists",
+      "table_exists",
+      "shortcuts",
+      "shortcut",
+      "shortcut_create",
+      "shortcuts_bulk_create",
+      "shortcut_delete"
+    ),
+    Warehouse = c(
+      "sql_connection_info",
+      "sql_connect",
+      "sql_query",
+      "sql_tables",
+      "sql_views",
+      "sql_read_table",
+      "schemas",
+      "table",
+      "tables",
+      "read_table",
+      "write_table",
+      "read_delta_table"
+    ),
+    KQLDatabase = c(
+      "query",
+      "tables",
+      "read_table",
+      "ingest",
+      "write_table",
+      "export",
+      "ingestion_status",
+      "ingestion_wait"
+    ),
+    GraphQLApi = c("query", "schema", "paginate"),
+    SemanticModel = c(
+      "dax_query",
+      "refresh",
+      "refresh_history",
+      "refresh_status",
+      "refresh_wait",
+      "refresh_cancel"
+    ),
+    Notebook = c(
+      "run",
+      "status",
+      "wait",
+      "cancel",
+      "instances",
+      "schedules",
+      "schedule_create",
+      "schedule_update",
+      "schedule_delete"
+    )
+  )
+
+  for (type in names(expected)) {
+    object <- r6_test_record(type)
+    expect_setequal(
+      intersect(ls(object, all.names = TRUE), expected[[type]]),
+      expected[[type]]
+    )
+  }
+})
+
+test_that("Workspace and generic item methods all delegate their context", {
+  calls <- new.env(parent = emptyenv())
+  mapping <- c(
+    items = "fabric_items",
+    item = "fabric_item",
+    lakehouses = "fabric_lakehouses",
+    warehouses = "fabric_warehouses",
+    warehouse_snapshots = "fabric_warehouse_snapshots",
+    mirrored_databases = "fabric_mirrored_databases",
+    sql_databases = "fabric_sql_databases",
+    semantic_models = "fabric_semantic_models",
+    eventhouses = "fabric_eventhouses",
+    kql_databases = "fabric_kql_databases",
+    notebooks = "fabric_notebooks",
+    data_pipelines = "fabric_data_pipelines",
+    spark_job_definitions = "fabric_spark_job_definitions",
+    environments = "fabric_environments",
+    user_data_functions = "fabric_user_data_functions",
+    graphql_apis = "fabric_graphql_apis",
+    shortcut_cache_reset = "fabric_onelake_shortcut_cache_reset"
+  )
+  local_r6_method_mocks(unique(unname(mapping)), calls)
+  workspace <- r6_test_record("Workspace")
+  arguments <- list(item = list(item = "target"))
+
+  for (method in names(mapping)) {
+    call <- expect_r6_delegation(
+      workspace,
+      method,
+      arguments[[method]] %||% list(),
+      mapping[[method]],
+      calls,
+      "workspace"
+    )
+    if (!identical(method, "shortcut_cache_reset")) {
+      expect_identical(call$output, "r6", info = method)
+    }
+  }
+
+  item <- r6_test_record("Environment")
+  call <- expect_r6_delegation(
+    item,
+    "details",
+    list(),
+    "fabric_item",
+    calls,
+    "item"
+  )
+  expect_identical(call$workspace, item$workspaceId)
+  expect_identical(call$output, "r6")
+})
+
+test_that("Lakehouse methods all delegate their item identity", {
+  calls <- new.env(parent = emptyenv())
+  mapping <- c(
+    sql_connection_info = "fabric_sql_connection_info",
+    sql_connect = "fabric_sql_connect",
+    sql_query = "fabric_sql_query",
+    sql_tables = "fabric_sql_tables",
+    sql_views = "fabric_sql_views",
+    sql_read_table = "fabric_sql_read_table",
+    schemas = "fabric_lakehouse_schemas",
+    table = "fabric_lakehouse_table",
+    tables = "fabric_lakehouse_tables",
+    read_table = "fabric_lakehouse_read_table",
+    read_delta_table = "fabric_onelake_read_delta_table",
+    load_table = "fabric_lakehouse_load_table",
+    write_table = "fabric_lakehouse_write_table",
+    livy_query = "fabric_livy_query",
+    livy_session = "fabric_livy_session",
+    livy_batch_submit = "fabric_livy_batch_submit",
+    onelake_list = "fabric_onelake_list",
+    onelake_metadata = "fabric_onelake_metadata",
+    onelake_read_file = "fabric_onelake_read_file",
+    onelake_write_file = "fabric_onelake_write_file",
+    onelake_download = "fabric_onelake_download",
+    onelake_upload = "fabric_onelake_upload",
+    onelake_delete = "fabric_onelake_delete",
+    schema_exists = "fabric_onelake_schema_exists",
+    table_exists = "fabric_onelake_table_exists",
+    shortcuts = "fabric_onelake_shortcuts",
+    shortcut = "fabric_onelake_shortcut_get",
+    shortcut_create = "fabric_onelake_shortcut_create",
+    shortcuts_bulk_create = "fabric_onelake_shortcuts_bulk_create",
+    shortcut_delete = "fabric_onelake_shortcut_delete"
+  )
+  local_r6_method_mocks(unique(unname(mapping)), calls)
+  lakehouse <- r6_test_record("Lakehouse")
+  arguments <- list(
+    sql_query = list(sql = "SELECT 1"),
+    sql_read_table = list(table = "orders"),
+    table = list(table = "orders"),
+    read_table = list(table = "orders"),
+    read_delta_table = list(table_path = "Tables/orders"),
+    load_table = list(table = "orders", path = "Files/orders.csv"),
+    write_table = list(table = "orders", data = data.frame(id = 1L)),
+    livy_query = list(code = "1 + 1"),
+    livy_batch_submit = list(file = "abfss://job.py"),
+    onelake_read_file = list(path = "Files/orders.csv"),
+    onelake_write_file = list(
+      path = "Files/orders.csv",
+      data = data.frame(id = 1L)
+    ),
+    onelake_download = list(path = "Files/orders.csv"),
+    onelake_upload = list(path = "Files/orders.csv", source = charToRaw("x")),
+    onelake_delete = list(path = "Files/orders.csv"),
+    schema_exists = list(schema = "dbo"),
+    table_exists = list(table = "orders"),
+    shortcut = list(path = "Files", name = "orders"),
+    shortcut_create = list(
+      path = "Files",
+      name = "orders",
+      target = list(oneLake = list(path = "Files/source"))
+    ),
+    shortcuts_bulk_create = list(shortcuts = list(list(name = "orders"))),
+    shortcut_delete = list(path = "Files", name = "orders")
+  )
+  context <- c(
+    sql_connection_info = "server",
+    sql_connect = "server",
+    sql_query = "server",
+    sql_tables = "server",
+    sql_views = "server",
+    sql_read_table = "server",
+    schemas = "lakehouse",
+    table = "lakehouse",
+    tables = "lakehouse",
+    read_table = "lakehouse",
+    read_delta_table = "lakehouse_name",
+    load_table = "lakehouse",
+    write_table = "lakehouse",
+    livy_query = "livy_url",
+    livy_session = "livy_url",
+    livy_batch_submit = "livy_url",
+    onelake_list = "item",
+    onelake_metadata = "item",
+    onelake_read_file = "item",
+    onelake_write_file = "item",
+    onelake_download = "item",
+    onelake_upload = "item",
+    onelake_delete = "item",
+    schema_exists = "item",
+    table_exists = "item",
+    shortcuts = "item",
+    shortcut = "item",
+    shortcut_create = "item",
+    shortcuts_bulk_create = "item",
+    shortcut_delete = "item"
+  )
+
+  for (method in names(mapping)) {
+    call <- expect_r6_delegation(
+      lakehouse,
+      method,
+      arguments[[method]] %||% list(),
+      mapping[[method]],
+      calls,
+      context[[method]]
+    )
+    if (
+      grepl(
+        "^onelake_(list|metadata|read|write|download|upload|delete)$",
+        method
+      )
+    ) {
+      expect_identical(call$workspace, lakehouse$workspaceId, info = method)
+    }
+  }
+})
+
+test_that("Warehouse and mirrored methods all delegate their item identity", {
+  calls <- new.env(parent = emptyenv())
+  mapping <- c(
+    schemas = "fabric_warehouse_schemas",
+    table = "fabric_warehouse_table",
+    tables = "fabric_warehouse_tables",
+    read_table = "fabric_warehouse_read_table",
+    write_table = "fabric_warehouse_write_table",
+    read_delta_table = "fabric_onelake_read_delta_table",
+    mirrored_schemas = "fabric_mirrored_database_schemas",
+    mirrored_table = "fabric_mirrored_database_table",
+    mirrored_tables = "fabric_mirrored_database_tables",
+    mirrored_read_table = "fabric_mirrored_database_read_table"
+  )
+  local_r6_method_mocks(unique(unname(mapping)), calls)
+  warehouse <- r6_test_record("Warehouse")
+  mirrored <- r6_test_record("MirroredDatabase")
+
+  expect_r6_delegation(
+    warehouse,
+    "schemas",
+    list(),
+    mapping[["schemas"]],
+    calls,
+    "warehouse"
+  )
+  expect_r6_delegation(
+    warehouse,
+    "table",
+    list(table = "orders"),
+    mapping[["table"]],
+    calls,
+    "warehouse"
+  )
+  expect_r6_delegation(
+    warehouse,
+    "tables",
+    list(),
+    mapping[["tables"]],
+    calls,
+    "warehouse"
+  )
+  expect_r6_delegation(
+    warehouse,
+    "read_table",
+    list(table = "orders"),
+    mapping[["read_table"]],
+    calls,
+    "warehouse"
+  )
+  expect_r6_delegation(
+    warehouse,
+    "write_table",
+    list(
+      table = "orders",
+      data = data.frame(id = 1L),
+      staging_lakehouse = "stage"
+    ),
+    mapping[["write_table"]],
+    calls,
+    "warehouse"
+  )
+  delta <- expect_r6_delegation(
+    warehouse,
+    "read_delta_table",
+    list(table_path = "Tables/dbo/orders"),
+    mapping[["read_delta_table"]],
+    calls,
+    "lakehouse_name"
+  )
+  expect_identical(delta$workspace_name, warehouse$workspaceId)
+
+  mirrored_methods <- c(
+    schemas = "mirrored_schemas",
+    table = "mirrored_table",
+    tables = "mirrored_tables",
+    read_table = "mirrored_read_table"
+  )
+  for (method in names(mirrored_methods)) {
+    alias <- mirrored_methods[[method]]
+    expect_r6_delegation(
+      mirrored,
+      method,
+      if (method %in% c("table", "read_table")) {
+        list(table = "orders")
+      } else {
+        list()
+      },
+      mapping[[alias]],
+      calls,
+      "mirrored_database"
+    )
+  }
+  mirrored_delta <- expect_r6_delegation(
+    mirrored,
+    "read_delta_table",
+    list(table_path = "Tables/dbo/orders"),
+    mapping[["read_delta_table"]],
+    calls,
+    "lakehouse_name"
+  )
+  expect_identical(mirrored_delta$workspace_name, mirrored$workspaceId)
+})
+
+test_that("KQL and GraphQL methods all delegate their item identity", {
+  calls <- new.env(parent = emptyenv())
+  mapping <- c(
+    query = "fabric_kql_query",
+    tables = "fabric_kql_tables",
+    read_table = "fabric_kql_read_table",
+    ingest = "fabric_kql_ingest",
+    write_table = "fabric_kql_write_table",
+    export = "fabric_kql_export",
+    ingestion_status = "fabric_kql_ingestion_status",
+    graphql_query = "fabric_graphql_query",
+    schema = "fabric_graphql_schema",
+    paginate = "fabric_graphql_paginate"
+  )
+  local_r6_method_mocks(unique(unname(mapping)), calls)
+  credential <- fabric_credential(token = "discovery-token")
+  database <- r6_test_record("KQLDatabase", credential)
+  api <- r6_test_record("GraphQLApi")
+  arguments <- list(
+    query = list(query = "StormEvents | take 1"),
+    read_table = list(table = "StormEvents"),
+    ingest = list(table = "events", sources = "source.csv", format = "csv"),
+    write_table = list(table = "events", data = data.frame(id = 1L)),
+    export = list(query = "events", destination = "Files/export")
+  )
+
+  for (method in c(
+    "query",
+    "tables",
+    "read_table",
+    "ingest",
+    "write_table",
+    "export"
+  )) {
+    expect_r6_delegation(
+      database,
+      method,
+      arguments[[method]] %||% list(),
+      mapping[[method]],
+      calls,
+      "cluster"
+    )
+  }
+
+  raw_status <- expect_r6_delegation(
+    database,
+    "ingestion_status",
+    list(ingestion = "operation-id", table = "events"),
+    mapping[["ingestion_status"]],
+    calls,
+    "cluster"
+  )
+  expect_identical(raw_status$wait, FALSE)
+  expect_s3_class(raw_status$token, "fabric_credential")
+  ingestion <- structure(
+    list(id = "operation-id"),
+    class = "fabric_kql_ingestion"
+  )
+  handle_status <- expect_r6_delegation(
+    database,
+    "ingestion_wait",
+    list(ingestion = ingestion),
+    mapping[["ingestion_status"]],
+    calls
+  )
+  expect_null(handle_status$cluster)
+  expect_identical(handle_status$wait, TRUE)
+
+  expect_r6_delegation(
+    api,
+    "query",
+    list(query = "{ products { id } }"),
+    mapping[["graphql_query"]],
+    calls,
+    "api"
+  )
+  expect_r6_delegation(
+    api,
+    "schema",
+    list(),
+    mapping[["schema"]],
+    calls,
+    "api"
+  )
+  expect_r6_delegation(
+    api,
+    "paginate",
+    list(query = "query", next_cursor = identity),
+    mapping[["paginate"]],
+    calls,
+    "api"
+  )
+})
+
+test_that("Semantic-model lifecycle methods preserve raw and handle context", {
+  calls <- new.env(parent = emptyenv())
+  functions <- c(
+    "fabric_pbi_dax_query",
+    "fabric_pbi_refresh",
+    "fabric_pbi_refresh_history",
+    "fabric_pbi_refresh_status",
+    "fabric_pbi_refresh_wait",
+    "fabric_pbi_refresh_cancel"
+  )
+  local_r6_method_mocks(functions, calls)
+  model <- r6_test_record(
+    "SemanticModel",
+    fabric_credential(token = "discovery-token")
+  )
+
+  expect_r6_delegation(
+    model,
+    "dax_query",
+    list(dax = "EVALUATE ROW(\"x\", 1)"),
+    "fabric_pbi_dax_query",
+    calls,
+    "connstr"
+  )
+  expect_r6_delegation(
+    model,
+    "refresh",
+    list(),
+    "fabric_pbi_refresh",
+    calls,
+    "connstr"
+  )
+  expect_r6_delegation(
+    model,
+    "refresh_history",
+    list(),
+    "fabric_pbi_refresh_history",
+    calls,
+    "connstr"
+  )
+  raw_status <- expect_r6_delegation(
+    model,
+    "refresh_status",
+    list(refresh = "33333333-3333-4333-8333-333333333333"),
+    "fabric_pbi_refresh_status",
+    calls,
+    "connstr"
+  )
+  expect_identical(raw_status$refresh, "33333333-3333-4333-8333-333333333333")
+
+  handle <- structure(list(id = "refresh-id"), class = "fabric_pbi_refresh")
+  handle_status <- expect_r6_delegation(
+    model,
+    "refresh_status",
+    list(refresh = handle),
+    "fabric_pbi_refresh_status",
+    calls
+  )
+  expect_null(handle_status$connstr)
+  expect_s3_class(handle_status$token, "fabric_credential")
+  expect_r6_delegation(
+    model,
+    "refresh_wait",
+    list(refresh = handle),
+    "fabric_pbi_refresh_wait",
+    calls
+  )
+  raw_cancel <- expect_r6_delegation(
+    model,
+    "refresh_cancel",
+    list(refresh = "33333333-3333-4333-8333-333333333333"),
+    "fabric_pbi_refresh_cancel",
+    calls,
+    "connstr"
+  )
+  expect_identical(raw_cancel$refresh, "33333333-3333-4333-8333-333333333333")
+})
+
+test_that("Runnable item methods cover the complete job lifecycle", {
+  calls <- new.env(parent = emptyenv())
+  functions <- c(
+    "fabric_job_run",
+    "fabric_job_status",
+    "fabric_job_wait",
+    "fabric_job_cancel",
+    "fabric_job_instances",
+    "fabric_job_schedules",
+    "fabric_job_schedule_create",
+    "fabric_job_schedule_update",
+    "fabric_job_schedule_delete"
+  )
+  local_r6_method_mocks(functions, calls)
+  notebook <- r6_test_record(
+    "Notebook",
+    fabric_credential(token = "discovery-token")
+  )
+  job <- structure(list(id = "job-id"), class = "fabric_job")
+
+  item_methods <- c(
+    run = "fabric_job_run",
+    instances = "fabric_job_instances",
+    schedules = "fabric_job_schedules"
+  )
+  for (method in names(item_methods)) {
+    expect_r6_delegation(
+      notebook,
+      method,
+      list(),
+      item_methods[[method]],
+      calls,
+      "item"
+    )
+  }
+  expect_r6_delegation(
+    notebook,
+    "status",
+    list(job = job),
+    "fabric_job_status",
+    calls,
+    "item"
+  )
+  wait_call <- expect_r6_delegation(
+    notebook,
+    "wait",
+    list(job = job),
+    "fabric_job_wait",
+    calls
+  )
+  expect_identical(wait_call$job, job)
+  expect_s3_class(wait_call$token, "fabric_credential")
+  expect_r6_delegation(
+    notebook,
+    "cancel",
+    list(job = "33333333-3333-4333-8333-333333333333"),
+    "fabric_job_cancel",
+    calls,
+    "item"
+  )
+
+  configuration <- list(type = "Daily", interval = 1)
+  create <- expect_r6_delegation(
+    notebook,
+    "schedule_create",
+    list(configuration = configuration),
+    "fabric_job_schedule_create",
+    calls,
+    "item"
+  )
+  expect_identical(create$configuration, configuration)
+  update <- expect_r6_delegation(
+    notebook,
+    "schedule_update",
+    list(schedule_id = "schedule-id", configuration = configuration),
+    "fabric_job_schedule_update",
+    calls,
+    "item"
+  )
+  expect_identical(update$schedule_id, "schedule-id")
+  delete <- expect_r6_delegation(
+    notebook,
+    "schedule_delete",
+    list(schedule_id = "schedule-id"),
+    "fabric_job_schedule_delete",
+    calls,
+    "item"
+  )
+  expect_identical(delete$schedule_id, "schedule-id")
 })

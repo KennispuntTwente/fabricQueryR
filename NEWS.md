@@ -6,6 +6,8 @@
 every service field, reuse the discovery credential, and provide type-specific
 methods for workspaces, SQL items, Lakehouses, Warehouses, mirrored databases,
 Eventhouses, KQL databases, GraphQL APIs, semantic models, and runnable jobs.
+Semantic models, runnable jobs, and KQL items also expose status, wait, and
+cancellation methods for the asynchronous work they start.
 Use `$as_list()` or `output = "list"` when a plain record is specifically
 required.
 

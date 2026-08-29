@@ -1589,6 +1589,9 @@ record access, avoiding methods that cannot operate from discovery metadata.
     \item \href{#method-FabricSemanticModel-dax_query}{\code{FabricSemanticModel$dax_query()}}
     \item \href{#method-FabricSemanticModel-refresh}{\code{FabricSemanticModel$refresh()}}
     \item \href{#method-FabricSemanticModel-refresh_history}{\code{FabricSemanticModel$refresh_history()}}
+    \item \href{#method-FabricSemanticModel-refresh_status}{\code{FabricSemanticModel$refresh_status()}}
+    \item \href{#method-FabricSemanticModel-refresh_wait}{\code{FabricSemanticModel$refresh_wait()}}
+    \item \href{#method-FabricSemanticModel-refresh_cancel}{\code{FabricSemanticModel$refresh_cancel()}}
   }
 }
 \if{html}{\out{<details><summary>Inherited methods</summary>
@@ -1668,6 +1671,75 @@ record access, avoiding methods that cannot operate from discovery metadata.
   }
 }
 
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricSemanticModel-refresh_status"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricSemanticModel-refresh_status}{}}}
+\subsection{\code{FabricSemanticModel$refresh_status()}}{
+  Retrieve one refresh status snapshot.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricSemanticModel$refresh_status(refresh, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{refresh}}{Refresh handle, detail record, or request ID.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_pbi_refresh_status]{fabric_pbi_refresh_status()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \code{fabric_pbi_refresh_detail} record.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricSemanticModel-refresh_wait"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricSemanticModel-refresh_wait}{}}}
+\subsection{\code{FabricSemanticModel$refresh_wait()}}{
+  Wait for a submitted refresh to finish.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricSemanticModel$refresh_wait(refresh, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{refresh}}{Refresh handle or detail record.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_pbi_refresh_wait]{fabric_pbi_refresh_wait()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A terminal \code{fabric_pbi_refresh_detail} record.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricSemanticModel-refresh_cancel"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricSemanticModel-refresh_cancel}{}}}
+\subsection{\code{FabricSemanticModel$refresh_cancel()}}{
+  Cancel a submitted refresh.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricSemanticModel$refresh_cancel(refresh, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{refresh}}{Refresh handle, detail record, or request ID.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_pbi_refresh_cancel]{fabric_pbi_refresh_cancel()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{TRUE}, invisibly, when cancellation is accepted.
+  }
+}
+
 }
 \section{Super classes}{
 \code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{FabricJobItem}
@@ -1676,6 +1748,9 @@ record access, avoiding methods that cannot operate from discovery metadata.
 \subsection{Public methods}{
   \itemize{
     \item \href{#method-FabricJobItem-run}{\code{FabricJobItem$run()}}
+    \item \href{#method-FabricJobItem-status}{\code{FabricJobItem$status()}}
+    \item \href{#method-FabricJobItem-wait}{\code{FabricJobItem$wait()}}
+    \item \href{#method-FabricJobItem-cancel}{\code{FabricJobItem$cancel()}}
     \item \href{#method-FabricJobItem-instances}{\code{FabricJobItem$instances()}}
     \item \href{#method-FabricJobItem-schedules}{\code{FabricJobItem$schedules()}}
     \item \href{#method-FabricJobItem-schedule_create}{\code{FabricJobItem$schedule_create()}}
@@ -1712,6 +1787,75 @@ record access, avoiding methods that cannot operate from discovery metadata.
   }
   \subsection{Returns}{
     A \code{fabric_job} handle.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricJobItem-status"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricJobItem-status}{}}}
+\subsection{\code{FabricJobItem$status()}}{
+  Retrieve one job status snapshot.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricJobItem$status(job = NULL, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{job}}{Job handle, instance record, or job instance ID.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_job_status]{fabric_job_status()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \code{fabric_job_instance} record.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricJobItem-wait"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricJobItem-wait}{}}}
+\subsection{\code{FabricJobItem$wait()}}{
+  Wait for a submitted job to finish.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricJobItem$wait(job, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{job}}{Job handle or instance record.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_job_wait]{fabric_job_wait()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A terminal \code{fabric_job_instance} record.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricJobItem-cancel"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricJobItem-cancel}{}}}
+\subsection{\code{FabricJobItem$cancel()}}{
+  Cancel a submitted job.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricJobItem$cancel(job = NULL, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{job}}{Job handle, instance record, or job instance ID.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_job_cancel]{fabric_job_cancel()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{TRUE}, invisibly, when cancellation is accepted.
   }
 }
 

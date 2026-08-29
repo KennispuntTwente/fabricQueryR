@@ -1056,6 +1056,38 @@ FabricKqlItem <- R6::R6Class(
         ),
         dots = list(...)
       )
+    },
+
+    #' @description Retrieve one KQL ingestion status snapshot.
+    #' @param ingestion Ingestion handle, status record, or operation ID.
+    #' @param ... Arguments forwarded to [fabric_kql_ingestion_status()].
+    #' @returns A `fabric_kql_ingestion_status` record.
+    ingestion_status = function(ingestion, ...) {
+      private$ingestion_call(ingestion, FALSE, list(...))
+    },
+
+    #' @description Wait for a KQL ingestion to finish.
+    #' @param ingestion Ingestion handle, status record, or operation ID.
+    #' @param ... Arguments forwarded to [fabric_kql_ingestion_status()].
+    #' @returns A terminal `fabric_kql_ingestion_status` record.
+    ingestion_wait = function(ingestion, ...) {
+      private$ingestion_call(ingestion, TRUE, list(...))
+    }
+  ),
+  private = list(
+    ingestion_call = function(ingestion, wait, dots) {
+      args <- list(ingestion = ingestion, wait = wait)
+      if (
+        !inherits(ingestion, "fabric_kql_ingestion") &&
+          !inherits(ingestion, "fabric_kql_ingestion_status")
+      ) {
+        args$cluster <- self
+      }
+      private$invoke(
+        fabric_kql_ingestion_status,
+        args = args,
+        dots = dots
+      )
     }
   )
 )
@@ -1164,6 +1196,56 @@ FabricSemanticModel <- R6::R6Class(
         args = list(connstr = self),
         dots = list(...)
       )
+    },
+
+    #' @description Retrieve one refresh status snapshot.
+    #' @param refresh Refresh handle, detail record, or request ID.
+    #' @param ... Arguments forwarded to [fabric_pbi_refresh_status()].
+    #' @returns A `fabric_pbi_refresh_detail` record.
+    refresh_status = function(refresh, ...) {
+      args <- list(refresh = refresh)
+      if (
+        !inherits(refresh, "fabric_pbi_refresh") &&
+          !inherits(refresh, "fabric_pbi_refresh_detail")
+      ) {
+        args$connstr <- self
+      }
+      private$invoke(
+        fabric_pbi_refresh_status,
+        args = args,
+        dots = list(...)
+      )
+    },
+
+    #' @description Wait for a submitted refresh to finish.
+    #' @param refresh Refresh handle or detail record.
+    #' @param ... Arguments forwarded to [fabric_pbi_refresh_wait()].
+    #' @returns A terminal `fabric_pbi_refresh_detail` record.
+    refresh_wait = function(refresh, ...) {
+      private$invoke(
+        fabric_pbi_refresh_wait,
+        args = list(refresh = refresh),
+        dots = list(...)
+      )
+    },
+
+    #' @description Cancel a submitted refresh.
+    #' @param refresh Refresh handle, detail record, or request ID.
+    #' @param ... Arguments forwarded to [fabric_pbi_refresh_cancel()].
+    #' @returns `TRUE`, invisibly, when cancellation is accepted.
+    refresh_cancel = function(refresh, ...) {
+      args <- list(refresh = refresh)
+      if (
+        !inherits(refresh, "fabric_pbi_refresh") &&
+          !inherits(refresh, "fabric_pbi_refresh_detail")
+      ) {
+        args$connstr <- self
+      }
+      private$invoke(
+        fabric_pbi_refresh_cancel,
+        args = args,
+        dots = list(...)
+      )
     }
   )
 )
@@ -1183,6 +1265,42 @@ FabricJobItem <- R6::R6Class(
       private$invoke(
         fabric_job_run,
         args = list(item = self),
+        dots = list(...)
+      )
+    },
+
+    #' @description Retrieve one job status snapshot.
+    #' @param job Job handle, instance record, or job instance ID.
+    #' @param ... Arguments forwarded to [fabric_job_status()].
+    #' @returns A `fabric_job_instance` record.
+    status = function(job = NULL, ...) {
+      private$invoke(
+        fabric_job_status,
+        args = list(job = job, item = self),
+        dots = list(...)
+      )
+    },
+
+    #' @description Wait for a submitted job to finish.
+    #' @param job Job handle or instance record.
+    #' @param ... Arguments forwarded to [fabric_job_wait()].
+    #' @returns A terminal `fabric_job_instance` record.
+    wait = function(job, ...) {
+      private$invoke(
+        fabric_job_wait,
+        args = list(job = job),
+        dots = list(...)
+      )
+    },
+
+    #' @description Cancel a submitted job.
+    #' @param job Job handle, instance record, or job instance ID.
+    #' @param ... Arguments forwarded to [fabric_job_cancel()].
+    #' @returns `TRUE`, invisibly, when cancellation is accepted.
+    cancel = function(job = NULL, ...) {
+      private$invoke(
+        fabric_job_cancel,
+        args = list(job = job, item = self),
         dots = list(...)
       )
     },
