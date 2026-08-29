@@ -12,8 +12,12 @@ later sections when the result spans several pages or contains nested
 fields.
 
 Start with a discovered API. The result is a read-only
-`FabricGraphQLApi` R6 object, so its endpoint, workspace, and credential
-travel with its query, schema, and pagination methods:
+`FabricGraphQLApi` R6 object. Its `$query()`, `$schema()`, and
+`$paginate()` methods correspond to
+[`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md),
+[`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md),
+and
+[`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md):
 
 ``` r
 
@@ -28,9 +32,10 @@ source.
 
 ## Run a first query
 
-A GraphQL document is one character string. The field names depend on
-how the Fabric API was configured, so replace `products`, `id`, and
-`name` with fields from your API:
+A GraphQL document is one character string. Call `$query()`
+([`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md))
+and replace `products`, `id`, and `name` with fields from your
+configured API:
 
 ``` r
 
@@ -62,17 +67,21 @@ schema$queryType$name
 vapply(schema$types, `[[`, character(1), "name")
 ```
 
-`$schema()` stops with a `fabric_graphql_introspection_error` when the
-service does not return a complete schema. Its message points to the
-administrator setting and the portal’s *Export schema* alternative.
-Export remains available when runtime introspection must stay disabled.
+`$schema()`
+([`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md))
+stops with a `fabric_graphql_introspection_error` when the service does
+not return a complete schema. Its message points to the administrator
+setting and the portal’s *Export schema* alternative. Export remains
+available when runtime introspection must stay disabled.
 
 ## Read more than one page
 
 Fabric normally represents a generated collection with `items`,
 `hasNextPage`, and `endCursor`. Request all three pieces needed by the
 workflow and use a stable explicit ordering when pages must be
-repeatable:
+repeatable. Call `$paginate()`
+([`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md))
+to retrieve the pages:
 
 ``` r
 
@@ -135,10 +144,12 @@ stay in `attr(products, "errors")`.
 
 ## Treat incomplete pagination as partial data
 
-`$paginate()` marks a result complete only after the API reports that no
-next page exists. If a page limit is reached first, collection raises an
-error rather than returning an apparently complete tibble. The partial
-rows remain available for explicit recovery:
+`$paginate()`
+([`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md))
+marks a result complete only after the API reports that no next page
+exists. If a page limit is reached first, collection raises an error
+rather than returning an apparently complete tibble. The partial rows
+remain available for explicit recovery:
 
 ``` r
 

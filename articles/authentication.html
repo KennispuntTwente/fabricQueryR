@@ -135,9 +135,11 @@ Fabric portal. Multifactor authentication and your organization’s
 Conditional Access rules still apply.</p>
 <p>If the call succeeds, <code>workspaces</code> is a list of read-only
 <code>FabricWorkspace</code> R6 objects available to that account. The
-service fields are available directly with <code>$</code>, and workspace
-methods continue discovery without copying IDs. Item discovery similarly
-returns <code>FabricItem</code> objects or type-specific subclasses:</p>
+service fields are available directly with <code>$</code>. Workspace
+methods such as <code>$items()</code> call the corresponding discovery
+function—in this case, <code><a href="../reference/fabric_items.html">fabric_items()</a></code>—without requiring
+copied IDs. Item discovery returns <code>FabricItem</code> objects or
+type-specific subclasses:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">items</span></span>
@@ -146,11 +148,13 @@ returns <code>FabricItem</code> objects or type-specific subclasses:</p>
 <span><span class="va">item</span><span class="op">$</span><span class="va">type</span></span>
 <span><span class="va">item</span><span class="op">$</span><span class="va">id</span></span></code></pre></div>
 <p>Actionable subclasses add methods for their workload. For example,
-<code>workspace$lakehouses()[[1L]]$tables()</code> lists a Lakehouse’s
-managed tables. The object reuses the credential acquired during
-discovery. Call <code>$as_list()</code> or request
-<code>output = "list"</code> only when a plain record is specifically
-needed.</p>
+<code>workspace$lakehouses()</code> corresponds to
+<code><a href="../reference/fabric_typed_items.html">fabric_lakehouses()</a></code>, and the returned Lakehouse’s
+<code>$tables()</code> method corresponds to
+<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>. The object reuses the credential
+acquired during discovery. Call <code>$as_list()</code> or
+<code><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list()</a></code>, or request <code>output = "list"</code>, only
+when a plain record is specifically needed.</p>
 <p>An empty result does not necessarily mean sign-in failed. It can mean
 that the account has not been given access to a Fabric workspace.</p>
 </div>

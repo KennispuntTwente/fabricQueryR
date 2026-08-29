@@ -4,7 +4,8 @@ Represents one piece of code submitted to a
 [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
 Call `$wait()` and then `$result()` to retrieve its output. For the
 usual submit-and-wait workflow, use the session's `$run()` method
-instead
+instead. These lifecycle methods do not have separate free-function
+wrappers
 
 ## Format
 

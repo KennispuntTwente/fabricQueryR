@@ -119,20 +119,23 @@ connection fields, and workload methods. See <code><a href="fabric_items.html">f
 
 <ul><li><p><code>fabric_lakehouses()</code>, <code>fabric_warehouses()</code>,
 <code>fabric_warehouse_snapshots()</code>, and <code>fabric_mirrored_databases()</code> find data
-stores with <code>$sql_query()</code> and other SQL methods; Lakehouses and
+stores with <code>$sql_query()</code> (<code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>) and other SQL methods;
+Lakehouses and
 mirrored databases can also be accessed through OneLake</p></li>
 <li><p><code>fabric_sql_databases()</code> finds transactional Fabric SQL databases</p></li>
-<li><p><code>fabric_semantic_models()</code> finds business models with <code>$dax_query()</code> and
-refresh lifecycle methods</p></li>
+<li><p><code>fabric_semantic_models()</code> finds business models with <code>$dax_query()</code>
+(<code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>) and refresh lifecycle methods</p></li>
 <li><p><code>fabric_eventhouses()</code> and <code>fabric_kql_databases()</code> find real-time data
-stores with <code>$query()</code>, <code>$read_table()</code>, ingestion, and export methods</p></li>
+stores with <code>$query()</code> (<code><a href="fabric_kql_query.html">fabric_kql_query()</a></code>) and <code>$read_table()</code>
+(<code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code>), plus ingestion and export methods</p></li>
 <li><p><code>fabric_notebooks()</code> finds notebooks with job lifecycle and schedule methods</p></li>
 <li><p><code>fabric_data_pipelines()</code> and <code>fabric_spark_job_definitions()</code> find the
 other executable items with the same job methods</p></li>
 <li><p><code>fabric_environments()</code> finds reusable Spark runtime configurations</p></li>
 <li><p><code>fabric_user_data_functions()</code> finds serverless Python function items</p></li>
-<li><p><code>fabric_graphql_apis()</code> finds APIs configured in Fabric with <code>$query()</code>,
-<code>$schema()</code>, and <code>$paginate()</code> methods</p></li>
+<li><p><code>fabric_graphql_apis()</code> finds APIs configured in Fabric with <code>$query()</code>
+(<code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code>), <code>$schema()</code> (<code><a href="fabric_graphql_schema.html">fabric_graphql_schema()</a></code>), and
+<code>$paginate()</code> (<code><a href="fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code>)</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="filtering-and-returned-fields">Filtering and returned fields<a class="anchor" aria-label="anchor" href="#filtering-and-returned-fields"></a></h2>
@@ -178,14 +181,17 @@ principals or managed identities; those callers can use <code>detail = FALSE</co
 <span class="r-in"><span><span class="va">kql_databases</span> <span class="op">&lt;-</span> <span class="fu">fabric_kql_databases</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">graphql_apis</span> <span class="op">&lt;-</span> <span class="fu">fabric_graphql_apis</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Discovered objects expose matching workload methods</span></span></span>
+<span class="r-in"><span><span class="co"># Each method calls the corresponding exported function</span></span></span>
+<span class="r-in"><span><span class="co"># fabric_lakehouse_tables()</span></span></span>
 <span class="r-in"><span><span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="fu">tables</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># fabric_sql_connection_info()</span></span></span>
 <span class="r-in"><span><span class="va">warehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="fu">sql_connection_info</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># fabric_pbi_dax_query()</span></span></span>
 <span class="r-in"><span><span class="va">semantic_models</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="fu">dax_query</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  dax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_DAX_QUERY"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Runnable items expose lifecycle methods</span></span></span>
+<span class="r-in"><span><span class="co"># Runnable methods call fabric_job_run() and fabric_job_wait()</span></span></span>
 <span class="r-in"><span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu">fabric_notebooks</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">pipeline</span> <span class="op">&lt;-</span> <span class="fu">fabric_data_pipelines</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">spark_job</span> <span class="op">&lt;-</span> <span class="fu">fabric_spark_job_definitions</span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></span>

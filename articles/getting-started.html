@@ -154,9 +154,11 @@ detail.</p>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>The result is a list of <code>FabricWorkspace</code> R6 objects. Each
 object keeps the workspace fields returned by Fabric and provides
-methods for discovering its items. If the list is empty, check that your
-account has been granted access to a workspace in the Fabric portal. If
-the list is not empty, select a specific workspace:</p>
+discovery methods. For example, <code>$items()</code> corresponds to
+<code><a href="../reference/fabric_items.html">fabric_items()</a></code>, and <code>$lakehouses()</code> corresponds
+to <code><a href="../reference/fabric_typed_items.html">fabric_lakehouses()</a></code>. If the list is empty, check that
+your account has been granted access to a workspace in the Fabric
+portal. If the list is not empty, select a specific workspace:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Select the first workspace in the list</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
@@ -172,8 +174,9 @@ more robust:</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<p>Now list all items in the workspace, or ask directly for items of a
-specific type:</p>
+<p>Now list all items with <code>$items()</code>
+(<code><a href="../reference/fabric_items.html">fabric_items()</a></code>), or ask directly for Lakehouses with
+<code>$lakehouses()</code> (<code><a href="../reference/fabric_typed_items.html">fabric_lakehouses()</a></code>):</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># List all items in the workspace</span></span>
 <span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span>
@@ -187,16 +190,21 @@ specific type:</p>
 through fields such as <code>$displayName</code>, <code>$type</code>,
 and <code>$id</code>; methods matched to its type perform the useful
 next actions. For example, a <code>FabricLakehouse</code> provides
-<code>$tables()</code>, <code>$read_table()</code>,
-<code>$write_table()</code>, and OneLake, SQL, and Livy methods. Use
-<code>$as_list()</code> only when another interface specifically
-requires a plain record.</p>
+<code>$tables()</code> (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>),
+<code>$read_table()</code> (<code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>),
+and <code>$write_table()</code>
+(<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>), plus OneLake, SQL, and
+Livy methods. Use <code>$as_list()</code> or <code><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list()</a></code> only
+when another interface specifically requires a plain record.</p>
 </div>
 <div class="section level2">
 <h2 id="complete-a-first-read">Complete a first read<a class="anchor" aria-label="anchor" href="#complete-a-first-read"></a>
 </h2>
 <p>If the workspace contains a Lakehouse, reading one managed table is a
-simple first workflow:</p>
+simple first workflow. Use <code>$tables()</code>
+(<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>) to discover its tables and
+<code>$read_table()</code> (<code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>)
+to read one:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># List the tables in the Lakehouse</span></span>
 <span><span class="va">tables</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">tables</span><span class="op">(</span><span class="op">)</span></span>

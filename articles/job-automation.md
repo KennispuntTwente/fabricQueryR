@@ -16,12 +16,22 @@ notebook <- fabric_notebooks("Analytics workspace")[[1]]
 ```
 
 Discovery returns a read-only `FabricJobItem` R6 object. Read its
-service fields directly; its run, monitoring, and schedule methods use
-the item and authentication context.
+service fields directly. Its `$run()`, `$status()`, `$wait()`, and
+`$cancel()` methods correspond to
+[`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+[`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+[`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md),
+and
+[`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md);
+its schedule methods correspond to the `fabric_job_schedule_*()`
+functions.
 
 ## Run once and inspect history
 
-Start an on-demand job and wait for its terminal state:
+Start an on-demand job with `$run()`
+([`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md))
+and wait with `$wait()`
+([`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)):
 
 ``` r
 
@@ -40,7 +50,9 @@ that deadline is exceeded.
 Notebook submission uses Fabric’s released workload-specific route so
 run parameters and compute settings are applied. Polling uses the stable
 Core Job Scheduler by default. If a Notebook workflow needs the beta
-status fields, such as its exit value, opt in explicitly:
+status fields, such as its exit value, use `$status()`
+([`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md))
+and opt in explicitly:
 
 ``` r
 
@@ -56,6 +68,11 @@ Running a job needs Execute permission. Reading history needs Read
 permission, while changing schedules normally needs Write access. If an
 on-demand run works but schedule creation does not, ask the item owner
 to check your Write access.
+
+List runs with `$instances()`
+([`fabric_job_instances()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_instances.md))
+and refresh a result with `$status()`
+([`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)):
 
 ``` r
 
@@ -114,8 +131,10 @@ weekly <- fabric_job_schedule_config(
 
 ## Create, list, update, and disable
 
-Create one schedule from a validated configuration, then list the
-schedules for the item:
+Create one schedule with `$schedule_create()`
+([`fabric_job_schedule_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)),
+then list schedules with `$schedules()`
+([`fabric_job_schedules()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md)):
 
 ``` r
 
@@ -123,7 +142,9 @@ schedule <- notebook$schedule_create(weekly, enabled = TRUE)
 schedules <- notebook$schedules()
 ```
 
-Disable or restart a schedule without rebuilding its configuration:
+Disable or restart a schedule with `$schedule_update()`
+([`fabric_job_schedule_update()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md))
+without rebuilding its configuration:
 
 ``` r
 
@@ -143,8 +164,9 @@ after inspecting recent job history and correcting the cause.
 
 ## Delete a schedule
 
-Deletion is permanent and never inferred from a create or update
-conflict. It requires explicit confirmation:
+Deletion with `$schedule_delete()`
+([`fabric_job_schedule_delete()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md))
+is permanent and requires explicit confirmation:
 
 ``` r
 

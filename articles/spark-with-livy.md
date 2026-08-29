@@ -38,7 +38,8 @@ runtime:
 
 An explicit `audience` replaces the defaults rather than extending them.
 For example, include all four required scopes when adding Azure SQL
-access:
+access. The Lakehouse `$livy_query()` method below calls
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md):
 
 ``` r
 
@@ -53,6 +54,7 @@ livy_scopes <- paste0(
   )
 )
 
+# `$livy_query()` is the object interface to `fabric_livy_query()`
 result <- lakehouse$livy_query(
   code = "SELECT * FROM external_sql_table",
   kind = "sql",
@@ -84,9 +86,16 @@ workspace <- matches[[1L]]
 lakehouse <- workspace$lakehouses()[[1L]]
 ```
 
+`$lakehouses()` is the workspace method for
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+
 The discovered `FabricLakehouse` is a read-only R6 object. Its fields
-expose the service metadata, and its Livy methods reuse the endpoint and
-discovery credential.
+expose the service metadata. `$livy_query()`, `$livy_session()`, and
+`$livy_batch_submit()` correspond to
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md),
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
+and
+[`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
 
 If discovery cannot retrieve the endpoint in your environment, copy the
 session-job connection string from *Lakehouse settings \> Livy endpoint*
@@ -94,8 +103,10 @@ and pass that URL instead.
 
 ## Run one piece of Spark code
 
-`$livy_query()` is the simplest method. It starts a temporary session,
-runs one statement, waits, and closes the session:
+`$livy_query()`
+([`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md))
+is the simplest method. It starts a temporary session, runs one
+statement, waits, and closes the session:
 
 ``` r
 
@@ -123,6 +134,9 @@ The `kind` argument tells Livy how to interpret `code`:
 
 For example, SparkR code can use the active Spark session and Lakehouse:
 
+This again uses `$livy_query()`
+([`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)):
+
 ``` r
 
 result <- lakehouse$livy_query(
@@ -138,8 +152,9 @@ result <- lakehouse$livy_query(
 
 ## Reuse a session for several statements
 
-Starting Spark can take time. Use `$livy_session()` when sequential
-statements need to share variables or cached data:
+Starting Spark can take time. Use `$livy_session()`
+([`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md))
+when sequential statements need to share variables or cached data:
 
 ``` r
 
@@ -153,7 +168,9 @@ answer$output$parsed
 ```
 
 Always close a session explicitly. R object cleanup does not make a
-network request, so forgetting `$close()` can leave Spark running.
+network request, so forgetting `$close()` can leave Spark running. The
+returned `FabricLivySession` lifecycle methods (`$wait()`, `$run()`, and
+`$close()`) do not have separate free-function wrappers.
 
 A standard session is right for one R process running a sequence. High
 concurrency is an advanced option for several isolated workloads that
@@ -162,8 +179,10 @@ order.
 
 ## Submit a complete application file
 
-Use a Livy batch when the work is a repeatable Python, R, or Java/Scala
-script stored in OneLake or ADLS:
+Use `$livy_batch_submit()`
+([`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md))
+when the work is a repeatable Python, R, or Java/Scala script stored in
+OneLake or ADLS:
 
 ``` r
 
@@ -185,10 +204,15 @@ batch$result()
 The application file must already be available through an ABFS or ABFSS
 path. Percent-encode spaces and other URL-reserved characters in file
 path segments; raw spaces and whitespace in the workspace or filesystem
-authority are invalid. Upload the file with `lakehouse$onelake_upload()`
+authority are invalid. Upload the file with `$onelake_upload()`
+([`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md))
 first when necessary. With `wait = FALSE`, the function returns a
 `FabricLivyBatch` object immediately; call its `$wait()`, `$result()`,
 or `$logs()` methods later.
+
+The `FabricLivyBatch` lifecycle methods (`$wait()`, `$result()`,
+`$logs()`, `$status()`, and `$cancel()`) do not have separate
+free-function wrappers.
 
 If a session, statement, or batch wait times out, the
 `fabric_livy_timeout_error` condition keeps the exact live object in its
@@ -214,3 +238,8 @@ result <- lakehouse$livy_query(
   environment_id = environment$id
 )
 ```
+
+`$environments()` is the workspace method for
+[`fabric_environments()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+The Lakehouse `$livy_query()` method calls
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md).

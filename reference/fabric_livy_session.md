@@ -156,7 +156,8 @@ fabric_livy_session(
 A newly created
 [FabricLivySession](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md).
 It may still be starting; call `$wait()` before `$submit()`/`$run()`,
-and `$close()` when finished
+and `$close()` when finished. These handle lifecycle methods do not have
+separate free-function wrappers
 
 ## Choosing a session type
 

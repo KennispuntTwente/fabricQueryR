@@ -5,7 +5,8 @@ code Create one with
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
 call `$wait()` once it starts, use `$run()` to execute code, and call
 `$close()` when finished. Most users do not need to call this 'R6' class
-directly
+directly. These lifecycle methods do not have separate free-function
+wrappers
 
 ## Format
 

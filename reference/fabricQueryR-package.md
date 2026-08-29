@@ -16,28 +16,48 @@ called through the corresponding `fabric_*()` functions
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
-  to find data. A workspace can also continue discovery with methods
-  such as `$lakehouses()` and `$semantic_models()`; see
+  to find data. A workspace can also continue discovery with
+  `$lakehouses()`
+  ([`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md))
+  and `$semantic_models()`
+  ([`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md));
+  see
   [FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
 
 - Use
   [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
   to discover tables and views across Warehouse, SQL Database, Warehouse
-  snapshot, or Lakehouse SQL endpoints, then use an item's
-  `$sql_read_table()` or `$sql_query()` method to read them
+  snapshot, or Lakehouse SQL endpoints, then use `$sql_read_table()`
+  ([`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md))
+  or `$sql_query()`
+  ([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md))
+  to read them
 
-- Use a semantic model's `$dax_query()` method for report-ready models
+- Use `$dax_query()`
+  ([`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md))
+  on a semantic model
 
-- Use a Lakehouse's `$livy_query()`, `$livy_session()`, or
-  `$livy_batch_submit()` method when Spark processing is required
+- Use `$livy_query()`
+  ([`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)),
+  `$livy_session()`
+  ([`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)),
+  or `$livy_batch_submit()`
+  ([`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md))
+  on a Lakehouse for Spark processing
 
 - Use
   [`fabric_lakehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
   and
   [`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-  to discover managed Delta tables; discovered Lakehouses provide
-  `$tables()`, `$read_table()`, `$write_table()`, and `$load_table()`
-  methods
+  to discover managed Delta tables; Lakehouse methods include
+  `$tables()`
+  ([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)),
+  `$read_table()`
+  ([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)),
+  `$write_table()`
+  ([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)),
+  and `$load_table()`
+  ([`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
 
 - Use
   [fabric_onelake_files](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
@@ -47,8 +67,11 @@ called through the corresponding `fabric_*()` functions
   [`fabric_warehouse_schemas()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_catalog.md)
   and
   [`fabric_warehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_tables.md)
-  to discover Warehouse tables, then `$read_table()` or `$write_table()`
-  on the Warehouse object for symmetric table transfer
+  to discover Warehouse tables, then `$read_table()`
+  ([`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md))
+  or `$write_table()`
+  ([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md))
+  on the Warehouse object
 
 - Use
   [`fabric_mirrored_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
@@ -56,20 +79,39 @@ called through the corresponding `fabric_*()` functions
   [`fabric_mirrored_database_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_mirrored_database_tables.md)
   to discover and read continuously replicated Delta tables
 
-- Use `$tables()`, `$query()`, `$read_table()`, `$ingest()`,
-  `$write_table()`, and `$export()` on a discovered Eventhouse or KQL
-  database
+- On an Eventhouse or KQL database, use `$tables()`
+  ([`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md)),
+  `$query()`
+  ([`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)),
+  `$read_table()`
+  ([`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)),
+  `$ingest()`
+  ([`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)),
+  `$write_table()`
+  ([`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)),
+  and `$export()`
+  ([`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md))
 
-- Use `$query()`, `$schema()`, and `$paginate()` on an API for GraphQL
-  item
+- On an API for GraphQL item, use `$query()`
+  ([`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)),
+  `$schema()`
+  ([`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md)),
+  and `$paginate()`
+  ([`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md))
 
 - Use
   [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
   to call published business logic through a User Data Function's
   explicit public URL
 
-- Use `$run()`, `$status()`, `$wait()`, and `$cancel()` on a discovered
-  notebook, data pipeline, or Spark job definition
+- On a runnable item, use `$run()`
+  ([`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)),
+  `$status()`
+  ([`fabric_job_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)),
+  `$wait()`
+  ([`fabric_job_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)),
+  and `$cancel()`
+  ([`fabric_job_cancel()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md))
 
 - See
   [`vignette("authentication", package = "fabricQueryR")`](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md)

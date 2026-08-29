@@ -77,8 +77,9 @@ portal.</p>
 has its own URL.</p>
 <p><code><a href="../reference/fabric_typed_items.html">fabric_user_data_functions()</a></code> discovers the containing
 item and returns a read-only <code>FabricItem</code> R6 object with
-service fields and a <code>$details()</code> method. Microsoft’s item
-response does not include enough information to derive each public
+service fields and a <code>$details()</code> method;
+<code>$details()</code> calls <code><a href="../reference/fabric_item.html">fabric_item()</a></code>. Microsoft’s
+item response does not include enough information to derive each public
 function URL, so pass the copied URL to
 <code><a href="../reference/fabric_function_invoke.html">fabric_function_invoke()</a></code>.</p>
 <p>You could store the URL in an environment variable (rather than

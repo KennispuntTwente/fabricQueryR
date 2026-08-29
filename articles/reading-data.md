@@ -17,14 +17,14 @@ order.
 
 | Your source or goal | Start with | Why |
 |----|----|----|
-| Warehouse, SQL Database, or a SQL-shaped Lakehouse query | `item$sql_query()` | Filter and summarize on the server with familiar SQL |
-| One Lakehouse Delta table | `lakehouse$read_table()` | Read a table without writing SQL |
-| One Warehouse table | `warehouse$read_table()` | Read a table by name without writing SQL |
-| Eventhouse table or KQL result | `kql_database$read_table()` or `$query()` | Use the Eventhouse query engine |
-| Power BI/Fabric semantic model | `model$dax_query()` | Use model relationships and measures |
-| CSV, Parquet, or Arrow file in OneLake | `lakehouse$onelake_read_file()` | Read the file itself |
-| API for GraphQL | `api$query()` | Request the fields exposed by the API |
-| A transformation that genuinely needs Spark | `lakehouse$livy_query()` | Run distributed code in Fabric |
+| Warehouse, SQL Database, or a SQL-shaped Lakehouse query | `item$sql_query()` ([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)) | Filter and summarize on the server with familiar SQL |
+| One Lakehouse Delta table | `lakehouse$read_table()` ([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)) | Read a table without writing SQL |
+| One Warehouse table | `warehouse$read_table()` ([`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md)) | Read a table by name without writing SQL |
+| Eventhouse table or KQL result | `kql_database$read_table()` ([`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)) or `$query()` ([`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)) | Use the Eventhouse query engine |
+| Power BI/Fabric semantic model | `model$dax_query()` ([`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)) | Use model relationships and measures |
+| CSV, Parquet, or Arrow file in OneLake | `lakehouse$onelake_read_file()` ([`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)) | Read the file itself |
+| API for GraphQL | `api$query()` ([`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)) | Request the fields exposed by the API |
+| A transformation that genuinely needs Spark | `lakehouse$livy_query()` ([`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)) | Run distributed code in Fabric |
 
 SQL is a good default for relational data because Fabric does the
 filtering and R receives only the rows you need. A direct table reader
@@ -53,13 +53,22 @@ kql_database <- workspace$kql_databases()[[1L]]
 model <- workspace$semantic_models()[[1L]]
 ```
 
+The workspace methods above correspond to
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+[`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+[`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+and
+[`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+
 Your workspace does not need to contain every item type. Discover only
 the source used by your workflow.
 
 ## Read with SQL
 
-Use an item’s `$sql_query()` method for one read-only `SELECT` query. It
-opens and closes the connection for you and returns a tibble:
+Use an item’s `$sql_query()` method
+([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md))
+for one read-only `SELECT` query. It opens and closes the connection for
+you and returns a tibble:
 
 ``` r
 
@@ -77,8 +86,10 @@ head(recent_orders)
 ```
 
 Put changing values in `params` rather than pasting them into the SQL
-text. This handles quoting safely. Use `$sql_connect()` and normal ‘DBI’
-functions when several queries should share one connection:
+text. This handles quoting safely. Use `$sql_connect()`
+([`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md))
+and normal ‘DBI’ functions when several queries should share one
+connection:
 
 ``` r
 
@@ -97,7 +108,11 @@ for the ODBC and ADBC setup choices.
 ## Read one table without writing a query
 
 Lakehouse and Warehouse table readers accept a table name and can limit
-the data before it enters R:
+the data before it enters R. The `$read_table()` methods call
+[`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)
+and
+[`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md),
+respectively:
 
 ``` r
 
@@ -114,13 +129,15 @@ warehouse_rows <- warehouse$read_table(
 )
 ```
 
-Use `lakehouse$tables()` when you are unsure which Lakehouse tables or
-schemas are available.
+Use `lakehouse$tables()`
+([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
+when you are unsure which Lakehouse tables or schemas are available.
 
 ## Read Eventhouse data
 
 An Eventhouse is optimized for event, log, and time-series data. Its
-query language is KQL. Read a whole table by name for a simple start:
+query language is KQL. Read a whole table by name with `$read_table()`
+([`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md)):
 
 ``` r
 
@@ -130,7 +147,9 @@ events <- kql_database$read_table(
 )
 ```
 
-Use a KQL query when Fabric should filter or summarize the events first:
+Use `$query()`
+([`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md))
+when Fabric should filter or summarize the events first:
 
 ``` r
 
@@ -147,8 +166,9 @@ daily_events <- kql_database$query(
 ## Query a semantic model with DAX
 
 A semantic model is a dataset ready for reporting, commonly used in
-Power BI. Semantic models can be queried with DAX (Data Analysis
-Expressions):
+Power BI. Query it with `$dax_query()`
+([`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md))
+and DAX (Data Analysis Expressions):
 
 ``` r
 
@@ -171,7 +191,9 @@ data.
 ## Read a OneLake file
 
 Use the file reader when the file itself is the data contract. Paths in
-a Lakehouse usually begin with `Files/`:
+a Lakehouse usually begin with `Files/`. The `$onelake_read_file()`
+method calls
+[`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md):
 
 ``` r
 
@@ -201,7 +223,9 @@ products <- response$data$products$items
 
 Use [Working with
 GraphQL](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.md)
-for schema inspection and pagination.
+for schema inspection and pagination. `$graphql_apis()` is the workspace
+method for
+[`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
 
 Spark is the later choice for distributed transformations, Spark-only
 data formats, or logic already written for Spark:
@@ -224,7 +248,9 @@ If a selected result is larger than your computer’s working memory,
 process it as a stream instead of collecting it all at once.
 
 Several readers accept `result = "arrow_stream"`. This can be used with
-the ‘arrow’ R package to read the data in batches:
+the ‘arrow’ R package to read the data in batches. Here `$read_table()`
+calls
+[`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md):
 
 ``` r
 

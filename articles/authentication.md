@@ -90,9 +90,11 @@ Access rules still apply.
 
 If the call succeeds, `workspaces` is a list of read-only
 `FabricWorkspace` R6 objects available to that account. The service
-fields are available directly with `$`, and workspace methods continue
-discovery without copying IDs. Item discovery similarly returns
-`FabricItem` objects or type-specific subclasses:
+fields are available directly with `$`. Workspace methods such as
+`$items()` call the corresponding discovery function—in this case,
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)—without
+requiring copied IDs. Item discovery returns `FabricItem` objects or
+type-specific subclasses:
 
 ``` r
 
@@ -105,10 +107,14 @@ item$id
 ```
 
 Actionable subclasses add methods for their workload. For example,
-`workspace$lakehouses()[[1L]]$tables()` lists a Lakehouse’s managed
-tables. The object reuses the credential acquired during discovery. Call
-`$as_list()` or request `output = "list"` only when a plain record is
-specifically needed.
+`workspace$lakehouses()` corresponds to
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
+and the returned Lakehouse’s `$tables()` method corresponds to
+[`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md).
+The object reuses the credential acquired during discovery. Call
+`$as_list()` or [`as.list()`](https://rdrr.io/r/base/list.html), or
+request `output = "list"`, only when a plain record is specifically
+needed.
 
 An empty result does not necessarily mean sign-in failed. It can mean
 that the account has not been given access to a Fabric workspace.

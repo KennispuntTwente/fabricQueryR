@@ -74,10 +74,14 @@ workspaces <- fabric_workspaces()
 ```
 
 The result is a list of `FabricWorkspace` R6 objects. Each object keeps
-the workspace fields returned by Fabric and provides methods for
-discovering its items. If the list is empty, check that your account has
-been granted access to a workspace in the Fabric portal. If the list is
-not empty, select a specific workspace:
+the workspace fields returned by Fabric and provides discovery methods.
+For example, `$items()` corresponds to
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md),
+and `$lakehouses()` corresponds to
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+If the list is empty, check that your account has been granted access to
+a workspace in the Fabric portal. If the list is not empty, select a
+specific workspace:
 
 ``` r
 
@@ -101,8 +105,10 @@ stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
 ```
 
-Now list all items in the workspace, or ask directly for items of a
-specific type:
+Now list all items with `$items()`
+([`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)),
+or ask directly for Lakehouses with `$lakehouses()`
+([`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)):
 
 ``` r
 
@@ -119,14 +125,24 @@ lakehouse$displayName
 A discovered item is a read-only R6 object. Read its Fabric metadata
 through fields such as `$displayName`, `$type`, and `$id`; methods
 matched to its type perform the useful next actions. For example, a
-`FabricLakehouse` provides `$tables()`, `$read_table()`,
-`$write_table()`, and OneLake, SQL, and Livy methods. Use `$as_list()`
-only when another interface specifically requires a plain record.
+`FabricLakehouse` provides `$tables()`
+([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)),
+`$read_table()`
+([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)),
+and `$write_table()`
+([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)),
+plus OneLake, SQL, and Livy methods. Use `$as_list()` or
+[`as.list()`](https://rdrr.io/r/base/list.html) only when another
+interface specifically requires a plain record.
 
 ## Complete a first read
 
 If the workspace contains a Lakehouse, reading one managed table is a
-simple first workflow:
+simple first workflow. Use `$tables()`
+([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
+to discover its tables and `$read_table()`
+([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md))
+to read one:
 
 ``` r
 

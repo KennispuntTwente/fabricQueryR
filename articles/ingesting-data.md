@@ -13,11 +13,11 @@ last.
 
 | What you want in Fabric | Start with | Good fit |
 |----|----|----|
-| A managed Lakehouse Delta table | `lakehouse$write_table()` | General analytics and data-engineering tables |
-| An ordinary file in OneLake | `lakehouse$onelake_write_file()` | Exchange files, exports, and non-tabular artifacts |
-| A relational Warehouse table | `warehouse$write_table()` | SQL reporting and warehouse workloads |
-| An Eventhouse KQL table | `kql_database$write_table()` | Event, log, and time-series data |
-| A Lakehouse table from files already in `Files/` | `lakehouse$load_table()` | Existing CSV or Parquet staging data |
+| A managed Lakehouse Delta table | `lakehouse$write_table()` ([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)) | General analytics and data-engineering tables |
+| An ordinary file in OneLake | `lakehouse$onelake_write_file()` ([`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)) | Exchange files, exports, and non-tabular artifacts |
+| A relational Warehouse table | `warehouse$write_table()` ([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)) | SQL reporting and warehouse workloads |
+| An Eventhouse KQL table | `kql_database$write_table()` ([`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)) | Event, log, and time-series data |
+| A Lakehouse table from files already in `Files/` | `lakehouse$load_table()` ([`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)) | Existing CSV or Parquet staging data |
 
 For a first ingestion, a Lakehouse table is the most direct
 general-purpose workflow. The high-level writers accept ordinary data
@@ -50,9 +50,15 @@ lakehouse <- workspace$lakehouses()[[1L]]
 
 `workspace` and `lakehouse` are read-only R6 objects returned by
 discovery. Read their Fabric fields through `$`; their methods use the
-IDs and credential needed for the next operation.
+IDs and credential needed for the next operation. `$lakehouses()` is the
+workspace method for
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
 
 ## Write a Lakehouse table
+
+Call `$write_table()`
+([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
+on the discovered Lakehouse:
 
 ``` r
 
@@ -71,7 +77,9 @@ Delta table, waits for Fabric to finish, and removes successful staging
 files. It can create the destination table; Fabric infers its columns
 from the source.
 
-Read back a few rows to verify the result:
+Read back a few rows with `$read_table()`
+([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md))
+to verify the result:
 
 ``` r
 
@@ -100,8 +108,11 @@ lakehouse$onelake_write_file(
 )
 ```
 
-`$onelake_write_file()` serializes supported R or Arrow objects. Use
-`$onelake_upload()` when a file already exists on local disk:
+`$onelake_write_file()`
+([`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md))
+serializes supported R or Arrow objects. Use `$onelake_upload()`
+([`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md))
+when a file already exists on local disk:
 
 ``` r
 
@@ -118,7 +129,11 @@ table-aware writer.
 ## Write a Warehouse table
 
 A Warehouse writer uses a Lakehouse `Files/` directory for temporary
-staging, then asks the Warehouse to load it efficiently:
+staging, then asks the Warehouse to load it efficiently. Discover
+Warehouses with `$warehouses()`
+([`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)),
+then write with `$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)):
 
 ``` r
 
@@ -144,7 +159,10 @@ explains overwrite choices, transactions, and larger Arrow inputs.
 ## Write an Eventhouse table
 
 Use Eventhouse for event or time-series data that will be queried with
-KQL:
+KQL. Discover KQL databases with `$kql_databases()`
+([`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)),
+then write with `$write_table()`
+([`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)):
 
 ``` r
 
@@ -170,7 +188,9 @@ and failure recovery.
 ## Load a file that is already in a Lakehouse
 
 If CSV or Parquet data already exists below the same Lakehouse’s
-`Files/` area, you can load it without downloading it to R:
+`Files/` area, you can load it without downloading it to R. The
+`$load_table()` method calls
+[`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md):
 
 ``` r
 
@@ -186,7 +206,9 @@ completed <- fabric_operation_wait(operation, timeout = 900)
 ```
 
 This route is useful for file-based pipelines. It does not upload a
-local file; use `$onelake_upload()` first when necessary.
+local file; use `$onelake_upload()`
+([`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md))
+first when necessary.
 
 ## Scale up with Arrow
 
@@ -196,6 +218,9 @@ The Lakehouse, Warehouse, and Eventhouse writers accept Arrow Tables and
 RecordBatches. They can also consume lazy Arrow Datasets, Scanners,
 queries, and streams in batches, without collecting the full input as an
 R data frame:
+
+This example again uses `$write_table()`
+([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)):
 
 ``` r
 

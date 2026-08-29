@@ -88,7 +88,7 @@
 <div class="section level3">
 <h3 id="id_1-discover-workspaces-and-items">1. Discover workspaces and items<a class="anchor" aria-label="anchor" href="#id_1-discover-workspaces-and-items"></a>
 </h3>
-<p>Find the Fabric resources you can access. Discovery returns R6 objects with methods matched to each actionable item type.</p>
+<p>Find the Fabric resources you can access. Discovery returns R6 objects with methods matched to each actionable item type. In the example below, <code>$lakehouses()</code> is the object interface to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>, and <code>$read_table()</code> calls <code><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
@@ -98,7 +98,7 @@
 <span><span class="va">lakehouse</span><span class="op">$</span><span class="va">id</span></span>
 <span><span class="va">lakehouse</span><span class="op">$</span><span class="va">displayName</span></span>
 <span></span>
-<span><span class="co"># Convert to a plain record when another interface specifically needs one</span></span>
+<span><span class="co"># Equivalent plain-record interface: as.list(lakehouse)</span></span>
 <span><span class="va">lakehouse_record</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">as_list</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Search the preview OneLake catalog when discovery must span all visible workspaces:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
@@ -110,7 +110,7 @@
 <div class="section level3">
 <h3 id="id_2-query-fabric-sql-endpoints">2. Query Fabric SQL endpoints<a class="anchor" aria-label="anchor" href="#id_2-query-fabric-sql-endpoints"></a>
 </h3>
-<p>Open a reusable ‘DBI’ connection to a Warehouse, SQL Database, or Lakehouse SQL analytics endpoint, or run a single query and return its result as a tibble.</p>
+<p>Open a reusable ‘DBI’ connection with <code>$sql_connect()</code> (<code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>), or run a single query with <code>$sql_query()</code> (<code><a href="reference/fabric_sql_query.html">fabric_sql_query()</a></code>). These interfaces work with a Warehouse, SQL Database, or Lakehouse SQL analytics endpoint.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -121,12 +121,12 @@
 <span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
 <span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code>$sql_connect()</code> supports both ODBC and ADBC. The default ODBC backend requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>.</p>
+<p><code>$sql_connect()</code> (<code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>) supports both ODBC and ADBC. The default ODBC backend requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>.</p>
 </div>
 <div class="section level3">
 <h3 id="id_3-query-a-semantic-model-with-dax">3. Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#id_3-query-a-semantic-model-with-dax"></a>
 </h3>
-<p>Run a DAX query against a Fabric or Power BI semantic model and return the result as a tibble.</p>
+<p>Run a DAX query with <code>$dax_query()</code> (<code><a href="reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>) and return the result as a tibble. <code>$semantic_models()</code> is the workspace method for <code><a href="reference/fabric_typed_items.html">fabric_semantic_models()</a></code>.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">semantic_models</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -138,7 +138,7 @@
 <div class="section level3">
 <h3 id="id_4-run-spark-code-through-livy">4. Run Spark code through Livy<a class="anchor" aria-label="anchor" href="#id_4-run-spark-code-through-livy"></a>
 </h3>
-<p>Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return the result to the local R session.</p>
+<p>Run SparkR, PySpark, Scala, or Spark SQL remotely with <code>$livy_query()</code> (<code><a href="reference/fabric_livy_query.html">fabric_livy_query()</a></code>) and return the result to the local R session. <code>$lakehouses()</code> is the workspace method for <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -151,7 +151,7 @@
 <div class="section level3">
 <h3 id="id_5-read-and-write-lakehouse-tables">5. Read and write Lakehouse tables<a class="anchor" aria-label="anchor" href="#id_5-read-and-write-lakehouse-tables"></a>
 </h3>
-<p>Move data between R and managed Delta tables in a Lakehouse. The writer accepts data frames as well as lazy Arrow sources.</p>
+<p>Move data between R and managed Delta tables with <code>$read_table()</code> (<code><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>) and <code>$write_table()</code> (<code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>). The writer accepts data frames as well as lazy Arrow sources; <code>$lakehouses()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="st">"orders"</span><span class="op">)</span></span>
@@ -160,13 +160,13 @@
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Use <code>$load_table()</code> when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Working with Fabric Lakehouses and OneLake</a> for the distinction between ordinary files and managed Delta tables, table loading, larger reads, and shortcuts.</p>
+<p>Use <code>$load_table()</code> (<code><a href="reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code>) when the source CSV or Parquet data already exists under <code>Files/</code> in the same Lakehouse. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html">Working with Fabric Lakehouses and OneLake</a> for the distinction between ordinary files and managed Delta tables, table loading, larger reads, and shortcuts.</p>
 <p>When only metadata existence is needed, use <code><a href="reference/fabric_onelake_schema_exists.html">fabric_onelake_schema_exists()</a></code> or <code><a href="reference/fabric_onelake_schema_exists.html">fabric_onelake_table_exists()</a></code> with either the Delta or Iceberg table protocol.</p>
 </div>
 <div class="section level3">
 <h3 id="id_6-work-with-onelake-files">6. Work with OneLake files<a class="anchor" aria-label="anchor" href="#id_6-work-with-onelake-files"></a>
 </h3>
-<p>Read and write common file formats directly between R and OneLake. Lakehouse file paths normally start with <code>Files/</code>.</p>
+<p>Read and write common file formats directly between R and OneLake with <code>$onelake_read_file()</code> (<code><a href="reference/fabric_onelake_object_files.html">fabric_onelake_read_file()</a></code>) and <code>$onelake_write_file()</code> (<code><a href="reference/fabric_onelake_object_files.html">fabric_onelake_write_file()</a></code>). Lakehouse file paths normally start with <code>Files/</code>; <code>$lakehouses()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -183,7 +183,7 @@
 <div class="section level3">
 <h3 id="id_7-read-and-write-warehouse-tables">7. Read and write Warehouse tables<a class="anchor" aria-label="anchor" href="#id_7-read-and-write-warehouse-tables"></a>
 </h3>
-<p>Read a Warehouse table into R or load an R or Arrow object into a Warehouse. Writes use a Lakehouse as temporary OneLake staging for Fabric’s <code>COPY INTO</code>.</p>
+<p>Read a Warehouse table with <code>$read_table()</code> (<code><a href="reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code>) or load an R or Arrow object with <code>$write_table()</code> (<code><a href="reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>). Writes use a Lakehouse as temporary OneLake staging for Fabric’s <code>COPY INTO</code>. <code>$warehouses()</code> and <code>$lakehouses()</code> correspond to <code><a href="reference/fabric_typed_items.html">fabric_warehouses()</a></code> and <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
@@ -200,7 +200,7 @@
 <div class="section level3">
 <h3 id="id_8-query-and-write-eventhouse-data">8. Query and write Eventhouse data<a class="anchor" aria-label="anchor" href="#id_8-query-and-write-eventhouse-data"></a>
 </h3>
-<p>Use KQL to query an Eventhouse database, or write an R or Arrow object to an existing KQL table.</p>
+<p>Use <code>$query()</code> (<code><a href="reference/fabric_kql_query.html">fabric_kql_query()</a></code>) to query an Eventhouse database, or <code>$write_table()</code> (<code><a href="reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>) to write an R or Arrow object to an existing KQL table. <code>$kql_databases()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_kql_databases()</a></code>.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">kql_databases</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -218,7 +218,7 @@
 <div class="section level3">
 <h3 id="id_9-query-a-fabric-graphql-api">9. Query a Fabric GraphQL API<a class="anchor" aria-label="anchor" href="#id_9-query-a-fabric-graphql-api"></a>
 </h3>
-<p>Call an API for GraphQL item configured in Fabric. Data and GraphQL-level errors remain separately available in the result.</p>
+<p>Call an API for GraphQL item with <code>$query()</code> (<code><a href="reference/fabric_graphql_query.html">fabric_graphql_query()</a></code>). Data and GraphQL-level errors remain separately available in the result; <code>$graphql_apis()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_graphql_apis()</a></code>.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">graphql_api</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">graphql_apis</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -245,7 +245,7 @@
 <div class="section level3">
 <h3 id="id_11-refresh-a-semantic-model">11. Refresh a semantic model<a class="anchor" aria-label="anchor" href="#id_11-refresh-a-semantic-model"></a>
 </h3>
-<p>Start a semantic-model refresh and wait for its final state. The returned object includes the details needed to inspect failures.</p>
+<p>Start a semantic-model refresh with <code>$refresh()</code> (<code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh()</a></code>) and wait with <code>$refresh_wait()</code> (<code><a href="reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait()</a></code>). The returned object includes the details needed to inspect failures; <code>$semantic_models()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_semantic_models()</a></code>.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">semantic_model</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">semantic_models</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="va">semantic_model</span><span class="op">$</span><span class="fu">refresh</span><span class="op">(</span><span class="op">)</span></span>
@@ -257,7 +257,7 @@
 <div class="section level3">
 <h3 id="id_12-run-and-monitor-fabric-jobs">12. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_12-run-and-monitor-fabric-jobs"></a>
 </h3>
-<p>Start a notebook, data pipeline, or Spark job definition and wait for it to finish.</p>
+<p>Start a notebook, data pipeline, or Spark job definition with <code>$run()</code> (<code><a href="reference/fabric_job_run.html">fabric_job_run()</a></code>) and wait with <code>$wait()</code> (<code><a href="reference/fabric_job_run.html">fabric_job_wait()</a></code>). <code>$notebooks()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_notebooks()</a></code>.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">notebooks</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
@@ -273,7 +273,7 @@
 <div class="section level3">
 <h3 id="id_13-create-onelake-shortcuts">13. Create OneLake shortcuts<a class="anchor" aria-label="anchor" href="#id_13-create-onelake-shortcuts"></a>
 </h3>
-<p>Create a shortcut when data in another Fabric item should be available without being copied into the current Lakehouse.</p>
+<p>Create a shortcut with <code>$shortcut_create()</code> (<code><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create()</a></code>) when data in another Fabric item should be available without being copied into the current Lakehouse. <code>$lakehouses()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>

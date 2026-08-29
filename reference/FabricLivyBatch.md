@@ -4,7 +4,8 @@ Represents a Spark application submitted with
 [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
 Use `$wait()` to wait for completion, `$result()` or `$logs()` to
 inspect the outcome, and `$cancel()` to request cancellation. Most users
-do not need to call this 'R6' class directly
+do not need to call this 'R6' class directly. These lifecycle methods do
+not have separate free-function wrappers
 
 ## Format
 

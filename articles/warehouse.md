@@ -23,11 +23,15 @@ workspace <- matches[[1L]]
 warehouse <- workspace$warehouses()[[1L]]
 ```
 
+`$warehouses()` is the workspace method for
+[`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+
 The SQL endpoint is the address that database tools use to reach the
 Warehouse. Because it is included in `warehouse`, you do not need to
 find or copy that address from the Fabric portal.
 
-For a single query, call the object’s `$sql_query()` method:
+For a single query, call `$sql_query()`
+([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)):
 
 ``` r
 
@@ -36,8 +40,9 @@ orders <- warehouse$sql_query(
 )
 ```
 
-The function opens and closes the SQL connection for you. If you want to
-run several commands with ‘DBI’, open a reusable connection instead:
+The method opens and closes the SQL connection for you. If you want to
+run several commands with ‘DBI’, use `$sql_connect()`
+([`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)):
 
 ``` r
 
@@ -47,16 +52,23 @@ DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.orders")
 DBI::dbDisconnect(con)
 ```
 
-For a simple read, `$read_table()` lets you name a table and optionally
-select columns or limit the rows, without writing SQL. It uses SQL
-internally.
+For a simple read, `$read_table()`
+([`fabric_warehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_read_table.md))
+lets you name a table and optionally select columns or limit the rows,
+without writing SQL. It uses SQL internally.
 [`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
 is the more general version for any supported Fabric SQL item.
 
-Use `$sql_query()` when you need filters, joins, grouping, or other SQL.
-Use `$sql_connect()` when you want to keep a connection open for several
-‘DBI’ calls. To add or replace many rows from an R data frame or Arrow
-source, use `$write_table()`. See
+Use `$sql_query()`
+([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md))
+when you need filters, joins, grouping, or other SQL. Use
+`$sql_connect()`
+([`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md))
+when you want to keep a connection open for several ‘DBI’ calls. To add
+or replace many rows from an R data frame or Arrow source, use
+`$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)).
+See
 [`vignette("reading-data")`](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
 for more reading examples.
 
@@ -71,11 +83,16 @@ removes the files after a confirmed successful write:
 staging_lakehouse <- workspace$lakehouses()[[1L]]
 ```
 
+`$lakehouses()` is the workspace method for
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+
 ## Add rows to an existing table
 
 Suppose `dbo.orders` already contains order data. This call adds three
 new rows to the table; it does not remove or change the rows already
-there. The existing table columns must match the R data frame:
+there. The existing table columns must match the R data frame. Use
+`$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)):
 
 ``` r
 
@@ -96,8 +113,9 @@ written$file_count
 written$staging_retained
 ```
 
-If you want to create a new table, you can use
-`create_if_missing = TRUE`:
+If you want to create a new table, use the same `$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md))
+method with `create_if_missing = TRUE`:
 
 ``` r
 
@@ -111,7 +129,9 @@ created <- warehouse$write_table(
 
 ## Replace table data
 
-Use overwrite mode when the new data should replace the current rows:
+Use overwrite mode with `$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md))
+when the new data should replace the current rows:
 
 ``` r
 
@@ -126,7 +146,9 @@ replaced <- warehouse$write_table(
 
 The default `"Truncate"` method preserves the existing table definition.
 Use `"Drop"` only when Fabric should infer a new definition from the
-incoming data:
+incoming data. This is another `$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md))
+call:
 
 ``` r
 
@@ -150,7 +172,8 @@ and reports a retained staging path when manual recovery may be needed.
 The same writer accepts Arrow Datasets, Scanners, ‘dplyr’ queries,
 RecordBatchReaders, Tables, and Arrow-compatible streams. These sources
 are processed in batches instead of first being collected into an R data
-frame:
+frame. The method remains `$write_table()`
+([`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md)):
 
 ``` r
 

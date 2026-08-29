@@ -17,9 +17,10 @@ and copy the *Public URL*. Each function has its own URL.
 
 [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
 discovers the containing item and returns a read-only `FabricItem` R6
-object with service fields and a `$details()` method. Microsoft’s item
-response does not include enough information to derive each public
-function URL, so pass the copied URL to
+object with service fields and a `$details()` method; `$details()` calls
+[`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
+Microsoft’s item response does not include enough information to derive
+each public function URL, so pass the copied URL to
 [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md).
 
 You could store the URL in an environment variable (rather than

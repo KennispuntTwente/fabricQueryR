@@ -117,7 +117,7 @@ warehouses <- workspace$items(type = "Warehouse")
 # Enrich that discovered object with connection details
 warehouse <- fabric_item(workspace, warehouses[[1L]])
 
-# The enriched R6 object exposes the matching SQL methods
+# `$sql_connection_info()` calls fabric_sql_connection_info()
 warehouse$sql_connection_info()
 } # }
 ```

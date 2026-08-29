@@ -33,13 +33,17 @@ lakehouse <- workspace$lakehouses()[[1L]]
 lakehouse$displayName
 ```
 
+`$lakehouses()` is the workspace method for
+[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+
 Fabric provides a SQL analytics endpoint for querying the managed tables
 under `Tables/`. It does not query ordinary files under `Files/`. The
 endpoint address is already included in `lakehouse`, so you do not need
 to copy it from the Fabric portal.
 
 The discovered `FabricLakehouse` is a read-only R6 object. For a single
-SQL query, call its `$sql_query()` method:
+SQL query, call `$sql_query()`
+([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)):
 
 ``` r
 
@@ -48,8 +52,9 @@ orders <- lakehouse$sql_query(
 )
 ```
 
-The function opens and closes the SQL connection for you. If you want to
-run several commands with ‘DBI’, open a reusable connection instead:
+The method opens and closes the SQL connection for you. If you want to
+run several commands with ‘DBI’, use `$sql_connect()`
+([`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)):
 
 ``` r
 
@@ -60,21 +65,28 @@ DBI::dbDisconnect(con)
 ```
 
 For most work with managed tables, start with SQL. Use `$sql_query()`
-for filters, joins, and summaries, or `$sql_read_table()` to read one
-table without writing SQL. Use `$sql_connect()` only when you want to
-keep a connection open for several ‘DBI’ calls.
+([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md))
+for filters, joins, and summaries, or `$sql_read_table()`
+([`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md))
+to read one table without writing SQL. Use `$sql_connect()`
+([`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md))
+only when you want to keep a connection open for several ‘DBI’ calls.
 
 You can also read a Delta table directly through OneLake with
-`$read_table()`. This is useful for an Arrow stream or an earlier table
-version. The `$onelake_*()` methods work with ordinary files under
-`Files/`, while `$write_table()` adds or replaces managed table data.
-These functions do not need a SQL connection. Never change the files
-underneath `Tables/` directly because they are part of a managed Delta
-table.
+`$read_table()`
+([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)).
+This is useful for an Arrow stream or an earlier table version. The
+`$onelake_*()` methods correspond to the `fabric_onelake_*()` functions
+and work with ordinary files under `Files/`, while `$write_table()`
+([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
+adds or replaces managed table data. These operations do not need a SQL
+connection. Never change the files underneath `Tables/` directly because
+they are part of a managed Delta table.
 
 ## List and read ordinary files
 
-Start by listing a small folder:
+Start by listing a small folder with `$onelake_list()`
+([`fabric_onelake_list()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)):
 
 ``` r
 
@@ -85,7 +97,9 @@ files <- lakehouse$onelake_list(
 files[c("path", "is_directory", "content_length")]
 ```
 
-Read a supported tabular file directly into R:
+Read a supported tabular file directly into R with
+`$onelake_read_file()`
+([`fabric_onelake_read_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)):
 
 ``` r
 
@@ -96,14 +110,19 @@ orders <- lakehouse$onelake_read_file(
 head(orders)
 ```
 
-Use `$onelake_metadata()` for size and other properties without reading
-the contents. Use `$onelake_download()` for a file type that should stay
-as bytes or be saved to local disk.
+Use `$onelake_metadata()`
+([`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md))
+for size and other properties without reading the contents. Use
+`$onelake_download()`
+([`fabric_onelake_download()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md))
+for a file type that should stay as bytes or be saved to local disk.
 
 ## Write or upload a file
 
-`$onelake_write_file()` turns an R or Arrow object into CSV, Parquet, or
-Arrow IPC content based on the path or explicit format:
+`$onelake_write_file()`
+([`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md))
+turns an R or Arrow object into CSV, Parquet, or Arrow IPC content based
+on the path or explicit format:
 
 ``` r
 
@@ -116,8 +135,10 @@ lakehouse$onelake_write_file(
 )
 ```
 
-If the file already exists on your computer, upload it without first
-parsing it in R:
+If the file already exists on your computer, upload it with
+`$onelake_upload()`
+([`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md))
+without first parsing it in R:
 
 ``` r
 
@@ -136,13 +157,17 @@ before replacing shared data.
 
 ## Discover and read managed tables
 
+List tables with `$tables()`
+([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)):
+
 ``` r
 
 tables <- lakehouse$tables()
 tables[c("schema", "name", "type", "format")]
 ```
 
-Select a discovered row or supply the table name:
+Select a discovered row or supply the table name to `$read_table()`
+([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)):
 
 ``` r
 
@@ -157,9 +182,14 @@ rows <- lakehouse$read_table(
 
 Column selection and row limits happen before the result is fully
 collected in R. For SQL joins, grouping, or complex filters, use
-`$sql_query()` against the Lakehouse SQL analytics endpoint instead.
+`$sql_query()`
+([`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md))
+against the Lakehouse SQL analytics endpoint instead.
 
 ## Write an R object as a managed table
+
+Use `$write_table()`
+([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)):
 
 ``` r
 
@@ -185,7 +215,8 @@ not suitable.
 ## Turn existing files into a table
 
 When CSV or Parquet files already exist in the Lakehouse, ask Fabric to
-load them directly:
+load them directly with `$load_table()`
+([`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)):
 
 ``` r
 
@@ -207,7 +238,9 @@ the selected Lakehouse’s `Files/` area.
 
 ## Read a large or historical Delta table
 
-Use an Arrow stream when the selected data may not fit comfortably in
+Use `$read_table()`
+([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md))
+with an Arrow stream when the selected data may not fit comfortably in
 memory:
 
 ``` r

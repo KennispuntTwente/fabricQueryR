@@ -63,30 +63,42 @@ functions</p>
 
 <ul><li><p>Use <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code> and the typed discovery helpers, such as
 <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code> or <code><a href="fabric_typed_items.html">fabric_semantic_models()</a></code>, to find data. A
-workspace can also continue discovery with methods such as <code>$lakehouses()</code>
-and <code>$semantic_models()</code>; see <a href="FabricItem.html">FabricItem</a></p></li>
+workspace can also continue discovery with <code>$lakehouses()</code>
+(<code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code>) and <code>$semantic_models()</code>
+(<code><a href="fabric_typed_items.html">fabric_semantic_models()</a></code>); see <a href="FabricItem.html">FabricItem</a></p></li>
 <li><p>Use <code><a href="fabric_sql_tables.html">fabric_sql_tables()</a></code> to discover tables and views across Warehouse,
 SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
-use an item's <code>$sql_read_table()</code> or <code>$sql_query()</code> method to read them</p></li>
-<li><p>Use a semantic model's <code>$dax_query()</code> method for report-ready models</p></li>
-<li><p>Use a Lakehouse's <code>$livy_query()</code>, <code>$livy_session()</code>, or
-<code>$livy_batch_submit()</code> method when Spark processing is required</p></li>
+use <code>$sql_read_table()</code> (<code><a href="fabric_sql_tables.html">fabric_sql_read_table()</a></code>) or <code>$sql_query()</code>
+(<code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>) to read them</p></li>
+<li><p>Use <code>$dax_query()</code> (<code><a href="fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>) on a semantic model</p></li>
+<li><p>Use <code>$livy_query()</code> (<code><a href="fabric_livy_query.html">fabric_livy_query()</a></code>), <code>$livy_session()</code>
+(<code><a href="fabric_livy_session.html">fabric_livy_session()</a></code>), or <code>$livy_batch_submit()</code>
+(<code><a href="fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>) on a Lakehouse for Spark processing</p></li>
 <li><p>Use <code><a href="fabric_onelake_catalog.html">fabric_lakehouse_schemas()</a></code> and <code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code> to discover
-managed Delta tables; discovered Lakehouses provide <code>$tables()</code>,
-<code>$read_table()</code>, <code>$write_table()</code>, and <code>$load_table()</code> methods</p></li>
+managed Delta tables; Lakehouse methods include <code>$tables()</code>
+(<code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>), <code>$read_table()</code>
+(<code><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>), <code>$write_table()</code>
+(<code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>), and <code>$load_table()</code>
+(<code><a href="fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code>)</p></li>
 <li><p>Use <a href="fabric_onelake_files.html">fabric_onelake_files</a> for ordinary files</p></li>
 <li><p>Use <code><a href="fabric_onelake_catalog.html">fabric_warehouse_schemas()</a></code> and <code><a href="fabric_warehouse_tables.html">fabric_warehouse_tables()</a></code> to discover
-Warehouse tables, then <code>$read_table()</code> or <code>$write_table()</code> on the Warehouse
-object for symmetric table transfer</p></li>
+Warehouse tables, then <code>$read_table()</code> (<code><a href="fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code>) or
+<code>$write_table()</code> (<code><a href="fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>) on the Warehouse object</p></li>
 <li><p>Use <code><a href="fabric_typed_items.html">fabric_mirrored_databases()</a></code> and <code><a href="fabric_mirrored_database_tables.html">fabric_mirrored_database_tables()</a></code>
 to discover and read continuously replicated Delta tables</p></li>
-<li><p>Use <code>$tables()</code>, <code>$query()</code>, <code>$read_table()</code>, <code>$ingest()</code>, <code>$write_table()</code>,
-and <code>$export()</code> on a discovered Eventhouse or KQL database</p></li>
-<li><p>Use <code>$query()</code>, <code>$schema()</code>, and <code>$paginate()</code> on an API for GraphQL item</p></li>
+<li><p>On an Eventhouse or KQL database, use <code>$tables()</code> (<code><a href="fabric_kql_tables.html">fabric_kql_tables()</a></code>),
+<code>$query()</code> (<code><a href="fabric_kql_query.html">fabric_kql_query()</a></code>), <code>$read_table()</code>
+(<code><a href="fabric_kql_read_table.html">fabric_kql_read_table()</a></code>), <code>$ingest()</code> (<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>),
+<code>$write_table()</code> (<code><a href="fabric_kql_write_table.html">fabric_kql_write_table()</a></code>), and <code>$export()</code>
+(<code><a href="fabric_kql_export.html">fabric_kql_export()</a></code>)</p></li>
+<li><p>On an API for GraphQL item, use <code>$query()</code> (<code><a href="fabric_graphql_query.html">fabric_graphql_query()</a></code>),
+<code>$schema()</code> (<code><a href="fabric_graphql_schema.html">fabric_graphql_schema()</a></code>), and <code>$paginate()</code>
+(<code><a href="fabric_graphql_paginate.html">fabric_graphql_paginate()</a></code>)</p></li>
 <li><p>Use <code><a href="fabric_function_invoke.html">fabric_function_invoke()</a></code> to call published business logic through a
 User Data Function's explicit public URL</p></li>
-<li><p>Use <code>$run()</code>, <code>$status()</code>, <code>$wait()</code>, and <code>$cancel()</code> on a discovered
-notebook, data pipeline, or Spark job definition</p></li>
+<li><p>On a runnable item, use <code>$run()</code> (<code><a href="fabric_job_run.html">fabric_job_run()</a></code>), <code>$status()</code>
+(<code><a href="fabric_job_run.html">fabric_job_status()</a></code>), <code>$wait()</code> (<code><a href="fabric_job_run.html">fabric_job_wait()</a></code>), and <code>$cancel()</code>
+(<code><a href="fabric_job_run.html">fabric_job_cancel()</a></code>)</p></li>
 <li><p>See <code><a href="../articles/authentication.html">vignette("authentication", package = "fabricQueryR")</a></code> for interactive
 and unattended authentication setup, required token audiences, and Fabric
 permissions</p></li>

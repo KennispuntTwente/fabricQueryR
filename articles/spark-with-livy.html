@@ -118,7 +118,8 @@ code needs the corresponding Azure service at runtime:</p>
 </table>
 <p>An explicit <code>audience</code> replaces the defaults rather than
 extending them. For example, include all four required scopes when
-adding Azure SQL access:</p>
+adding Azure SQL access. The Lakehouse <code>$livy_query()</code> method
+below calls <code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">livy_scopes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"https"</span>, <span class="st">"://api.fabric.microsoft.com/"</span><span class="op">)</span>,</span>
@@ -131,6 +132,7 @@ adding Azure SQL access:</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># `$livy_query()` is the object interface to `fabric_livy_query()`</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  code <span class="op">=</span> <span class="st">"SELECT * FROM external_sql_table"</span>,</span>
 <span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
@@ -156,9 +158,14 @@ with:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<p><code>$lakehouses()</code> is the workspace method for
+<code><a href="../reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
 <p>The discovered <code>FabricLakehouse</code> is a read-only R6 object.
-Its fields expose the service metadata, and its Livy methods reuse the
-endpoint and discovery credential.</p>
+Its fields expose the service metadata. <code>$livy_query()</code>,
+<code>$livy_session()</code>, and <code>$livy_batch_submit()</code>
+correspond to <code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>,
+<code><a href="../reference/fabric_livy_session.html">fabric_livy_session()</a></code>, and
+<code><a href="../reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>.</p>
 <p>If discovery cannot retrieve the endpoint in your environment, copy
 the session-job connection string from <em>Lakehouse settings &gt; Livy
 endpoint</em> and pass that URL instead.</p>
@@ -166,9 +173,9 @@ endpoint</em> and pass that URL instead.</p>
 <div class="section level2">
 <h2 id="run-one-piece-of-spark-code">Run one piece of Spark code<a class="anchor" aria-label="anchor" href="#run-one-piece-of-spark-code"></a>
 </h2>
-<p><code>$livy_query()</code> is the simplest method. It starts a
-temporary session, runs one statement, waits, and closes the
-session:</p>
+<p><code>$livy_query()</code> (<code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>) is the
+simplest method. It starts a temporary session, runs one statement,
+waits, and closes the session:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
@@ -211,6 +218,8 @@ text.</p>
 </table>
 <p>For example, SparkR code can use the active Spark session and
 Lakehouse:</p>
+<p>This again uses <code>$livy_query()</code>
+(<code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>):</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
@@ -225,8 +234,9 @@ Lakehouse:</p>
 <div class="section level2">
 <h2 id="reuse-a-session-for-several-statements">Reuse a session for several statements<a class="anchor" aria-label="anchor" href="#reuse-a-session-for-several-statements"></a>
 </h2>
-<p>Starting Spark can take time. Use <code>$livy_session()</code> when
-sequential statements need to share variables or cached data:</p>
+<p>Starting Spark can take time. Use <code>$livy_session()</code>
+(<code><a href="../reference/fabric_livy_session.html">fabric_livy_session()</a></code>) when sequential statements need to
+share variables or cached data:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">session</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_session</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">session</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -237,7 +247,9 @@ sequential statements need to share variables or cached data:</p>
 <span><span class="va">answer</span><span class="op">$</span><span class="va">output</span><span class="op">$</span><span class="va">parsed</span></span></code></pre></div>
 <p>Always close a session explicitly. R object cleanup does not make a
 network request, so forgetting <code>$close()</code> can leave Spark
-running.</p>
+running. The returned <code>FabricLivySession</code> lifecycle methods
+(<code>$wait()</code>, <code>$run()</code>, and <code>$close()</code>)
+do not have separate free-function wrappers.</p>
 <p>A standard session is right for one R process running a sequence.
 High concurrency is an advanced option for several isolated workloads
 that may share underlying compute; it is not needed for a few statements
@@ -246,8 +258,9 @@ in order.</p>
 <div class="section level2">
 <h2 id="submit-a-complete-application-file">Submit a complete application file<a class="anchor" aria-label="anchor" href="#submit-a-complete-application-file"></a>
 </h2>
-<p>Use a Livy batch when the work is a repeatable Python, R, or
-Java/Scala script stored in OneLake or ADLS:</p>
+<p>Use <code>$livy_batch_submit()</code>
+(<code><a href="../reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>) when the work is a repeatable
+Python, R, or Java/Scala script stored in OneLake or ADLS:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_batch_submit</span><span class="op">(</span></span>
 <span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
@@ -266,11 +279,15 @@ Java/Scala script stored in OneLake or ADLS:</p>
 ABFSS path. Percent-encode spaces and other URL-reserved characters in
 file path segments; raw spaces and whitespace in the workspace or
 filesystem authority are invalid. Upload the file with
-<code>lakehouse$onelake_upload()</code> first when necessary. With
-<code>wait = FALSE</code>, the function returns a
-<code>FabricLivyBatch</code> object immediately; call its
+<code>$onelake_upload()</code> (<code><a href="../reference/fabric_onelake_files.html">fabric_onelake_upload()</a></code>)
+first when necessary. With <code>wait = FALSE</code>, the function
+returns a <code>FabricLivyBatch</code> object immediately; call its
 <code>$wait()</code>, <code>$result()</code>, or <code>$logs()</code>
 methods later.</p>
+<p>The <code>FabricLivyBatch</code> lifecycle methods
+(<code>$wait()</code>, <code>$result()</code>, <code>$logs()</code>,
+<code>$status()</code>, and <code>$cancel()</code>) do not have separate
+free-function wrappers.</p>
 <p>If a session, statement, or batch wait times out, the
 <code>fabric_livy_timeout_error</code> condition keeps the exact live
 object in its <code>handle</code> field. You can inspect
@@ -294,6 +311,10 @@ depends on that configuration:</p>
 <span>  code <span class="op">=</span> <span class="st">"print(spark.version)"</span>,</span>
 <span>  environment_id <span class="op">=</span> <span class="va">environment</span><span class="op">$</span><span class="va">id</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p><code>$environments()</code> is the workspace method for
+<code><a href="../reference/fabric_typed_items.html">fabric_environments()</a></code>. The Lakehouse
+<code>$livy_query()</code> method calls
+<code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

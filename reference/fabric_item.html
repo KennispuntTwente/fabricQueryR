@@ -155,7 +155,7 @@ workload-specific read scope and access to the item. Use
 <span class="r-in"><span><span class="co"># Enrich that discovered object with connection details</span></span></span>
 <span class="r-in"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu">fabric_item</span><span class="op">(</span><span class="va">workspace</span>, <span class="va">warehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># The enriched R6 object exposes the matching SQL methods</span></span></span>
+<span class="r-in"><span><span class="co"># `$sql_connection_info()` calls fabric_sql_connection_info()</span></span></span>
 <span class="r-in"><span><span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_connection_info</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>

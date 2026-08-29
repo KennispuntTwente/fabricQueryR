@@ -9,8 +9,10 @@ Start by querying a small result. Refresh and monitoring come next,
 followed by the more specialized controls used for production models.
 
 This guide uses a discovered `FabricSemanticModel` R6 object. Read its
-service fields directly; its DAX and refresh methods reuse the
-workspace, dataset ID, and discovery credential:
+service fields directly. `$dax_query()` corresponds to
+[`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md),
+while the `$refresh*()` methods correspond to the
+`fabric_pbi_refresh*()` function family:
 
 ``` r
 
@@ -21,10 +23,12 @@ model <- fabric_semantic_models("Analytics workspace")[[1]]
 
 ## Query the model with DAX
 
-DAX is the query and calculation language used by semantic models. A
-query normally begins with `EVALUATE` and returns a table. If you are
-new to DAX, create and test a query in the model’s *DAX query view* in
-Fabric, then use the same text from R:
+DAX is the query and calculation language used by semantic models. Use
+`$dax_query()`
+([`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md))
+to run a query. It normally begins with `EVALUATE` and returns a table.
+If you are new to DAX, create and test a query in the model’s *DAX query
+view* in Fabric, then use the same text from R:
 
 ``` r
 
@@ -40,7 +44,9 @@ or need the same business definition used by a report. Query the
 Warehouse or Lakehouse instead when you need the underlying source rows
 and SQL is a better fit.
 
-For example, a DAX measure can be grouped by a model column:
+For example, call `$dax_query()`
+([`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md))
+to group a DAX measure by a model column:
 
 ``` r
 
@@ -72,7 +78,10 @@ settings.
 
 ## Refresh after an upstream update
 
-A standard refresh processes the complete model using Power BI defaults:
+A standard refresh starts with `$refresh()`
+([`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+and waits with `$refresh_wait()`
+([`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)):
 
 ``` r
 
@@ -88,8 +97,10 @@ Pass the returned handle to status, wait, or cancel functions without
 copying IDs. If you save it and restore it in another R process,
 authenticate again.
 
-For example, a data-load workflow can refresh only after the source
-update has committed successfully:
+For example, a data-load workflow can use the Lakehouse `$write_table()`
+method
+([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
+and refresh only after the source update has committed successfully:
 
 ``` r
 
@@ -108,13 +119,17 @@ completed <- model$refresh_wait(
 )
 ```
 
-Client-side `timeout` in `$refresh_wait()` only bounds how long R waits.
-Without `cancel_on_timeout = TRUE`, the Power BI refresh keeps running.
+Client-side `timeout` in `$refresh_wait()`
+([`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+only bounds how long R waits. Without `cancel_on_timeout = TRUE`, the
+Power BI refresh keeps running.
 
 ## Use enhanced refresh controls
 
-Enhanced refresh requires Power BI Premium, Premium per user, Embedded,
-or Fabric capacity. Supplying an enhanced option selects enhanced mode
+Enhanced refresh through `$refresh()`
+([`fabric_pbi_refresh()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+requires Power BI Premium, Premium per user, Embedded, or Fabric
+capacity. Supplying an enhanced option selects enhanced mode
 automatically, or set `mode = "enhanced"` explicitly:
 
 ``` r
@@ -136,16 +151,18 @@ completed <- model$refresh_wait(refresh, timeout = 5 * 60 * 60)
 ```
 
 The submission `timeout` controls an individual Power BI attempt; the
-numeric timeout in `$refresh_wait()` controls how long R waits. Use
-`"Transactional"` when the previous model should remain available unless
-the complete refresh succeeds. See
+numeric timeout in `$refresh_wait()`
+([`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+controls how long R waits. Use `"Transactional"` when the previous model
+should remain available unless the complete refresh succeeds. See
 [`?fabric_pbi_refresh`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
 before using partial-batch commits or refresh-policy options.
 
 ## Diagnose attempts and failures
 
-Use the status helper when a refresh takes longer than expected or
-fails:
+Use `$refresh_status()`
+([`fabric_pbi_refresh_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+when a refresh takes longer than expected or fails:
 
 ``` r
 
@@ -166,7 +183,10 @@ response; the complete response remains available in `raw`.
 
 By default, wait raises typed R conditions for service failures,
 cancellation, service timeouts, and disabled refreshes. Keep the
-terminal detail instead when building a monitoring table:
+terminal detail instead when building a monitoring table by calling
+`$refresh_wait()`
+([`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+with `error_on_failure = FALSE`:
 
 ``` r
 
@@ -180,8 +200,9 @@ if (result$state != "Completed") result$details_url
 
 ## Inspect history
 
-Inspect recent refreshes when you need to compare duration or failure
-patterns:
+Inspect recent refreshes with `$refresh_history()`
+([`fabric_pbi_refresh_history()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
+when you need to compare duration or failure patterns:
 
 ``` r
 
@@ -194,6 +215,10 @@ history[[1]]$attempts
 # Refresh an old history entry from its request ID and stored model context
 latest <- model$refresh_status(history[[1]])
 ```
+
+Here `$refresh_status()` calls
+[`fabric_pbi_refresh_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md),
+just as it does for a newly submitted refresh.
 
 ## More information
 

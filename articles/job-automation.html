@@ -72,12 +72,18 @@ types.</p>
 <span></span>
 <span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_notebooks</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>Discovery returns a read-only <code>FabricJobItem</code> R6 object.
-Read its service fields directly; its run, monitoring, and schedule
-methods use the item and authentication context.</p>
+Read its service fields directly. Its <code>$run()</code>,
+<code>$status()</code>, <code>$wait()</code>, and <code>$cancel()</code>
+methods correspond to <code><a href="../reference/fabric_job_run.html">fabric_job_run()</a></code>,
+<code><a href="../reference/fabric_job_run.html">fabric_job_status()</a></code>, <code><a href="../reference/fabric_job_run.html">fabric_job_wait()</a></code>, and
+<code><a href="../reference/fabric_job_run.html">fabric_job_cancel()</a></code>; its schedule methods correspond to the
+<code>fabric_job_schedule_*()</code> functions.</p>
 <div class="section level2">
 <h2 id="run-once-and-inspect-history">Run once and inspect history<a class="anchor" aria-label="anchor" href="#run-once-and-inspect-history"></a>
 </h2>
-<p>Start an on-demand job and wait for its terminal state:</p>
+<p>Start an on-demand job with <code>$run()</code>
+(<code><a href="../reference/fabric_job_run.html">fabric_job_run()</a></code>) and wait with <code>$wait()</code>
+(<code><a href="../reference/fabric_job_run.html">fabric_job_wait()</a></code>):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span></span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>run_date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>, full_load <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
@@ -91,7 +97,8 @@ run if that deadline is exceeded.</p>
 <p>Notebook submission uses Fabric’s released workload-specific route so
 run parameters and compute settings are applied. Polling uses the stable
 Core Job Scheduler by default. If a Notebook workflow needs the beta
-status fields, such as its exit value, opt in explicitly:</p>
+status fields, such as its exit value, use <code>$status()</code>
+(<code><a href="../reference/fabric_job_run.html">fabric_job_status()</a></code>) and opt in explicitly:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">detailed</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">status</span><span class="op">(</span></span>
 <span>  <span class="va">job</span>,</span>
@@ -103,6 +110,9 @@ status fields, such as its exit value, opt in explicitly:</p>
 permission, while changing schedules normally needs Write access. If an
 on-demand run works but schedule creation does not, ask the item owner
 to check your Write access.</p>
+<p>List runs with <code>$instances()</code>
+(<code><a href="../reference/fabric_job_instances.html">fabric_job_instances()</a></code>) and refresh a result with
+<code>$status()</code> (<code><a href="../reference/fabric_job_run.html">fabric_job_status()</a></code>):</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">instances</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -148,12 +158,14 @@ name such as <code>"Europe/Amsterdam"</code>.</p>
 <div class="section level2">
 <h2 id="create-list-update-and-disable">Create, list, update, and disable<a class="anchor" aria-label="anchor" href="#create-list-update-and-disable"></a>
 </h2>
-<p>Create one schedule from a validated configuration, then list the
-schedules for the item:</p>
+<p>Create one schedule with <code>$schedule_create()</code>
+(<code><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_create()</a></code>), then list schedules with
+<code>$schedules()</code> (<code><a href="../reference/fabric_job_schedules.html">fabric_job_schedules()</a></code>):</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_create</span><span class="op">(</span><span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedules</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Disable or restart a schedule without rebuilding its
+<p>Disable or restart a schedule with <code>$schedule_update()</code>
+(<code><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_update()</a></code>) without rebuilding its
 configuration:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">disabled</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_update</span><span class="op">(</span></span>
@@ -171,8 +183,9 @@ only after inspecting recent job history and correcting the cause.</p>
 <div class="section level2">
 <h2 id="delete-a-schedule">Delete a schedule<a class="anchor" aria-label="anchor" href="#delete-a-schedule"></a>
 </h2>
-<p>Deletion is permanent and never inferred from a create or update
-conflict. It requires explicit confirmation:</p>
+<p>Deletion with <code>$schedule_delete()</code>
+(<code><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_delete()</a></code>) is permanent and requires
+explicit confirmation:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_delete</span><span class="op">(</span><span class="va">schedule</span>, confirm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>Microsoft documents scheduler throttling, maximum job duration and

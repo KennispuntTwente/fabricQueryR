@@ -137,9 +137,12 @@ Fabric API and requires <code>Workspace.Read.All</code> or <code>Workspace.ReadW
 <span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Continue discovery through the workspace object</span></span></span>
+<span class="r-in"><span><span class="co"># Object methods call the corresponding exported functions</span></span></span>
+<span class="r-in"><span><span class="co"># workspace$items() -&gt; fabric_items(workspace)</span></span></span>
 <span class="r-in"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># workspace$lakehouses() -&gt; fabric_lakehouses(workspace)</span></span></span>
 <span class="r-in"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="co"># lakehouse$tables() -&gt; fabric_lakehouse_tables(lakehouse)</span></span></span>
 <span class="r-in"><span><span class="va">lakehouse</span><span class="op">$</span><span class="fu">tables</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
