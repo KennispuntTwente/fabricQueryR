@@ -73,10 +73,11 @@ Start by listing the workspaces that your account can access:
 workspaces <- fabric_workspaces()
 ```
 
-The result is a list of workspaces you have access to. If the list is
-empty, check that your account has been granted access to a workspace in
-the Fabric portal. If the list is not empty, select a specific
-workspace:
+The result is a list of `FabricWorkspace` R6 objects. Each object keeps
+the workspace fields returned by Fabric and provides methods for
+discovering its items. If the list is empty, check that your account has
+been granted access to a workspace in the Fabric portal. If the list is
+not empty, select a specific workspace:
 
 ``` r
 
@@ -106,18 +107,21 @@ specific type:
 ``` r
 
 # List all items in the workspace
-items <- fabric_items(workspace)
+items <- workspace$items()
 items
 
 # List only Lakehouses in the workspace
-lakehouses <- fabric_lakehouses(workspace)
+lakehouses <- workspace$lakehouses()
 lakehouse <- lakehouses[[1L]]
 lakehouse$displayName
 ```
 
-A discovered item contains metadata such as its name and type. Pass that
-item directly to other ‘fabricQueryR’ functions instead of copying IDs
-or connection details by hand.
+A discovered item is a read-only R6 object. Read its Fabric metadata
+through fields such as `$displayName`, `$type`, and `$id`; methods
+matched to its type perform the useful next actions. For example, a
+`FabricLakehouse` provides `$tables()`, `$read_table()`,
+`$write_table()`, and OneLake, SQL, and Livy methods. Use `$as_list()`
+only when another interface specifically requires a plain record.
 
 ## Complete a first read
 
@@ -127,13 +131,12 @@ simple first workflow:
 ``` r
 
 # List the tables in the Lakehouse
-tables <- fabric_lakehouse_tables(lakehouse)
+tables <- lakehouse$tables()
 tables[c("schema", "name", "type")]
 
 # Select the first table and read a small number of rows
 first_table <- tables[1L, ]
-rows <- fabric_lakehouse_read_table(
-  lakehouse,
+rows <- lakehouse$read_table(
   first_table,
   limit = 100L
 )

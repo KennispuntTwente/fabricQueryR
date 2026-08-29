@@ -89,16 +89,16 @@ fabric_lakehouse_write_table(
 
 - lakehouse:
 
-  Lakehouse GUID, exact display name, or one Lakehouse record returned
+  Lakehouse GUID, exact display name, or one Lakehouse object returned
   by
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-  A discovered record is recommended because it includes the workspace
+  A discovered object is recommended because it includes the workspace
   and default schema.
 
 - workspace:
 
   Workspace GUID, exact display name, or discovered workspace. Omit it
-  when `lakehouse` is a record containing `workspaceId`.
+  when `lakehouse` is a discovered object containing `workspaceId`.
 
 - schema:
 
@@ -254,7 +254,7 @@ fabric_lakehouse_write_table(
 - dfs_base:
 
   OneLake DFS service address used for the staging upload. A
-  workspace-specific endpoint from a discovered record is preferred when
+  workspace-specific endpoint from a discovered object is preferred when
   this argument is not supplied.
 
 ## Value

@@ -8,8 +8,9 @@ after its source data changes.
 Start by querying a small result. Refresh and monitoring come next,
 followed by the more specialized controls used for production models.
 
-This guide uses a discovered model so its workspace and dataset IDs
-travel together:
+This guide uses a discovered `FabricSemanticModel` R6 object. Read its
+service fields directly; its DAX and refresh methods reuse the
+workspace, dataset ID, and discovery credential:
 
 ``` r
 
@@ -27,8 +28,7 @@ Fabric, then use the same text from R:
 
 ``` r
 
-rows <- fabric_pbi_dax_query(
-  model,
+rows <- model$dax_query(
   dax = "EVALUATE TOPN(100, 'Customers')"
 )
 
@@ -44,8 +44,7 @@ For example, a DAX measure can be grouped by a model column:
 
 ``` r
 
-sales <- fabric_pbi_dax_query(
-  model,
+sales <- model$dax_query(
   dax = paste(
     "EVALUATE",
     "SUMMARIZECOLUMNS(",
@@ -77,8 +76,8 @@ A standard refresh processes the complete model using Power BI defaults:
 
 ``` r
 
-refresh <- fabric_pbi_refresh(model)
-completed <- fabric_pbi_refresh_wait(refresh, timeout = 1800)
+refresh <- model$refresh()
+completed <- model$refresh_wait(refresh, timeout = 1800)
 
 completed$state
 completed$start_time
@@ -94,26 +93,23 @@ update has committed successfully:
 
 ``` r
 
-load <- fabric_lakehouse_write_table(
-  lakehouse,
+load <- lakehouse$write_table(
   table = "Sales",
   data = new_sales,
   schema = "dbo",
   mode = "overwrite"
 )
 
-refresh <- fabric_pbi_refresh(model)
-completed <- fabric_pbi_refresh_wait(
+refresh <- model$refresh()
+completed <- model$refresh_wait(
   refresh,
   timeout = 1800,
   cancel_on_timeout = TRUE
 )
 ```
 
-Client-side `timeout` in
-[`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
-only bounds how long R waits. Without `cancel_on_timeout = TRUE`, the
-Power BI refresh keeps running.
+Client-side `timeout` in `$refresh_wait()` only bounds how long R waits.
+Without `cancel_on_timeout = TRUE`, the Power BI refresh keeps running.
 
 ## Use enhanced refresh controls
 
@@ -123,8 +119,7 @@ automatically, or set `mode = "enhanced"` explicitly:
 
 ``` r
 
-refresh <- fabric_pbi_refresh(
-  model,
+refresh <- model$refresh(
   mode = "enhanced",
   type = "Full",
   objects = list(
@@ -137,14 +132,13 @@ refresh <- fabric_pbi_refresh(
   timeout = "02:00:00"
 )
 
-completed <- fabric_pbi_refresh_wait(refresh, timeout = 5 * 60 * 60)
+completed <- model$refresh_wait(refresh, timeout = 5 * 60 * 60)
 ```
 
 The submission `timeout` controls an individual Power BI attempt; the
-numeric timeout in
-[`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
-controls how long R waits. Use `"Transactional"` when the previous model
-should remain available unless the complete refresh succeeds. See
+numeric timeout in `$refresh_wait()` controls how long R waits. Use
+`"Transactional"` when the previous model should remain available unless
+the complete refresh succeeds. See
 [`?fabric_pbi_refresh`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md)
 before using partial-batch commits or refresh-policy options.
 
@@ -155,7 +149,7 @@ fails:
 
 ``` r
 
-status <- fabric_pbi_refresh_status(refresh)
+status <- model$refresh_status(refresh)
 
 status$state
 status$attempts
@@ -176,7 +170,7 @@ terminal detail instead when building a monitoring table:
 
 ``` r
 
-result <- fabric_pbi_refresh_wait(
+result <- model$refresh_wait(
   refresh,
   error_on_failure = FALSE
 )
@@ -191,14 +185,14 @@ patterns:
 
 ``` r
 
-history <- fabric_pbi_refresh_history(model, top = 10L)
+history <- model$refresh_history(top = 10L)
 
 history[[1]]$refresh_type
 history[[1]]$state
 history[[1]]$attempts
 
 # Refresh an old history entry from its request ID and stored model context
-latest <- fabric_pbi_refresh_status(history[[1]])
+latest <- model$refresh_status(history[[1]])
 ```
 
 ## More information

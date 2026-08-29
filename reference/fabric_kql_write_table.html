@@ -88,7 +88,7 @@ and removes staging only after a confirmed success.</p>
 
 
 <dl><dt id="arg-cluster">cluster<a class="anchor" aria-label="anchor" href="#arg-cluster"></a></dt>
-<dd><p>Ingestion URI or Eventhouse/KQLDatabase discovery record; see
+<dd><p>Ingestion URI or Eventhouse/KQLDatabase discovery object; see
 <code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>.</p></dd>
 
 
@@ -218,7 +218,7 @@ ingest them as <code>timespan</code>.</p></dd>
 
 
 <dt id="arg-query-cluster">query_cluster<a class="anchor" aria-label="anchor" href="#arg-query-cluster"></a></dt>
-<dd><p>Optional Kusto query-service URI or discovery record
+<dd><p>Optional Kusto query-service URI or discovery object
 used for table creation. A discovered <code>cluster</code> already carries this URI;
 a standard Microsoft ingestion URI is converted to its paired query URI.
 Supply this explicitly for a trusted custom ingestion endpoint.</p></dd>

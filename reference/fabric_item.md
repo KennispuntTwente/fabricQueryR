@@ -27,16 +27,16 @@ fabric_item(
 
 - workspace:
 
-  Workspace name, ID, or record returned by
+  Workspace name, ID, or object returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A name is convenient for interactive use; a record avoids an extra
+  A name is convenient for interactive use; an object avoids an extra
   lookup
 
 - item:
 
-  Item GUID, exact display name, or an item record returned by a
+  Item GUID, exact display name, or an item object returned by a
   discovery function. A display name must identify exactly one item of
-  the requested `type`; use a GUID or discovered record when names are
+  the requested `type`; use a GUID or discovered object when names are
   duplicated
 
 - type:
@@ -79,7 +79,7 @@ fabric_item(
 
 - api_base:
 
-  Fabric REST API base URL. When `workspace` is a record containing
+  Fabric REST API base URL. When `workspace` is an object containing
   `apiEndpoint`, that workspace-specific endpoint is used unless
   `api_base` is supplied explicitly
 
@@ -110,14 +110,14 @@ with `detail = FALSE` when only core item metadata is needed
 
 ``` r
 if (FALSE) { # \dontrun{
-# Discover a workspace and obtain a lightweight Warehouse record
+# Discover a workspace and obtain a lightweight Warehouse object
 workspace <- fabric_workspaces()[[1L]]
-warehouses <- fabric_items(workspace, type = "Warehouse")
+warehouses <- workspace$items(type = "Warehouse")
 
-# Enrich that discovered record with connection details
+# Enrich that discovered object with connection details
 warehouse <- fabric_item(workspace, warehouses[[1L]])
 
-# The result can be passed directly to SQL helpers
-fabric_sql_connection_info(warehouse)
+# The enriched R6 object exposes the matching SQL methods
+warehouse$sql_connection_info()
 } # }
 ```

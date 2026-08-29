@@ -28,14 +28,14 @@ fabric_job_instances(
 
 - item:
 
-  Item GUID, exact display name, or an item record returned by a
-  discovery function. A discovered record is recommended because it
+  Item GUID, exact display name, or an item object returned by a
+  discovery function. A discovered object is recommended because it
   includes the item type and workspace ID.
 
 - workspace:
 
-  Workspace GUID, exact display name, or a workspace record. Omit it
-  when `item` is a discovered record containing `workspaceId`.
+  Workspace GUID, exact display name, or a workspace object. Omit it
+  when `item` is a discovered object containing `workspaceId`.
 
 - item_type:
 

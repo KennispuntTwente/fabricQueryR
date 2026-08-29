@@ -30,7 +30,7 @@ fabric_graphql_query(
 
 - api:
 
-  GraphQL endpoint, API ID, or one discovered GraphQLApi record. An item
+  GraphQL endpoint, API ID, or one discovered GraphQLApi object. An item
   from
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   is usually easiest because it supplies the endpoint and workspace ID
@@ -55,7 +55,7 @@ fabric_graphql_query(
 - workspace_id:
 
   Workspace GUID. Required when `api` is a GraphQL API GUID, and
-  otherwise inferred from a discovered record
+  otherwise inferred from a discovered object
 
 - error_policy:
 

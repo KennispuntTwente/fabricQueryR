@@ -62,9 +62,9 @@
     
 <p>An Eventhouse stores event, log, and time-series data in KQL
 databases. In this guide, <em>ingestion</em> means adding rows to a KQL
-table. Start with <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>, which accepts
-an R data frame and manages staging, status checks, and cleanup for
-you.</p>
+table. Start with the discovered database’s <code>$write_table()</code>
+method, which accepts an R data frame and manages staging, status
+checks, and cleanup for you.</p>
 <p>After the basic write, this guide shows how to monitor ingestion, use
 an existing storage file, scale up with Arrow, and export a large query
 result. The lower-level ingestion routes used by these workflows are
@@ -72,9 +72,10 @@ currently in preview.</p>
 <div class="section level2">
 <h2 id="find-a-kql-database">Find a KQL database<a class="anchor" aria-label="anchor" href="#find-a-kql-database"></a>
 </h2>
-<p>Start with a discovered KQL database. Its record contains both the
-query URI used by <code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code> and the ingestion URI
-used here:</p>
+<p>Start with a discovered KQL database. The result is a read-only
+<code>FabricKqlDatabase</code> R6 object. Its fields contain both the
+query and ingestion URIs, and its methods reuse that context and the
+discovery credential:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -87,8 +88,7 @@ used here:</p>
 <p>Supply a destination table and an ordinary data frame or tibble. Use
 a new test table while learning:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
+<code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>    id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>,</span>
@@ -115,7 +115,7 @@ staging recovery options.</p>
 <div class="section level2">
 <h2 id="queue-a-tracked-batch">Queue a tracked batch<a class="anchor" aria-label="anchor" href="#queue-a-tracked-batch"></a>
 </h2>
-<p>Use the lower-level <code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code> when the source
+<p>Use the lower-level <code>$ingest()</code> method when the source
 file already exists in OneLake or supported blob storage. It does not
 upload a local file or serialize an R object, and the destination table
 must already exist.</p>
@@ -132,8 +132,7 @@ complete source path and its format:</p>
 log a source string that contains credentials. Source IDs are generated
 when omitted and remain available on the returned handle:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
+<code class="sourceCode R"><span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">ingest</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  sources <span class="op">=</span> <span class="va">source</span>,</span>
 <span>  format <span class="op">=</span> <span class="st">"csv"</span>,</span>
@@ -146,11 +145,11 @@ when omitted and remain available on the returned handle:</p>
 <span><span class="va">ingestion</span><span class="op">$</span><span class="va">id</span></span>
 <span><span class="va">ingestion</span><span class="op">$</span><span class="va">sources</span><span class="op">$</span><span class="va">source_id</span></span></code></pre></div>
 <p>Use a stable <code>ingest_if_not_exists</code> key when the same
-logical batch may be submitted again. Queued ingestion is still an
-advanced, at-least-once workflow: after an uncertain network result,
-inspect the tracked operation and target table before submitting the
-source again. See <code><a href="../reference/fabric_kql_ingest.html">?fabric_kql_ingest</a></code> for batching, source
-deletion, and storage-authentication options.</p>
+logical batch may be submitted again. Queued ingestion is an advanced,
+at-least-once workflow: after an uncertain network result, inspect the
+tracked operation and target table before submitting the source again.
+See <code><a href="../reference/fabric_kql_ingest.html">?fabric_kql_ingest</a></code> for batching, source deletion, and
+storage-authentication options.</p>
 </div>
 <div class="section level2">
 <h2 id="wait-and-inspect-the-outcome">Wait and inspect the outcome<a class="anchor" aria-label="anchor" href="#wait-and-inspect-the-outcome"></a>
@@ -158,15 +157,14 @@ deletion, and storage-authentication options.</p>
 <p>One status snapshot is useful for a scheduler that persists operation
 IDs:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">snapshot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span><span class="va">ingestion</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">snapshot</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">ingestion_status</span><span class="op">(</span><span class="va">ingestion</span><span class="op">)</span></span>
 <span><span class="va">snapshot</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">snapshot</span><span class="op">$</span><span class="va">counts</span></span></code></pre></div>
 <p>For an interactive or single-process batch, poll with a client-side
 deadline:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">ingestion_wait</span><span class="op">(</span></span>
 <span>  <span class="va">ingestion</span>,</span>
-<span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">900</span>,</span>
 <span>  poll_interval <span class="op">=</span> <span class="fl">2</span></span>
 <span><span class="op">)</span></span>
@@ -177,9 +175,8 @@ deadline:</p>
 Fabric. By default, a failed or partially successful batch raises an R
 condition. To inspect every terminal state as data instead:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingestion_status</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">ingestion_wait</span><span class="op">(</span></span>
 <span>  <span class="va">ingestion</span>,</span>
-<span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  error_on_failure <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -190,14 +187,13 @@ condition. To inspect every terminal state as data instead:</p>
 <span><span class="va">failed</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"source_id"</span>, <span class="st">"error_code"</span>, <span class="st">"failure_status"</span>, <span class="st">"message"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 <p>Query the destination after success:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">loaded</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
+<code class="sourceCode R"><span><span class="va">loaded</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">query</span><span class="op">(</span></span>
 <span>  query <span class="op">=</span> <span class="st">"Events | where ingestion_time() &gt; ago(1h) | take 100"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The caller needs permission to ingest into the destination table and
 read the source file. Keep a manually staged source until the tracked
-result is final and verified; <code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code>
-manages this retention rule for you.</p>
+result is final and verified; <code>$write_table()</code> manages this
+retention rule for you.</p>
 </div>
 <div class="section level2">
 <h2 id="scale-up-with-arrow">Scale up with Arrow<a class="anchor" aria-label="anchor" href="#scale-up-with-arrow"></a>
@@ -208,8 +204,7 @@ writer:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
+<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  mapping <span class="op">=</span> <span class="st">"EventsParquet"</span></span>
@@ -220,16 +215,15 @@ into an R data frame. A supplied RecordBatchReader is single-use.</p>
 <div class="section level2">
 <h2 id="export-a-large-kql-result-to-onelake">Export a large KQL result to OneLake<a class="anchor" aria-label="anchor" href="#export-a-large-kql-result-to-onelake"></a>
 </h2>
-<p><code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code> is the right interface when the
-result belongs in R. When the result is too large for the client-result
-channel or should remain in Fabric, <code><a href="../reference/fabric_kql_export.html">fabric_kql_export()</a></code>
-runs Kusto’s service-side export and writes the first result set
-directly to storage:</p>
+<p><code>$query()</code> is the right interface when the result belongs
+in R. When the result is too large for the client-result channel or
+should remain in Fabric, <code>$export()</code> runs Kusto’s
+service-side export and writes the first result set directly to
+storage:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
-<span><span class="va">exported</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_export.html">fabric_kql_export</a></span><span class="op">(</span></span>
-<span>  <span class="va">database</span>,</span>
+<span><span class="va">exported</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">export</span><span class="op">(</span></span>
 <span>  query <span class="op">=</span> <span class="st">"Events | where observed_at &gt; ago(7d)"</span>,</span>
 <span>  destination <span class="op">=</span> <span class="va">lakehouse</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/events-weekly"</span>,</span>

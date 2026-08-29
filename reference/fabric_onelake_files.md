@@ -107,7 +107,7 @@ fabric_onelake_delete(
 
 - workspace:
 
-  Workspace name, ID, record from
+  Workspace name, ID, object from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
   or a complete OneLake HTTPS/ABFSS path
 

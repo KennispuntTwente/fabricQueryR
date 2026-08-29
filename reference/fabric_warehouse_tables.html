@@ -70,14 +70,14 @@ metadata for every table. A returned row can be passed directly to
 
 
 <dl><dt id="arg-warehouse">warehouse<a class="anchor" aria-label="anchor" href="#arg-warehouse"></a></dt>
-<dd><p>Warehouse GUID, exact display name, or one Warehouse record
-returned by <code><a href="fabric_typed_items.html">fabric_warehouses()</a></code>. A discovered record is recommended
+<dd><p>Warehouse GUID, exact display name, or one Warehouse object
+returned by <code><a href="fabric_typed_items.html">fabric_warehouses()</a></code>. A discovered object is recommended
 because it contains the workspace and item IDs.</p></dd>
 
 
 <dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
 <dd><p>Workspace GUID, exact display name, or discovered workspace.
-Omit it when <code>warehouse</code> is a record containing <code>workspaceId</code>.</p></dd>
+Omit it when <code>warehouse</code> is an object containing <code>workspaceId</code>.</p></dd>
 
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>

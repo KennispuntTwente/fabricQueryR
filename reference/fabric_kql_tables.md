@@ -25,18 +25,18 @@ fabric_kql_tables(
 
 - cluster:
 
-  Query URI, or one Eventhouse or KQLDatabase record returned by
+  Query URI, or one Eventhouse or KQLDatabase object returned by
   [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
-  A KQLDatabase record also supplies `database`. Despite the argument
+  A KQLDatabase object also supplies `database`. Despite the argument
   name, use Fabric's **Query URI** here
 
 - database:
 
   KQL database display name. Supply it with a copied Query URI or an
-  Eventhouse record; omit it when `cluster` is a KQLDatabase record
+  Eventhouse object; omit it when `cluster` is a KQLDatabase object
 
 - detail:
 

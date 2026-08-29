@@ -2,7 +2,7 @@
 
 Start a semantic-model refresh, inspect recent refreshes and execution
 details, wait for completion, or cancel an enhanced refresh. The easiest
-target is a record returned by
+target is an object returned by
 [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
 
 ## Usage
@@ -100,7 +100,7 @@ fabric_pbi_refresh_cancel(
 
 - connstr:
 
-  Optional semantic-model record from
+  Optional semantic-model object from
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),

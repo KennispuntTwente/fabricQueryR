@@ -32,11 +32,11 @@ fabric_livy_query(
 - livy_url:
 
   A Livy connection URL copied from the Lakehouse settings, or an
-  enriched Lakehouse record from
+  enriched Lakehouse object from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
-  A discovered record avoids copying workspace and Lakehouse IDs
+  A discovered object avoids copying workspace and Lakehouse IDs
 
 - code:
 

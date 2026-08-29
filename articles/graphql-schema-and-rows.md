@@ -11,8 +11,9 @@ inspection, pagination, and collection into a tibble. You only need the
 later sections when the result spans several pages or contains nested
 fields.
 
-Start with a discovered API so its endpoint and workspace travel
-together:
+Start with a discovered API. The result is a read-only
+`FabricGraphQLApi` R6 object, so its endpoint, workspace, and credential
+travel with its query, schema, and pagination methods:
 
 ``` r
 
@@ -33,8 +34,7 @@ how the Fabric API was configured, so replace `products`, `id`, and
 
 ``` r
 
-response <- fabric_graphql_query(
-  api,
+response <- api$query(
   query = "{ products { items { id name } } }"
 )
 
@@ -56,17 +56,16 @@ nested R list:
 
 ``` r
 
-schema <- fabric_graphql_schema(api)
+schema <- api$schema()
 
 schema$queryType$name
 vapply(schema$types, `[[`, character(1), "name")
 ```
 
-[`fabric_graphql_schema()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_schema.md)
-stops with a `fabric_graphql_introspection_error` when the service does
-not return a complete schema. Its message points to the administrator
-setting and the portal’s *Export schema* alternative. Export remains
-available when runtime introspection must stay disabled.
+`$schema()` stops with a `fabric_graphql_introspection_error` when the
+service does not return a complete schema. Its message points to the
+administrator setting and the portal’s *Export schema* alternative.
+Export remains available when runtime introspection must stay disabled.
 
 ## Read more than one page
 
@@ -77,8 +76,7 @@ repeatable:
 
 ``` r
 
-pages <- fabric_graphql_paginate(
-  api,
+pages <- api$paginate(
   query = paste(
     "query Products($first: Int!, $after: String) {",
     "  products(first: $first, after: $after, orderBy: {id: ASC}) {",
@@ -137,11 +135,10 @@ stay in `attr(products, "errors")`.
 
 ## Treat incomplete pagination as partial data
 
-[`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md)
-marks a result complete only after the API reports that no next page
-exists. If a page limit is reached first, collection raises an error
-rather than returning an apparently complete tibble. The partial rows
-remain available for explicit recovery:
+`$paginate()` marks a result complete only after the API reports that no
+next page exists. If a page limit is reached first, collection raises an
+error rather than returning an apparently complete tibble. The partial
+rows remain available for explicit recovery:
 
 ``` r
 

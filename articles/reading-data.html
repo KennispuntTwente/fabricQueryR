@@ -88,45 +88,44 @@ that order.</p>
 <tbody>
 <tr class="odd">
 <td>Warehouse, SQL Database, or a SQL-shaped Lakehouse query</td>
-<td><code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code></td>
+<td><code>item$sql_query()</code></td>
 <td>Filter and summarize on the server with familiar SQL</td>
 </tr>
 <tr class="even">
 <td>One Lakehouse Delta table</td>
-<td><code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code></td>
+<td><code>lakehouse$read_table()</code></td>
 <td>Read a table without writing SQL</td>
 </tr>
 <tr class="odd">
 <td>One Warehouse table</td>
-<td><code><a href="../reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code></td>
+<td><code>warehouse$read_table()</code></td>
 <td>Read a table by name without writing SQL</td>
 </tr>
 <tr class="even">
 <td>Eventhouse table or KQL result</td>
 <td>
-<code><a href="../reference/fabric_kql_read_table.html">fabric_kql_read_table()</a></code> or
-<code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code>
+<code>kql_database$read_table()</code> or <code>$query()</code>
 </td>
 <td>Use the Eventhouse query engine</td>
 </tr>
 <tr class="odd">
 <td>Power BI/Fabric semantic model</td>
-<td><code><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code></td>
+<td><code>model$dax_query()</code></td>
 <td>Use model relationships and measures</td>
 </tr>
 <tr class="even">
 <td>CSV, Parquet, or Arrow file in OneLake</td>
-<td><code><a href="../reference/fabric_onelake_object_files.html">fabric_onelake_read_file()</a></code></td>
+<td><code>lakehouse$onelake_read_file()</code></td>
 <td>Read the file itself</td>
 </tr>
 <tr class="odd">
 <td>API for GraphQL</td>
-<td><code><a href="../reference/fabric_graphql_query.html">fabric_graphql_query()</a></code></td>
+<td><code>api$query()</code></td>
 <td>Request the fields exposed by the API</td>
 </tr>
 <tr class="even">
 <td>A transformation that genuinely needs Spark</td>
-<td><code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code></td>
+<td><code>lakehouse$livy_query()</code></td>
 <td>Run distributed code in Fabric</td>
 </tr>
 </tbody>
@@ -139,8 +138,10 @@ grouping.</p>
 <div class="section level2">
 <h2 id="discover-the-data-source-once">Discover the data source once<a class="anchor" aria-label="anchor" href="#discover-the-data-source-once"></a>
 </h2>
-<p>The examples use discovered objects. They carry the IDs and
-connection details needed by the read functions:</p>
+<p>Discovery returns read-only R6 objects. They carry the IDs,
+connection details, and credential needed by their read methods. Read
+service fields such as <code>$displayName</code> and <code>$id</code>
+directly:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -151,22 +152,21 @@ connection details needed by the read functions:</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_semantic_models</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">kql_databases</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">semantic_models</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>Your workspace does not need to contain every item type. Discover
 only the source used by your workflow.</p>
 </div>
 <div class="section level2">
 <h2 id="read-with-sql">Read with SQL<a class="anchor" aria-label="anchor" href="#read-with-sql"></a>
 </h2>
-<p>Use <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> for one read-only
+<p>Use an item’s <code>$sql_query()</code> method for one read-only
 <code>SELECT</code> query. It opens and closes the connection for you
 and returns a tibble:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">recent_orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">recent_orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
 <span>  sql <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"SELECT TOP 100 order_id, order_date, amount"</span>,</span>
 <span>    <span class="st">"FROM dbo.orders"</span>,</span>
@@ -179,10 +179,10 @@ and returns a tibble:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">recent_orders</span><span class="op">)</span></span></code></pre></div>
 <p>Put changing values in <code>params</code> rather than pasting them
 into the SQL text. This handles quoting safely. Use
-<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> and normal ‘DBI’ functions when
-several queries should share one connection:</p>
+<code>$sql_connect()</code> and normal ‘DBI’ functions when several
+queries should share one connection:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_connect</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
@@ -197,21 +197,19 @@ choices.</p>
 <p>Lakehouse and Warehouse table readers accept a table name and can
 limit the data before it enters R:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">lakehouse_rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">lakehouse_rows</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"order_id"</span>, <span class="st">"order_date"</span>, <span class="st">"amount"</span><span class="op">)</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">100L</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">warehouse_rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<span><span class="va">warehouse_rows</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  schema <span class="op">=</span> <span class="st">"dbo"</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">100L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Use <code>fabric_lakehouse_tables(lakehouse)</code> when you are
-unsure which Lakehouse tables or schemas are available.</p>
+<p>Use <code>lakehouse$tables()</code> when you are unsure which
+Lakehouse tables or schemas are available.</p>
 </div>
 <div class="section level2">
 <h2 id="read-eventhouse-data">Read Eventhouse data<a class="anchor" aria-label="anchor" href="#read-eventhouse-data"></a>
@@ -220,16 +218,14 @@ unsure which Lakehouse tables or schemas are available.</p>
 query language is KQL. Read a whole table by name for a simple
 start:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">events</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_read_table.html">fabric_kql_read_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">kql_database</span>,</span>
+<code class="sourceCode R"><span><span class="va">events</span> <span class="op">&lt;-</span> <span class="va">kql_database</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">100L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Use a KQL query when Fabric should filter or summarize the events
 first:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">daily_events</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_query.html">fabric_kql_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">kql_database</span>,</span>
+<code class="sourceCode R"><span><span class="va">daily_events</span> <span class="op">&lt;-</span> <span class="va">kql_database</span><span class="op">$</span><span class="fu">query</span><span class="op">(</span></span>
 <span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"Events"</span>,</span>
 <span>    <span class="st">"| where observed_at &gt;= ago(7d)"</span>,</span>
@@ -245,8 +241,7 @@ first:</p>
 Power BI. Semantic models can be queried with DAX (Data Analysis
 Expressions):</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sales_by_region</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">model</span>,</span>
+<code class="sourceCode R"><span><span class="va">sales_by_region</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">dax_query</span><span class="op">(</span></span>
 <span>  dax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"EVALUATE"</span>,</span>
 <span>    <span class="st">"SUMMARIZECOLUMNS("</span>,</span>
@@ -265,9 +260,7 @@ refreshing their data.</p>
 <p>Use the file reader when the file itself is the data contract. Paths
 in a Lakehouse usually begin with <code>Files/</code>:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">orders_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_onelake_object_files.html">fabric_onelake_read_file</a></span><span class="op">(</span></span>
-<span>  <span class="va">workspace</span>,</span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">orders_file</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">onelake_read_file</span><span class="op">(</span></span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>CSV, Parquet, and Arrow IPC files can become R or Arrow objects.
@@ -281,10 +274,9 @@ Lakehouse table reader, not a file reader, for managed data below
 <p>GraphQL is useful when a Fabric API item exposes a purpose-built
 selection of fields:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_graphql_apis</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">graphql_apis</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
-<span><span class="va">response</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_graphql_query.html">fabric_graphql_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">api</span>,</span>
+<span><span class="va">response</span> <span class="op">&lt;-</span> <span class="va">api</span><span class="op">$</span><span class="fu">query</span><span class="op">(</span></span>
 <span>  query <span class="op">=</span> <span class="st">"{ products { items { id name category } } }"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">products</span> <span class="op">&lt;-</span> <span class="va">response</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">products</span><span class="op">$</span><span class="va">items</span></span></code></pre></div>
@@ -293,8 +285,7 @@ for schema inspection and pagination.</p>
 <p>Spark is the later choice for distributed transformations, Spark-only
 data formats, or logic already written for Spark:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_livy_query.html">fabric_livy_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"SELECT category, count(*) AS n FROM orders GROUP BY category"</span></span>
 <span><span class="op">)</span></span>
@@ -310,8 +301,7 @@ process it as a stream instead of collecting it all at once.</p>
 <p>Several readers accept <code>result = "arrow_stream"</code>. This can
 be used with the ‘arrow’ R package to read the data in batches:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"large_orders"</span>,</span>
 <span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
 <span><span class="op">)</span></span>

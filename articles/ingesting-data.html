@@ -84,28 +84,28 @@ workflows come last.</p>
 <tbody>
 <tr class="odd">
 <td>A managed Lakehouse Delta table</td>
-<td><code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code></td>
+<td><code>lakehouse$write_table()</code></td>
 <td>General analytics and data-engineering tables</td>
 </tr>
 <tr class="even">
 <td>An ordinary file in OneLake</td>
-<td><code><a href="../reference/fabric_onelake_object_files.html">fabric_onelake_write_file()</a></code></td>
+<td><code>lakehouse$onelake_write_file()</code></td>
 <td>Exchange files, exports, and non-tabular artifacts</td>
 </tr>
 <tr class="odd">
 <td>A relational Warehouse table</td>
-<td><code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code></td>
+<td><code>warehouse$write_table()</code></td>
 <td>SQL reporting and warehouse workloads</td>
 </tr>
 <tr class="even">
 <td>An Eventhouse KQL table</td>
-<td><code><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table()</a></code></td>
+<td><code>kql_database$write_table()</code></td>
 <td>Event, log, and time-series data</td>
 </tr>
 <tr class="odd">
 <td>A Lakehouse table from files already in <code>Files/</code>
 </td>
-<td><code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table()</a></code></td>
+<td><code>lakehouse$load_table()</code></td>
 <td>Existing CSV or Parquet staging data</td>
 </tr>
 </tbody>
@@ -135,14 +135,17 @@ frames and handle their own temporary Parquet staging.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
-<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<p><code>workspace</code> and <code>lakehouse</code> are read-only R6
+objects returned by discovery. Read their Fabric fields through
+<code>$</code>; their methods use the IDs and credential needed for the
+next operation.</p>
 </div>
 <div class="section level2">
 <h2 id="write-a-lakehouse-table">Write a Lakehouse table<a class="anchor" aria-label="anchor" href="#write-a-lakehouse-table"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">write_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">write_result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span>,</span>
 <span>  mode <span class="op">=</span> <span class="st">"Overwrite"</span></span>
@@ -156,8 +159,7 @@ files. It can create the destination table; Fabric infers its columns
 from the source.</p>
 <p>Read back a few rows to verify the result:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">check</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">check</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">10L</span></span>
 <span><span class="op">)</span></span>
@@ -174,19 +176,15 @@ replaces the table through Fabric’s managed load behavior.</p>
 another process expects a specific file or when the content is not
 tabular:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_onelake_object_files.html">fabric_onelake_write_file</a></span><span class="op">(</span></span>
-<span>  <span class="va">workspace</span>,</span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">lakehouse</span><span class="op">$</span><span class="fu">onelake_write_file</span><span class="op">(</span></span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code><a href="../reference/fabric_onelake_object_files.html">fabric_onelake_write_file()</a></code> serializes supported R or
-Arrow objects. Use <code><a href="../reference/fabric_onelake_files.html">fabric_onelake_upload()</a></code> when a file
-already exists on local disk:</p>
+<p><code>$onelake_write_file()</code> serializes supported R or Arrow
+objects. Use <code>$onelake_upload()</code> when a file already exists
+on local disk:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_onelake_files.html">fabric_onelake_upload</a></span><span class="op">(</span></span>
-<span>  <span class="va">workspace</span>,</span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">lakehouse</span><span class="op">$</span><span class="fu">onelake_upload</span><span class="op">(</span></span>
 <span>  path <span class="op">=</span> <span class="st">"Files/incoming/orders.csv"</span>,</span>
 <span>  source <span class="op">=</span> <span class="st">"orders.csv"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -200,10 +198,9 @@ through a table-aware writer.</p>
 <p>A Warehouse writer uses a Lakehouse <code>Files/</code> directory for
 temporary staging, then asks the Warehouse to load it efficiently:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
-<span><span class="va">warehouse_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<span><span class="va">warehouse_result</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span>
@@ -223,10 +220,9 @@ overwrite choices, transactions, and larger Arrow inputs.</p>
 <p>Use Eventhouse for event or time-series data that will be queried
 with KQL:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_kql_databases</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="va">kql_database</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">kql_databases</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
-<span><span class="va">kql_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_kql_write_table.html">fabric_kql_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">kql_database</span>,</span>
+<span><span class="va">kql_result</span> <span class="op">&lt;-</span> <span class="va">kql_database</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"OrdersFromR"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -246,8 +242,7 @@ idempotency keys, and failure recovery.</p>
 <code>Files/</code> area, you can load it without downloading it to
 R:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">operation</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_load_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">operation</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">load_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_from_file"</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"Files/incoming/orders.csv"</span>,</span>
 <span>  format <span class="op">=</span> <span class="st">"Csv"</span>,</span>
@@ -257,8 +252,7 @@ R:</p>
 <span></span>
 <span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_operation_status.html">fabric_operation_wait</a></span><span class="op">(</span><span class="va">operation</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span></code></pre></div>
 <p>This route is useful for file-based pipelines. It does not upload a
-local file; use <code><a href="../reference/fabric_onelake_files.html">fabric_onelake_upload()</a></code> first when
-necessary.</p>
+local file; use <code>$onelake_upload()</code> first when necessary.</p>
 </div>
 <div class="section level2">
 <h2 id="scale-up-with-arrow">Scale up with Arrow<a class="anchor" aria-label="anchor" href="#scale-up-with-arrow"></a>
@@ -271,8 +265,7 @@ R data frame:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<span><span class="va">lakehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"large_orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">dataset</span></span>
 <span><span class="op">)</span></span></code></pre></div>

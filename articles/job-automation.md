@@ -15,17 +15,20 @@ library(fabricQueryR)
 notebook <- fabric_notebooks("Analytics workspace")[[1]]
 ```
 
+Discovery returns a read-only `FabricJobItem` R6 object. Read its
+service fields directly; its run, monitoring, and schedule methods use
+the item and authentication context.
+
 ## Run once and inspect history
 
 Start an on-demand job and wait for its terminal state:
 
 ``` r
 
-job <- fabric_job_run(
-  notebook,
+job <- notebook$run(
   parameters = list(run_date = Sys.Date(), full_load = FALSE)
 )
-result <- fabric_job_wait(job, timeout = 900, cancel_on_timeout = TRUE)
+result <- notebook$wait(job, timeout = 900, cancel_on_timeout = TRUE)
 result$status
 ```
 
@@ -41,7 +44,7 @@ status fields, such as its exit value, opt in explicitly:
 
 ``` r
 
-detailed <- fabric_job_status(
+detailed <- notebook$status(
   job,
   notebook_details = TRUE,
   respect_retry_after = FALSE
@@ -56,7 +59,7 @@ to check your Write access.
 
 ``` r
 
-history <- fabric_job_instances(notebook)
+history <- notebook$instances()
 
 history[[1]]$invoke_type
 history[[1]]$status
@@ -68,7 +71,7 @@ Refresh a history entry directly without copying its instance ID:
 
 ``` r
 
-latest <- fabric_job_status(history[[1]])
+latest <- notebook$status(history[[1]])
 ```
 
 ## Build schedule configurations
@@ -116,22 +119,20 @@ schedules for the item:
 
 ``` r
 
-schedule <- fabric_job_schedule_create(notebook, weekly, enabled = TRUE)
-schedules <- fabric_job_schedules(notebook)
+schedule <- notebook$schedule_create(weekly, enabled = TRUE)
+schedules <- notebook$schedules()
 ```
 
 Disable or restart a schedule without rebuilding its configuration:
 
 ``` r
 
-disabled <- fabric_job_schedule_update(
-  notebook,
+disabled <- notebook$schedule_update(
   schedule,
   enabled = FALSE
 )
 
-restarted <- fabric_job_schedule_update(
-  notebook,
+restarted <- notebook$schedule_update(
   schedule,
   enabled = TRUE
 )
@@ -147,7 +148,7 @@ conflict. It requires explicit confirmation:
 
 ``` r
 
-fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
+notebook$schedule_delete(schedule, confirm = TRUE)
 ```
 
 Microsoft documents scheduler throttling, maximum job duration and

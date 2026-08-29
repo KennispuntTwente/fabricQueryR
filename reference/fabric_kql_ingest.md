@@ -61,12 +61,12 @@ fabric_kql_ingestion_status(
 
 - cluster:
 
-  Ingestion URI, or one Eventhouse or KQLDatabase record from
+  Ingestion URI, or one Eventhouse or KQLDatabase object from
   [`fabric_eventhouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   [`fabric_kql_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md).
-  A KQLDatabase record also supplies `database`. Use the **Ingestion
+  A KQLDatabase object also supplies `database`. Use the **Ingestion
   URI**, not the Query URI, for direct character input
 
 - table:
@@ -82,7 +82,7 @@ fabric_kql_ingestion_status(
 - database:
 
   Target KQL database display name. Omit it when `cluster` is a
-  discovered KQLDatabase record
+  discovered KQLDatabase object
 
 - format:
 

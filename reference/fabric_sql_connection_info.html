@@ -62,8 +62,8 @@ for a Fabric SQL connection. Most users can pass a discovered item directly to
 <dl><dt id="arg-server">server<a class="anchor" aria-label="anchor" href="#arg-server"></a></dt>
 <dd><p>A Fabric SQL server name, a complete connection string copied
 from the Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot,
-or SQL Database record returned by a discovery function. A discovered
-record is usually simplest because it also supplies the database name</p></dd>
+or SQL Database object returned by a discovery function. A discovered
+object is usually simplest because it also supplies the database name</p></dd>
 
 
 <dt id="arg-database">database<a class="anchor" aria-label="anchor" href="#arg-database"></a></dt>
@@ -88,15 +88,15 @@ hostname prevents 'fabricQueryR' from identifying it</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>fabric_sql_connection_info</code> list with <code>server</code>, <code>database</code>,
 <code>port</code>, <code>target_type</code>, and <code>source</code> (whether the input was text or a
-discovery record). No connection is opened</p>
+discovery object). No connection is opened</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Discover a Warehouse record that already contains its SQL endpoint</span></span></span>
+<span class="r-in"><span><span class="co"># Discover a Warehouse object that already contains its SQL endpoint</span></span></span>
 <span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Inspect connection details without opening a database connection</span></span></span>
 <span class="r-in"><span><span class="va">info</span> <span class="op">&lt;-</span> <span class="fu">fabric_sql_connection_info</span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span></span>

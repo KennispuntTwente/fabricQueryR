@@ -71,16 +71,18 @@ types.</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">notebook</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_notebooks</a></span><span class="op">(</span><span class="st">"Analytics workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<p>Discovery returns a read-only <code>FabricJobItem</code> R6 object.
+Read its service fields directly; its run, monitoring, and schedule
+methods use the item and authentication context.</p>
 <div class="section level2">
 <h2 id="run-once-and-inspect-history">Run once and inspect history<a class="anchor" aria-label="anchor" href="#run-once-and-inspect-history"></a>
 </h2>
 <p>Start an on-demand job and wait for its terminal state:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_run</a></span><span class="op">(</span></span>
-<span>  <span class="va">notebook</span>,</span>
+<code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">run</span><span class="op">(</span></span>
 <span>  parameters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>run_date <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>, full_load <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_wait</a></span><span class="op">(</span><span class="va">job</span>, timeout <span class="op">=</span> <span class="fl">900</span>, cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="va">job</span>, timeout <span class="op">=</span> <span class="fl">900</span>, cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span></code></pre></div>
 <p>The first call returns immediately with a job handle. The wait call
 checks Fabric until the job finishes or the 15-minute local deadline is
@@ -91,7 +93,7 @@ run parameters and compute settings are applied. Polling uses the stable
 Core Job Scheduler by default. If a Notebook workflow needs the beta
 status fields, such as its exit value, opt in explicitly:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">detailed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_status</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">detailed</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">status</span><span class="op">(</span></span>
 <span>  <span class="va">job</span>,</span>
 <span>  notebook_details <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  respect_retry_after <span class="op">=</span> <span class="cn">FALSE</span></span>
@@ -102,7 +104,7 @@ permission, while changing schedules normally needs Write access. If an
 on-demand run works but schedule creation does not, ask the item owner
 to check your Write access.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_instances.html">fabric_job_instances</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">instances</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">invoke_type</span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">status</span></span>
@@ -110,7 +112,7 @@ to check your Write access.</p>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">failure_reason</span></span></code></pre></div>
 <p>Refresh a history entry directly without copying its instance ID:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_run.html">fabric_job_status</a></span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">status</span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="build-schedule-configurations">Build schedule configurations<a class="anchor" aria-label="anchor" href="#build-schedule-configurations"></a>
@@ -149,19 +151,17 @@ name such as <code>"Europe/Amsterdam"</code>.</p>
 <p>Create one schedule from a validated configuration, then list the
 schedules for the item:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_create</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedules</a></span><span class="op">(</span><span class="va">notebook</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_create</span><span class="op">(</span><span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedules</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Disable or restart a schedule without rebuilding its
 configuration:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">disabled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_update</a></span><span class="op">(</span></span>
-<span>  <span class="va">notebook</span>,</span>
+<code class="sourceCode R"><span><span class="va">disabled</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_update</span><span class="op">(</span></span>
 <span>  <span class="va">schedule</span>,</span>
 <span>  enabled <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">restarted</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_update</a></span><span class="op">(</span></span>
-<span>  <span class="va">notebook</span>,</span>
+<span><span class="va">restarted</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_update</span><span class="op">(</span></span>
 <span>  <span class="va">schedule</span>,</span>
 <span>  enabled <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -174,7 +174,7 @@ only after inspecting recent job history and correcting the cause.</p>
 <p>Deletion is permanent and never inferred from a create or update
 conflict. It requires explicit confirmation:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_delete</a></span><span class="op">(</span><span class="va">notebook</span>, <span class="va">schedule</span>, confirm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_delete</span><span class="op">(</span><span class="va">schedule</span>, confirm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>Microsoft documents scheduler throttling, maximum job duration and
 concurrency, schedule expiry after prolonged user inactivity, and
 auto-disable behavior in the <a href="https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler" class="external-link">Fabric

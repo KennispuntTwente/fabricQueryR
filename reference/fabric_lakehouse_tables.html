@@ -144,14 +144,14 @@ removes the staged file after confirmed success by default.</p></li>
 
 
 <dl><dt id="arg-lakehouse">lakehouse<a class="anchor" aria-label="anchor" href="#arg-lakehouse"></a></dt>
-<dd><p>Lakehouse GUID, exact display name, or one Lakehouse record
-returned by <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code>. A discovered record is recommended
+<dd><p>Lakehouse GUID, exact display name, or one Lakehouse object
+returned by <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code>. A discovered object is recommended
 because it includes the workspace and default schema.</p></dd>
 
 
 <dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
 <dd><p>Workspace GUID, exact display name, or discovered workspace.
-Omit it when <code>lakehouse</code> is a record containing <code>workspaceId</code>.</p></dd>
+Omit it when <code>lakehouse</code> is a discovered object containing <code>workspaceId</code>.</p></dd>
 
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
@@ -308,7 +308,7 @@ bytes.</p></dd>
 
 <dt id="arg-dfs-base">dfs_base<a class="anchor" aria-label="anchor" href="#arg-dfs-base"></a></dt>
 <dd><p>OneLake DFS service address used for the staging upload.
-A workspace-specific endpoint from a discovered record is preferred when
+A workspace-specific endpoint from a discovered object is preferred when
 this argument is not supplied.</p></dd>
 
 </dl></div>

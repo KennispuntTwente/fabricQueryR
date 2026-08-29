@@ -67,8 +67,9 @@ after its source data changes.</p>
 <p>Start by querying a small result. Refresh and monitoring come next,
 followed by the more specialized controls used for production
 models.</p>
-<p>This guide uses a discovered model so its workspace and dataset IDs
-travel together:</p>
+<p>This guide uses a discovered <code>FabricSemanticModel</code> R6
+object. Read its service fields directly; its DAX and refresh methods
+reuse the workspace, dataset ID, and discovery credential:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -81,8 +82,7 @@ query normally begins with <code>EVALUATE</code> and returns a table. If
 you are new to DAX, create and test a query in the model’s <em>DAX query
 view</em> in Fabric, then use the same text from R:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">model</span>,</span>
+<code class="sourceCode R"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">dax_query</span><span class="op">(</span></span>
 <span>  dax <span class="op">=</span> <span class="st">"EVALUATE TOPN(100, 'Customers')"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -93,8 +93,7 @@ Query the Warehouse or Lakehouse instead when you need the underlying
 source rows and SQL is a better fit.</p>
 <p>For example, a DAX measure can be grouped by a model column:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">model</span>,</span>
+<code class="sourceCode R"><span><span class="va">sales</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">dax_query</span><span class="op">(</span></span>
 <span>  dax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"EVALUATE"</span>,</span>
 <span>    <span class="st">"SUMMARIZECOLUMNS("</span>,</span>
@@ -126,8 +125,8 @@ settings.</p>
 <p>A standard refresh processes the complete model using Power BI
 defaults:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_wait</span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">start_time</span></span>
@@ -138,24 +137,22 @@ authenticate again.</p>
 <p>For example, a data-load workflow can refresh only after the source
 update has committed successfully:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">load</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">lakehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">load</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Sales"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">new_sales</span>,</span>
 <span>  schema <span class="op">=</span> <span class="st">"dbo"</span>,</span>
 <span>  mode <span class="op">=</span> <span class="st">"overwrite"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
-<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span></span>
+<span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_wait</span><span class="op">(</span></span>
 <span>  <span class="va">refresh</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">1800</span>,</span>
 <span>  cancel_on_timeout <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Client-side <code>timeout</code> in
-<code><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait()</a></code> only bounds how long R waits.
-Without <code>cancel_on_timeout = TRUE</code>, the Power BI refresh
-keeps running.</p>
+<p>Client-side <code>timeout</code> in <code>$refresh_wait()</code> only
+bounds how long R waits. Without <code>cancel_on_timeout = TRUE</code>,
+the Power BI refresh keeps running.</p>
 </div>
 <div class="section level2">
 <h2 id="use-enhanced-refresh-controls">Use enhanced refresh controls<a class="anchor" aria-label="anchor" href="#use-enhanced-refresh-controls"></a>
@@ -165,8 +162,7 @@ Embedded, or Fabric capacity. Supplying an enhanced option selects
 enhanced mode automatically, or set <code>mode = "enhanced"</code>
 explicitly:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh</a></span><span class="op">(</span></span>
-<span>  <span class="va">model</span>,</span>
+<code class="sourceCode R"><span><span class="va">refresh</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh</span><span class="op">(</span></span>
 <span>  mode <span class="op">=</span> <span class="st">"enhanced"</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"Full"</span>,</span>
 <span>  objects <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -179,13 +175,13 @@ explicitly:</p>
 <span>  timeout <span class="op">=</span> <span class="st">"02:00:00"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">5</span> <span class="op">*</span> <span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_wait</span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">5</span> <span class="op">*</span> <span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span></span></code></pre></div>
 <p>The submission <code>timeout</code> controls an individual Power BI
-attempt; the numeric timeout in <code><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait()</a></code>
-controls how long R waits. Use <code>"Transactional"</code> when the
-previous model should remain available unless the complete refresh
-succeeds. See <code><a href="../reference/fabric_pbi_refresh.html">?fabric_pbi_refresh</a></code> before using
-partial-batch commits or refresh-policy options.</p>
+attempt; the numeric timeout in <code>$refresh_wait()</code> controls
+how long R waits. Use <code>"Transactional"</code> when the previous
+model should remain available unless the complete refresh succeeds. See
+<code><a href="../reference/fabric_pbi_refresh.html">?fabric_pbi_refresh</a></code> before using partial-batch commits or
+refresh-policy options.</p>
 </div>
 <div class="section level2">
 <h2 id="diagnose-attempts-and-failures">Diagnose attempts and failures<a class="anchor" aria-label="anchor" href="#diagnose-attempts-and-failures"></a>
@@ -193,7 +189,7 @@ partial-batch commits or refresh-policy options.</p>
 <p>Use the status helper when a refresh takes longer than expected or
 fails:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_status</a></span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">status</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_status</span><span class="op">(</span><span class="va">refresh</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">status</span><span class="op">$</span><span class="va">attempts</span></span>
@@ -210,7 +206,7 @@ service response; the complete response remains available in
 cancellation, service timeouts, and disabled refreshes. Keep the
 terminal detail instead when building a monitoring table:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_wait</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_wait</span><span class="op">(</span></span>
 <span>  <span class="va">refresh</span>,</span>
 <span>  error_on_failure <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
@@ -223,14 +219,14 @@ terminal detail instead when building a monitoring table:</p>
 <p>Inspect recent refreshes when you need to compare duration or failure
 patterns:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_history</a></span><span class="op">(</span><span class="va">model</span>, top <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">history</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_history</span><span class="op">(</span>top <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">refresh_type</span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">state</span></span>
 <span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">$</span><span class="va">attempts</span></span>
 <span></span>
 <span><span class="co"># Refresh an old history entry from its request ID and stored model context</span></span>
-<span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_pbi_refresh.html">fabric_pbi_refresh_status</a></span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">latest</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">refresh_status</span><span class="op">(</span><span class="va">history</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="more-information">More information<a class="anchor" aria-label="anchor" href="#more-information"></a>

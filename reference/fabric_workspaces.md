@@ -68,10 +68,10 @@ fabric_workspaces(
 
 ## Value
 
-A list with one workspace record per visible workspace. With
-`output = "r6"`, each record is a
+A list with one workspace object per visible workspace. With
+`output = "r6"`, each object is a
 [FabricWorkspace](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md).
-With `output = "list"`, each record is a `fabric_workspace` list. Both
+With `output = "list"`, each object is a `fabric_workspace` list. Both
 representations preserve all fields returned by Fabric
 
 ## Details
@@ -98,11 +98,14 @@ if (FALSE) { # \dontrun{
 # Sign in and list every Fabric workspace you can access
 workspaces <- fabric_workspaces()
 
-# Inspect the names before choosing a workspace record
+# Inspect a field before choosing a workspace
 vapply(workspaces, `[[`, character(1), "displayName")
 workspace <- workspaces[[1L]]
+workspace$displayName
 
-# Pass the discovered record directly to the next discovery step
-items <- fabric_items(workspace)
+# Continue discovery through the workspace object
+items <- workspace$items()
+lakehouse <- workspace$lakehouses()[[1L]]
+lakehouse$tables()
 } # }
 ```

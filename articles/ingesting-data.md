@@ -13,11 +13,11 @@ last.
 
 | What you want in Fabric | Start with | Good fit |
 |----|----|----|
-| A managed Lakehouse Delta table | [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md) | General analytics and data-engineering tables |
-| An ordinary file in OneLake | [`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md) | Exchange files, exports, and non-tabular artifacts |
-| A relational Warehouse table | [`fabric_warehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_warehouse_write_table.md) | SQL reporting and warehouse workloads |
-| An Eventhouse KQL table | [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md) | Event, log, and time-series data |
-| A Lakehouse table from files already in `Files/` | [`fabric_lakehouse_load_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md) | Existing CSV or Parquet staging data |
+| A managed Lakehouse Delta table | `lakehouse$write_table()` | General analytics and data-engineering tables |
+| An ordinary file in OneLake | `lakehouse$onelake_write_file()` | Exchange files, exports, and non-tabular artifacts |
+| A relational Warehouse table | `warehouse$write_table()` | SQL reporting and warehouse workloads |
+| An Eventhouse KQL table | `kql_database$write_table()` | Event, log, and time-series data |
+| A Lakehouse table from files already in `Files/` | `lakehouse$load_table()` | Existing CSV or Parquet staging data |
 
 For a first ingestion, a Lakehouse table is the most direct
 general-purpose workflow. The high-level writers accept ordinary data
@@ -45,15 +45,18 @@ matches <- Filter(
 stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
 
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
 ```
+
+`workspace` and `lakehouse` are read-only R6 objects returned by
+discovery. Read their Fabric fields through `$`; their methods use the
+IDs and credential needed for the next operation.
 
 ## Write a Lakehouse table
 
 ``` r
 
-write_result <- fabric_lakehouse_write_table(
-  lakehouse,
+write_result <- lakehouse$write_table(
   table = "orders_from_r",
   data = orders,
   mode = "Overwrite"
@@ -72,8 +75,7 @@ Read back a few rows to verify the result:
 
 ``` r
 
-check <- fabric_lakehouse_read_table(
-  lakehouse,
+check <- lakehouse$read_table(
   table = "orders_from_r",
   limit = 10L
 )
@@ -92,24 +94,18 @@ process expects a specific file or when the content is not tabular:
 
 ``` r
 
-fabric_onelake_write_file(
-  workspace,
-  lakehouse,
+lakehouse$onelake_write_file(
   path = "Files/exports/orders.parquet",
   data = orders
 )
 ```
 
-[`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)
-serializes supported R or Arrow objects. Use
-[`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-when a file already exists on local disk:
+`$onelake_write_file()` serializes supported R or Arrow objects. Use
+`$onelake_upload()` when a file already exists on local disk:
 
 ``` r
 
-fabric_onelake_upload(
-  workspace,
-  lakehouse,
+lakehouse$onelake_upload(
   path = "Files/incoming/orders.csv",
   source = "orders.csv"
 )
@@ -126,10 +122,9 @@ staging, then asks the Warehouse to load it efficiently:
 
 ``` r
 
-warehouse <- fabric_warehouses(workspace)[[1L]]
+warehouse <- workspace$warehouses()[[1L]]
 
-warehouse_result <- fabric_warehouse_write_table(
-  warehouse,
+warehouse_result <- warehouse$write_table(
   table = "orders_from_r",
   data = orders,
   staging_lakehouse = lakehouse,
@@ -153,10 +148,9 @@ KQL:
 
 ``` r
 
-kql_database <- fabric_kql_databases(workspace)[[1L]]
+kql_database <- workspace$kql_databases()[[1L]]
 
-kql_result <- fabric_kql_write_table(
-  kql_database,
+kql_result <- kql_database$write_table(
   table = "OrdersFromR",
   data = orders,
   create_if_missing = TRUE
@@ -180,8 +174,7 @@ If CSV or Parquet data already exists below the same Lakehouse’s
 
 ``` r
 
-operation <- fabric_lakehouse_load_table(
-  lakehouse,
+operation <- lakehouse$load_table(
   table = "orders_from_file",
   path = "Files/incoming/orders.csv",
   format = "Csv",
@@ -193,9 +186,7 @@ completed <- fabric_operation_wait(operation, timeout = 900)
 ```
 
 This route is useful for file-based pipelines. It does not upload a
-local file; use
-[`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-first when necessary.
+local file; use `$onelake_upload()` first when necessary.
 
 ## Scale up with Arrow
 
@@ -210,8 +201,7 @@ R data frame:
 
 dataset <- arrow::open_dataset("local-parquet-directory")
 
-fabric_lakehouse_write_table(
-  lakehouse,
+lakehouse$write_table(
   table = "large_orders",
   data = dataset
 )

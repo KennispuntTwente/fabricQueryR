@@ -94,7 +94,7 @@ data frame.</p>
 
 
 <dl><dt id="arg-warehouse">warehouse<a class="anchor" aria-label="anchor" href="#arg-warehouse"></a></dt>
-<dd><p>A Warehouse record returned by <code><a href="fabric_typed_items.html">fabric_warehouses()</a></code> or
+<dd><p>A Warehouse object returned by <code><a href="fabric_typed_items.html">fabric_warehouses()</a></code> or
 <code><a href="fabric_item.html">fabric_item()</a></code>, or its name or GUID when <code>workspace</code> is supplied.</p></dd>
 
 
@@ -108,21 +108,21 @@ RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.</p></d
 
 
 <dt id="arg-staging-lakehouse">staging_lakehouse<a class="anchor" aria-label="anchor" href="#arg-staging-lakehouse"></a></dt>
-<dd><p>A Lakehouse record returned by
+<dd><p>A Lakehouse object returned by
 <code><a href="fabric_typed_items.html">fabric_lakehouses()</a></code> or <code><a href="fabric_item.html">fabric_item()</a></code>, or its name or GUID. Fabric does
 not support a Warehouse item as the OneLake source of <code>COPY INTO</code>, so a
 Lakehouse staging item is required.</p></dd>
 
 
 <dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
-<dd><p>Workspace name, GUID, or discovery record containing
-<code>warehouse</code>. May be omitted when <code>warehouse</code> is a discovery record.</p></dd>
+<dd><p>Workspace name, GUID, or discovery object containing
+<code>warehouse</code>. May be omitted when <code>warehouse</code> is a discovery object.</p></dd>
 
 
 <dt id="arg-staging-workspace">staging_workspace<a class="anchor" aria-label="anchor" href="#arg-staging-workspace"></a></dt>
 <dd><p>Workspace containing <code>staging_lakehouse</code>. Defaults
 to the Warehouse workspace. May be omitted when <code>staging_lakehouse</code> is a
-discovery record.</p></dd>
+discovery object.</p></dd>
 
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>

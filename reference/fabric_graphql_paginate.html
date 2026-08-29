@@ -73,7 +73,7 @@ a different place, <code>next_cursor</code> tells the function where to find it<
 
 
 <dl><dt id="arg-api">api<a class="anchor" aria-label="anchor" href="#arg-api"></a></dt>
-<dd><p>GraphQL endpoint, API ID, or one discovered GraphQLApi record. An
+<dd><p>GraphQL endpoint, API ID, or one discovered GraphQLApi object. An
 item from <code><a href="fabric_typed_items.html">fabric_graphql_apis()</a></code> is usually easiest
 because it supplies the endpoint and workspace ID</p></dd>
 
@@ -107,7 +107,7 @@ contains more than one named operation; otherwise leave <code>NULL</code></p></d
 
 <dt id="arg-workspace-id">workspace_id<a class="anchor" aria-label="anchor" href="#arg-workspace-id"></a></dt>
 <dd><p>Workspace GUID. Required when <code>api</code> is a GraphQL API
-GUID, and otherwise inferred from a discovered record</p></dd>
+GUID, and otherwise inferred from a discovered object</p></dd>
 
 
 <dt id="arg-error-policy">error_policy<a class="anchor" aria-label="anchor" href="#arg-error-policy"></a></dt>

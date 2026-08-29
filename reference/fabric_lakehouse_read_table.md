@@ -2,9 +2,9 @@
 
 Provides the symmetric read counterpart to
 [`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md).
-It resolves a discovered Lakehouse and table record, then delegates to
-the authenticated OneLake Delta reader. Use `result = "arrow_stream"` to
-keep a larger result out of R memory.
+It resolves a discovered Lakehouse object and table record, then
+delegates to the authenticated OneLake Delta reader. Use
+`result = "arrow_stream"` to keep a larger result out of R memory.
 
 ## Usage
 
@@ -32,10 +32,10 @@ fabric_lakehouse_read_table(
 
 - lakehouse:
 
-  Lakehouse GUID, exact display name, or one Lakehouse record returned
+  Lakehouse GUID, exact display name, or one Lakehouse object returned
   by
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-  A discovered record is recommended because it carries its workspace ID
+  A discovered object is recommended because it carries its workspace ID
   and default schema.
 
 - table:
@@ -46,7 +46,7 @@ fabric_lakehouse_read_table(
 - workspace:
 
   Workspace GUID, exact display name, or discovered workspace. Omit it
-  when `lakehouse` is a record containing `workspaceId`.
+  when `lakehouse` is a discovered object containing `workspaceId`.
 
 - schema:
 
@@ -96,7 +96,7 @@ fabric_lakehouse_read_table(
 - dfs_base:
 
   OneLake DFS service address. A private or regional endpoint on a
-  discovered record is preferred when this argument is omitted.
+  discovered object is preferred when this argument is omitted.
 
 ## Value
 

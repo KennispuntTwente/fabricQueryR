@@ -48,7 +48,7 @@ fabric_livy_batch_submit(
 - livy_url:
 
   A copied Livy connection URL, Livy API base URL, or enriched Lakehouse
-  record. Copy the batch-job URL from **Lakehouse settings \> Livy
+  object. Copy the batch-job URL from **Lakehouse settings \> Livy
   endpoint**, or use an item from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
 

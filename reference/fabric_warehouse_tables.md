@@ -29,16 +29,16 @@ fabric_warehouse_tables(
 
 - warehouse:
 
-  Warehouse GUID, exact display name, or one Warehouse record returned
+  Warehouse GUID, exact display name, or one Warehouse object returned
   by
   [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-  A discovered record is recommended because it contains the workspace
+  A discovered object is recommended because it contains the workspace
   and item IDs.
 
 - workspace:
 
   Workspace GUID, exact display name, or discovered workspace. Omit it
-  when `warehouse` is a record containing `workspaceId`.
+  when `warehouse` is an object containing `workspaceId`.
 
 - schema:
 

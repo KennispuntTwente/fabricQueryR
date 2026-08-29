@@ -24,7 +24,7 @@ fabric_sql_connection_info(
 
   A Fabric SQL server name, a complete connection string copied from the
   Fabric portal, or one Lakehouse, Warehouse, Warehouse snapshot, or SQL
-  Database record returned by a discovery function. A discovered record
+  Database object returned by a discovery function. A discovered object
   is usually simplest because it also supplies the database name
 
 - database:
@@ -49,15 +49,15 @@ fabric_sql_connection_info(
 
 A `fabric_sql_connection_info` list with `server`, `database`, `port`,
 `target_type`, and `source` (whether the input was text or a discovery
-record). No connection is opened
+object). No connection is opened
 
 ## Examples
 
 ``` r
 if (FALSE) { # \dontrun{
-# Discover a Warehouse record that already contains its SQL endpoint
+# Discover a Warehouse object that already contains its SQL endpoint
 workspace <- fabric_workspaces()[[1L]]
-warehouse <- fabric_warehouses(workspace)[[1L]]
+warehouse <- workspace$warehouses()[[1L]]
 
 # Inspect connection details without opening a database connection
 info <- fabric_sql_connection_info(warehouse)

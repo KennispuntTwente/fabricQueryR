@@ -109,9 +109,9 @@ specifically required</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with one workspace record per visible workspace. With
-<code>output = "r6"</code>, each record is a <a href="FabricItem.html">FabricWorkspace</a>. With
-<code>output = "list"</code>, each record is a <code>fabric_workspace</code> list. Both
+    <p>A list with one workspace object per visible workspace. With
+<code>output = "r6"</code>, each object is a <a href="FabricItem.html">FabricWorkspace</a>. With
+<code>output = "list"</code>, each object is a <code>fabric_workspace</code> list. Both
 representations preserve all fields returned by Fabric</p>
     </div>
     <div class="section level2">
@@ -132,12 +132,15 @@ Fabric API and requires <code>Workspace.Read.All</code> or <code>Workspace.ReadW
 <span class="r-in"><span><span class="co"># Sign in and list every Fabric workspace you can access</span></span></span>
 <span class="r-in"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu">fabric_workspaces</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Inspect the names before choosing a workspace record</span></span></span>
+<span class="r-in"><span><span class="co"># Inspect a field before choosing a workspace</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">workspaces</span>, <span class="va">`[[`</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>, <span class="st">"displayName"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Pass the discovered record directly to the next discovery step</span></span></span>
-<span class="r-in"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Continue discovery through the workspace object</span></span></span>
+<span class="r-in"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">lakehouse</span><span class="op">$</span><span class="fu">tables</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

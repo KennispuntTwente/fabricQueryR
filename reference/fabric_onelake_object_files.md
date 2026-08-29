@@ -54,7 +54,7 @@ fabric_onelake_write_file(
 
 - workspace:
 
-  Workspace name, ID, record from
+  Workspace name, ID, object from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
   or a complete OneLake HTTPS/ABFSS path.
 
@@ -101,7 +101,7 @@ fabric_onelake_write_file(
 - dfs_base:
 
   OneLake DFS service address. A private or regional endpoint on a
-  discovered record is preferred when this argument is omitted.
+  discovered object is preferred when this argument is omitted.
 
 - data:
 

@@ -44,12 +44,12 @@ fabric_livy_session(
 - livy_url:
 
   A copied session or batch connection URL, Livy API base URL, or
-  enriched Lakehouse record from
+  enriched Lakehouse object from
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md)
   Copy the session-job URL from **Lakehouse settings \> Livy endpoint**,
-  or use a discovered record to avoid handling IDs manually
+  or use a discovered object to avoid handling IDs manually
 
 - high_concurrency:
 

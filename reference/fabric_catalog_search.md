@@ -1,9 +1,9 @@
 # Search the OneLake catalog
 
 Searches Fabric item metadata across every workspace visible to the
-caller. Results are lightweight discovery records that can be passed to
-other 'fabricQueryR' functions when the selected operation needs only an
-item and workspace identity.
+caller. Results are lightweight R6 discovery objects that contain the
+item and workspace identity. Type-specific results expose the methods
+that can run from that metadata.
 
 ## Usage
 
@@ -116,8 +116,8 @@ entries <- fabric_catalog_search(
   page_size = 100
 )
 
-# A result contains both the item ID and its workspace ID
+# A result contains both the item ID and its workspace ID, plus its methods
 lakehouse <- entries[[1L]]
-fabric_onelake_list(lakehouse, path = "Tables")
+lakehouse$onelake_list(path = "Tables")
 } # }
 ```

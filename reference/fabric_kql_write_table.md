@@ -46,7 +46,7 @@ fabric_kql_write_table(
 
 - cluster:
 
-  Ingestion URI or Eventhouse/KQLDatabase discovery record; see
+  Ingestion URI or Eventhouse/KQLDatabase discovery object; see
   [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
 
 - table:
@@ -178,7 +178,7 @@ fabric_kql_write_table(
 
 - query_cluster:
 
-  Optional Kusto query-service URI or discovery record used for table
+  Optional Kusto query-service URI or discovery object used for table
   creation. A discovered `cluster` already carries this URI; a standard
   Microsoft ingestion URI is converted to its paired query URI. Supply
   this explicitly for a trusted custom ingestion endpoint.

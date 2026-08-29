@@ -2,7 +2,7 @@
 
 These helpers provide a target-independent metadata and table-read layer
 for Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse
-snapshot, and SQL Database records, or the same direct server inputs as
+snapshot, and SQL Database objects, or the same direct server inputs as
 [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md).
 Discovery uses SQL catalog metadata views and is limited by the caller's
 SQL metadata permissions.
@@ -55,7 +55,7 @@ fabric_sql_read_table(
 - server:
 
   Fabric SQL endpoint, portal connection string, or discovered
-  SQL-capable item record.
+  SQL-capable item object.
 
 - schema:
 

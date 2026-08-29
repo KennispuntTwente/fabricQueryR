@@ -36,12 +36,12 @@ fabric_onelake_read_delta_table(
 
 - workspace_name:
 
-  Workspace name, ID, or a record returned by
+  Workspace name, ID, or an object returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md)
 
 - lakehouse_name:
 
-  Lakehouse name, ID, or discovery record. Compatible Warehouse and
+  Lakehouse name, ID, or discovery object. Compatible Warehouse and
   mirrored database items are also accepted
 
 - schema:

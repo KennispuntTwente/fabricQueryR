@@ -67,14 +67,14 @@ fabric_warehouse_table(
 
 - lakehouse:
 
-  Lakehouse GUID, exact display name, or one Lakehouse record returned
+  Lakehouse GUID, exact display name, or one Lakehouse object returned
   by
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
 
 - workspace:
 
   Workspace GUID, exact display name, or discovered workspace. Omit it
-  when the item record contains `workspaceId`.
+  when the item object contains `workspaceId`.
 
 - page_size:
 
@@ -109,7 +109,7 @@ fabric_warehouse_table(
 
 - warehouse:
 
-  Warehouse GUID, exact display name, or one Warehouse record returned
+  Warehouse GUID, exact display name, or one Warehouse object returned
   by
   [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
 

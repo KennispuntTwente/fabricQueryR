@@ -28,7 +28,7 @@ matches <- Filter(
 )
 stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
 
 lakehouse$displayName
 ```
@@ -38,13 +38,12 @@ under `Tables/`. It does not query ordinary files under `Files/`. The
 endpoint address is already included in `lakehouse`, so you do not need
 to copy it from the Fabric portal.
 
-For a single SQL query, pass `lakehouse` directly to
-[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md):
+The discovered `FabricLakehouse` is a read-only R6 object. For a single
+SQL query, call its `$sql_query()` method:
 
 ``` r
 
-orders <- fabric_sql_query(
-  lakehouse,
+orders <- lakehouse$sql_query(
   "SELECT TOP 10 * FROM dbo.orders"
 )
 ```
@@ -54,29 +53,24 @@ run several commands with ‘DBI’, open a reusable connection instead:
 
 ``` r
 
-con <- fabric_sql_connect(lakehouse)
+con <- lakehouse$sql_connect()
 DBI::dbListTables(con)
 DBI::dbGetQuery(con, "SELECT TOP 10 * FROM dbo.orders")
 DBI::dbDisconnect(con)
 ```
 
-For most work with managed tables, start with SQL. Use
-[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-for filters, joins, and summaries, or
-[`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md)
-to read one table without writing SQL. Use
-[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-only when you want to keep a connection open for several ‘DBI’ calls.
+For most work with managed tables, start with SQL. Use `$sql_query()`
+for filters, joins, and summaries, or `$sql_read_table()` to read one
+table without writing SQL. Use `$sql_connect()` only when you want to
+keep a connection open for several ‘DBI’ calls.
 
 You can also read a Delta table directly through OneLake with
-[`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md).
-This is useful for an Arrow stream or an earlier table version. The
-`fabric_onelake_*()` functions work with ordinary files under `Files/`,
-while
-[`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)
-adds or replaces managed table data. These functions do not need a SQL
-connection. Never change the files underneath `Tables/` directly because
-they are part of a managed Delta table.
+`$read_table()`. This is useful for an Arrow stream or an earlier table
+version. The `$onelake_*()` methods work with ordinary files under
+`Files/`, while `$write_table()` adds or replaces managed table data.
+These functions do not need a SQL connection. Never change the files
+underneath `Tables/` directly because they are part of a managed Delta
+table.
 
 ## List and read ordinary files
 
@@ -84,9 +78,7 @@ Start by listing a small folder:
 
 ``` r
 
-files <- fabric_onelake_list(
-  workspace,
-  lakehouse,
+files <- lakehouse$onelake_list(
   path = "Files/incoming"
 )
 
@@ -97,32 +89,25 @@ Read a supported tabular file directly into R:
 
 ``` r
 
-orders <- fabric_onelake_read_file(
-  workspace,
-  lakehouse,
+orders <- lakehouse$onelake_read_file(
   path = "Files/incoming/orders.csv"
 )
 
 head(orders)
 ```
 
-Use
-[`fabric_onelake_metadata()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-for size and other properties without reading the contents. Use
-[`fabric_onelake_download()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
-for a file type that should stay as bytes or be saved to local disk.
+Use `$onelake_metadata()` for size and other properties without reading
+the contents. Use `$onelake_download()` for a file type that should stay
+as bytes or be saved to local disk.
 
 ## Write or upload a file
 
-[`fabric_onelake_write_file()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_object_files.md)
-turns an R or Arrow object into CSV, Parquet, or Arrow IPC content based
-on the path or explicit format:
+`$onelake_write_file()` turns an R or Arrow object into CSV, Parquet, or
+Arrow IPC content based on the path or explicit format:
 
 ``` r
 
-fabric_onelake_write_file(
-  workspace,
-  lakehouse,
+lakehouse$onelake_write_file(
   path = "Files/exports/orders.parquet",
   data = data.frame(
     order_id = 1:3,
@@ -136,9 +121,7 @@ parsing it in R:
 
 ``` r
 
-fabric_onelake_upload(
-  workspace,
-  lakehouse,
+lakehouse$onelake_upload(
   path = "Files/incoming/logo.png",
   source = "logo.png"
 )
@@ -155,7 +138,7 @@ before replacing shared data.
 
 ``` r
 
-tables <- fabric_lakehouse_tables(lakehouse)
+tables <- lakehouse$tables()
 tables[c("schema", "name", "type", "format")]
 ```
 
@@ -165,8 +148,7 @@ Select a discovered row or supply the table name:
 
 table <- tables[1L, ]
 
-rows <- fabric_lakehouse_read_table(
-  lakehouse,
+rows <- lakehouse$read_table(
   table,
   columns = c("order_id", "amount"),
   limit = 100L
@@ -175,15 +157,13 @@ rows <- fabric_lakehouse_read_table(
 
 Column selection and row limits happen before the result is fully
 collected in R. For SQL joins, grouping, or complex filters, use
-[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
-against the Lakehouse SQL analytics endpoint instead.
+`$sql_query()` against the Lakehouse SQL analytics endpoint instead.
 
 ## Write an R object as a managed table
 
 ``` r
 
-result <- fabric_lakehouse_write_table(
-  lakehouse,
+result <- lakehouse$write_table(
   table = "orders_from_r",
   data = data.frame(
     order_id = 1:3,
@@ -209,8 +189,7 @@ load them directly:
 
 ``` r
 
-operation <- fabric_lakehouse_load_table(
-  lakehouse,
+operation <- lakehouse$load_table(
   table = "orders_from_csv",
   path = "Files/incoming/orders.csv",
   format = "Csv",
@@ -233,8 +212,7 @@ memory:
 
 ``` r
 
-stream <- fabric_lakehouse_read_table(
-  lakehouse,
+stream <- lakehouse$read_table(
   table = "large_orders",
   result = "arrow_stream"
 )
@@ -247,12 +225,11 @@ The stream is disk-backed and single-use. Close the Arrow reader when
 finished so its staged temporary file is deleted; if you consume the
 ‘nanoarrow’ stream directly, call `stream[["release"]]()`. Do not rely
 on garbage collection for this cleanup. `version` can select an earlier
-Delta table version when that history is still available:
+Delta table version when that history is available:
 
 ``` r
 
-older_rows <- fabric_lakehouse_read_table(
-  lakehouse,
+older_rows <- lakehouse$read_table(
   table = "orders",
   version = 42L,
   limit = 100L

@@ -45,7 +45,7 @@ fabric_onelake_table_exists(
 - item:
 
   Fabric data item GUID, exact display name, or a discovered item
-  record. A record containing `workspaceId` avoids workspace discovery.
+  object. An object containing `workspaceId` avoids workspace discovery.
 
 - schema:
 

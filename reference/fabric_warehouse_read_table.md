@@ -38,7 +38,7 @@ fabric_warehouse_read_table(
 
 - warehouse:
 
-  A Warehouse record returned by
+  A Warehouse object returned by
   [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),
@@ -51,8 +51,8 @@ fabric_warehouse_read_table(
 
 - workspace:
 
-  Workspace name, GUID, or discovery record containing `warehouse`. May
-  be omitted when `warehouse` is a discovery record.
+  Workspace name, GUID, or discovery object containing `warehouse`. May
+  be omitted when `warehouse` is a discovery object.
 
 - schema:
 

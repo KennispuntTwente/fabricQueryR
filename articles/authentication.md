@@ -78,7 +78,9 @@ sign-in and basic Fabric access:
 workspaces <- fabric_workspaces()
 
 workspaces
-workspaces[[1L]][c("displayName", "id")]
+workspace <- workspaces[[1L]]
+workspace$displayName
+workspace$id
 ```
 
 On the first call, a browser may open and ask you to sign in and approve
@@ -86,16 +88,27 @@ access. Use the same organizational account that you use in the Fabric
 portal. Multifactor authentication and your organization’s Conditional
 Access rules still apply.
 
-If the call succeeds, `workspaces` is a list of named `fabric_workspace`
-objects available to that account. Item discovery similarly returns a
-list of named `fabric_item` objects:
+If the call succeeds, `workspaces` is a list of read-only
+`FabricWorkspace` R6 objects available to that account. The service
+fields are available directly with `$`, and workspace methods continue
+discovery without copying IDs. Item discovery similarly returns
+`FabricItem` objects or type-specific subclasses:
 
 ``` r
 
-items <- fabric_items(workspaces[[1L]])
+items <- workspace$items()
 items
-items[[1L]][c("displayName", "type", "id")]
+item <- items[[1L]]
+item$displayName
+item$type
+item$id
 ```
+
+Actionable subclasses add methods for their workload. For example,
+`workspace$lakehouses()[[1L]]$tables()` lists a Lakehouse’s managed
+tables. The object reuses the credential acquired during discovery. Call
+`$as_list()` or request `output = "list"` only when a plain record is
+specifically needed.
 
 An empty result does not necessarily mean sign-in failed. It can mean
 that the account has not been given access to a Fabric workspace.
@@ -216,10 +229,10 @@ are rejected rather than trimmed or sent in an HTTP header.
 
 ## Treat endpoint URLs as credential boundaries
 
-Prefer discovered records when a function accepts them. When discovery
-cannot provide an invocation endpoint, copy the complete URL from the
-Fabric portal. These routes keep both the service address and the Fabric
-item identity visible to the caller.
+Prefer discovered objects when a method or function accepts them. When
+discovery cannot provide an invocation endpoint, copy the complete URL
+from the Fabric portal. These routes keep both the service address and
+the Fabric item identity visible to the caller.
 
 A custom host, including one fronted by your organization through Azure
 API Management or another gateway, is an explicit opt-in. ‘fabricQueryR’

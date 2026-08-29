@@ -45,8 +45,8 @@ fabric_kql_export(
 
 - cluster:
 
-  Query URI, or one Eventhouse or KQLDatabase discovery record. A
-  KQLDatabase record also supplies `database`.
+  Query URI, or one Eventhouse or KQLDatabase discovery object. A
+  KQLDatabase object also supplies `database`.
 
 - query:
 

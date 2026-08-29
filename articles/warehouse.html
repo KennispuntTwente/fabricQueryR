@@ -68,8 +68,9 @@ how to add or replace data from R.</p>
 <h2 id="find-and-connect-to-a-warehouse">Find and connect to a Warehouse<a class="anchor" aria-label="anchor" href="#find-and-connect-to-a-warehouse"></a>
 </h2>
 <p>Start by finding the workspace and Warehouse by name. The returned
-<code>warehouse</code> object contains the IDs and SQL connection
-details that the other functions need:</p>
+<code>warehouse</code> is a read-only <code>FabricWarehouse</code> R6
+object. It keeps its Fabric fields, IDs, SQL connection details, and
+credential, and provides methods for the useful next actions:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -77,36 +78,33 @@ details that the other functions need:</p>
 <span><span class="va">matches</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter</a></span><span class="op">(</span>\<span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">displayName</span>, <span class="st">"Analytics"</span><span class="op">)</span>, <span class="va">workspaces</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">matches</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">matches</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_warehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 <p>The SQL endpoint is the address that database tools use to reach the
 Warehouse. Because it is included in <code>warehouse</code>, you do not
 need to find or copy that address from the Fabric portal.</p>
-<p>For a single query, pass that object directly to
-<code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code>:</p>
+<p>For a single query, call the object’s <code>$sql_query()</code>
+method:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_query.html">fabric_sql_query</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
 <span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The function opens and closes the SQL connection for you. If you want
 to run several commands with ‘DBI’, open a reusable connection
 instead:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_sql_connect.html">fabric_sql_connect</a></span><span class="op">(</span><span class="va">warehouse</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_connect</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span><span class="op">)</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></code></pre></div>
-<p>For a simple read, <code><a href="../reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code> lets
-you name a table and optionally select columns or limit the rows,
-without writing SQL. It uses SQL internally.
-<code><a href="../reference/fabric_sql_tables.html">fabric_sql_read_table()</a></code> is the more general version for any
-supported Fabric SQL item.</p>
-<p>Use <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> when you need filters, joins,
-grouping, or other SQL. Use <code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> when you
-want to keep a connection open for several ‘DBI’ calls. To add or
-replace many rows from an R data frame or Arrow source, use
-<code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>. See
-<code><a href="../articles/reading-data.html">vignette("reading-data")</a></code> for more reading examples.</p>
+<p>For a simple read, <code>$read_table()</code> lets you name a table
+and optionally select columns or limit the rows, without writing SQL. It
+uses SQL internally. <code><a href="../reference/fabric_sql_tables.html">fabric_sql_read_table()</a></code> is the more
+general version for any supported Fabric SQL item.</p>
+<p>Use <code>$sql_query()</code> when you need filters, joins, grouping,
+or other SQL. Use <code>$sql_connect()</code> when you want to keep a
+connection open for several ‘DBI’ calls. To add or replace many rows
+from an R data frame or Arrow source, use <code>$write_table()</code>.
+See <code><a href="../articles/reading-data.html">vignette("reading-data")</a></code> for more reading examples.</p>
 </div>
 <div class="section level2">
 <h2 id="prepare-a-staging-lakehouse-for-writes">Prepare a staging Lakehouse for writes<a class="anchor" aria-label="anchor" href="#prepare-a-staging-lakehouse-for-writes"></a>
@@ -115,7 +113,7 @@ replace many rows from an R data frame or Arrow source, use
 The package temporarily stores files there while Fabric loads them, then
 removes the files after a confirmed successful write:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">staging_lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="va">workspace</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">staging_lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="add-rows-to-an-existing-table">Add rows to an existing table<a class="anchor" aria-label="anchor" href="#add-rows-to-an-existing-table"></a>
@@ -125,8 +123,7 @@ call adds three new rows to the table; it does not remove or change the
 rows already there. The existing table columns must match the R data
 frame:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">written</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>    id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>,</span>
@@ -144,8 +141,7 @@ frame:</p>
 <p>If you want to create a new table, you can use
 <code>create_if_missing = TRUE</code>:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">created</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">created</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_from_r"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">orders</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
@@ -158,8 +154,7 @@ frame:</p>
 <p>Use overwrite mode when the new data should replace the current
 rows:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">replacement</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
@@ -170,8 +165,7 @@ rows:</p>
 table definition. Use <code>"Drop"</code> only when Fabric should infer
 a new definition from the incoming data:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">recreated</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<code class="sourceCode R"><span><span class="va">recreated</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">replacement</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>
@@ -195,8 +189,7 @@ frame:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dataset</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">open_dataset</a></span><span class="op">(</span><span class="st">"local-parquet-directory"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table</a></span><span class="op">(</span></span>
-<span>  <span class="va">warehouse</span>,</span>
+<span><span class="va">written</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">dataset</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span></span>

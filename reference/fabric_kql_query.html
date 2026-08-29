@@ -68,8 +68,8 @@ time-series data in a Fabric Eventhouse</p>
 
 <dl><dt id="arg-cluster">cluster<a class="anchor" aria-label="anchor" href="#arg-cluster"></a></dt>
 <dd><p>Query URI, or one Eventhouse or
-KQLDatabase record returned by <code><a href="fabric_typed_items.html">fabric_eventhouses()</a></code>,
-<code><a href="fabric_typed_items.html">fabric_kql_databases()</a></code>, or <code><a href="fabric_item.html">fabric_item()</a></code>. A KQLDatabase record also
+KQLDatabase object returned by <code><a href="fabric_typed_items.html">fabric_eventhouses()</a></code>,
+<code><a href="fabric_typed_items.html">fabric_kql_databases()</a></code>, or <code><a href="fabric_item.html">fabric_item()</a></code>. A KQLDatabase object also
 supplies <code>database</code>. Despite the argument name, use Fabric's <strong>Query URI</strong>
 here</p></dd>
 
@@ -81,7 +81,7 @@ here</p></dd>
 
 <dt id="arg-database">database<a class="anchor" aria-label="anchor" href="#arg-database"></a></dt>
 <dd><p>KQL database display name. Supply it with a copied Query URI
-or an Eventhouse record; omit it when <code>cluster</code> is a KQLDatabase record</p></dd>
+or an Eventhouse object; omit it when <code>cluster</code> is a KQLDatabase object</p></dd>
 
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>

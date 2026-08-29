@@ -1,9 +1,9 @@
 # Typed Microsoft Fabric item discovery
 
-These shortcuts find one kind of Fabric item. Most also retrieve
-workload connection details by default, so their results can usually be
-passed straight to the next 'fabricQueryR' call. Semantic Model and
-GraphQL helpers default to lightweight discovery because their
+These shortcuts find one kind of Fabric item. By default, they return R6
+objects with service fields and type-specific methods for the useful
+next actions. Most also retrieve workload connection details. Semantic
+Model and GraphQL helpers default to lightweight discovery because their
 executable targets are derived from list-level IDs and workspace fields;
 set `detail = TRUE` when their workload-specific properties are needed
 
@@ -43,9 +43,9 @@ fabric_graphql_apis(workspace, detail = FALSE, ...)
 
 - workspace:
 
-  Workspace name, ID, or record returned by
+  Workspace name, ID, or object returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A name is convenient for interactive use; a record avoids an extra
+  A name is convenient for interactive use; an object avoids an extra
   lookup
 
 - detail:
@@ -64,8 +64,11 @@ fabric_graphql_apis(workspace, detail = FALSE, ...)
 
 ## Value
 
-A list with one `fabric_item` object per matching item. Each object
-contains common item metadata and applicable connection fields. See
+A list with one
+[FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+object or type-specific R6 subclass per matching item. Each object
+contains common item metadata, applicable connection fields, and
+workload methods. See
 [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
 for details
 
@@ -73,38 +76,35 @@ for details
 
 - `fabric_lakehouses()`, `fabric_warehouses()`,
   `fabric_warehouse_snapshots()`, and `fabric_mirrored_databases()` find
-  data stores that can be queried through
-  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md);
-  Lakehouses and mirrored databases can also be accessed through OneLake
+  data stores with `$sql_query()` and other SQL methods; Lakehouses and
+  mirrored databases can also be accessed through OneLake
 
 - `fabric_sql_databases()` finds transactional Fabric SQL databases
 
-- `fabric_semantic_models()` finds the business models queried with DAX
-  via
-  [`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md)
+- `fabric_semantic_models()` finds business models with `$dax_query()`
+  and refresh lifecycle methods
 
 - `fabric_eventhouses()` and `fabric_kql_databases()` find real-time
-  data stores queried with
-  [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md)
+  data stores with `$query()`, `$read_table()`, ingestion, and export
+  methods
 
-- `fabric_notebooks()` finds notebooks that can be run with
-  [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+- `fabric_notebooks()` finds notebooks with job lifecycle and schedule
+  methods
 
 - `fabric_data_pipelines()` and `fabric_spark_job_definitions()` find
-  the other executable items supported by
-  [`fabric_job_run()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_run.md)
+  the other executable items with the same job methods
 
 - `fabric_environments()` finds reusable Spark runtime configurations
 
 - `fabric_user_data_functions()` finds serverless Python function items
 
-- `fabric_graphql_apis()` finds APIs configured in Fabric for use with
-  [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
+- `fabric_graphql_apis()` finds APIs configured in Fabric with
+  `$query()`, `$schema()`, and `$paginate()` methods
 
 ## Filtering and returned fields
 
 Each helper requests its exact Fabric item type and verifies that every
-returned record has that type. The records otherwise keep all fields
+returned object has that type. The objects otherwise keep all fields
 returned by Fabric, including fields added by the service in the future
 
 Folder recursion, workspace-specific private-link routing,
@@ -149,7 +149,7 @@ Function](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/ite
 
 ``` r
 if (FALSE) { # \dontrun{
-# Discover a workspace once, then reuse its record for typed discovery
+# Discover a workspace once, then reuse its object for typed discovery
 workspace <- fabric_workspaces()[[1]]
 
 # Discover data items that feed the package's query and storage helpers
@@ -163,22 +163,21 @@ eventhouses <- fabric_eventhouses(workspace)
 kql_databases <- fabric_kql_databases(workspace)
 graphql_apis <- fabric_graphql_apis(workspace)
 
-# A discovered record can be passed directly to a matching helper
-fabric_lakehouse_tables(lakehouses[[1L]])
-fabric_sql_connection_info(warehouses[[1L]])
-fabric_pbi_dax_query(
-  semantic_models[[1L]],
+# Discovered objects expose matching workload methods
+lakehouses[[1L]]$tables()
+warehouses[[1L]]$sql_connection_info()
+semantic_models[[1L]]$dax_query(
   dax = Sys.getenv("FABRIC_DAX_QUERY")
 )
 
-# Discover executable items that can be passed to fabric_job_run()
+# Runnable items expose lifecycle methods
 notebook <- fabric_notebooks(workspace)[[1]]
 pipeline <- fabric_data_pipelines(workspace)[[1]]
 spark_job <- fabric_spark_job_definitions(workspace)[[1]]
 
-fabric_job_wait(fabric_job_run(notebook), timeout = 900)
-fabric_job_wait(fabric_job_run(pipeline), timeout = 900)
-fabric_job_wait(fabric_job_run(spark_job), timeout = 900)
+notebook$wait(notebook$run(), timeout = 900)
+pipeline$wait(pipeline$run(), timeout = 900)
+spark_job$wait(spark_job$run(), timeout = 900)
 
 # Discover supporting Spark and serverless-function items as well
 environments <- fabric_environments(workspace)

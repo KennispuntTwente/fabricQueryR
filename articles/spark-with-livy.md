@@ -53,8 +53,7 @@ livy_scopes <- paste0(
   )
 )
 
-result <- fabric_livy_query(
-  lakehouse,
+result <- lakehouse$livy_query(
   code = "SELECT * FROM external_sql_table",
   kind = "sql",
   audience = livy_scopes
@@ -82,8 +81,12 @@ matches <- Filter(
 )
 stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
-lakehouse <- fabric_lakehouses(workspace)[[1L]]
+lakehouse <- workspace$lakehouses()[[1L]]
 ```
+
+The discovered `FabricLakehouse` is a read-only R6 object. Its fields
+expose the service metadata, and its Livy methods reuse the endpoint and
+discovery credential.
 
 If discovery cannot retrieve the endpoint in your environment, copy the
 session-job connection string from *Lakehouse settings \> Livy endpoint*
@@ -91,14 +94,12 @@ and pass that URL instead.
 
 ## Run one piece of Spark code
 
-[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
-is the simplest helper. It starts a temporary session, runs one
-statement, waits, and closes the session:
+`$livy_query()` is the simplest method. It starts a temporary session,
+runs one statement, waits, and closes the session:
 
 ``` r
 
-result <- fabric_livy_query(
-  lakehouse,
+result <- lakehouse$livy_query(
   kind = "sql",
   code = "SELECT 1 AS id, 'hello from Spark' AS message"
 )
@@ -124,8 +125,7 @@ For example, SparkR code can use the active Spark session and Lakehouse:
 
 ``` r
 
-result <- fabric_livy_query(
-  lakehouse,
+result <- lakehouse$livy_query(
   kind = "sparkr",
   code = paste(
     "df <- sql('SELECT * FROM orders LIMIT 100')",
@@ -138,13 +138,12 @@ result <- fabric_livy_query(
 
 ## Reuse a session for several statements
 
-Starting Spark can take time. Use
-[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
-when sequential statements need to share variables or cached data:
+Starting Spark can take time. Use `$livy_session()` when sequential
+statements need to share variables or cached data:
 
 ``` r
 
-session <- fabric_livy_session(lakehouse)
+session <- lakehouse$livy_session()
 on.exit(session$close(), add = TRUE)
 
 session$wait()
@@ -168,8 +167,7 @@ script stored in OneLake or ADLS:
 
 ``` r
 
-batch <- fabric_livy_batch_submit(
-  lakehouse,
+batch <- lakehouse$livy_batch_submit(
   file = paste0(
     "abfss://", workspace$id,
     "@onelake.dfs.fabric.microsoft.com/",
@@ -187,8 +185,7 @@ batch$result()
 The application file must already be available through an ABFS or ABFSS
 path. Percent-encode spaces and other URL-reserved characters in file
 path segments; raw spaces and whitespace in the workspace or filesystem
-authority are invalid. Upload the file with
-[`fabric_onelake_upload()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_files.md)
+authority are invalid. Upload the file with `lakehouse$onelake_upload()`
 first when necessary. With `wait = FALSE`, the function returns a
 `FabricLivyBatch` object immediately; call its `$wait()`, `$result()`,
 or `$logs()` methods later.
@@ -209,10 +206,9 @@ depends on that configuration:
 
 ``` r
 
-environment <- fabric_environments(workspace)[[1L]]
+environment <- workspace$environments()[[1L]]
 
-result <- fabric_livy_query(
-  lakehouse,
+result <- lakehouse$livy_query(
   kind = "pyspark",
   code = "print(spark.version)",
   environment_id = environment$id

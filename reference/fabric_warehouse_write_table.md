@@ -46,7 +46,7 @@ fabric_warehouse_write_table(
 
 - warehouse:
 
-  A Warehouse record returned by
+  A Warehouse object returned by
   [`fabric_warehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),
@@ -64,7 +64,7 @@ fabric_warehouse_write_table(
 
 - staging_lakehouse:
 
-  A Lakehouse record returned by
+  A Lakehouse object returned by
   [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),
@@ -74,14 +74,14 @@ fabric_warehouse_write_table(
 
 - workspace:
 
-  Workspace name, GUID, or discovery record containing `warehouse`. May
-  be omitted when `warehouse` is a discovery record.
+  Workspace name, GUID, or discovery object containing `warehouse`. May
+  be omitted when `warehouse` is a discovery object.
 
 - staging_workspace:
 
   Workspace containing `staging_lakehouse`. Defaults to the Warehouse
   workspace. May be omitted when `staging_lakehouse` is a discovery
-  record.
+  object.
 
 - schema:
 

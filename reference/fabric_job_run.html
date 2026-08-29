@@ -124,14 +124,14 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 
 
 <dl><dt id="arg-item">item<a class="anchor" aria-label="anchor" href="#arg-item"></a></dt>
-<dd><p>Item GUID, exact display name, or an item record returned
-by a discovery function. A discovered record is recommended because it
+<dd><p>Item GUID, exact display name, or an item object returned
+by a discovery function. A discovered object is recommended because it
 already includes the item type and workspace ID</p></dd>
 
 
 <dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
-<dd><p>Workspace GUID, exact display name, or a workspace record
-Omit it when <code>item</code> is a discovered record containing <code>workspaceId</code></p></dd>
+<dd><p>Workspace GUID, exact display name, or a discovered object
+Omit it when <code>item</code> is a discovered object containing <code>workspaceId</code></p></dd>
 
 
 <dt id="arg-job-type">job_type<a class="anchor" aria-label="anchor" href="#arg-job-type"></a></dt>
@@ -173,7 +173,7 @@ The typed DataPipeline <code>Execute</code> endpoint does not accept a request b
 
 
 <dt id="arg-default-lakehouse">default_lakehouse<a class="anchor" aria-label="anchor" href="#arg-default-lakehouse"></a></dt>
-<dd><p>Optional Lakehouse GUID or discovered record used to
+<dd><p>Optional Lakehouse GUID or discovered object used to
 set the notebook's default Lakehouse for this run. This changes the run
 context, not the notebook's saved default</p></dd>
 

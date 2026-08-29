@@ -74,9 +74,9 @@ fabric_mirrored_database_read_table(
 
 - mirrored_database:
 
-  Mirrored Database GUID, exact display name, or one record returned by
+  Mirrored Database GUID, exact display name, or one object returned by
   [`fabric_mirrored_databases()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
-  A discovered record is recommended because it contains workspace,
+  A discovered object is recommended because it contains workspace,
   OneLake, and SQL details.
 
 - workspace:
@@ -167,7 +167,7 @@ The reader returns a tibble or a single-use `nanoarrow_array_stream`.
 ## SQL alternative
 
 Mirrored databases also expose a read-only SQL analytics endpoint. Pass
-a discovered mirrored database record to
+a discovered mirrored database object to
 [`fabric_sql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
 [`fabric_sql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_tables.md),
 or

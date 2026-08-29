@@ -100,12 +100,12 @@ fabric_onelake_shortcut_delete(
 
 - item:
 
-  Destination Fabric item name, GUID, or record returned by a discovery
+  Destination Fabric item name, GUID, or object returned by a discovery
   function.
 
 - workspace:
 
-  Workspace name, GUID, or discovery record containing `item`. May be
+  Workspace name, GUID, or discovery object containing `item`. May be
   omitted when `item` contains `workspaceId`.
 
 - item_type:

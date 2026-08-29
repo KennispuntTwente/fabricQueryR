@@ -126,19 +126,31 @@ both sign-in and basic Fabric access:</p>
 <code class="sourceCode R"><span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">workspaces</span></span>
-<span><span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"displayName"</span>, <span class="st">"id"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span></span>
+<span><span class="va">workspace</span><span class="op">$</span><span class="va">id</span></span></code></pre></div>
 <p>On the first call, a browser may open and ask you to sign in and
 approve access. Use the same organizational account that you use in the
 Fabric portal. Multifactor authentication and your organization’s
 Conditional Access rules still apply.</p>
-<p>If the call succeeds, <code>workspaces</code> is a list of named
-<code>fabric_workspace</code> objects available to that account. Item
-discovery similarly returns a list of named <code>fabric_item</code>
-objects:</p>
+<p>If the call succeeds, <code>workspaces</code> is a list of read-only
+<code>FabricWorkspace</code> R6 objects available to that account. The
+service fields are available directly with <code>$</code>, and workspace
+methods continue discovery without copying IDs. Item discovery similarly
+returns <code>FabricItem</code> objects or type-specific subclasses:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_items.html">fabric_items</a></span><span class="op">(</span><span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">items</span></span>
-<span><span class="va">items</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"displayName"</span>, <span class="st">"type"</span>, <span class="st">"id"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">item</span> <span class="op">&lt;-</span> <span class="va">items</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">item</span><span class="op">$</span><span class="va">displayName</span></span>
+<span><span class="va">item</span><span class="op">$</span><span class="va">type</span></span>
+<span><span class="va">item</span><span class="op">$</span><span class="va">id</span></span></code></pre></div>
+<p>Actionable subclasses add methods for their workload. For example,
+<code>workspace$lakehouses()[[1L]]$tables()</code> lists a Lakehouse’s
+managed tables. The object reuses the credential acquired during
+discovery. Call <code>$as_list()</code> or request
+<code>output = "list"</code> only when a plain record is specifically
+needed.</p>
 <p>An empty result does not necessarily mean sign-in failed. It can mean
 that the account has not been given access to a Fabric workspace.</p>
 </div>
@@ -280,10 +292,10 @@ header.</p>
 <div class="section level2">
 <h2 id="treat-endpoint-urls-as-credential-boundaries">Treat endpoint URLs as credential boundaries<a class="anchor" aria-label="anchor" href="#treat-endpoint-urls-as-credential-boundaries"></a>
 </h2>
-<p>Prefer discovered records when a function accepts them. When
-discovery cannot provide an invocation endpoint, copy the complete URL
-from the Fabric portal. These routes keep both the service address and
-the Fabric item identity visible to the caller.</p>
+<p>Prefer discovered objects when a method or function accepts them.
+When discovery cannot provide an invocation endpoint, copy the complete
+URL from the Fabric portal. These routes keep both the service address
+and the Fabric item identity visible to the caller.</p>
 <p>A custom host, including one fronted by your organization through
 Azure API Management or another gateway, is an explicit opt-in.
 ‘fabricQueryR’ refuses to acquire and forward its normal Fabric

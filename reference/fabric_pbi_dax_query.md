@@ -33,7 +33,7 @@ fabric_pbi_dax_query(
 
 - connstr:
 
-  Optional semantic model record from
+  Optional semantic model object from
   [`fabric_semantic_models()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   or
   [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),

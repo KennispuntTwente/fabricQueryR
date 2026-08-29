@@ -85,14 +85,14 @@ fabric_job_cancel(
 
 - item:
 
-  Item GUID, exact display name, or an item record returned by a
-  discovery function. A discovered record is recommended because it
+  Item GUID, exact display name, or an item object returned by a
+  discovery function. A discovered object is recommended because it
   already includes the item type and workspace ID
 
 - workspace:
 
-  Workspace GUID, exact display name, or a workspace record Omit it when
-  `item` is a discovered record containing `workspaceId`
+  Workspace GUID, exact display name, or a discovered object Omit it
+  when `item` is a discovered object containing `workspaceId`
 
 - job_type:
 
@@ -135,7 +135,7 @@ fabric_job_cancel(
 
 - default_lakehouse:
 
-  Optional Lakehouse GUID or discovered record used to set the
+  Optional Lakehouse GUID or discovered object used to set the
   notebook's default Lakehouse for this run. This changes the run
   context, not the notebook's saved default
 

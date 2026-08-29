@@ -74,9 +74,13 @@ portal.</p>
 <p>In the Fabric portal, publish the user data functions item, switch to
 <em>Run only</em> mode, open the function’s properties, enable
 <em>Public access</em>, and copy the <em>Public URL</em>. Each function
-has its own URL. Although <code><a href="../reference/fabric_typed_items.html">fabric_user_data_functions()</a></code>
-discovers the containing item, Microsoft’s item response does not expose
-enough information to derive each public URL.</p>
+has its own URL.</p>
+<p><code><a href="../reference/fabric_typed_items.html">fabric_user_data_functions()</a></code> discovers the containing
+item and returns a read-only <code>FabricItem</code> R6 object with
+service fields and a <code>$details()</code> method. Microsoft’s item
+response does not include enough information to derive each public
+function URL, so pass the copied URL to
+<code><a href="../reference/fabric_function_invoke.html">fabric_function_invoke()</a></code>.</p>
 <p>You could store the URL in an environment variable (rather than
 hardcoding it):</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">

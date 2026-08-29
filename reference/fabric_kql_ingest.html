@@ -100,9 +100,9 @@ use Kusto's queued-ingestion REST API, which is currently in preview</p>
 
 
 <dl><dt id="arg-cluster">cluster<a class="anchor" aria-label="anchor" href="#arg-cluster"></a></dt>
-<dd><p>Ingestion URI, or one Eventhouse or KQLDatabase record from
+<dd><p>Ingestion URI, or one Eventhouse or KQLDatabase object from
 <code><a href="fabric_typed_items.html">fabric_eventhouses()</a></code>, <code><a href="fabric_typed_items.html">fabric_kql_databases()</a></code>, or <code><a href="fabric_item.html">fabric_item()</a></code>. A
-KQLDatabase record also supplies <code>database</code>. Use the <strong>Ingestion URI</strong>, not
+KQLDatabase object also supplies <code>database</code>. Use the <strong>Ingestion URI</strong>, not
 the Query URI, for direct character input</p></dd>
 
 
@@ -118,7 +118,7 @@ storage access</p></dd>
 
 <dt id="arg-database">database<a class="anchor" aria-label="anchor" href="#arg-database"></a></dt>
 <dd><p>Target KQL database display name. Omit it when <code>cluster</code> is a
-discovered KQLDatabase record</p></dd>
+discovered KQLDatabase object</p></dd>
 
 
 <dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>

@@ -1,8 +1,9 @@
 # Discover Microsoft Fabric items
 
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and
-other items stored in a workspace. Set `detail = TRUE` when you want
-records that can be passed directly to query or connection functions
+other items stored in a workspace. By default, actionable items are
+returned as type-specific R6 objects whose methods perform the matching
+query, connection, file, Spark, or job operations
 
 ## Usage
 
@@ -31,9 +32,9 @@ fabric_items(
 
 - workspace:
 
-  Workspace name, ID, or record returned by
+  Workspace name, ID, or object returned by
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md).
-  A name is convenient for interactive use; a record avoids an extra
+  A name is convenient for interactive use; an object avoids an extra
   lookup
 
 - type:
@@ -107,7 +108,7 @@ fabric_items(
 
 - api_base:
 
-  Fabric REST API base URL. When `workspace` is a record containing
+  Fabric REST API base URL. When `workspace` is an object containing
   `apiEndpoint`, that workspace-specific endpoint is used unless
   `api_base` is supplied explicitly
 
@@ -119,11 +120,11 @@ fabric_items(
 
 ## Value
 
-A list with one item record per match. Every record includes common
+A list with one item object per match. Every object includes common
 fields such as `id`, `displayName`, `type`, and `workspaceId`. With
-`output = "r6"`, records are
+`output = "r6"`, results are
 [FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
-objects or type-specific subclasses. With `output = "list"`, records are
+objects or type-specific subclasses. With `output = "list"`, results are
 `fabric_item` lists. With `detail = TRUE`, both representations include
 connection details when Fabric makes them available
 
@@ -156,15 +157,12 @@ if (FALSE) { # \dontrun{
 workspaces <- fabric_workspaces()
 workspace <- workspaces[[1L]]
 
-# List lightweight item records and inspect their names and types
-items <- fabric_items(workspace)
+# Continue through the workspace object and inspect service fields
+items <- workspace$items()
 vapply(items, `[[`, character(1), "displayName")
 
-# Ask for enriched records when another function needs connection details
-lakehouses <- fabric_items(
-  workspace,
-  type = "Lakehouse",
-  detail = TRUE
-)
+# Type-specific objects expose their next actions as methods
+lakehouse <- workspace$lakehouses()[[1L]]
+lakehouse$tables()
 } # }
 ```
