@@ -79,8 +79,9 @@ workspaces <- fabric_workspaces()
 ```
 
 The result is a list of `FabricWorkspace` R6 objects. Each object keeps the
-workspace fields returned by Fabric and provides methods for discovering its
-items. 
+workspace fields returned by Fabric and provides discovery methods. For
+example, `$items()` corresponds to `fabric_items()`, and `$lakehouses()`
+corresponds to `fabric_lakehouses()`. 
 If the list is empty, check that your account has been granted access to a workspace in the Fabric portal.
 If the list is not empty, select a specific workspace:
 
@@ -104,7 +105,8 @@ stopifnot(length(matches) == 1L)
 workspace <- matches[[1L]]
 ```
 
-Now list all items in the workspace, or ask directly for items of a specific type:
+Now list all items with `$items()` (`fabric_items()`), or ask directly for
+Lakehouses with `$lakehouses()` (`fabric_lakehouses()`):
 
 ```{r tutorial-test-list-items, eval = FALSE}
 # List all items in the workspace
@@ -120,14 +122,18 @@ lakehouse$displayName
 A discovered item is a read-only R6 object. Read its Fabric metadata through
 fields such as `$displayName`, `$type`, and `$id`; methods
 matched to its type perform the useful next actions. For example, a
-`FabricLakehouse` provides `$tables()`, `$read_table()`, `$write_table()`, and
-OneLake, SQL, and Livy methods. Use `$as_list()` only when another interface
-specifically requires a plain record.
+`FabricLakehouse` provides `$tables()` (`fabric_lakehouse_tables()`),
+`$read_table()` (`fabric_lakehouse_read_table()`), and `$write_table()`
+(`fabric_lakehouse_write_table()`), plus OneLake, SQL, and Livy methods. Use
+`$as_list()` or `as.list()` only when another interface specifically requires a
+plain record.
 
 ## Complete a first read
 
 If the workspace contains a Lakehouse, 
-reading one managed table is a simple first workflow:
+reading one managed table is a simple first workflow. Use `$tables()`
+(`fabric_lakehouse_tables()`) to discover its tables and `$read_table()`
+(`fabric_lakehouse_read_table()`) to read one:
 
 ```{r tutorial-test-read-lakehouse, eval = FALSE}
 # List the tables in the Lakehouse

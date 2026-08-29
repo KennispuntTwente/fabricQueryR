@@ -164,7 +164,8 @@ FabricRecord <- R6::R6Class(
 #'
 #' Every object includes the complete Fabric API record. Read non-conflicting
 #' fields directly with `$`; use `$get()` for collision-safe field access and
-#' `$as_list()` for a plain record. Record fields are read-only.
+#' `$as_list()` or [as.list()] for a plain record. `$get()` is an object-only
+#' field helper. Record fields are read-only.
 #'
 #' Methods delegate to the corresponding `fabric_*()` function. Their `...`
 #' arguments are forwarded unchanged, and the credential used for discovery is
@@ -175,8 +176,8 @@ FabricRecord <- R6::R6Class(
 #' Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 #' semantic models, and runnable job items add workload-specific methods.
 #' Other discovered types are returned as `FabricItem` objects with `$details()`
-#' and record access. They do not expose methods that cannot operate from
-#' discovery metadata.
+#' ([fabric_item()]) and record access. They do not expose methods that cannot
+#' operate from discovery metadata.
 #'
 #' @format An [R6::R6Class] generator.
 #' @return The corresponding R6 generator.
@@ -185,17 +186,23 @@ FabricRecord <- R6::R6Class(
 #' workspace <- fabric_workspaces()[[1L]]
 #' workspace$displayName
 #'
+#' # Equivalent function: fabric_lakehouses(workspace)
 #' lakehouse <- workspace$lakehouses()[[1L]]
 #' lakehouse$id
+#' # Equivalent function: fabric_lakehouse_tables(lakehouse)
 #' lakehouse$tables()
+#' # Equivalent function: fabric_lakehouse_read_table(lakehouse, ...)
 #' orders <- lakehouse$read_table("orders", limit = 100L)
 #'
 #' # Workload-specific subclasses expose their own lifecycle methods
+#' # Equivalent function: fabric_semantic_models(workspace)
 #' model <- workspace$semantic_models()[[1L]]
+#' # Equivalent function: fabric_pbi_refresh(model)
 #' refresh <- model$refresh()
+#' # Equivalent function: fabric_pbi_refresh_wait(refresh, ...)
 #' model$refresh_wait(refresh, timeout = 1800)
 #'
-#' # Convert only when another interface specifically requires a plain record
+#' # Equivalent generic: as.list(lakehouse)
 #' lakehouse_record <- lakehouse$as_list()
 #' }
 #' @name FabricItem

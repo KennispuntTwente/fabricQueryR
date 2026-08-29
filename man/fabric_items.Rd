@@ -110,11 +110,12 @@ require both \code{personal_workspace_tenant_id} and \code{personal_workspace_ow
 workspaces <- fabric_workspaces()
 workspace <- workspaces[[1L]]
 
-# Continue through the workspace object and inspect service fields
+# `$items()` is the object interface to fabric_items()
 items <- workspace$items()
 vapply(items, `[[`, character(1), "displayName")
 
-# Type-specific objects expose their next actions as methods
+# `$lakehouses()` calls fabric_lakehouses(); `$tables()` calls
+# fabric_lakehouse_tables()
 lakehouse <- workspace$lakehouses()[[1L]]
 lakehouse$tables()
 }

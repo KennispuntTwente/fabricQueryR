@@ -50,9 +50,12 @@
 #' workspace <- workspaces[[1L]]
 #' workspace$displayName
 #'
-#' # Continue discovery through the workspace object
+#' # Object methods call the corresponding exported functions
+#' # workspace$items() -> fabric_items(workspace)
 #' items <- workspace$items()
+#' # workspace$lakehouses() -> fabric_lakehouses(workspace)
 #' lakehouse <- workspace$lakehouses()[[1L]]
+#' # lakehouse$tables() -> fabric_lakehouse_tables(lakehouse)
 #' lakehouse$tables()
 #' }
 #' @export
@@ -204,11 +207,12 @@ fabric_workspaces <- function(
 #' workspaces <- fabric_workspaces()
 #' workspace <- workspaces[[1L]]
 #'
-#' # Continue through the workspace object and inspect service fields
+#' # `$items()` is the object interface to fabric_items()
 #' items <- workspace$items()
 #' vapply(items, `[[`, character(1), "displayName")
 #'
-#' # Type-specific objects expose their next actions as methods
+#' # `$lakehouses()` calls fabric_lakehouses(); `$tables()` calls
+#' # fabric_lakehouse_tables()
 #' lakehouse <- workspace$lakehouses()[[1L]]
 #' lakehouse$tables()
 #' }
@@ -414,7 +418,7 @@ fabric_items <- function(
 #' # Enrich that discovered object with connection details
 #' warehouse <- fabric_item(workspace, warehouses[[1L]])
 #'
-#' # The enriched R6 object exposes the matching SQL methods
+#' # `$sql_connection_info()` calls fabric_sql_connection_info()
 #' warehouse$sql_connection_info()
 #' }
 #' @export
@@ -538,20 +542,23 @@ fabric_item <- function(
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`,
 #'   `fabric_warehouse_snapshots()`, and `fabric_mirrored_databases()` find data
-#'   stores with `$sql_query()` and other SQL methods; Lakehouses and
+#'   stores with `$sql_query()` ([fabric_sql_query()]) and other SQL methods;
+#'   Lakehouses and
 #'   mirrored databases can also be accessed through OneLake
 #' - `fabric_sql_databases()` finds transactional Fabric SQL databases
-#' - `fabric_semantic_models()` finds business models with `$dax_query()` and
-#'   refresh lifecycle methods
+#' - `fabric_semantic_models()` finds business models with `$dax_query()`
+#'   ([fabric_pbi_dax_query()]) and refresh lifecycle methods
 #' - `fabric_eventhouses()` and `fabric_kql_databases()` find real-time data
-#'   stores with `$query()`, `$read_table()`, ingestion, and export methods
+#'   stores with `$query()` ([fabric_kql_query()]) and `$read_table()`
+#'   ([fabric_kql_read_table()]), plus ingestion and export methods
 #' - `fabric_notebooks()` finds notebooks with job lifecycle and schedule methods
 #' - `fabric_data_pipelines()` and `fabric_spark_job_definitions()` find the
 #'   other executable items with the same job methods
 #' - `fabric_environments()` finds reusable Spark runtime configurations
 #' - `fabric_user_data_functions()` finds serverless Python function items
-#' - `fabric_graphql_apis()` finds APIs configured in Fabric with `$query()`,
-#'   `$schema()`, and `$paginate()` methods
+#' - `fabric_graphql_apis()` finds APIs configured in Fabric with `$query()`
+#'   ([fabric_graphql_query()]), `$schema()` ([fabric_graphql_schema()]), and
+#'   `$paginate()` ([fabric_graphql_paginate()])
 #'
 #' @section Filtering and returned fields:
 #' Each helper requests its exact Fabric item type and verifies that every
@@ -605,14 +612,17 @@ fabric_item <- function(
 #' kql_databases <- fabric_kql_databases(workspace)
 #' graphql_apis <- fabric_graphql_apis(workspace)
 #'
-#' # Discovered objects expose matching workload methods
+#' # Each method calls the corresponding exported function
+#' # fabric_lakehouse_tables()
 #' lakehouses[[1L]]$tables()
+#' # fabric_sql_connection_info()
 #' warehouses[[1L]]$sql_connection_info()
+#' # fabric_pbi_dax_query()
 #' semantic_models[[1L]]$dax_query(
 #'   dax = Sys.getenv("FABRIC_DAX_QUERY")
 #' )
 #'
-#' # Runnable items expose lifecycle methods
+#' # Runnable methods call fabric_job_run() and fabric_job_wait()
 #' notebook <- fabric_notebooks(workspace)[[1]]
 #' pipeline <- fabric_data_pipelines(workspace)[[1]]
 #' spark_job <- fabric_spark_job_definitions(workspace)[[1]]

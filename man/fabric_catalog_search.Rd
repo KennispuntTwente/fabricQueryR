@@ -84,7 +84,7 @@ entries <- fabric_catalog_search(
   page_size = 100
 )
 
-# A result contains both the item ID and its workspace ID, plus its methods
+# `$onelake_list()` calls fabric_onelake_list()
 lakehouse <- entries[[1L]]
 lakehouse$onelake_list(path = "Tables")
 }

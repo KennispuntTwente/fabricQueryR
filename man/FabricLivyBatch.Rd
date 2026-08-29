@@ -13,7 +13,8 @@ The \code{FabricLivyBatch} 'R6' generator.
 Represents a Spark application submitted with \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}
 Use \verb{$wait()} to wait for completion, \verb{$result()} or \verb{$logs()} to inspect the
 outcome, and \verb{$cancel()} to request cancellation. Most users do not need to
-call this 'R6' class directly
+call this 'R6' class directly. These lifecycle methods do not have separate
+free-function wrappers
 }
 \examples{
 \dontrun{

@@ -25,6 +25,7 @@
 #' \dontrun{
 #' # Discover a Warehouse object that already contains its SQL endpoint
 #' workspace <- fabric_workspaces()[[1L]]
+#' # `$warehouses()` calls fabric_warehouses()
 #' warehouse <- workspace$warehouses()[[1L]]
 #'
 #' # Inspect connection details without opening a database connection

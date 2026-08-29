@@ -19,30 +19,42 @@ functions
 \itemize{
 \item Use \code{\link[=fabric_workspaces]{fabric_workspaces()}} and the typed discovery helpers, such as
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_semantic_models]{fabric_semantic_models()}}, to find data. A
-workspace can also continue discovery with methods such as \verb{$lakehouses()}
-and \verb{$semantic_models()}; see \link{FabricItem}
+workspace can also continue discovery with \verb{$lakehouses()}
+(\code{\link[=fabric_lakehouses]{fabric_lakehouses()}}) and \verb{$semantic_models()}
+(\code{\link[=fabric_semantic_models]{fabric_semantic_models()}}); see \link{FabricItem}
 \item Use \code{\link[=fabric_sql_tables]{fabric_sql_tables()}} to discover tables and views across Warehouse,
 SQL Database, Warehouse snapshot, or Lakehouse SQL endpoints, then
-use an item's \verb{$sql_read_table()} or \verb{$sql_query()} method to read them
-\item Use a semantic model's \verb{$dax_query()} method for report-ready models
-\item Use a Lakehouse's \verb{$livy_query()}, \verb{$livy_session()}, or
-\verb{$livy_batch_submit()} method when Spark processing is required
+use \verb{$sql_read_table()} (\code{\link[=fabric_sql_read_table]{fabric_sql_read_table()}}) or \verb{$sql_query()}
+(\code{\link[=fabric_sql_query]{fabric_sql_query()}}) to read them
+\item Use \verb{$dax_query()} (\code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}) on a semantic model
+\item Use \verb{$livy_query()} (\code{\link[=fabric_livy_query]{fabric_livy_query()}}), \verb{$livy_session()}
+(\code{\link[=fabric_livy_session]{fabric_livy_session()}}), or \verb{$livy_batch_submit()}
+(\code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}) on a Lakehouse for Spark processing
 \item Use \code{\link[=fabric_lakehouse_schemas]{fabric_lakehouse_schemas()}} and \code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}} to discover
-managed Delta tables; discovered Lakehouses provide \verb{$tables()},
-\verb{$read_table()}, \verb{$write_table()}, and \verb{$load_table()} methods
+managed Delta tables; Lakehouse methods include \verb{$tables()}
+(\code{\link[=fabric_lakehouse_tables]{fabric_lakehouse_tables()}}), \verb{$read_table()}
+(\code{\link[=fabric_lakehouse_read_table]{fabric_lakehouse_read_table()}}), \verb{$write_table()}
+(\code{\link[=fabric_lakehouse_write_table]{fabric_lakehouse_write_table()}}), and \verb{$load_table()}
+(\code{\link[=fabric_lakehouse_load_table]{fabric_lakehouse_load_table()}})
 \item Use \link{fabric_onelake_files} for ordinary files
 \item Use \code{\link[=fabric_warehouse_schemas]{fabric_warehouse_schemas()}} and \code{\link[=fabric_warehouse_tables]{fabric_warehouse_tables()}} to discover
-Warehouse tables, then \verb{$read_table()} or \verb{$write_table()} on the Warehouse
-object for symmetric table transfer
+Warehouse tables, then \verb{$read_table()} (\code{\link[=fabric_warehouse_read_table]{fabric_warehouse_read_table()}}) or
+\verb{$write_table()} (\code{\link[=fabric_warehouse_write_table]{fabric_warehouse_write_table()}}) on the Warehouse object
 \item Use \code{\link[=fabric_mirrored_databases]{fabric_mirrored_databases()}} and \code{\link[=fabric_mirrored_database_tables]{fabric_mirrored_database_tables()}}
 to discover and read continuously replicated Delta tables
-\item Use \verb{$tables()}, \verb{$query()}, \verb{$read_table()}, \verb{$ingest()}, \verb{$write_table()},
-and \verb{$export()} on a discovered Eventhouse or KQL database
-\item Use \verb{$query()}, \verb{$schema()}, and \verb{$paginate()} on an API for GraphQL item
+\item On an Eventhouse or KQL database, use \verb{$tables()} (\code{\link[=fabric_kql_tables]{fabric_kql_tables()}}),
+\verb{$query()} (\code{\link[=fabric_kql_query]{fabric_kql_query()}}), \verb{$read_table()}
+(\code{\link[=fabric_kql_read_table]{fabric_kql_read_table()}}), \verb{$ingest()} (\code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}),
+\verb{$write_table()} (\code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}}), and \verb{$export()}
+(\code{\link[=fabric_kql_export]{fabric_kql_export()}})
+\item On an API for GraphQL item, use \verb{$query()} (\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}),
+\verb{$schema()} (\code{\link[=fabric_graphql_schema]{fabric_graphql_schema()}}), and \verb{$paginate()}
+(\code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}})
 \item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
 User Data Function's explicit public URL
-\item Use \verb{$run()}, \verb{$status()}, \verb{$wait()}, and \verb{$cancel()} on a discovered
-notebook, data pipeline, or Spark job definition
+\item On a runnable item, use \verb{$run()} (\code{\link[=fabric_job_run]{fabric_job_run()}}), \verb{$status()}
+(\code{\link[=fabric_job_status]{fabric_job_status()}}), \verb{$wait()} (\code{\link[=fabric_job_wait]{fabric_job_wait()}}), and \verb{$cancel()}
+(\code{\link[=fabric_job_cancel]{fabric_job_cancel()}})
 \item See \code{vignette("authentication", package = "fabricQueryR")} for interactive
 and unattended authentication setup, required token audiences, and Fabric
 permissions

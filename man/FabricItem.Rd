@@ -29,7 +29,8 @@ rather than constructing them directly.
 \details{
 Every object includes the complete Fabric API record. Read non-conflicting
 fields directly with \code{$}; use \verb{$get()} for collision-safe field access and
-\verb{$as_list()} for a plain record. Record fields are read-only.
+\verb{$as_list()} or \code{\link[=as.list]{as.list()}} for a plain record. \verb{$get()} is an object-only
+field helper. Record fields are read-only.
 
 Methods delegate to the corresponding \verb{fabric_*()} function. Their \code{...}
 arguments are forwarded unchanged, and the credential used for discovery is
@@ -40,25 +41,31 @@ SQL-capable resources inherit common \verb{sql_*()} methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 semantic models, and runnable job items add workload-specific methods.
 Other discovered types are returned as \code{FabricItem} objects with \verb{$details()}
-and record access. They do not expose methods that cannot operate from
-discovery metadata.
+(\code{\link[=fabric_item]{fabric_item()}}) and record access. They do not expose methods that cannot
+operate from discovery metadata.
 }
 \examples{
 \dontrun{
 workspace <- fabric_workspaces()[[1L]]
 workspace$displayName
 
+# Equivalent function: fabric_lakehouses(workspace)
 lakehouse <- workspace$lakehouses()[[1L]]
 lakehouse$id
+# Equivalent function: fabric_lakehouse_tables(lakehouse)
 lakehouse$tables()
+# Equivalent function: fabric_lakehouse_read_table(lakehouse, ...)
 orders <- lakehouse$read_table("orders", limit = 100L)
 
 # Workload-specific subclasses expose their own lifecycle methods
+# Equivalent function: fabric_semantic_models(workspace)
 model <- workspace$semantic_models()[[1L]]
+# Equivalent function: fabric_pbi_refresh(model)
 refresh <- model$refresh()
+# Equivalent function: fabric_pbi_refresh_wait(refresh, ...)
 model$refresh_wait(refresh, timeout = 1800)
 
-# Convert only when another interface specifically requires a plain record
+# Equivalent generic: as.list(lakehouse)
 lakehouse_record <- lakehouse$as_list()
 }
 }

@@ -106,7 +106,8 @@ replaces those defaults, so include every required scope plus any optional
 }
 \value{
 A newly created \link{FabricLivySession}. It may still be starting; call
-\verb{$wait()} before \verb{$submit()}/\verb{$run()}, and \verb{$close()} when finished
+\verb{$wait()} before \verb{$submit()}/\verb{$run()}, and \verb{$close()} when finished. These
+handle lifecycle methods do not have separate free-function wrappers
 }
 \description{
 Starts Spark compute that can run several statements while keeping variables

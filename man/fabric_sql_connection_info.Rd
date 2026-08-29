@@ -44,6 +44,7 @@ for a Fabric SQL connection. Most users can pass a discovered item directly to
 \dontrun{
 # Discover a Warehouse object that already contains its SQL endpoint
 workspace <- fabric_workspaces()[[1L]]
+# `$warehouses()` calls fabric_warehouses()
 warehouse <- workspace$warehouses()[[1L]]
 
 # Inspect connection details without opening a database connection

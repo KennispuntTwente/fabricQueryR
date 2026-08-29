@@ -57,7 +57,9 @@ and vignettes for configuration options and more involved workflows.
 ### 1. Discover workspaces and items
 
 Find the Fabric resources you can access. Discovery returns R6 objects with
-methods matched to each actionable item type.
+methods matched to each actionable item type. In the example below,
+`$lakehouses()` is the object interface to `fabric_lakehouses()`, and
+`$read_table()` calls `fabric_lakehouse_read_table()`.
 
 ``` r
 workspace <- fabric_workspaces()[[1L]]
@@ -68,7 +70,7 @@ orders <- lakehouse$read_table("orders", limit = 1000)
 lakehouse$id
 lakehouse$displayName
 
-# Convert to a plain record when another interface specifically needs one
+# Equivalent plain-record interface: as.list(lakehouse)
 lakehouse_record <- lakehouse$as_list()
 ```
 
@@ -84,8 +86,10 @@ sales_items <- fabric_catalog_search(
 
 ### 2. Query Fabric SQL endpoints
 
-Open a reusable 'DBI' connection to a Warehouse, SQL Database, or Lakehouse SQL
-analytics endpoint, or run a single query and return its result as a tibble.
+Open a reusable 'DBI' connection with `$sql_connect()`
+(`fabric_sql_connect()`), or run a single query with `$sql_query()`
+(`fabric_sql_query()`). These interfaces work with a Warehouse, SQL Database,
+or Lakehouse SQL analytics endpoint.
 
 ``` r
 lakehouse <- workspace$lakehouses()[[1L]]
@@ -99,13 +103,15 @@ customers <- lakehouse$sql_query(
 )
 ```
 
-`$sql_connect()` supports both ODBC and ADBC. The default ODBC backend
-requires [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
+`$sql_connect()` (`fabric_sql_connect()`) supports both ODBC and ADBC. The
+default ODBC backend requires
+[Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
 
 ### 3. Query a semantic model with DAX
 
-Run a DAX query against a Fabric or Power BI semantic model and return the
-result as a tibble.
+Run a DAX query with `$dax_query()` (`fabric_pbi_dax_query()`) and return the
+result as a tibble. `$semantic_models()` is the workspace method for
+`fabric_semantic_models()`.
 
 ``` r
 semantic_model <- workspace$semantic_models()[[1L]]
@@ -120,8 +126,9 @@ Premium or Fabric capacity.
 
 ### 4. Run Spark code through Livy
 
-Run SparkR, PySpark, Scala, or Spark SQL remotely in Fabric and return the
-result to the local R session.
+Run SparkR, PySpark, Scala, or Spark SQL remotely with `$livy_query()`
+(`fabric_livy_query()`) and return the result to the local R session.
+`$lakehouses()` is the workspace method for `fabric_lakehouses()`.
 
 ``` r
 lakehouse <- workspace$lakehouses()[[1L]]
@@ -139,8 +146,10 @@ for choosing between one-off queries, reusable sessions, and batch jobs.
 
 ### 5. Read and write Lakehouse tables
 
-Move data between R and managed Delta tables in a Lakehouse. The writer accepts
-data frames as well as lazy Arrow sources.
+Move data between R and managed Delta tables with `$read_table()`
+(`fabric_lakehouse_read_table()`) and `$write_table()`
+(`fabric_lakehouse_write_table()`). The writer accepts data frames as well as
+lazy Arrow sources; `$lakehouses()` corresponds to `fabric_lakehouses()`.
 
 ``` r
 lakehouse <- workspace$lakehouses()[[1L]]
@@ -152,8 +161,8 @@ lakehouse$write_table(
 )
 ```
 
-Use `$load_table()` when the source CSV or Parquet data already
-exists under `Files/` in the same Lakehouse. See
+Use `$load_table()` (`fabric_lakehouse_load_table()`) when the source CSV or
+Parquet data already exists under `Files/` in the same Lakehouse. See
 [Working with Fabric Lakehouses and OneLake](https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html)
 for the distinction between ordinary files and managed Delta tables, table
 loading, larger reads, and shortcuts.
@@ -164,8 +173,11 @@ the Delta or Iceberg table protocol.
 
 ### 6. Work with OneLake files
 
-Read and write common file formats directly between R and OneLake. Lakehouse
-file paths normally start with `Files/`.
+Read and write common file formats directly between R and OneLake with
+`$onelake_read_file()` (`fabric_onelake_read_file()`) and
+`$onelake_write_file()` (`fabric_onelake_write_file()`). Lakehouse file paths
+normally start with `Files/`; `$lakehouses()` corresponds to
+`fabric_lakehouses()`.
 
 ``` r
 lakehouse <- workspace$lakehouses()[[1L]]
@@ -187,8 +199,11 @@ continues with file discovery, uploads, managed tables, and safe deletion.
 
 ### 7. Read and write Warehouse tables
 
-Read a Warehouse table into R or load an R or Arrow object into a Warehouse.
-Writes use a Lakehouse as temporary OneLake staging for Fabric's `COPY INTO`.
+Read a Warehouse table with `$read_table()`
+(`fabric_warehouse_read_table()`) or load an R or Arrow object with
+`$write_table()` (`fabric_warehouse_write_table()`). Writes use a Lakehouse as
+temporary OneLake staging for Fabric's `COPY INTO`. `$warehouses()` and
+`$lakehouses()` correspond to `fabric_warehouses()` and `fabric_lakehouses()`.
 
 ``` r
 warehouse <- workspace$warehouses()[[1L]]
@@ -210,8 +225,10 @@ Arrow inputs.
 
 ### 8. Query and write Eventhouse data
 
-Use KQL to query an Eventhouse database, or write an R or Arrow object to an
-existing KQL table.
+Use `$query()` (`fabric_kql_query()`) to query an Eventhouse database, or
+`$write_table()` (`fabric_kql_write_table()`) to write an R or Arrow object to
+an existing KQL table. `$kql_databases()` corresponds to
+`fabric_kql_databases()`.
 
 ``` r
 kql_database <- workspace$kql_databases()[[1L]]
@@ -233,8 +250,9 @@ OneLake, see
 
 ### 9. Query a Fabric GraphQL API
 
-Call an API for GraphQL item configured in Fabric. Data and GraphQL-level
-errors remain separately available in the result.
+Call an API for GraphQL item with `$query()` (`fabric_graphql_query()`). Data
+and GraphQL-level errors remain separately available in the result;
+`$graphql_apis()` corresponds to `fabric_graphql_apis()`.
 
 ``` r
 graphql_api <- workspace$graphql_apis()[[1L]]
@@ -269,8 +287,10 @@ for permissions, limits, and retry behavior.
 
 ### 11. Refresh a semantic model
 
-Start a semantic-model refresh and wait for its final state. The returned
-object includes the details needed to inspect failures.
+Start a semantic-model refresh with `$refresh()` (`fabric_pbi_refresh()`) and
+wait with `$refresh_wait()` (`fabric_pbi_refresh_wait()`). The returned object
+includes the details needed to inspect failures; `$semantic_models()`
+corresponds to `fabric_semantic_models()`.
 
 ``` r
 semantic_model <- workspace$semantic_models()[[1L]]
@@ -287,8 +307,9 @@ Lake behavior.
 
 ### 12. Run and monitor Fabric jobs
 
-Start a notebook, data pipeline, or Spark job definition and wait for it to
-finish.
+Start a notebook, data pipeline, or Spark job definition with `$run()`
+(`fabric_job_run()`) and wait with `$wait()` (`fabric_job_wait()`).
+`$notebooks()` corresponds to `fabric_notebooks()`.
 
 ``` r
 notebook <- workspace$notebooks()[[1L]]
@@ -311,8 +332,10 @@ covers run history, cancellation, and recurring schedules.
 
 ### 13. Create OneLake shortcuts
 
-Create a shortcut when data in another Fabric item should be available without
-being copied into the current Lakehouse.
+Create a shortcut with `$shortcut_create()`
+(`fabric_onelake_shortcut_create()`) when data in another Fabric item should be
+available without being copied into the current Lakehouse. `$lakehouses()`
+corresponds to `fabric_lakehouses()`.
 
 ``` r
 lakehouses <- workspace$lakehouses()

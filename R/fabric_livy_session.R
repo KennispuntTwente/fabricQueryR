@@ -54,7 +54,8 @@
 #' @param verbose Logical. Show session lifecycle messages
 #'
 #' @return A newly created [FabricLivySession]. It may still be starting; call
-#'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished
+#'   `$wait()` before `$submit()`/`$run()`, and `$close()` when finished. These
+#'   handle lifecycle methods do not have separate free-function wrappers
 #' @section Choosing a session type:
 #' Use a standard session for a typical sequence in one R process. High
 #' concurrency is for applications that run several independent Spark workloads
@@ -252,7 +253,8 @@ fabric_livy_session <- function(
 #' A Livy session keeps Spark running while you submit several pieces of code
 #' Create one with [fabric_livy_session()], call `$wait()` once it starts, use
 #' `$run()` to execute code, and call `$close()` when finished. Most users do
-#' not need to call this 'R6' class directly
+#' not need to call this 'R6' class directly. These lifecycle methods do not
+#' have separate free-function wrappers
 #'
 #' @field id Fabric session or high-concurrency acquisition ID
 #' @field url Session lifecycle URL
@@ -746,7 +748,8 @@ fabric_livy_statement_page <- function(response, offset, previous_total) {
 #'
 #' Represents one piece of code submitted to a [FabricLivySession]. Call
 #' `$wait()` and then `$result()` to retrieve its output. For the usual
-#' submit-and-wait workflow, use the session's `$run()` method instead
+#' submit-and-wait workflow, use the session's `$run()` method instead. These
+#' lifecycle methods do not have separate free-function wrappers
 #'
 #' @field id Numeric Livy statement ID
 #' @field url Statement lifecycle URL

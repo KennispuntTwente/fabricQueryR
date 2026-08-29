@@ -12,7 +12,8 @@ The \code{FabricLivyStatement} 'R6' generator.
 \description{
 Represents one piece of code submitted to a \link{FabricLivySession}. Call
 \verb{$wait()} and then \verb{$result()} to retrieve its output. For the usual
-submit-and-wait workflow, use the session's \verb{$run()} method instead
+submit-and-wait workflow, use the session's \verb{$run()} method instead. These
+lifecycle methods do not have separate free-function wrappers
 }
 \examples{
 \dontrun{

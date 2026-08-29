@@ -70,9 +70,12 @@ vapply(workspaces, `[[`, character(1), "displayName")
 workspace <- workspaces[[1L]]
 workspace$displayName
 
-# Continue discovery through the workspace object
+# Object methods call the corresponding exported functions
+# workspace$items() -> fabric_items(workspace)
 items <- workspace$items()
+# workspace$lakehouses() -> fabric_lakehouses(workspace)
 lakehouse <- workspace$lakehouses()[[1L]]
+# lakehouse$tables() -> fabric_lakehouse_tables(lakehouse)
 lakehouse$tables()
 }
 }

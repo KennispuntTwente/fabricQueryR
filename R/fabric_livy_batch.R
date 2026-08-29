@@ -261,7 +261,8 @@ fabric_livy_batch_submit <- function(
 #' Represents a Spark application submitted with [fabric_livy_batch_submit()]
 #' Use `$wait()` to wait for completion, `$result()` or `$logs()` to inspect the
 #' outcome, and `$cancel()` to request cancellation. Most users do not need to
-#' call this 'R6' class directly
+#' call this 'R6' class directly. These lifecycle methods do not have separate
+#' free-function wrappers
 #'
 #' @field id Fabric batch ID
 #' @field url Batch lifecycle URL

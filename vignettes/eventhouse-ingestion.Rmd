@@ -13,8 +13,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 
 An Eventhouse stores event, log, and time-series data in KQL databases. In this
 guide, *ingestion* means adding rows to a KQL table. Start with the discovered
-database's `$write_table()` method, which accepts an R data frame and manages
-staging, status checks, and cleanup for you.
+database's `$write_table()` method (`fabric_kql_write_table()`), which accepts
+an R data frame and manages staging, status checks, and cleanup for you.
 
 After the basic write, this guide shows how to monitor ingestion, use an
 existing storage file, scale up with Arrow, and export a large query result.
@@ -68,9 +68,10 @@ staging recovery options.
 
 ## Queue a tracked batch
 
-Use the lower-level `$ingest()` method when the source file already exists in
-OneLake or supported blob storage. It does not upload a local file or
-serialize an R object, and the destination table must already exist.
+Use the lower-level `$ingest()` method (`fabric_kql_ingest()`) when the source
+file already exists in OneLake or supported blob storage. It does not upload a
+local file or serialize an R object, and the destination table must already
+exist.
 
 For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate a named
 ingestion mapping in Fabric before submission. Supply the complete source path
@@ -86,7 +87,8 @@ source <- paste0(
 
 The signed-in identity must be able to read the file. Do not print or log a
 source string that contains credentials. Source IDs are generated when omitted
-and remain available on the returned handle:
+and remain available on the returned handle. Submit it with `$ingest()`
+(`fabric_kql_ingest()`):
 
 ```{r, eval = FALSE}
 ingestion <- database$ingest(
@@ -111,7 +113,9 @@ source deletion, and storage-authentication options.
 
 ## Wait and inspect the outcome
 
-One status snapshot is useful for a scheduler that persists operation IDs:
+One status snapshot with `$ingestion_status()`
+(`fabric_kql_ingestion_status()`) is useful for a scheduler that persists
+operation IDs:
 
 ```{r, eval = FALSE}
 snapshot <- database$ingestion_status(ingestion)
@@ -119,7 +123,8 @@ snapshot$state
 snapshot$counts
 ```
 
-For an interactive or single-process batch, poll with a client-side deadline:
+For an interactive or single-process batch, `$ingestion_wait()` calls
+`fabric_kql_ingestion_status(..., wait = TRUE)` with a client-side deadline:
 
 ```{r, eval = FALSE}
 result <- database$ingestion_wait(
@@ -134,7 +139,9 @@ result$details
 
 The deadline stops only the R waiter; it does not cancel ingestion in Fabric.
 By default, a failed or partially successful batch raises an R condition. To
-inspect every terminal state as data instead:
+inspect every terminal state as data instead, call `$ingestion_wait()`
+(`fabric_kql_ingestion_status(..., wait = TRUE)`) with
+`error_on_failure = FALSE`:
 
 ```{r, eval = FALSE}
 result <- database$ingestion_wait(
@@ -149,7 +156,7 @@ failed <- subset(
 failed[c("source_id", "error_code", "failure_status", "message")]
 ```
 
-Query the destination after success:
+Query the destination after success with `$query()` (`fabric_kql_query()`):
 
 ```{r, eval = FALSE}
 loaded <- database$query(
@@ -159,7 +166,8 @@ loaded <- database$query(
 
 The caller needs permission to ingest into the destination table and read the
 source file. Keep a manually staged source until the tracked result is final and
-verified; `$write_table()` manages this retention rule for you.
+verified; `$write_table()` (`fabric_kql_write_table()`) manages this retention
+rule for you.
 
 ## Scale up with Arrow
 
@@ -176,15 +184,18 @@ written <- database$write_table(
 )
 ```
 
+Here `$write_table()` calls `fabric_kql_write_table()`, as in the data-frame
+example above.
+
 The source is processed in batches instead of first being collected into an R
 data frame. A supplied RecordBatchReader is single-use.
 
 ## Export a large KQL result to OneLake
 
-`$query()` is the right interface when the result belongs in R. When
-the result is too large for the client-result channel or should remain in
-Fabric, `$export()` runs Kusto's service-side export and writes the
-first result set directly to storage:
+`$query()` (`fabric_kql_query()`) is the right interface when the result belongs
+in R. When the result is too large for the client-result channel or should
+remain in Fabric, `$export()` (`fabric_kql_export()`) runs Kusto's service-side
+export and writes the first result set directly to storage:
 
 ```{r, eval = FALSE}
 lakehouse <- fabric_lakehouses("Telemetry workspace")[[1]]

@@ -78,20 +78,23 @@ their workload-specific properties are needed
 \itemize{
 \item \code{fabric_lakehouses()}, \code{fabric_warehouses()},
 \code{fabric_warehouse_snapshots()}, and \code{fabric_mirrored_databases()} find data
-stores with \verb{$sql_query()} and other SQL methods; Lakehouses and
+stores with \verb{$sql_query()} (\code{\link[=fabric_sql_query]{fabric_sql_query()}}) and other SQL methods;
+Lakehouses and
 mirrored databases can also be accessed through OneLake
 \item \code{fabric_sql_databases()} finds transactional Fabric SQL databases
-\item \code{fabric_semantic_models()} finds business models with \verb{$dax_query()} and
-refresh lifecycle methods
+\item \code{fabric_semantic_models()} finds business models with \verb{$dax_query()}
+(\code{\link[=fabric_pbi_dax_query]{fabric_pbi_dax_query()}}) and refresh lifecycle methods
 \item \code{fabric_eventhouses()} and \code{fabric_kql_databases()} find real-time data
-stores with \verb{$query()}, \verb{$read_table()}, ingestion, and export methods
+stores with \verb{$query()} (\code{\link[=fabric_kql_query]{fabric_kql_query()}}) and \verb{$read_table()}
+(\code{\link[=fabric_kql_read_table]{fabric_kql_read_table()}}), plus ingestion and export methods
 \item \code{fabric_notebooks()} finds notebooks with job lifecycle and schedule methods
 \item \code{fabric_data_pipelines()} and \code{fabric_spark_job_definitions()} find the
 other executable items with the same job methods
 \item \code{fabric_environments()} finds reusable Spark runtime configurations
 \item \code{fabric_user_data_functions()} finds serverless Python function items
-\item \code{fabric_graphql_apis()} finds APIs configured in Fabric with \verb{$query()},
-\verb{$schema()}, and \verb{$paginate()} methods
+\item \code{fabric_graphql_apis()} finds APIs configured in Fabric with \verb{$query()}
+(\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}), \verb{$schema()} (\code{\link[=fabric_graphql_schema]{fabric_graphql_schema()}}), and
+\verb{$paginate()} (\code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}})
 }
 }
 
@@ -125,14 +128,17 @@ eventhouses <- fabric_eventhouses(workspace)
 kql_databases <- fabric_kql_databases(workspace)
 graphql_apis <- fabric_graphql_apis(workspace)
 
-# Discovered objects expose matching workload methods
+# Each method calls the corresponding exported function
+# fabric_lakehouse_tables()
 lakehouses[[1L]]$tables()
+# fabric_sql_connection_info()
 warehouses[[1L]]$sql_connection_info()
+# fabric_pbi_dax_query()
 semantic_models[[1L]]$dax_query(
   dax = Sys.getenv("FABRIC_DAX_QUERY")
 )
 
-# Runnable items expose lifecycle methods
+# Runnable methods call fabric_job_run() and fabric_job_wait()
 notebook <- fabric_notebooks(workspace)[[1]]
 pipeline <- fabric_data_pipelines(workspace)[[1]]
 spark_job <- fabric_spark_job_definitions(workspace)[[1]]
