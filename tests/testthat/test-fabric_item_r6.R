@@ -115,7 +115,9 @@ test_that("R6 records validate construction, access, and method arguments", {
   )
 
   item <- r6_test_record("Environment")
-  read_only <- rlang::catch_cnd(item$id <- "replacement")
+  read_only <- rlang::catch_cnd({
+    item$id <- "replacement"
+  })
   expect_s3_class(read_only, "fabric_r6_read_only_error")
   expect_identical(item$id, "11111111-1111-4111-8111-111111111111")
 
