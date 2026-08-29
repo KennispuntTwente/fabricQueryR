@@ -183,6 +183,28 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert all(resource in integration for resource in resources)
 
 
+def test_provisioning_retries_only_transient_provider_timeouts():
+    repository_root = Path(__file__).parents[3]
+    workflows = [
+        repository_root / ".github/workflows/integration-fabric.yaml",
+        repository_root / ".github/workflows/fabric-sandbox.yaml",
+    ]
+
+    for path in workflows:
+        workflow = path.read_text()
+        provision = workflow.split(
+            "- name: Create workspace and test targets", maxsplit=1
+        )[1].split("- name: Export Terraform outputs", maxsplit=1)[0]
+
+        assert "-parallelism=4" in provision
+        assert provision.count('"${terraform_apply[@]}"') == 2
+        assert "context deadline exceeded" in provision
+        assert "Provider returned invalid result object after apply" in provision
+        assert "state show -no-color" in provision
+        assert "fabric_mirrored_database.test" in provision
+        assert 'exit "$apply_status"' in provision
+
+
 def test_warehouse_snapshot_is_recreated_after_seeded_objects():
     repository_root = Path(__file__).parents[3]
     workflows = [

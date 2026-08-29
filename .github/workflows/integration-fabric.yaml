@@ -125,7 +125,30 @@ jobs:
         run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor
 
       - name: Create workspace and test targets
-        run: terraform -chdir="$TF_DIR" apply -auto-approve -input=false
+        run: |
+          apply_log="$RUNNER_TEMP/fabric-terraform-apply.log"
+          terraform_apply=(
+            terraform "-chdir=$TF_DIR" apply -auto-approve -input=false
+            -no-color -parallelism=4
+          )
+          set +e
+          "${terraform_apply[@]}" 2>&1 | tee "$apply_log"
+          apply_status="${PIPESTATUS[0]}"
+          set -e
+          if [ "$apply_status" -eq 0 ]; then
+            exit 0
+          fi
+          if ! grep -Eq \
+            "context deadline exceeded|Provider returned invalid result object after apply" \
+            "$apply_log"; then
+            exit "$apply_status"
+          fi
+          if ! terraform "-chdir=$TF_DIR" state show -no-color \
+            fabric_mirrored_database.test >/dev/null 2>&1; then
+            exit "$apply_status"
+          fi
+          echo "::warning::Fabric provider timed out after saving mirrored database state; retrying apply"
+          "${terraform_apply[@]}"
 
       - name: Export Terraform outputs
         run: |

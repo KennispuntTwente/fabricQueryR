@@ -41,7 +41,7 @@ Create a local variables file from `terraform/terraform.tfvars.example`, then ru
 
 ```bash
 terraform -chdir=infra/fabric/terraform init
-terraform -chdir=infra/fabric/terraform apply
+terraform -chdir=infra/fabric/terraform apply -parallelism=4
 
 export FABRIC_WORKSPACE_ID="$(terraform -chdir=infra/fabric/terraform output -raw workspace_id)"
 export FABRIC_WORKSPACE_NAME="$(terraform -chdir=infra/fabric/terraform output -raw workspace_name)"
