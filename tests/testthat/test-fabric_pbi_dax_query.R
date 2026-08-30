@@ -1301,11 +1301,19 @@ test_that("Power BI API bases accept explicit custom HTTPS origins", {
     pbi_api_base("https://powerbi.test/v1.0/myorg"),
     "https://powerbi.test/v1.0/myorg"
   )
+  expect_equal(
+    pbi_api_base("https://api.powerbi.com:443/v1.0/myorg"),
+    "https://api.powerbi.com/v1.0/myorg"
+  )
+  expect_equal(
+    pbi_api_base("https://powerbi.test:443/v1.0/myorg"),
+    "https://powerbi.test/v1.0/myorg"
+  )
 
   invalid <- c(
     "http://api.powerbi.com/v1.0/myorg",
     "https://user@api.powerbi.com/v1.0/myorg",
-    "https://api.powerbi.com:443/v1.0/myorg",
+    "https://api.powerbi.com:8443/v1.0/myorg",
     "https://api.powerbi.com/v1.0/myorg/groups",
     "https://api.powerbi.com/v1.0/myorg?token=secret",
     "https://api.powerbi.com/v1.0/myorg#fragment"

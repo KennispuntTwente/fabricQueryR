@@ -423,7 +423,7 @@ pbi_api_base <- function(api_base) {
     nzchar(host) &&
     !nzchar(parsed$username %||% "") &&
     !nzchar(parsed$password %||% "") &&
-    !nzchar(parsed$port %||% "") &&
+    (parsed$port %||% "") %in% c("", "443") &&
     identical(tolower(path), "/v1.0/myorg") &&
     length(parsed$query %||% list()) == 0L &&
     !nzchar(parsed$fragment %||% "")
@@ -433,6 +433,12 @@ pbi_api_base <- function(api_base) {
       "api_base must be an HTTPS origin ending in /v1.0/myorg",
       class = "fabric_pbi_endpoint_error"
     )
+  }
+
+  # Treat an explicit HTTPS default port as the same trusted origin
+  if (!is.null(parsed$port)) {
+    parsed$port <- NULL
+    endpoint <- httr2::url_build(parsed)
   }
 
   # Supplying a custom host is the caller's explicit endpoint choice
