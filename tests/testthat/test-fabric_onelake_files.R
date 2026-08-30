@@ -650,6 +650,9 @@ test_that("OneLake listing validates every returned path record", {
     unsafe_path = within(valid, {
       name <- "Curated.Lakehouse/Files/../outside"
     }),
+    wrong_path_case = within(valid, {
+      name <- "Curated.Lakehouse/files/a.txt"
+    }),
     bad_directory = within(valid, {
       isDirectory <- "maybe"
     }),

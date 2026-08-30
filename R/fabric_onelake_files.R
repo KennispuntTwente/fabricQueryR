@@ -1545,8 +1545,8 @@ onelake_list_record <- function(record, target, index) {
   within_request <- !is.null(relative) &&
     !inherits(safe_path, "try-error") &&
     (!nzchar(requested) ||
-      identical(tolower(relative), tolower(requested)) ||
-      startsWith(tolower(relative), paste0(tolower(requested), "/")))
+      identical(relative, requested) ||
+      startsWith(relative, paste0(requested, "/")))
   if (!within_request) {
     .fabric_abort(
       "OneLake returned a path outside the requested item directory",
