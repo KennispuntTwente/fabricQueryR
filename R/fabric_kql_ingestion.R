@@ -1739,8 +1739,10 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' memory. A supplied reader or stream is single-use and is consumed.
 #'
 #' Parquet identity mapping matches source fields to existing KQL columns by
-#' case-sensitive name. Supply `mapping` when the Parquet schema and table need
-#' an explicit predefined mapping.
+#' case-sensitive name. Before staging, the writer verifies that those names
+#' and their Kusto scalar types exactly match the target table. Supply `mapping`
+#' when the Parquet schema and table need an explicit predefined mapping; a
+#' named mapping bypasses this identity-schema check.
 #'
 #' `skip_batching = TRUE` cannot be combined with `ingest_if_not_exists` when
 #' staging produces multiple Parquet files. Kusto then ingests each file
@@ -1818,9 +1820,10 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   duration columns must be converted because Kusto's Parquet mapping cannot
 #'   ingest them as `timespan`.
 #' @param query_cluster Optional Kusto query-service URI or discovery object
-#'   used for table creation. A discovered `cluster` already carries this URI;
-#'   a standard Microsoft ingestion URI is converted to its paired query URI.
-#'   Supply this explicitly for a trusted custom ingestion endpoint.
+#'   used for table creation and identity-schema validation. A discovered
+#'   `cluster` already carries this URI; a standard Microsoft ingestion URI is
+#'   converted to its paired query URI. Supply this explicitly for a trusted
+#'   custom ingestion endpoint.
 #' @param tenant_id Microsoft Entra tenant ID.
 #' @param client_id Microsoft Entra application/client ID.
 #' @param token Optional access token or audience-aware token-provider function.
@@ -1943,9 +1946,6 @@ fabric_kql_write_table <- function(
   if (!isTRUE(create_if_missing) && !is.null(column_types)) {
     .fabric_abort("column_types requires create_if_missing = TRUE")
   }
-  if (!isTRUE(create_if_missing) && !is.null(query_cluster)) {
-    .fabric_abort("query_cluster requires create_if_missing = TRUE")
-  }
   if (!is.function(.sleep) || !is.function(.now)) {
     .fabric_abort(".sleep and .now must be functions")
   }
@@ -1994,12 +1994,15 @@ fabric_kql_write_table <- function(
     token = token,
     auth_args = auth_args
   )
-  if (isTRUE(create_if_missing)) {
+  management_target <- NULL
+  if (isTRUE(create_if_missing) || is.null(mapping)) {
     management_target <- kusto_write_management_target(
       cluster,
       target,
       query_cluster
     )
+  }
+  if (isTRUE(create_if_missing)) {
     command <- kusto_write_create_table_command(
       table,
       prepared$schema,
@@ -2029,6 +2032,20 @@ fabric_kql_write_table <- function(
           parent = error
         )
       }
+    )
+  }
+  if (is.null(mapping)) {
+    actual_schema <- kusto_write_table_schema(
+      management_target,
+      table,
+      credential,
+      deadline = .now() + min(timeout, 60)
+    )
+    kusto_write_assert_identity_schema(
+      actual_schema,
+      prepared$schema,
+      prepared$names,
+      column_types
     )
   }
   configuration <- kusto_ingestion_configuration(
@@ -2469,6 +2486,152 @@ kusto_write_create_table_command <- function(
     " (",
     paste0(quoted_columns, ":", types, collapse = ", "),
     ")"
+  )
+}
+
+# Read the authoritative ordered schema used by Kusto for identity ingestion.
+# Returns a named character vector of canonical CSL scalar types
+kusto_write_table_schema <- function(target, table, credential, deadline) {
+  error_class <- c("fabric_kql_schema_error", "fabric_kql_write_error")
+  response <- kusto_export_management(
+    target,
+    paste(
+      ".show table",
+      kusto_write_identifier(table, "table"),
+      "schema as json"
+    ),
+    credential,
+    deadline = deadline,
+    idempotent = TRUE,
+    operation = "GetTableSchema"
+  )
+  schema_table <- kusto_management_table(
+    response$tables,
+    c("TableName", "Schema"),
+    error_class
+  )
+  if (nrow(schema_table) != 1L) {
+    .fabric_abort(
+      "Kusto did not return exactly one target table schema",
+      class = error_class
+    )
+  }
+  metadata <- kusto_table_schema_metadata(
+    as.character(kusto_export_column(schema_table, "Schema")[[1L]]),
+    error_class
+  )
+  columns <- metadata$OrderedColumns %||% metadata$orderedColumns
+  if (!is.list(columns) || !length(columns)) {
+    .fabric_abort(
+      "Kusto returned a target table schema without ordered columns",
+      class = error_class
+    )
+  }
+  names <- vapply(
+    columns,
+    function(column) {
+      value <- column$Name %||% column$name
+      if (
+        !is.character(value) ||
+          length(value) != 1L ||
+          is.na(value) ||
+          !nzchar(value)
+      ) {
+        .fabric_abort(
+          "Kusto returned a target table schema with an invalid column name",
+          class = error_class
+        )
+      }
+      value
+    },
+    character(1)
+  )
+  types <- vapply(
+    columns,
+    kusto_write_schema_type,
+    character(1),
+    error_class = error_class
+  )
+  stats::setNames(types, names)
+}
+
+kusto_write_schema_type <- function(column, error_class) {
+  value <- column$CslType %||%
+    column$cslType %||%
+    column$Type %||%
+    column$type
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    .fabric_abort(
+      "Kusto returned a target table schema with an invalid column type",
+      class = error_class
+    )
+  }
+  normalized <- tolower(sub("^System\\.", "", value, ignore.case = TRUE))
+  aliases <- c(
+    boolean = "bool",
+    bool = "bool",
+    datetime = "datetime",
+    decimal = "decimal",
+    object = "dynamic",
+    dynamic = "dynamic",
+    guid = "guid",
+    int32 = "int",
+    int = "int",
+    int64 = "long",
+    long = "long",
+    double = "real",
+    single = "real",
+    float = "real",
+    real = "real",
+    string = "string"
+  )
+  canonical <- unname(aliases[[normalized]])
+  if (is.null(canonical)) {
+    .fabric_abort(
+      paste0("Kusto returned an unsupported target column type: ", value),
+      class = error_class
+    )
+  }
+  canonical
+}
+
+kusto_write_assert_identity_schema <- function(
+  actual,
+  schema,
+  columns,
+  column_types = NULL
+) {
+  expected <- stats::setNames(
+    kusto_write_column_types(schema, columns, column_types),
+    columns
+  )
+  if (identical(actual, expected)) {
+    return(invisible(actual))
+  }
+  actual_text <- paste0(names(actual), ":", unname(actual), collapse = ", ")
+  expected_text <- paste0(
+    names(expected),
+    ":",
+    unname(expected),
+    collapse = ", "
+  )
+  .fabric_abort(
+    paste0(
+      "Parquet identity mapping requires the data schema to exactly match ",
+      "the target KQL table. Data: ",
+      expected_text,
+      "; target: ",
+      actual_text,
+      ". Supply a predefined mapping for a deliberate schema transformation."
+    ),
+    class = c("fabric_kql_schema_error", "fabric_kql_write_error"),
+    data_schema = expected,
+    table_schema = actual
   )
 }
 

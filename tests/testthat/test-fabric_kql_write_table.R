@@ -72,6 +72,8 @@ test_that("Eventhouse writer honors preferred Storage container staging", {
   cleanup_calls <- 0L
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "storage-fixed",
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(
         storage_containers = container,
@@ -233,6 +235,8 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
   cleanup_calls <- 0L
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "write-fixed",
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(lake_folder = regional_folder)
     },
@@ -415,6 +419,8 @@ test_that("staging cleanup adapters delete only their parent directory", {
 test_that("Eventhouse writer requires a Storage credential for fixed tokens", {
   skip_if_not_installed("arrow")
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     }
@@ -447,14 +453,34 @@ test_that("Eventhouse writer creates a missing table before staging", {
       operation
     ) {
       calls <<- c(calls, "management")
-      management <<- list(
-        target = target,
-        command = command,
-        credential = credential,
-        deadline = deadline,
-        idempotent = idempotent,
-        operation = operation
-      )
+      if (identical(operation, "CreateTable")) {
+        management <<- list(
+          target = target,
+          command = command,
+          credential = credential,
+          deadline = deadline,
+          idempotent = idempotent,
+          operation = operation
+        )
+      }
+      if (identical(operation, "GetTableSchema")) {
+        schema <- jsonlite::toJSON(
+          list(
+            OrderedColumns = list(
+              list(Name = "id", CslType = "int"),
+              list(Name = "amount", CslType = "real"),
+              list(Name = "active", CslType = "bool"),
+              list(Name = "observed_on", CslType = "datetime"),
+              list(Name = "label", CslType = "string")
+            )
+          ),
+          auto_unbox = TRUE
+        )
+        return(list(
+          tables = list(tibble::tibble(TableName = "Raw new", Schema = schema)),
+          request_id = "schema-request"
+        ))
+      }
       list(tables = list(), request_id = "create-request")
     },
     kusto_ingestion_configuration = function(...) {
@@ -489,7 +515,10 @@ test_that("Eventhouse writer creates a missing table before staging", {
     .now = function() now
   )
 
-  expect_equal(calls[1:3], c("management", "configuration", "upload"))
+  expect_equal(
+    calls[1:4],
+    c("management", "management", "configuration", "upload")
+  )
   expect_equal(
     management$target$url,
     "https://cluster.kusto.fabric.microsoft.com/v2/rest/query"
@@ -507,6 +536,86 @@ test_that("Eventhouse writer creates a missing table before staging", {
   expect_s3_class(management$credential, "fabric_credential")
   expect_equal(management$deadline, now + 60)
   expect_true(result$table_creation_requested)
+})
+
+test_that("KQL identity writes validate the authoritative table schema", {
+  skip_if_not_installed("arrow")
+  command <- NULL
+  local_mocked_bindings(
+    kusto_export_management = function(
+      target,
+      command,
+      credential,
+      deadline,
+      idempotent,
+      operation
+    ) {
+      command <<- command
+      schema <- jsonlite::toJSON(
+        list(
+          OrderedColumns = list(
+            list(Name = "id", Type = "System.Int32"),
+            list(Name = "label", CslType = "string")
+          )
+        ),
+        auto_unbox = TRUE
+      )
+      list(
+        tables = list(tibble::tibble(TableName = "Raw", Schema = schema)),
+        request_id = "schema-request"
+      )
+    }
+  )
+  target <- kusto_resolve_target(
+    "https://cluster.kusto.fabric.microsoft.com",
+    "Telemetry"
+  )
+  actual <- kusto_write_table_schema(
+    target,
+    "Raw",
+    fabric_credential(token = "test-token"),
+    Sys.time() + 60
+  )
+
+  expect_equal(command, ".show table ['Raw'] schema as json")
+  expect_identical(actual, c(id = "int", label = "string"))
+  expect_no_error(kusto_write_assert_identity_schema(
+    actual,
+    arrow::schema(id = arrow::int32(), label = arrow::utf8()),
+    c("id", "label")
+  ))
+})
+
+test_that("KQL identity writes reject schema mismatches before staging", {
+  skip_if_not_installed("arrow")
+  configuration_calls <- 0L
+  upload_calls <- 0L
+  local_mocked_bindings(
+    kusto_write_table_schema = function(...) c(ID = "int"),
+    kusto_ingestion_configuration = function(...) {
+      configuration_calls <<- configuration_calls + 1L
+      kql_write_test_configuration()
+    },
+    onelake_upload_target = function(...) {
+      upload_calls <<- upload_calls + 1L
+      tibble::tibble()
+    }
+  )
+  error <- rlang::catch_cnd(fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1L),
+    database = "Telemetry",
+    token = "test-token",
+    storage_token = "storage-token"
+  ))
+
+  expect_s3_class(error, "fabric_kql_schema_error")
+  expect_match(conditionMessage(error), "Data: id:int; target: ID:int")
+  expect_identical(error$data_schema, c(id = "int"))
+  expect_identical(error$table_schema, c(ID = "int"))
+  expect_identical(configuration_calls, 0L)
+  expect_identical(upload_calls, 0L)
 })
 
 test_that("KQL table creation accepts exact type overrides", {
@@ -632,6 +741,8 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
   submitted <- NULL
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "multi-file",
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(max_blobs = 3)
     },
@@ -683,6 +794,8 @@ test_that("Eventhouse writer rejects unsafe multi-file idempotency", {
   skip_if_not_installed("arrow")
   upload_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(max_blobs = 3)
     },
@@ -726,6 +839,8 @@ test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
   staged <- NULL
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "arrow-reader",
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },
@@ -758,6 +873,8 @@ test_that("Eventhouse writer enforces the uncompressed data-size limit", {
   upload_calls <- 0L
   submitted <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(max_data_size = 10000)
     },
@@ -797,6 +914,8 @@ test_that("Eventhouse writer enforces the advertised blob count", {
   skip_if_not_installed("arrow")
   upload_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration(max_blobs = 2)
     },
@@ -824,6 +943,8 @@ test_that("an ambiguous OneLake upload reports its inspectable path", {
   skip_if_not_installed("arrow")
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "upload-ambiguous",
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },
@@ -851,6 +972,8 @@ test_that("ambiguous submission retains the complete staging file", {
   skip_if_not_installed("arrow")
   cleanup_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },
@@ -896,6 +1019,8 @@ test_that("Eventhouse writer shares one post-upload deadline", {
   submission_calls <- 0L
   status_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },
@@ -947,6 +1072,8 @@ test_that("Eventhouse writer retains its handle when the deadline is spent", {
   submission_calls <- 0L
   status_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },
@@ -989,6 +1116,8 @@ test_that("Eventhouse writer does not submit after its deadline", {
   submission_calls <- 0L
   status_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },
@@ -1043,6 +1172,8 @@ test_that("confirmed failure follows the staging retention policy", {
   skip_if_not_installed("arrow")
   cleanup_calls <- 0L
   local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
       kql_write_test_configuration()
     },

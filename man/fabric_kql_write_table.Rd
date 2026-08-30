@@ -117,9 +117,10 @@ duration columns must be converted because Kusto's Parquet mapping cannot
 ingest them as \code{timespan}.}
 
 \item{query_cluster}{Optional Kusto query-service URI or discovery object
-used for table creation. A discovered \code{cluster} already carries this URI;
-a standard Microsoft ingestion URI is converted to its paired query URI.
-Supply this explicitly for a trusted custom ingestion endpoint.}
+used for table creation and identity-schema validation. A discovered
+\code{cluster} already carries this URI; a standard Microsoft ingestion URI is
+converted to its paired query URI. Supply this explicitly for a trusted
+custom ingestion endpoint.}
 
 \item{.sleep, .now}{Internal deterministic polling hooks.}
 }
@@ -165,8 +166,10 @@ temporary Parquet parts, so the complete data set is never collected into R
 memory. A supplied reader or stream is single-use and is consumed.
 
 Parquet identity mapping matches source fields to existing KQL columns by
-case-sensitive name. Supply \code{mapping} when the Parquet schema and table need
-an explicit predefined mapping.
+case-sensitive name. Before staging, the writer verifies that those names
+and their Kusto scalar types exactly match the target table. Supply \code{mapping}
+when the Parquet schema and table need an explicit predefined mapping; a
+named mapping bypasses this identity-schema check.
 
 \code{skip_batching = TRUE} cannot be combined with \code{ingest_if_not_exists} when
 staging produces multiple Parquet files. Kusto then ingests each file
