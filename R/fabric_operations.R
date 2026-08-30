@@ -1311,7 +1311,10 @@ fabric_operation_result <- function(
       operation = operation
     )
   }
-  parsed <- .fabric_job_time(value)
+  parsed <- tryCatch(
+    .fabric_job_time(value),
+    fabric_job_protocol_error = function(error) NA_real_
+  )
   if (is.na(parsed)) {
     .fabric_operation_abort_protocol(
       paste0("Fabric operation state contained invalid ", field),
