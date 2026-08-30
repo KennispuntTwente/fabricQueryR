@@ -1177,11 +1177,19 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     credential,
     idempotent = TRUE
   )
-  response$body$value %||% list()
+  if (!is.list(response) || !is.list(response$body)) {
+    .pbi_refresh_protocol_abort(
+      "refresh history must be a JSON object containing `value`"
+    )
+  }
+  values <- response$body$value %||% list()
+  .pbi_refresh_object_array(values, "refresh history `value`")
+  values
 }
 
 # Validate one request ID from the refresh-history collection
 .pbi_refresh_history_id <- function(value) {
+  .pbi_refresh_object(value, "refresh history entry")
   refresh_id <- value$requestId
   if (
     !is.character(refresh_id) ||
@@ -1408,9 +1416,14 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   retry_after = NULL,
   history = FALSE
 ) {
-  messages <- lapply(body$messages %||% list(), .pbi_refresh_message)
+  .pbi_refresh_object(body, "refresh detail")
+  raw_messages <- body$messages %||% list()
+  raw_attempts <- body$refreshAttempts %||% list()
+  .pbi_refresh_object_array(raw_messages, "refresh detail `messages`")
+  .pbi_refresh_object_array(raw_attempts, "refresh detail `refreshAttempts`")
+  messages <- lapply(raw_messages, .pbi_refresh_message)
   attempts <- lapply(
-    body$refreshAttempts %||% list(),
+    raw_attempts,
     .pbi_refresh_attempt
   )
   message_types <- tolower(vapply(
@@ -1468,6 +1481,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 
 # Normalize one automatic refresh attempt and its diagnostic information
 .pbi_refresh_attempt <- function(attempt) {
+  .pbi_refresh_object(attempt, "refresh attempt")
   service_error <- .pbi_refresh_service_error(attempt$serviceExceptionJson)
   status <- attempt$status
   if (is.null(status)) {
@@ -1494,12 +1508,50 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 
 # Normalize one engine message returned by enhanced refresh details
 .pbi_refresh_message <- function(message) {
+  .pbi_refresh_object(message, "refresh message")
   list(
     code = message$code,
     type = message$type,
     message = message$message,
     raw = message
   )
+}
+
+# Raise one typed Power BI refresh protocol error. This helper never returns
+.pbi_refresh_protocol_abort <- function(detail) {
+  .fabric_abort(
+    paste0("Power BI returned a malformed response: ", detail),
+    class = c("fabric_pbi_refresh_protocol_error", "fabric_pbi_refresh_error")
+  )
+}
+
+# Validate one decoded refresh JSON object. Returns invisibly before accessing
+# fields from history, status, message, or attempt payloads
+.pbi_refresh_object <- function(value, name) {
+  value_names <- names(value)
+  if (
+    !is.list(value) ||
+      (length(value) &&
+        (is.null(value_names) ||
+          anyNA(value_names) ||
+          !all(nzchar(value_names)) ||
+          anyDuplicated(value_names)))
+  ) {
+    .pbi_refresh_protocol_abort(paste0(name, " must be a JSON object"))
+  }
+  invisible(value)
+}
+
+# Validate an array whose members are refresh JSON objects. Returns invisibly
+# before mapping public detail parsers over service-controlled values
+.pbi_refresh_object_array <- function(value, name) {
+  if (!is.list(value) || (length(value) && !is.null(names(value)))) {
+    .pbi_refresh_protocol_abort(paste0(name, " must be a JSON array"))
+  }
+  for (entry in value) {
+    .pbi_refresh_object(entry, paste0(name, " entry"))
+  }
+  invisible(value)
 }
 
 # Convert service status fields into stable states used by wait and callers

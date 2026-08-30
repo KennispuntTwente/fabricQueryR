@@ -935,8 +935,11 @@ fabric_livy_abort_batch <- function(response) {
 # Convert a completed statement `response` into a stable result. Returns parsed
 # output plus raw data, timing, and statement identity
 fabric_livy_output <- function(response, started_local, completed_local, url) {
+  fabric_livy_response_object(response, "statement response")
   out <- response$output %||% list()
+  fabric_livy_response_object(out, "statement output")
   data <- out$data %||% list()
+  fabric_livy_response_object(data, "statement output data")
   parsed <- fabric_livy_parse_output_data(data)
   structure(
     list(
@@ -970,6 +973,7 @@ fabric_livy_output <- function(response, started_local, completed_local, url) {
 # Detect and parse common Livy output shapes in `data`. Returns a tibble, decoded
 # JSON object, character output, or `NULL`
 fabric_livy_parse_output_data <- function(data) {
+  fabric_livy_response_object(data, "statement output data")
   table_mime <- "application/vnd.livy.table.v1+json"
   if (!is.null(data[[table_mime]])) {
     return(fabric_livy_parse_table(data[[table_mime]]))
@@ -992,6 +996,26 @@ fabric_livy_parse_output_data <- function(data) {
     return(as.character(data[[text_mime[[1L]]]]))
   }
   NULL
+}
+
+# Validate one decoded Livy JSON object. Returns invisibly or raises a stable
+# protocol error before service-controlled fields are accessed
+fabric_livy_response_object <- function(value, name) {
+  value_names <- names(value)
+  if (
+    !is.list(value) ||
+      (length(value) &&
+        (is.null(value_names) ||
+          anyNA(value_names) ||
+          !all(nzchar(value_names)) ||
+          anyDuplicated(value_names)))
+  ) {
+    .fabric_abort(
+      paste0("Livy returned a malformed ", name, ": expected a JSON object"),
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  invisible(value)
 }
 
 # Decode one JSON `value` when possible. Returns an R object or `NULL` so output
@@ -1296,11 +1320,18 @@ fabric_livy_convert_column <- function(values, type) {
       if (is.raw(value)) {
         return(value)
       }
-      decoded <- try(jsonlite::base64_dec(as.character(value)), silent = TRUE)
-      if (inherits(decoded, "try-error")) {
+      valid <- is.character(value) &&
+        length(value) == 1L &&
+        !is.na(value) &&
+        grepl(
+          "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+          value,
+          perl = TRUE
+        )
+      if (!valid) {
         fabric_livy_invalid_type(kind)
       }
-      decoded
+      jsonlite::base64_dec(value)
     }))
   }
 

@@ -1385,16 +1385,22 @@ pbi_abort_dax_arrow_error <- function(metadata, table) {
 #' @noRd
 # Uses decoded JSON `out`; returns a normalized DAX result tibble
 pbi_parse_dax_response <- function(out) {
+  pbi_dax_response_object(out, "response")
   pbi_check_dax_error(out$error, "response")
 
   results <- out$results
   if (is.null(results) || length(results) == 0L) {
     return(tibble::tibble())
   }
+  pbi_dax_response_array(results, "results")
 
   for (result in results) {
+    pbi_dax_response_object(result, "query result")
     pbi_check_dax_error(result$error, "query result")
-    for (table in result$tables %||% list()) {
+    tables <- result$tables %||% list()
+    pbi_dax_response_array(tables, "tables")
+    for (table in tables) {
+      pbi_dax_response_object(table, "table result")
       pbi_check_dax_error(table$error, "table result")
     }
   }
@@ -1426,12 +1432,56 @@ pbi_parse_dax_response <- function(out) {
   if (is.null(rows) || length(rows) == 0L) {
     return(tibble::tibble())
   }
+  pbi_dax_response_array(rows, "rows")
+  for (row in rows) {
+    pbi_dax_response_object(row, "row")
+  }
 
   # bigint_as_char preserves large Whole Numbers as strings. Promote smaller
   # numeric values in the same column before binding so a valid mixed-size
   # integer column remains exact and does not fail dplyr's type negotiation
   rows <- pbi_normalize_dax_integer_columns(rows)
   dplyr::bind_rows(rows)
+}
+
+# Validate one decoded DAX JSON object. Returns invisibly or raises a typed
+# protocol error before field access
+pbi_dax_response_object <- function(value, name) {
+  value_names <- names(value)
+  if (
+    !is.list(value) ||
+      (length(value) &&
+        (is.null(value_names) ||
+          anyNA(value_names) ||
+          !all(nzchar(value_names)) ||
+          anyDuplicated(value_names)))
+  ) {
+    .fabric_abort(
+      paste0(
+        "Power BI returned a malformed DAX ",
+        name,
+        ": expected a JSON object"
+      ),
+      class = "fabric_pbi_dax_protocol_error"
+    )
+  }
+  invisible(value)
+}
+
+# Validate one decoded DAX JSON array. Returns invisibly or raises a typed
+# protocol error before iterating over its members
+pbi_dax_response_array <- function(value, name) {
+  if (!is.list(value) || (length(value) && !is.null(names(value)))) {
+    .fabric_abort(
+      paste0(
+        "Power BI returned malformed DAX ",
+        name,
+        ": expected a JSON array"
+      ),
+      class = "fabric_pbi_dax_protocol_error"
+    )
+  }
+  invisible(value)
 }
 
 # Reject different explicit and discovered IDs for one target field. Returns

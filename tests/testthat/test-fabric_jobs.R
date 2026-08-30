@@ -1984,3 +1984,32 @@ test_that("print methods do not expose credentials", {
   expect_match(paste(instance_text, collapse = "\n"), "Completed")
   expect_false(any(grepl("test-token", instance_text, fixed = TRUE)))
 })
+
+test_that("job status parsing rejects malformed service responses", {
+  context <- .fabric_job_context(job_test_handle())
+  for (body in list("not-an-object", list(status = 42), list(status = ""))) {
+    expect_error(
+      .fabric_job_instance(body, context, NULL, TRUE),
+      class = "fabric_job_protocol_error"
+    )
+  }
+  expect_error(
+    .fabric_job_instance(
+      list(status = "Completed", properties = "not-an-object"),
+      context,
+      NULL,
+      TRUE
+    ),
+    class = "fabric_job_protocol_error"
+  )
+  expect_error(
+    .fabric_job_instance(
+      list(status = "Completed", startTimeUtc = "not-a-time"),
+      context,
+      NULL,
+      TRUE
+    ),
+    class = "fabric_job_protocol_error"
+  )
+  expect_null(.fabric_job_error_code("not-an-object"))
+})

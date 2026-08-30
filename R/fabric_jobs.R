@@ -1135,7 +1135,11 @@ print.fabric_job_instance <- function(x, ...) {
 # Read a service error code from decoded `body`. Returns text or `NULL` so
 # cancellation can distinguish an already-finished job
 .fabric_job_error_code <- function(body) {
-  code <- body$errorCode %||% body$error$code %||% body$code
+  if (!is.list(body)) {
+    return(NULL)
+  }
+  nested <- if (is.list(body$error)) body$error else list()
+  code <- body$errorCode %||% nested$code %||% body$code
   if (is.character(code) && length(code) == 1L && nzchar(code)) {
     code
   } else {
@@ -2488,7 +2492,24 @@ print.fabric_job_instance <- function(x, ...) {
 # Convert a decoded status `body` and request `context` into a stable job
 # instance. Returns the object exposed by status and wait calls
 .fabric_job_instance <- function(body, context, retry_after, visible) {
-  status <- body$status %||% "Unknown"
+  if (!is.list(body) || (length(body) && is.null(names(body)))) {
+    .fabric_abort(
+      "Fabric returned a malformed job status response: expected a JSON object",
+      class = "fabric_job_protocol_error"
+    )
+  }
+  status <- body$status
+  if (
+    !is.character(status) ||
+      length(status) != 1L ||
+      is.na(status) ||
+      !nzchar(status)
+  ) {
+    .fabric_abort(
+      "Fabric returned a malformed job status response: status must be one non-empty string",
+      class = "fabric_job_protocol_error"
+    )
+  }
   if (tolower(status) == "canceled") {
     status <- "Cancelled"
   }
@@ -2500,8 +2521,18 @@ print.fabric_job_instance <- function(x, ...) {
   ) {
     status <- "Failed"
   }
-  exit_value <- body$exitValue %||%
-    body$properties$exitValue
+  properties <- body$properties
+  if (
+    !is.null(properties) &&
+      (!is.list(properties) ||
+        (length(properties) && is.null(names(properties))))
+  ) {
+    .fabric_abort(
+      "Fabric returned a malformed job status response: properties must be a JSON object",
+      class = "fabric_job_protocol_error"
+    )
+  }
+  exit_value <- body$exitValue %||% properties$exitValue
   structure(
     list(
       id = body$id %||% context$id,
@@ -2514,7 +2545,7 @@ print.fabric_job_instance <- function(x, ...) {
       end_time = .fabric_job_time(body$endTimeUtc %||% body$endTime),
       failure_reason = failure_reason,
       exit_value = exit_value,
-      properties = body$properties,
+      properties = properties,
       retry_after = retry_after,
       visible = visible,
       raw = body,
@@ -2568,10 +2599,21 @@ print.fabric_job_instance <- function(x, ...) {
 # Parse one Fabric timestamp `value`. Returns a UTC date-time or `NA` for missing
 # input while preserving fractional-second timestamps
 .fabric_job_time <- function(value) {
-  if (is.null(value) || !length(value) || is.na(value[[1L]])) {
+  if (is.null(value)) {
     return(NULL)
   }
-  text <- value[[1L]]
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    .fabric_abort(
+      "Fabric returned a malformed job timestamp",
+      class = "fabric_job_protocol_error"
+    )
+  }
+  text <- value
   if (grepl("(Z|[+-]\\d{2}:?\\d{2})$", text)) {
     text <- sub("Z$", "+0000", text)
     text <- sub("([+-]\\d{2}):(\\d{2})$", "\\1\\2", text)
@@ -2579,7 +2621,14 @@ print.fabric_job_instance <- function(x, ...) {
   } else {
     format <- "%Y-%m-%dT%H:%M:%OS"
   }
-  as.POSIXct(text, format = format, tz = "UTC")
+  parsed <- as.POSIXct(text, format = format, tz = "UTC")
+  if (is.na(parsed)) {
+    .fabric_abort(
+      paste0("Fabric returned an invalid job timestamp: ", value),
+      class = "fabric_job_protocol_error"
+    )
+  }
+  parsed
 }
 
 # Check `value` as a fully named list identified by `name`. Returns the same list

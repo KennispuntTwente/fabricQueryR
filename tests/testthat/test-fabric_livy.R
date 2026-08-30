@@ -959,6 +959,33 @@ test_that("Livy table MIME output rejects malformed rows", {
   )
 })
 
+test_that("Livy output parsing rejects malformed JSON shapes and base64", {
+  now <- as.POSIXct("2026-01-01", tz = "UTC")
+  expect_error(
+    fabric_livy_output("not-an-object", now, now, "https://example.test"),
+    class = "fabric_livy_protocol_error"
+  )
+  expect_error(
+    fabric_livy_output(
+      list(id = 1L, state = "available", output = "not-an-object"),
+      now,
+      now,
+      "https://example.test"
+    ),
+    class = "fabric_livy_protocol_error"
+  )
+  for (value in list("%%%", "abc", c("YQ==", "Yg=="), NA_character_)) {
+    expect_error(
+      fabric_livy_convert_column(list(value), "binary"),
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  expect_identical(
+    rawToChar(fabric_livy_convert_column(list("YQ=="), "binary")[[1L]]),
+    "a"
+  )
+})
+
 test_that("session finalizer does not perform network cleanup", {
   deleted <- character()
   local_mocked_bindings(

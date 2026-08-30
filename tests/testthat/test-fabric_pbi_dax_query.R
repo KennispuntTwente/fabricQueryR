@@ -373,6 +373,26 @@ test_that("DAX response parser preserves names, nulls, and empty results", {
   )
 })
 
+test_that("DAX response parser rejects malformed JSON shapes", {
+  malformed <- list(
+    "not-an-object",
+    list(results = "not-an-array"),
+    list(results = list("not-an-object")),
+    list(results = list(list(tables = "not-an-array"))),
+    list(results = list(list(tables = list("not-an-object")))),
+    list(results = list(list(tables = list(list(rows = "not-an-array"))))),
+    list(
+      results = list(list(tables = list(list(rows = list("not-an-object")))))
+    )
+  )
+  for (response in malformed) {
+    expect_error(
+      pbi_parse_dax_response(response),
+      class = "fabric_pbi_dax_protocol_error"
+    )
+  }
+})
+
 test_that("DAX target selectors cannot silently override each other", {
   connstr <- paste0(
     "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;",

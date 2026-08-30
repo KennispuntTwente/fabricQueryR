@@ -419,6 +419,40 @@ test_that("refresh response IDs are validated and reconciled", {
   )
 })
 
+test_that("refresh parsing rejects malformed JSON shapes", {
+  handle <- pbi_refresh_test_handle()
+  expect_error(
+    .pbi_refresh_detail("not-an-object", handle, 200L),
+    class = "fabric_pbi_refresh_protocol_error"
+  )
+  expect_error(
+    .pbi_refresh_detail(
+      list(status = "Completed", messages = list("not-an-object")),
+      handle,
+      200L
+    ),
+    class = "fabric_pbi_refresh_protocol_error"
+  )
+
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      list(body = list(value = list("not-an-object")))
+    }
+  )
+  expect_error(
+    .pbi_refresh_history_values(
+      "https://powerbi.test/v1.0/myorg",
+      list(
+        workspace_id = pbi_refresh_workspace_id,
+        dataset_id = pbi_refresh_dataset_id,
+        my_workspace = FALSE
+      ),
+      fabric_credential(token = "test-token")
+    ),
+    class = "fabric_pbi_refresh_protocol_error"
+  )
+})
+
 test_that("request encoding preserves arrays and sends empty standard bodies", {
   requests <- list()
   local_mocked_bindings(
