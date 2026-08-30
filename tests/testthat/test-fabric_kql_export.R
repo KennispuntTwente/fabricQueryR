@@ -141,7 +141,7 @@ test_that("KQL export fails safely without accepting partial artifacts", {
     kusto_export_test_response(kusto_export_test_status(
       "PartiallySucceeded",
       paste0(
-        "write failed at https://storage.test/container?sig=",
+        "write failed at https://storageacct.blob.core.windows.net/container?sig=",
         secret
       )
     ))
@@ -159,7 +159,7 @@ test_that("KQL export fails safely without accepting partial artifacts", {
       query = "Events",
       database = "Telemetry",
       destination = paste0(
-        "https://storage.test/container/export?sig=",
+        "https://storageacct.blob.core.windows.net/container/export?sig=",
         secret
       ),
       token = "token"
@@ -298,8 +298,14 @@ test_that("KQL export treats a missing tracking ID as ambiguous", {
 test_that("KQL export submission errors redact storage credentials", {
   secrets <- c("BARE_ACCOUNT_KEY_123", "SAS_SIGNATURE_456")
   locations <- c(
-    paste0("https://storage.test/container/export;", secrets[[1L]]),
-    paste0("https://storage.test/container/export?sv=1&sig=", secrets[[2L]])
+    paste0(
+      "https://storageacct.blob.core.windows.net/container/export;",
+      secrets[[1L]]
+    ),
+    paste0(
+      "https://storageacct.blob.core.windows.net/container/export?sv=1&sig=",
+      secrets[[2L]]
+    )
   )
   httr2::local_mocked_responses(function(req) {
     kusto_ingestion_test_response(
@@ -440,6 +446,25 @@ test_that("KQL export validates destinations and format-specific properties", {
     "must be omitted",
     fixed = TRUE
   )
+  writable <- c(
+    "https://storageacct.blob.core.windows.net/container/export;impersonate",
+    "https://storageacct.dfs.core.windows.net/filesystem/export;impersonate",
+    "abfss://filesystem@storageacct.dfs.core.windows.net/export;impersonate",
+    "adl://storageacct.azuredatalakestore.net/export;impersonate",
+    "https://bucket.s3.eu-west-1.amazonaws.com/export;AwsCredentials=id,key"
+  )
+  for (value in writable) {
+    expect_identical(kusto_export_destination(value)$connection, value)
+  }
+  for (value in c(
+    "https://example.com/export;impersonate",
+    "https://storageacct.blob.core.windows.net/;impersonate",
+    "abfss://storageacct.dfs.core.windows.net/export;impersonate"
+  )) {
+    error <- rlang::catch_cnd(kusto_export_destination(value))
+    expect_s3_class(error, "rlang_error")
+    expect_match(conditionMessage(error), "writable Azure Blob", fixed = TRUE)
+  }
   expect_error(
     kusto_export_properties(
       "parquet",
@@ -497,14 +522,17 @@ test_that("KQL export validates destinations and format-specific properties", {
   )
   unnamed_secret <- "an-unnamed-storage-access-key"
   destination <- kusto_export_destination(paste0(
-    "https://storage.test/container/export;",
+    "https://storageacct.blob.core.windows.net/container/export;",
     unnamed_secret
   ))
   expect_false(grepl(unnamed_secret, destination$display, fixed = TRUE))
-  expect_equal(destination$display, "https://storage.test/container/export")
+  expect_equal(
+    destination$display,
+    "https://storageacct.blob.core.windows.net/container/export"
+  )
   multiple <- kusto_export_destination(c(
-    "https://storage-one.test/container/export;impersonate",
-    "https://storage-two.test/container/export;impersonate"
+    "https://storageone.blob.core.windows.net/container/export;impersonate",
+    "https://storagetwo.blob.core.windows.net/container/export;impersonate"
   ))
   expect_length(multiple$connection, 2L)
   command <- kusto_export_command(
@@ -527,20 +555,23 @@ test_that("KQL export validates destinations and format-specific properties", {
   expect_match(
     command,
     paste0(
-      'h@"https://storage-one.test/container/export;impersonate", ',
-      'h@"https://storage-two.test/container/export;impersonate"'
+      'h@"https://storageone.blob.core.windows.net/container/export;impersonate", ',
+      'h@"https://storagetwo.blob.core.windows.net/container/export;impersonate"'
     ),
     fixed = TRUE
   )
   expect_error(
     kusto_export_destination(
-      c("https://storage.test/one", "relative/two")
+      c(
+        "https://storageacct.blob.core.windows.net/container/one",
+        "relative/two"
+      )
     ),
     "must all be complete",
     fixed = TRUE
   )
   status <- kusto_export_status_text(paste0(
-    "failed at https://storage.test/container;",
+    "failed at https://storageacct.blob.core.windows.net/container;",
     unnamed_secret
   ))
   expect_false(grepl(unnamed_secret, status, fixed = TRUE))

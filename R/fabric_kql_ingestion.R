@@ -3566,9 +3566,11 @@ kusto_write_result <- function(
 #'   A KQLDatabase object also supplies `database`.
 #' @param query One non-empty KQL query. The first result set is exported.
 #' @param destination A discovered Fabric item, item name or ID, complete
-#'   OneLake path, or complete HTTPS/ABFSS Kusto storage connection string. A
-#'   character vector of complete paths distributes export work across multiple
-#'   destinations. For an item, also supply `path` and optionally `workspace`.
+#'   OneLake path, or complete HTTPS/ABFSS/ADL connection string for writable
+#'   Azure Blob, ADLS Gen1/Gen2, or Amazon S3 storage. Arbitrary HTTPS web
+#'   resources are not writable export destinations. A character vector of
+#'   complete paths distributes export work across multiple destinations. For
+#'   an item, also supply `path` and optionally `workspace`.
 #' @param database KQL database display name. Omit for a discovered KQLDatabase.
 #' @param workspace Workspace containing an item supplied as `destination`.
 #'   Omit when the discovered item contains its workspace ID.
@@ -3930,10 +3932,13 @@ kusto_export_destination <- function(
   if (multiple) {
     if (
       anyNA(destination) ||
-        !all(grepl("^(?:https|abfss)://", destination, ignore.case = TRUE))
+        !all(grepl("^(?:https|abfss|adl)://", destination, ignore.case = TRUE))
     ) {
       .fabric_abort(
-        "Multiple export destinations must all be complete HTTPS/ABFSS paths"
+        paste0(
+          "Multiple export destinations must all be complete HTTPS, ABFSS, ",
+          "or ADL paths"
+        )
       )
     }
     if (!is.null(workspace) || !is.null(path) || !is.null(item_type)) {
@@ -3953,7 +3958,7 @@ kusto_export_destination <- function(
   complete <- is.character(destination) &&
     length(destination) == 1L &&
     !is.na(destination) &&
-    grepl("^(?:https|abfss)://", destination, ignore.case = TRUE)
+    grepl("^(?:https|abfss|adl)://", destination, ignore.case = TRUE)
   if (complete) {
     if (!is.null(workspace) || !is.null(path) || !is.null(item_type)) {
       .fabric_abort(
@@ -3976,7 +3981,7 @@ kusto_export_destination <- function(
       suffix <- if (nzchar(parts$suffix)) parts$suffix else ";impersonate"
       connection <- paste0(onelake_path_url(target), suffix)
     } else {
-      connection <- kusto_ingestion_source_url(destination)
+      connection <- kusto_export_writable_storage(destination)
     }
     return(list(
       connection = connection,
@@ -4006,6 +4011,57 @@ kusto_export_destination <- function(
     connection = connection,
     display = kusto_export_storage_display(connection)
   )
+}
+
+# Accept only external storage types for which Kusto documents write support.
+# Arbitrary HTTPS web resources are valid ingestion sources but not exports
+kusto_export_writable_storage <- function(value) {
+  value <- kusto_ingestion_optional_text(
+    value,
+    "export destination",
+    required = TRUE
+  )
+  if (nchar(value, type = "bytes") > 32768L) {
+    .fabric_abort("export destination must not exceed 32,768 bytes")
+  }
+  parts <- kusto_storage_connection_parts(value)
+  parsed <- try(httr2::url_parse(parts$resource), silent = TRUE)
+  if (inherits(parsed, "try-error")) {
+    .fabric_abort("export destination is not a valid storage connection")
+  }
+  scheme <- tolower(parsed$scheme %||% "")
+  host <- tolower(parsed$hostname %||% "")
+  path <- parsed$path %||% ""
+  no_password <- !nzchar(parsed$password %||% "")
+  credentials_valid <- if (identical(scheme, "abfss")) {
+    nzchar(parsed$username %||% "") && no_password
+  } else {
+    !nzchar(parsed$username %||% "") && no_password
+  }
+  azure_https <- identical(scheme, "https") &&
+    grepl("^[a-z0-9-]+\\.(?:blob|dfs)\\.core\\.windows\\.net$", host)
+  azure_abfss <- identical(scheme, "abfss") &&
+    grepl("^[a-z0-9-]+\\.dfs\\.core\\.windows\\.net$", host)
+  azure_adl <- identical(scheme, "adl") &&
+    grepl("^[a-z0-9-]+\\.azuredatalakestore\\.net$", host)
+  amazon_s3 <- identical(scheme, "https") &&
+    grepl("(^|\\.)s3\\.[a-z0-9-]+\\.amazonaws\\.com$", host)
+  if (
+    !credentials_valid ||
+      !nzchar(host) ||
+      !nzchar(path) ||
+      identical(path, "/") ||
+      nzchar(parsed$fragment %||% "") ||
+      !(azure_https || azure_abfss || azure_adl || amazon_s3)
+  ) {
+    .fabric_abort(
+      paste0(
+        "export destination must be writable Azure Blob, ADLS Gen1/Gen2, ",
+        "OneLake, or Amazon S3 storage"
+      )
+    )
+  }
+  value
 }
 
 # Separate the storage resource from a Kusto authentication suffix without

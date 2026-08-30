@@ -41,9 +41,11 @@ A KQLDatabase object also supplies \code{database}.}
 \item{query}{One non-empty KQL query. The first result set is exported.}
 
 \item{destination}{A discovered Fabric item, item name or ID, complete
-OneLake path, or complete HTTPS/ABFSS Kusto storage connection string. A
-character vector of complete paths distributes export work across multiple
-destinations. For an item, also supply \code{path} and optionally \code{workspace}.}
+OneLake path, or complete HTTPS/ABFSS/ADL connection string for writable
+Azure Blob, ADLS Gen1/Gen2, or Amazon S3 storage. Arbitrary HTTPS web
+resources are not writable export destinations. A character vector of
+complete paths distributes export work across multiple destinations. For
+an item, also supply \code{path} and optionally \code{workspace}.}
 
 \item{database}{KQL database display name. Omit for a discovered KQLDatabase.}
 
