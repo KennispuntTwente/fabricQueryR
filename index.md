@@ -65,6 +65,7 @@ and `$read_table()` calls
 
 ``` r
 
+# Find a workspace & lakehouse, and then read a table
 workspace <- fabric_workspaces()[[1L]]
 lakehouse <- workspace$lakehouses()[[1L]]
 orders <- lakehouse$read_table("orders", limit = 1000)
@@ -153,20 +154,6 @@ result <- lakehouse$livy_query(
   code = "print(1 + 2)"
 )
 ```
-
-For new production workloads, Microsoft recommends the latest generally
-available Fabric runtime, currently [Runtime 2.0 (Spark
-4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
-SparkR remains a supported Livy language, but SparkR is deprecated
-upstream in Spark 4.x and may be removed in a future Spark release. For
-R-first workloads, Microsoft Fabric supports and distributes
-[sparklyr](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr).
-`sparklyr` is an R API rather than a Livy language, so R code that
-initializes it still runs with `kind = "sparkr"`; Fabric’s documented
-`"synapse"` connection currently uses the SparkR JVM bridge. Use
-sparklyr to migrate away from the SparkR DataFrame API, and prefer
-PySpark or Spark SQL only when the remote workload must be independent
-of that bridge.
 
 Reusable Livy sessions and independent batch submissions are available
 for multi-step and application-file workflows. See [Working with Livy
@@ -387,11 +374,6 @@ result <- notebook$wait(job, timeout = 900)
 result$status
 ```
 
-Notebook submission uses Fabric’s released workload-specific route so
-run parameters and compute settings are applied. Status uses the stable
-Core Job Scheduler by default. Request `notebook_details = TRUE` only
-when the beta Notebook status fields, such as an exit value, are needed.
-
 The [job automation
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html)
 covers run history, cancellation, and recurring schedules.
@@ -401,8 +383,7 @@ covers run history, cancellation, and recurring schedules.
 Create a shortcut with `$shortcut_create()`
 ([`fabric_onelake_shortcut_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md))
 when data in another Fabric item should be available without being
-copied into the current Lakehouse. `$lakehouses()` corresponds to
-[`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md).
+copied into the current Lakehouse.
 
 ``` r
 
@@ -417,23 +398,6 @@ lakehouse$shortcut_create(
   target_path = "Tables/orders"
 )
 ```
-
-The preview bulk API can create several shortcuts in one long-running
-operation and optionally apply Fabric’s CSV-to-Delta transform. Call
-[`fabric_onelake_shortcuts_bulk_create()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
-and pass the returned handle to
-[`fabric_operation_result()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.md).
-
-Use
-[`fabric_onelake_shortcut_cache_reset()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_shortcuts.md)
-when Fabric must discard files it cached while reading shortcuts in a
-workspace. Cache reset is also represented by a resumable operation
-handle.
-
-Deleting a shortcut removes only the link, not the destination data. In
-addition to the REST API scope, callers need Read or ReadWrite
-permission on the relevant destination path and Read permission on a
-shortcut target.
 
 ### 14. Resume a long-running Fabric operation
 

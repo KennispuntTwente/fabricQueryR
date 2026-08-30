@@ -90,7 +90,8 @@
 </h3>
 <p>Find the Fabric resources you can access. Discovery returns R6 objects with methods matched to each actionable item type. In the example below, <code>$lakehouses()</code> is the object interface to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>, and <code>$read_table()</code> calls <code><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="co"># Find a workspace &amp; lakehouse, and then read a table</span></span>
+<span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="st">"orders"</span>, limit <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span>
 <span></span>
@@ -146,7 +147,6 @@
 <span>  kind <span class="op">=</span> <span class="st">"pyspark"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>For new production workloads, Microsoft recommends the latest generally available Fabric runtime, currently <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0" class="external-link">Runtime 2.0 (Spark 4.1)</a>. SparkR remains a supported Livy language, but SparkR is deprecated upstream in Spark 4.x and may be removed in a future Spark release. For R-first workloads, Microsoft Fabric supports and distributes <a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link">sparklyr</a>. <code>sparklyr</code> is an R API rather than a Livy language, so R code that initializes it still runs with <code>kind = "sparkr"</code>; Fabric’s documented <code>"synapse"</code> connection currently uses the SparkR JVM bridge. Use sparklyr to migrate away from the SparkR DataFrame API, and prefer PySpark or Spark SQL only when the remote workload must be independent of that bridge.</p>
 <p>Reusable Livy sessions and independent batch submissions are available for multi-step and application-file workflows. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.html">Working with Livy (Spark)</a> for choosing between one-off queries, reusable sessions, and batch jobs.</p>
 </div>
 <div class="section level3">
@@ -268,13 +268,12 @@
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">wait</span><span class="op">(</span><span class="va">job</span>, timeout <span class="op">=</span> <span class="fl">900</span><span class="op">)</span></span>
 <span><span class="va">result</span><span class="op">$</span><span class="va">status</span></span></code></pre></div>
-<p>Notebook submission uses Fabric’s released workload-specific route so run parameters and compute settings are applied. Status uses the stable Core Job Scheduler by default. Request <code>notebook_details = TRUE</code> only when the beta Notebook status fields, such as an exit value, are needed.</p>
 <p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.html">job automation vignette</a> covers run history, cancellation, and recurring schedules.</p>
 </div>
 <div class="section level3">
 <h3 id="id_13-create-onelake-shortcuts">13. Create OneLake shortcuts<a class="anchor" aria-label="anchor" href="#id_13-create-onelake-shortcuts"></a>
 </h3>
-<p>Create a shortcut with <code>$shortcut_create()</code> (<code><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create()</a></code>) when data in another Fabric item should be available without being copied into the current Lakehouse. <code>$lakehouses()</code> corresponds to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>.</p>
+<p>Create a shortcut with <code>$shortcut_create()</code> (<code><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_create()</a></code>) when data in another Fabric item should be available without being copied into the current Lakehouse.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
@@ -286,9 +285,6 @@
 <span>  target <span class="op">=</span> <span class="va">source_lakehouse</span>,</span>
 <span>  target_path <span class="op">=</span> <span class="st">"Tables/orders"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The preview bulk API can create several shortcuts in one long-running operation and optionally apply Fabric’s CSV-to-Delta transform. Call <code><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcuts_bulk_create()</a></code> and pass the returned handle to <code><a href="reference/fabric_operation_status.html">fabric_operation_result()</a></code>.</p>
-<p>Use <code><a href="reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcut_cache_reset()</a></code> when Fabric must discard files it cached while reading shortcuts in a workspace. Cache reset is also represented by a resumable operation handle.</p>
-<p>Deleting a shortcut removes only the link, not the destination data. In addition to the REST API scope, callers need Read or ReadWrite permission on the relevant destination path and Read permission on a shortcut target.</p>
 </div>
 <div class="section level3">
 <h3 id="id_14-resume-a-long-running-fabric-operation">14. Resume a long-running Fabric operation<a class="anchor" aria-label="anchor" href="#id_14-resume-a-long-running-fabric-operation"></a>
