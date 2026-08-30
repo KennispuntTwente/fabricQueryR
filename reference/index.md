@@ -81,6 +81,11 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
   : Run Spark code in a temporary Microsoft Fabric Livy session
 - [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
   : Create a Microsoft Fabric Livy session
+- [`fabric_livy_sessions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  [`fabric_livy_batches()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  [`fabric_livy_session_attach()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  [`fabric_livy_batch_attach()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  : Discover and reattach to Microsoft Fabric Livy work
 - [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
   : Submit a Microsoft Fabric Livy batch job
 - [`FabricLivySession`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md)

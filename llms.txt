@@ -138,7 +138,7 @@ Premium or Fabric capacity.
 
 ### 4. Run Spark code through Livy
 
-Run SparkR, PySpark, Scala, or Spark SQL remotely with `$livy_query()`
+Run PySpark, Scala, Spark SQL, or SparkR remotely with `$livy_query()`
 ([`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md))
 and return the result to the local R session. `$lakehouses()` is the
 workspace method for
@@ -149,10 +149,24 @@ workspace method for
 lakehouse <- workspace$lakehouses()[[1L]]
 
 result <- lakehouse$livy_query(
-  kind = "sparkr",
+  kind = "pyspark",
   code = "print(1 + 2)"
 )
 ```
+
+For new production workloads, Microsoft recommends the latest generally
+available Fabric runtime, currently [Runtime 2.0 (Spark
+4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
+SparkR remains a supported Livy language, but SparkR is deprecated
+upstream in Spark 4.x and may be removed in a future Spark release. For
+R-first workloads, Microsoft Fabric supports and distributes
+[sparklyr](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr).
+`sparklyr` is an R API rather than a Livy language, so R code that
+initializes it still runs with `kind = "sparkr"`; Fabric’s documented
+`"synapse"` connection currently uses the SparkR JVM bridge. Use
+sparklyr to migrate away from the SparkR DataFrame API, and prefer
+PySpark or Spark SQL only when the remote workload must be independent
+of that bridge.
 
 Reusable Livy sessions and independent batch submissions are available
 for multi-step and application-file workflows. See [Working with Livy
@@ -536,6 +550,11 @@ Run Spark statements, reusable sessions, and batch jobs through Livy
   : Run Spark code in a temporary Microsoft Fabric Livy session
 - [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
   : Create a Microsoft Fabric Livy session
+- [`fabric_livy_sessions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  [`fabric_livy_batches()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  [`fabric_livy_session_attach()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  [`fabric_livy_batch_attach()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_sessions.md)
+  : Discover and reattach to Microsoft Fabric Livy work
 - [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md)
   : Submit a Microsoft Fabric Livy batch job
 - [`FabricLivySession`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricLivySession.md)

@@ -63,7 +63,9 @@ finish, or request cancellation. Use Fabric's scheduler for recurring runs</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
+<span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
+<span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_job_status</span><span class="op">(</span></span>
@@ -224,6 +226,10 @@ A discovered workspace-specific endpoint is used unless this argument is
 supplied explicitly</p></dd>
 
 
+<dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
+<dd><p>Internal hooks for deterministic tests</p></dd>
+
+
 <dt id="arg-job">job<a class="anchor" aria-label="anchor" href="#arg-job"></a></dt>
 <dd><p>A <code>fabric_job</code> returned by <code>fabric_job_run()</code> or a
 <code>fabric_job_instance</code> returned by a status, wait, or history function.
@@ -246,10 +252,6 @@ status-check time. Keep <code>TRUE</code> for normal use</p></dd>
 Notebook status endpoint for exit values and compute details. The default
 <code>FALSE</code> uses only the stable Core Job Scheduler status endpoint;
 <code>exit_value</code> and workload-specific <code>properties</code> may then be unavailable.</p></dd>
-
-
-<dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
-<dd><p>Internal hooks for deterministic tests</p></dd>
 
 
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
@@ -295,9 +297,11 @@ notebook exit value when available. <code>fabric_job_cancel()</code> invisibly r
 <code>fabric_job_wait()</code>. The handle keeps the workspace, item, job type, and
 sign-in context, so later calls do not need those details again
 Parameterized Core jobs can return a collection <code>Location</code> without an
-instance GUID. In that documented case, <code>fabric_job_run()</code> reads recent job
-history and accepts only one matching manual run; it raises a protocol error
-rather than guessing when recovery is ambiguous</p>
+instance GUID. In that documented case, <code>fabric_job_run()</code> honors
+<code>Retry-After</code> and polls recent job history for one matching manual run. If
+the accepted instance cannot be resolved safely, it raises a
+<code>fabric_job_accepted_unresolved</code> condition rather than implying that the run
+request failed or replaying it</p>
     </div>
     <div class="section level2">
     <h2 id="high-concurrency-notebooks">High-concurrency notebooks<a class="anchor" aria-label="anchor" href="#high-concurrency-notebooks"></a></h2>

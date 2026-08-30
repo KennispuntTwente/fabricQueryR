@@ -192,6 +192,15 @@ text.</p>
 </h2>
 <p>The <code>kind</code> argument tells Livy how to interpret
 <code>code</code>:</p>
+<p>Microsoft recommends the latest generally available runtime for
+production, currently <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0" class="external-link">Fabric
+Runtime 2.0 (Spark 4.1)</a>. SparkR still works, but SparkR is
+deprecated upstream in Spark 4.x and may be removed in a future Spark
+release. For R-first workloads, Microsoft Fabric supports and
+distributes <a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link"><code>sparklyr</code></a>.
+Use sparklyr to move application code away from the SparkR DataFrame
+API. Choose PySpark or Spark SQL when the remote workload must also be
+independent of the current SparkR runtime bridge.</p>
 <table class="table">
 <thead><tr class="header">
 <th><code>kind</code></th>
@@ -204,7 +213,7 @@ text.</p>
 </tr>
 <tr class="even">
 <td><code>"sparkr"</code></td>
-<td>SparkR</td>
+<td>R: SparkR, or sparklyr through the current R bridge</td>
 </tr>
 <tr class="odd">
 <td><code>"pyspark"</code></td>
@@ -230,6 +239,32 @@ Lakehouse:</p>
 <span>    sep <span class="op">=</span> <span class="st">"\n"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p><code>sparklyr</code> is not another Livy <code>kind</code>. Fabric’s
+documented <code>"synapse"</code> connection attaches sparklyr to the
+existing Spark session through the current SparkR JVM bridge.
+Consequently, sparklyr code submitted through Livy still uses
+<code>kind = "sparkr"</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
+<span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
+<span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
+<span>    <span class="st">"library(sparklyr)"</span>,</span>
+<span>    <span class="st">"spark_version &lt;- sparkR.version()"</span>,</span>
+<span>    <span class="st">"config &lt;- spark_config()"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>      <span class="st">"sc &lt;- spark_connect(master = 'yarn', version = spark_version, "</span>,</span>
+<span>      <span class="st">"spark_home = '/opt/spark', method = 'synapse', config = config)"</span></span>
+<span>    <span class="op">)</span>,</span>
+<span>    <span class="st">"orders &lt;- dplyr::tbl(sc, 'orders')"</span>,</span>
+<span>    <span class="st">"print(dplyr::collect(head(orders, 10)))"</span>,</span>
+<span>    <span class="st">"spark_disconnect(sc)"</span>,</span>
+<span>    sep <span class="op">=</span> <span class="st">"\n"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>This removes the application-level dependency on SparkR’s DataFrame
+verbs, but it is not yet insulated from a future removal of the R
+interpreter or SparkR JVM bridge. Fabric has not documented a separate
+sparklyr language for its item-scoped Livy API.</p>
 </div>
 <div class="section level2">
 <h2 id="reuse-a-session-for-several-statements">Reuse a session for several statements<a class="anchor" aria-label="anchor" href="#reuse-a-session-for-several-statements"></a>
@@ -237,7 +272,7 @@ Lakehouse:</p>
 <p>Starting Spark can take time. Use <code>$livy_session()</code>
 (<code><a href="../reference/fabric_livy_session.html">fabric_livy_session()</a></code>) when sequential statements need to
 share variables or cached data:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">session</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_session</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">session</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
@@ -261,7 +296,7 @@ in order.</p>
 <p>Use <code>$livy_batch_submit()</code>
 (<code><a href="../reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>) when the work is a repeatable
 Python, R, or Java/Scala script stored in OneLake or ADLS:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_batch_submit</span><span class="op">(</span></span>
 <span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>    <span class="st">"abfss://"</span>, <span class="va">workspace</span><span class="op">$</span><span class="va">id</span>,</span>
@@ -303,7 +338,7 @@ longer carries its credential.</p>
 <p>A published Fabric Environment can hold Spark settings and libraries
 shared by several runs. Discover it and pass its ID when the workload
 depends on that configuration:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">environment</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">environments</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>

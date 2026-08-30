@@ -125,12 +125,23 @@ results, an R object for JSON, or character output for printed text.
 
 The `kind` argument tells Livy how to interpret `code`:
 
-| `kind`      | Code language     |
-|-------------|-------------------|
-| `"sql"`     | Spark SQL         |
-| `"sparkr"`  | SparkR            |
-| `"pyspark"` | Python with Spark |
-| `"spark"`   | Scala             |
+Microsoft recommends the latest generally available runtime for
+production, currently [Fabric Runtime 2.0 (Spark
+4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
+SparkR still works, but SparkR is deprecated upstream in Spark 4.x and
+may be removed in a future Spark release. For R-first workloads,
+Microsoft Fabric supports and distributes
+[`sparklyr`](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr).
+Use sparklyr to move application code away from the SparkR DataFrame
+API. Choose PySpark or Spark SQL when the remote workload must also be
+independent of the current SparkR runtime bridge.
+
+| `kind`      | Code language                                       |
+|-------------|-----------------------------------------------------|
+| `"sql"`     | Spark SQL                                           |
+| `"sparkr"`  | R: SparkR, or sparklyr through the current R bridge |
+| `"pyspark"` | Python with Spark                                   |
+| `"spark"`   | Scala                                               |
 
 For example, SparkR code can use the active Spark session and Lakehouse:
 
@@ -149,6 +160,36 @@ result <- lakehouse$livy_query(
   )
 )
 ```
+
+`sparklyr` is not another Livy `kind`. Fabric’s documented `"synapse"`
+connection attaches sparklyr to the existing Spark session through the
+current SparkR JVM bridge. Consequently, sparklyr code submitted through
+Livy still uses `kind = "sparkr"`:
+
+``` r
+
+result <- lakehouse$livy_query(
+  kind = "sparkr",
+  code = paste(
+    "library(sparklyr)",
+    "spark_version <- sparkR.version()",
+    "config <- spark_config()",
+    paste0(
+      "sc <- spark_connect(master = 'yarn', version = spark_version, ",
+      "spark_home = '/opt/spark', method = 'synapse', config = config)"
+    ),
+    "orders <- dplyr::tbl(sc, 'orders')",
+    "print(dplyr::collect(head(orders, 10)))",
+    "spark_disconnect(sc)",
+    sep = "\n"
+  )
+)
+```
+
+This removes the application-level dependency on SparkR’s DataFrame
+verbs, but it is not yet insulated from a future removal of the R
+interpreter or SparkR JVM bridge. Fabric has not documented a separate
+sparklyr language for its item-scoped Livy API.
 
 ## Reuse a session for several statements
 

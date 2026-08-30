@@ -89,6 +89,7 @@ Internal constructor used by
       livy_url,
       credential,
       payload,
+      response = NULL,
       high_concurrency = FALSE,
       verbose = TRUE
     )
@@ -106,6 +107,10 @@ Internal constructor used by
 - `payload`:
 
   Session creation request body
+
+- `response`:
+
+  Existing session response when attaching
 
 - `high_concurrency`:
 

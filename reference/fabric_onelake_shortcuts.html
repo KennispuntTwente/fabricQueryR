@@ -267,7 +267,9 @@ below <code>parent_path</code> is returned. Unknown target details and transform
 are preserved in list columns for forward compatibility.</p>
 <p>Create is deliberately not replayed automatically because its POST outcome
 can be ambiguous after a transport failure. The default conflict policy is
-Fabric's non-destructive <code>Abort</code>; overwrite must be requested explicitly.</p>
+Fabric's non-destructive <code>Abort</code>; overwrite must be requested explicitly.
+Deletion is also not replayed automatically, and a 404 confirms that the
+shortcut link is already absent.</p>
 <p>Bulk creation is a preview Fabric API. Its optional <code>csvToDelta</code> transform
 accepts <code>includeSubfolders</code> and a <code>properties</code> list containing <code>delimiter</code>,
 <code>skipFilesWithErrors</code>, and <code>useFirstRowAsHeader</code>. Supported delimiters are

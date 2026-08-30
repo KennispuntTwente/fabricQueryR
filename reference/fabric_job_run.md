@@ -25,7 +25,9 @@ fabric_job_run(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 )
 
 fabric_job_status(
@@ -185,6 +187,10 @@ fabric_job_cancel(
   discovered workspace-specific endpoint is used unless this argument is
   supplied explicitly
 
+- .sleep, .now:
+
+  Internal hooks for deterministic tests
+
 - job:
 
   A `fabric_job` returned by `fabric_job_run()` or a
@@ -208,10 +214,6 @@ fabric_job_cancel(
   endpoint for exit values and compute details. The default `FALSE` uses
   only the stable Core Job Scheduler status endpoint; `exit_value` and
   workload-specific `properties` may then be unavailable.
-
-- .sleep, .now:
-
-  Internal hooks for deterministic tests
 
 - poll_interval:
 
@@ -253,9 +255,11 @@ Start a job with `fabric_job_run()`, then pass the returned handle to
 `fabric_job_wait()`. The handle keeps the workspace, item, job type, and
 sign-in context, so later calls do not need those details again
 Parameterized Core jobs can return a collection `Location` without an
-instance GUID. In that documented case, `fabric_job_run()` reads recent
-job history and accepts only one matching manual run; it raises a
-protocol error rather than guessing when recovery is ambiguous
+instance GUID. In that documented case, `fabric_job_run()` honors
+`Retry-After` and polls recent job history for one matching manual run.
+If the accepted instance cannot be resolved safely, it raises a
+`fabric_job_accepted_unresolved` condition rather than implying that the
+run request failed or replaying it
 
 ## High-concurrency notebooks
 

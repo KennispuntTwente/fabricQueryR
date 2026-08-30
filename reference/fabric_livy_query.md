@@ -46,9 +46,12 @@ fabric_livy_query(
 
 - kind:
 
-  Statement language. Use `"sparkr"` for SparkR code, `"pyspark"` for
-  Python with Spark, `"spark"` for Scala, or `"sql"` for Spark SQL. This
-  must match the syntax in `code`
+  Statement language. Use `"pyspark"` for Python with Spark, `"spark"`
+  for Scala, `"sql"` for Spark SQL, or `"sparkr"` for SparkR. This must
+  match the syntax in `code`. The `sparklyr` package is an R API, not a
+  separate Livy language: code that initializes `sparklyr` still uses
+  `"sparkr"`. SparkR is deprecated upstream in Spark 4.x; see **R on
+  Runtime 2.0** below for the distinction
 
 - tenant_id:
 
@@ -150,17 +153,33 @@ text Fabric's SQL JSON output represents non-finite floating-point
 values as `null`, so those values are returned as typed missing values.
 Binary and nested values use list-columns
 
+## R on Runtime 2.0
+
+Microsoft Fabric supports `sparklyr` for R-first workloads and
+distributes it with Fabric runtimes. In Fabric's documented connection,
+`sparklyr::spark_connect(method = "synapse")` attaches to the existing
+Spark session through the current SparkR JVM bridge. Therefore,
+`sparklyr` lets R code move away from the SparkR DataFrame API, but it
+does not yet remove the runtime dependency on the `"sparkr"` Livy
+interpreter. Use `"sparkr"` when submitting R code that initializes
+`sparklyr`; prefer PySpark or Spark SQL only when the remote Livy
+workload must be independent of that bridge
+
 ## See also
 
 [Microsoft Fabric Livy API
 overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
 [Livy API setup and
-authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy)
+authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy),
+[Use sparklyr in
+Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr),
+and [Fabric Runtime
+2.0](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0)
 
 ## Examples
 
 ``` r
-# Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric
+# Livy can run SQL, PySpark, Spark, and SparkR code in Microsoft Fabric
 # This function is not called automatically because it requires credentials
 fabric_livy_query_example <- function() {
   # Discover a Lakehouse whose record contains its Fabric Livy endpoint
@@ -180,13 +199,14 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # The same discovered Lakehouse can also run SparkR code
-  sparkr_result <- fabric_livy_query(
+  # PySpark avoids the SparkR bridge; R-first code can initialize sparklyr
+  # inside a kind = "sparkr" session as described in the Livy vignette
+  pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
-    kind = "sparkr",
+    kind = "pyspark",
     code = "print(1 + 2)"
   )
 
-  invisible(list(sql = sql_result, sparkr = sparkr_result))
+  invisible(list(sql = sql_result, pyspark = pyspark_result))
 }
 ```

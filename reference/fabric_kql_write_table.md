@@ -179,9 +179,10 @@ fabric_kql_write_table(
 - query_cluster:
 
   Optional Kusto query-service URI or discovery object used for table
-  creation. A discovered `cluster` already carries this URI; a standard
-  Microsoft ingestion URI is converted to its paired query URI. Supply
-  this explicitly for a trusted custom ingestion endpoint.
+  creation and identity-schema validation. A discovered `cluster`
+  already carries this URI; a standard Microsoft ingestion URI is
+  converted to its paired query URI. Supply this explicitly for a
+  trusted custom ingestion endpoint.
 
 - .sleep, .now:
 
@@ -190,9 +191,9 @@ fabric_kql_write_table(
 ## Value
 
 A `fabric_kql_write_result` containing row/file counts, compressed
-Parquet `bytes`/`part_bytes`, uncompressed `raw_bytes`/`part_raw_bytes`,
-normalized ingestion status, tracking handle, source IDs, and staging
-disposition.
+Parquet `bytes`/`part_bytes`, diagnostic Arrow
+`buffer_bytes`/`part_buffer_bytes`, normalized ingestion status,
+tracking handle, source IDs, and staging disposition.
 
 ## One-call staging workflow
 
@@ -226,8 +227,10 @@ into R memory. A supplied reader or stream is single-use and is
 consumed.
 
 Parquet identity mapping matches source fields to existing KQL columns
-by case-sensitive name. Supply `mapping` when the Parquet schema and
-table need an explicit predefined mapping.
+by case-sensitive name. Before staging, the writer verifies that those
+names and their Kusto scalar types exactly match the target table.
+Supply `mapping` when the Parquet schema and table need an explicit
+predefined mapping; a named mapping bypasses this identity-schema check.
 
 `skip_batching = TRUE` cannot be combined with `ingest_if_not_exists`
 when staging produces multiple Parquet files. Kusto then ingests each
@@ -235,11 +238,12 @@ file independently, so the shared idempotency tag can suppress later
 files in the same logical write. Use normal batching, stage one file, or
 omit the idempotency key.
 
-The service's advertised `maxDataSize` applies to uncompressed data. The
-writer measures Arrow buffer bytes for every staged part, validates
-their total before upload, and submits each value as the source
-`rawSize`. The compressed Parquet file sizes remain available separately
-in the result.
+The service's advertised `maxDataSize` and source `rawSize` refer to the
+uncompressed source representation. Arrow's in-memory buffer size is not
+an equivalent Parquet measurement, so the writer deliberately omits
+`rawSize` and lets Kusto inspect the staged Parquet metadata. Compressed
+file sizes and Arrow buffer sizes remain available separately in the
+result.
 
 Set `create_if_missing = TRUE` to issue Kusto's idempotent
 `.create table` command before staging. A missing table is created from
@@ -247,6 +251,11 @@ the Arrow schema; an existing table is returned unchanged, so this
 option never alters an existing schema. Common Arrow scalar and nested
 types are inferred as Kusto types. Supply a named `column_types` vector
 to override every column type.
+
+Service-owned Storage credentials are reacquired after local
+serialization. During a multipart upload, the writer honors the
+advertised configuration refresh interval and retries once with new
+credentials when Storage reports an expired authorization.
 
 ## Failure and cleanup safety
 

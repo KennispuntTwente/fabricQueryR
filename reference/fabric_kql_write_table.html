@@ -219,9 +219,10 @@ ingest them as <code>timespan</code>.</p></dd>
 
 <dt id="arg-query-cluster">query_cluster<a class="anchor" aria-label="anchor" href="#arg-query-cluster"></a></dt>
 <dd><p>Optional Kusto query-service URI or discovery object
-used for table creation. A discovered <code>cluster</code> already carries this URI;
-a standard Microsoft ingestion URI is converted to its paired query URI.
-Supply this explicitly for a trusted custom ingestion endpoint.</p></dd>
+used for table creation and identity-schema validation. A discovered
+<code>cluster</code> already carries this URI; a standard Microsoft ingestion URI is
+converted to its paired query URI. Supply this explicitly for a trusted
+custom ingestion endpoint.</p></dd>
 
 
 <dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
@@ -231,9 +232,9 @@ Supply this explicitly for a trusted custom ingestion endpoint.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>fabric_kql_write_result</code> containing row/file counts, compressed
-Parquet <code>bytes</code>/<code>part_bytes</code>, uncompressed <code>raw_bytes</code>/<code>part_raw_bytes</code>,
-normalized ingestion status, tracking handle, source IDs, and staging
-disposition.</p>
+Parquet <code>bytes</code>/<code>part_bytes</code>, diagnostic Arrow
+<code>buffer_bytes</code>/<code>part_buffer_bytes</code>, normalized ingestion status, tracking
+handle, source IDs, and staging disposition.</p>
     </div>
     <div class="section level2">
     <h2 id="one-call-staging-workflow">One-call staging workflow<a class="anchor" aria-label="anchor" href="#one-call-staging-workflow"></a></h2>
@@ -266,22 +267,29 @@ inputs are read one record batch at a time and written directly to a
 temporary Parquet parts, so the complete data set is never collected into R
 memory. A supplied reader or stream is single-use and is consumed.</p>
 <p>Parquet identity mapping matches source fields to existing KQL columns by
-case-sensitive name. Supply <code>mapping</code> when the Parquet schema and table need
-an explicit predefined mapping.</p>
+case-sensitive name. Before staging, the writer verifies that those names
+and their Kusto scalar types exactly match the target table. Supply <code>mapping</code>
+when the Parquet schema and table need an explicit predefined mapping; a
+named mapping bypasses this identity-schema check.</p>
 <p><code>skip_batching = TRUE</code> cannot be combined with <code>ingest_if_not_exists</code> when
 staging produces multiple Parquet files. Kusto then ingests each file
 independently, so the shared idempotency tag can suppress later files in the
 same logical write. Use normal batching, stage one file, or omit the
 idempotency key.</p>
-<p>The service's advertised <code>maxDataSize</code> applies to uncompressed data. The
-writer measures Arrow buffer bytes for every staged part, validates their
-total before upload, and submits each value as the source <code>rawSize</code>. The
-compressed Parquet file sizes remain available separately in the result.</p>
+<p>The service's advertised <code>maxDataSize</code> and source <code>rawSize</code> refer to the
+uncompressed source representation. Arrow's in-memory buffer size is not an
+equivalent Parquet measurement, so the writer deliberately omits <code>rawSize</code>
+and lets Kusto inspect the staged Parquet metadata. Compressed file sizes and
+Arrow buffer sizes remain available separately in the result.</p>
 <p>Set <code>create_if_missing = TRUE</code> to issue Kusto's idempotent <code>.create table</code>
 command before staging. A missing table is created from the Arrow schema; an
 existing table is returned unchanged, so this option never alters an
 existing schema. Common Arrow scalar and nested types are inferred as Kusto
 types. Supply a named <code>column_types</code> vector to override every column type.</p>
+<p>Service-owned Storage credentials are reacquired after local serialization.
+During a multipart upload, the writer honors the advertised configuration
+refresh interval and retries once with new credentials when Storage reports
+an expired authorization.</p>
     </div>
     <div class="section level2">
     <h2 id="failure-and-cleanup-safety">Failure and cleanup safety<a class="anchor" aria-label="anchor" href="#failure-and-cleanup-safety"></a></h2>

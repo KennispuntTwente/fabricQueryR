@@ -320,7 +320,9 @@ refresh ID through <code>RequestId</code> rather than <code>x-ms-request-id</cod
 waiting fall back to refresh history when request-specific execution details
 are unavailable. For a raw refresh ID, history also determines whether
 cancellation is supported before a DELETE request is sent. Cancellation is
-available only for enhanced refreshes</p>
+available only for enhanced refreshes. Cancellation DELETE requests are not
+replayed after ambiguous transport failures; a 404 confirms that the request
+is already absent.</p>
 <p><code>Transactional</code> is the safe commit default. <code>PartialBatch</code> can expose a
 partially refreshed model after failure and cannot apply an incremental
 refresh policy. Each retry receives its own attempt timeout, while Power BI

@@ -205,7 +205,9 @@ service response in <code>raw</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>List operations need an item read permission. Create and update require item
+    <p>Schedule deletion is not replayed after an ambiguous transport failure. An
+already absent schedule is treated as deleted.</p>
+<p>List operations need an item read permission. Create and update require item
 execute and read-write permissions; delete requires item read-write
 permission. The current service limit is 20 schedules per item.</p>
 <p><code>fabric_job_schedule_update()</code> accepts partial R input for convenience, but
