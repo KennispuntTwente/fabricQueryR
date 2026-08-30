@@ -126,9 +126,9 @@ custom ingestion endpoint.}
 }
 \value{
 A \code{fabric_kql_write_result} containing row/file counts, compressed
-Parquet \code{bytes}/\code{part_bytes}, uncompressed \code{raw_bytes}/\code{part_raw_bytes},
-normalized ingestion status, tracking handle, source IDs, and staging
-disposition.
+Parquet \code{bytes}/\code{part_bytes}, diagnostic Arrow
+\code{buffer_bytes}/\code{part_buffer_bytes}, normalized ingestion status, tracking
+handle, source IDs, and staging disposition.
 }
 \description{
 Serializes an R or Arrow object to Parquet, uploads it using the storage
@@ -177,10 +177,11 @@ independently, so the shared idempotency tag can suppress later files in the
 same logical write. Use normal batching, stage one file, or omit the
 idempotency key.
 
-The service's advertised \code{maxDataSize} applies to uncompressed data. The
-writer measures Arrow buffer bytes for every staged part, validates their
-total before upload, and submits each value as the source \code{rawSize}. The
-compressed Parquet file sizes remain available separately in the result.
+The service's advertised \code{maxDataSize} and source \code{rawSize} refer to the
+uncompressed source representation. Arrow's in-memory buffer size is not an
+equivalent Parquet measurement, so the writer deliberately omits \code{rawSize}
+and lets Kusto inspect the staged Parquet metadata. Compressed file sizes and
+Arrow buffer sizes remain available separately in the result.
 
 Set \code{create_if_missing = TRUE} to issue Kusto's idempotent \verb{.create table}
 command before staging. A missing table is created from the Arrow schema; an

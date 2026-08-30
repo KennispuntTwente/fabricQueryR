@@ -368,11 +368,8 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
   )
   expect_equal(frame_result$status$state, "Succeeded")
   expect_equal(frame_result$rows, 2)
-  expect_gt(frame_result$raw_bytes, 0)
-  expect_equal(
-    as.numeric(frame_result$ingestion$sources$raw_size),
-    frame_result$part_raw_bytes
-  )
+  expect_gt(frame_result$buffer_bytes, 0)
+  expect_true(all(is.na(frame_result$ingestion$sources$raw_size)))
   expect_false(frame_result$staging_retained)
 
   dataset_path <- tempfile("fabricqueryr-kql-dataset-")
@@ -411,10 +408,7 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
   expect_equal(arrow_result$status$state, "Succeeded")
   expect_equal(arrow_result$rows, 3)
   expect_equal(arrow_result$file_count, 3L)
-  expect_equal(
-    as.numeric(arrow_result$ingestion$sources$raw_size),
-    arrow_result$part_raw_bytes
-  )
+  expect_true(all(is.na(arrow_result$ingestion$sources$raw_size)))
   expect_false(arrow_result$staging_retained)
 
   rows <- fabric_test_eventually(function() {

@@ -1750,10 +1750,11 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' same logical write. Use normal batching, stage one file, or omit the
 #' idempotency key.
 #'
-#' The service's advertised `maxDataSize` applies to uncompressed data. The
-#' writer measures Arrow buffer bytes for every staged part, validates their
-#' total before upload, and submits each value as the source `rawSize`. The
-#' compressed Parquet file sizes remain available separately in the result.
+#' The service's advertised `maxDataSize` and source `rawSize` refer to the
+#' uncompressed source representation. Arrow's in-memory buffer size is not an
+#' equivalent Parquet measurement, so the writer deliberately omits `rawSize`
+#' and lets Kusto inspect the staged Parquet metadata. Compressed file sizes and
+#' Arrow buffer sizes remain available separately in the result.
 #'
 #' Set `create_if_missing = TRUE` to issue Kusto's idempotent `.create table`
 #' command before staging. A missing table is created from the Arrow schema; an
@@ -1839,9 +1840,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param .sleep,.now Internal deterministic polling hooks.
 #'
 #' @return A `fabric_kql_write_result` containing row/file counts, compressed
-#'   Parquet `bytes`/`part_bytes`, uncompressed `raw_bytes`/`part_raw_bytes`,
-#'   normalized ingestion status, tracking handle, source IDs, and staging
-#'   disposition.
+#'   Parquet `bytes`/`part_bytes`, diagnostic Arrow
+#'   `buffer_bytes`/`part_buffer_bytes`, normalized ingestion status, tracking
+#'   handle, source IDs, and staging disposition.
 #' @references
 #' [Queued ingestion configuration REST API (preview)](https://learn.microsoft.com/en-us/kusto/management/data-ingestion/queued-ingest-configuration-http?view=microsoft-fabric)
 #'
@@ -2282,7 +2283,7 @@ fabric_kql_write_table <- function(
       database = database,
       format = "parquet",
       source_ids = source_ids,
-      raw_sizes = serialized$raw_bytes,
+      raw_sizes = NULL,
       mapping = mapping,
       tags = tags,
       ingest_if_not_exists = ingest_if_not_exists,
@@ -2986,22 +2987,6 @@ kusto_write_validate_configuration <- function(serialized, configuration) {
       max_blobs = configuration$max_blobs
     )
   }
-  if (serialized$total_raw_bytes > configuration$max_data_size) {
-    .fabric_abort(
-      paste0(
-        "The staged data is ",
-        format(serialized$total_raw_bytes, scientific = FALSE, trim = TRUE),
-        " uncompressed bytes, exceeding Kusto's advertised maxDataSize of ",
-        format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
-        " bytes"
-      ),
-      class = c("fabric_kql_size_error", "fabric_kql_write_error"),
-      bytes = serialized$total_raw_bytes,
-      raw_bytes = serialized$total_raw_bytes,
-      staged_bytes = serialized$total_bytes,
-      max_data_size = configuration$max_data_size
-    )
-  }
   invisible(configuration)
 }
 
@@ -3521,8 +3506,8 @@ kusto_write_result <- function(
       rows = serialized$rows,
       bytes = serialized$total_bytes,
       part_bytes = serialized$bytes,
-      raw_bytes = serialized$total_raw_bytes,
-      part_raw_bytes = serialized$raw_bytes,
+      buffer_bytes = serialized$total_buffer_bytes,
+      part_buffer_bytes = serialized$buffer_bytes,
       file_count = serialized$file_count,
       columns = serialized$names,
       source_id = source_ids[[1L]],

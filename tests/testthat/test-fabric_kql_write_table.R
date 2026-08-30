@@ -396,9 +396,9 @@ test_that("Eventhouse writer stages a data frame, waits, and cleans safely", {
     )
   )
   expect_equal(submitted$format, "parquet")
-  expect_equal(submitted$raw_sizes, result$part_raw_bytes)
-  expect_equal(sum(submitted$raw_sizes), result$raw_bytes)
-  expect_gt(result$raw_bytes, 0)
+  expect_null(submitted$raw_sizes)
+  expect_gt(result$buffer_bytes, 0)
+  expect_equal(result$buffer_bytes, sum(result$part_buffer_bytes))
   expect_equal(submitted$mapping, "RawParquet")
   expect_equal(submitted$tags, "r-object")
   expect_equal(submitted$ingest_if_not_exists, "batch-1")
@@ -871,7 +871,7 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
     c(2L, 2L, 1L)
   )
   expect_equal(unlist(lapply(uploads, function(x) x$data$id)), 1:5)
-  expect_equal(submitted$raw_sizes, result$part_raw_bytes)
+  expect_null(submitted$raw_sizes)
   expect_equal(
     submitted$sources,
     paste0(result$staging_paths, ";token=storage-token")
@@ -879,7 +879,7 @@ test_that("Eventhouse writer submits bounded Parquet batches", {
   expect_length(submitted$source_ids, 3L)
   expect_length(unique(submitted$source_ids), 3L)
   expect_equal(result$bytes, sum(result$part_bytes))
-  expect_equal(result$raw_bytes, sum(result$part_raw_bytes))
+  expect_equal(result$buffer_bytes, sum(result$part_buffer_bytes))
 })
 
 test_that("Eventhouse writer rejects unsafe multi-file idempotency", {
@@ -960,10 +960,10 @@ test_that("Eventhouse writer consumes an Arrow reader batch by batch", {
   expect_null(reader$read_next_batch())
 })
 
-test_that("Eventhouse writer enforces the uncompressed data-size limit", {
+test_that("Eventhouse writer does not submit Arrow buffers as rawSize", {
   skip_if_not_installed("arrow")
   upload_calls <- 0L
-  submitted <- 0L
+  submitted <- NULL
   local_mocked_bindings(
     kusto_write_table_schema = function(...) character(),
     kusto_write_assert_identity_schema = function(...) invisible(NULL),
@@ -975,31 +975,25 @@ test_that("Eventhouse writer enforces the uncompressed data-size limit", {
       tibble::tibble()
     },
     fabric_kql_ingest = function(...) {
-      submitted <<- submitted + 1L
+      submitted <<- list(...)
       kql_write_test_ingestion()
     },
     fabric_kql_ingestion_status = function(...) kql_write_test_status(),
     .fabric_onelake_remove_staging = function(...) TRUE
   )
-  error <- tryCatch(
-    fabric_kql_write_table(
-      "https://ingest-cluster.kusto.fabric.microsoft.com",
-      "Raw",
-      data.frame(value = rep(strrep("compressible", 100), 1000)),
-      database = "Telemetry",
-      token = "test-token",
-      storage_token = "storage-token"
-    ),
-    error = identity
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(value = rep(strrep("compressible", 100), 1000)),
+    database = "Telemetry",
+    token = "test-token",
+    storage_token = "storage-token"
   )
 
-  expect_s3_class(error, "fabric_kql_size_error")
-  expect_lt(error$staged_bytes, error$max_data_size)
-  expect_gt(error$bytes, error$max_data_size)
-  expect_identical(error$bytes, error$raw_bytes)
-  expect_identical(error$max_data_size, 10000)
-  expect_identical(upload_calls, 0L)
-  expect_identical(submitted, 0L)
+  expect_s3_class(result, "fabric_kql_write_result")
+  expect_gt(result$buffer_bytes, 10000)
+  expect_identical(upload_calls, 1L)
+  expect_null(submitted$raw_sizes)
 })
 
 test_that("Eventhouse writer enforces the advertised blob count", {
