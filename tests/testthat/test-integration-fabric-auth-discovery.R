@@ -375,6 +375,40 @@ test_that("Fabric long-running operations complete a live Warehouse creation", {
   expect_true(cleaned)
 })
 
+test_that("OneLake catalog search finds the sandbox Lakehouse", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+
+  matches <- fabric_test_eventually(function() {
+    entries <- fabric_catalog_search(
+      search = lakehouse$display_name,
+      types = "Lakehouse",
+      page_size = 1L,
+      token = token,
+      output = "list"
+    )
+    matches <- Filter(
+      function(entry) identical(entry$id, lakehouse$id),
+      entries
+    )
+    if (!length(matches)) {
+      return(NULL)
+    }
+    matches
+  })
+
+  expect_length(matches, 1L)
+  expect_s3_class(matches[[1L]], "fabric_catalog_entry")
+  expect_identical(matches[[1L]]$displayName, lakehouse$display_name)
+  expect_identical(matches[[1L]]$type, "Lakehouse")
+  expect_identical(matches[[1L]]$workspaceId, manifest$workspace_id)
+  expect_identical(
+    matches[[1L]]$workspaceDisplayName,
+    manifest$workspace_name
+  )
+})
+
 test_that("the default AzureAuth flow works with a delegated identity", {
   auth <- fabric_test_delegated_auth_config()
   manifest <- fabric_test_manifest()

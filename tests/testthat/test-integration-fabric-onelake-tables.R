@@ -1,5 +1,36 @@
 # Fabric integration coverage: schema-aware table metadata and managed loads
 
+test_that("OneLake table metadata HEAD endpoints report existence", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  target <- fabric_test_lakehouse_table_target(manifest, lakehouse)
+  token <- fabric_test_token_provider()
+  missing <- paste0("fabricqueryr_missing_", Sys.getpid())
+
+  expect_true(fabric_onelake_schema_exists(
+    target,
+    lakehouse$schema,
+    token = token
+  ))
+  expect_false(fabric_onelake_schema_exists(
+    target,
+    missing,
+    token = token
+  ))
+  expect_true(fabric_onelake_table_exists(
+    target,
+    lakehouse$tables$basic,
+    schema = lakehouse$schema,
+    token = token
+  ))
+  expect_false(fabric_onelake_table_exists(
+    target,
+    missing,
+    schema = lakehouse$schema,
+    token = token
+  ))
+})
+
 test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   fabric_test_require_package("arrow")
   fabric_test_require_package("DBI")
