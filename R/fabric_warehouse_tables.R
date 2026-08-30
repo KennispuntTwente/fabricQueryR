@@ -1016,14 +1016,14 @@ fabric_warehouse_write_table <- function(
       !nzchar(value) ||
       nchar(value) > 128L ||
       grepl("[[:cntrl:]]", value) ||
-      (warehouse_object && grepl("[/\\\\]", value))
+      (warehouse_object && (grepl("[/\\\\]", value) || endsWith(value, ".")))
   ) {
     .fabric_abort(paste0(
       "`",
       name,
       "` must be one non-empty Fabric Warehouse identifier of at most ",
       "128 characters",
-      if (warehouse_object) " without / or \\" else ""
+      if (warehouse_object) " without / or \\ and not ending in ." else ""
     ))
   }
   invisible(value)

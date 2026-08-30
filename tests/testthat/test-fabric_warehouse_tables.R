@@ -297,7 +297,7 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
   expect_identical(queried$result, "tibble")
 })
 
-test_that("Warehouse schema and table names reject unsupported separators", {
+test_that("Warehouse schema and table names reject unsupported spellings", {
   expect_error(
     .fabric_warehouse_identifier("sales/archive", "table"),
     "without / or \\",
@@ -308,7 +308,18 @@ test_that("Warehouse schema and table names reject unsupported separators", {
     "without / or \\",
     fixed = TRUE
   )
+  expect_error(
+    .fabric_warehouse_identifier("orders.", "table"),
+    "not ending in .",
+    fixed = TRUE
+  )
+  expect_error(
+    .fabric_warehouse_identifier("sales.", "schema"),
+    "not ending in .",
+    fixed = TRUE
+  )
   expect_no_error(.fabric_warehouse_identifier("order/archive", "column"))
+  expect_no_error(.fabric_warehouse_identifier("amount.", "column"))
 })
 
 test_that("Warehouse table reader validates before target resolution", {
