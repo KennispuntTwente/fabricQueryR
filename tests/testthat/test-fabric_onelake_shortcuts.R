@@ -446,11 +446,22 @@ test_that("shortcut POST is never replayed after a transient response", {
 test_that("shortcut delete requires confirmation and deletes only the link", {
   calls <- 0L
   request <- NULL
-  httr2::local_mocked_responses(function(req) {
-    calls <<- calls + 1L
-    request <<- req
-    shortcut_test_response(status = 200L, url = req$url)
-  })
+  idempotent <- NULL
+  accepted_status <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(
+      req,
+      idempotent,
+      accepted_status,
+      ...
+    ) {
+      calls <<- calls + 1L
+      request <<- req
+      idempotent <<- idempotent
+      accepted_status <<- accepted_status
+      shortcut_test_response(status = 404L, url = req$url)
+    }
+  )
 
   expect_error(
     fabric_onelake_shortcut_delete(
@@ -472,6 +483,8 @@ test_that("shortcut delete requires confirmation and deletes only the link", {
   expect_equal(calls, 1L)
   expect_equal(request$method, "DELETE")
   expect_match(request$url, "/shortcuts/Files/shared/orders$", perl = TRUE)
+  expect_false(idempotent)
+  expect_identical(accepted_status, 404L)
 })
 
 test_that("shortcut validation stops unsafe requests locally", {

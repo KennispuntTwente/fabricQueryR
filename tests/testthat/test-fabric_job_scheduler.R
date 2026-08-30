@@ -444,8 +444,24 @@ test_that("schedule deletion requires confirmation and uses the exact route", {
     paste0("/jobs/RunNotebook/schedules/", schedule_id, "$"),
     perl = TRUE
   )
-  expect_true(call$arguments$idempotent)
+  expect_false(call$arguments$idempotent)
   expect_false(call$arguments$parse_json)
+  expect_identical(call$arguments$accepted_status, 404L)
+})
+
+test_that("schedule deletion accepts an already absent schedule", {
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(status_code = 404L, body = NULL)
+    }
+  )
+
+  expect_true(fabric_job_schedule_delete(
+    scheduler_test_item(),
+    "33333333-3333-3333-3333-333333333333",
+    confirm = TRUE,
+    token = "test-token"
+  ))
 })
 
 test_that("workloads infer their documented schedule job type", {

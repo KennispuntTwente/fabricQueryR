@@ -228,6 +228,9 @@ fabric_job_schedule_config <- function(
 #' item. Use [fabric_job_schedule_config()] to construct the four schedule types
 #' in the current REST contract.
 #'
+#' Schedule deletion is not replayed after an ambiguous transport failure. An
+#' already absent schedule is treated as deleted.
+#'
 #' @inheritParams fabric_job_instances
 #' @param job_type Schedule job type. Notebooks default to `"RunNotebook"`,
 #'   Spark job definitions to `"SparkJob"`, and data pipelines, Dataflows, and
@@ -514,10 +517,11 @@ fabric_job_schedule_delete <- function(
     "DELETE",
     .fabric_job_schedule_url(context, id),
     context$credential,
-    idempotent = TRUE,
-    parse_json = FALSE
+    idempotent = FALSE,
+    parse_json = FALSE,
+    accepted_status = 404L
   )
-  if (!result$status_code %in% c(200L, 204L)) {
+  if (!result$status_code %in% c(200L, 204L, 404L)) {
     .fabric_abort(
       sprintf(
         "Fabric returned HTTP %d after schedule deletion",

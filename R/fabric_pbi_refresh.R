@@ -106,7 +106,9 @@
 #' waiting fall back to refresh history when request-specific execution details
 #' are unavailable. For a raw refresh ID, history also determines whether
 #' cancellation is supported before a DELETE request is sent. Cancellation is
-#' available only for enhanced refreshes
+#' available only for enhanced refreshes. Cancellation DELETE requests are not
+#' replayed after ambiguous transport failures; a 404 confirms that the request
+#' is already absent.
 #'
 #' `Transactional` is the safe commit default. `PartialBatch` can expose a
 #' partially refreshed model after failure and cannot apply an incremental
@@ -1077,7 +1079,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   url,
   credential,
   payload = NULL,
-  idempotent = NULL
+  idempotent = NULL,
+  accepted_status = 202L
 ) {
   request <- httr2::request(url) |>
     httr2::req_method(method)
@@ -1099,7 +1102,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     credential = credential,
     audience = .fabric_audience$power_bi,
     idempotent = idempotent,
-    accepted_status = 202L
+    accepted_status = accepted_status
   )
   status <- httr2::resp_status(response)
   text <- tryCatch(
@@ -1380,7 +1383,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     "DELETE",
     .pbi_refresh_item_url(context$api_base, context$target, context$id),
     context$credential,
-    idempotent = TRUE
+    idempotent = FALSE,
+    accepted_status = c(202L, 404L)
   )
   invisible(TRUE)
 }

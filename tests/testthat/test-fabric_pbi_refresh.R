@@ -1103,7 +1103,8 @@ test_that("cancel uses the request-specific DELETE route", {
   expect_false(result$visible)
   expect_identical(result$value, TRUE)
   expect_identical(call$method, "DELETE")
-  expect_true(call$args$idempotent)
+  expect_false(call$args$idempotent)
+  expect_identical(call$args$accepted_status, c(202L, 404L))
   expect_match(call$url, paste0("/refreshes/", pbi_refresh_id), fixed = TRUE)
 })
 

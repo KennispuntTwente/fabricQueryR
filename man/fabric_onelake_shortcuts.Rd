@@ -194,6 +194,8 @@ are preserved in list columns for forward compatibility.
 Create is deliberately not replayed automatically because its POST outcome
 can be ambiguous after a transport failure. The default conflict policy is
 Fabric's non-destructive \code{Abort}; overwrite must be requested explicitly.
+Deletion is also not replayed automatically, and a 404 confirms that the
+shortcut link is already absent.
 
 Bulk creation is a preview Fabric API. Its optional \code{csvToDelta} transform
 accepts \code{includeSubfolders} and a \code{properties} list containing \code{delimiter},

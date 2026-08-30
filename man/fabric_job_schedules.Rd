@@ -137,6 +137,9 @@ item. Use \code{\link[=fabric_job_schedule_config]{fabric_job_schedule_config()}
 in the current REST contract.
 }
 \details{
+Schedule deletion is not replayed after an ambiguous transport failure. An
+already absent schedule is treated as deleted.
+
 List operations need an item read permission. Create and update require item
 execute and read-write permissions; delete requires item read-write
 permission. The current service limit is 20 schedules per item.

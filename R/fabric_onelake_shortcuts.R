@@ -69,6 +69,8 @@
 #' Create is deliberately not replayed automatically because its POST outcome
 #' can be ambiguous after a transport failure. The default conflict policy is
 #' Fabric's non-destructive `Abort`; overwrite must be requested explicitly.
+#' Deletion is also not replayed automatically, and a 404 confirms that the
+#' shortcut link is already absent.
 #'
 #' Bulk creation is a preview Fabric API. Its optional `csvToDelta` transform
 #' accepts `includeSubfolders` and a `properties` list containing `delimiter`,
@@ -470,7 +472,8 @@ fabric_onelake_shortcut_delete <- function(
     request,
     credential = context$credential,
     audience = .fabric_audience$fabric,
-    idempotent = TRUE
+    idempotent = FALSE,
+    accepted_status = 404L
   )
   invisible(TRUE)
 }
