@@ -122,10 +122,18 @@ R object for JSON, or character output for printed text.
 
 The `kind` argument tells Livy how to interpret `code`:
 
+Microsoft recommends the latest generally available runtime for production,
+currently [Fabric Runtime 2.0
+(Spark 4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
+SparkR still works, but SparkR is deprecated upstream in Spark 4.x and may be
+removed in a future Spark release. Prefer PySpark or Spark SQL for new
+workloads, and retain `"sparkr"` primarily for existing R-on-Spark code while
+planning a migration.
+
 | `kind` | Code language |
 |---|---|
 | `"sql"` | Spark SQL |
-| `"sparkr"` | SparkR |
+| `"sparkr"` | SparkR (deprecated upstream in Spark 4.x) |
 | `"pyspark"` | Python with Spark |
 | `"spark"` | Scala |
 

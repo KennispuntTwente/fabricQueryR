@@ -1,8 +1,8 @@
 # Fabric integration coverage: cross-runtime compatibility smoke tests
 # These complement the full OneLake tests on the
-# preview runtime and the full Livy tests on the core runtime
+# Runtime 2.0 lane and the full Livy tests on the Runtime 1.3 lane
 
-test_that("delta-rs reads a Fabric table on the core Spark runtime", {
+test_that("delta-rs reads a Fabric table on Runtime 1.3", {
   fabric_test_runtime_lane("core")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -20,7 +20,7 @@ test_that("delta-rs reads a Fabric table on the core Spark runtime", {
   expect_equal(sort(result$id), 1:3)
 })
 
-test_that("Livy executes PySpark on the preview Spark runtime", {
+test_that("Livy executes PySpark on Runtime 2.0", {
   fabric_test_runtime_lane("preview")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
@@ -28,7 +28,7 @@ test_that("Livy executes PySpark on the preview Spark runtime", {
 
   result <- fabric_livy_query(
     livy_url = lakehouse$livy_url,
-    code = 'print("FABRICQUERYR_PREVIEW_LIVY_OK")',
+    code = 'print("FABRICQUERYR_RUNTIME_2_LIVY_OK")',
     kind = "pyspark",
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
@@ -40,7 +40,7 @@ test_that("Livy executes PySpark on the preview Spark runtime", {
   expect_equal(result$output$status, "ok")
   expect_match(
     paste(result$output$parsed, collapse = "\n"),
-    "FABRICQUERYR_PREVIEW_LIVY_OK",
+    "FABRICQUERYR_RUNTIME_2_LIVY_OK",
     fixed = TRUE
   )
 })

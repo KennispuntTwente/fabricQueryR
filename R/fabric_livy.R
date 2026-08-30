@@ -10,9 +10,10 @@
 #' @param code One string containing the Spark code to run. Objects created in
 #'   this temporary session are lost after the function returns, although
 #'   writes made to Lakehouse storage persist
-#' @param kind Statement language. Use `"sparkr"` for SparkR code, `"pyspark"`
-#'   for Python with Spark, `"spark"` for Scala, or `"sql"` for Spark SQL. This
-#'   must match the syntax in `code`
+#' @param kind Statement language. Use `"pyspark"` for Python with Spark,
+#'   `"spark"` for Scala, `"sql"` for Spark SQL, or `"sparkr"` for SparkR. This
+#'   must match the syntax in `code`. SparkR is deprecated upstream in Spark
+#'   4.x, so prefer PySpark or Spark SQL for new Runtime 2.0 workloads
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -77,7 +78,8 @@
 #'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
-#' [Livy API setup and authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy)
+#' [Livy API setup and authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy),
+#' and [Fabric Runtime 2.0](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0)
 #'
 #' @export
 #' @example inst/examples/fabric_livy_query.R

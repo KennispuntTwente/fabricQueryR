@@ -31,9 +31,10 @@ A discovered object avoids copying workspace and Lakehouse IDs}
 this temporary session are lost after the function returns, although
 writes made to Lakehouse storage persist}
 
-\item{kind}{Statement language. Use \code{"sparkr"} for SparkR code, \code{"pyspark"}
-for Python with Spark, \code{"spark"} for Scala, or \code{"sql"} for Spark SQL. This
-must match the syntax in \code{code}}
+\item{kind}{Statement language. Use \code{"pyspark"} for Python with Spark,
+\code{"spark"} for Scala, \code{"sql"} for Spark SQL, or \code{"sparkr"} for SparkR. This
+must match the syntax in \code{code}. SparkR is deprecated upstream in Spark
+4.x, so prefer PySpark or Spark SQL for new Runtime 2.0 workloads}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}
@@ -117,7 +118,7 @@ nested values use list-columns
 }
 
 \examples{
-# Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric
+# Livy can run SQL, PySpark, Spark, and SparkR code in Microsoft Fabric
 # This function is not called automatically because it requires credentials
 fabric_livy_query_example <- function() {
   # Discover a Lakehouse whose record contains its Fabric Livy endpoint
@@ -137,17 +138,18 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # The same discovered Lakehouse can also run SparkR code
-  sparkr_result <- fabric_livy_query(
+  # Prefer PySpark or Spark SQL for new Fabric Runtime 2.0 workloads
+  pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
-    kind = "sparkr",
+    kind = "pyspark",
     code = "print(1 + 2)"
   )
 
-  invisible(list(sql = sql_result, sparkr = sparkr_result))
+  invisible(list(sql = sql_result, pyspark = pyspark_result))
 }
 }
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview}{Microsoft Fabric Livy API overview},
-\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy}{Livy API setup and authorization}
+\href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy}{Livy API setup and authorization},
+and \href{https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0}{Fabric Runtime 2.0}
 }

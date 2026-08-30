@@ -126,7 +126,7 @@ Premium or Fabric capacity.
 
 ### 4. Run Spark code through Livy
 
-Run SparkR, PySpark, Scala, or Spark SQL remotely with `$livy_query()`
+Run PySpark, Scala, Spark SQL, or SparkR remotely with `$livy_query()`
 (`fabric_livy_query()`) and return the result to the local R session.
 `$lakehouses()` is the workspace method for `fabric_lakehouses()`.
 
@@ -134,10 +134,17 @@ Run SparkR, PySpark, Scala, or Spark SQL remotely with `$livy_query()`
 lakehouse <- workspace$lakehouses()[[1L]]
 
 result <- lakehouse$livy_query(
-  kind = "sparkr",
+  kind = "pyspark",
   code = "print(1 + 2)"
 )
 ```
+
+For new production workloads, Microsoft recommends the latest generally
+available Fabric runtime, currently
+[Runtime 2.0 (Spark 4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
+SparkR remains a supported Livy language, but SparkR is deprecated upstream in
+Spark 4.x and may be removed in a future Spark release; prefer PySpark or Spark
+SQL for new code.
 
 Reusable Livy sessions and independent batch submissions are available for
 multi-step and application-file workflows. See

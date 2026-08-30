@@ -1,4 +1,4 @@
-# Livy can run SQL, SparkR, PySpark, and Spark code in Microsoft Fabric
+# Livy can run SQL, PySpark, Spark, and SparkR code in Microsoft Fabric
 # This function is not called automatically because it requires credentials
 fabric_livy_query_example <- function() {
   # Discover a Lakehouse whose record contains its Fabric Livy endpoint
@@ -18,12 +18,12 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # The same discovered Lakehouse can also run SparkR code
-  sparkr_result <- fabric_livy_query(
+  # Prefer PySpark or Spark SQL for new Fabric Runtime 2.0 workloads
+  pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
-    kind = "sparkr",
+    kind = "pyspark",
     code = "print(1 + 2)"
   )
 
-  invisible(list(sql = sql_result, sparkr = sparkr_result))
+  invisible(list(sql = sql_result, pyspark = pyspark_result))
 }
