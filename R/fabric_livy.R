@@ -12,8 +12,10 @@
 #'   writes made to Lakehouse storage persist
 #' @param kind Statement language. Use `"pyspark"` for Python with Spark,
 #'   `"spark"` for Scala, `"sql"` for Spark SQL, or `"sparkr"` for SparkR. This
-#'   must match the syntax in `code`. SparkR is deprecated upstream in Spark
-#'   4.x, so prefer PySpark or Spark SQL for new Runtime 2.0 workloads
+#'   must match the syntax in `code`. The `sparklyr` package is an R API, not a
+#'   separate Livy language: code that initializes `sparklyr` still uses
+#'   `"sparkr"`. SparkR is deprecated upstream in Spark 4.x; see **R on Runtime
+#'   2.0** below for the distinction
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -76,9 +78,20 @@
 #' `null`, so those values are returned as typed missing values. Binary and
 #' nested values use list-columns
 #'
+#' @section R on Runtime 2.0:
+#' Microsoft Fabric supports `sparklyr` for R-first workloads and distributes
+#' it with Fabric runtimes. In Fabric's documented connection,
+#' `sparklyr::spark_connect(method = "synapse")` attaches to the existing Spark
+#' session through the current SparkR JVM bridge. Therefore, `sparklyr` lets R
+#' code move away from the SparkR DataFrame API, but it does not yet remove the
+#' runtime dependency on the `"sparkr"` Livy interpreter. Use `"sparkr"` when
+#' submitting R code that initializes `sparklyr`; prefer PySpark or Spark SQL
+#' only when the remote Livy workload must be independent of that bridge
+#'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),
 #' [Livy API setup and authorization](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy),
+#' [Use sparklyr in Fabric](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr),
 #' and [Fabric Runtime 2.0](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0)
 #'
 #' @export

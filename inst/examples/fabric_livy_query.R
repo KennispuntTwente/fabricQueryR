@@ -18,7 +18,8 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # Prefer PySpark or Spark SQL for new Fabric Runtime 2.0 workloads
+  # PySpark avoids the SparkR bridge; R-first code can initialize sparklyr
+  # inside a kind = "sparkr" session as described in the Livy vignette
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",

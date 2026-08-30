@@ -143,8 +143,14 @@ For new production workloads, Microsoft recommends the latest generally
 available Fabric runtime, currently
 [Runtime 2.0 (Spark 4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
 SparkR remains a supported Livy language, but SparkR is deprecated upstream in
-Spark 4.x and may be removed in a future Spark release; prefer PySpark or Spark
-SQL for new code.
+Spark 4.x and may be removed in a future Spark release. For R-first workloads,
+Microsoft Fabric supports and distributes
+[sparklyr](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr).
+`sparklyr` is an R API rather than a Livy language, so R code that initializes
+it still runs with `kind = "sparkr"`; Fabric's documented `"synapse"`
+connection currently uses the SparkR JVM bridge. Use sparklyr to migrate away
+from the SparkR DataFrame API, and prefer PySpark or Spark SQL only when the
+remote workload must be independent of that bridge.
 
 Reusable Livy sessions and independent batch submissions are available for
 multi-step and application-file workflows. See

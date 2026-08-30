@@ -826,9 +826,32 @@ test_that("Livy vignette executes query and shared-session examples", {
     class = "FabricWorkspace"
   )
 
+  chunks <- vignette_r_chunks(path)
+  bodies <- vapply(
+    chunks,
+    function(chunk) paste(chunk$body, collapse = "\n"),
+    character(1)
+  )
+  index_for <- function(text) {
+    matches <- which(grepl(text, bodies, fixed = TRUE))
+    expect_equal(length(matches), 1L, info = text)
+    matches[[1L]]
+  }
+  indices <- vapply(
+    c(
+      "workspaces <- fabric_workspaces()",
+      "SELECT * FROM external_sql_table",
+      "SELECT 1 AS id, 'hello from Spark' AS message",
+      "df <- sql('SELECT * FROM orders LIMIT 100')",
+      "session <- lakehouse$livy_session()"
+    ),
+    index_for,
+    integer(1)
+  )
+
   example <- vignette_evaluate_chunks(
     path,
-    c(3L, 2L, 4:6),
+    indices,
     bindings = list(
       fabric_workspaces = function(...) {
         discovery_calls <<- discovery_calls + 1L
@@ -985,6 +1008,20 @@ test_that("Livy vignette documents current access prerequisites", {
   expect_match(source, "Code.AccessAzureDataExplorer.All", fixed = TRUE)
   expect_match(source, "Code.AccessSQL.All", fixed = TRUE)
   expect_match(source, "replaces the defaults", fixed = TRUE)
+})
+
+test_that("Livy vignette explains the sparklyr migration boundary", {
+  path <- test_path("..", "..", "vignettes", "spark-with-livy.Rmd")
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+
+  expect_match(source, "`sparklyr` is not another Livy `kind`", fixed = TRUE)
+  expect_match(source, "method = 'synapse'", fixed = TRUE)
+  expect_match(source, "SparkR JVM bridge", fixed = TRUE)
+  expect_match(source, "kind = \"sparkr\"", fixed = TRUE)
+  expect_match(source, "not yet insulated", fixed = TRUE)
 })
 
 test_that("GraphQL documentation states the attached-object limit", {

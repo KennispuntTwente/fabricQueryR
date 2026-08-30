@@ -33,8 +33,10 @@ writes made to Lakehouse storage persist}
 
 \item{kind}{Statement language. Use \code{"pyspark"} for Python with Spark,
 \code{"spark"} for Scala, \code{"sql"} for Spark SQL, or \code{"sparkr"} for SparkR. This
-must match the syntax in \code{code}. SparkR is deprecated upstream in Spark
-4.x, so prefer PySpark or Spark SQL for new Runtime 2.0 workloads}
+must match the syntax in \code{code}. The \code{sparklyr} package is an R API, not a
+separate Livy language: code that initializes \code{sparklyr} still uses
+\code{"sparkr"}. SparkR is deprecated upstream in Spark 4.x; see \strong{R on Runtime
+2.0} below for the distinction}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}
@@ -117,6 +119,18 @@ Fabric's SQL JSON output represents non-finite floating-point values as
 nested values use list-columns
 }
 
+\section{R on Runtime 2.0}{
+
+Microsoft Fabric supports \code{sparklyr} for R-first workloads and distributes
+it with Fabric runtimes. In Fabric's documented connection,
+\code{sparklyr::spark_connect(method = "synapse")} attaches to the existing Spark
+session through the current SparkR JVM bridge. Therefore, \code{sparklyr} lets R
+code move away from the SparkR DataFrame API, but it does not yet remove the
+runtime dependency on the \code{"sparkr"} Livy interpreter. Use \code{"sparkr"} when
+submitting R code that initializes \code{sparklyr}; prefer PySpark or Spark SQL
+only when the remote Livy workload must be independent of that bridge
+}
+
 \examples{
 # Livy can run SQL, PySpark, Spark, and SparkR code in Microsoft Fabric
 # This function is not called automatically because it requires credentials
@@ -138,7 +152,8 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # Prefer PySpark or Spark SQL for new Fabric Runtime 2.0 workloads
+  # PySpark avoids the SparkR bridge; R-first code can initialize sparklyr
+  # inside a kind = "sparkr" session as described in the Livy vignette
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",
@@ -151,5 +166,6 @@ fabric_livy_query_example <- function() {
 \seealso{
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview}{Microsoft Fabric Livy API overview},
 \href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-api-livy}{Livy API setup and authorization},
+\href{https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr}{Use sparklyr in Fabric},
 and \href{https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0}{Fabric Runtime 2.0}
 }
