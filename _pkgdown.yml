@@ -69,7 +69,11 @@ reference:
     contents:
       - fabric_livy_query
       - fabric_livy_session
+      - fabric_livy_sessions
+      - fabric_livy_session_attach
       - fabric_livy_batch_submit
+      - fabric_livy_batches
+      - fabric_livy_batch_attach
       - FabricLivySession
       - FabricLivyStatement
       - FabricLivyBatch

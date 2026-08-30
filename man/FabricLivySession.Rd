@@ -78,6 +78,7 @@ session$close()
   livy_url,
   credential,
   payload,
+  response = NULL,
   high_concurrency = FALSE,
   verbose = TRUE
 )}
@@ -89,6 +90,7 @@ session$close()
       \item{\code{livy_url}}{Livy API base or collection URL}
       \item{\code{credential}}{Internal authentication credential}
       \item{\code{payload}}{Session creation request body}
+      \item{\code{response}}{Existing session response when attaching}
       \item{\code{high_concurrency}}{Whether to acquire an HC session}
       \item{\code{verbose}}{Whether to emit lifecycle messages}
     }

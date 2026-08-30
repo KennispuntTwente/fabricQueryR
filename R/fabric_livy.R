@@ -672,11 +672,15 @@ fabric_livy_json <- function(
   url,
   credential,
   payload = NULL,
+  query = NULL,
   idempotent = NULL,
   deadline = NULL
 ) {
   req <- httr2::request(url) |>
     httr2::req_method(method)
+  if (!is.null(query)) {
+    req <- do.call(httr2::req_url_query, c(list(req), query))
+  }
   if (!is.null(payload)) {
     req <- httr2::req_body_json(
       req,

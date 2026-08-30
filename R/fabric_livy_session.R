@@ -298,6 +298,7 @@ FabricLivySession <- R6::R6Class(
     #' @param livy_url Livy API base or collection URL
     #' @param credential Internal authentication credential
     #' @param payload Session creation request body
+    #' @param response Existing session response when attaching
     #' @param high_concurrency Whether to acquire an HC session
     #' @param verbose Whether to emit lifecycle messages
     #' @returns A new session object
@@ -305,6 +306,7 @@ FabricLivySession <- R6::R6Class(
       livy_url,
       credential,
       payload,
+      response = NULL,
       high_concurrency = FALSE,
       verbose = TRUE
     ) {
@@ -325,14 +327,16 @@ FabricLivySession <- R6::R6Class(
         "sessions"
       }
       private$collection_url <- fabric_livy_endpoint(livy_url, type)
-      inform(verbose, "Creating Fabric Livy session")
-      response <- fabric_livy_json(
-        "POST",
-        private$collection_url,
-        credential,
-        payload = payload,
-        idempotent = FALSE
-      )
+      if (is.null(response)) {
+        inform(verbose, "Creating Fabric Livy session")
+        response <- fabric_livy_json(
+          "POST",
+          private$collection_url,
+          credential,
+          payload = payload,
+          idempotent = FALSE
+        )
+      }
       id <- as.character(response$id %||% "")
       fabric_livy_check_string(id, "Livy session response id")
       self$id <- id

@@ -54,6 +54,176 @@ test_that("Livy selects identity-aware OAuth audiences", {
   )
 })
 
+test_that("Livy activity discovery requests and parses one service page", {
+  session_id <- "11111111-1111-4111-8111-111111111111"
+  batch_id <- "22222222-2222-4222-8222-222222222222"
+  calls <- list()
+  responses <- list(
+    list(
+      items = list(
+        list(
+          id = session_id,
+          name = "interactive",
+          state = "idle",
+          appId = "application-1",
+          submittedAt = "2026-08-30T10:00:00Z"
+        )
+      ),
+      totalCountOfMatchedItems = 4,
+      pageSize = 1
+    ),
+    list(
+      items = list(
+        list(
+          id = batch_id,
+          result = "success",
+          schedulerState = "completed"
+        )
+      ),
+      totalCountOfMatchedItems = 1,
+      pageSize = 1
+    )
+  )
+  local_mocked_bindings(
+    fabric_livy_json = function(method, url, credential, query = NULL, ...) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        query = query,
+        audience = credential$livy_audience
+      )
+      response <- responses[[1L]]
+      responses <<- responses[-1L]
+      response
+    }
+  )
+
+  sessions <- fabric_livy_sessions(
+    "https://example.test/livy/sessions",
+    top = 1,
+    skip = 2,
+    token = "token"
+  )
+  batches <- fabric_livy_batches(
+    "https://example.test/livy/sessions",
+    token = "token"
+  )
+
+  expect_s3_class(sessions, "tbl_df")
+  expect_identical(sessions$id, session_id)
+  expect_identical(sessions$state, "idle")
+  expect_identical(sessions$raw[[1L]]$appId, "application-1")
+  expect_identical(attr(sessions, "total_count"), 4L)
+  expect_identical(attr(sessions, "page_size"), 1L)
+  expect_identical(attr(sessions, "skip"), 2L)
+  expect_identical(batches$id, batch_id)
+  expect_identical(batches$state, "completed")
+  expect_identical(calls[[1L]]$method, "GET")
+  expect_identical(calls[[1L]]$url, "https://example.test/livy/sessions")
+  expect_identical(
+    calls[[1L]]$query,
+    list(`$top` = 1L, `$skip` = 2L, `$count` = "true")
+  )
+  expect_identical(calls[[2L]]$url, "https://example.test/livy/batches")
+})
+
+test_that("Livy activity discovery rejects malformed pages", {
+  local_mocked_bindings(
+    fabric_livy_json = function(...) list(items = list(list(id = c("a", "b"))))
+  )
+  expect_error(
+    fabric_livy_sessions("https://example.test/livy", token = "token"),
+    class = "fabric_livy_protocol_error"
+  )
+
+  local_mocked_bindings(
+    fabric_livy_json = function(...) {
+      list(items = list(), totalCountOfMatchedItems = -1)
+    }
+  )
+  expect_error(
+    fabric_livy_batches("https://example.test/livy", token = "token"),
+    class = "fabric_livy_protocol_error"
+  )
+})
+
+test_that("Livy attach reconstructs authenticated handles without POST", {
+  session_id <- "11111111-1111-4111-8111-111111111111"
+  batch_id <- "22222222-2222-4222-8222-222222222222"
+  calls <- list()
+  local_mocked_bindings(
+    fabric_livy_json = function(method, url, credential, ...) {
+      calls[[length(calls) + 1L]] <<- list(method = method, url = url)
+      id <- sub(".*/", "", url)
+      state <- if (grepl("batches", url, fixed = TRUE)) "running" else "idle"
+      list(id = id, state = state)
+    }
+  )
+
+  session <- fabric_livy_session_attach(
+    "https://example.test/livy/batches",
+    session_id,
+    token = "fresh-token",
+    verbose = FALSE
+  )
+  batch <- fabric_livy_batch_attach(
+    "https://example.test/livy/sessions",
+    batch_id,
+    token = "fresh-token",
+    verbose = FALSE
+  )
+
+  expect_s3_class(session, "FabricLivySession")
+  expect_identical(session$id, session_id)
+  expect_identical(session$status()$state, "idle")
+  expect_s3_class(batch, "FabricLivyBatch")
+  expect_identical(batch$id, batch_id)
+  expect_identical(batch$status()$state, "running")
+  expect_true(all(vapply(calls, `[[`, character(1), "method") == "GET"))
+  expect_identical(
+    vapply(calls, `[[`, character(1), "url"),
+    c(
+      paste0("https://example.test/livy/sessions/", session_id),
+      paste0("https://example.test/livy/batches/", batch_id),
+      paste0("https://example.test/livy/sessions/", session_id),
+      paste0("https://example.test/livy/batches/", batch_id)
+    )
+  )
+})
+
+test_that("Livy attach is the supported recovery path after serialization", {
+  batch_id <- "22222222-2222-4222-8222-222222222222"
+  credential <- fabric_credential(token = "old-token")
+  old <- FabricLivyBatch$new(
+    response = list(id = batch_id, state = "running"),
+    url = "https://example.test/livy/batches",
+    credential = credential,
+    verbose = FALSE
+  )
+  restored <- unserialize(serialize(old, NULL))
+  expect_error(restored$status(), class = "fabric_livy_credential_error")
+
+  local_mocked_bindings(
+    fabric_livy_json = function(...) list(id = batch_id, state = "success")
+  )
+  attached <- fabric_livy_batch_attach(
+    "https://example.test/livy",
+    batch_id,
+    token = "fresh-token",
+    verbose = FALSE
+  )
+  expect_identical(attached$status()$state, "success")
+  expect_error(
+    fabric_livy_batch_attach(
+      "https://example.test/livy",
+      "../sessions/other",
+      token = "fresh-token"
+    ),
+    "must be a GUID",
+    fixed = TRUE
+  )
+})
+
 test_that("custom Livy hosts require an explicit credential", {
   session_error <- rlang::catch_cnd(fabric_livy_session(
     "https://livy.example/livy",
@@ -75,6 +245,7 @@ test_that("custom Livy hosts require an explicit credential", {
 
 test_that("Livy requests use the audience stored on the credential", {
   requested <- NULL
+  requested_url <- NULL
   bigint_as_char <- NULL
   credential <- fabric_livy_credential(
     tenant_id = NULL,
@@ -84,6 +255,7 @@ test_that("Livy requests use the audience stored on the credential", {
   local_mocked_bindings(
     .httr2_json = function(req, audience, bigint_as_char, ...) {
       requested <<- audience
+      requested_url <<- req$url
       bigint_as_char <<- bigint_as_char
       list(ok = TRUE)
     }
@@ -92,10 +264,15 @@ test_that("Livy requests use the audience stored on the credential", {
   fabric_livy_json(
     "GET",
     "https://api.fabric.microsoft.com/livy/sessions/1",
-    credential
+    credential,
+    query = list(`$top` = 10L, `$skip` = 2L, `$count` = "true")
   )
 
   expect_identical(requested, .fabric_audience$livy_delegated)
+  expect_identical(
+    httr2::url_parse(requested_url)$query,
+    list(`$top` = "10", `$skip` = "2", `$count` = "true")
+  )
   expect_true(bigint_as_char)
 })
 
