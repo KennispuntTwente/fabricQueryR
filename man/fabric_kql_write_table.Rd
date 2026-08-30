@@ -187,6 +187,11 @@ command before staging. A missing table is created from the Arrow schema; an
 existing table is returned unchanged, so this option never alters an
 existing schema. Common Arrow scalar and nested types are inferred as Kusto
 types. Supply a named \code{column_types} vector to override every column type.
+
+Service-owned Storage credentials are reacquired after local serialization.
+During a multipart upload, the writer honors the advertised configuration
+refresh interval and retries once with new credentials when Storage reports
+an expired authorization.
 }
 
 \section{Failure and cleanup safety}{

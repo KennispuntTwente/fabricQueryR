@@ -6,6 +6,7 @@ test_that("ingestion configuration uses the documented Kusto contract", {
         path = "https://storage.test/container?sig=do-not-retain"
       )),
       lakeFolders = list(list(path = kql_write_test_folder)),
+      refreshInterval = "01:00:00",
       preferredUploadMethod = "Lake"
     ),
     ingestionSettings = list(
@@ -36,7 +37,8 @@ test_that("ingestion configuration uses the documented Kusto contract", {
   )
   result <- kusto_ingestion_configuration(
     target,
-    fabric_credential(token = "test-token")
+    fabric_credential(token = "test-token"),
+    .now = function() as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
   )
 
   expect_equal(result$lake_folders, kql_write_test_folder)
@@ -47,6 +49,11 @@ test_that("ingestion configuration uses the documented Kusto contract", {
   expect_equal(result$max_data_size, 6442450944)
   expect_equal(result$max_blobs, 20)
   expect_equal(result$preferred_upload_method, "Lake")
+  expect_equal(result$refresh_interval, 3600)
+  expect_equal(
+    result$retrieved_at,
+    as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+  )
   expect_match(
     captured$request$url,
     "/v1/rest/ingestion/configuration",
@@ -67,16 +74,28 @@ test_that("Eventhouse writer honors preferred Storage container staging", {
     "https://account.blob.core.windows.net/ingest?",
     "sv=2023-11-03&sp=rwd&sig=storage-secret"
   )
+  fresh_container <- sub(
+    "storage-secret",
+    "fresh-secret",
+    container,
+    fixed = TRUE
+  )
   uploads <- list()
   submitted <- NULL
   cleanup_calls <- 0L
+  configuration_calls <- 0L
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "storage-fixed",
     kusto_write_table_schema = function(...) character(),
     kusto_write_assert_identity_schema = function(...) invisible(NULL),
     kusto_ingestion_configuration = function(...) {
+      configuration_calls <<- configuration_calls + 1L
       kql_write_test_configuration(
-        storage_containers = container,
+        storage_containers = if (configuration_calls == 1L) {
+          container
+        } else {
+          fresh_container
+        },
         preferred_upload_method = "Storage"
       )
     },
@@ -115,19 +134,86 @@ test_that("Eventhouse writer honors preferred Storage container staging", {
   )
 
   expect_length(uploads, 1L)
+  expect_identical(configuration_calls, 2L)
   expect_equal(uploads[[1L]]$rows, 2L)
   expect_match(
     uploads[[1L]]$url,
     "/ingest/fabricqueryr-staging/storage-fixed/part-00001.parquet?",
     fixed = TRUE
   )
-  expect_match(uploads[[1L]]$url, "sig=storage-secret", fixed = TRUE)
+  expect_match(uploads[[1L]]$url, "sig=fresh-secret", fixed = TRUE)
+  expect_false(grepl("storage-secret", uploads[[1L]]$url, fixed = TRUE))
   expect_identical(submitted$sources, uploads[[1L]]$url)
   expect_identical(submitted$delete_after_download, TRUE)
   expect_identical(cleanup_calls, 0L)
   expect_false(result$staging_retained)
   expect_false(any(grepl("storage-secret", result$staging_paths, fixed = TRUE)))
   expect_false(grepl("storage-secret", result$staging_path, fixed = TRUE))
+})
+
+test_that("KQL ingestion configuration validates refresh intervals", {
+  expect_equal(kusto_ingestion_refresh_interval("01:02:03.5"), 3723.5)
+  expect_equal(kusto_ingestion_refresh_interval(NULL), Inf)
+
+  for (value in c("one hour", "00:60:00", "00:00:00", "-01:00:00")) {
+    error <- rlang::catch_cnd(kusto_ingestion_refresh_interval(value))
+    expect_s3_class(error, "fabric_kql_ingestion_protocol_error")
+    expect_match(conditionMessage(error), "refreshInterval", fixed = TRUE)
+  }
+})
+
+test_that("Eventhouse writer refreshes an expired Storage SAS and retries", {
+  skip_if_not_installed("arrow")
+  now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+  configuration_calls <- 0L
+  upload_urls <- character()
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "sas-refresh",
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
+    kusto_ingestion_configuration = function(...) {
+      configuration_calls <<- configuration_calls + 1L
+      secret <- if (configuration_calls < 3L) "expired" else "fresh"
+      configuration <- kql_write_test_configuration(
+        storage_containers = paste0(
+          "https://account.blob.core.windows.net/ingest?sp=rwd&sig=",
+          secret
+        ),
+        preferred_upload_method = "Storage"
+      )
+      configuration$refresh_interval <- 3600
+      configuration$retrieved_at <- now
+      configuration
+    },
+    kusto_storage_upload = function(url, source) {
+      upload_urls <<- c(upload_urls, url)
+      if (length(upload_urls) == 1L) {
+        rlang::abort(
+          "SAS expired",
+          class = "fabric_http_error",
+          status = 403L
+        )
+      }
+      invisible(TRUE)
+    },
+    fabric_kql_ingest = function(...) kql_write_test_ingestion(),
+    fabric_kql_ingestion_status = function(...) kql_write_test_status()
+  )
+
+  result <- fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Raw",
+    data.frame(id = 1L),
+    database = "Telemetry",
+    token = "test-token",
+    .now = function() now
+  )
+
+  expect_identical(configuration_calls, 3L)
+  expect_length(upload_urls, 2L)
+  expect_match(upload_urls[[1L]], "sig=expired", fixed = TRUE)
+  expect_match(upload_urls[[2L]], "sig=fresh", fixed = TRUE)
+  expect_false(grepl("sig=", result$staging_path, fixed = TRUE))
 })
 
 test_that("Storage staging constructs authenticated blob requests safely", {
@@ -516,8 +602,14 @@ test_that("Eventhouse writer creates a missing table before staging", {
   )
 
   expect_equal(
-    calls[1:4],
-    c("management", "management", "configuration", "upload")
+    calls[1:5],
+    c(
+      "management",
+      "management",
+      "configuration",
+      "configuration",
+      "upload"
+    )
   )
   expect_equal(
     management$target$url,

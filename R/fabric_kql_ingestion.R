@@ -1761,6 +1761,11 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' existing schema. Common Arrow scalar and nested types are inferred as Kusto
 #' types. Supply a named `column_types` vector to override every column type.
 #'
+#' Service-owned Storage credentials are reacquired after local serialization.
+#' During a multipart upload, the writer honors the advertised configuration
+#' refresh interval and retries once with new credentials when Storage reports
+#' an expired authorization.
+#'
 #' @section Failure and cleanup safety:
 #' A successful tracked ingestion is cleaned up by default. Kusto removes blobs
 #' uploaded to its service-owned Storage container; OneLake staging is removed
@@ -2051,8 +2056,38 @@ fabric_kql_write_table <- function(
   configuration <- kusto_ingestion_configuration(
     target,
     credential,
-    timeout = min(timeout, 60)
+    timeout = min(timeout, 60),
+    .now = .now
   )
+
+  # 3 Stream to bounded local Parquet parts -------------------------------------------------------
+
+  parquet_directory <- tempfile("fabricqueryr-kql-")
+  dir.create(parquet_directory)
+  on.exit(
+    unlink(parquet_directory, recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+  serialized <- .fabric_parquet_write_dataset(
+    prepared,
+    directory = parquet_directory,
+    compression = compression,
+    target_file_size = target_file_size,
+    max_rows_per_file = max_rows_per_file,
+    max_files = configuration$max_blobs,
+    caller = "fabric_kql_write_table()",
+    error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
+  )
+
+  # Reacquire configuration after local serialization so service-owned SAS
+  # credentials and limits are current immediately before remote staging
+  configuration <- kusto_ingestion_configuration(
+    target,
+    credential,
+    timeout = min(timeout, 60),
+    .now = .now
+  )
+  kusto_write_validate_configuration(serialized, configuration)
   staging <- kusto_ingestion_staging_destination(
     configuration,
     override = staging_folder
@@ -2088,41 +2123,6 @@ fabric_kql_write_table <- function(
       staging$container,
       storage_directory,
       include_credentials = FALSE
-    )
-  }
-
-  # 3 Stream to bounded local Parquet parts -------------------------------------------------------
-
-  parquet_directory <- tempfile("fabricqueryr-kql-")
-  dir.create(parquet_directory)
-  on.exit(
-    unlink(parquet_directory, recursive = TRUE, force = TRUE),
-    add = TRUE
-  )
-  serialized <- .fabric_parquet_write_dataset(
-    prepared,
-    directory = parquet_directory,
-    compression = compression,
-    target_file_size = target_file_size,
-    max_rows_per_file = max_rows_per_file,
-    max_files = configuration$max_blobs,
-    caller = "fabric_kql_write_table()",
-    error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
-  )
-  if (serialized$total_raw_bytes > configuration$max_data_size) {
-    .fabric_abort(
-      paste0(
-        "The staged data is ",
-        format(serialized$total_raw_bytes, scientific = FALSE, trim = TRUE),
-        " uncompressed bytes, exceeding Kusto's advertised maxDataSize of ",
-        format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
-        " bytes"
-      ),
-      class = c("fabric_kql_size_error", "fabric_kql_write_error"),
-      bytes = serialized$total_raw_bytes,
-      raw_bytes = serialized$total_raw_bytes,
-      staged_bytes = serialized$total_bytes,
-      max_data_size = configuration$max_data_size
     )
   }
   if (
@@ -2200,7 +2200,46 @@ fabric_kql_write_table <- function(
           create_parents = TRUE
         )
       } else {
-        kusto_storage_upload(source_paths[[index]], serialized$paths[[index]])
+        refresh_destination <- function(force = FALSE) {
+          destination <- kusto_write_storage_destination(
+            target,
+            credential,
+            configuration,
+            serialized,
+            relative_paths[[index]],
+            timeout,
+            .now,
+            force_refresh = force
+          )
+          configuration <<- destination$configuration
+          staging$container <<- destination$container
+          source_paths[[index]] <<- destination$source_path
+          staging_paths[[index]] <<- destination$staging_path
+          staging_path <<- kusto_storage_blob_url(
+            destination$container,
+            storage_directory,
+            include_credentials = FALSE
+          )
+          invisible(NULL)
+        }
+        refresh_destination()
+        tryCatch(
+          kusto_storage_upload(
+            source_paths[[index]],
+            serialized$paths[[index]]
+          ),
+          fabric_http_error = function(error) {
+            status <- error$status %||% NA_integer_
+            if (is.na(status) || !status %in% c(401L, 403L)) {
+              stop(error)
+            }
+            refresh_destination(force = TRUE)
+            kusto_storage_upload(
+              source_paths[[index]],
+              serialized$paths[[index]]
+            )
+          }
+        )
       }
     },
     error = function(error) {
@@ -2784,7 +2823,15 @@ kusto_write_arrow_type <- function(type, column) {
 }
 
 # Read and strictly normalize the preview ingestion configuration
-kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
+kusto_ingestion_configuration <- function(
+  target,
+  credential,
+  timeout = 60,
+  .now = Sys.time
+) {
+  if (!is.function(.now)) {
+    .fabric_abort(".now must be a function")
+  }
   request <- httr2::request(paste0(
     target$url,
     "/v1/rest/ingestion/configuration"
@@ -2867,6 +2914,9 @@ kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
     lake = "Lake",
     default = "Default"
   )[[tolower(preferred_upload_method)]]
+  refresh_interval <- kusto_ingestion_refresh_interval(
+    payload$containerSettings$refreshInterval
+  )
   list(
     lake_folders = kusto_ingestion_configuration_paths(
       payload$containerSettings$lakeFolders,
@@ -2881,8 +2931,78 @@ kusto_ingestion_configuration <- function(target, credential, timeout = 60) {
     preferred_upload_method = preferred_upload_method,
     preferred_ingestion_method = payload$ingestionSettings$preferredIngestionMethod %||%
       NA_character_,
+    refresh_interval = refresh_interval,
+    retrieved_at = .now(),
     raw = kusto_storage_redact_object(payload)
   )
+}
+
+kusto_ingestion_refresh_interval <- function(value) {
+  if (is.null(value)) {
+    return(Inf)
+  }
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !grepl("^[0-9]+:[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?$", value)
+  ) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion configuration contains an invalid refreshInterval"
+    )
+  }
+  pieces <- strsplit(value, ":", fixed = TRUE)[[1L]]
+  seconds <- as.numeric(pieces[[1L]]) *
+    3600 +
+    as.numeric(pieces[[2L]]) * 60 +
+    as.numeric(pieces[[3L]])
+  if (!is.finite(seconds) || seconds <= 0) {
+    kusto_ingestion_protocol_error(
+      "Kusto ingestion configuration contains an invalid refreshInterval"
+    )
+  }
+  seconds
+}
+
+kusto_ingestion_refresh_due <- function(configuration, now = Sys.time()) {
+  interval <- configuration$refresh_interval %||% Inf
+  retrieved_at <- configuration$retrieved_at
+  is.finite(interval) &&
+    inherits(retrieved_at, "POSIXt") &&
+    as.numeric(difftime(now, retrieved_at, units = "secs")) >= interval
+}
+
+kusto_write_validate_configuration <- function(serialized, configuration) {
+  if (serialized$file_count > configuration$max_blobs) {
+    .fabric_abort(
+      paste0(
+        "Staging produced ",
+        serialized$file_count,
+        " files, exceeding Kusto's current maxBlobsPerBatch of ",
+        configuration$max_blobs
+      ),
+      class = c("fabric_kql_size_error", "fabric_kql_write_error"),
+      file_count = serialized$file_count,
+      max_blobs = configuration$max_blobs
+    )
+  }
+  if (serialized$total_raw_bytes > configuration$max_data_size) {
+    .fabric_abort(
+      paste0(
+        "The staged data is ",
+        format(serialized$total_raw_bytes, scientific = FALSE, trim = TRUE),
+        " uncompressed bytes, exceeding Kusto's advertised maxDataSize of ",
+        format(configuration$max_data_size, scientific = FALSE, trim = TRUE),
+        " bytes"
+      ),
+      class = c("fabric_kql_size_error", "fabric_kql_write_error"),
+      bytes = serialized$total_raw_bytes,
+      raw_bytes = serialized$total_raw_bytes,
+      staged_bytes = serialized$total_bytes,
+      max_data_size = configuration$max_data_size
+    )
+  }
+  invisible(configuration)
 }
 
 # Extract and validate optional path records from ingestion configuration
@@ -2957,11 +3077,9 @@ kusto_ingestion_staging_destination <- function(
     if (
       identical(method, "Storage") && length(configuration$storage_containers)
     ) {
-      for (container in configuration$storage_containers) {
-        valid <- try(kusto_storage_validate_container(container), silent = TRUE)
-        if (!inherits(valid, "try-error")) {
-          return(list(method = "Storage", container = valid))
-        }
+      container <- kusto_ingestion_storage_container(configuration)
+      if (!is.null(container)) {
+        return(list(method = "Storage", container = container))
       }
     }
   }
@@ -2973,6 +3091,60 @@ kusto_ingestion_staging_destination <- function(
     class = c(
       "fabric_kql_staging_configuration_error",
       "fabric_kql_write_error"
+    )
+  )
+}
+
+kusto_ingestion_storage_container <- function(configuration) {
+  for (container in configuration$storage_containers %||% character()) {
+    valid <- try(kusto_storage_validate_container(container), silent = TRUE)
+    if (!inherits(valid, "try-error")) {
+      return(valid)
+    }
+  }
+  NULL
+}
+
+kusto_write_storage_destination <- function(
+  target,
+  credential,
+  configuration,
+  serialized,
+  relative_path,
+  timeout,
+  .now,
+  force_refresh = FALSE
+) {
+  if (
+    isTRUE(force_refresh) ||
+      kusto_ingestion_refresh_due(configuration, .now())
+  ) {
+    configuration <- kusto_ingestion_configuration(
+      target,
+      credential,
+      timeout = min(timeout, 60),
+      .now = .now
+    )
+    kusto_write_validate_configuration(serialized, configuration)
+  }
+  container <- kusto_ingestion_storage_container(configuration)
+  if (is.null(container)) {
+    .fabric_abort(
+      paste0(
+        "Refreshed Kusto ingestion configuration no longer contains a ",
+        "usable Storage container"
+      ),
+      class = c("fabric_kql_upload_error", "fabric_kql_write_error")
+    )
+  }
+  list(
+    configuration = configuration,
+    container = container,
+    source_path = kusto_storage_blob_url(container, relative_path),
+    staging_path = kusto_storage_blob_url(
+      container,
+      relative_path,
+      include_credentials = FALSE
     )
   )
 }
