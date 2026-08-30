@@ -371,6 +371,9 @@ test_that("job submission rejects missing or malformed Location headers", {
 
 test_that("parameterized jobs recover collection Location instance IDs", {
   history_url <- NULL
+  history_calls <- 0L
+  waits <- numeric()
+  now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
   local_mocked_bindings(
     .fabric_job_request = function(...) {
       list(
@@ -384,9 +387,13 @@ test_that("parameterized jobs recover collection Location instance IDs", {
       )
     },
     .httr2_collection = function(url, credential, audience, ...) {
+      history_calls <<- history_calls + 1L
       history_url <<- url
       expect_s3_class(credential, "fabric_credential")
       expect_identical(audience, .fabric_audience$fabric)
+      if (history_calls == 1L) {
+        return(list())
+      }
       list(
         list(
           id = "44444444-4444-4444-4444-444444444444",
@@ -400,11 +407,7 @@ test_that("parameterized jobs recover collection Location instance IDs", {
           itemId = "11111111-1111-1111-1111-111111111111",
           jobType = "RunNotebook",
           invokeType = "Manual",
-          startTimeUtc = format(
-            Sys.time(),
-            "%Y-%m-%dT%H:%M:%SZ",
-            tz = "UTC"
-          )
+          startTimeUtc = "2026-08-30T12:00:00Z"
         )
       )
     }
@@ -414,10 +417,17 @@ test_that("parameterized jobs recover collection Location instance IDs", {
     job_test_item(),
     parameters = list(label = "unit"),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1"
+    api_base = "https://api.fabric.test/v1",
+    .sleep = function(seconds) {
+      waits <<- c(waits, seconds)
+      now <<- now + seconds
+    },
+    .now = function() now
   )
 
   expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
+  expect_identical(history_calls, 2L)
+  expect_equal(waits, c(5, 1))
   expect_match(
     history_url,
     paste0(
@@ -429,6 +439,7 @@ test_that("parameterized jobs recover collection Location instance IDs", {
 })
 
 test_that("parameterized job recovery refuses ambiguous history", {
+  now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
   local_mocked_bindings(
     .fabric_job_request = function(...) {
       list(
@@ -439,7 +450,7 @@ test_that("parameterized job recovery refuses ambiguous history", {
       )
     },
     .httr2_collection = function(...) {
-      started <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+      started <- "2026-08-30T12:00:00Z"
       list(
         list(
           id = "33333333-3333-3333-3333-333333333333",
@@ -457,16 +468,57 @@ test_that("parameterized job recovery refuses ambiguous history", {
     }
   )
 
-  expect_error(
-    fabric_job_run(
-      job_test_item(),
-      parameters = list(label = "unit"),
-      token = "test-token",
-      api_base = "https://api.fabric.test/v1"
-    ),
-    "cannot be identified safely",
-    class = "fabric_job_protocol_error"
+  error <- rlang::catch_cnd(fabric_job_run(
+    job_test_item(),
+    parameters = list(label = "unit"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1",
+    .sleep = function(seconds) now <<- now + seconds,
+    .now = function() now
+  ))
+
+  expect_s3_class(error, "fabric_job_accepted_unresolved")
+  expect_s3_class(error, "fabric_job_protocol_error")
+  expect_identical(error$accepted, TRUE)
+  expect_length(error$matching_ids, 2L)
+  expect_match(conditionMessage(error), "do not resubmit", fixed = TRUE)
+})
+
+test_that("parameterized job recovery times out as accepted and unresolved", {
+  now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+  history_calls <- 0L
+  withr::local_options(
+    fabricqueryr.job.recovery_timeout = 2,
+    fabricqueryr.job.recovery_poll_interval = 1
   )
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 202L,
+        location = "/jobs/instances?jobType=RunNotebook",
+        retry_after = 0,
+        body = list()
+      )
+    },
+    .httr2_collection = function(...) {
+      history_calls <<- history_calls + 1L
+      list()
+    }
+  )
+
+  error <- rlang::catch_cnd(fabric_job_run(
+    job_test_item(),
+    parameters = list(label = "unit"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1",
+    .sleep = function(seconds) now <<- now + seconds,
+    .now = function() now
+  ))
+
+  expect_s3_class(error, "fabric_job_accepted_unresolved")
+  expect_identical(error$accepted, TRUE)
+  expect_identical(history_calls, 3L)
+  expect_match(conditionMessage(error), "recovery deadline", fixed = TRUE)
 })
 
 test_that("job POST requests carry an explicit zero-length body", {

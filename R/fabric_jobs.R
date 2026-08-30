@@ -77,14 +77,17 @@
 #' @param api_base Fabric REST API base URL. Most users should keep the default
 #'   A discovered workspace-specific endpoint is used unless this argument is
 #'   supplied explicitly
+#' @param .sleep,.now Internal deterministic recovery hooks.
 #' @section Typical workflow:
 #' Start a job with `fabric_job_run()`, then pass the returned handle to
 #' `fabric_job_wait()`. The handle keeps the workspace, item, job type, and
 #' sign-in context, so later calls do not need those details again
 #' Parameterized Core jobs can return a collection `Location` without an
-#' instance GUID. In that documented case, `fabric_job_run()` reads recent job
-#' history and accepts only one matching manual run; it raises a protocol error
-#' rather than guessing when recovery is ambiguous
+#' instance GUID. In that documented case, `fabric_job_run()` honors
+#' `Retry-After` and polls recent job history for one matching manual run. If
+#' the accepted instance cannot be resolved safely, it raises a
+#' `fabric_job_accepted_unresolved` condition rather than implying that the run
+#' request failed or replaying it
 #'
 #' @section High-concurrency notebooks:
 #' A `session_tag` lets related notebook runs share Spark compute, but Fabric may
@@ -172,12 +175,18 @@ fabric_job_run <- function(
   ),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
   # 1 Resolve authentication and job target --------------------------------------------------------
 
   # Discovery records can provide both item identity and workspace-specific
   # endpoints, avoiding repeated caller arguments
+
+  if (!is.function(.sleep) || !is.function(.now)) {
+    .fabric_abort(".sleep and .now must be functions")
+  }
 
   api_base_supplied <- !missing(api_base)
   credential <- fabric_credential(
@@ -246,7 +255,7 @@ fabric_job_run <- function(
   # Submit the job only after authentication and payload fields are ready
 
   url <- .fabric_job_run_url(base, target, route)
-  submitted_at <- Sys.time()
+  submitted_at <- .now()
   result <- .fabric_job_request(
     "POST",
     url,
@@ -261,7 +270,10 @@ fabric_job_run <- function(
     route,
     base,
     credential,
-    submitted_at
+    submitted_at,
+    retry_after = result$retry_after,
+    .sleep = .sleep,
+    .now = .now
   )
 
   # 4 Return a reusable job handle -----------------------------------------------------------------
@@ -302,7 +314,10 @@ fabric_job_run <- function(
   route,
   api_base,
   credential,
-  submitted_at
+  submitted_at,
+  retry_after = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
   location <- result$location
   location_path <- if (
@@ -360,79 +375,165 @@ fabric_job_run <- function(
     target$item_id,
     "/jobs/instances"
   )
-  records <- tryCatch(
-    .httr2_collection(
-      history_url,
-      credential = credential,
-      audience = .fabric_audience$fabric
-    ),
-    error = function(error) {
-      .fabric_abort(
-        "Could not recover the parameterized job instance from recent history",
-        class = "fabric_job_protocol_error",
-        parent = error
-      )
-    }
-  )
-  matches <- Filter(
-    function(record) {
-      scalar_text <- function(value) {
-        is.character(value) &&
-          length(value) == 1L &&
-          !is.na(value) &&
-          nzchar(value)
-      }
-      if (
-        !is.list(record) ||
-          !scalar_text(record$id) ||
-          !fabric_is_guid(record$id)
-      ) {
-        return(FALSE)
-      }
-      if (
-        !is.null(record$itemId) &&
-          (!scalar_text(record$itemId) ||
-            !identical(tolower(record$itemId), tolower(target$item_id)))
-      ) {
-        return(FALSE)
-      }
-      if (
-        !scalar_text(record$jobType) ||
-          !identical(tolower(record$jobType), tolower(route$job_type))
-      ) {
-        return(FALSE)
-      }
-      if (
-        !is.null(record$invokeType) &&
-          (!scalar_text(record$invokeType) ||
-            !identical(tolower(record$invokeType), "manual"))
-      ) {
-        return(FALSE)
-      }
-      started <- try(
-        .fabric_job_time(record$startTimeUtc %||% record$startTime),
-        silent = TRUE
-      )
-      !inherits(started, "try-error") &&
-        !is.null(started) &&
-        !is.na(started) &&
-        as.numeric(started) >= as.numeric(submitted_at) - 300 &&
-        as.numeric(started) <= as.numeric(Sys.time()) + 300
-    },
-    records
-  )
-  ids <- unique(vapply(matches, `[[`, character(1), "id"))
-  if (length(ids) != 1L) {
+  retry_after <- as.numeric(retry_after %||% 0)
+  if (
+    length(retry_after) != 1L ||
+      is.na(retry_after) ||
+      !is.finite(retry_after) ||
+      retry_after < 0
+  ) {
     .fabric_abort(
-      paste0(
-        "Fabric returned a collection Location, but recent history contained ",
-        length(ids),
-        " matching job instances; the submitted instance cannot be identified safely"
-      ),
+      "Fabric returned an invalid Retry-After value",
       class = "fabric_job_protocol_error"
     )
   }
-  ids[[1L]]
+  recovery_timeout <- getOption("fabricqueryr.job.recovery_timeout", 60)
+  poll_interval <- getOption("fabricqueryr.job.recovery_poll_interval", 1)
+  if (
+    length(recovery_timeout) != 1L ||
+      is.na(recovery_timeout) ||
+      !is.finite(recovery_timeout) ||
+      recovery_timeout <= 0 ||
+      length(poll_interval) != 1L ||
+      is.na(poll_interval) ||
+      !is.finite(poll_interval) ||
+      poll_interval <= 0
+  ) {
+    .fabric_abort(
+      "Job recovery timeout and poll interval options must be positive numbers"
+    )
+  }
+  not_before <- submitted_at + retry_after
+  delay <- as.numeric(difftime(not_before, .now(), units = "secs"))
+  if (is.finite(delay) && delay > 0) {
+    .sleep(delay)
+  }
+  deadline <- submitted_at + max(recovery_timeout, retry_after)
+  repeat {
+    records <- tryCatch(
+      .httr2_collection(
+        history_url,
+        credential = credential,
+        audience = .fabric_audience$fabric
+      ),
+      error = function(error) {
+        .fabric_job_recovery_abort(
+          result,
+          target,
+          route,
+          message = paste0(
+            "Fabric accepted the parameterized job, but its instance could ",
+            "not be recovered from recent history"
+          ),
+          parent = error
+        )
+      }
+    )
+    now <- .now()
+    matches <- Filter(
+      function(record) {
+        scalar_text <- function(value) {
+          is.character(value) &&
+            length(value) == 1L &&
+            !is.na(value) &&
+            nzchar(value)
+        }
+        if (
+          !is.list(record) ||
+            !scalar_text(record$id) ||
+            !fabric_is_guid(record$id)
+        ) {
+          return(FALSE)
+        }
+        if (
+          !is.null(record$itemId) &&
+            (!scalar_text(record$itemId) ||
+              !identical(tolower(record$itemId), tolower(target$item_id)))
+        ) {
+          return(FALSE)
+        }
+        if (
+          !scalar_text(record$jobType) ||
+            !identical(tolower(record$jobType), tolower(route$job_type))
+        ) {
+          return(FALSE)
+        }
+        if (
+          !is.null(record$invokeType) &&
+            (!scalar_text(record$invokeType) ||
+              !identical(tolower(record$invokeType), "manual"))
+        ) {
+          return(FALSE)
+        }
+        started <- try(
+          .fabric_job_time(record$startTimeUtc %||% record$startTime),
+          silent = TRUE
+        )
+        !inherits(started, "try-error") &&
+          !is.null(started) &&
+          !is.na(started) &&
+          as.numeric(started) >= as.numeric(submitted_at) - 300 &&
+          as.numeric(started) <= as.numeric(now) + 300
+      },
+      records
+    )
+    ids <- unique(vapply(matches, `[[`, character(1), "id"))
+    if (length(ids) == 1L) {
+      return(ids[[1L]])
+    }
+    if (length(ids) > 1L) {
+      .fabric_job_recovery_abort(
+        result,
+        target,
+        route,
+        message = paste0(
+          "Fabric accepted the parameterized job, but recent history ",
+          "contained multiple matching instances"
+        ),
+        matching_ids = ids
+      )
+    }
+    remaining <- as.numeric(difftime(deadline, now, units = "secs"))
+    if (!is.finite(remaining) || remaining <= 0) {
+      .fabric_job_recovery_abort(
+        result,
+        target,
+        route,
+        message = paste0(
+          "Fabric accepted the parameterized job, but its instance did not ",
+          "appear in recent history before the recovery deadline"
+        )
+      )
+    }
+    .sleep(min(poll_interval, remaining))
+  }
+}
+
+.fabric_job_recovery_abort <- function(
+  result,
+  target,
+  route,
+  message,
+  matching_ids = character(),
+  parent = NULL
+) {
+  .fabric_abort(
+    paste0(
+      message,
+      "; do not resubmit automatically because that can create a duplicate run"
+    ),
+    class = c(
+      "fabric_job_accepted_unresolved",
+      "fabric_job_protocol_error"
+    ),
+    accepted = TRUE,
+    location = result$location,
+    workspace_id = target$workspace_id,
+    item_id = target$item_id,
+    job_type = route$job_type,
+    matching_ids = matching_ids,
+    parent = parent
+  )
 }
 
 #' @param job A `fabric_job` returned by [fabric_job_run()] or a

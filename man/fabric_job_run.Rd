@@ -24,7 +24,9 @@ fabric_job_run(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 )
 
 fabric_job_status(
@@ -149,6 +151,8 @@ A \code{fabric_job} handle reuses its stored credential unless \code{tenant_id},
 A discovered workspace-specific endpoint is used unless this argument is
 supplied explicitly}
 
+\item{.sleep, .now}{Internal hooks for deterministic tests}
+
 \item{job}{A \code{fabric_job} returned by \code{\link[=fabric_job_run]{fabric_job_run()}} or a
 \code{fabric_job_instance} returned by a status, wait, or history function.
 Status and cancellation functions also accept a job instance GUID when
@@ -164,8 +168,6 @@ status-check time. Keep \code{TRUE} for normal use}
 Notebook status endpoint for exit values and compute details. The default
 \code{FALSE} uses only the stable Core Job Scheduler status endpoint;
 \code{exit_value} and workload-specific \code{properties} may then be unavailable.}
-
-\item{.sleep, .now}{Internal hooks for deterministic tests}
 
 \item{poll_interval}{Minimum seconds between status checks. \code{NULL} follows
 Fabric's recommendation, with a two-second fallback}
@@ -202,9 +204,11 @@ Start a job with \code{fabric_job_run()}, then pass the returned handle to
 \code{fabric_job_wait()}. The handle keeps the workspace, item, job type, and
 sign-in context, so later calls do not need those details again
 Parameterized Core jobs can return a collection \code{Location} without an
-instance GUID. In that documented case, \code{fabric_job_run()} reads recent job
-history and accepts only one matching manual run; it raises a protocol error
-rather than guessing when recovery is ambiguous
+instance GUID. In that documented case, \code{fabric_job_run()} honors
+\code{Retry-After} and polls recent job history for one matching manual run. If
+the accepted instance cannot be resolved safely, it raises a
+\code{fabric_job_accepted_unresolved} condition rather than implying that the run
+request failed or replaying it
 }
 
 \section{High-concurrency notebooks}{
