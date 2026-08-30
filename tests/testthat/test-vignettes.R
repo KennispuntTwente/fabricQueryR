@@ -833,7 +833,7 @@ test_that("Livy vignette executes query and shared-session examples", {
     character(1)
   )
   index_for <- function(text) {
-    matches <- which(grepl(text, bodies, fixed = TRUE))
+    matches <- grep(text, bodies, fixed = TRUE)
     expect_equal(length(matches), 1L, info = text)
     matches[[1L]]
   }

@@ -473,7 +473,9 @@ test_that("parameterized job recovery refuses ambiguous history", {
     parameters = list(label = "unit"),
     token = "test-token",
     api_base = "https://api.fabric.test/v1",
-    .sleep = function(seconds) now <<- now + seconds,
+    .sleep = function(seconds) {
+      now <<- now + seconds
+    },
     .now = function() now
   ))
 
@@ -511,7 +513,9 @@ test_that("parameterized job recovery times out as accepted and unresolved", {
     parameters = list(label = "unit"),
     token = "test-token",
     api_base = "https://api.fabric.test/v1",
-    .sleep = function(seconds) now <<- now + seconds,
+    .sleep = function(seconds) {
+      now <<- now + seconds
+    },
     .now = function() now
   ))
 

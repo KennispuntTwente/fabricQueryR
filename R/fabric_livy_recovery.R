@@ -293,7 +293,7 @@ fabric_livy_list_result <- function(response, skip) {
   )
   page_size <- fabric_livy_optional_count(response$pageSize, "pageSize")
   ids <- vapply(items, fabric_livy_item_field, character(1), name = "id")
-  if (anyNA(ids) || any(!nzchar(ids))) {
+  if (anyNA(ids) || !all(nzchar(ids))) {
     .fabric_abort(
       "Livy returned an activity without a valid id",
       class = "fabric_livy_protocol_error"
