@@ -80,19 +80,11 @@ token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated.
 
-* `fabric_job_schedules()` now rejects semantic-model defaults because their
-refresh schedules use the Power BI dataset API rather than the Fabric Core Job
-Scheduler.
-
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
 provides typed tibbles or streams for models that support it. Both JSON and
 Arrow executions now expose a client-side HTTP `timeout`.
-
-* `fabric_onelake_delete()` now uses the recursive-delete parameters supported
-by OneLake's documented storage API, restoring recursive deletion and automatic
-staging cleanup for Lakehouse, Warehouse, and KQL writes.
 
 * `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
 and compatible Warehouse tables through an optional Python Delta reader. It
