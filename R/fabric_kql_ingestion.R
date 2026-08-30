@@ -2232,7 +2232,7 @@ fabric_kql_write_table <- function(
           fabric_http_error = function(error) {
             status <- error$status %||% NA_integer_
             if (is.na(status) || !status %in% c(401L, 403L)) {
-              stop(error)
+              .fabric_rethrow(error)
             }
             refresh_destination(force = TRUE)
             kusto_storage_upload(
