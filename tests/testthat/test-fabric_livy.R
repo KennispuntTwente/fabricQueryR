@@ -699,6 +699,29 @@ test_that("Livy table conversion follows the declared Spark schema", {
   expect_length(attr(empty, "spark_schema"), 2L)
 })
 
+test_that("Livy zoned timestamps accept RFC 3339 offsets cross-platform", {
+  parsed <- fabric_livy_convert_column(
+    list(
+      "2026-08-10T12:30:01.125+02:00",
+      "2026-08-10T12:30:01.125+0200",
+      "2026-08-10T12:30:01.125-05:30",
+      "2026-08-10T12:30:01.125Z"
+    ),
+    "timestamp"
+  )
+
+  expect_s3_class(parsed, "POSIXct")
+  expect_equal(
+    unname(format(parsed, "%Y-%m-%d %H:%M:%OS3", tz = "UTC")),
+    c(
+      "2026-08-10 10:30:01.125",
+      "2026-08-10 10:30:01.125",
+      "2026-08-10 18:00:01.125",
+      "2026-08-10 12:30:01.125"
+    )
+  )
+})
+
 test_that("Fabric SQL nulls remain distinguishable from textual NaN", {
   parsed <- fabric_livy_parse_sql_json(list(
     schema = list(

@@ -1250,6 +1250,12 @@ fabric_livy_convert_column <- function(values, type) {
         if (is.na(value)) {
           return(NA_real_)
         }
+        normalized <- sub(
+          "([+-][0-9]{2}):([0-9]{2})$",
+          "\\1\\2",
+          value,
+          perl = TRUE
+        )
         formats <- c(
           "%Y-%m-%dT%H:%M:%OSZ",
           "%Y-%m-%dT%H:%M:%OS%z",
@@ -1258,7 +1264,7 @@ fabric_livy_convert_column <- function(values, type) {
 
         for (format in formats) {
           candidate <- suppressWarnings(as.POSIXct(
-            value,
+            normalized,
             format = format,
             tz = "UTC"
           ))
