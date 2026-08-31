@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 from fabricqueryr_sandbox.cleanup import (
     cleanup_ci_workspaces,
+    parse_ci_description,
+    parse_persistent_description,
     remove_persistent_workspace,
 )
 
@@ -21,6 +23,33 @@ class FakeFabricApi:
     def list_workspaces(self, *, roles):
         assert roles == "Admin"
         return [
+            None,
+            {
+                "id": "null-description-id",
+                "displayName": "fabricqueryr-ci-null-description",
+                "description": None,
+                "type": "Workspace",
+            },
+            {
+                "id": "null-name-id",
+                "displayName": None,
+                "description": (
+                    "fabricqueryr-ci; repo=owner/fabricQueryR; "
+                    "created=2026-07-25T00:00:00Z; "
+                    "run=https://example.test/null-name"
+                ),
+                "type": "Workspace",
+            },
+            {
+                "id": None,
+                "displayName": "fabricqueryr-ci-null-id",
+                "description": (
+                    "fabricqueryr-ci; repo=owner/fabricQueryR; "
+                    "created=2026-07-25T00:00:00Z; "
+                    "run=https://example.test/null-id"
+                ),
+                "type": "Workspace",
+            },
             {
                 "id": "sandbox-id",
                 "displayName": "fabricqueryr-ci-123-1",
@@ -76,6 +105,23 @@ class FakeFabricApi:
                 "type": "Personal",
             },
             {
+                "id": "persistent-null-description-id",
+                "displayName": "fabricqueryr-dev-dhrkoning",
+                "description": None,
+                "type": "Workspace",
+            },
+            {
+                "id": None,
+                "displayName": "fabricqueryr-dev-dhrkoning",
+                "description": (
+                    "fabricqueryr-persistent; repo=owner/fabricQueryR; "
+                    "owner=user-id; managed-by=.github/workflows/"
+                    "fabric-sandbox.yaml; rebuilt=2026-07-26T11:00:00Z; "
+                    "run=https://example.test/null-id"
+                ),
+                "type": "Workspace",
+            },
+            {
                 "id": "persistent-id",
                 "displayName": "fabricqueryr-dev-dhrkoning",
                 "description": (
@@ -101,6 +147,12 @@ class FakeFabricApi:
 
     def delete_workspace(self, workspace_id):
         type(self).deleted.append(workspace_id)
+
+
+def test_marker_parsers_reject_non_string_descriptions():
+    for value in (None, {}, []):
+        assert parse_ci_description(value) is None
+        assert parse_persistent_description(value) is None
 
 
 def test_cleanup_is_dry_run_by_default(monkeypatch):

@@ -17,13 +17,13 @@ DEFAULT_MINIMUM_AGE = timedelta(hours=6)
 
 
 def parse_description(
-    description: str,
+    description: object,
     *,
     prefix: str,
     required_fields: set[str],
 ) -> dict[str, str] | None:
     """Parse a complete ownership marker from a workspace description."""
-    if not description.startswith(prefix):
+    if not isinstance(description, str) or not description.startswith(prefix):
         return None
     fields: dict[str, str] = {}
     for component in description[len(prefix) :].split(";"):
@@ -35,7 +35,7 @@ def parse_description(
     return fields
 
 
-def parse_ci_description(description: str) -> dict[str, str] | None:
+def parse_ci_description(description: object) -> dict[str, str] | None:
     """Parse a complete ephemeral-CI ownership marker."""
     return parse_description(
         description,
@@ -45,7 +45,7 @@ def parse_ci_description(description: str) -> dict[str, str] | None:
 
 
 def parse_persistent_description(
-    description: str,
+    description: object,
 ) -> dict[str, str] | None:
     """Parse a complete persistent-sandbox ownership marker."""
     return parse_description(
@@ -83,16 +83,24 @@ def cleanup_ci_workspaces(
         raise ValueError("minimum_age must not be negative")
     current_time = (now or datetime.now(UTC)).astimezone(UTC)
 
-    def is_owned_stale_workspace(workspace: dict[str, Any]) -> bool:
-        marker = parse_ci_description(workspace.get("description", ""))
+    def is_owned_stale_workspace(workspace: object) -> bool:
+        if not isinstance(workspace, dict):
+            return False
+        workspace_id = workspace.get("id")
+        display_name = workspace.get("displayName")
+        if (
+            not isinstance(workspace_id, str)
+            or not workspace_id.strip()
+            or not isinstance(display_name, str)
+        ):
+            return False
+        marker = parse_ci_description(workspace.get("description"))
         if marker is None or marker["repo"].casefold() != repository.casefold():
             return False
         created = parse_created_at(marker["created"])
         return (
             workspace.get("type") == "Workspace"
-            and workspace.get("displayName", "").startswith(
-                CI_WORKSPACE_PREFIX
-            )
+            and display_name.startswith(CI_WORKSPACE_PREFIX)
             and created is not None
             and current_time - created >= minimum_age
         )
@@ -135,13 +143,21 @@ def remove_persistent_workspace(
     if not managed_by.strip():
         raise ValueError("managed_by must not be empty")
 
-    def is_owned_persistent_workspace(workspace: dict[str, Any]) -> bool:
-        marker = parse_persistent_description(
-            workspace.get("description", "")
-        )
+    def is_owned_persistent_workspace(workspace: object) -> bool:
+        if not isinstance(workspace, dict):
+            return False
+        workspace_id = workspace.get("id")
+        display_name = workspace.get("displayName")
+        if (
+            not isinstance(workspace_id, str)
+            or not workspace_id.strip()
+            or not isinstance(display_name, str)
+        ):
+            return False
+        marker = parse_persistent_description(workspace.get("description"))
         return (
             workspace.get("type") == "Workspace"
-            and workspace.get("displayName") == workspace_name
+            and display_name == workspace_name
             and marker is not None
             and marker["repo"].casefold() == repository.casefold()
             and marker["owner"].casefold() == owner_id.casefold()
