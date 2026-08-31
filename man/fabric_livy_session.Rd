@@ -129,8 +129,10 @@ Delegated sign-in requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.Al
 \code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All}. Add
 \code{Code.AccessAzureKeyvault.All}, \code{Code.AccessAzureDataLake.All},
 \code{Code.AccessAzureDataExplorer.All}, or \code{Code.AccessSQL.All} only when Spark
-accesses that Azure service at runtime. The signed-in identity also needs an
-appropriate workspace role
+accesses that Azure service at runtime. Microsoft's current session guide
+documents delegated-user and service-principal (SPN) tokens. The signed-in
+identity also needs an appropriate workspace role, and service-side tenant
+settings still apply
 }
 
 \section{Timeouts}{

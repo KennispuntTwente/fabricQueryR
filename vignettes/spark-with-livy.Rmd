@@ -69,11 +69,20 @@ result <- lakehouse$livy_query(
 ```
 
 Client-credentials authentication instead uses the single Fabric/Power BI
-`.default` audience selected by the package.
+`.default` audience selected by the package. Microsoft currently documents
+service-principal (SPN) tokens for session jobs. Add that principal to the
+workspace as a *Contributor*, and confirm that the tenant's Livy settings allow
+it; the workspace role alone does not guarantee service-side acceptance.
 
-The signed-in user must be a *Contributor* in the workspace containing the
-Livy endpoint and data-source items. For unattended authentication, add the
-service principal to the workspace as a Contributor. 
+Microsoft's current batch guide is internally inconsistent: its introduction
+says Azure SPN is unsupported, while its authentication section gives a
+certificate-based SPN example. 'fabricQueryR' can acquire and send an app-only
+token, but it cannot override a service-side identity restriction. Verify
+unattended batch authentication in the target tenant and use a delegated user
+if Fabric rejects the SPN.
+
+The delegated user must be a *Contributor* in the workspace containing the
+Livy endpoint and data-source items.
 
 Then, you can discover the Lakehouse item which you want to use Livy with:
 

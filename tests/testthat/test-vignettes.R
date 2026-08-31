@@ -774,6 +774,13 @@ test_that("Livy vignette executes query and shared-session examples", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  expect_match(
+    source,
+    "documents\\nservice-principal \\(SPN\\) tokens for session jobs"
+  )
+  expect_match(source, "batch guide is internally inconsistent")
+  expect_match(source, "role alone does not guarantee service-side acceptance")
   discovery_calls <- 0L
   lakehouse_workspace <- NULL
   query_calls <- list()

@@ -65,11 +65,13 @@
 #'
 #' A delegated caller needs the `Lakehouse.Execute.All`, `Lakehouse.Read.All`,
 #' `Code.AccessFabric.All`, and `Code.AccessStorage.All` scopes and must be a
-#' Contributor in the workspace. A service principal must also be added to the
-#' workspace as a Contributor. Add `Code.AccessAzureKeyvault.All`,
-#' `Code.AccessAzureDataLake.All`, `Code.AccessAzureDataExplorer.All`, or
-#' `Code.AccessSQL.All` only when the Spark code accesses that Azure service at
-#' runtime
+#' Contributor in the workspace. For session jobs, Microsoft's current guide
+#' also documents service-principal (SPN) tokens. The service principal must be
+#' added to the workspace as a Contributor, but that role alone does not
+#' override tenant settings or other service-side identity restrictions. Add
+#' `Code.AccessAzureKeyvault.All`, `Code.AccessAzureDataLake.All`,
+#' `Code.AccessAzureDataExplorer.All`, or `Code.AccessSQL.All` only when the
+#' Spark code accesses that Azure service at runtime
 #'
 #' Spark long and decimal columns are returned as character values when needed
 #' to preserve them exactly. Dates and timestamps with a time zone use R

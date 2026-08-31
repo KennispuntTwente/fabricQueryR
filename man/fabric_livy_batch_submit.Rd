@@ -148,6 +148,15 @@ Delegated sign-in requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.Al
 \code{Code.AccessAzureDataExplorer.All}, or \code{Code.AccessSQL.All} only when Spark
 accesses that Azure service at runtime. The signed-in identity also needs an
 appropriate workspace role
+
+Microsoft's current batch guide is internally inconsistent about service
+principals: its introduction says SPN is unsupported, while its
+authentication section provides a certificate-based SPN example. This
+package can acquire and send a client-credentials token, but cannot make the
+Fabric service accept that identity. Until Microsoft clarifies the contract,
+verify unattended batch authentication in the target tenant and use a
+delegated user when the service rejects an SPN. A Contributor role alone is
+not a guarantee of batch SPN support
 }
 
 \examples{

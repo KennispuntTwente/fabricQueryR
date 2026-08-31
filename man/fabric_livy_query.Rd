@@ -105,11 +105,13 @@ R application file, use \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch
 
 A delegated caller needs the \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
 \code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All} scopes and must be a
-Contributor in the workspace. A service principal must also be added to the
-workspace as a Contributor. Add \code{Code.AccessAzureKeyvault.All},
-\code{Code.AccessAzureDataLake.All}, \code{Code.AccessAzureDataExplorer.All}, or
-\code{Code.AccessSQL.All} only when the Spark code accesses that Azure service at
-runtime
+Contributor in the workspace. For session jobs, Microsoft's current guide
+also documents service-principal (SPN) tokens. The service principal must be
+added to the workspace as a Contributor, but that role alone does not
+override tenant settings or other service-side identity restrictions. Add
+\code{Code.AccessAzureKeyvault.All}, \code{Code.AccessAzureDataLake.All},
+\code{Code.AccessAzureDataExplorer.All}, or \code{Code.AccessSQL.All} only when the
+Spark code accesses that Azure service at runtime
 
 Spark long and decimal columns are returned as character values when needed
 to preserve them exactly. Dates and timestamps with a time zone use R
