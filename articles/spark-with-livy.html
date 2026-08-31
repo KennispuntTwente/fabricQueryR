@@ -139,12 +139,20 @@ below calls <code><a href="../reference/fabric_livy_query.html">fabric_livy_quer
 <span>  audience <span class="op">=</span> <span class="va">livy_scopes</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Client-credentials authentication instead uses the single
-Fabric/Power BI <code>.default</code> audience selected by the
-package.</p>
-<p>The signed-in user must be a <em>Contributor</em> in the workspace
-containing the Livy endpoint and data-source items. For unattended
-authentication, add the service principal to the workspace as a
-Contributor.</p>
+Fabric/Power BI <code>.default</code> audience selected by the package.
+Microsoft currently documents service-principal (SPN) tokens for session
+jobs. Add that principal to the workspace as a <em>Contributor</em>, and
+confirm that the tenant’s Livy settings allow it; the workspace role
+alone does not guarantee service-side acceptance.</p>
+<p>Microsoft’s current batch guide is internally inconsistent: its
+introduction says Azure SPN is unsupported, while its authentication
+section gives a certificate-based SPN example. ‘fabricQueryR’ can
+acquire and send an app-only token, but it cannot override a
+service-side identity restriction. Verify unattended batch
+authentication in the target tenant and use a delegated user if Fabric
+rejects the SPN.</p>
+<p>The delegated user must be a <em>Contributor</em> in the workspace
+containing the Livy endpoint and data-source items.</p>
 <p>Then, you can discover the Lakehouse item which you want to use Livy
 with:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -196,12 +204,16 @@ text.</p>
 production, currently <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0" class="external-link">Fabric
 Runtime 2.0 (Spark 4.1)</a>. SparkR still works, but SparkR is
 deprecated upstream in Spark 4.x and may be removed in a future Spark
-release. For R-first workloads, Microsoft Fabric supports and
-distributes <a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link"><code>sparklyr</code></a>.
-Use sparklyr to move application code away from the SparkR DataFrame
-API. Choose PySpark or Spark SQL when the remote workload must also be
-independent of the current SparkR runtime bridge.</p>
+release. Microsoft Fabric distributes <a href="https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr" class="external-link"><code>sparklyr</code></a>
+for R-first workloads in notebooks and Spark job definitions. Microsoft
+does not currently document <code>sparklyr</code> over an item-scoped
+Livy session. Choose PySpark or Spark SQL when the remote workload must
+be independent of the current SparkR runtime bridge.</p>
 <table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
 <thead><tr class="header">
 <th><code>kind</code></th>
 <th>Code language</th>
@@ -213,7 +225,7 @@ independent of the current SparkR runtime bridge.</p>
 </tr>
 <tr class="even">
 <td><code>"sparkr"</code></td>
-<td>R: SparkR, or sparklyr through the current R bridge</td>
+<td>R: SparkR; an experimental sparklyr bridge is described below</td>
 </tr>
 <tr class="odd">
 <td><code>"pyspark"</code></td>
@@ -239,11 +251,12 @@ Lakehouse:</p>
 <span>    sep <span class="op">=</span> <span class="st">"\n"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code>sparklyr</code> is not another Livy <code>kind</code>. Fabric’s
-documented <code>"synapse"</code> connection attaches sparklyr to the
-existing Spark session through the current SparkR JVM bridge.
-Consequently, sparklyr code submitted through Livy still uses
-<code>kind = "sparkr"</code>:</p>
+<p><code>sparklyr</code> is not another Livy <code>kind</code>. The
+following is an experimental adaptation of Fabric’s documented
+notebook/Spark-job <code>"synapse"</code> connection; Microsoft does not
+document it for item-scoped Livy, and ‘fabricQueryR’ does not currently
+live-test it. If you evaluate that bridge in your tenant, sparklyr code
+submitted through Livy still uses <code>kind = "sparkr"</code>:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
@@ -261,10 +274,11 @@ Consequently, sparklyr code submitted through Livy still uses
 <span>    sep <span class="op">=</span> <span class="st">"\n"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>This removes the application-level dependency on SparkR’s DataFrame
-verbs, but it is not yet insulated from a future removal of the R
-interpreter or SparkR JVM bridge. Fabric has not documented a separate
-sparklyr language for its item-scoped Livy API.</p>
+<p>Even when it works, this removes only the application-level
+dependency on SparkR’s DataFrame verbs. It remains dependent on the R
+interpreter and SparkR JVM bridge, so validate it after every runtime
+upgrade and do not treat this example as a supported production
+contract.</p>
 </div>
 <div class="section level2">
 <h2 id="reuse-a-session-for-several-statements">Reuse a session for several statements<a class="anchor" aria-label="anchor" href="#reuse-a-session-for-several-statements"></a>
@@ -302,7 +316,7 @@ Python, R, or Java/Scala script stored in OneLake or ADLS:</p>
 <span>    <span class="st">"abfss://"</span>, <span class="va">workspace</span><span class="op">$</span><span class="va">id</span>,</span>
 <span>    <span class="st">"@onelake.dfs.fabric.microsoft.com/"</span>,</span>
 <span>    <span class="va">lakehouse</span><span class="op">$</span><span class="va">id</span>,</span>
-<span>    <span class="st">".Lakehouse/Files/jobs/daily_transform.py"</span></span>
+<span>    <span class="st">"/Files/jobs/daily_transform.py"</span></span>
 <span>  <span class="op">)</span>,</span>
 <span>  name <span class="op">=</span> <span class="st">"daily-transform"</span>,</span>
 <span>  wait <span class="op">=</span> <span class="cn">TRUE</span>,</span>

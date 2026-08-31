@@ -243,6 +243,14 @@ when needed</p>
 <code>Code.AccessAzureDataExplorer.All</code>, or <code>Code.AccessSQL.All</code> only when Spark
 accesses that Azure service at runtime. The signed-in identity also needs an
 appropriate workspace role</p>
+<p>Microsoft's current batch guide is internally inconsistent about service
+principals: its introduction says SPN is unsupported, while its
+authentication section provides a certificate-based SPN example. This
+package can acquire and send a client-credentials token, but cannot make the
+Fabric service accept that identity. Until Microsoft clarifies the contract,
+verify unattended batch authentication in the target tenant and use a
+delegated user when the service rejects an SPN. A Contributor role alone is
+not a guarantee of batch SPN support</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -263,7 +271,7 @@ appropriate workspace role</p>
 <span class="r-in"><span><span class="va">script</span> <span class="op">&lt;-</span> <span class="va">scripts</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"[.]py$"</span>, <span class="va">scripts</span><span class="op">$</span><span class="va">path</span><span class="op">)</span>, <span class="op">]</span><span class="op">[</span><span class="fl">1L</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">script_uri</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="st">"abfss://"</span>, <span class="va">workspace</span><span class="op">$</span><span class="va">id</span>, <span class="st">"@onelake.dfs.fabric.microsoft.com/"</span>,</span></span>
-<span class="r-in"><span>  <span class="va">lakehouse</span><span class="op">$</span><span class="va">id</span>, <span class="st">".Lakehouse/"</span>, <span class="va">script</span><span class="op">$</span><span class="va">path</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span>  <span class="va">lakehouse</span><span class="op">$</span><span class="va">id</span>, <span class="st">"/"</span>, <span class="va">script</span><span class="op">$</span><span class="va">path</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Submit the discovered script and wait for its Spark application to finish</span></span></span>

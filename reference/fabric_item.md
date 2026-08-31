@@ -11,6 +11,8 @@ fabric_item(
   workspace,
   item,
   type = NULL,
+  detail = NULL,
+  detail_errors = c("abort", "record"),
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -44,6 +46,21 @@ fabric_item(
   Optional Fabric API item type, for example `"Lakehouse"`,
   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
   Fabric, so use the API spelling. Leave `NULL` to list all item types
+
+- detail:
+
+  Whether to retrieve connection details as well as names and IDs. This
+  takes more requests and may require additional permissions. For
+  `fabric_item()`, `NULL` enriches every supported type except User Data
+  Functions, whose detail endpoint does not support application
+  identities. The typed Semantic Model, GraphQL, and User Data Function
+  helpers also default to lightweight records
+
+- detail_errors:
+
+  What to do if some connection details cannot be read `"record"`
+  returns the available information and stores an error message with the
+  affected item; `"abort"` stops the call
 
 - personal_workspace_tenant_id:
 
@@ -99,12 +116,13 @@ and available connection details
 
 ## Details
 
-The caller needs access to the workspace for the core item lookup. This
-singular helper always performs workload-specific enrichment as well,
-which additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the
-applicable workload-specific read scope and access to the item. Use
-[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
-with `detail = FALSE` when only core item metadata is needed
+The caller needs access to the workspace for the core item lookup.
+Workload-specific enrichment additionally requires
+`Item.Read.All`/`Item.ReadWrite.All` or the applicable workload-specific
+read scope and access to the item. Microsoft currently limits User Data
+Function detail retrieval to delegated user identities, so its automatic
+default is lightweight. Set `detail = TRUE` explicitly when using a
+supported identity
 
 ## Examples
 

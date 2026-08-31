@@ -142,6 +142,14 @@ schedule <- notebook$schedule_create(weekly, enabled = TRUE)
 schedules <- notebook$schedules()
 ```
 
+Lakehouse schedules have no safe generic job default. Pass the
+documented `job_type` explicitly; for example, materialized Lake View
+refresh schedules use `job_type = "RefreshMaterializedLakeViews"`
+together with an `execution_data` list containing
+`mlvExecutionDefinitionId`. Microsoft labels this Lakehouse scheduling
+API as Preview, for evaluation and development only, and does not
+recommend it for production use.
+
 Disable or restart a schedule with `$schedule_update()`
 ([`fabric_job_schedule_update()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_job_schedules.md))
 without rebuilding its configuration:

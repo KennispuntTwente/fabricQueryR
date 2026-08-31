@@ -256,7 +256,7 @@ scripts <- fabric_onelake_list(workspace, lakehouse, "Files/jobs")
 script <- scripts[grepl("[.]py$", scripts$path), ][1L, ]
 script_uri <- paste0(
   "abfss://", workspace$id, "@onelake.dfs.fabric.microsoft.com/",
-  lakehouse$id, ".Lakehouse/", script$path[[1L]]
+  lakehouse$id, "/", script$path[[1L]]
 )
 batch <- fabric_livy_batch_submit(
   lakehouse,

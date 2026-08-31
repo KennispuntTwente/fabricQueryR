@@ -1,9 +1,12 @@
 # Discover Microsoft Fabric items
 
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and
-other items stored in a workspace. By default, actionable items are
-returned as type-specific R6 objects whose methods perform the matching
-query, connection, file, Spark, or job operations
+other items stored in a workspace. Every item type returned by Fabric's
+core list API can be represented. Where the package has a specialized R6
+subclass, its methods perform the matching query, connection, file,
+Spark, or job operations; other types remain complete generic
+[FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+records
 
 ## Usage
 
@@ -46,10 +49,12 @@ fabric_items(
 - detail:
 
   Whether to retrieve connection details as well as names and IDs. This
-  takes more requests and may require additional permissions. The typed
-  discovery helpers generally use `TRUE`; Semantic Model and GraphQL
-  helpers default to lightweight records because their query targets can
-  be derived without workload detail requests
+  takes more requests and may require additional permissions. For
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),
+  `NULL` enriches every supported type except User Data Functions, whose
+  detail endpoint does not support application identities. The typed
+  Semantic Model, GraphQL, and User Data Function helpers also default
+  to lightweight records
 
 - detail_errors:
 
@@ -137,6 +142,24 @@ corresponding workload-specific read scope and access to the item
 Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
 require both `personal_workspace_tenant_id` and
 `personal_workspace_owner`
+
+## Generic and typed discovery
+
+`fabric_items()` and `workspace$items()` are the broad,
+future-compatible discovery interfaces. Their optional `type` filter is
+passed to Fabric, and item types without package-specific methods are
+returned as
+[FabricItem](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+objects with all service fields, `$details()`, and `$as_list()`.
+
+The helpers documented in
+[fabric_typed_items](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+are an intentional convenience subset of Fabric's larger and evolving
+item catalog. A typed helper means that the package knows the item-type
+spelling and workload Get route; it does not necessarily mean that the
+result has its own R6 subclass. See
+[fabric_typed_items](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+for the exact support matrix
 
 ## References
 

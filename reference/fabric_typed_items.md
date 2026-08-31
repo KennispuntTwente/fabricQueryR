@@ -1,11 +1,17 @@
 # Typed Microsoft Fabric item discovery
 
-These shortcuts find one kind of Fabric item. By default, they return R6
-objects with service fields and type-specific methods for the useful
-next actions. Most also retrieve workload connection details. Semantic
+These shortcuts cover an intentional subset of Microsoft Fabric item
+types; they are not an exhaustive list of the items that
+[`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
+can discover. Each helper requests one exact type and has a
+corresponding
+[FabricWorkspace](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+method. Most retrieve workload connection details by default. Semantic
 Model and GraphQL helpers default to lightweight discovery because their
-executable targets are derived from list-level IDs and workspace fields;
-set `detail = TRUE` when their workload-specific properties are needed
+executable targets are derived from list-level IDs and workspace fields.
+User Data Functions default to lightweight discovery because Microsoft
+limits detail retrieval to delegated user identities. Set
+`detail = TRUE` when the workload and identity support it
 
 ## Usage
 
@@ -34,7 +40,7 @@ fabric_spark_job_definitions(workspace, detail = TRUE, ...)
 
 fabric_environments(workspace, detail = TRUE, ...)
 
-fabric_user_data_functions(workspace, detail = TRUE, ...)
+fabric_user_data_functions(workspace, detail = FALSE, ...)
 
 fabric_graphql_apis(workspace, detail = FALSE, ...)
 ```
@@ -51,10 +57,12 @@ fabric_graphql_apis(workspace, detail = FALSE, ...)
 - detail:
 
   Whether to retrieve connection details as well as names and IDs. This
-  takes more requests and may require additional permissions. The typed
-  discovery helpers generally use `TRUE`; Semantic Model and GraphQL
-  helpers default to lightweight records because their query targets can
-  be derived without workload detail requests
+  takes more requests and may require additional permissions. For
+  [`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md),
+  `NULL` enriches every supported type except User Data Functions, whose
+  detail endpoint does not support application identities. The typed
+  Semantic Model, GraphQL, and User Data Function helpers also default
+  to lightweight records
 
 - ...:
 
@@ -71,6 +79,31 @@ contains common item metadata, applicable connection fields, and
 workload methods. See
 [`fabric_items()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_items.md)
 for details
+
+## Typed support matrix
+
+`Default detail` is the value used when `detail` is omitted.
+`FabricItem` in the final column means that the typed helper and
+workload Get route are supported but no workload-specific R6 subclass is
+currently provided.
+
+|  |  |  |  |
+|----|----|----|----|
+| **Helper** | **Fabric type** | **Default detail** | **R6 class** |
+| `fabric_lakehouses()` | `Lakehouse` | `TRUE` | `FabricLakehouse` |
+| `fabric_warehouses()` | `Warehouse` | `TRUE` | `FabricWarehouse` |
+| `fabric_warehouse_snapshots()` | `WarehouseSnapshot` | `TRUE` | `FabricWarehouseSnapshot` |
+| `fabric_mirrored_databases()` | `MirroredDatabase` | `TRUE` | `FabricMirroredDatabase` |
+| `fabric_sql_databases()` | `SQLDatabase` | `TRUE` | `FabricSqlDatabase` |
+| `fabric_semantic_models()` | `SemanticModel` | `FALSE` | `FabricSemanticModel` |
+| `fabric_eventhouses()` | `Eventhouse` | `TRUE` | `FabricEventhouse` |
+| `fabric_kql_databases()` | `KQLDatabase` | `TRUE` | `FabricKqlDatabase` |
+| `fabric_notebooks()` | `Notebook` | `TRUE` | `FabricJobItem` |
+| `fabric_data_pipelines()` | `DataPipeline` | `TRUE` | `FabricJobItem` |
+| `fabric_spark_job_definitions()` | `SparkJobDefinition` | `TRUE` | `FabricJobItem` |
+| `fabric_environments()` | `Environment` | `TRUE` | `FabricItem` |
+| `fabric_user_data_functions()` | `UserDataFunction` | `FALSE` | `FabricItem` |
+| `fabric_graphql_apis()` | `GraphQLApi` | `FALSE` | `FabricGraphQLApi` |
 
 ## Choosing a helper
 

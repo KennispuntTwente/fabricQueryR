@@ -88,7 +88,7 @@
 <div class="section level3">
 <h3 id="id_1-discover-workspaces-and-items">1. Discover workspaces and items<a class="anchor" aria-label="anchor" href="#id_1-discover-workspaces-and-items"></a>
 </h3>
-<p>Find the Fabric resources you can access. Discovery returns R6 objects with methods matched to each actionable item type. In the example below, <code>$lakehouses()</code> is the object interface to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>, and <code>$read_table()</code> calls <code><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>.</p>
+<p>Find the Fabric resources you can access. Discovery returns R6 objects; package-supported actionable types receive specialized methods, while other types remain generic <code>FabricItem</code> records. In the example below, <code>$lakehouses()</code> is the object interface to <code><a href="reference/fabric_typed_items.html">fabric_lakehouses()</a></code>, and <code>$read_table()</code> calls <code><a href="reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Find a workspace &amp; lakehouse, and then read a table</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>

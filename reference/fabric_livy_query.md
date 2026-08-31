@@ -49,9 +49,10 @@ fabric_livy_query(
   Statement language. Use `"pyspark"` for Python with Spark, `"spark"`
   for Scala, `"sql"` for Spark SQL, or `"sparkr"` for SparkR. This must
   match the syntax in `code`. The `sparklyr` package is an R API, not a
-  separate Livy language: code that initializes `sparklyr` still uses
-  `"sparkr"`. SparkR is deprecated upstream in Spark 4.x; see **R on
-  Runtime 2.0** below for the distinction
+  separate Livy language: experimental code that initializes `sparklyr`
+  through item-scoped Livy still uses `"sparkr"`. SparkR is deprecated
+  upstream in Spark 4.x; see **R on Runtime 2.0** below for the
+  distinction
 
 - tenant_id:
 
@@ -140,11 +141,13 @@ To run a complete Python, Scala/Java, or R application file, use
 A delegated caller needs the `Lakehouse.Execute.All`,
 `Lakehouse.Read.All`, `Code.AccessFabric.All`, and
 `Code.AccessStorage.All` scopes and must be a Contributor in the
-workspace. A service principal must also be added to the workspace as a
-Contributor. Add `Code.AccessAzureKeyvault.All`,
-`Code.AccessAzureDataLake.All`, `Code.AccessAzureDataExplorer.All`, or
-`Code.AccessSQL.All` only when the Spark code accesses that Azure
-service at runtime
+workspace. For session jobs, Microsoft's current guide also documents
+service-principal (SPN) tokens. The service principal must be added to
+the workspace as a Contributor, but that role alone does not override
+tenant settings or other service-side identity restrictions. Add
+`Code.AccessAzureKeyvault.All`, `Code.AccessAzureDataLake.All`,
+`Code.AccessAzureDataExplorer.All`, or `Code.AccessSQL.All` only when
+the Spark code accesses that Azure service at runtime
 
 Spark long and decimal columns are returned as character values when
 needed to preserve them exactly. Dates and timestamps with a time zone
@@ -155,15 +158,15 @@ Binary and nested values use list-columns
 
 ## R on Runtime 2.0
 
-Microsoft Fabric supports `sparklyr` for R-first workloads and
-distributes it with Fabric runtimes. In Fabric's documented connection,
-`sparklyr::spark_connect(method = "synapse")` attaches to the existing
-Spark session through the current SparkR JVM bridge. Therefore,
-`sparklyr` lets R code move away from the SparkR DataFrame API, but it
-does not yet remove the runtime dependency on the `"sparkr"` Livy
-interpreter. Use `"sparkr"` when submitting R code that initializes
-`sparklyr`; prefer PySpark or Spark SQL only when the remote Livy
-workload must be independent of that bridge
+Microsoft Fabric distributes `sparklyr` and documents
+`sparklyr::spark_connect(method = "synapse")` for Fabric notebooks and
+Spark job definitions. Microsoft does not currently document that
+connection from an item-scoped Livy session, and this package's live
+suite validates the `"sparkr"` interpreter but not a `sparklyr`
+connection over it. Treat that adaptation as experimental and verify it
+in the target runtime before use. It still depends on the SparkR JVM
+bridge, which Spark 4.x deprecates. Prefer PySpark or Spark SQL when the
+remote workload must be independent of that bridge
 
 ## See also
 
@@ -199,8 +202,8 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # PySpark avoids the SparkR bridge; R-first code can initialize sparklyr
-  # inside a kind = "sparkr" session as described in the Livy vignette
+  # PySpark avoids the SparkR bridge. The Livy vignette separately labels the
+  # item-scoped sparklyr adaptation experimental and not live-validated here
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",

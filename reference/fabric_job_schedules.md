@@ -88,11 +88,17 @@ fabric_job_schedule_delete(
   Schedule job type. Notebooks default to `"RunNotebook"`, Spark job
   definitions to `"SparkJob"`, and data pipelines, Dataflows, and Data
   Build Tool Jobs to `"Execute"`. For a Dataflow publish schedule, set
-  `job_type = "ApplyChanges"` explicitly. Unknown item types retain the
-  Core Scheduler's `"DefaultJob"` fallback. Supply an explicit value for
-  another workload-specific schedule job type. When passing one of these
-  item types as a GUID instead of a discovered item, also supply
-  `item_type` or set the documented `job_type` explicitly.
+  `job_type = "ApplyChanges"` explicitly. Lakehouses require an explicit
+  value because they do not have a safe generic default; use
+  `"RefreshMaterializedLakeViews"` for the materialized Lake View
+  refresh route and supply its documented `execution_data`. Microsoft
+  labels the Lakehouse materialized Lake View schedule API as Preview,
+  for evaluation and development only, and does not recommend it for
+  production use. Unknown item types retain the Core Scheduler's
+  `"DefaultJob"` fallback. Supply an explicit value for another
+  workload-specific schedule job type. When passing one of these item
+  types as a GUID instead of a discovered item, also supply `item_type`
+  or set the documented `job_type` explicitly.
 
 - item_type:
 
@@ -204,6 +210,9 @@ Execute](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-j
 
 [Schedule Dataflow Apply
 Changes](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes)
+
+[Schedule a Lakehouse materialized Lake View
+refresh](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/background-jobs/create-refresh-materialized-lake-views-schedule)
 
 [Schedule a Data Build Tool
 Job](https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job)

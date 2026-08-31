@@ -140,7 +140,9 @@ records</p></dd>
 
 <dt id="arg-mapping">mapping<a class="anchor" aria-label="anchor" href="#arg-mapping"></a></dt>
 <dd><p>Optional name of a predefined ingestion mapping whose kind
-matches <code>format</code></p></dd>
+matches <code>format</code>. Omit it to use Kusto's identity mapping derived from the
+existing table schema: ordered text formats map by column position, while
+JSON, Parquet, Avro, ORC, and W3CLOGFILE map case-sensitive field names</p></dd>
 
 
 <dt id="arg-tags">tags<a class="anchor" aria-label="anchor" href="#arg-tags"></a></dt>
@@ -325,6 +327,7 @@ permanently removes successfully downloaded source blobs</p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/ingestion-supported-formats?view=microsoft-fabric" class="external-link">Supported ingestion formats</a></p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric" class="external-link">Storage connection strings</a></p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/ingestion-properties?view=microsoft-fabric" class="external-link">Data ingestion properties</a></p>
+<p><a href="https://learn.microsoft.com/en-us/kusto/management/mappings?view=microsoft-fabric#identity-mapping" class="external-link">Ingestion mappings and identity mapping</a></p>
     </div>
 
     <div class="section level2">
@@ -348,9 +351,9 @@ permanently removes successfully downloaded source blobs</p>
 <span class="r-in"><span>  <span class="st">";impersonate"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Choose an existing target and CSV mapping from the KQL database explorer</span></span></span>
+<span class="r-in"><span><span class="co"># A named mapping is optional when the source matches the table schema</span></span></span>
 <span class="r-in"><span><span class="va">table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_KQL_TABLE"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">mapping</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_KQL_CSV_MAPPING"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mapping</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_KQL_CSV_MAPPING"</span>, unset <span class="op">=</span> <span class="st">""</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Queue the file once using a stable ingest-if-not-exists key</span></span></span>
 <span class="r-in"><span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="fu">fabric_kql_ingest</span><span class="op">(</span></span></span>
@@ -358,7 +361,7 @@ permanently removes successfully downloaded source blobs</p>
 <span class="r-in"><span>  table <span class="op">=</span> <span class="va">table</span>,</span></span>
 <span class="r-in"><span>  sources <span class="op">=</span> <span class="va">source</span>,</span></span>
 <span class="r-in"><span>  format <span class="op">=</span> <span class="st">"csv"</span>,</span></span>
-<span class="r-in"><span>  mapping <span class="op">=</span> <span class="va">mapping</span>,</span></span>
+<span class="r-in"><span>  mapping <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nzchar</a></span><span class="op">(</span><span class="va">mapping</span><span class="op">)</span><span class="op">)</span> <span class="va">mapping</span> <span class="kw">else</span> <span class="cn">NULL</span>,</span></span>
 <span class="r-in"><span>  ignore_first_record <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  ingest_if_not_exists <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"file:"</span>, <span class="va">csv_file</span><span class="op">$</span><span class="va">path</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>

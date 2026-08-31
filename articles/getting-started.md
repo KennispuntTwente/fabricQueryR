@@ -116,6 +116,9 @@ or ask directly for Lakehouses with `$lakehouses()`
 items <- workspace$items()
 items
 
+# The generic interface also filters types without a typed convenience method
+reports <- workspace$items(type = "Report")
+
 # List only Lakehouses in the workspace
 lakehouses <- workspace$lakehouses()
 lakehouse <- lakehouses[[1L]]
@@ -133,7 +136,11 @@ and `$write_table()`
 ([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md)),
 plus OneLake, SQL, and Livy methods. Use `$as_list()` or
 [`as.list()`](https://rdrr.io/r/base/list.html) only when another
-interface specifically requires a plain record.
+interface specifically requires a plain record. The typed workspace
+methods are an intentional convenience subset of Fabric’s larger item
+catalog. `$items(type = ...)` can discover other service types; those
+items retain all returned fields as generic `FabricItem` objects when
+the package has no workload-specific subclass.
 
 ## Complete a first read
 

@@ -119,9 +119,13 @@ staging recovery options.</p>
 (<code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code>) when the source file already exists
 in OneLake or supported blob storage. It does not upload a local file or
 serialize an R object, and the destination table must already exist.</p>
-<p>For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate
-a named ingestion mapping in Fabric before submission. Supply the
-complete source path and its format:</p>
+<p>The <code>mapping</code> argument is optional. When it is omitted,
+Kusto derives an identity mapping from the existing table schema:
+ordered text formats such as CSV map source columns by position, while
+JSON, Parquet, Avro, ORC, and W3CLOGFILE map fields to case-sensitive
+table-column names. Use a validated named mapping when source order or
+names differ, or when ingestion-time transformations are required.
+Supply the complete source path and its format:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>  <span class="st">"https://onelake.dfs.fabric.microsoft.com/"</span>,</span>
@@ -130,14 +134,17 @@ complete source path and its format:</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The signed-in identity must be able to read the file. Do not print or
 log a source string that contains credentials. Source IDs are generated
-when omitted and remain available on the returned handle. Submit it with
-<code>$ingest()</code> (<code><a href="../reference/fabric_kql_ingest.html">fabric_kql_ingest()</a></code>):</p>
+when omitted and remain available on the returned handle. This example
+uses identity mapping unless <code>FABRIC_KQL_INGESTION_MAPPING</code>
+names a predefined CSV mapping:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">ingest</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">mapping</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_KQL_INGESTION_MAPPING"</span>, unset <span class="op">=</span> <span class="st">""</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">ingestion</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">ingest</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  sources <span class="op">=</span> <span class="va">source</span>,</span>
 <span>  format <span class="op">=</span> <span class="st">"csv"</span>,</span>
-<span>  mapping <span class="op">=</span> <span class="st">"EventsCsv"</span>,</span>
+<span>  mapping <span class="op">=</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nzchar</a></span><span class="op">(</span><span class="va">mapping</span><span class="op">)</span><span class="op">)</span> <span class="va">mapping</span> <span class="kw">else</span> <span class="cn">NULL</span>,</span>
 <span>  ignore_first_record <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  tags <span class="op">=</span> <span class="st">"source:daily-export"</span>,</span>
 <span>  ingest_if_not_exists <span class="op">=</span> <span class="st">"events-2026-08-14"</span></span>

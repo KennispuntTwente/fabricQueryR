@@ -56,8 +56,9 @@ and vignettes for configuration options and more involved workflows.
 
 ### 1. Discover workspaces and items
 
-Find the Fabric resources you can access. Discovery returns R6 objects
-with methods matched to each actionable item type. In the example below,
+Find the Fabric resources you can access. Discovery returns R6 objects;
+package-supported actionable types receive specialized methods, while
+other types remain generic `FabricItem` records. In the example below,
 `$lakehouses()` is the object interface to
 [`fabric_lakehouses()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md),
 and `$read_table()` calls

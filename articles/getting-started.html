@@ -182,6 +182,9 @@ more robust:</p>
 <span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">items</span></span>
 <span></span>
+<span><span class="co"># The generic interface also filters types without a typed convenience method</span></span>
+<span><span class="va">reports</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span>type <span class="op">=</span> <span class="st">"Report"</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># List only Lakehouses in the workspace</span></span>
 <span><span class="va">lakehouses</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">lakehouses</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
@@ -195,7 +198,12 @@ next actions. For example, a <code>FabricLakehouse</code> provides
 and <code>$write_table()</code>
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>), plus OneLake, SQL, and
 Livy methods. Use <code>$as_list()</code> or <code><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list()</a></code> only
-when another interface specifically requires a plain record.</p>
+when another interface specifically requires a plain record. The typed
+workspace methods are an intentional convenience subset of Fabric’s
+larger item catalog. <code>$items(type = ...)</code> can discover other
+service types; those items retain all returned fields as generic
+<code>FabricItem</code> objects when the package has no
+workload-specific subclass.</p>
 </div>
 <div class="section level2">
 <h2 id="complete-a-first-read">Complete a first read<a class="anchor" aria-label="anchor" href="#complete-a-first-read"></a>

@@ -164,6 +164,14 @@ name such as <code>"Europe/Amsterdam"</code>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedule_create</span><span class="op">(</span><span class="va">weekly</span>, enabled <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">schedules</span> <span class="op">&lt;-</span> <span class="va">notebook</span><span class="op">$</span><span class="fu">schedules</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Lakehouse schedules have no safe generic job default. Pass the
+documented <code>job_type</code> explicitly; for example, materialized
+Lake View refresh schedules use
+<code>job_type = "RefreshMaterializedLakeViews"</code> together with an
+<code>execution_data</code> list containing
+<code>mlvExecutionDefinitionId</code>. Microsoft labels this Lakehouse
+scheduling API as Preview, for evaluation and development only, and does
+not recommend it for production use.</p>
 <p>Disable or restart a schedule with <code>$schedule_update()</code>
 (<code><a href="../reference/fabric_job_schedules.html">fabric_job_schedule_update()</a></code>) without rebuilding its
 configuration:</p>

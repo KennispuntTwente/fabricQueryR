@@ -202,6 +202,15 @@ Delegated sign-in requires `Lakehouse.Execute.All`,
 `Code.AccessSQL.All` only when Spark accesses that Azure service at
 runtime. The signed-in identity also needs an appropriate workspace role
 
+Microsoft's current batch guide is internally inconsistent about service
+principals: its introduction says SPN is unsupported, while its
+authentication section provides a certificate-based SPN example. This
+package can acquire and send a client-credentials token, but cannot make
+the Fabric service accept that identity. Until Microsoft clarifies the
+contract, verify unattended batch authentication in the target tenant
+and use a delegated user when the service rejects an SPN. A Contributor
+role alone is not a guarantee of batch SPN support
+
 ## See also
 
 [Microsoft Fabric batch
@@ -222,7 +231,7 @@ scripts <- fabric_onelake_list(
 script <- scripts[grepl("[.]py$", scripts$path), ][1L, ]
 script_uri <- paste0(
   "abfss://", workspace$id, "@onelake.dfs.fabric.microsoft.com/",
-  lakehouse$id, ".Lakehouse/", script$path[[1L]]
+  lakehouse$id, "/", script$path[[1L]]
 )
 
 # Submit the discovered script and wait for its Spark application to finish

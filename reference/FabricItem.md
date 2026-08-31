@@ -38,7 +38,9 @@ methods. Other discovered types are returned as `FabricItem` objects
 with `$details()`
 ([`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md))
 and record access. They do not expose methods that cannot operate from
-discovery metadata.
+discovery metadata. This generic fallback also applies to typed
+Environment and User Data Function discovery; a typed helper and
+workload detail route do not by themselves imply a specialized R6 class.
 
 ## Super class
 
@@ -461,7 +463,7 @@ Discover User Data Functions in this workspace.
 
 #### Usage
 
-    FabricWorkspace$user_data_functions(detail = TRUE, ...)
+    FabricWorkspace$user_data_functions(detail = FALSE, ...)
 
 #### Arguments
 
@@ -573,7 +575,9 @@ Internal constructor used by discovery factories.
 
 ### `FabricItem$details()`
 
-Retrieve fresh workload details for this item.
+Retrieve a fresh item record and supported workload details. User Data
+Function workload details require `detail = TRUE` and a delegated user
+identity.
 
 #### Usage
 
@@ -2186,5 +2190,9 @@ model$refresh_wait(refresh, timeout = 1800)
 
 # Equivalent generic: as.list(lakehouse)
 lakehouse_record <- lakehouse$as_list()
+
+# Fabric item types outside the typed-helper subset remain usable records
+report <- workspace$items(type = "Report")[[1L]]
+report$type
 } # }
 ```

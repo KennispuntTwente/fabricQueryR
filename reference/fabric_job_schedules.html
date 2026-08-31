@@ -128,11 +128,16 @@ Omit it when <code>item</code> is a discovered object containing <code>workspace
 Spark job definitions to <code>"SparkJob"</code>, and data pipelines, Dataflows, and
 Data Build Tool Jobs to <code>"Execute"</code>.
 For a Dataflow publish schedule, set <code>job_type = "ApplyChanges"</code>
-explicitly. Unknown item types retain the Core Scheduler's <code>"DefaultJob"</code>
-fallback. Supply an explicit value for another workload-specific schedule
-job type. When passing one of these item types as a GUID instead of a
-discovered item, also supply <code>item_type</code> or set the documented <code>job_type</code>
-explicitly.</p></dd>
+explicitly. Lakehouses require an explicit value because they do not have
+a safe generic default; use <code>"RefreshMaterializedLakeViews"</code> for the
+materialized Lake View refresh route and supply its documented
+<code>execution_data</code>. Microsoft labels the Lakehouse materialized Lake View
+schedule API as Preview, for evaluation and development only, and does not
+recommend it for production use. Unknown item types retain the Core
+Scheduler's <code>"DefaultJob"</code> fallback. Supply an explicit value for another
+workload-specific schedule job type. When passing one of these item types
+as a GUID instead of a discovered item, also supply <code>item_type</code> or set the
+documented <code>job_type</code> explicitly.</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
@@ -229,6 +234,7 @@ model unless <code>job_type</code> is supplied explicitly for a future or custom
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/datapipeline/background-jobs/schedule-execute" class="external-link">Schedule a Data Pipeline</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute" class="external-link">Schedule Dataflow Execute</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes" class="external-link">Schedule Dataflow Apply Changes</a></p>
+<p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/background-jobs/create-refresh-materialized-lake-views-schedule" class="external-link">Schedule a Lakehouse materialized Lake View refresh</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job" class="external-link">Schedule a Data Build Tool Job</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-factory/pipeline-rest-api-capabilities" class="external-link">Fabric Data Pipeline REST API capabilities</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/fundamentals/job-scheduler" class="external-link">Fabric job scheduler behavior</a></p>
