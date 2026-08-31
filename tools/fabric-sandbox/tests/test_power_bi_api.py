@@ -2,6 +2,7 @@ import json
 
 from azure.core.credentials import AccessToken
 import httpx
+import pytest
 
 from fabricqueryr_sandbox.power_bi_api import (
     ARROW_SEMANTIC_MODEL_NAME,
@@ -132,8 +133,10 @@ def test_semantic_model_fixture_reset_removes_all_stale_copies():
 
 def test_arrow_semantic_model_fixture_is_refreshed_and_verified(monkeypatch):
     requests = []
+    refresh_reads = 0
 
     def handler(request):
+        nonlocal refresh_reads
         requests.append((request.method, request.url.path))
         if request.method == "GET" and request.url.path.endswith("/datasets"):
             return httpx.Response(
@@ -147,8 +150,37 @@ def test_arrow_semantic_model_fixture_is_refreshed_and_verified(monkeypatch):
                     ]
                 },
             )
-        if request.url.path.endswith("/refreshes"):
-            return httpx.Response(202)
+        if request.method == "POST" and request.url.path.endswith("/refreshes"):
+            return httpx.Response(
+                202,
+                headers={
+                    "Location": (
+                        "https://api.powerbi.com/v1.0/myorg/groups/"
+                        "workspace-id/datasets/arrow-dataset-id/refreshes/"
+                        "refresh-id"
+                    )
+                },
+            )
+        if request.method == "GET" and request.url.path.endswith(
+            "/refreshes/refresh-id"
+        ):
+            refresh_reads += 1
+            if refresh_reads == 1:
+                return httpx.Response(
+                    202,
+                    headers={"Retry-After": "0"},
+                    json={
+                        "status": "Unknown",
+                        "extendedStatus": "InProgress",
+                    },
+                )
+            return httpx.Response(
+                200,
+                json={
+                    "status": "Completed",
+                    "extendedStatus": "Completed",
+                },
+            )
         if request.url.path.endswith("/executeQueries"):
             return httpx.Response(
                 200,
@@ -190,8 +222,139 @@ def test_arrow_semantic_model_fixture_is_refreshed_and_verified(monkeypatch):
             "arrow-dataset-id/refreshes",
         ),
         (
+            "GET",
+            "/v1.0/myorg/groups/workspace-id/datasets/"
+            "arrow-dataset-id/refreshes/refresh-id",
+        ),
+        (
+            "GET",
+            "/v1.0/myorg/groups/workspace-id/datasets/"
+            "arrow-dataset-id/refreshes/refresh-id",
+        ),
+        (
             "POST",
             "/v1.0/myorg/groups/workspace-id/datasets/"
             "arrow-dataset-id/executeQueries",
         ),
     ]
+
+
+def test_arrow_fixture_fails_before_querying_stale_rows(monkeypatch):
+    requests = []
+
+    def handler(request):
+        requests.append((request.method, request.url.path))
+        if request.method == "GET" and request.url.path.endswith("/datasets"):
+            return httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "id": "arrow-dataset-id",
+                            "name": ARROW_SEMANTIC_MODEL_NAME,
+                        }
+                    ]
+                },
+            )
+        if request.method == "POST" and request.url.path.endswith("/refreshes"):
+            return httpx.Response(
+                202,
+                headers={
+                    "Location": (
+                        "https://api.powerbi.com/v1.0/myorg/groups/"
+                        "workspace-id/datasets/arrow-dataset-id/refreshes/"
+                        "failed-refresh"
+                    )
+                },
+            )
+        if request.method == "GET" and request.url.path.endswith(
+            "/refreshes/failed-refresh"
+        ):
+            return httpx.Response(
+                200,
+                json={
+                    "status": "Failed",
+                    "extendedStatus": "Failed",
+                    "messages": [{"type": "Error", "message": "bad source"}],
+                },
+            )
+        if request.url.path.endswith("/executeQueries"):
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {"tables": [{"rows": [{"[row_count]": 3}]}]}
+                    ]
+                },
+            )
+        raise AssertionError(f"unexpected request: {request.url}")
+
+    credential = StaticCredential()
+    original_init = PowerBiApi.__init__
+
+    def fake_init(self, supplied_credential):
+        original_init(
+            self,
+            supplied_credential,
+            transport=httpx.MockTransport(handler),
+            sleep=lambda _: None,
+        )
+
+    monkeypatch.setattr(PowerBiApi, "__init__", fake_init)
+    with pytest.raises(RuntimeError, match="ended in Failed.*bad source"):
+        prepare_arrow_test_semantic_model(credential, "workspace-id")
+
+    assert not any(path.endswith("/executeQueries") for _, path in requests)
+
+
+@pytest.mark.parametrize(
+    ("headers", "message"),
+    [
+        ({}, "Location header"),
+        (
+            {"Location": "https://attacker.example/refreshes/refresh-id"},
+            "configured HTTPS origin",
+        ),
+        (
+            {
+                "Location": (
+                    "https://api.powerbi.com/v1.0/myorg/groups/other/"
+                    "datasets/dataset-id/refreshes/refresh-id"
+                )
+            },
+            "expected dataset refresh route",
+        ),
+    ],
+)
+def test_import_refresh_rejects_an_unsafe_status_location(headers, message):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(202, headers=headers)
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        with pytest.raises((RuntimeError, ValueError), match=message):
+            api.refresh_import_model("workspace-id", "dataset-id")
+
+    assert len(requests) == 1
+
+
+def test_import_refresh_requires_an_accepted_trigger_response():
+    location = (
+        "https://api.powerbi.com/v1.0/myorg/groups/workspace-id/"
+        "datasets/dataset-id/refreshes/refresh-id"
+    )
+
+    def handler(_request):
+        return httpx.Response(200, headers={"Location": location})
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        with pytest.raises(RuntimeError, match="unexpected HTTP 200"):
+            api.refresh_import_model("workspace-id", "dataset-id")

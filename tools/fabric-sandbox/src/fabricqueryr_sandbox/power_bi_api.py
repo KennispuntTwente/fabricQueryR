@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import math
 import time
 from typing import Any
 
@@ -15,6 +16,7 @@ POWER_BI_API = "https://api.powerbi.com/v1.0/myorg"
 SEMANTIC_MODEL_NAME = "FabricQueryRIntegrationModel"
 ARROW_SEMANTIC_MODEL_NAME = "FabricQueryRArrowIntegrationModel"
 SEMANTIC_MODEL_TABLE = "Facts"
+TERMINAL_REFRESH_FAILURES = {"Failed", "Disabled", "Cancelled", "TimedOut"}
 
 
 class PowerBiApi:
@@ -43,12 +45,33 @@ class PowerBiApi:
         self.close()
 
     def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        target = self._same_origin_url(url)
         token = self.credential.get_token(POWER_BI_SCOPE).token
         headers = {"Authorization": f"Bearer {token}"}
         headers.update(kwargs.pop("headers", {}))
-        response = self.client.request(method, url, headers=headers, **kwargs)
+        response = self.client.request(
+            method,
+            target,
+            headers=headers,
+            **kwargs,
+        )
         response.raise_for_status()
         return response
+
+    def _same_origin_url(self, url: str) -> httpx.URL:
+        target = self.client.build_request("GET", url).url
+        base = self.client.base_url
+        target_origin = (target.scheme, target.host, target.port)
+        base_origin = (base.scheme, base.host, base.port)
+        if (
+            target_origin != base_origin
+            or bool(target.username)
+            or bool(target.password)
+        ):
+            raise ValueError(
+                "Power BI API URLs must remain on the configured HTTPS origin"
+            )
+        return target
 
     def create_test_semantic_model(self, workspace_id: str) -> dict[str, Any]:
         """Create the Push fixture used to exercise the JSON query API."""
@@ -164,11 +187,104 @@ class PowerBiApi:
             "Power BI semantic model rows were not queryable in time"
         ) from last_error
 
-    def refresh_import_model(self, workspace_id: str, dataset_id: str) -> None:
-        """Start a refresh for the source-controlled Arrow API fixture."""
-        self.request(
+    def refresh_import_model(
+        self,
+        workspace_id: str,
+        dataset_id: str,
+        *,
+        timeout: int = 900,
+    ) -> dict[str, Any]:
+        """Refresh the source-controlled Arrow fixture and await completion."""
+        response = self.request(
             "POST",
             f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
+        )
+        if response.status_code != 202:
+            raise RuntimeError(
+                "Power BI refresh trigger returned unexpected HTTP "
+                f"{response.status_code}"
+            )
+        location = response.headers.get("Location")
+        if not location:
+            raise RuntimeError(
+                "Power BI refresh response did not include a Location header"
+            )
+        location_url = self._same_origin_url(location)
+        expected_prefix = self.client.build_request(
+            "GET",
+            f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes/",
+        ).url.path
+        refresh_id = location_url.path.removeprefix(expected_prefix)
+        if (
+            not location_url.path.startswith(expected_prefix)
+            or not refresh_id
+            or "/" in refresh_id
+            or location_url.query
+            or location_url.fragment
+        ):
+            raise RuntimeError(
+                "Power BI refresh Location did not match the expected "
+                "dataset refresh route"
+            )
+        refresh_url = (
+            f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes/"
+            f"{refresh_id}"
+        )
+        deadline = time.monotonic() + timeout
+        last_refresh: dict[str, Any] | None = None
+        while time.monotonic() < deadline:
+            status_response = self.request("GET", refresh_url)
+            refresh = status_response.json()
+            if not isinstance(refresh, dict):
+                raise RuntimeError(
+                    "Power BI refresh status did not return an object"
+                )
+            last_refresh = refresh
+            status = str(refresh.get("status", ""))
+            extended_status = str(refresh.get("extendedStatus", ""))
+            terminal_failure = next(
+                (
+                    value
+                    for value in (status, extended_status)
+                    if value in TERMINAL_REFRESH_FAILURES
+                ),
+                None,
+            )
+            if terminal_failure is not None:
+                detail = (
+                    refresh.get("messages")
+                    or refresh.get("serviceExceptionJson")
+                    or refresh.get("refreshAttempts")
+                )
+                raise RuntimeError(
+                    f"Power BI semantic model refresh ended in "
+                    f"{terminal_failure}: {detail!r}"
+                )
+            if status_response.status_code == 200:
+                if status == "Completed":
+                    return refresh
+                raise RuntimeError(
+                    "Power BI refresh returned a terminal response with "
+                    f"unexpected status {status!r}: {refresh!r}"
+                )
+            if status_response.status_code != 202:
+                raise RuntimeError(
+                    "Power BI refresh status returned unexpected HTTP "
+                    f"{status_response.status_code}"
+                )
+            retry_after = status_response.headers.get("Retry-After")
+            try:
+                delay = max(0.0, float(retry_after or 5))
+            except ValueError:
+                delay = 5
+            if not math.isfinite(delay):
+                delay = 5
+            remaining = max(0.0, deadline - time.monotonic())
+            if delay > 0 and remaining > 0:
+                self.sleep(min(delay, remaining))
+        raise TimeoutError(
+            "Power BI semantic model refresh did not finish in time; "
+            f"last status: {last_refresh!r}"
         )
 
 
