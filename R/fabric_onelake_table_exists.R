@@ -2,10 +2,9 @@
 
 #' Check whether a OneLake schema or table exists
 #'
-#' Uses the documented metadata-only `HEAD` operations from either the Delta
-#' Unity Catalog-compatible API or the Iceberg REST Catalog API. These helpers
-#' avoid downloading a complete schema or table record when only existence is
-#' needed.
+#' Searches the paginated Delta metadata collections or uses the Iceberg REST
+#' Catalog API's metadata-only `HEAD` operations. These helpers avoid
+#' downloading table data when only existence is needed.
 #'
 #' @param item Fabric data item GUID, exact display name, or a discovered item
 #'   object. An object containing `workspaceId` avoids workspace discovery.
@@ -22,9 +21,10 @@
 #'   base ending in `/delta` or `/iceberg`. Most users should keep the default.
 #' @inheritParams fabric_workspaces
 #'
-#' @return One logical value: `TRUE` for a successful `HEAD` response and
-#'   `FALSE` for HTTP 404. Authentication, permission, throttling, and service
-#'   errors are not converted to `FALSE`.
+#' @return One logical value. Delta returns `TRUE` when the paginated metadata
+#'   inventory contains the requested name. Iceberg returns `TRUE` for a
+#'   successful `HEAD` response and `FALSE` for HTTP 404. Authentication,
+#'   permission, throttling, and service errors are not converted to `FALSE`.
 #' @details
 #' The table APIs use the Azure Storage token audience and require permission
 #' to read the item's tables through OneLake. If name-based item discovery is
@@ -33,9 +33,8 @@
 #'
 #' Iceberg requests first call `GET /iceberg/v1/config` with the item's
 #' workspace/item warehouse identity and validate the returned prefix before
-#' issuing `HEAD`. Delta schema requests include `catalog_name` only when the
-#' schema name contains dots. Delta table requests include `catalog_name` and
-#' `schema_name`.
+#' issuing `HEAD`. Delta requests follow all metadata collection pages because
+#' OneLake currently rejects its documented schema and table `HEAD` routes.
 #' @references
 #' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
 #'
@@ -84,8 +83,7 @@ fabric_onelake_schema_exists <- function(
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base
   )
-  url <- .fabric_onelake_exists_url(context, schema = schema)
-  .fabric_onelake_exists_request(url, context$credential)
+  .fabric_onelake_exists(context, schema = schema)
 }
 
 #' @rdname fabric_onelake_schema_exists
@@ -132,12 +130,11 @@ fabric_onelake_table_exists <- function(
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base
   )
-  url <- .fabric_onelake_exists_url(
+  .fabric_onelake_exists(
     context,
     schema = table_target$schema,
     table = table_target$table
   )
-  .fabric_onelake_exists_request(url, context$credential)
 }
 
 .fabric_onelake_exists_context <- function(
@@ -285,28 +282,67 @@ fabric_onelake_table_exists <- function(
   invisible(value)
 }
 
-.fabric_onelake_exists_url <- function(context, schema, table = NULL) {
+.fabric_onelake_exists <- function(context, schema, table = NULL) {
   if (identical(context$protocol, "delta")) {
-    collection <- if (is.null(table)) "schemas" else "tables"
-    name <- table %||% schema
-    request <- httr2::request(paste0(
+    return(.fabric_onelake_delta_exists(context, schema, table))
+  }
+  url <- .fabric_onelake_iceberg_exists_url(context, schema, table)
+  .fabric_onelake_exists_request(url, context$credential)
+}
+
+.fabric_onelake_delta_exists <- function(context, schema, table = NULL) {
+  collection <- if (is.null(table)) "schemas" else "tables"
+  query <- list(catalog_name = context$item_id)
+  if (!is.null(table)) {
+    query$schema_name <- schema
+  }
+  records <- .fabric_onelake_table_pages(
+    paste0(
       context$protocol_base,
       "/",
       onelake_encode_path(context$workspace_id, context$item_id),
       "/api/2.1/unity-catalog/",
-      collection,
-      "/",
-      onelake_encode_path(name)
-    ))
-    query <- list()
-    if (!is.null(table) || grepl(".", schema, fixed = TRUE)) {
-      query$catalog_name <- context$item_id
-    }
-    if (!is.null(table)) {
-      query$schema_name <- schema
-    }
-    return(do.call(httr2::req_url_query, c(list(request), query))$url)
-  }
+      collection
+    ),
+    field = collection,
+    query = query,
+    credential = context$credential,
+    page_size = NULL,
+    error_class = c(
+      "fabric_onelake_table_protocol_error",
+      "fabric_onelake_error"
+    )
+  )
+  names <- vapply(
+    records,
+    function(record) {
+      value <- if (is.list(record)) record$name else NULL
+      if (
+        !is.character(value) ||
+          length(value) != 1L ||
+          is.na(value) ||
+          !nzchar(value)
+      ) {
+        .fabric_abort(
+          paste0(
+            "OneLake returned ",
+            sub("s$", "", collection),
+            " metadata without one non-empty name"
+          ),
+          class = c(
+            "fabric_onelake_table_protocol_error",
+            "fabric_onelake_error"
+          )
+        )
+      }
+      value
+    },
+    character(1)
+  )
+  (table %||% schema) %in% names
+}
+
+.fabric_onelake_iceberg_exists_url <- function(context, schema, table = NULL) {
   url <- paste0(
     context$protocol_base,
     "/v1/",

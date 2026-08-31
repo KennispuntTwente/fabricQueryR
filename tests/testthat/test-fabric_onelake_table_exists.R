@@ -1,11 +1,13 @@
-test_that("Delta existence checks use HEAD and distinguish only 404", {
+test_that("Delta existence checks search metadata inventories", {
   requests <- list()
   httr2::local_mocked_responses(function(req) {
     requests[[length(requests) + 1L]] <<- req
-    exists_test_response(
-      req,
-      status = if (length(requests) == 1L) 200L else 404L
-    )
+    body <- if (grepl("/schemas", req$url, fixed = TRUE)) {
+      list(schemas = list(list(name = "sales.v2")))
+    } else {
+      list(tables = list())
+    }
+    exists_test_response(req, body = body)
   })
 
   schema_exists <- fabric_onelake_schema_exists(
@@ -25,16 +27,16 @@ test_that("Delta existence checks use HEAD and distinguish only 404", {
   expect_length(requests, 2L)
   expect_true(all(vapply(
     requests,
-    function(request) identical(request$method, "HEAD"),
+    function(request) identical(request$method %||% "GET", "GET"),
     logical(1)
   )))
-  expect_match(requests[[1L]]$url, "/schemas/sales.v2[?]")
+  expect_match(requests[[1L]]$url, "/schemas[?]")
   expect_match(
     utils::URLdecode(requests[[1L]]$url),
     paste0("catalog_name=", exists_test_item_id),
     fixed = TRUE
   )
-  expect_match(requests[[2L]]$url, "/tables/orders.v2[?]")
+  expect_match(requests[[2L]]$url, "/tables[?]")
   expect_match(
     utils::URLdecode(requests[[2L]]$url),
     "schema_name=sales.v2",
@@ -42,28 +44,44 @@ test_that("Delta existence checks use HEAD and distinguish only 404", {
   )
 })
 
-test_that("Delta schema existence omits an unnecessary catalog query", {
-  request <- NULL
+test_that("Delta schema existence follows pagination", {
+  requests <- list()
   httr2::local_mocked_responses(function(req) {
-    request <<- req
-    exists_test_response(req)
+    requests[[length(requests) + 1L]] <<- req
+    body <- if (length(requests) == 1L) {
+      list(
+        schemas = list(list(name = "curated")),
+        next_page_token = "next-page"
+      )
+    } else {
+      list(schemas = list(list(name = "dbo")))
+    }
+    exists_test_response(req, body = body)
   })
 
-  fabric_onelake_schema_exists(
+  result <- fabric_onelake_schema_exists(
     exists_test_item(),
     "dbo",
     token = "storage-token"
   )
 
-  expect_match(request$url, "/schemas/dbo$")
-  expect_null(httr2::url_parse(request$url)$query$catalog_name)
+  expect_true(result)
+  expect_length(requests, 2L)
+  expect_null(httr2::url_parse(requests[[1L]]$url)$query$page_token)
+  expect_equal(
+    httr2::url_parse(requests[[2L]]$url)$query$page_token,
+    "next-page"
+  )
 })
 
 test_that("table existence uses a discovered default schema", {
   request <- NULL
   httr2::local_mocked_responses(function(req) {
     request <<- req
-    exists_test_response(req)
+    exists_test_response(
+      req,
+      body = list(tables = list(list(name = "orders")))
+    )
   })
 
   result <- fabric_onelake_table_exists(

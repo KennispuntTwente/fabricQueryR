@@ -83,8 +83,9 @@ SQL and Livy is deprecated.
 * `fabric_catalog_search()` now follows Fabric's continuation-token contract by
 sending search and filter parameters only on the first page.
 
-* `fabric_onelake_schema_exists()` now omits `catalog_name` when a Delta schema
-name does not contain dots, matching OneLake's existence endpoint.
+* `fabric_onelake_schema_exists()` and `fabric_onelake_table_exists()` now use
+paginated Delta metadata inventories, avoiding HTTP 400 responses from
+OneLake's documented `HEAD` routes.
 
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
