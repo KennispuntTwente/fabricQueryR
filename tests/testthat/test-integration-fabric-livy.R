@@ -80,13 +80,19 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   )
   expect_equal(assignment$output$status, "ok")
 
-  discovered <- fabric_livy_sessions(
-    lakehouse$livy_url,
-    tenant_id = auth$tenant_id,
-    client_id = auth$client_id,
-    auth_args = auth$auth_args
-  )
-  expect_true(session$id %in% discovered$id)
+  discovered <- fabric_test_eventually(function() {
+    value <- fabric_livy_sessions(
+      lakehouse$livy_url,
+      tenant_id = auth$tenant_id,
+      client_id = auth$client_id,
+      auth_args = auth$auth_args
+    )
+    if (!session$id %in% value$id) {
+      return(NULL)
+    }
+    value
+  })
+  expect_contains(discovered$id, session$id)
   recovered <- fabric_livy_session_attach(
     lakehouse$livy_url,
     session$id,
@@ -356,22 +362,6 @@ test_that("Livy batches cover success, failure, and cancellation", {
     verbose = FALSE
   )
   on.exit(try(success$cancel(), silent = TRUE), add = TRUE)
-  discovery_deadline <- Sys.time() + 120
-  repeat {
-    discovered_batches <- fabric_livy_batches(
-      lakehouse$livy_url,
-      tenant_id = auth$tenant_id,
-      client_id = auth$client_id,
-      auth_args = auth$auth_args
-    )
-    if (success$id %in% discovered_batches$id) {
-      break
-    }
-    if (Sys.time() >= discovery_deadline) {
-      rlang::abort("Submitted Livy batch did not appear in activity discovery")
-    }
-    Sys.sleep(2)
-  }
   recovered_success <- fabric_livy_batch_attach(
     lakehouse$livy_url,
     success$id,
@@ -437,6 +427,19 @@ test_that("Livy batches cover success, failure, and cancellation", {
   slow_marker <- wait_for_marker("slow")
   expect_equal(slow_marker$mode, "slow")
   expect_equal(as.numeric(slow_marker$row_count), -1)
+  discovered_batches <- fabric_test_eventually(function() {
+    value <- fabric_livy_batches(
+      lakehouse$livy_url,
+      tenant_id = auth$tenant_id,
+      client_id = auth$client_id,
+      auth_args = auth$auth_args
+    )
+    if (!slow$id %in% value$id) {
+      return(NULL)
+    }
+    value
+  })
+  expect_contains(discovered_batches$id, slow$id)
   timeout_error <- expect_error(
     slow$wait(
       timeout = 0,

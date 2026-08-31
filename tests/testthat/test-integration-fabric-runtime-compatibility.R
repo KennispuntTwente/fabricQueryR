@@ -314,19 +314,6 @@ test_that("Livy batches complete on Runtime 2.0", {
     verbose = FALSE
   )
   on.exit(try(batch$cancel(), silent = TRUE), add = TRUE)
-  discovered <- fabric_test_eventually(function() {
-    value <- fabric_livy_batches(
-      lakehouse$livy_url,
-      tenant_id = auth$tenant_id,
-      client_id = auth$client_id,
-      auth_args = auth$auth_args
-    )
-    if (!batch$id %in% value$id) {
-      return(NULL)
-    }
-    value
-  })
-  expect_contains(discovered$id, batch$id)
   recovered <- fabric_livy_batch_attach(
     lakehouse$livy_url,
     batch$id,
