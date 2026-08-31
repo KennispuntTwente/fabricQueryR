@@ -103,9 +103,9 @@
 #'
 #' @return A tibble for one result table. Multiple Arrow result tables are
 #'   returned as a `fabric_pbi_dax_rowsets` list of tibbles or Arrow streams
-#'   Power BI column names are preserved. Empty JSON results have no column
-#'   metadata and therefore return a zero-row, zero-column tibble. Partial or
-#'   truncated results raise an error
+#'   Power BI column names are preserved. Result tables with no rows have no
+#'   column metadata and therefore return a zero-row, zero-column tibble.
+#'   Missing, partial, or truncated results raise an error
 #' @references
 #' [Power BI JSON Execute Queries REST API](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries-in-group)
 #'
@@ -1394,11 +1394,24 @@ pbi_parse_dax_response <- function(out) {
   pbi_dax_response_object(out, "response")
   pbi_check_dax_error(out$error, "response")
 
-  results <- out$results
-  if (is.null(results) || length(results) == 0L) {
-    return(tibble::tibble())
+  if (!"results" %in% names(out)) {
+    .fabric_abort(
+      "Power BI returned a DAX response without results",
+      class = "fabric_pbi_dax_protocol_error"
+    )
   }
+  results <- out$results
   pbi_dax_response_array(results, "results")
+
+  if (length(results) != 1L) {
+    .fabric_abort(
+      sprintf(
+        "Power BI returned %d query results; exactly one was expected",
+        length(results)
+      ),
+      class = "fabric_pbi_dax_protocol_error"
+    )
+  }
 
   for (result in results) {
     pbi_dax_response_object(result, "query result")
@@ -1409,15 +1422,6 @@ pbi_parse_dax_response <- function(out) {
       pbi_dax_response_object(table, "table result")
       pbi_check_dax_error(table$error, "table result")
     }
-  }
-
-  if (length(results) != 1L) {
-    .fabric_abort(
-      sprintf(
-        "Power BI returned %d query results; exactly one is supported",
-        length(results)
-      )
-    )
   }
 
   tables <- results[[1]]$tables

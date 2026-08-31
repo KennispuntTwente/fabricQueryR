@@ -350,7 +350,7 @@ test_that("fabric_pbi_dax_query forwards Arrow mode and effective identity", {
   expect_equal(result$value, 1L)
 })
 
-test_that("DAX response parser preserves names, nulls, and empty results", {
+test_that("DAX response parser preserves names, nulls, and empty tables", {
   parsed <- pbi_parse_dax_response(list(
     results = list(list(
       tables = list(list(
@@ -366,9 +366,10 @@ test_that("DAX response parser preserves names, nulls, and empty results", {
   expect_named(parsed, c("Facts[id]", "[amount]"))
   expect_equal(parsed[["Facts[id]"]], c(1L, 2L))
   expect_equal(parsed[["[amount]"]], c(10.5, NA))
-  expect_equal(pbi_parse_dax_response(list(results = list())), tibble::tibble())
   expect_equal(
-    pbi_parse_dax_response(list(results = list(list(tables = list())))),
+    pbi_parse_dax_response(list(
+      results = list(list(tables = list(list(rows = list()))))
+    )),
     tibble::tibble()
   )
 })
@@ -376,6 +377,9 @@ test_that("DAX response parser preserves names, nulls, and empty results", {
 test_that("DAX response parser rejects malformed JSON shapes", {
   malformed <- list(
     "not-an-object",
+    list(),
+    list(results = NULL),
+    list(results = list()),
     list(results = "not-an-array"),
     list(results = list("not-an-object")),
     list(results = list(list(tables = "not-an-array"))),

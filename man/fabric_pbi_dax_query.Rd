@@ -96,9 +96,9 @@ execution HTTP request. This is distinct from the Arrow API's server-side
 \value{
 A tibble for one result table. Multiple Arrow result tables are
 returned as a \code{fabric_pbi_dax_rowsets} list of tibbles or Arrow streams
-Power BI column names are preserved. Empty JSON results have no column
-metadata and therefore return a zero-row, zero-column tibble. Partial or
-truncated results raise an error
+Power BI column names are preserved. Result tables with no rows have no
+column metadata and therefore return a zero-row, zero-column tibble.
+Missing, partial, or truncated results raise an error
 }
 \description{
 Runs a DAX query against a published semantic model and returns the result as
