@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from datetime import timedelta
 
 from .cleanup import cleanup_ci_workspaces, remove_persistent_workspace
@@ -89,8 +90,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    args = build_parser().parse_args()
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
     if args.command == "cleanup":
         workspaces = cleanup_ci_workspaces(
             confirm=args.confirm,
