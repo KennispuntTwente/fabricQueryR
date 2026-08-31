@@ -73,9 +73,12 @@ file already exists in OneLake or supported blob storage. It does not upload a
 local file or serialize an R object, and the destination table must already
 exist.
 
-For CSV, JSON, Avro, Parquet, and ORC workflows, create and validate a named
-ingestion mapping in Fabric before submission. Supply the complete source path
-and its format:
+The `mapping` argument is optional. When it is omitted, Kusto derives an
+identity mapping from the existing table schema: ordered text formats such as
+CSV map source columns by position, while JSON, Parquet, Avro, ORC, and
+W3CLOGFILE map fields to case-sensitive table-column names. Use a validated
+named mapping when source order or names differ, or when ingestion-time
+transformations are required. Supply the complete source path and its format:
 
 ```{r, eval = FALSE}
 source <- paste0(
@@ -87,15 +90,17 @@ source <- paste0(
 
 The signed-in identity must be able to read the file. Do not print or log a
 source string that contains credentials. Source IDs are generated when omitted
-and remain available on the returned handle. Submit it with `$ingest()`
-(`fabric_kql_ingest()`):
+and remain available on the returned handle. This example uses identity mapping
+unless `FABRIC_KQL_INGESTION_MAPPING` names a predefined CSV mapping:
 
 ```{r, eval = FALSE}
+mapping <- Sys.getenv("FABRIC_KQL_INGESTION_MAPPING", unset = "")
+
 ingestion <- database$ingest(
   table = "Events",
   sources = source,
   format = "csv",
-  mapping = "EventsCsv",
+  mapping = if (nzchar(mapping)) mapping else NULL,
   ignore_first_record = TRUE,
   tags = "source:daily-export",
   ingest_if_not_exists = "events-2026-08-14"

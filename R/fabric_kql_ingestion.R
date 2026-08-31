@@ -106,7 +106,9 @@
 #'   entry. Use `NA` for an unknown size. Do not combine with structured source
 #'   records
 #' @param mapping Optional name of a predefined ingestion mapping whose kind
-#'   matches `format`
+#'   matches `format`. Omit it to use Kusto's identity mapping derived from the
+#'   existing table schema: ordered text formats map by column position, while
+#'   JSON, Parquet, Avro, ORC, and W3CLOGFILE map case-sensitive field names
 #' @param tags Character vector of extent tags to attach
 #' @param ingest_if_not_exists Stable keys used for idempotent ingestion. The
 #'   service checks existing `ingest-by:` tags for these values
@@ -158,6 +160,8 @@
 #' [Storage connection strings](https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric)
 #'
 #' [Data ingestion properties](https://learn.microsoft.com/en-us/kusto/ingestion-properties?view=microsoft-fabric)
+#'
+#' [Ingestion mappings and identity mapping](https://learn.microsoft.com/en-us/kusto/management/mappings?view=microsoft-fabric#identity-mapping)
 #' @export
 #'
 #' @examples
@@ -180,9 +184,9 @@
 #'   ";impersonate"
 #' )
 #'
-#' # Choose an existing target and CSV mapping from the KQL database explorer
+#' # A named mapping is optional when the source matches the table schema
 #' table <- Sys.getenv("FABRIC_KQL_TABLE")
-#' mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING")
+#' mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING", unset = "")
 #'
 #' # Queue the file once using a stable ingest-if-not-exists key
 #' ingestion <- fabric_kql_ingest(
@@ -190,7 +194,7 @@
 #'   table = table,
 #'   sources = source,
 #'   format = "csv",
-#'   mapping = mapping,
+#'   mapping = if (nzchar(mapping)) mapping else NULL,
 #'   ignore_first_record = TRUE,
 #'   ingest_if_not_exists = paste0("file:", csv_file$path[[1L]])
 #' )

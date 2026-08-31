@@ -80,7 +80,9 @@ entry. Use \code{NA} for an unknown size. Do not combine with structured source
 records}
 
 \item{mapping}{Optional name of a predefined ingestion mapping whose kind
-matches \code{format}}
+matches \code{format}. Omit it to use Kusto's identity mapping derived from the
+existing table schema: ordered text formats map by column position, while
+JSON, Parquet, Avro, ORC, and W3CLOGFILE map case-sensitive field names}
 
 \item{tags}{Character vector of extent tags to attach}
 
@@ -241,9 +243,9 @@ source <- paste0(
   ";impersonate"
 )
 
-# Choose an existing target and CSV mapping from the KQL database explorer
+# A named mapping is optional when the source matches the table schema
 table <- Sys.getenv("FABRIC_KQL_TABLE")
-mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING")
+mapping <- Sys.getenv("FABRIC_KQL_CSV_MAPPING", unset = "")
 
 # Queue the file once using a stable ingest-if-not-exists key
 ingestion <- fabric_kql_ingest(
@@ -251,7 +253,7 @@ ingestion <- fabric_kql_ingest(
   table = table,
   sources = source,
   format = "csv",
-  mapping = mapping,
+  mapping = if (nzchar(mapping)) mapping else NULL,
   ignore_first_record = TRUE,
   ingest_if_not_exists = paste0("file:", csv_file$path[[1L]])
 )
@@ -276,4 +278,6 @@ result$details
 \href{https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric}{Storage connection strings}
 
 \href{https://learn.microsoft.com/en-us/kusto/ingestion-properties?view=microsoft-fabric}{Data ingestion properties}
+
+\href{https://learn.microsoft.com/en-us/kusto/management/mappings?view=microsoft-fabric#identity-mapping}{Ingestion mappings and identity mapping}
 }

@@ -530,6 +530,7 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
     skip("Package vignette source is not available in installed test runs")
   }
   calls <- character()
+  ingestion_calls <- list()
   status <- function(...) {
     calls <<- c(calls, "status")
     list(
@@ -560,6 +561,7 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
       },
       ingest = function(...) {
         calls <<- c(calls, "ingest")
+        ingestion_calls[[length(ingestion_calls) + 1L]] <<- list(...)
         list(
           id = "ingestion-id",
           sources = data.frame(source_id = "source-id")
@@ -592,7 +594,8 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
     c(2:9, 11L),
     bindings = list(
       fabric_kql_databases = function(...) list(database),
-      fabric_lakehouses = function(...) list(lakehouse)
+      fabric_lakehouses = function(...) list(lakehouse),
+      Sys.getenv = function(...) ""
     )
   )
 
@@ -600,6 +603,12 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
     calls,
     c("write", "ingest", "status", "status", "status", "query", "export")
   )
+  source_text <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  expect_match(source_text, "derives an\nidentity mapping", perl = TRUE)
+  expect_match(source_text, "map source columns by position", fixed = TRUE)
+  expect_match(source_text, "case-sensitive table-column names", fixed = TRUE)
+  expect_length(ingestion_calls, 1L)
+  expect_null(ingestion_calls[[1L]]$mapping)
   expect_identical(example$exported$artifacts, "events.parquet")
 })
 

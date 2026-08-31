@@ -251,6 +251,35 @@ test_that("fabric_kql_ingest sends the documented tracked payload", {
   expect_equal(payload$timestamp, "2026-08-14T10:00:00.000000Z")
 })
 
+test_that("fabric_kql_ingest omits a mapping reference for identity mapping", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- req
+    kusto_ingestion_test_response(
+      list(ingestionOperationId = "identity_mapping_operation"),
+      url = req$url
+    )
+  })
+
+  fabric_kql_ingest(
+    list(
+      id = "database-id",
+      type = "KQLDatabase",
+      database_name = "Telemetry",
+      ingestion_service_uri = "https://ingest-cluster.kusto.fabric.microsoft.com"
+    ),
+    table = "Events",
+    sources = "https://example.test/events.parquet",
+    format = "parquet",
+    mapping = NULL,
+    token = "kusto-token"
+  )
+
+  expect_false(
+    "ingestionMappingReference" %in% names(captured$body$data$properties)
+  )
+})
+
 test_that("submission failures are not replayed after throttling", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {
