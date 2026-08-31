@@ -674,6 +674,53 @@ test_that("statement errors preserve output and traceback", {
   session$close()
 })
 
+test_that("Livy errors use documented service message fields", {
+  statement_error <- tryCatch(
+    fabric_livy_abort_statement(list(
+      state = "available",
+      output = list(
+        status = "error",
+        ename = "AnalysisException",
+        traceback = c("trace line one", "trace line two")
+      )
+    )),
+    error = identity
+  )
+  expect_s3_class(statement_error, "fabric_livy_statement_error")
+  expect_match(
+    conditionMessage(statement_error),
+    "AnalysisException",
+    fixed = TRUE
+  )
+  expect_match(
+    conditionMessage(statement_error),
+    "trace line two",
+    fixed = TRUE
+  )
+
+  responses <- list(
+    list(
+      state = "error",
+      message = "session lifecycle failed",
+      errorInfo = list(list(code = "SessionCode", message = "session detail"))
+    ),
+    list(
+      state = "dead",
+      message = "batch lifecycle failed",
+      errorInfo = list(list(code = "BatchCode", message = "batch detail"))
+    )
+  )
+  aborters <- list(fabric_livy_abort_session, fabric_livy_abort_batch)
+  classes <- c("fabric_livy_session_error", "fabric_livy_batch_error")
+  for (index in seq_along(aborters)) {
+    error <- tryCatch(aborters[[index]](responses[[index]]), error = identity)
+    expect_s3_class(error, classes[[index]])
+    expect_match(conditionMessage(error), "lifecycle failed", fixed = TRUE)
+    expect_match(conditionMessage(error), "detail", fixed = TRUE)
+    expect_false(grepl("Code", conditionMessage(error), fixed = TRUE))
+  }
+})
+
 test_that("statement JSON output is parsed independently of lifecycle", {
   result <- fabric_livy_output(
     response = list(

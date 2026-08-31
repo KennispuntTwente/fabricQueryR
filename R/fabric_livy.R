@@ -910,12 +910,40 @@ fabric_livy_error_text <- function(response, fallback) {
   fabric_state <- response$fabricSessionStateInfo %||%
     response$fabricBatchStateInfo %||%
     list()
+  error_info <- response$errorInfo %||% list()
+  error_records <- if (is.list(error_info) && !is.null(names(error_info))) {
+    list(error_info)
+  } else if (is.list(error_info)) {
+    error_info
+  } else {
+    list()
+  }
+  error_messages <- unlist(
+    lapply(error_records, function(record) {
+      if (!is.list(record)) {
+        return(NULL)
+      }
+      message <- record$message
+      if (
+        !(is.character(message) || is.numeric(message)) ||
+          length(message) != 1L ||
+          is.na(message)
+      ) {
+        return(NULL)
+      }
+      as.character(message)
+    }),
+    use.names = FALSE
+  )
   candidates <- c(
+    output$ename,
     output$evalue,
     output$error,
+    output$traceback,
     fabric_state$errorMessage,
+    response$message,
     response$cancellationReason,
-    unlist(response$errorInfo %||% list(), recursive = TRUE),
+    error_messages,
     data[["text/plain"]],
     response$log
   )
