@@ -436,7 +436,7 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
   )
   expect_equal(seeded$operation_status$status, "Succeeded")
 
-  failure <- expect_error(
+  failure <- tryCatch(
     fabric_lakehouse_write_table(
       target,
       table = failed_table,
@@ -445,14 +445,43 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
       timeout = 300,
       token = token
     ),
-    class = "fabric_lakehouse_write_error"
+    error = identity
   )
+  staging_path <- failure[["staging_path"]]
+  safe_staging_path <- is.character(staging_path) &&
+    length(staging_path) == 1L &&
+    !is.na(staging_path) &&
+    grepl(
+      "^Files/fabricqueryr-staging/load-[A-Za-z0-9_-]+$",
+      staging_path
+    )
+  staging_removed <- FALSE
+  remove_staging <- function() {
+    if (!isTRUE(safe_staging_path)) {
+      return(FALSE)
+    }
+    fabric_onelake_delete(
+      manifest$workspace_id,
+      lakehouse$id,
+      staging_path,
+      recursive = TRUE,
+      confirm = TRUE,
+      token = token
+    )
+  }
+  on.exit(
+    if (!staging_removed) {
+      try(remove_staging(), silent = TRUE)
+    },
+    add = TRUE
+  )
+  expect_s3_class(failure, "fabric_lakehouse_write_error")
   expect_true(failure$staging_retained)
-  expect_match(failure$staging_path, "^Files/fabricqueryr-staging/")
+  expect_true(safe_staging_path)
   retained <- fabric_onelake_list(
     manifest$workspace_id,
     lakehouse$id,
-    failure$staging_path,
+    staging_path,
     recursive = TRUE,
     token = token
   )
@@ -481,7 +510,7 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
   recovered <- fabric_lakehouse_load_table(
     target,
     table = "fabricqueryr_recovered_load",
-    path = failure$staging_path,
+    path = staging_path,
     path_type = "Folder",
     format = "Parquet",
     mode = "Overwrite",
@@ -506,14 +535,8 @@ test_that("Lakehouse writer retains a recoverable staging path on failure", {
   })
   expect_equal(recovered_rows$id, "not-an-integer")
 
-  expect_true(fabric_onelake_delete(
-    manifest$workspace_id,
-    lakehouse$id,
-    failure$staging_path,
-    recursive = TRUE,
-    confirm = TRUE,
-    token = token
-  ))
+  staging_removed <- isTRUE(remove_staging())
+  expect_true(staging_removed)
 })
 
 test_that("Lakehouse writer streams a lazy Arrow Dataset end to end", {
