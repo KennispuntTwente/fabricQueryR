@@ -63,6 +63,22 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
     detailed_status$exit_value,
     "fabricqueryr-job-success:integration"
   )
+  recovered_status <- fabric_job_status(
+    job_instance_id = completed$id,
+    item = item,
+    token = token,
+    respect_retry_after = FALSE
+  )
+  expect_s3_class(recovered_status, "fabric_job_instance")
+  expect_identical(recovered_status$id, completed$id)
+  expect_identical(recovered_status$status, "Completed")
+  recovered_wait <- fabric_job_wait(
+    recovered_status,
+    poll_interval = 2,
+    timeout = 120
+  )
+  expect_identical(recovered_wait$id, completed$id)
+  expect_identical(recovered_wait$status, "Completed")
 
   # The failure run deliberately avoids high-concurrency mode. Fabric keeps a
   # shared session alive when one of its statements fails, so a high-concurrency
@@ -325,6 +341,16 @@ test_that("Cron and monthly Fabric schedules complete live lifecycles", {
       times = "06:37",
       recurrence = 1L,
       day_of_month = 15L
+    ),
+    OrdinalMonthly = fabric_job_schedule_config(
+      "Monthly",
+      start_time = start,
+      end_time = end,
+      time_zone = "UTC",
+      times = "07:43",
+      recurrence = 2L,
+      week_index = "Third",
+      weekday = "Wednesday"
     )
   )
   created_ids <- character()
@@ -367,6 +393,21 @@ test_that("Cron and monthly Fabric schedules complete live lifecycles", {
     "DayOfMonth"
   )
   expect_equal(created$Monthly$configuration$occurrence$dayOfMonth, 15L)
+  expect_false(created$OrdinalMonthly$enabled)
+  expect_equal(created$OrdinalMonthly$type, "Monthly")
+  expect_equal(created$OrdinalMonthly$configuration$recurrence, 2L)
+  expect_equal(
+    created$OrdinalMonthly$configuration$occurrence$occurrenceType,
+    "OrdinalWeekday"
+  )
+  expect_equal(
+    created$OrdinalMonthly$configuration$occurrence$weekIndex,
+    "Third"
+  )
+  expect_equal(
+    created$OrdinalMonthly$configuration$occurrence$weekday,
+    "Wednesday"
+  )
 
   schedules <- fabric_job_schedules(item, token = token)
   listed_ids <- vapply(schedules, `[[`, character(1), "id")
