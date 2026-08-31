@@ -258,7 +258,8 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
     limit = 25,
     result = "arrow_stream",
     backend = "adbc",
-    token = "sql-token",
+    token = "fabric-token",
+    sql_token = "sql-token",
     verbose = FALSE,
     timeout = 12,
     max_tries = 2,
@@ -280,6 +281,14 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
   expect_identical(queried$target_type, "warehouse")
   expect_identical(queried$backend, "adbc")
   expect_s3_class(queried$token, "fabric_credential")
+  expect_identical(
+    fabric_get_token(resolved$credential, .fabric_audience$fabric),
+    "fabric-token"
+  )
+  expect_identical(
+    fabric_get_token(queried$token, .fabric_audience$sql),
+    "sql-token"
+  )
   expect_true(queried$read_only)
   expect_true(queried$idempotent)
   expect_false(queried$verbose)

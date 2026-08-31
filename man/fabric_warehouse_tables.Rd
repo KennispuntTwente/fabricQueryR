@@ -16,7 +16,8 @@ fabric_warehouse_tables(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 }
 \arguments{
@@ -53,6 +54,9 @@ must be resolved. Most users should keep the default.}
 
 \item{table_api_base}{OneLake Delta table API base URL. Most users should
 keep the default.}
+
+\item{storage_token}{Optional separate Azure Storage token or token-provider
+function. Supply it when \code{token} is fixed and Warehouse lookup is needed.}
 }
 \value{
 A tibble with table \code{name}, \code{schema}, \code{full_name}, \code{type}, \code{format},

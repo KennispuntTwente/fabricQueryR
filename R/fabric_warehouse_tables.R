@@ -22,6 +22,8 @@
 #' @param token Optional access token or audience-aware token-provider function.
 #'   Warehouse lookup can require a Fabric-audience token; table metadata uses
 #'   a Storage-audience token.
+#' @param storage_token Optional separate Azure Storage token or token-provider
+#'   function. Supply it when `token` is fixed and Warehouse lookup is needed.
 #' @param auth_args Additional sign-in options passed to
 #'   [AzureAuth::get_azure_token()] when no token source is supplied.
 #' @param api_base Fabric REST API base URL used when a Warehouse name or GUID
@@ -72,7 +74,8 @@ fabric_warehouse_tables <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   .fabric_operation_logical(detail, "detail")
   .fabric_onelake_table_page_size(page_size)
@@ -95,6 +98,11 @@ fabric_warehouse_tables <- function(
     token = token,
     auth_args = auth_args
   )
+  storage_credential <- if (is.null(storage_token)) {
+    credential
+  } else {
+    fabric_credential(token = storage_token)
+  }
   target <- .fabric_warehouse_resolve_item(
     warehouse,
     workspace,
@@ -112,7 +120,7 @@ fabric_warehouse_tables <- function(
     schema = schema,
     detail = detail,
     page_size = page_size,
-    credential = credential,
+    credential = storage_credential,
     table_base = table_base,
     error_class = c(
       "fabric_warehouse_protocol_error",
@@ -208,7 +216,8 @@ fabric_warehouse_read_table <- function(
   verbose = TRUE,
   timeout = 30L,
   max_tries = 3L,
-  retry_delay = 5
+  retry_delay = 5,
+  sql_token = NULL
 ) {
   schema_supplied <- !missing(schema)
   table_record <- fabric_as_record(table)
@@ -280,6 +289,11 @@ fabric_warehouse_read_table <- function(
     token = token,
     auth_args = auth_args
   )
+  sql_credential <- if (is.null(sql_token)) {
+    credential
+  } else {
+    fabric_credential(token = sql_token)
+  }
   destination <- .fabric_warehouse_resolve_item(
     warehouse,
     workspace,
@@ -299,7 +313,7 @@ fabric_warehouse_read_table <- function(
     backend = backend,
     tenant_id = tenant_id,
     client_id = client_id,
-    token = credential,
+    token = sql_credential,
     auth_args = list(),
     timeout = timeout,
     read_only = TRUE,

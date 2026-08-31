@@ -96,11 +96,13 @@ fabric_credential <- function(
     # Static strings are validated once and returned unchanged
     if (is.character(token)) {
       fabric_validate_bearer_token(token, "token")
+      audience_ref <- new.env(parent = emptyenv())
       return(structure(
         list(
           provider = function(audience, force_refresh = FALSE) token,
           refreshable = FALSE,
-          type = "static"
+          type = "static",
+          audience_ref = audience_ref
         ),
         class = "fabric_credential"
       ))
@@ -457,6 +459,7 @@ fabric_uses_client_credentials <- function(auth_args) {
 #' @keywords internal
 #' @noRd
 fabric_azure_token_credential <- function(token) {
+  audience_ref <- new.env(parent = emptyenv())
   # Refresh the supplied Azure token when requested; returns its bearer token
   provider <- function(audience, force_refresh = FALSE) {
     if (
@@ -468,7 +471,12 @@ fabric_azure_token_credential <- function(token) {
     fabric_extract_azure_token(token)
   }
   structure(
-    list(provider = provider, refreshable = TRUE, type = "AzureToken"),
+    list(
+      provider = provider,
+      refreshable = TRUE,
+      type = "AzureToken",
+      audience_ref = audience_ref
+    ),
     class = "fabric_credential"
   )
 }
@@ -584,7 +592,43 @@ fabric_get_token <- function(credential, audience, force_refresh = FALSE) {
   if (!inherits(credential, "fabric_credential")) {
     .fabric_abort("Invalid Fabric credential")
   }
+  fabric_bind_fixed_credential_audience(credential, audience)
   token <- credential$provider(audience, force_refresh = force_refresh)
   fabric_validate_bearer_token(token, "The credential provider result")
   token
+}
+
+# Prevent an opaque, caller-supplied token from being forwarded to two OAuth
+# resources. Entra access tokens have one audience; only automatic credentials
+# and provider callbacks can acquire a different token for each request.
+fabric_bind_fixed_credential_audience <- function(credential, audience) {
+  if (
+    is.null(credential$type) ||
+      !credential$type %in% c("static", "AzureToken") ||
+      !is.environment(credential$audience_ref)
+  ) {
+    return(invisible(audience))
+  }
+
+  key <- .fabric_audience_cache_key(audience)
+  if (is.null(credential$audience_ref$key)) {
+    credential$audience_ref$key <- key
+    credential$audience_ref$audience <- audience
+    return(invisible(audience))
+  }
+  if (identical(credential$audience_ref$key, key)) {
+    return(invisible(audience))
+  }
+
+  .fabric_abort(
+    paste0(
+      "A fixed bearer token or AzureToken cannot be reused for a different ",
+      "audience; supply the service token separately (for example with ",
+      "storage_token or sql_token) or use an audience-aware token-provider ",
+      "function"
+    ),
+    class = c("fabric_multi_audience_auth_error", "fabric_auth_error"),
+    audience = audience,
+    bound_audience = credential$audience_ref$audience
+  )
 }

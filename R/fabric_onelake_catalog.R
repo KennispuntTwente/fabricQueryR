@@ -22,6 +22,8 @@
 #' @param client_id Entra application ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional access token or audience-aware token-provider function.
+#' @param storage_token Optional separate Azure Storage token or token-provider
+#'   function. Supply it when `token` is fixed and Fabric item lookup is needed.
 #' @param auth_args Additional sign-in options passed to `fabric_credential()`.
 #' @param api_base Fabric REST API base used when an item name or GUID must be
 #'   resolved. Most users should keep the default.
@@ -67,7 +69,8 @@ fabric_lakehouse_schemas <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   .fabric_onelake_table_page_size(page_size)
   context <- .fabric_onelake_catalog_context(
@@ -81,7 +84,8 @@ fabric_lakehouse_schemas <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    argument = "lakehouse"
+    argument = "lakehouse",
+    storage_token = storage_token
   )
   .fabric_onelake_schema_inventory(context, page_size)
 }
@@ -100,7 +104,8 @@ fabric_warehouse_schemas <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   .fabric_onelake_table_page_size(page_size)
   context <- .fabric_onelake_catalog_context(
@@ -114,7 +119,8 @@ fabric_warehouse_schemas <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    argument = "warehouse"
+    argument = "warehouse",
+    storage_token = storage_token
   )
   .fabric_onelake_schema_inventory(context, page_size)
 }
@@ -134,7 +140,8 @@ fabric_lakehouse_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   context <- .fabric_onelake_catalog_context(
     item = lakehouse,
@@ -147,7 +154,8 @@ fabric_lakehouse_table <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    argument = "lakehouse"
+    argument = "lakehouse",
+    storage_token = storage_token
   )
   table_target <- .fabric_onelake_table_target(
     table,
@@ -177,7 +185,8 @@ fabric_warehouse_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   context <- .fabric_onelake_catalog_context(
     item = warehouse,
@@ -190,7 +199,8 @@ fabric_warehouse_table <- function(
     api_base = api_base,
     api_base_supplied = !missing(api_base),
     table_api_base = table_api_base,
-    argument = "warehouse"
+    argument = "warehouse",
+    storage_token = storage_token
   )
   table_target <- .fabric_onelake_table_target(
     table,
@@ -211,7 +221,8 @@ fabric_warehouse_table <- function(
   api_base,
   api_base_supplied,
   table_api_base,
-  argument
+  argument,
+  storage_token
 ) {
   domain <- switch(
     item_type,
@@ -238,6 +249,11 @@ fabric_warehouse_table <- function(
     token = token,
     auth_args = auth_args
   )
+  storage_credential <- if (is.null(storage_token)) {
+    credential
+  } else {
+    fabric_credential(token = storage_token)
+  }
   item_target <- if (identical(item_type, "Lakehouse")) {
     .fabric_lakehouse_target(
       item,
@@ -269,6 +285,7 @@ fabric_warehouse_table <- function(
       ),
     table_base = table_base,
     credential = credential,
+    storage_credential = storage_credential,
     item_target = item_target,
     error_class = error_class
   )
@@ -288,7 +305,7 @@ fabric_warehouse_table <- function(
     paste0(.fabric_onelake_catalog_url(context), "/schemas"),
     field = "schemas",
     query = list(catalog_name = context$item_id),
-    credential = context$credential,
+    credential = context$storage_credential,
     page_size = page_size,
     error_class = context$error_class
   )
@@ -445,7 +462,7 @@ fabric_warehouse_table <- function(
   record <- .httr2_json(
     request,
     simplifyVector = FALSE,
-    credential = context$credential,
+    credential = context$storage_credential,
     audience = .fabric_audience$storage
   )
   row <- .fabric_onelake_table_row(

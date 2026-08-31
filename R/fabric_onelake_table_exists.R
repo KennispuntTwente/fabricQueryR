@@ -19,6 +19,8 @@
 #' @param protocol OneLake table metadata protocol: `"delta"` or `"iceberg"`.
 #' @param table_api_base OneLake table API HTTPS origin, or a protocol-specific
 #'   base ending in `/delta` or `/iceberg`. Most users should keep the default.
+#' @param storage_token Optional separate Azure Storage token or token-provider
+#'   function. Supply it when `token` is fixed and Fabric item lookup is needed.
 #' @inheritParams fabric_workspaces
 #'
 #' @return One logical value. Delta returns `TRUE` when the paginated metadata
@@ -68,7 +70,8 @@ fabric_onelake_schema_exists <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_origin
+  table_api_base = .fabric_onelake_table_origin,
+  storage_token = NULL
 ) {
   .fabric_onelake_table_identifier(schema, "schema")
   context <- .fabric_onelake_exists_context(
@@ -82,7 +85,8 @@ fabric_onelake_schema_exists <- function(
     auth_args = auth_args,
     api_base = api_base,
     api_base_supplied = !missing(api_base),
-    table_api_base = table_api_base
+    table_api_base = table_api_base,
+    storage_token = storage_token
   )
   .fabric_onelake_exists(context, schema = schema)
 }
@@ -104,7 +108,8 @@ fabric_onelake_table_exists <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_origin
+  table_api_base = .fabric_onelake_table_origin,
+  storage_token = NULL
 ) {
   item_record <- fabric_as_record(item)
   table_target <- .fabric_onelake_table_target(
@@ -129,7 +134,8 @@ fabric_onelake_table_exists <- function(
     auth_args = auth_args,
     api_base = api_base,
     api_base_supplied = !missing(api_base),
-    table_api_base = table_api_base
+    table_api_base = table_api_base,
+    storage_token = storage_token
   )
   .fabric_onelake_exists(
     context,
@@ -149,7 +155,8 @@ fabric_onelake_table_exists <- function(
   auth_args,
   api_base,
   api_base_supplied,
-  table_api_base
+  table_api_base,
+  storage_token
 ) {
   protocol <- match.arg(protocol, c("delta", "iceberg"))
   base <- fabric_api_base(api_base)
@@ -159,6 +166,11 @@ fabric_onelake_table_exists <- function(
     token = token,
     auth_args = auth_args
   )
+  storage_credential <- if (is.null(storage_token)) {
+    credential
+  } else {
+    fabric_credential(token = storage_token)
+  }
   target <- .fabric_job_target(
     item,
     workspace,
@@ -173,7 +185,7 @@ fabric_onelake_table_exists <- function(
     item_id = target$item_id,
     protocol = protocol,
     protocol_base = protocol_base,
-    credential = credential
+    credential = storage_credential
   )
   if (identical(protocol, "iceberg")) {
     context$iceberg_prefix <- .fabric_onelake_iceberg_prefix(context)

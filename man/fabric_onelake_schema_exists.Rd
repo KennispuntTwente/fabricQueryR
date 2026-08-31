@@ -17,7 +17,8 @@ fabric_onelake_schema_exists(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_origin
+  table_api_base = .fabric_onelake_table_origin,
+  storage_token = NULL
 )
 
 fabric_onelake_table_exists(
@@ -33,7 +34,8 @@ fabric_onelake_table_exists(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_origin
+  table_api_base = .fabric_onelake_table_origin,
+  storage_token = NULL
 )
 }
 \arguments{
@@ -68,6 +70,9 @@ different Fabric cloud or a test service}
 
 \item{table_api_base}{OneLake table API HTTPS origin, or a protocol-specific
 base ending in \verb{/delta} or \verb{/iceberg}. Most users should keep the default.}
+
+\item{storage_token}{Optional separate Azure Storage token or token-provider
+function. Supply it when \code{token} is fixed and Fabric item lookup is needed.}
 
 \item{table}{Table name or a record containing \code{name}, \code{table}, or
 \code{displayName}. A record can also supply its schema.}

@@ -106,6 +106,68 @@ test_that("secondary services require audience-aware credentials", {
   )
 })
 
+test_that("fixed credentials cannot cross OAuth audiences", {
+  credential <- fabric_credential(token = "fabric-token")
+
+  expect_identical(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "fabric-token"
+  )
+  expect_identical(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "fabric-token"
+  )
+
+  error <- rlang::catch_cnd(
+    fabric_get_token(credential, .fabric_audience$storage)
+  )
+  expect_s3_class(error, "fabric_multi_audience_auth_error")
+  expect_s3_class(error, "fabric_auth_error")
+  expect_identical(error$bound_audience, .fabric_audience$fabric)
+  expect_identical(error$audience, .fabric_audience$storage)
+  expect_match(conditionMessage(error), "storage_token or sql_token")
+})
+
+test_that("caller-supplied AzureToken objects cannot cross audiences", {
+  credential <- fabric_credential(token = fake_azure_token())
+
+  expect_identical(
+    fabric_get_token(credential, .fabric_audience$fabric),
+    "azure-token"
+  )
+  expect_error(
+    fabric_get_token(credential, .fabric_audience$sql),
+    class = "fabric_multi_audience_auth_error"
+  )
+})
+
+test_that("cross-audience table helpers expose separate service tokens", {
+  storage_helpers <- c(
+    "fabric_lakehouse_tables",
+    "fabric_lakehouse_schemas",
+    "fabric_lakehouse_table",
+    "fabric_warehouse_tables",
+    "fabric_warehouse_schemas",
+    "fabric_warehouse_table",
+    "fabric_mirrored_database_schemas",
+    "fabric_mirrored_database_tables",
+    "fabric_mirrored_database_table",
+    "fabric_mirrored_database_read_table",
+    "fabric_onelake_schema_exists",
+    "fabric_onelake_table_exists"
+  )
+  for (name in storage_helpers) {
+    expect_true(
+      "storage_token" %in%
+        names(formals(getExportedValue("fabricQueryR", name))),
+      info = name
+    )
+  }
+  expect_true(
+    "sql_token" %in% names(formals(fabric_warehouse_read_table))
+  )
+})
+
 test_that("automatic credentials stay within Microsoft Fabric hosts", {
   expect_invisible(
     fabric_require_explicit_custom_token(

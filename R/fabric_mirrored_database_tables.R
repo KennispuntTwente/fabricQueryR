@@ -23,6 +23,8 @@
 #' @param client_id Entra application ID. Defaults to
 #'   `FABRICQUERYR_CLIENT_ID`, then the Azure CLI application ID.
 #' @param token Optional access token or audience-aware token-provider function.
+#' @param storage_token Optional separate Azure Storage token or token-provider
+#'   function. Supply it when `token` is fixed and item lookup is needed.
 #' @param auth_args Additional sign-in options passed to `fabric_credential()`.
 #' @param api_base Fabric REST API base used when an item name or GUID must be
 #'   resolved. Most users should keep the default.
@@ -80,7 +82,8 @@ fabric_mirrored_database_schemas <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   .fabric_onelake_table_page_size(page_size)
   context <- .fabric_mirrored_database_catalog_context(
@@ -92,7 +95,8 @@ fabric_mirrored_database_schemas <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base
+    table_api_base,
+    storage_token
   )
   .fabric_onelake_schema_inventory(context, page_size)
 }
@@ -113,7 +117,8 @@ fabric_mirrored_database_tables <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   .fabric_operation_logical(detail, "detail")
   .fabric_onelake_table_page_size(page_size)
@@ -129,7 +134,8 @@ fabric_mirrored_database_tables <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base
+    table_api_base,
+    storage_token
   )
   .fabric_onelake_table_inventory(
     workspace_id = context$workspace_id,
@@ -137,7 +143,7 @@ fabric_mirrored_database_tables <- function(
     schema = schema,
     detail = detail,
     page_size = page_size,
-    credential = context$credential,
+    credential = context$storage_credential,
     table_base = context$table_base,
     error_class = context$error_class
   )
@@ -158,7 +164,8 @@ fabric_mirrored_database_table <- function(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 ) {
   context <- .fabric_mirrored_database_catalog_context(
     mirrored_database,
@@ -169,7 +176,8 @@ fabric_mirrored_database_table <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base
+    table_api_base,
+    storage_token
   )
   table_target <- .fabric_onelake_table_target(
     table,
@@ -199,7 +207,8 @@ fabric_mirrored_database_read_table <- function(
   columns = NULL,
   limit = NULL,
   result = c("tibble", "arrow_stream"),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  storage_token = NULL
 ) {
   schema_supplied <- !is.null(schema)
   context <- .fabric_mirrored_database_catalog_context(
@@ -211,7 +220,8 @@ fabric_mirrored_database_read_table <- function(
     auth_args,
     api_base,
     !missing(api_base),
-    table_api_base = NULL
+    table_api_base = NULL,
+    storage_token = storage_token
   )
   table_target <- .fabric_onelake_table_target(
     table,
@@ -235,7 +245,7 @@ fabric_mirrored_database_read_table <- function(
     item_type = "MirroredDatabase",
     tenant_id = tenant_id,
     client_id = client_id,
-    token = context$credential,
+    token = context$storage_credential,
     auth_args = list(),
     version = version,
     verbose = verbose,
@@ -255,7 +265,8 @@ fabric_mirrored_database_read_table <- function(
   auth_args,
   api_base,
   api_base_supplied,
-  table_api_base
+  table_api_base,
+  storage_token
 ) {
   .fabric_onelake_catalog_context(
     item = mirrored_database,
@@ -268,6 +279,7 @@ fabric_mirrored_database_read_table <- function(
     api_base = api_base,
     api_base_supplied = api_base_supplied,
     table_api_base = table_api_base,
-    argument = "mirrored_database"
+    argument = "mirrored_database",
+    storage_token = storage_token
   )
 }
