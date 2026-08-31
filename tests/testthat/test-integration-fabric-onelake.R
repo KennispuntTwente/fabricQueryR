@@ -1348,3 +1348,80 @@ test_that("OneLake shortcuts complete a live create/read/delete lifecycle", {
     expected
   )
 })
+
+test_that("OneLake bulk shortcuts and cache reset complete live LROs", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  item <- fabric_item(
+    manifest$workspace_id,
+    lakehouse$id,
+    type = "Lakehouse",
+    token = token
+  )
+  parent <- "Files"
+  shortcut_names <- paste0(
+    "fabricqueryr_bulk_",
+    Sys.getpid(),
+    c("_a", "_b")
+  )
+  on.exit(
+    for (name in shortcut_names) {
+      try(
+        fabric_onelake_shortcut_delete(
+          item,
+          parent,
+          name,
+          confirm = TRUE,
+          token = token
+        ),
+        silent = TRUE
+      )
+    },
+    add = TRUE
+  )
+
+  operation <- fabric_onelake_shortcuts_bulk_create(
+    item,
+    shortcuts = lapply(shortcut_names, function(name) {
+      list(
+        path = parent,
+        name = name,
+        target = item,
+        target_path = "Files/fixtures/nested"
+      )
+    }),
+    conflict_policy = "CreateOrOverwrite",
+    token = token
+  )
+  state <- fabric_operation_wait(operation, timeout = 300)
+  expect_identical(state$status, "Succeeded")
+  result <- fabric_operation_result(state, wait = FALSE)
+  expect_s3_class(result, "fabric_operation_result")
+  expect_true(is.list(result$value))
+
+  listed <- fabric_test_eventually(function() {
+    current <- fabric_onelake_shortcuts(
+      item,
+      parent_path = parent,
+      token = token
+    )
+    if (!all(shortcut_names %in% current$name)) {
+      return(NULL)
+    }
+    current
+  })
+  expect_true(all(shortcut_names %in% listed$name))
+
+  workspace <- structure(
+    list(
+      id = manifest$workspace_id,
+      displayName = manifest$workspace_name,
+      type = "Workspace"
+    ),
+    class = c("fabric_workspace", "list")
+  )
+  reset <- fabric_onelake_shortcut_cache_reset(workspace, token = token)
+  reset_state <- fabric_operation_wait(reset, timeout = 300)
+  expect_identical(reset_state$status, "Succeeded")
+})
