@@ -683,35 +683,13 @@ test_that("private SQL failures retain successful workload details", {
 })
 
 test_that("typed routes and derived targets cover supported workloads", {
-  expect_equal(
+  expect_identical(
     unname(vapply(
-      c(
-        "Lakehouse",
-        "Warehouse",
-        "WarehouseSnapshot",
-        "MirroredDatabase",
-        "SQLDatabase",
-        "SemanticModel",
-        "Eventhouse",
-        "KQLDatabase",
-        "Notebook",
-        "GraphQLApi"
-      ),
+      typed_discovery_support$type,
       fabric_item_route,
       character(1)
     )),
-    c(
-      "lakehouses",
-      "warehouses",
-      "warehouseSnapshots",
-      "mirroredDatabases",
-      "sqlDatabases",
-      "semanticModels",
-      "eventhouses",
-      "kqlDatabases",
-      "notebooks",
-      "graphQLApis"
-    )
+    typed_discovery_support$route
   )
   expect_null(fabric_item_route("Report"))
   expect_null(fabric_item_route(""))
@@ -891,6 +869,8 @@ test_that("detail enrichment skips item types without a detail route", {
 
   expect_length(items, 2L)
   expect_equal(items[[1L]]$type, "Report")
+  expect_s3_class(items[[1L]], "FabricItem")
+  expect_false(inherits(items[[1L]], "FabricJobItem"))
   expect_equal(items[[2L]]$sql_server, "server.fabric.microsoft.com")
   expect_length(detail_urls, 1L)
   expect_match(detail_urls, "/warehouses/warehouse-id$", perl = TRUE)
@@ -1015,34 +995,23 @@ test_that("typed convenience helpers forward their workload types", {
       list()
     }
   )
-  helpers <- list(
-    fabric_lakehouses = "Lakehouse",
-    fabric_warehouses = "Warehouse",
-    fabric_warehouse_snapshots = "WarehouseSnapshot",
-    fabric_mirrored_databases = "MirroredDatabase",
-    fabric_sql_databases = "SQLDatabase",
-    fabric_semantic_models = "SemanticModel",
-    fabric_eventhouses = "Eventhouse",
-    fabric_kql_databases = "KQLDatabase",
-    fabric_notebooks = "Notebook",
-    fabric_data_pipelines = "DataPipeline",
-    fabric_spark_job_definitions = "SparkJobDefinition",
-    fabric_environments = "Environment",
-    fabric_user_data_functions = "UserDataFunction",
-    fabric_graphql_apis = "GraphQLApi"
-  )
-  for (name in names(helpers)) {
+  for (name in typed_discovery_support$helper) {
     get(name, mode = "function")("Workspace", token = "token")
   }
-  expect_equal(
+  expect_identical(
     vapply(calls, `[[`, character(1), "type"),
-    unname(unlist(helpers))
+    typed_discovery_support$type
   )
-  expected_detail <- !unname(unlist(helpers)) %in%
-    c("SemanticModel", "UserDataFunction", "GraphQLApi")
   expect_identical(
     vapply(calls, `[[`, logical(1), "detail"),
-    expected_detail
+    typed_discovery_support$detail
+  )
+  expect_setequal(
+    intersect(
+      names(FabricWorkspace$public_methods),
+      typed_discovery_support$workspace_method
+    ),
+    typed_discovery_support$workspace_method
   )
   expect_true(all(
     vapply(calls, `[[`, character(1), "workspace") == "Workspace"

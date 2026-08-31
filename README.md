@@ -75,6 +75,16 @@ lakehouse$displayName
 lakehouse_record <- lakehouse$as_list()
 ```
 
+The typed workspace methods are a convenience subset, not the full Fabric
+item catalog. Use the generic `$items()` method with Fabric's item-type spelling
+for other types. Those results retain every service field and use the generic
+`FabricItem` class when fabricQueryR has no workload-specific subclass.
+
+``` r
+reports <- workspace$items(type = "Report")
+reports[[1L]]$type
+```
+
 Search the preview OneLake catalog when discovery must span all visible
 workspaces:
 

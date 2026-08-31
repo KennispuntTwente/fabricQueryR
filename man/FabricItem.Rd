@@ -42,7 +42,9 @@ Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 semantic models, and runnable job items add workload-specific methods.
 Other discovered types are returned as \code{FabricItem} objects with \verb{$details()}
 (\code{\link[=fabric_item]{fabric_item()}}) and record access. They do not expose methods that cannot
-operate from discovery metadata.
+operate from discovery metadata. This generic fallback also applies to
+typed Environment and User Data Function discovery; a typed helper and
+workload detail route do not by themselves imply a specialized R6 class.
 }
 \examples{
 \dontrun{
@@ -67,6 +69,10 @@ model$refresh_wait(refresh, timeout = 1800)
 
 # Equivalent generic: as.list(lakehouse)
 lakehouse_record <- lakehouse$as_list()
+
+# Fabric item types outside the typed-helper subset remain usable records
+report <- workspace$items(type = "Report")[[1L]]
+report$type
 }
 }
 \section{Super class}{

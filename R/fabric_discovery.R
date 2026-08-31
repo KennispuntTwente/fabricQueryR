@@ -143,9 +143,10 @@ fabric_workspaces <- function(
 #' Discover Microsoft Fabric items
 #'
 #' Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
-#' items stored in a workspace. By default, actionable items are returned as
-#' type-specific R6 objects whose methods perform the matching query,
-#' connection, file, Spark, or job operations
+#' items stored in a workspace. Every item type returned by Fabric's core list
+#' API can be represented. Where the package has a specialized R6 subclass,
+#' its methods perform the matching query, connection, file, Spark, or job
+#' operations; other types remain complete generic [FabricItem] records
 #'
 #' @param workspace Workspace name, ID, or object returned by
 #'   [fabric_workspaces()]. A name is convenient for interactive use; an object
@@ -195,6 +196,18 @@ fabric_workspaces <- function(
 #' workload-specific read scope and access to the item
 #' Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
 #' require both `personal_workspace_tenant_id` and `personal_workspace_owner`
+#'
+#' @section Generic and typed discovery:
+#' `fabric_items()` and `workspace$items()` are the broad, future-compatible
+#' discovery interfaces. Their optional `type` filter is passed to Fabric, and
+#' item types without package-specific methods are returned as [FabricItem]
+#' objects with all service fields, `$details()`, and `$as_list()`.
+#'
+#' The helpers documented in [fabric_typed_items] are an intentional
+#' convenience subset of Fabric's larger and evolving item catalog. A typed
+#' helper means that the package knows the item-type spelling and workload Get
+#' route; it does not necessarily mean that the result has its own R6 subclass.
+#' See [fabric_typed_items] for the exact support matrix
 #'
 #' @references
 #' [List items REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items)
@@ -575,13 +588,38 @@ fabric_item <- function(
 
 #' Typed Microsoft Fabric item discovery
 #'
-#' These shortcuts find one kind of Fabric item. By default, they return R6
-#' objects with service fields and type-specific methods for the useful next
-#' actions. Most also retrieve workload connection details. Semantic Model and GraphQL helpers
-#' default to lightweight discovery because their executable targets are
-#' derived from list-level IDs and workspace fields or, for User Data
-#' Functions, because Microsoft limits detail retrieval to delegated user
-#' identities. Set `detail = TRUE` when the workload and identity support it
+#' These shortcuts cover an intentional subset of Microsoft Fabric item types;
+#' they are not an exhaustive list of the items that [fabric_items()] can
+#' discover. Each helper requests one exact type and has a corresponding
+#' [FabricWorkspace] method. Most retrieve workload connection details by
+#' default. Semantic Model and GraphQL helpers default to lightweight discovery
+#' because their executable targets are derived from list-level IDs and
+#' workspace fields. User Data Functions default to lightweight discovery
+#' because Microsoft limits detail retrieval to delegated user identities. Set
+#' `detail = TRUE` when the workload and identity support it
+#'
+#' @section Typed support matrix:
+#' `Default detail` is the value used when `detail` is omitted. `FabricItem`
+#' in the final column means that the typed helper and workload Get route are
+#' supported but no workload-specific R6 subclass is currently provided.
+#'
+#' \tabular{llll}{
+#' \strong{Helper} \tab \strong{Fabric type} \tab \strong{Default detail} \tab \strong{R6 class} \cr
+#' `fabric_lakehouses()` \tab `Lakehouse` \tab `TRUE` \tab `FabricLakehouse` \cr
+#' `fabric_warehouses()` \tab `Warehouse` \tab `TRUE` \tab `FabricWarehouse` \cr
+#' `fabric_warehouse_snapshots()` \tab `WarehouseSnapshot` \tab `TRUE` \tab `FabricWarehouseSnapshot` \cr
+#' `fabric_mirrored_databases()` \tab `MirroredDatabase` \tab `TRUE` \tab `FabricMirroredDatabase` \cr
+#' `fabric_sql_databases()` \tab `SQLDatabase` \tab `TRUE` \tab `FabricSqlDatabase` \cr
+#' `fabric_semantic_models()` \tab `SemanticModel` \tab `FALSE` \tab `FabricSemanticModel` \cr
+#' `fabric_eventhouses()` \tab `Eventhouse` \tab `TRUE` \tab `FabricEventhouse` \cr
+#' `fabric_kql_databases()` \tab `KQLDatabase` \tab `TRUE` \tab `FabricKqlDatabase` \cr
+#' `fabric_notebooks()` \tab `Notebook` \tab `TRUE` \tab `FabricJobItem` \cr
+#' `fabric_data_pipelines()` \tab `DataPipeline` \tab `TRUE` \tab `FabricJobItem` \cr
+#' `fabric_spark_job_definitions()` \tab `SparkJobDefinition` \tab `TRUE` \tab `FabricJobItem` \cr
+#' `fabric_environments()` \tab `Environment` \tab `TRUE` \tab `FabricItem` \cr
+#' `fabric_user_data_functions()` \tab `UserDataFunction` \tab `FALSE` \tab `FabricItem` \cr
+#' `fabric_graphql_apis()` \tab `GraphQLApi` \tab `FALSE` \tab `FabricGraphQLApi` \cr
+#' }
 #'
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`,

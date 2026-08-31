@@ -135,6 +135,106 @@ discovery_response <- function(
   )
 }
 
+typed_discovery_support <- data.frame(
+  helper = c(
+    "fabric_lakehouses",
+    "fabric_warehouses",
+    "fabric_warehouse_snapshots",
+    "fabric_mirrored_databases",
+    "fabric_sql_databases",
+    "fabric_semantic_models",
+    "fabric_eventhouses",
+    "fabric_kql_databases",
+    "fabric_notebooks",
+    "fabric_data_pipelines",
+    "fabric_spark_job_definitions",
+    "fabric_environments",
+    "fabric_user_data_functions",
+    "fabric_graphql_apis"
+  ),
+  workspace_method = c(
+    "lakehouses",
+    "warehouses",
+    "warehouse_snapshots",
+    "mirrored_databases",
+    "sql_databases",
+    "semantic_models",
+    "eventhouses",
+    "kql_databases",
+    "notebooks",
+    "data_pipelines",
+    "spark_job_definitions",
+    "environments",
+    "user_data_functions",
+    "graphql_apis"
+  ),
+  type = c(
+    "Lakehouse",
+    "Warehouse",
+    "WarehouseSnapshot",
+    "MirroredDatabase",
+    "SQLDatabase",
+    "SemanticModel",
+    "Eventhouse",
+    "KQLDatabase",
+    "Notebook",
+    "DataPipeline",
+    "SparkJobDefinition",
+    "Environment",
+    "UserDataFunction",
+    "GraphQLApi"
+  ),
+  detail = c(
+    TRUE,
+    TRUE,
+    TRUE,
+    TRUE,
+    TRUE,
+    FALSE,
+    TRUE,
+    TRUE,
+    TRUE,
+    TRUE,
+    TRUE,
+    TRUE,
+    FALSE,
+    FALSE
+  ),
+  route = c(
+    "lakehouses",
+    "warehouses",
+    "warehouseSnapshots",
+    "mirroredDatabases",
+    "sqlDatabases",
+    "semanticModels",
+    "eventhouses",
+    "kqlDatabases",
+    "notebooks",
+    "dataPipelines",
+    "sparkJobDefinitions",
+    "environments",
+    "userDataFunctions",
+    "graphQLApis"
+  ),
+  r6_class = c(
+    "FabricLakehouse",
+    "FabricWarehouse",
+    "FabricWarehouseSnapshot",
+    "FabricMirroredDatabase",
+    "FabricSqlDatabase",
+    "FabricSemanticModel",
+    "FabricEventhouse",
+    "FabricKqlDatabase",
+    "FabricJobItem",
+    "FabricJobItem",
+    "FabricJobItem",
+    "FabricItem",
+    "FabricItem",
+    "FabricGraphQLApi"
+  ),
+  stringsAsFactors = FALSE
+)
+
 
 # test-fabric_function_invoke.R
 function_test_url <- paste0(

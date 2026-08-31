@@ -100,19 +100,24 @@ test_that("Fabric item factories select actionable R6 subclasses", {
     )
   }
 
-  expect_s3_class(make("Lakehouse"), "FabricLakehouse")
-  expect_s3_class(make("Warehouse"), "FabricWarehouse")
-  expect_s3_class(make("WarehouseSnapshot"), "FabricWarehouseSnapshot")
-  expect_s3_class(make("MirroredDatabase"), "FabricMirroredDatabase")
-  expect_s3_class(make("SQLDatabase"), "FabricSqlDatabase")
-  expect_s3_class(make("SemanticModel"), "FabricSemanticModel")
-  expect_s3_class(make("Eventhouse"), "FabricEventhouse")
-  expect_s3_class(make("KQLDatabase"), "FabricKqlDatabase")
-  expect_s3_class(make("GraphQLApi"), "FabricGraphQLApi")
-  expect_s3_class(make("Notebook"), "FabricJobItem")
-  expect_s3_class(make("DataPipeline"), "FabricJobItem")
-  expect_s3_class(make("SparkJobDefinition"), "FabricJobItem")
-  expect_s3_class(make("Environment"), "FabricItem")
+  for (index in seq_len(nrow(typed_discovery_support))) {
+    expect_s3_class(
+      make(typed_discovery_support$type[[index]]),
+      typed_discovery_support$r6_class[[index]]
+    )
+  }
+  for (type in c(
+    "Report",
+    "Eventstream",
+    "MLModel",
+    "CopyJob",
+    "KQLDashboard",
+    "Ontology"
+  )) {
+    item <- make(type)
+    expect_identical(class(item)[[1L]], "FabricItem")
+    expect_null(fabric_item_route(type))
+  }
   expect_s3_class(
     fabric_r6_record(
       list(id = "11111111-1111-4111-8111-111111111111", type = NA_character_),

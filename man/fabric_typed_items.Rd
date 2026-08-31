@@ -67,14 +67,41 @@ matching item. Each object contains common item metadata, applicable
 connection fields, and workload methods. See \code{\link[=fabric_items]{fabric_items()}} for details
 }
 \description{
-These shortcuts find one kind of Fabric item. By default, they return R6
-objects with service fields and type-specific methods for the useful next
-actions. Most also retrieve workload connection details. Semantic Model and GraphQL helpers
-default to lightweight discovery because their executable targets are
-derived from list-level IDs and workspace fields or, for User Data
-Functions, because Microsoft limits detail retrieval to delegated user
-identities. Set \code{detail = TRUE} when the workload and identity support it
+These shortcuts cover an intentional subset of Microsoft Fabric item types;
+they are not an exhaustive list of the items that \code{\link[=fabric_items]{fabric_items()}} can
+discover. Each helper requests one exact type and has a corresponding
+\link{FabricWorkspace} method. Most retrieve workload connection details by
+default. Semantic Model and GraphQL helpers default to lightweight discovery
+because their executable targets are derived from list-level IDs and
+workspace fields. User Data Functions default to lightweight discovery
+because Microsoft limits detail retrieval to delegated user identities. Set
+\code{detail = TRUE} when the workload and identity support it
 }
+\section{Typed support matrix}{
+
+\verb{Default detail} is the value used when \code{detail} is omitted. \code{FabricItem}
+in the final column means that the typed helper and workload Get route are
+supported but no workload-specific R6 subclass is currently provided.
+
+\tabular{llll}{
+\strong{Helper} \tab \strong{Fabric type} \tab \strong{Default detail} \tab \strong{R6 class} \cr
+\code{fabric_lakehouses()} \tab \code{Lakehouse} \tab \code{TRUE} \tab \code{FabricLakehouse} \cr
+\code{fabric_warehouses()} \tab \code{Warehouse} \tab \code{TRUE} \tab \code{FabricWarehouse} \cr
+\code{fabric_warehouse_snapshots()} \tab \code{WarehouseSnapshot} \tab \code{TRUE} \tab \code{FabricWarehouseSnapshot} \cr
+\code{fabric_mirrored_databases()} \tab \code{MirroredDatabase} \tab \code{TRUE} \tab \code{FabricMirroredDatabase} \cr
+\code{fabric_sql_databases()} \tab \code{SQLDatabase} \tab \code{TRUE} \tab \code{FabricSqlDatabase} \cr
+\code{fabric_semantic_models()} \tab \code{SemanticModel} \tab \code{FALSE} \tab \code{FabricSemanticModel} \cr
+\code{fabric_eventhouses()} \tab \code{Eventhouse} \tab \code{TRUE} \tab \code{FabricEventhouse} \cr
+\code{fabric_kql_databases()} \tab \code{KQLDatabase} \tab \code{TRUE} \tab \code{FabricKqlDatabase} \cr
+\code{fabric_notebooks()} \tab \code{Notebook} \tab \code{TRUE} \tab \code{FabricJobItem} \cr
+\code{fabric_data_pipelines()} \tab \code{DataPipeline} \tab \code{TRUE} \tab \code{FabricJobItem} \cr
+\code{fabric_spark_job_definitions()} \tab \code{SparkJobDefinition} \tab \code{TRUE} \tab \code{FabricJobItem} \cr
+\code{fabric_environments()} \tab \code{Environment} \tab \code{TRUE} \tab \code{FabricItem} \cr
+\code{fabric_user_data_functions()} \tab \code{UserDataFunction} \tab \code{FALSE} \tab \code{FabricItem} \cr
+\code{fabric_graphql_apis()} \tab \code{GraphQLApi} \tab \code{FALSE} \tab \code{FabricGraphQLApi} \cr
+}
+}
+
 \section{Choosing a helper}{
 
 \itemize{

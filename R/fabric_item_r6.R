@@ -177,7 +177,9 @@ FabricRecord <- R6::R6Class(
 #' semantic models, and runnable job items add workload-specific methods.
 #' Other discovered types are returned as `FabricItem` objects with `$details()`
 #' ([fabric_item()]) and record access. They do not expose methods that cannot
-#' operate from discovery metadata.
+#' operate from discovery metadata. This generic fallback also applies to
+#' typed Environment and User Data Function discovery; a typed helper and
+#' workload detail route do not by themselves imply a specialized R6 class.
 #'
 #' @format An [R6::R6Class] generator.
 #' @return The corresponding R6 generator.
@@ -204,6 +206,10 @@ FabricRecord <- R6::R6Class(
 #'
 #' # Equivalent generic: as.list(lakehouse)
 #' lakehouse_record <- lakehouse$as_list()
+#'
+#' # Fabric item types outside the typed-helper subset remain usable records
+#' report <- workspace$items(type = "Report")[[1L]]
+#' report$type
 #' }
 #' @name FabricItem
 NULL

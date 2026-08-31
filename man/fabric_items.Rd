@@ -93,9 +93,10 @@ Fabric makes them available
 }
 \description{
 Returns the Lakehouses, Warehouses, semantic models, notebooks, and other
-items stored in a workspace. By default, actionable items are returned as
-type-specific R6 objects whose methods perform the matching query,
-connection, file, Spark, or job operations
+items stored in a workspace. Every item type returned by Fabric's core list
+API can be represented. Where the package has a specialized R6 subclass,
+its methods perform the matching query, connection, file, Spark, or job
+operations; other types remain complete generic \link{FabricItem} records
 }
 \details{
 The caller needs at least access to the workspace (the Viewer role is
@@ -105,6 +106,20 @@ workload-specific read scope and access to the item
 Personal-workspace semantic models use Microsoft's v2 XMLA endpoint and
 require both \code{personal_workspace_tenant_id} and \code{personal_workspace_owner}
 }
+\section{Generic and typed discovery}{
+
+\code{fabric_items()} and \code{workspace$items()} are the broad, future-compatible
+discovery interfaces. Their optional \code{type} filter is passed to Fabric, and
+item types without package-specific methods are returned as \link{FabricItem}
+objects with all service fields, \verb{$details()}, and \verb{$as_list()}.
+
+The helpers documented in \link{fabric_typed_items} are an intentional
+convenience subset of Fabric's larger and evolving item catalog. A typed
+helper means that the package knows the item-type spelling and workload Get
+route; it does not necessarily mean that the result has its own R6 subclass.
+See \link{fabric_typed_items} for the exact support matrix
+}
+
 \examples{
 \dontrun{
 # Start by discovering a workspace instead of copying its ID

@@ -151,6 +151,10 @@ test_that("the getting-started workflow executes against its documented API", {
   item <- vignette_mock_r6(
     fields = list(displayName = "Patients", type = "Lakehouse")
   )
+  report <- vignette_mock_r6(
+    fields = list(displayName = "Monthly", type = "Report"),
+    class = "FabricItem"
+  )
   lakehouse <- vignette_mock_r6(
     fields = list(displayName = "Clinical", id = "lakehouse-1"),
     methods = list(
@@ -181,8 +185,11 @@ test_that("the getting-started workflow executes against its documented API", {
       id = "workspace-1"
     ),
     methods = list(
-      items = function() {
+      items = function(type = NULL) {
         tutorial$calls <- c(tutorial$calls, "items")
+        if (identical(type, "Report")) {
+          return(list(report))
+        }
         list(item)
       },
       lakehouses = function() {
@@ -211,9 +218,18 @@ test_that("the getting-started workflow executes against its documented API", {
   expect_length(values, 5L)
   expect_identical(
     tutorial$calls,
-    c("workspaces", "workspaces", "items", "lakehouses", "tables", "read")
+    c(
+      "workspaces",
+      "workspaces",
+      "items",
+      "items",
+      "lakehouses",
+      "tables",
+      "read"
+    )
   )
   expect_identical(tutorial$workspace$id, "workspace-1")
+  expect_identical(tutorial$reports[[1L]]$type, "Report")
   expect_identical(tutorial$lakehouse$id, "lakehouse-1")
   expect_identical(tutorial$read$table$name, "Patients")
   expect_identical(tutorial$read$limit, 100L)
