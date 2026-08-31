@@ -434,23 +434,44 @@ test_that("refresh parsing rejects malformed JSON shapes", {
     class = "fabric_pbi_refresh_protocol_error"
   )
 
+  responses <- list(
+    list(body = list()),
+    list(body = list(value = NULL)),
+    list(body = list(value = list("not-an-object")))
+  )
   local_mocked_bindings(
     .pbi_refresh_request = function(...) {
-      list(body = list(value = list("not-an-object")))
+      response <- responses[[1L]]
+      responses <<- responses[-1L]
+      response
     }
   )
-  expect_error(
-    .pbi_refresh_history_values(
-      "https://powerbi.test/v1.0/myorg",
-      list(
-        workspace_id = pbi_refresh_workspace_id,
-        dataset_id = pbi_refresh_dataset_id,
-        my_workspace = FALSE
+  for (i in seq_along(responses)) {
+    expect_error(
+      .pbi_refresh_history_values(
+        "https://powerbi.test/v1.0/myorg",
+        list(
+          workspace_id = pbi_refresh_workspace_id,
+          dataset_id = pbi_refresh_dataset_id,
+          my_workspace = FALSE
+        ),
+        fabric_credential(token = "test-token")
       ),
-      fabric_credential(token = "test-token")
-    ),
-    class = "fabric_pbi_refresh_protocol_error"
+      class = "fabric_pbi_refresh_protocol_error"
+    )
+  }
+
+  malformed_statuses <- list(
+    list(status = c("Unknown", "Completed")),
+    list(status = NA_character_),
+    list(extendedStatus = list("InProgress"))
   )
+  for (body in malformed_statuses) {
+    expect_error(
+      .pbi_refresh_detail(body, handle, 200L),
+      class = "fabric_pbi_refresh_protocol_error"
+    )
+  }
 })
 
 test_that("request encoding preserves arrays and sends empty standard bodies", {

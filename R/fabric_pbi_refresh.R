@@ -1177,12 +1177,19 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     credential,
     idempotent = TRUE
   )
-  if (!is.list(response) || !is.list(response$body)) {
+  if (!is.list(response)) {
     .pbi_refresh_protocol_abort(
       "refresh history must be a JSON object containing `value`"
     )
   }
-  values <- response$body$value %||% list()
+  body <- response$body
+  .pbi_refresh_object(body, "refresh history")
+  if (!"value" %in% names(body)) {
+    .pbi_refresh_protocol_abort(
+      "refresh history must contain a `value` array"
+    )
+  }
+  values <- body$value
   .pbi_refresh_object_array(values, "refresh history `value`")
   values
 }
@@ -1563,6 +1570,11 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   history,
   ended = FALSE
 ) {
+  .pbi_refresh_optional_string(status, "refresh `status`")
+  .pbi_refresh_optional_string(
+    extended_status,
+    "refresh `extendedStatus`"
+  )
   extended <- tolower(extended_status %||% "")
   general <- tolower(status %||% "unknown")
   if (extended %in% c("notstarted", "queued")) {
@@ -1609,6 +1621,22 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     return("InProgress")
   }
   extended_status %||% status %||% "Unknown"
+}
+
+# Validate one optional service-controlled string before state normalization
+.pbi_refresh_optional_string <- function(value, name) {
+  if (
+    !is.null(value) &&
+      (!is.character(value) ||
+        length(value) != 1L ||
+        is.na(value) ||
+        !nzchar(value))
+  ) {
+    .pbi_refresh_protocol_abort(
+      paste0(name, " must be one non-empty string when present")
+    )
+  }
+  invisible(value)
 }
 
 # Parse a JSON-encoded service exception without discarding its original text
