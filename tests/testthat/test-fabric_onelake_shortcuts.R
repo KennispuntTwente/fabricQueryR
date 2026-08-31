@@ -387,7 +387,8 @@ test_that("shortcut cache reset uses the workspace-wide LRO endpoint", {
       "/onelake/resetShortcutCache$"
     )
   )
-  expect_null(request$body)
+  expect_identical(request$body$type, "raw")
+  expect_length(request$body$data, 0L)
 })
 
 test_that("raw OneLake shortcut targets preserve optional connection IDs", {

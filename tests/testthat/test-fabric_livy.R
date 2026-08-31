@@ -169,12 +169,26 @@ test_that("Livy activity discovery rejects unsupported HC listing locally", {
 test_that("Livy attach reconstructs authenticated handles without POST", {
   session_id <- "11111111-1111-4111-8111-111111111111"
   batch_id <- "22222222-2222-4222-8222-222222222222"
+  hc_id <- "33333333-3333-4333-8333-333333333333"
+  underlying_id <- "44444444-4444-4444-8444-444444444444"
+  repl_id <- "55555555-5555-4555-8555-555555555555"
   calls <- list()
   local_mocked_bindings(
     fabric_livy_json = function(method, url, credential, ...) {
       calls[[length(calls) + 1L]] <<- list(method = method, url = url)
+      if (grepl("/repls/", url, fixed = TRUE)) {
+        return(list(total_statements = 0L, statements = list()))
+      }
       id <- sub(".*/", "", url)
       state <- if (grepl("batches", url, fixed = TRUE)) "running" else "idle"
+      if (grepl("highConcurrencySessions", url, fixed = TRUE)) {
+        return(list(
+          id = id,
+          state = state,
+          sessionId = underlying_id,
+          replId = repl_id
+        ))
+      }
       list(id = id, state = state)
     }
   )
@@ -191,6 +205,13 @@ test_that("Livy attach reconstructs authenticated handles without POST", {
     token = "fresh-token",
     verbose = FALSE
   )
+  hc <- fabric_livy_session_attach(
+    "https://example.test/livy/sessions",
+    hc_id,
+    high_concurrency = TRUE,
+    token = "fresh-token",
+    verbose = FALSE
+  )
 
   expect_s3_class(session, "FabricLivySession")
   expect_identical(session$id, session_id)
@@ -198,14 +219,27 @@ test_that("Livy attach reconstructs authenticated handles without POST", {
   expect_s3_class(batch, "FabricLivyBatch")
   expect_identical(batch$id, batch_id)
   expect_identical(batch$status()$state, "running")
+  expect_s3_class(hc, "FabricLivySession")
+  expect_identical(hc$id, hc_id)
+  expect_identical(hc$session_id, underlying_id)
+  expect_identical(hc$repl_id, repl_id)
+  expect_identical(hc$statements()$total_statements, 0L)
   expect_true(all(vapply(calls, `[[`, character(1), "method") == "GET"))
   expect_identical(
     vapply(calls, `[[`, character(1), "url"),
     c(
       paste0("https://example.test/livy/sessions/", session_id),
       paste0("https://example.test/livy/batches/", batch_id),
+      paste0("https://example.test/livy/highConcurrencySessions/", hc_id),
       paste0("https://example.test/livy/sessions/", session_id),
-      paste0("https://example.test/livy/batches/", batch_id)
+      paste0("https://example.test/livy/batches/", batch_id),
+      paste0(
+        "https://example.test/livy/highConcurrencySessions/",
+        underlying_id,
+        "/repls/",
+        repl_id,
+        "/statements"
+      )
     )
   )
 })

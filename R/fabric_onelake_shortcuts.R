@@ -418,7 +418,8 @@ fabric_onelake_shortcut_cache_reset <- function(
     workspace$id,
     "/onelake/resetShortcutCache"
   )) |>
-    httr2::req_method("POST")
+    httr2::req_method("POST") |>
+    httr2::req_body_raw(raw())
   .fabric_operation_submit(
     request,
     credential = credential,
