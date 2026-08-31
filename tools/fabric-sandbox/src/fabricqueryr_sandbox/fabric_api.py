@@ -60,16 +60,25 @@ class FabricApi:
         target = self._same_origin_url(url)
         supplied_headers = kwargs.pop("headers", {})
         method = method.upper()
+        response: httpx.Response | None = None
         for attempt in range(1, self.max_attempts + 1):
             token = self.credential.get_token(FABRIC_SCOPE).token
             headers = {"Authorization": f"Bearer {token}"}
             headers.update(supplied_headers)
-            response = self.client.request(
-                method,
-                target,
-                headers=headers,
-                **kwargs,
-            )
+            try:
+                response = self.client.request(
+                    method,
+                    target,
+                    headers=headers,
+                    **kwargs,
+                )
+            except (httpx.ConnectError, httpx.ConnectTimeout):
+                if attempt == self.max_attempts:
+                    raise
+                delay = min(30.0, 0.5 * (2 ** (attempt - 1)))
+                if delay > 0:
+                    self.sleep(delay)
+                continue
             retryable = response.status_code in RETRYABLE_STATUS_CODES and (
                 method in IDEMPOTENT_METHODS or response.status_code == 429
             )
@@ -79,6 +88,8 @@ class FabricApi:
             delay = self._retry_after(response, default)
             if delay > 0:
                 self.sleep(delay)
+        if response is None:
+            raise AssertionError("Fabric request loop ended without a response")
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as error:

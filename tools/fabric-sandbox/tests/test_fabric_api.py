@@ -98,6 +98,48 @@ def test_request_does_not_retry_ambiguous_post_server_errors():
     assert attempts == 1
 
 
+def test_request_retries_connection_establishment_failures():
+    attempts = 0
+    sleeps = []
+
+    def handler(request):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ConnectError("connection refused", request=request)
+        return httpx.Response(200, json={"value": []})
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        response = api.request("GET", "/workspaces")
+
+    assert response.status_code == 200
+    assert attempts == 2
+    assert sleeps == [0.5]
+
+
+def test_request_does_not_retry_ambiguous_read_timeouts():
+    attempts = 0
+
+    def handler(request):
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ReadTimeout("response timed out", request=request)
+
+    with FabricApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+    ) as api:
+        with pytest.raises(httpx.ReadTimeout, match="response timed out"):
+            api.request("POST", "/workspaces/workspace-id/items")
+
+    assert attempts == 1
+
+
 def test_list_workspaces_filters_admin_role_and_follows_continuation():
     requests = []
 

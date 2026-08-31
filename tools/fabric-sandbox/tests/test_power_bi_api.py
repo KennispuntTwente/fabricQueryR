@@ -358,3 +358,68 @@ def test_import_refresh_requires_an_accepted_trigger_response():
     ) as api:
         with pytest.raises(RuntimeError, match="unexpected HTTP 200"):
             api.refresh_import_model("workspace-id", "dataset-id")
+
+
+def test_request_retries_throttling_and_honors_retry_after():
+    attempts = 0
+    sleeps = []
+
+    def handler(_request):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(429, headers={"Retry-After": "2"})
+        return httpx.Response(202)
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        response = api.request("POST", "/groups/workspace-id/datasets")
+
+    assert response.status_code == 202
+    assert attempts == 2
+    assert sleeps == [2]
+
+
+def test_request_retries_connection_establishment_failures():
+    attempts = 0
+    sleeps = []
+
+    def handler(request):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ConnectTimeout("connect timed out", request=request)
+        return httpx.Response(200, json={"value": []})
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleeps.append,
+    ) as api:
+        response = api.request("GET", "/groups/workspace-id/datasets")
+
+    assert response.status_code == 200
+    assert attempts == 2
+    assert sleeps == [0.5]
+
+
+def test_request_does_not_retry_ambiguous_post_failures():
+    attempts = 0
+
+    def handler(_request):
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503)
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+    ) as api:
+        with pytest.raises(httpx.HTTPStatusError, match="503"):
+            api.request("POST", "/groups/workspace-id/datasets")
+
+    assert attempts == 1

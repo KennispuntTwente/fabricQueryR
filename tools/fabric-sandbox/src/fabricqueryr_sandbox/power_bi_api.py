@@ -17,6 +17,8 @@ SEMANTIC_MODEL_NAME = "FabricQueryRIntegrationModel"
 ARROW_SEMANTIC_MODEL_NAME = "FabricQueryRArrowIntegrationModel"
 SEMANTIC_MODEL_TABLE = "Facts"
 TERMINAL_REFRESH_FAILURES = {"Failed", "Disabled", "Cancelled", "TimedOut"}
+RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+IDEMPOTENT_METHODS = {"GET", "HEAD", "OPTIONS", "PUT", "DELETE"}
 
 
 class PowerBiApi:
@@ -26,7 +28,10 @@ class PowerBiApi:
         *,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        max_attempts: int = 4,
     ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
         self.credential = credential
         self.client = httpx.Client(
             base_url=POWER_BI_API,
@@ -34,6 +39,7 @@ class PowerBiApi:
             transport=transport,
         )
         self.sleep = sleep
+        self.max_attempts = max_attempts
 
     def close(self) -> None:
         self.client.close()
@@ -46,17 +52,51 @@ class PowerBiApi:
 
     def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         target = self._same_origin_url(url)
-        token = self.credential.get_token(POWER_BI_SCOPE).token
-        headers = {"Authorization": f"Bearer {token}"}
-        headers.update(kwargs.pop("headers", {}))
-        response = self.client.request(
-            method,
-            target,
-            headers=headers,
-            **kwargs,
-        )
+        supplied_headers = kwargs.pop("headers", {})
+        method = method.upper()
+        response: httpx.Response | None = None
+        for attempt in range(1, self.max_attempts + 1):
+            token = self.credential.get_token(POWER_BI_SCOPE).token
+            headers = {"Authorization": f"Bearer {token}"}
+            headers.update(supplied_headers)
+            try:
+                response = self.client.request(
+                    method,
+                    target,
+                    headers=headers,
+                    **kwargs,
+                )
+            except (httpx.ConnectError, httpx.ConnectTimeout):
+                if attempt == self.max_attempts:
+                    raise
+                delay = min(30.0, 0.5 * (2 ** (attempt - 1)))
+                if delay > 0:
+                    self.sleep(delay)
+                continue
+            retryable = response.status_code in RETRYABLE_STATUS_CODES and (
+                method in IDEMPOTENT_METHODS or response.status_code == 429
+            )
+            if not retryable or attempt == self.max_attempts:
+                break
+            default = min(30.0, 0.5 * (2 ** (attempt - 1)))
+            delay = self._retry_after(response, default)
+            if delay > 0:
+                self.sleep(delay)
+        if response is None:
+            raise AssertionError("Power BI request loop ended without a response")
         response.raise_for_status()
         return response
+
+    @staticmethod
+    def _retry_after(response: httpx.Response, default: float) -> float:
+        value = response.headers.get("Retry-After")
+        if value is None:
+            return default
+        try:
+            delay = max(0.0, float(value))
+        except ValueError:
+            return default
+        return delay if math.isfinite(delay) else default
 
     def _same_origin_url(self, url: str) -> httpx.URL:
         target = self.client.build_request("GET", url).url
