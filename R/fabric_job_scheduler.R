@@ -722,8 +722,29 @@ print.fabric_job_schedule <- function(x, ...) {
 .fabric_job_schedule_record <- function(body, context) {
   .fabric_job_guid(body$id, "schedule ID")
   .fabric_schedule_flag(body$enabled, "schedule enabled")
-  configuration <- body$configuration %||% list()
-  .fabric_job_named_list(configuration, "schedule configuration")
+  configuration <- body$configuration
+  configuration_names <- names(configuration)
+  if (
+    !"configuration" %in% names(body) ||
+      !is.list(configuration) ||
+      !length(configuration) ||
+      is.null(configuration_names) ||
+      anyNA(configuration_names) ||
+      !all(nzchar(configuration_names)) ||
+      anyDuplicated(configuration_names) ||
+      !is.character(configuration$type) ||
+      length(configuration$type) != 1L ||
+      is.na(configuration$type) ||
+      !nzchar(configuration$type)
+  ) {
+    .fabric_abort(
+      paste0(
+        "Fabric returned a schedule without a valid configuration object"
+      ),
+      class = c("fabric_job_schedule_protocol_error", "fabric_job_error"),
+      response = body
+    )
+  }
   service_state <- body$state %||% body$status
   auto_disabled_marker <- body$autoDisabled %||% body$isAutoDisabled
   auto_disabled <- if (

@@ -213,6 +213,47 @@ test_that("schedule listing normalizes common fields and preserves future data",
   expect_true(schedules[[1L]]$raw$futureProperty$kept)
 })
 
+test_that("schedule responses require a usable configuration object", {
+  context <- list(
+    workspace_id = "22222222-2222-2222-2222-222222222222",
+    item_id = "11111111-1111-1111-1111-111111111111",
+    item_type = "Notebook",
+    job_type = "RunNotebook"
+  )
+  malformed <- list(
+    list(
+      id = "33333333-3333-3333-3333-333333333333",
+      enabled = TRUE
+    ),
+    list(
+      id = "33333333-3333-3333-3333-333333333333",
+      enabled = TRUE,
+      configuration = NULL
+    ),
+    list(
+      id = "33333333-3333-3333-3333-333333333333",
+      enabled = TRUE,
+      configuration = list()
+    ),
+    list(
+      id = "33333333-3333-3333-3333-333333333333",
+      enabled = TRUE,
+      configuration = list(type = c("Daily", "Weekly"))
+    )
+  )
+
+  for (body in malformed) {
+    expect_error(
+      .fabric_job_schedule_response(
+        list(status_code = 200L, body = body),
+        context,
+        expected_status = 200L
+      ),
+      class = "fabric_job_schedule_protocol_error"
+    )
+  }
+})
+
 test_that("schedule creation sends the documented payload and preserves arrays", {
   call <- NULL
   configuration <- scheduler_test_configuration("Weekly")
