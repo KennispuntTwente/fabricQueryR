@@ -701,6 +701,8 @@ fabric_livy_json <- function(
       req,
       fabric_livy_json_payload(payload)
     )
+  } else if (toupper(method) %in% c("POST", "PUT", "PATCH")) {
+    req <- httr2::req_body_raw(req, raw())
   }
   .httr2_json(
     req,
@@ -838,6 +840,8 @@ fabric_livy_ok <- function(
       req,
       fabric_livy_json_payload(payload)
     )
+  } else if (toupper(method) %in% c("POST", "PUT", "PATCH")) {
+    req <- httr2::req_body_raw(req, raw())
   }
   .httr2_perform(
     req,

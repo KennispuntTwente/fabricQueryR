@@ -816,6 +816,44 @@ test_that("the Livy request adapter preserves its HTTP contract", {
   expect_identical(captured$deadline, deadline)
 })
 
+test_that("bodyless Livy mutations carry an explicit zero-length body", {
+  requests <- list()
+  httr2::local_mocked_responses(function(req) {
+    requests[[length(requests) + 1L]] <<- req
+    body <- if (length(requests) == 1L) {
+      charToRaw('{"state":"idle"}')
+    } else {
+      raw()
+    }
+    httr2::response(
+      status_code = 200L,
+      url = req$url,
+      headers = list("content-type" = "application/json"),
+      body = body
+    )
+  })
+  credential <- fabric_credential(token = "token")
+
+  response <- fabric_livy_json(
+    "POST",
+    "https://example.test/livy/sessions/1/reset-timeout",
+    credential
+  )
+  ok <- fabric_livy_ok(
+    "POST",
+    "https://example.test/livy/sessions/1/statements/2/cancel",
+    credential
+  )
+
+  expect_identical(response$state, "idle")
+  expect_true(ok)
+  expect_length(requests, 2L)
+  for (request in requests) {
+    expect_identical(request$body$type, "raw")
+    expect_length(request$body$data, 0L)
+  }
+})
+
 test_that("Livy table MIME output is parsed into a tibble", {
   result <- fabric_livy_output(
     response = list(
