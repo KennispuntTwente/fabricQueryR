@@ -73,15 +73,15 @@ base ending in \verb{/delta} or \verb{/iceberg}. Most users should keep the defa
 \code{displayName}. A record can also supply its schema.}
 }
 \value{
-One logical value: \code{TRUE} for a successful \code{HEAD} response and
-\code{FALSE} for HTTP 404. Authentication, permission, throttling, and service
-errors are not converted to \code{FALSE}.
+One logical value. Delta returns \code{TRUE} when the paginated metadata
+inventory contains the requested name. Iceberg returns \code{TRUE} when the
+metadata \code{GET} succeeds and \code{FALSE} for HTTP 404. Authentication,
+permission, throttling, and service errors are not converted to \code{FALSE}.
 }
 \description{
-Uses the documented metadata-only \code{HEAD} operations from either the Delta
-Unity Catalog-compatible API or the Iceberg REST Catalog API. These helpers
-avoid downloading a complete schema or table record when only existence is
-needed.
+Searches the paginated Delta metadata collections or retrieves one namespace
+or table record through the Iceberg REST Catalog API. These helpers avoid
+downloading table data when only existence is needed.
 }
 \details{
 The table APIs use the Azure Storage token audience and require permission
@@ -91,9 +91,9 @@ because the Fabric Core and Storage audiences are both involved.
 
 Iceberg requests first call \code{GET /iceberg/v1/config} with the item's
 workspace/item warehouse identity and validate the returned prefix before
-issuing \code{HEAD}. Delta schema requests include \code{catalog_name} only when the
-schema name contains dots. Delta table requests include \code{catalog_name} and
-\code{schema_name}.
+retrieving the namespace or table record. Delta requests follow all metadata
+collection pages because OneLake currently rejects its documented schema and
+table \code{HEAD} routes.
 }
 \examples{
 \dontrun{

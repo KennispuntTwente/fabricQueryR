@@ -141,12 +141,37 @@ test_that("Iceberg existence resolves and validates the service prefix", {
     ),
     fixed = TRUE
   )
-  expect_equal(requests[[2L]]$method, "HEAD")
+  expect_equal(requests[[2L]]$method %||% "GET", "GET")
   expect_match(
     requests[[2L]]$url,
     "/iceberg/v1/tenant/catalog-prefix/namespaces/sales%20data/tables/orders%202026$"
   )
   expect_equal(audiences, rep(.fabric_audience$storage, 2L))
+})
+
+test_that("Iceberg existence converts only HTTP 404 to false", {
+  requests <- list()
+  httr2::local_mocked_responses(function(req) {
+    requests[[length(requests) + 1L]] <<- req
+    if (length(requests) == 1L) {
+      return(exists_test_response(
+        req,
+        body = list(overrides = list(prefix = "tenant/catalog-prefix"))
+      ))
+    }
+    exists_test_response(req, status = 404L)
+  })
+
+  result <- fabric_onelake_schema_exists(
+    exists_test_item(),
+    "missing",
+    protocol = "iceberg",
+    token = "storage-token"
+  )
+
+  expect_identical(result, FALSE)
+  expect_length(requests, 2L)
+  expect_equal(requests[[2L]]$method %||% "GET", "GET")
 })
 
 test_that("existence checks reject unsafe protocol routing", {

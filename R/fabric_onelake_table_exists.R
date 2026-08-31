@@ -2,8 +2,8 @@
 
 #' Check whether a OneLake schema or table exists
 #'
-#' Searches the paginated Delta metadata collections or uses the Iceberg REST
-#' Catalog API's metadata-only `HEAD` operations. These helpers avoid
+#' Searches the paginated Delta metadata collections or retrieves one namespace
+#' or table record through the Iceberg REST Catalog API. These helpers avoid
 #' downloading table data when only existence is needed.
 #'
 #' @param item Fabric data item GUID, exact display name, or a discovered item
@@ -22,8 +22,8 @@
 #' @inheritParams fabric_workspaces
 #'
 #' @return One logical value. Delta returns `TRUE` when the paginated metadata
-#'   inventory contains the requested name. Iceberg returns `TRUE` for a
-#'   successful `HEAD` response and `FALSE` for HTTP 404. Authentication,
+#'   inventory contains the requested name. Iceberg returns `TRUE` when the
+#'   metadata `GET` succeeds and `FALSE` for HTTP 404. Authentication,
 #'   permission, throttling, and service errors are not converted to `FALSE`.
 #' @details
 #' The table APIs use the Azure Storage token audience and require permission
@@ -33,8 +33,9 @@
 #'
 #' Iceberg requests first call `GET /iceberg/v1/config` with the item's
 #' workspace/item warehouse identity and validate the returned prefix before
-#' issuing `HEAD`. Delta requests follow all metadata collection pages because
-#' OneLake currently rejects its documented schema and table `HEAD` routes.
+#' retrieving the namespace or table record. Delta requests follow all metadata
+#' collection pages because OneLake currently rejects its documented schema and
+#' table `HEAD` routes.
 #' @references
 #' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
 #'
@@ -358,8 +359,7 @@ fabric_onelake_table_exists <- function(
 
 .fabric_onelake_exists_request <- function(url, credential) {
   response <- .httr2_perform(
-    httr2::request(url) |>
-      httr2::req_method("HEAD"),
+    httr2::request(url),
     credential = credential,
     audience = .fabric_audience$storage,
     idempotent = TRUE,
