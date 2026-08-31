@@ -980,8 +980,8 @@ onelake_parse_uri <- function(uri) {
 }
 
 # Extract and canonicalize the workspace GUID embedded in Fabric's documented
-# workspace-specific OneLake FQDN. These endpoints omit the workspace segment
-# from item-scoped paths and use the GUID without dashes in the hostname
+# workspace-specific OneLake FQDN. The GUID is represented without dashes in
+# the hostname
 onelake_workspace_host_guid <- function(host) {
   match <- regexec(
     paste0(
