@@ -97,7 +97,8 @@ can reduce latency but should be reserved for latency-critical workloads}
 downloaded it. The default preserves source data}
 
 \item{creation_time}{Optional ISO 8601 extent creation time, \code{Date}, or
-\code{POSIXt}. Align historical values with the target merge policy lookback}
+\code{POSIXt}. A \code{Date} is sent as midnight UTC. Align historical values with
+the target merge policy lookback}
 
 \item{validation_policy}{Optional JSON string or named list describing CSV
 validation behavior}

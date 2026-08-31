@@ -243,6 +243,10 @@ test_that("fabric_kql_ingest sends the documented tracked payload", {
     "events-2026-08-14"
   )
   expect_true(payload$properties$ignoreFirstRecord)
+  expect_identical(
+    payload$properties$creationTime,
+    "2026-08-14T00:00:00Z"
+  )
   expect_match(payload$properties$validationPolicy, "ValidationOptions")
   expect_equal(payload$timestamp, "2026-08-14T10:00:00.000000Z")
 })

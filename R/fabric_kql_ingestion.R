@@ -117,7 +117,8 @@
 #' @param delete_after_download Whether Kusto may delete a source after it has
 #'   downloaded it. The default preserves source data
 #' @param creation_time Optional ISO 8601 extent creation time, `Date`, or
-#'   `POSIXt`. Align historical values with the target merge policy lookback
+#'   `POSIXt`. A `Date` is sent as midnight UTC. Align historical values with
+#'   the target merge policy lookback
 #' @param validation_policy Optional JSON string or named list describing CSV
 #'   validation behavior
 #' @param zip_pattern Optional regular expression selecting files inside ZIP
@@ -1587,10 +1588,7 @@ kusto_ingestion_datetime <- function(value, name, allow_date) {
     ))
   }
   if (inherits(value, "Date") && length(value) == 1L && !is.na(value)) {
-    if (!allow_date) {
-      return(paste0(format(value, "%Y-%m-%d"), "T00:00:00Z"))
-    }
-    return(format(value, "%Y-%m-%d"))
+    return(paste0(format(value, "%Y-%m-%d"), "T00:00:00Z"))
   }
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
     .fabric_abort(sprintf("%s must be one ISO 8601 date-time", name))
