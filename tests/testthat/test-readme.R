@@ -16,37 +16,38 @@ test_that("README R examples parse and match exported signatures", {
   })
   expect_length(expressions, length(starts))
 
-  collect_calls <- function(value) {
-    calls <- list()
-    visit <- function(node) {
-      if (is.call(node)) {
-        if (is.symbol(node[[1L]])) {
-          name <- as.character(node[[1L]])
-          if (grepl("^(fabric|onelake)_", name)) {
-            calls[[length(calls) + 1L]] <<- node
-          }
-        }
-        lapply(as.list(node)[-1L], visit)
-      } else if (is.expression(node) || is.list(node)) {
-        lapply(node, visit)
-      }
-      invisible(NULL)
-    }
-    visit(value)
-    calls
-  }
-
   exports <- getNamespaceExports("fabricQueryR")
-  calls <- unlist(lapply(expressions, collect_calls), recursive = FALSE)
+  registry <- documentation_r6_method_registry()
+  calls <- unlist(
+    lapply(expressions, documentation_calls, "^(fabric|onelake)_"),
+    recursive = FALSE
+  )
   expect_gt(length(calls), 0L)
-  for (call in calls) {
-    name <- as.character(call[[1L]])
+  method_calls <- 0L
+  for (record in calls) {
+    call <- record$call
+    name <- record$name
+    if (identical(record$kind, "method")) {
+      signatures <- registry[[name]]
+      if (is.null(signatures)) {
+        expect_true(
+          name %in% documentation_external_methods,
+          info = deparse1(call)
+        )
+        next
+      }
+      method_calls <- method_calls + 1L
+      expect_true(
+        documentation_r6_call_matches(call, signatures),
+        info = deparse1(call)
+      )
+      next
+    }
     expect_in(name, exports)
     if (!name %in% exports) {
       next
     }
-    supplied <- names(as.list(call)[-1L])
-    supplied <- supplied[nzchar(supplied)]
+    supplied <- documentation_call_arguments(call)
     parameters <- names(formals(getExportedValue("fabricQueryR", name)))
     if (!"..." %in% parameters) {
       expect_length(
@@ -55,4 +56,5 @@ test_that("README R examples parse and match exported signatures", {
       )
     }
   }
+  expect_gt(method_calls, 0L)
 })

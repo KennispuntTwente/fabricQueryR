@@ -32,42 +32,43 @@ test_that("documented vignette calls match exported function signatures", {
   if (!dir.exists(vignette_dir)) {
     skip("Package vignettes are not available in installed test runs")
   }
-  collect_calls <- function(value) {
-    calls <- list()
-    visit <- function(node) {
-      if (is.call(node)) {
-        if (is.symbol(node[[1L]])) {
-          name <- as.character(node[[1L]])
-          if (grepl("^(fabric|kusto|onelake)_", name)) {
-            calls[[length(calls) + 1L]] <<- node
-          }
-        }
-        lapply(as.list(node)[-1L], visit)
-      } else if (is.expression(node) || is.list(node)) {
-        lapply(node, visit)
-      }
-      invisible(NULL)
-    }
-    visit(value)
-    calls
-  }
-
   exports <- getNamespaceExports("fabricQueryR")
+  registry <- documentation_r6_method_registry()
+  method_calls <- 0L
   paths <- list.files(vignette_dir, pattern = "[.]Rmd$", full.names = TRUE)
   for (path in paths) {
     chunks <- vignette_r_chunks(path)
     expressions <- lapply(chunks, function(chunk) {
       parse(text = paste(chunk$body, collapse = "\n"))
     })
-    calls <- collect_calls(expressions)
-    for (call in calls) {
-      name <- as.character(call[[1L]])
+    calls <- documentation_calls(
+      expressions,
+      "^(fabric|kusto|onelake)_"
+    )
+    for (record in calls) {
+      call <- record$call
+      name <- record$name
+      if (identical(record$kind, "method")) {
+        signatures <- registry[[name]]
+        if (is.null(signatures)) {
+          expect_true(
+            name %in% documentation_external_methods,
+            info = paste(basename(path), deparse1(call))
+          )
+          next
+        }
+        method_calls <- method_calls + 1L
+        expect_true(
+          documentation_r6_call_matches(call, signatures),
+          info = paste(basename(path), deparse1(call))
+        )
+        next
+      }
       expect_true(name %in% exports, info = paste(basename(path), name))
       if (!name %in% exports) {
         next
       }
-      arguments <- names(as.list(call)[-1L])
-      arguments <- arguments[nzchar(arguments)]
+      arguments <- documentation_call_arguments(call)
       parameters <- names(formals(getExportedValue("fabricQueryR", name)))
       if (!"..." %in% parameters) {
         expect_true(
@@ -77,6 +78,16 @@ test_that("documented vignette calls match exported function signatures", {
       }
     }
   }
+  expect_gt(method_calls, 0L)
+})
+
+test_that("R6 documentation signature checks reject unknown named arguments", {
+  registry <- documentation_r6_method_registry()
+  call <- parse(
+    text = 'model$dax_query(dax = "EVALUATE ROW()", datset_id = "typo")'
+  )[[1L]]
+
+  expect_false(documentation_r6_call_matches(call, registry$dax_query))
 })
 
 test_that("every vignette knits and all example code parses", {
