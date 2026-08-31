@@ -163,7 +163,7 @@ scripts <- fabric_onelake_list(
 script <- scripts[grepl("[.]py$", scripts$path), ][1L, ]
 script_uri <- paste0(
   "abfss://", workspace$id, "@onelake.dfs.fabric.microsoft.com/",
-  lakehouse$id, ".Lakehouse/", script$path[[1L]]
+  lakehouse$id, "/", script$path[[1L]]
 )
 
 # Submit the discovered script and wait for its Spark application to finish

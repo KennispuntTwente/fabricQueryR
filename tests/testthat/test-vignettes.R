@@ -777,6 +777,7 @@ test_that("Livy vignette executes query and shared-session examples", {
   discovery_calls <- 0L
   lakehouse_workspace <- NULL
   query_calls <- list()
+  batch_calls <- list()
   session_lakehouse <- NULL
   session_events <- character()
   session_runs <- list()
@@ -801,7 +802,7 @@ test_that("Livy vignette executes query and shared-session examples", {
     }
   )
   lakehouse <- vignette_mock_r6(
-    fields = list(id = "lakehouse-id"),
+    fields = list(id = "22222222-2222-4222-8222-222222222222"),
     methods = list(
       livy_query = function(code, kind, ...) {
         query_calls[[length(query_calls) + 1L]] <<- list(
@@ -815,6 +816,13 @@ test_that("Livy vignette executes query and shared-session examples", {
       livy_session = function(...) {
         session_lakehouse <<- lakehouse
         session
+      },
+      livy_batch_submit = function(file, ...) {
+        batch_calls[[length(batch_calls) + 1L]] <<- list(
+          file = file,
+          options = list(...)
+        )
+        list(result = function() list(state = "success"))
       }
     ),
     class = "FabricLakehouse"
@@ -822,7 +830,7 @@ test_that("Livy vignette executes query and shared-session examples", {
   workspace <- vignette_mock_r6(
     fields = list(
       displayName = "Analytics workspace",
-      id = "workspace-id"
+      id = "11111111-1111-4111-8111-111111111111"
     ),
     methods = list(
       lakehouses = function(...) {
@@ -854,7 +862,8 @@ test_that("Livy vignette executes query and shared-session examples", {
       "SELECT * FROM external_sql_table",
       "SELECT 1 AS id, 'hello from Spark' AS message",
       "df <- sql('SELECT * FROM orders LIMIT 100')",
-      "session <- lakehouse$livy_session()"
+      "session <- lakehouse$livy_session()",
+      "batch <- lakehouse$livy_batch_submit("
     ),
     index_for,
     integer(1)
@@ -908,6 +917,20 @@ test_that("Livy vignette executes query and shared-session examples", {
     )
   )
   expect_true(closed)
+  expect_length(batch_calls, 1L)
+  expect_identical(
+    batch_calls[[1L]]$file,
+    paste0(
+      "abfss://11111111-1111-4111-8111-111111111111",
+      "@onelake.dfs.fabric.microsoft.com/",
+      "22222222-2222-4222-8222-222222222222",
+      "/Files/jobs/daily_transform.py"
+    )
+  )
+  expect_false(grepl(".Lakehouse/", batch_calls[[1L]]$file, fixed = TRUE))
+  expect_identical(batch_calls[[1L]]$options$name, "daily-transform")
+  expect_true(batch_calls[[1L]]$options$wait)
+  expect_identical(batch_calls[[1L]]$options$timeout, 1800)
 })
 
 test_that("user-data-function vignette executes scalar and structured calls", {

@@ -220,7 +220,7 @@ batch <- lakehouse$livy_batch_submit(
     "abfss://", workspace$id,
     "@onelake.dfs.fabric.microsoft.com/",
     lakehouse$id,
-    ".Lakehouse/Files/jobs/daily_transform.py"
+    "/Files/jobs/daily_transform.py"
   ),
   name = "daily-transform",
   wait = TRUE,
