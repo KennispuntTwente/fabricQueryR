@@ -100,6 +100,7 @@ test_that("Livy sessions exercise supported languages on Runtime 2.0", {
   )
   on.exit(try(recovered$close(), silent = TRUE), add = TRUE)
   expect_identical(recovered$id, session$id)
+  expect_identical(recovered$reset_timeout(), recovered)
 
   reused <- recovered$run(
     paste0(
