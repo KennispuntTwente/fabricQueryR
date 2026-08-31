@@ -13,18 +13,13 @@ run Spark code, and start or monitor Fabric jobs.
 
 ## Installation
 
-Install the latest CRAN release (currently 0.2.1) for the stable core API:
+Install the latest CRAN release:
 
 ``` r
 install.packages("fabricQueryR")
 ```
 
-That release exports `fabric_sql_connect()`, `fabric_sql_query()`,
-`fabric_pbi_dax_query()`, `fabric_onelake_read_delta_table()`, and
-`fabric_livy_query()`. The broader discovery, management, write, reusable
-session, and scheduling interfaces shown in this README are part of the
-0.2.1.9000 development version. Install it from GitHub to run all examples
-below:
+Install the development version from GitHub:
 
 ``` r
 if (!requireNamespace("remotes", quietly = TRUE)) {
