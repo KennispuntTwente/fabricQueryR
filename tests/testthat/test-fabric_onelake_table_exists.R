@@ -42,6 +42,23 @@ test_that("Delta existence checks use HEAD and distinguish only 404", {
   )
 })
 
+test_that("Delta schema existence omits an unnecessary catalog query", {
+  request <- NULL
+  httr2::local_mocked_responses(function(req) {
+    request <<- req
+    exists_test_response(req)
+  })
+
+  fabric_onelake_schema_exists(
+    exists_test_item(),
+    "dbo",
+    token = "storage-token"
+  )
+
+  expect_match(request$url, "/schemas/dbo$")
+  expect_null(httr2::url_parse(request$url)$query$catalog_name)
+})
+
 test_that("table existence uses a discovered default schema", {
   request <- NULL
   httr2::local_mocked_responses(function(req) {

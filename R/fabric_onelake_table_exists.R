@@ -33,8 +33,9 @@
 #'
 #' Iceberg requests first call `GET /iceberg/v1/config` with the item's
 #' workspace/item warehouse identity and validate the returned prefix before
-#' issuing `HEAD`. Delta requests include `catalog_name` and, for tables,
-#' `schema_name` even when names do not contain dots.
+#' issuing `HEAD`. Delta schema requests include `catalog_name` only when the
+#' schema name contains dots. Delta table requests include `catalog_name` and
+#' `schema_name`.
 #' @references
 #' [OneLake table APIs for Delta](https://learn.microsoft.com/en-us/fabric/onelake/table-apis/delta-table-apis-overview)
 #'
@@ -297,7 +298,10 @@ fabric_onelake_table_exists <- function(
       "/",
       onelake_encode_path(name)
     ))
-    query <- list(catalog_name = context$item_id)
+    query <- list()
+    if (!is.null(table) || grepl(".", schema, fixed = TRUE)) {
+      query$catalog_name <- context$item_id
+    }
     if (!is.null(table)) {
       query$schema_name <- schema
     }

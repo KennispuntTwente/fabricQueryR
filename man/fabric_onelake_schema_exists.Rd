@@ -91,8 +91,9 @@ because the Fabric Core and Storage audiences are both involved.
 
 Iceberg requests first call \code{GET /iceberg/v1/config} with the item's
 workspace/item warehouse identity and validate the returned prefix before
-issuing \code{HEAD}. Delta requests include \code{catalog_name} and, for tables,
-\code{schema_name} even when names do not contain dots.
+issuing \code{HEAD}. Delta schema requests include \code{catalog_name} only when the
+schema name contains dots. Delta table requests include \code{catalog_name} and
+\code{schema_name}.
 }
 \examples{
 \dontrun{
