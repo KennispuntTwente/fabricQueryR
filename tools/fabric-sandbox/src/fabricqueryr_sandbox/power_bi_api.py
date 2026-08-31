@@ -235,6 +235,8 @@ class PowerBiApi:
         timeout: int = 900,
     ) -> dict[str, Any]:
         """Refresh the source-controlled Arrow fixture and await completion."""
+        if timeout <= 0:
+            raise ValueError("timeout must be positive")
         response = self.request(
             "POST",
             f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
@@ -274,14 +276,31 @@ class PowerBiApi:
         last_refresh: dict[str, Any] | None = None
         while time.monotonic() < deadline:
             status_response = self.request("GET", refresh_url)
-            refresh = status_response.json()
+            if status_response.status_code not in {200, 202}:
+                raise RuntimeError(
+                    "Power BI refresh status returned unexpected HTTP "
+                    f"{status_response.status_code}"
+                )
+            try:
+                refresh = status_response.json()
+            except ValueError as error:
+                raise RuntimeError(
+                    "Power BI refresh status did not return valid JSON"
+                ) from error
             if not isinstance(refresh, dict):
                 raise RuntimeError(
                     "Power BI refresh status did not return an object"
                 )
             last_refresh = refresh
-            status = str(refresh.get("status", ""))
-            extended_status = str(refresh.get("extendedStatus", ""))
+            status = refresh.get("status")
+            if not isinstance(status, str) or not status:
+                raise RuntimeError(
+                    "Power BI refresh status did not include a status value"
+                )
+            extended_value = refresh.get("extendedStatus")
+            extended_status = (
+                extended_value if isinstance(extended_value, str) else ""
+            )
             terminal_failure = next(
                 (
                     value
@@ -307,10 +326,10 @@ class PowerBiApi:
                     "Power BI refresh returned a terminal response with "
                     f"unexpected status {status!r}: {refresh!r}"
                 )
-            if status_response.status_code != 202:
+            if status != "Unknown":
                 raise RuntimeError(
-                    "Power BI refresh status returned unexpected HTTP "
-                    f"{status_response.status_code}"
+                    "Power BI in-progress refresh returned unexpected status "
+                    f"{status!r}: {refresh!r}"
                 )
             retry_after = status_response.headers.get("Retry-After")
             try:

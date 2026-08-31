@@ -4,6 +4,7 @@ from azure.core.credentials import AccessToken
 import httpx
 import pytest
 
+import fabricqueryr_sandbox.power_bi_api as power_bi_api
 from fabricqueryr_sandbox.power_bi_api import (
     ARROW_SEMANTIC_MODEL_NAME,
     PowerBiApi,
@@ -423,3 +424,100 @@ def test_request_does_not_retry_ambiguous_post_failures():
             api.request("POST", "/groups/workspace-id/datasets")
 
     assert attempts == 1
+
+
+def test_import_refresh_validates_timeout_before_starting():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        raise AssertionError("refresh should not have started")
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        with pytest.raises(ValueError, match="timeout must be positive"):
+            api.refresh_import_model(
+                "workspace-id",
+                "dataset-id",
+                timeout=0,
+            )
+
+    assert requests == []
+
+
+@pytest.mark.parametrize(
+    ("status_response", "message"),
+    [
+        (httpx.Response(204), "unexpected HTTP 204"),
+        (
+            httpx.Response(202, text="not JSON"),
+            "did not return valid JSON",
+        ),
+        (
+            httpx.Response(202, json={}),
+            "did not include a status value",
+        ),
+    ],
+)
+def test_import_refresh_wraps_malformed_status_responses(
+    status_response,
+    message,
+):
+    location = (
+        "https://api.powerbi.com/v1.0/myorg/groups/workspace-id/"
+        "datasets/dataset-id/refreshes/refresh-id"
+    )
+
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(202, headers={"Location": location})
+        return status_response
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        with pytest.raises(RuntimeError, match=message):
+            api.refresh_import_model("workspace-id", "dataset-id")
+
+
+def test_import_refresh_caps_poll_sleep_to_its_deadline(monkeypatch):
+    now = [0.0]
+    sleeps = []
+    location = (
+        "https://api.powerbi.com/v1.0/myorg/groups/workspace-id/"
+        "datasets/dataset-id/refreshes/refresh-id"
+    )
+
+    def sleep(delay):
+        sleeps.append(delay)
+        now[0] += delay
+
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(202, headers={"Location": location})
+        return httpx.Response(
+            202,
+            headers={"Retry-After": "600"},
+            json={
+                "status": "Unknown",
+                "extendedStatus": "InProgress",
+            },
+        )
+
+    monkeypatch.setattr(power_bi_api.time, "monotonic", lambda: now[0])
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleep,
+    ) as api:
+        with pytest.raises(TimeoutError, match="last status.*InProgress"):
+            api.refresh_import_model(
+                "workspace-id",
+                "dataset-id",
+                timeout=3,
+            )
+
+    assert sleeps == [3]
