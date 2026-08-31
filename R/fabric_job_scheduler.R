@@ -236,11 +236,14 @@ fabric_job_schedule_config <- function(
 #'   Spark job definitions to `"SparkJob"`, and data pipelines, Dataflows, and
 #'   Data Build Tool Jobs to `"Execute"`.
 #'   For a Dataflow publish schedule, set `job_type = "ApplyChanges"`
-#'   explicitly. Unknown item types retain the Core Scheduler's `"DefaultJob"`
-#'   fallback. Supply an explicit value for another workload-specific schedule
-#'   job type. When passing one of these item types as a GUID instead of a
-#'   discovered item, also supply `item_type` or set the documented `job_type`
-#'   explicitly.
+#'   explicitly. Lakehouses require an explicit value because they do not have
+#'   a safe generic default; use `"RefreshMaterializedLakeViews"` for the
+#'   materialized Lake View refresh route and supply its documented
+#'   `execution_data`. Unknown item types retain the Core Scheduler's
+#'   `"DefaultJob"` fallback. Supply an explicit value for another
+#'   workload-specific schedule job type. When passing one of these item types
+#'   as a GUID instead of a discovered item, also supply `item_type` or set the
+#'   documented `job_type` explicitly.
 #' @param configuration A value returned by
 #'   [fabric_job_schedule_config()]. Advanced callers may pass a named list in
 #'   the documented Fabric `ScheduleConfig` shape. Known types are validated;
@@ -287,6 +290,8 @@ fabric_job_schedule_config <- function(
 #' [Schedule Dataflow Execute](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute)
 #'
 #' [Schedule Dataflow Apply Changes](https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes)
+#'
+#' [Schedule a Lakehouse materialized Lake View refresh](https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/background-jobs/create-refresh-materialized-lake-views-schedule)
 #'
 #' [Schedule a Data Build Tool Job](https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job)
 #'
@@ -600,7 +605,7 @@ print.fabric_job_schedule <- function(x, ...) {
 }
 
 # Infer the documented schedule job type for known Fabric item workloads.
-# Returns an explicit value unchanged and preserves DefaultJob for unknown types
+# Returns an explicit value unchanged and preserves DefaultJob for unknown types.
 .fabric_job_schedule_type <- function(item_type, job_type) {
   if (!is.null(job_type)) {
     return(job_type)
@@ -614,6 +619,19 @@ print.fabric_job_schedule <- function(x, ...) {
         "not the Fabric Core Job Scheduler"
       ),
       class = "fabric_job_schedule_unsupported_item"
+    )
+  }
+  if (identical(normalized, "lakehouse")) {
+    .fabric_abort(
+      c(
+        "A Lakehouse schedule needs an explicit {.arg job_type}.",
+        "i" = paste(
+          "Use {.val RefreshMaterializedLakeViews} for a materialized",
+          "Lake View refresh schedule."
+        )
+      ),
+      .format = TRUE,
+      class = "fabric_job_schedule_job_type_required"
     )
   }
   switch(

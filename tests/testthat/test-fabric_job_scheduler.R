@@ -567,6 +567,64 @@ test_that("semantic model schedules require the Power BI dataset API", {
   )
 })
 
+test_that("Lakehouse schedules require an explicit workload job type", {
+  requests <- 0L
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      requests <<- requests + 1L
+      stop("A request should not be sent")
+    }
+  )
+
+  expect_error(
+    fabric_job_schedule_create(
+      scheduler_test_item("Lakehouse"),
+      scheduler_test_configuration(),
+      token = "test-token"
+    ),
+    "explicit.*job_type",
+    class = "fabric_job_schedule_job_type_required"
+  )
+  expect_identical(requests, 0L)
+})
+
+test_that("Lakehouse schedules preserve an explicit materialized-view route", {
+  call <- NULL
+  execution_data <- list(
+    mlvExecutionDefinitionId = "44444444-4444-4444-4444-444444444444"
+  )
+  local_mocked_bindings(
+    .fabric_job_request = function(method, url, credential, payload, ...) {
+      call <<- list(method = method, url = url, payload = payload)
+      list(
+        status_code = 201L,
+        body = scheduler_test_response(
+          configuration = payload$configuration,
+          enabled = payload$enabled,
+          execution_data = payload$executionData
+        )
+      )
+    }
+  )
+
+  schedule <- fabric_job_schedule_create(
+    scheduler_test_item("Lakehouse"),
+    scheduler_test_configuration(),
+    job_type = "RefreshMaterializedLakeViews",
+    execution_data = execution_data,
+    token = "test-token"
+  )
+
+  expect_identical(call$method, "POST")
+  expect_match(
+    call$url,
+    "/jobs/RefreshMaterializedLakeViews/schedules$",
+    perl = TRUE
+  )
+  expect_identical(call$payload$executionData, execution_data)
+  expect_identical(schedule$job_type, "RefreshMaterializedLakeViews")
+})
+
 test_that("DataPipeline schedule creation uses and records Execute", {
   call <- NULL
   local_mocked_bindings(

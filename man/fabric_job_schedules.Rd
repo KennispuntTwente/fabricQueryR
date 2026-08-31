@@ -80,11 +80,14 @@ Omit it when \code{item} is a discovered object containing \code{workspaceId}.}
 Spark job definitions to \code{"SparkJob"}, and data pipelines, Dataflows, and
 Data Build Tool Jobs to \code{"Execute"}.
 For a Dataflow publish schedule, set \code{job_type = "ApplyChanges"}
-explicitly. Unknown item types retain the Core Scheduler's \code{"DefaultJob"}
-fallback. Supply an explicit value for another workload-specific schedule
-job type. When passing one of these item types as a GUID instead of a
-discovered item, also supply \code{item_type} or set the documented \code{job_type}
-explicitly.}
+explicitly. Lakehouses require an explicit value because they do not have
+a safe generic default; use \code{"RefreshMaterializedLakeViews"} for the
+materialized Lake View refresh route and supply its documented
+\code{execution_data}. Unknown item types retain the Core Scheduler's
+\code{"DefaultJob"} fallback. Supply an explicit value for another
+workload-specific schedule job type. When passing one of these item types
+as a GUID instead of a discovered item, also supply \code{item_type} or set the
+documented \code{job_type} explicitly.}
 
 \item{item_type}{Optional Fabric item type when \code{item} is a GUID. A discovered
 item supplies this automatically.}
@@ -193,6 +196,8 @@ fabric_job_schedule_delete(notebook, schedule, confirm = TRUE)
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-execute}{Schedule Dataflow Execute}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/dataflow/background-jobs/schedule-apply-changes}{Schedule Dataflow Apply Changes}
+
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/lakehouse/background-jobs/create-refresh-materialized-lake-views-schedule}{Schedule a Lakehouse materialized Lake View refresh}
 
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/databuildtooljob/background-jobs/schedule-data-build-tool-job}{Schedule a Data Build Tool Job}
 
