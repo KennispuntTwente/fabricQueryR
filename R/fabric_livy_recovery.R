@@ -7,8 +7,10 @@
 #'
 #' @param livy_url A copied session or batch connection URL, Livy API base URL,
 #'   or enriched Lakehouse object from [fabric_lakehouses()] or [fabric_item()]
-#' @param high_concurrency Whether to list or attach to high-concurrency
-#'   sessions instead of regular sessions
+#' @param high_concurrency For `fabric_livy_session_attach()`, whether to attach
+#'   to a high-concurrency session. `fabric_livy_sessions()` only lists regular
+#'   sessions because the Livy endpoint does not expose a high-concurrency
+#'   collection-list operation
 #' @param top Maximum records requested for this page
 #' @param skip Number of matching records to skip
 #' @param count Whether Fabric should include the total matching record count
@@ -39,8 +41,18 @@
 #' Attaching only reconstructs the local handle; it never submits new Spark
 #' work.
 #'
+#' @section High-concurrency recovery:
+#' Fabric supports acquiring an HC session and getting or deleting one by its
+#' HC session ID, but it does not expose a collection `GET` for
+#' `highConcurrencySessions`. Store the ID returned by
+#' [fabric_livy_session()] and pass it to `fabric_livy_session_attach()` with
+#' `high_concurrency = TRUE`. Calling `fabric_livy_sessions()` with
+#' `high_concurrency = TRUE` fails locally instead of sending an unsupported
+#' request.
+#'
 #' @seealso
 #' [Microsoft Fabric Livy API specification](https://github.com/microsoft/fabric-samples/blob/main/docs-samples/data-engineering/Livy-API-swagger/swagger.json)
+#' and [Microsoft's high-concurrency endpoint reference](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-high-concurrency-livy#api-endpoints-reference)
 #'
 #' @examples
 #' \dontrun{
@@ -73,14 +85,19 @@ fabric_livy_sessions <- function(
   audience = NULL
 ) {
   fabric_livy_check_flag(high_concurrency, "high_concurrency")
-  type <- if (high_concurrency) {
-    "highConcurrencySessions"
-  } else {
-    "sessions"
+  if (high_concurrency) {
+    .fabric_abort(
+      paste(
+        "Fabric does not support listing high-concurrency Livy sessions.",
+        "Store the HC session ID when it is created, then use",
+        "fabric_livy_session_attach(..., high_concurrency = TRUE)."
+      ),
+      class = "fabric_livy_unsupported_error"
+    )
   }
   context <- fabric_livy_recovery_context(
     livy_url,
-    type,
+    "sessions",
     tenant_id,
     client_id,
     token,

@@ -63,8 +63,10 @@ fabric_livy_batch_attach(
 \item{livy_url}{A copied session or batch connection URL, Livy API base URL,
 or enriched Lakehouse object from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}}
 
-\item{high_concurrency}{Whether to list or attach to high-concurrency
-sessions instead of regular sessions}
+\item{high_concurrency}{For \code{fabric_livy_session_attach()}, whether to attach
+to a high-concurrency session. \code{fabric_livy_sessions()} only lists regular
+sessions because the Livy endpoint does not expose a high-concurrency
+collection-list operation}
 
 \item{top}{Maximum records requested for this page}
 
@@ -114,6 +116,17 @@ Attaching only reconstructs the local handle; it never submits new Spark
 work.
 }
 
+\section{High-concurrency recovery}{
+
+Fabric supports acquiring an HC session and getting or deleting one by its
+HC session ID, but it does not expose a collection \code{GET} for
+\code{highConcurrencySessions}. Store the ID returned by
+\code{\link[=fabric_livy_session]{fabric_livy_session()}} and pass it to \code{fabric_livy_session_attach()} with
+\code{high_concurrency = TRUE}. Calling \code{fabric_livy_sessions()} with
+\code{high_concurrency = TRUE} fails locally instead of sending an unsupported
+request.
+}
+
 \examples{
 \dontrun{
 workspace <- fabric_workspaces()[[1L]]
@@ -131,4 +144,5 @@ batch$status()
 }
 \seealso{
 \href{https://github.com/microsoft/fabric-samples/blob/main/docs-samples/data-engineering/Livy-API-swagger/swagger.json}{Microsoft Fabric Livy API specification}
+and \href{https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-high-concurrency-livy#api-endpoints-reference}{Microsoft's high-concurrency endpoint reference}
 }

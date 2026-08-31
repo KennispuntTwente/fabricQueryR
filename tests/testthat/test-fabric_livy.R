@@ -147,6 +147,25 @@ test_that("Livy activity discovery rejects malformed pages", {
   )
 })
 
+test_that("Livy activity discovery rejects unsupported HC listing locally", {
+  local_mocked_bindings(
+    fabric_livy_recovery_context = function(...) {
+      rlang::abort("network setup must not run")
+    }
+  )
+
+  expect_error(
+    fabric_livy_sessions(
+      "https://example.test/livy",
+      high_concurrency = TRUE,
+      token = "token"
+    ),
+    "does not support listing high-concurrency Livy sessions",
+    fixed = TRUE,
+    class = "fabric_livy_unsupported_error"
+  )
+})
+
 test_that("Livy attach reconstructs authenticated handles without POST", {
   session_id <- "11111111-1111-4111-8111-111111111111"
   batch_id <- "22222222-2222-4222-8222-222222222222"
