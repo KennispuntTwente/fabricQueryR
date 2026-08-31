@@ -90,19 +90,6 @@ test_that("Livy sessions exercise supported languages on Runtime 2.0", {
   )
   expect_equal(assignment$output$status, "ok")
 
-  discovered <- fabric_test_eventually(function() {
-    value <- fabric_livy_sessions(
-      lakehouse$livy_url,
-      tenant_id = auth$tenant_id,
-      client_id = auth$client_id,
-      auth_args = auth$auth_args
-    )
-    if (!session$id %in% value$id) {
-      return(NULL)
-    }
-    value
-  })
-  expect_contains(discovered$id, session$id)
   recovered <- fabric_livy_session_attach(
     lakehouse$livy_url,
     session$id,
@@ -128,6 +115,20 @@ test_that("Livy sessions exercise supported languages on Runtime 2.0", {
     "FABRICQUERYR_RUNTIME_2_SHARED=42",
     fixed = TRUE
   )
+
+  discovered <- fabric_test_eventually(function() {
+    value <- fabric_livy_sessions(
+      lakehouse$livy_url,
+      tenant_id = auth$tenant_id,
+      client_id = auth$client_id,
+      auth_args = auth$auth_args
+    )
+    if (!session$id %in% value$id) {
+      return(NULL)
+    }
+    value
+  })
+  expect_contains(discovered$id, session$id)
 
   sparkr <- recovered$run(
     paste0(
