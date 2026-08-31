@@ -33,6 +33,7 @@ test_that("catalog search paginates POST bodies and returns R6 items", {
     "Type eq 'Lakehouse' or Type eq 'Warehouse'"
   )
   expect_null(requests[[1L]]$body$data$continuationToken)
+  expect_named(requests[[2L]]$body$data, "continuationToken")
   expect_equal(requests[[2L]]$body$data$continuationToken, "page-2")
 })
 

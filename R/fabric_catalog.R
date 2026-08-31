@@ -28,9 +28,10 @@
 #' `Catalog.Read.All`; Fabric returns only entries that the calling user,
 #' service principal, or managed identity is authorized to see.
 #'
-#' Pagination uses a new POST body for each continuation token. A repeated or
-#' malformed token raises a `fabric_catalog_protocol_error` instead of silently
-#' returning partial results or looping indefinitely.
+#' Pagination sends the search parameters only on the first request and sends
+#' only the continuation token on later requests, as required by Fabric. A
+#' repeated or malformed token raises a `fabric_catalog_protocol_error` instead
+#' of silently returning partial results or looping indefinitely.
 #' @references
 #' [Catalog search REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/catalog/search)
 #'
@@ -151,12 +152,13 @@ fabric_catalog_search <- function(
         page_number
       )
     }
-    body <- Filter(
-      Negate(is.null),
-      list(search = search, pageSize = page_size, filter = filter)
-    )
-    if (!is.null(continuation_token)) {
-      body$continuationToken <- continuation_token
+    body <- if (is.null(continuation_token)) {
+      Filter(
+        Negate(is.null),
+        list(search = search, pageSize = page_size, filter = filter)
+      )
+    } else {
+      list(continuationToken = continuation_token)
     }
     page <- .httr2_json(
       httr2::request(url) |>

@@ -71,9 +71,10 @@ and does not grant access to item contents. The caller needs
 \code{Catalog.Read.All}; Fabric returns only entries that the calling user,
 service principal, or managed identity is authorized to see.
 
-Pagination uses a new POST body for each continuation token. A repeated or
-malformed token raises a \code{fabric_catalog_protocol_error} instead of silently
-returning partial results or looping indefinitely.
+Pagination sends the search parameters only on the first request and sends
+only the continuation token on later requests, as required by Fabric. A
+repeated or malformed token raises a \code{fabric_catalog_protocol_error} instead
+of silently returning partial results or looping indefinitely.
 }
 \examples{
 \dontrun{
