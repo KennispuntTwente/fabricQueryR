@@ -135,9 +135,10 @@ workspace identity from the catalog hierarchy.</p>
 and does not grant access to item contents. The caller needs
 <code>Catalog.Read.All</code>; Fabric returns only entries that the calling user,
 service principal, or managed identity is authorized to see.</p>
-<p>Pagination uses a new POST body for each continuation token. A repeated or
-malformed token raises a <code>fabric_catalog_protocol_error</code> instead of silently
-returning partial results or looping indefinitely.</p>
+<p>Pagination sends the search parameters only on the first request and sends
+only the continuation token on later requests, as required by Fabric. A
+repeated or malformed token raises a <code>fabric_catalog_protocol_error</code> instead
+of silently returning partial results or looping indefinitely.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

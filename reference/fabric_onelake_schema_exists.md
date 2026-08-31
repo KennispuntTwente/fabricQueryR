@@ -115,8 +115,9 @@ involved.
 
 Iceberg requests first call `GET /iceberg/v1/config` with the item's
 workspace/item warehouse identity and validate the returned prefix
-before issuing `HEAD`. Delta requests include `catalog_name` and, for
-tables, `schema_name` even when names do not contain dots.
+before issuing `HEAD`. Delta schema requests include `catalog_name` only
+when the schema name contains dots. Delta table requests include
+`catalog_name` and `schema_name`.
 
 ## References
 

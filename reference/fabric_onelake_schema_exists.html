@@ -158,8 +158,9 @@ necessary, use the package's normal audience-aware sign-in or token provider
 because the Fabric Core and Storage audiences are both involved.</p>
 <p>Iceberg requests first call <code>GET /iceberg/v1/config</code> with the item's
 workspace/item warehouse identity and validate the returned prefix before
-issuing <code>HEAD</code>. Delta requests include <code>catalog_name</code> and, for tables,
-<code>schema_name</code> even when names do not contain dots.</p>
+issuing <code>HEAD</code>. Delta schema requests include <code>catalog_name</code> only when the
+schema name contains dots. Delta table requests include <code>catalog_name</code> and
+<code>schema_name</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
