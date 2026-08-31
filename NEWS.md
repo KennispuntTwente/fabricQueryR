@@ -9,10 +9,11 @@ for general discovery, or typed helpers such as `fabric_lakehouses()` and
 are read-only R6 objects that include every service field, reuse the discovery
 credential, and provide type-specific methods for workspaces, SQL items,
 Lakehouses, Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL
-APIs, semantic models, and runnable jobs. Semantic models, runnable jobs, and
-KQL items also expose status, wait, and cancellation methods for asynchronous
-work. Discovered resources can be passed directly to other 'fabricQueryR'
-functions, avoiding copied IDs and endpoints in most workflows. Use
+APIs, semantic models, and runnable jobs. Semantic models and runnable jobs
+expose status, wait, and cancellation methods; KQL items expose status and wait
+methods for asynchronous ingestion. Discovered resources can be passed
+directly to other 'fabricQueryR' functions, avoiding copied IDs and endpoints
+in most workflows. Use
 `$as_list()`, `as.list()`, or `output = "list"` when a plain record is
 specifically required.
 
