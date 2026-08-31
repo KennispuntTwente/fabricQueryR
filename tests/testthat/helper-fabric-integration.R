@@ -13,20 +13,65 @@ fabric_test_skip_or_fail <- function(condition, message) {
   testthat::skip(message)
 }
 
-fabric_test_eventually <- function(callback, attempts = 36L, delay = 5) {
+fabric_test_eventually_summary <- function(value) {
+  if (is.null(value)) {
+    return(NULL)
+  }
+
+  count <- if (is.data.frame(value)) nrow(value) else length(value)
+  parts <- paste0("count=", count)
+  safe_fields <- intersect(
+    c("id", "state", "livy_state", "plugin_state", "scheduler_state"),
+    names(value)
+  )
+  for (field in safe_fields) {
+    values <- as.character(unlist(value[[field]], use.names = FALSE))
+    values <- unique(values[!is.na(values) & nzchar(values)])
+    if (length(values) == 0L) {
+      next
+    }
+    suffix <- if (length(values) > 10L) ", ..." else ""
+    parts <- c(
+      parts,
+      paste0(field, "=", paste(head(values, 10L), collapse = ", "), suffix)
+    )
+  }
+  paste(parts, collapse = "; ")
+}
+
+fabric_test_eventually <- function(
+  callback,
+  attempts = 36L,
+  delay = 5,
+  ready = function(value) !is.null(value)
+) {
   last_error <- NULL
+  last_value <- NULL
   for (attempt in seq_len(attempts)) {
+    failed <- FALSE
     value <- tryCatch(callback(), error = function(error) {
+      failed <<- TRUE
       last_error <<- error
       NULL
     })
+    if (!failed) {
+      last_error <- NULL
+    }
     if (!is.null(value)) {
+      last_value <- value
+    }
+    if (isTRUE(ready(value))) {
       return(value)
     }
     if (attempt < attempts) Sys.sleep(delay)
   }
+  summary <- fabric_test_eventually_summary(last_value)
+  message <- "Fabric did not expose the expected state before the integration deadline"
+  if (!is.null(summary)) {
+    message <- paste0(message, ". Last successful result: ", summary)
+  }
   rlang::abort(
-    "Fabric did not expose the expected state before the integration deadline",
+    message,
     parent = last_error
   )
 }

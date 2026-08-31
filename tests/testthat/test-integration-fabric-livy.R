@@ -80,18 +80,17 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   )
   expect_equal(assignment$output$status, "ok")
 
-  discovered <- fabric_test_eventually(function() {
-    value <- fabric_livy_sessions(
-      lakehouse$livy_url,
-      tenant_id = auth$tenant_id,
-      client_id = auth$client_id,
-      auth_args = auth$auth_args
-    )
-    if (!session$id %in% value$id) {
-      return(NULL)
-    }
-    value
-  })
+  discovered <- fabric_test_eventually(
+    function() {
+      fabric_livy_sessions(
+        lakehouse$livy_url,
+        tenant_id = auth$tenant_id,
+        client_id = auth$client_id,
+        auth_args = auth$auth_args
+      )
+    },
+    ready = function(value) session$id %in% value$id
+  )
   expect_contains(discovered$id, session$id)
   recovered <- fabric_livy_session_attach(
     lakehouse$livy_url,
@@ -427,18 +426,17 @@ test_that("Livy batches cover success, failure, and cancellation", {
   slow_marker <- wait_for_marker("slow")
   expect_equal(slow_marker$mode, "slow")
   expect_equal(as.numeric(slow_marker$row_count), -1)
-  discovered_batches <- fabric_test_eventually(function() {
-    value <- fabric_livy_batches(
-      lakehouse$livy_url,
-      tenant_id = auth$tenant_id,
-      client_id = auth$client_id,
-      auth_args = auth$auth_args
-    )
-    if (!slow$id %in% value$id) {
-      return(NULL)
-    }
-    value
-  })
+  discovered_batches <- fabric_test_eventually(
+    function() {
+      fabric_livy_batches(
+        lakehouse$livy_url,
+        tenant_id = auth$tenant_id,
+        client_id = auth$client_id,
+        auth_args = auth$auth_args
+      )
+    },
+    ready = function(value) slow$id %in% value$id
+  )
   expect_contains(discovered_batches$id, slow$id)
   timeout_error <- expect_error(
     slow$wait(
