@@ -126,13 +126,26 @@ Retrieve statement state and available output
 
 #### Usage
 
-    FabricLivyStatement$status(refresh = TRUE, deadline = NULL)
+    FabricLivyStatement$status(
+      refresh = TRUE,
+      from = NULL,
+      size = NULL,
+      deadline = NULL
+    )
 
 #### Arguments
 
 - `refresh`:
 
   Whether to retrieve current state from Fabric
+
+- `from`:
+
+  Optional zero-based byte offset for returned statement output
+
+- `size`:
+
+  Optional maximum number of output bytes to return
 
 - `deadline`:
 
@@ -182,7 +195,12 @@ Return parsed output and timing metadata
 
 #### Usage
 
-    FabricLivyStatement$result(refresh = TRUE, error_on_failure = TRUE)
+    FabricLivyStatement$result(
+      refresh = TRUE,
+      error_on_failure = TRUE,
+      from = NULL,
+      size = NULL
+    )
 
 #### Arguments
 
@@ -193,6 +211,14 @@ Return parsed output and timing metadata
 - `error_on_failure`:
 
   Raise a structured error for failed statements
+
+- `from`:
+
+  Optional zero-based byte offset for returned statement output
+
+- `size`:
+
+  Optional maximum number of output bytes to return
 
 #### Returns
 

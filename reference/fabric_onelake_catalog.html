@@ -59,7 +59,8 @@ listing every table in every schema.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_warehouse_schemas</span><span class="op">(</span></span>
@@ -72,7 +73,8 @@ listing every table in every schema.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_lakehouse_table</span><span class="op">(</span></span>
@@ -86,7 +88,8 @@ listing every table in every schema.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_warehouse_table</span><span class="op">(</span></span>
@@ -100,7 +103,8 @@ listing every table in every schema.</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -149,6 +153,11 @@ resolved. Most users should keep the default.</p></dd>
 <dt id="arg-table-api-base">table_api_base<a class="anchor" aria-label="anchor" href="#arg-table-api-base"></a></dt>
 <dd><p>OneLake Delta table API base URL. Most users should
 keep the default.</p></dd>
+
+
+<dt id="arg-storage-token">storage_token<a class="anchor" aria-label="anchor" href="#arg-storage-token"></a></dt>
+<dd><p>Optional separate Azure Storage token or token-provider
+function. Supply it when <code>token</code> is fixed and Fabric item lookup is needed.</p></dd>
 
 
 <dt id="arg-warehouse">warehouse<a class="anchor" aria-label="anchor" href="#arg-warehouse"></a></dt>

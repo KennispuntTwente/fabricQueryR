@@ -132,8 +132,9 @@ fabric_kql_ingestion_status(
 
 - creation_time:
 
-  Optional ISO 8601 extent creation time, `Date`, or `POSIXt`. Align
-  historical values with the target merge policy lookback
+  Optional ISO 8601 extent creation time, `Date`, or `POSIXt`. A `Date`
+  is sent as midnight UTC. Align historical values with the target merge
+  policy lookback
 
 - validation_policy:
 

@@ -18,7 +18,8 @@ fabric_lakehouse_schemas(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_warehouse_schemas(
@@ -31,7 +32,8 @@ fabric_warehouse_schemas(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_lakehouse_table(
@@ -45,7 +47,8 @@ fabric_lakehouse_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_warehouse_table(
@@ -59,7 +62,8 @@ fabric_warehouse_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 ```
 
@@ -106,6 +110,11 @@ fabric_warehouse_table(
 - table_api_base:
 
   OneLake Delta table API base URL. Most users should keep the default.
+
+- storage_token:
+
+  Optional separate Azure Storage token or token-provider function.
+  Supply it when `token` is fixed and Fabric item lookup is needed.
 
 - warehouse:
 

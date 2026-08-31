@@ -30,7 +30,8 @@ fabric_warehouse_read_table(
   verbose = TRUE,
   timeout = 30L,
   max_tries = 3L,
-  retry_delay = 5
+  retry_delay = 5,
+  sql_token = NULL
 )
 ```
 
@@ -123,6 +124,11 @@ fabric_warehouse_read_table(
 
   Initial delay in seconds before retrying. Later retries wait
   progressively longer, up to 60 seconds
+
+- sql_token:
+
+  Optional separate Azure SQL token or token-provider function. Supply
+  it when `token` is fixed rather than audience-aware.
 
 ## Value
 

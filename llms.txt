@@ -8,14 +8,24 @@ and tables, run Spark code, and start or monitor Fabric jobs.
 
 ## Installation
 
-Install the latest CRAN release:
+Install the latest CRAN release (currently 0.2.1) for the stable core
+API:
 
 ``` r
 
 install.packages("fabricQueryR")
 ```
 
-Install the development version from GitHub:
+That release exports
+[`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md),
+[`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md),
+[`fabric_pbi_dax_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.md),
+[`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md),
+and
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md).
+The broader discovery, management, write, reusable session, and
+scheduling interfaces shown in this README are part of the 0.2.1.9000
+development version. Install it from GitHub to run all examples below:
 
 ``` r
 

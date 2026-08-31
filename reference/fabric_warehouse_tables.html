@@ -61,7 +61,8 @@ metadata for every table. A returned row can be passed directly to
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
-<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span></span>
+<span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -123,6 +124,11 @@ must be resolved. Most users should keep the default.</p></dd>
 <dt id="arg-table-api-base">table_api_base<a class="anchor" aria-label="anchor" href="#arg-table-api-base"></a></dt>
 <dd><p>OneLake Delta table API base URL. Most users should
 keep the default.</p></dd>
+
+
+<dt id="arg-storage-token">storage_token<a class="anchor" aria-label="anchor" href="#arg-storage-token"></a></dt>
+<dd><p>Optional separate Azure Storage token or token-provider
+function. Supply it when <code>token</code> is fixed and Warehouse lookup is needed.</p></dd>
 
 </dl></div>
     <div class="section level2">

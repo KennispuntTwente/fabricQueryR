@@ -137,9 +137,9 @@ fabric_pbi_dax_query(
 
 A tibble for one result table. Multiple Arrow result tables are returned
 as a `fabric_pbi_dax_rowsets` list of tibbles or Arrow streams Power BI
-column names are preserved. Empty JSON results have no column metadata
-and therefore return a zero-row, zero-column tibble. Partial or
-truncated results raise an error
+column names are preserved. Result tables with no rows have no column
+metadata and therefore return a zero-row, zero-column tibble. Missing,
+partial, or truncated results raise an error
 
 ## Choosing a model
 

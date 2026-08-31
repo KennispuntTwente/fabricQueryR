@@ -70,7 +70,8 @@ function for filters, ordering, joins, aggregations, or other T-SQL.</p>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  timeout <span class="op">=</span> <span class="fl">30L</span>,</span>
 <span>  max_tries <span class="op">=</span> <span class="fl">3L</span>,</span>
-<span>  retry_delay <span class="op">=</span> <span class="fl">5</span></span>
+<span>  retry_delay <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>  sql_token <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -161,6 +162,11 @@ be discovered.</p></dd>
 <dt id="arg-retry-delay">retry_delay<a class="anchor" aria-label="anchor" href="#arg-retry-delay"></a></dt>
 <dd><p>Initial delay in seconds before retrying. Later retries
 wait progressively longer, up to 60 seconds</p></dd>
+
+
+<dt id="arg-sql-token">sql_token<a class="anchor" aria-label="anchor" href="#arg-sql-token"></a></dt>
+<dd><p>Optional separate Azure SQL token or token-provider
+function. Supply it when <code>token</code> is fixed rather than audience-aware.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -18,7 +18,8 @@ fabric_mirrored_database_schemas(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_mirrored_database_tables(
@@ -33,7 +34,8 @@ fabric_mirrored_database_tables(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_mirrored_database_table(
@@ -47,7 +49,8 @@ fabric_mirrored_database_table(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 
 fabric_mirrored_database_read_table(
@@ -66,7 +69,8 @@ fabric_mirrored_database_read_table(
   columns = NULL,
   limit = NULL,
   result = c("tibble", "arrow_stream"),
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  storage_token = NULL
 )
 ```
 
@@ -114,6 +118,11 @@ fabric_mirrored_database_read_table(
 - table_api_base:
 
   OneLake Delta table API base URL. Most users should keep the default.
+
+- storage_token:
+
+  Optional separate Azure Storage token or token-provider function.
+  Supply it when `token` is fixed and item lookup is needed.
 
 - schema:
 

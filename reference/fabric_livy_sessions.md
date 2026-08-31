@@ -73,8 +73,10 @@ fabric_livy_batch_attach(
 
 - high_concurrency:
 
-  Whether to list or attach to high-concurrency sessions instead of
-  regular sessions
+  For `fabric_livy_session_attach()`, whether to attach to a
+  high-concurrency session. `fabric_livy_sessions()` only lists regular
+  sessions because the Livy endpoint does not expose a high-concurrency
+  collection-list operation
 
 - top:
 
@@ -139,10 +141,23 @@ service ID, then call the corresponding attach function after restarting
 R. Attaching only reconstructs the local handle; it never submits new
 Spark work.
 
+## High-concurrency recovery
+
+Fabric supports acquiring an HC session and getting or deleting one by
+its HC session ID, but it does not expose a collection `GET` for
+`highConcurrencySessions`. Store the ID returned by
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
+and pass it to `fabric_livy_session_attach()` with
+`high_concurrency = TRUE`. Calling `fabric_livy_sessions()` with
+`high_concurrency = TRUE` fails locally instead of sending an
+unsupported request.
+
 ## See also
 
 [Microsoft Fabric Livy API
 specification](https://github.com/microsoft/fabric-samples/blob/main/docs-samples/data-engineering/Livy-API-swagger/swagger.json)
+and [Microsoft's high-concurrency endpoint
+reference](https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-high-concurrency-livy#api-endpoints-reference)
 
 ## Examples
 

@@ -112,8 +112,10 @@ or enriched Lakehouse object from <code><a href="fabric_typed_items.html">fabric
 
 
 <dt id="arg-high-concurrency">high_concurrency<a class="anchor" aria-label="anchor" href="#arg-high-concurrency"></a></dt>
-<dd><p>Whether to list or attach to high-concurrency
-sessions instead of regular sessions</p></dd>
+<dd><p>For <code>fabric_livy_session_attach()</code>, whether to attach
+to a high-concurrency session. <code>fabric_livy_sessions()</code> only lists regular
+sessions because the Livy endpoint does not expose a high-concurrency
+collection-list operation</p></dd>
 
 
 <dt id="arg-top">top<a class="anchor" aria-label="anchor" href="#arg-top"></a></dt>
@@ -181,8 +183,21 @@ Attaching only reconstructs the local handle; it never submits new Spark
 work.</p>
     </div>
     <div class="section level2">
+    <h2 id="high-concurrency-recovery">High-concurrency recovery<a class="anchor" aria-label="anchor" href="#high-concurrency-recovery"></a></h2>
+
+
+<p>Fabric supports acquiring an HC session and getting or deleting one by its
+HC session ID, but it does not expose a collection <code>GET</code> for
+<code>highConcurrencySessions</code>. Store the ID returned by
+<code><a href="fabric_livy_session.html">fabric_livy_session()</a></code> and pass it to <code>fabric_livy_session_attach()</code> with
+<code>high_concurrency = TRUE</code>. Calling <code>fabric_livy_sessions()</code> with
+<code>high_concurrency = TRUE</code> fails locally instead of sending an unsupported
+request.</p>
+    </div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><a href="https://github.com/microsoft/fabric-samples/blob/main/docs-samples/data-engineering/Livy-API-swagger/swagger.json" class="external-link">Microsoft Fabric Livy API specification</a></p></div>
+    <div class="dont-index"><p><a href="https://github.com/microsoft/fabric-samples/blob/main/docs-samples/data-engineering/Livy-API-swagger/swagger.json" class="external-link">Microsoft Fabric Livy API specification</a>
+and <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/get-started-high-concurrency-livy#api-endpoints-reference" class="external-link">Microsoft's high-concurrency endpoint reference</a></p></div>
     </div>
 
     <div class="section level2">

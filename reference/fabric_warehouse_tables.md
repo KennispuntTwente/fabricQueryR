@@ -21,7 +21,8 @@ fabric_warehouse_tables(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_base
+  table_api_base = .fabric_onelake_table_base,
+  storage_token = NULL
 )
 ```
 
@@ -82,6 +83,11 @@ fabric_warehouse_tables(
 - table_api_base:
 
   OneLake Delta table API base URL. Most users should keep the default.
+
+- storage_token:
+
+  Optional separate Azure Storage token or token-provider function.
+  Supply it when `token` is fixed and Warehouse lookup is needed.
 
 ## Value
 

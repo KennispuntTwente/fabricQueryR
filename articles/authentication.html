@@ -292,6 +292,16 @@ scenarios</a> for the complete argument details. Supply the bearer token
 exactly as issued: leading, trailing, or embedded whitespace and control
 characters are rejected rather than trimmed or sent in an HTTP
 header.</p>
+<p>A bearer-token string and an <code><a href="https://rdrr.io/pkg/AzureAuth/man/AzureToken.html" class="external-link">AzureAuth::AzureToken</a></code> each
+represent one OAuth audience. ‘fabricQueryR’ binds either form to the
+first service audience that uses it and stops before reusing it for a
+different service. For example, an operation that resolves a Fabric item
+and then reads OneLake needs both Fabric and Azure Storage tokens.
+Supply the function’s <code>storage_token</code> or
+<code>sql_token</code> argument when available, or pass an
+audience-aware token-provider function that returns the appropriate
+token for its <code>audience</code> argument. Automatic sign-in already
+acquires and caches a separate token for each audience.</p>
 </div>
 <div class="section level2">
 <h2 id="treat-endpoint-urls-as-credential-boundaries">Treat endpoint URLs as credential boundaries<a class="anchor" aria-label="anchor" href="#treat-endpoint-urls-as-credential-boundaries"></a>

@@ -1,9 +1,8 @@
 # Check whether a OneLake schema or table exists
 
-Uses the documented metadata-only `HEAD` operations from either the
-Delta Unity Catalog-compatible API or the Iceberg REST Catalog API.
-These helpers avoid downloading a complete schema or table record when
-only existence is needed.
+Searches the paginated Delta metadata collections or retrieves one
+namespace or table record through the Iceberg REST Catalog API. These
+helpers avoid downloading table data when only existence is needed.
 
 ## Usage
 
@@ -20,7 +19,8 @@ fabric_onelake_schema_exists(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_origin
+  table_api_base = .fabric_onelake_table_origin,
+  storage_token = NULL
 )
 
 fabric_onelake_table_exists(
@@ -36,7 +36,8 @@ fabric_onelake_table_exists(
   token = NULL,
   auth_args = list(),
   api_base = .fabric_api_base,
-  table_api_base = .fabric_onelake_table_origin
+  table_api_base = .fabric_onelake_table_origin,
+  storage_token = NULL
 )
 ```
 
@@ -94,6 +95,11 @@ fabric_onelake_table_exists(
   OneLake table API HTTPS origin, or a protocol-specific base ending in
   `/delta` or `/iceberg`. Most users should keep the default.
 
+- storage_token:
+
+  Optional separate Azure Storage token or token-provider function.
+  Supply it when `token` is fixed and Fabric item lookup is needed.
+
 - table:
 
   Table name or a record containing `name`, `table`, or `displayName`. A
@@ -101,9 +107,10 @@ fabric_onelake_table_exists(
 
 ## Value
 
-One logical value: `TRUE` for a successful `HEAD` response and `FALSE`
-for HTTP 404. Authentication, permission, throttling, and service errors
-are not converted to `FALSE`.
+One logical value. Delta returns `TRUE` when the paginated metadata
+inventory contains the requested name. Iceberg returns `TRUE` when the
+metadata `GET` succeeds and `FALSE` for HTTP 404. Authentication,
+permission, throttling, and service errors are not converted to `FALSE`.
 
 ## Details
 
@@ -115,9 +122,9 @@ involved.
 
 Iceberg requests first call `GET /iceberg/v1/config` with the item's
 workspace/item warehouse identity and validate the returned prefix
-before issuing `HEAD`. Delta schema requests include `catalog_name` only
-when the schema name contains dots. Delta table requests include
-`catalog_name` and `schema_name`.
+before retrieving the namespace or table record. Delta requests follow
+all metadata collection pages because OneLake currently rejects its
+documented schema and table `HEAD` routes.
 
 ## References
 
