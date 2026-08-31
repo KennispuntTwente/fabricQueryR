@@ -135,17 +135,17 @@ Microsoft recommends the latest generally available runtime for production,
 currently [Fabric Runtime 2.0
 (Spark 4.1)](https://learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0).
 SparkR still works, but SparkR is deprecated upstream in Spark 4.x and may be
-removed in a future Spark release. For R-first workloads, Microsoft Fabric
-supports and distributes
-[`sparklyr`](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr).
-Use sparklyr to move application code away from the SparkR DataFrame API.
-Choose PySpark or Spark SQL when the remote workload must also be independent
-of the current SparkR runtime bridge.
+removed in a future Spark release. Microsoft Fabric distributes
+[`sparklyr`](https://learn.microsoft.com/en-us/fabric/data-science/r-use-sparklyr)
+for R-first workloads in notebooks and Spark job definitions. Microsoft does
+not currently document `sparklyr` over an item-scoped Livy session. Choose
+PySpark or Spark SQL when the remote workload must be independent of the
+current SparkR runtime bridge.
 
 | `kind` | Code language |
 |---|---|
 | `"sql"` | Spark SQL |
-| `"sparkr"` | R: SparkR, or sparklyr through the current R bridge |
+| `"sparkr"` | R: SparkR; an experimental sparklyr bridge is described below |
 | `"pyspark"` | Python with Spark |
 | `"spark"` | Scala |
 
@@ -165,10 +165,11 @@ result <- lakehouse$livy_query(
 )
 ```
 
-`sparklyr` is not another Livy `kind`. Fabric's documented `"synapse"`
-connection attaches sparklyr to the existing Spark session through the current
-SparkR JVM bridge. Consequently, sparklyr code submitted through Livy still
-uses `kind = "sparkr"`:
+`sparklyr` is not another Livy `kind`. The following is an experimental
+adaptation of Fabric's documented notebook/Spark-job `"synapse"` connection;
+Microsoft does not document it for item-scoped Livy, and 'fabricQueryR' does
+not currently live-test it. If you evaluate that bridge in your tenant,
+sparklyr code submitted through Livy still uses `kind = "sparkr"`:
 
 ```{r, eval = FALSE}
 result <- lakehouse$livy_query(
@@ -189,10 +190,10 @@ result <- lakehouse$livy_query(
 )
 ```
 
-This removes the application-level dependency on SparkR's DataFrame verbs,
-but it is not yet insulated from a future removal of the R interpreter or
-SparkR JVM bridge. Fabric has not documented a separate sparklyr language for
-its item-scoped Livy API.
+Even when it works, this removes only the application-level dependency on
+SparkR's DataFrame verbs. It remains dependent on the R interpreter and SparkR
+JVM bridge, so validate it after every runtime upgrade and do not treat this
+example as a supported production contract.
 
 ## Reuse a session for several statements
 

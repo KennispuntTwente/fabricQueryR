@@ -34,9 +34,9 @@ writes made to Lakehouse storage persist}
 \item{kind}{Statement language. Use \code{"pyspark"} for Python with Spark,
 \code{"spark"} for Scala, \code{"sql"} for Spark SQL, or \code{"sparkr"} for SparkR. This
 must match the syntax in \code{code}. The \code{sparklyr} package is an R API, not a
-separate Livy language: code that initializes \code{sparklyr} still uses
-\code{"sparkr"}. SparkR is deprecated upstream in Spark 4.x; see \strong{R on Runtime
-2.0} below for the distinction}
+separate Livy language: experimental code that initializes \code{sparklyr}
+through item-scoped Livy still uses \code{"sparkr"}. SparkR is deprecated
+upstream in Spark 4.x; see \strong{R on Runtime 2.0} below for the distinction}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}
@@ -123,14 +123,15 @@ nested values use list-columns
 
 \section{R on Runtime 2.0}{
 
-Microsoft Fabric supports \code{sparklyr} for R-first workloads and distributes
-it with Fabric runtimes. In Fabric's documented connection,
-\code{sparklyr::spark_connect(method = "synapse")} attaches to the existing Spark
-session through the current SparkR JVM bridge. Therefore, \code{sparklyr} lets R
-code move away from the SparkR DataFrame API, but it does not yet remove the
-runtime dependency on the \code{"sparkr"} Livy interpreter. Use \code{"sparkr"} when
-submitting R code that initializes \code{sparklyr}; prefer PySpark or Spark SQL
-only when the remote Livy workload must be independent of that bridge
+Microsoft Fabric distributes \code{sparklyr} and documents
+\code{sparklyr::spark_connect(method = "synapse")} for Fabric notebooks and Spark
+job definitions. Microsoft does not currently document that connection from
+an item-scoped Livy session, and this package's live suite validates the
+\code{"sparkr"} interpreter but not a \code{sparklyr} connection over it. Treat that
+adaptation as experimental and verify it in the target runtime before use.
+It still depends on the SparkR JVM bridge, which Spark 4.x deprecates. Prefer
+PySpark or Spark SQL when the remote workload must be independent of that
+bridge
 }
 
 \examples{
@@ -154,8 +155,8 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # PySpark avoids the SparkR bridge; R-first code can initialize sparklyr
-  # inside a kind = "sparkr" session as described in the Livy vignette
+  # PySpark avoids the SparkR bridge. The Livy vignette separately labels the
+  # item-scoped sparklyr adaptation experimental and not live-validated here
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",

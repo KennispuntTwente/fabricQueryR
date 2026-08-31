@@ -1064,9 +1064,19 @@ test_that("Livy vignette explains the sparklyr migration boundary", {
 
   expect_match(source, "`sparklyr` is not another Livy `kind`", fixed = TRUE)
   expect_match(source, "method = 'synapse'", fixed = TRUE)
-  expect_match(source, "SparkR JVM bridge", fixed = TRUE)
+  expect_match(source, "SparkR\\s+JVM bridge", perl = TRUE)
   expect_match(source, "kind = \"sparkr\"", fixed = TRUE)
-  expect_match(source, "not yet insulated", fixed = TRUE)
+  expect_match(source, "experimental", fixed = TRUE)
+  expect_match(
+    source,
+    "does not document it for item-scoped Livy",
+    fixed = TRUE
+  )
+  expect_match(source, "does\nnot currently live-test it", perl = TRUE)
+  expect_match(
+    source,
+    "do not treat this\nexample as a supported production contract"
+  )
 })
 
 test_that("GraphQL documentation states the attached-object limit", {

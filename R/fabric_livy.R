@@ -13,9 +13,9 @@
 #' @param kind Statement language. Use `"pyspark"` for Python with Spark,
 #'   `"spark"` for Scala, `"sql"` for Spark SQL, or `"sparkr"` for SparkR. This
 #'   must match the syntax in `code`. The `sparklyr` package is an R API, not a
-#'   separate Livy language: code that initializes `sparklyr` still uses
-#'   `"sparkr"`. SparkR is deprecated upstream in Spark 4.x; see **R on Runtime
-#'   2.0** below for the distinction
+#'   separate Livy language: experimental code that initializes `sparklyr`
+#'   through item-scoped Livy still uses `"sparkr"`. SparkR is deprecated
+#'   upstream in Spark 4.x; see **R on Runtime 2.0** below for the distinction
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
 #' @param client_id Microsoft Entra application/client ID. Defaults to
@@ -81,14 +81,15 @@
 #' nested values use list-columns
 #'
 #' @section R on Runtime 2.0:
-#' Microsoft Fabric supports `sparklyr` for R-first workloads and distributes
-#' it with Fabric runtimes. In Fabric's documented connection,
-#' `sparklyr::spark_connect(method = "synapse")` attaches to the existing Spark
-#' session through the current SparkR JVM bridge. Therefore, `sparklyr` lets R
-#' code move away from the SparkR DataFrame API, but it does not yet remove the
-#' runtime dependency on the `"sparkr"` Livy interpreter. Use `"sparkr"` when
-#' submitting R code that initializes `sparklyr`; prefer PySpark or Spark SQL
-#' only when the remote Livy workload must be independent of that bridge
+#' Microsoft Fabric distributes `sparklyr` and documents
+#' `sparklyr::spark_connect(method = "synapse")` for Fabric notebooks and Spark
+#' job definitions. Microsoft does not currently document that connection from
+#' an item-scoped Livy session, and this package's live suite validates the
+#' `"sparkr"` interpreter but not a `sparklyr` connection over it. Treat that
+#' adaptation as experimental and verify it in the target runtime before use.
+#' It still depends on the SparkR JVM bridge, which Spark 4.x deprecates. Prefer
+#' PySpark or Spark SQL when the remote workload must be independent of that
+#' bridge
 #'
 #' @seealso
 #' [Microsoft Fabric Livy API overview](https://learn.microsoft.com/en-us/fabric/data-engineering/api-livy-overview),

@@ -18,8 +18,8 @@ fabric_livy_query_example <- function() {
     code = sql
   )
 
-  # PySpark avoids the SparkR bridge; R-first code can initialize sparklyr
-  # inside a kind = "sparkr" session as described in the Livy vignette
+  # PySpark avoids the SparkR bridge. The Livy vignette separately labels the
+  # item-scoped sparklyr adaptation experimental and not live-validated here
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",
