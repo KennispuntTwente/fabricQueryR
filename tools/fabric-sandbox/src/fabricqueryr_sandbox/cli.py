@@ -91,26 +91,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    settings = SandboxSettings.from_environment()
-    if args.command == "doctor":
-        return doctor(settings)
-    if args.command == "deploy":
-        deploy(settings)
-        return 0
-    if args.command == "seed":
-        seed(settings)
-        return 0
-    if args.command == "discover":
-        manifest = (
-            discover_onelake(settings)
-            if args.scope == "onelake"
-            else discover(settings)
-        )
-        print(
-            f"wrote manifest for {len(manifest.items)} items: "
-            f"{settings.manifest_path}"
-        )
-        return 0
     if args.command == "cleanup":
         workspaces = cleanup_ci_workspaces(
             confirm=args.confirm,
@@ -130,5 +110,25 @@ def main() -> int:
         )
         verb = "deleted" if args.confirm else "found"
         print(f"{verb} {len(workspaces)} persistent sandbox workspace(s)")
+        return 0
+    settings = SandboxSettings.from_environment()
+    if args.command == "doctor":
+        return doctor(settings)
+    if args.command == "deploy":
+        deploy(settings)
+        return 0
+    if args.command == "seed":
+        seed(settings)
+        return 0
+    if args.command == "discover":
+        manifest = (
+            discover_onelake(settings)
+            if args.scope == "onelake"
+            else discover(settings)
+        )
+        print(
+            f"wrote manifest for {len(manifest.items)} items: "
+            f"{settings.manifest_path}"
+        )
         return 0
     raise AssertionError(f"unhandled command: {args.command}")
