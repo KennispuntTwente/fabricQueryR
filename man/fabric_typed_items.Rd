@@ -42,7 +42,7 @@ fabric_spark_job_definitions(workspace, detail = TRUE, ...)
 
 fabric_environments(workspace, detail = TRUE, ...)
 
-fabric_user_data_functions(workspace, detail = TRUE, ...)
+fabric_user_data_functions(workspace, detail = FALSE, ...)
 
 fabric_graphql_apis(workspace, detail = FALSE, ...)
 }
@@ -52,10 +52,11 @@ fabric_graphql_apis(workspace, detail = FALSE, ...)
 avoids an extra lookup}
 
 \item{detail}{Whether to retrieve connection details as well as names and
-IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers generally use \code{TRUE}; Semantic Model and GraphQL
-helpers default to lightweight records because their query targets can be
-derived without workload detail requests}
+IDs. This takes more requests and may require additional permissions. For
+\code{fabric_item()}, \code{NULL} enriches every supported type except User Data
+Functions, whose detail endpoint does not support application identities.
+The typed Semantic Model, GraphQL, and User Data Function helpers also
+default to lightweight records}
 
 \item{...}{Authentication and API arguments forwarded to \code{\link[=fabric_items]{fabric_items()}}
 Do not supply \code{type}; each helper sets that value}
@@ -70,8 +71,9 @@ These shortcuts find one kind of Fabric item. By default, they return R6
 objects with service fields and type-specific methods for the useful next
 actions. Most also retrieve workload connection details. Semantic Model and GraphQL helpers
 default to lightweight discovery because their executable targets are
-derived from list-level IDs and workspace fields; set \code{detail = TRUE} when
-their workload-specific properties are needed
+derived from list-level IDs and workspace fields or, for User Data
+Functions, because Microsoft limits detail retrieval to delegated user
+identities. Set \code{detail = TRUE} when the workload and identity support it
 }
 \section{Choosing a helper}{
 

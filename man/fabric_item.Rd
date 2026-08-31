@@ -8,6 +8,8 @@ fabric_item(
   workspace,
   item,
   type = NULL,
+  detail = NULL,
+  detail_errors = c("abort", "record"),
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -32,6 +34,17 @@ duplicated}
 \item{type}{Optional Fabric API item type, for example \code{"Lakehouse"},
 \code{"Warehouse"}, \code{"SemanticModel"}, or \code{"Notebook"}. Matching is done by
 Fabric, so use the API spelling. Leave \code{NULL} to list all item types}
+
+\item{detail}{Whether to retrieve connection details as well as names and
+IDs. This takes more requests and may require additional permissions. For
+\code{fabric_item()}, \code{NULL} enriches every supported type except User Data
+Functions, whose detail endpoint does not support application identities.
+The typed Semantic Model, GraphQL, and User Data Function helpers also
+default to lightweight records}
+
+\item{detail_errors}{What to do if some connection details cannot be read
+\code{"record"} returns the available information and stores an error message
+with the affected item; \code{"abort"} stops the call}
 
 \item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
 to build the XMLA endpoint for a Personal workspace}
@@ -73,11 +86,12 @@ Use this when you know the item's name or ID and do not need to list every
 item in the workspace
 }
 \details{
-The caller needs access to the workspace for the core item lookup. This
-singular helper always performs workload-specific enrichment as well, which
-additionally requires \code{Item.Read.All}/\code{Item.ReadWrite.All} or the applicable
-workload-specific read scope and access to the item. Use
-\code{\link[=fabric_items]{fabric_items()}} with \code{detail = FALSE} when only core item metadata is needed
+The caller needs access to the workspace for the core item lookup.
+Workload-specific enrichment additionally requires
+\code{Item.Read.All}/\code{Item.ReadWrite.All} or the applicable workload-specific read
+scope and access to the item. Microsoft currently limits User Data Function
+detail retrieval to delegated user identities, so its automatic default is
+lightweight. Set \code{detail = TRUE} explicitly when using a supported identity
 }
 \examples{
 \dontrun{

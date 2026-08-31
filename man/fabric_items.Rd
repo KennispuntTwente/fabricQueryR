@@ -33,10 +33,11 @@ avoids an extra lookup}
 Fabric, so use the API spelling. Leave \code{NULL} to list all item types}
 
 \item{detail}{Whether to retrieve connection details as well as names and
-IDs. This takes more requests and may require additional permissions. The
-typed discovery helpers generally use \code{TRUE}; Semantic Model and GraphQL
-helpers default to lightweight records because their query targets can be
-derived without workload detail requests}
+IDs. This takes more requests and may require additional permissions. For
+\code{fabric_item()}, \code{NULL} enriches every supported type except User Data
+Functions, whose detail endpoint does not support application identities.
+The typed Semantic Model, GraphQL, and User Data Function helpers also
+default to lightweight records}
 
 \item{detail_errors}{What to do if some connection details cannot be read
 \code{"record"} returns the available information and stores an error message

@@ -154,10 +154,11 @@ fabric_workspaces <- function(
 #'   `"Warehouse"`, `"SemanticModel"`, or `"Notebook"`. Matching is done by
 #'   Fabric, so use the API spelling. Leave `NULL` to list all item types
 #' @param detail Whether to retrieve connection details as well as names and
-#'   IDs. This takes more requests and may require additional permissions. The
-#'   typed discovery helpers generally use `TRUE`; Semantic Model and GraphQL
-#'   helpers default to lightweight records because their query targets can be
-#'   derived without workload detail requests
+#'   IDs. This takes more requests and may require additional permissions. For
+#'   `fabric_item()`, `NULL` enriches every supported type except User Data
+#'   Functions, whose detail endpoint does not support application identities.
+#'   The typed Semantic Model, GraphQL, and User Data Function helpers also
+#'   default to lightweight records
 #' @param detail_errors What to do if some connection details cannot be read
 #'   `"record"` returns the available information and stores an error message
 #'   with the affected item; `"abort"` stops the call
@@ -404,11 +405,12 @@ fabric_items <- function(
 #'   subclass. With `output = "list"`, one `fabric_item` record containing the
 #'   item's name, ID, type, workspace, and available connection details
 #' @details
-#' The caller needs access to the workspace for the core item lookup. This
-#' singular helper always performs workload-specific enrichment as well, which
-#' additionally requires `Item.Read.All`/`Item.ReadWrite.All` or the applicable
-#' workload-specific read scope and access to the item. Use
-#' [fabric_items()] with `detail = FALSE` when only core item metadata is needed
+#' The caller needs access to the workspace for the core item lookup.
+#' Workload-specific enrichment additionally requires
+#' `Item.Read.All`/`Item.ReadWrite.All` or the applicable workload-specific read
+#' scope and access to the item. Microsoft currently limits User Data Function
+#' detail retrieval to delegated user identities, so its automatic default is
+#' lightweight. Set `detail = TRUE` explicitly when using a supported identity
 #' @examples
 #' \dontrun{
 #' # Discover a workspace and obtain a lightweight Warehouse object
@@ -426,6 +428,8 @@ fabric_item <- function(
   workspace,
   item,
   type = NULL,
+  detail = NULL,
+  detail_errors = c("abort", "record"),
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -444,6 +448,13 @@ fabric_item <- function(
 
   output <- .fabric_r6_output(output)
   api_base_supplied <- !missing(api_base)
+  if (
+    !is.null(detail) &&
+      (!is.logical(detail) || length(detail) != 1L || is.na(detail))
+  ) {
+    .fabric_abort("detail must be NULL, TRUE, or FALSE")
+  }
+  detail_errors <- match.arg(detail_errors)
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
     personal_workspace_owner
@@ -523,8 +534,40 @@ fabric_item <- function(
       )
     )
   }
+  if (is.null(detail)) {
+    detail <- !identical(tolower(record$type %||% ""), "userdatafunction")
+  }
+  record <- if (isTRUE(detail)) {
+    tryCatch(
+      fabric_enrich_item(
+        record,
+        credential,
+        base,
+        private_sql_errors = detail_errors
+      ),
+      error = function(error) {
+        if (identical(detail_errors, "abort")) {
+          rlang::cnd_signal(error)
+        }
+        record$detail_error <- conditionMessage(error)
+        record$detail_error_class <- class(error)[[1L]]
+        fabric_add_derived_targets(record, base)
+      }
+    )
+  } else {
+    fabric_add_derived_targets(record, base)
+  }
+  if (!is.null(record$detail_error)) {
+    .fabric_warn(
+      c(
+        "Could not fully enrich the Fabric item",
+        "i" = "See the {.field detail_error} field on the returned item"
+      ),
+      .format = TRUE
+    )
+  }
   fabric_item_list(
-    list(fabric_enrich_item(record, credential, base)),
+    list(record),
     output = output,
     credential = credential
   )[[1L]]
@@ -536,8 +579,9 @@ fabric_item <- function(
 #' objects with service fields and type-specific methods for the useful next
 #' actions. Most also retrieve workload connection details. Semantic Model and GraphQL helpers
 #' default to lightweight discovery because their executable targets are
-#' derived from list-level IDs and workspace fields; set `detail = TRUE` when
-#' their workload-specific properties are needed
+#' derived from list-level IDs and workspace fields or, for User Data
+#' Functions, because Microsoft limits detail retrieval to delegated user
+#' identities. Set `detail = TRUE` when the workload and identity support it
 #'
 #' @section Choosing a helper:
 #' - `fabric_lakehouses()`, `fabric_warehouses()`,
@@ -712,7 +756,7 @@ fabric_environments <- function(workspace, detail = TRUE, ...) {
 
 #' @rdname fabric_typed_items
 #' @export
-fabric_user_data_functions <- function(workspace, detail = TRUE, ...) {
+fabric_user_data_functions <- function(workspace, detail = FALSE, ...) {
   fabric_typed_item_list(workspace, "UserDataFunction", detail, ...)
 }
 

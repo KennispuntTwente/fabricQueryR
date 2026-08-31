@@ -358,7 +358,7 @@ FabricWorkspace <- R6::R6Class(
     #' @param detail Whether to retrieve workload details.
     #' @param ... Additional discovery arguments.
     #' @returns A list of `FabricItem` objects.
-    user_data_functions = function(detail = TRUE, ...) {
+    user_data_functions = function(detail = FALSE, ...) {
       private$typed_items(fabric_user_data_functions, detail, list(...))
     },
 

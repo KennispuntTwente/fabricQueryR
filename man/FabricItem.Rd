@@ -456,7 +456,7 @@ lakehouse_record <- lakehouse$as_list()
   Discover User Data Functions in this workspace.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricWorkspace$user_data_functions(detail = TRUE, ...)}
+    \preformatted{FabricWorkspace$user_data_functions(detail = FALSE, ...)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{

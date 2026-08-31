@@ -211,12 +211,8 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     purrr::map_chr(environments, "type") == "Environment"
   ))
 
-  # The UDF Get endpoint is delegated-only; this fixture uses a service principal.
-  functions <- fabric_user_data_functions(
-    workspace,
-    detail = FALSE,
-    token = token
-  )
+  # The UDF Get endpoint is delegated-only, so the typed helper stays lightweight.
+  functions <- fabric_user_data_functions(workspace, token = token)
   expect_true(all(
     purrr::map_chr(functions, "type") == "UserDataFunction"
   ))

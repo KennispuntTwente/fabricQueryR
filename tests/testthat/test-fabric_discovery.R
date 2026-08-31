@@ -1039,7 +1039,7 @@ test_that("typed convenience helpers forward their workload types", {
     unname(unlist(helpers))
   )
   expected_detail <- !unname(unlist(helpers)) %in%
-    c("SemanticModel", "GraphQLApi")
+    c("SemanticModel", "UserDataFunction", "GraphQLApi")
   expect_identical(
     vapply(calls, `[[`, logical(1), "detail"),
     expected_detail
@@ -1287,6 +1287,101 @@ test_that("fabric_item resolves names and rejects type mismatches", {
     ),
     "not 'Lakehouse'"
   )
+})
+
+test_that("fabric_item keeps UDF discovery lightweight unless requested", {
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  item_id <- "22222222-2222-4222-8222-222222222222"
+  urls <- character()
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = workspace_id,
+        displayName = "Workspace",
+        api_base = "https://example.test/v1"
+      )
+    },
+    .httr2_json = function(req, ...) {
+      urls <<- c(urls, req$url)
+      if (grepl("/userDataFunctions/", req$url, fixed = TRUE)) {
+        return(list(
+          id = item_id,
+          displayName = "Detailed function",
+          type = "UserDataFunction",
+          description = "Workload detail"
+        ))
+      }
+      list(
+        id = item_id,
+        displayName = "Function",
+        type = "UserDataFunction"
+      )
+    }
+  )
+
+  lightweight <- fabric_item(
+    "Workspace",
+    item_id,
+    token = "token",
+    output = "list"
+  )
+  expect_identical(lightweight$displayName, "Function")
+  expect_length(urls, 1L)
+  expect_match(urls[[1L]], paste0("/items/", item_id), fixed = TRUE)
+
+  detailed <- fabric_item(
+    "Workspace",
+    item_id,
+    detail = TRUE,
+    token = "token",
+    output = "list"
+  )
+  expect_identical(detailed$description, "Workload detail")
+  expect_length(urls, 3L)
+  expect_match(
+    urls[[3L]],
+    paste0("/userDataFunctions/", item_id),
+    fixed = TRUE
+  )
+})
+
+test_that("fabric_item can retain a failed detail lookup", {
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  item_id <- "22222222-2222-4222-8222-222222222222"
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = workspace_id,
+        displayName = "Workspace",
+        api_base = "https://example.test/v1"
+      )
+    },
+    .httr2_json = function(req, ...) {
+      if (grepl("/userDataFunctions/", req$url, fixed = TRUE)) {
+        rlang::abort("User Data Function detail requires a delegated identity")
+      }
+      list(
+        id = item_id,
+        displayName = "Function",
+        type = "UserDataFunction"
+      )
+    }
+  )
+
+  expect_warning(
+    retained <- fabric_item(
+      "Workspace",
+      item_id,
+      detail = TRUE,
+      detail_errors = "record",
+      token = "token",
+      output = "list"
+    ),
+    "Could not fully enrich the Fabric item",
+    fixed = TRUE
+  )
+  expect_match(retained$detail_error, "requires a delegated identity")
+  expect_identical(retained$detail_error_class, "rlang_error")
 })
 
 test_that("fabric_item rejects an item record from another workspace", {

@@ -641,6 +641,9 @@ test_that("Workspace and generic item methods all delegate their context", {
     if (!identical(method, "shortcut_cache_reset")) {
       expect_identical(call$output, "r6", info = method)
     }
+    if (identical(method, "user_data_functions")) {
+      expect_false(call$detail)
+    }
   }
 
   item <- r6_test_record("Environment")
