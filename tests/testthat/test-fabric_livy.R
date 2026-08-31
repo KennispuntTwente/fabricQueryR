@@ -77,7 +77,9 @@ test_that("Livy activity discovery requests and parses one service page", {
         list(
           id = batch_id,
           result = "success",
-          schedulerState = "completed"
+          livyState = "success",
+          pluginState = "Running",
+          schedulerState = "Ended"
         )
       ),
       totalCountOfMatchedItems = 1,
@@ -117,7 +119,8 @@ test_that("Livy activity discovery requests and parses one service page", {
   expect_identical(attr(sessions, "page_size"), 1L)
   expect_identical(attr(sessions, "skip"), 2L)
   expect_identical(batches$id, batch_id)
-  expect_identical(batches$state, "completed")
+  expect_identical(batches$state, "success")
+  expect_identical(batches$raw[[1L]]$schedulerState, "Ended")
   expect_identical(calls[[1L]]$method, "GET")
   expect_identical(calls[[1L]]$url, "https://example.test/livy/sessions")
   expect_identical(

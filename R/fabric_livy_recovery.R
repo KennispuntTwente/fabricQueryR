@@ -378,7 +378,7 @@ fabric_livy_item_field <- function(item, name) {
 }
 
 fabric_livy_item_state <- function(item) {
-  for (name in c("state", "schedulerState", "pluginState")) {
+  for (name in c("livyState", "state", "pluginState", "schedulerState")) {
     value <- fabric_livy_item_field(item, name)
     if (!is.na(value)) {
       return(value)
