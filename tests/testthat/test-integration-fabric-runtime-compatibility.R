@@ -303,11 +303,17 @@ test_that("Livy batches complete on Runtime 2.0", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
+  run_id <- paste0(
+    "runtime2-",
+    format(Sys.time(), "%Y%m%d%H%M%OS6", tz = "UTC"),
+    "-",
+    Sys.getpid()
+  )
   batch <- fabric_livy_batch_submit(
     lakehouse$livy_url,
     file = lakehouse$livy_batch_file,
     name = "fabricqueryr-runtime-2-batch",
-    args = "success",
+    args = c("success", run_id),
     target_lakehouse_id = lakehouse$id,
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
@@ -331,4 +337,27 @@ test_that("Livy batches complete on Runtime 2.0", {
   expect_s3_class(result, "fabric_livy_batch_result")
   expect_identical(result$id, batch$id)
   expect_equal(tolower(result$state), "success")
+
+  marker <- fabric_test_eventually(function() {
+    value <- fabric_onelake_read_delta_table(
+      table_path = lakehouse$tables$livy_batch_result,
+      workspace_name = manifest$workspace_id,
+      lakehouse_name = lakehouse$id,
+      schema = lakehouse$schema,
+      token = fabric_test_token_provider(),
+      verbose = FALSE
+    )
+    if (
+      nrow(value) != 1L ||
+        !identical(value$mode[[1L]], "success") ||
+        !identical(as.numeric(value$row_count[[1L]]), 3) ||
+        !identical(value$run_id[[1L]], run_id)
+    ) {
+      return(NULL)
+    }
+    value
+  })
+  expect_identical(marker$mode, "success")
+  expect_identical(as.numeric(marker$row_count), 3)
+  expect_identical(marker$run_id, run_id)
 })

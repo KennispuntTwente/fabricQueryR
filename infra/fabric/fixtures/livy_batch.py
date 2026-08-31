@@ -7,17 +7,19 @@ from pyspark.sql import SparkSession
 
 
 mode = sys.argv[1] if len(sys.argv) > 1 else "success"
+run_id = sys.argv[2] if len(sys.argv) > 2 else ""
 spark = SparkSession.builder.appName(f"fabricqueryr-batch-{mode}").getOrCreate()
 
 
 def write_marker(marker_mode, row_count):
     marker = spark.createDataFrame(
-        [(marker_mode, int(row_count))],
-        "mode string, row_count long",
+        [(marker_mode, int(row_count), run_id)],
+        "mode string, row_count long, run_id string",
     )
     (
         marker.write.format("delta")
         .mode("overwrite")
+        .option("overwriteSchema", "true")
         .saveAsTable("dbo.fabricqueryr_livy_batch_result")
     )
 

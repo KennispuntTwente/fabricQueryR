@@ -143,6 +143,9 @@ def test_livy_batch_fixture_persists_each_executed_mode():
     ).read_text()
 
     assert '.saveAsTable("dbo.fabricqueryr_livy_batch_result")' in fixture
+    assert 'run_id = sys.argv[2] if len(sys.argv) > 2 else ""' in fixture
+    assert '"mode string, row_count long, run_id string"' in fixture
+    assert '.option("overwriteSchema", "true")' in fixture
     assert "write_marker(mode, row_count)" in fixture
     assert fixture.count("write_marker(mode, -1)") == 2
     assert fixture.index("write_marker(mode, -1)") < fixture.index(
