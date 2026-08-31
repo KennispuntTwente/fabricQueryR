@@ -302,22 +302,25 @@ test_that("custom Livy hosts require an explicit credential", {
 test_that("Livy requests use the audience stored on the credential", {
   requested <- NULL
   requested_url <- NULL
-  bigint_as_char <- NULL
   credential <- fabric_livy_credential(
     tenant_id = NULL,
     client_id = NULL,
     token = "token"
   )
   local_mocked_bindings(
-    .httr2_json = function(req, audience, bigint_as_char, ...) {
+    .httr2_perform = function(req, audience, ...) {
       requested <<- audience
       requested_url <<- req$url
-      bigint_as_char <<- bigint_as_char
-      list(ok = TRUE)
+      httr2::response(
+        status_code = 200L,
+        url = req$url,
+        headers = list("content-type" = "application/json"),
+        body = charToRaw('{"value":9007199254740993}')
+      )
     }
   )
 
-  fabric_livy_json(
+  response <- fabric_livy_json(
     "GET",
     "https://api.fabric.microsoft.com/livy/sessions/1",
     credential,
@@ -329,7 +332,7 @@ test_that("Livy requests use the audience stored on the credential", {
     httr2::url_parse(requested_url)$query,
     list(`$top` = "10", `$skip` = "2", `$count` = "true")
   )
-  expect_true(bigint_as_char)
+  expect_identical(response$value, "9007199254740993")
 })
 
 test_that("regular session runs multiple statements and closes", {
@@ -854,6 +857,55 @@ test_that("bodyless Livy mutations carry an explicit zero-length body", {
   }
 })
 
+test_that("Livy wraps malformed successful response bodies", {
+  url <- "https://example.test/livy/sessions/1"
+  responses <- list(
+    httr2::response(
+      status_code = 200L,
+      url = url,
+      headers = list("content-type" = "application/json"),
+      body = raw()
+    ),
+    httr2::response(
+      status_code = 200L,
+      url = url,
+      headers = list("content-type" = "text/plain"),
+      body = charToRaw("not json")
+    ),
+    httr2::response(
+      status_code = 200L,
+      url = url,
+      headers = list("content-type" = "application/json"),
+      body = charToRaw("{")
+    ),
+    httr2::response(
+      status_code = 400L,
+      url = url,
+      headers = list("content-type" = "application/json"),
+      body = charToRaw('{"error":{"code":"InvalidRequest"}}')
+    )
+  )
+  httr2::local_mocked_responses(responses)
+  credential <- fabric_credential(token = "token")
+
+  for (index in seq_len(3L)) {
+    error <- tryCatch(
+      fabric_livy_json("GET", url, credential),
+      error = identity
+    )
+    expect_s3_class(error, "fabric_livy_protocol_error")
+    expect_s3_class(error$parent, "fabric_livy_decode_error")
+    expect_identical(error$response_metadata$status, 200L)
+    expect_null(error$response_metadata$body)
+  }
+  http_error <- tryCatch(
+    fabric_livy_json("GET", url, credential),
+    error = identity
+  )
+  expect_s3_class(http_error, "fabric_http_error")
+  expect_false(inherits(http_error, "fabric_livy_protocol_error"))
+})
+
 test_that("Livy table MIME output is parsed into a tibble", {
   result <- fabric_livy_output(
     response = list(
@@ -1370,9 +1422,14 @@ test_that("batch jobs expose success logs and structured results", {
 test_that("Livy vector fields remain JSON arrays when length one", {
   request <- NULL
   local_mocked_bindings(
-    .httr2_json = function(req, ...) {
+    .httr2_perform = function(req, ...) {
       request <<- req
-      list(id = "batch-1", state = "starting")
+      httr2::response(
+        status_code = 200L,
+        url = req$url,
+        headers = list("content-type" = "application/json"),
+        body = charToRaw('{"id":"batch-1","state":"starting"}')
+      )
     }
   )
 

@@ -704,14 +704,37 @@ fabric_livy_json <- function(
   } else if (toupper(method) %in% c("POST", "PUT", "PATCH")) {
     req <- httr2::req_body_raw(req, raw())
   }
-  .httr2_json(
+  response <- .httr2_perform(
     req,
-    simplifyVector = FALSE,
-    bigint_as_char = TRUE,
     credential = credential,
     audience = credential$livy_audience %||% .fabric_audience$fabric,
     idempotent = idempotent,
     deadline = deadline
+  )
+  tryCatch(
+    httr2::resp_body_json(
+      response,
+      simplifyVector = FALSE,
+      bigint_as_char = TRUE
+    ),
+    error = function(error) {
+      decode_error <- structure(
+        list(
+          message = "The Livy response could not be decoded as JSON",
+          call = NULL,
+          decode_class = class(error)
+        ),
+        class = c("fabric_livy_decode_error", "error", "condition")
+      )
+      .fabric_abort(
+        "Livy returned a successful response with an invalid JSON body",
+        class = "fabric_livy_protocol_error",
+        parent = decode_error,
+        response_metadata = .httr2_response_metadata(response),
+        call = NULL,
+        .trace = FALSE
+      )
+    }
   )
 }
 
