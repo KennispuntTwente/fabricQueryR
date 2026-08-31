@@ -517,84 +517,15 @@ FabricLivySession <- R6::R6Class(
     },
 
     #' @description List every statement in this execution context
-    #' @param page_size Maximum statements requested per Livy page
     #' @returns The raw Livy statements response
-    statements = function(page_size = 100L) {
+    statements = function() {
       private$assert_open()
-      if (
-        !is.numeric(page_size) ||
-          length(page_size) != 1L ||
-          is.na(page_size) ||
-          !is.finite(page_size) ||
-          page_size < 1 ||
-          page_size > .Machine$integer.max ||
-          page_size != floor(page_size)
-      ) {
-        .fabric_abort("page_size must be one positive whole number")
-      }
-      page_size <- as.integer(page_size)
-      credential <- fabric_livy_handle_credential(private$credential_ref)
-      offset <- 0L
-      total <- NULL
-      statements <- list()
-      first_response <- NULL
-      seen_ids <- character()
-      repeat {
-        request <- httr2::req_url_query(
-          httr2::request(private$statement_collection()),
-          from = offset,
-          size = page_size
-        )
-        response <- fabric_livy_json(
-          "GET",
-          request$url,
-          credential
-        )
-        page <- fabric_livy_statement_page(response, offset, total)
-        first_response <- first_response %||% response
-        total <- page$total
-        page_ids <- vapply(
-          page$statements,
-          function(statement) {
-            id <- statement$id
-            if (
-              !(is.character(id) || is.numeric(id)) ||
-                length(id) != 1L ||
-                is.na(id) ||
-                !nzchar(as.character(id))
-            ) {
-              .fabric_abort(
-                "Livy returned a statement without one valid id",
-                class = "fabric_livy_protocol_error"
-              )
-            }
-            as.character(id)
-          },
-          character(1)
-        )
-        if (any(page_ids %in% seen_ids) || anyDuplicated(page_ids)) {
-          .fabric_abort(
-            "Livy repeated a statement across collection pages",
-            class = "fabric_livy_protocol_error"
-          )
-        }
-        seen_ids <- c(seen_ids, page_ids)
-        statements <- c(statements, page$statements)
-        if (length(statements) == total) {
-          break
-        }
-        if (!length(page$statements)) {
-          .fabric_abort(
-            "Livy returned an empty statement page before the reported total",
-            class = "fabric_livy_protocol_error"
-          )
-        }
-        offset <- length(statements)
-      }
-      first_response$statements <- statements
-      first_response$total_statements <- as.integer(total)
-      first_response$from <- 0L
-      first_response
+      response <- fabric_livy_json(
+        "GET",
+        private$statement_collection(),
+        fabric_livy_handle_credential(private$credential_ref)
+      )
+      fabric_livy_statement_collection(response)
     },
 
     #' @description Reset a regular session's inactivity timeout
@@ -688,7 +619,7 @@ FabricLivySession <- R6::R6Class(
   cloneable = FALSE
 )
 
-fabric_livy_statement_page <- function(response, offset, previous_total) {
+fabric_livy_statement_collection <- function(response) {
   if (!is.list(response) || is.null(names(response))) {
     .fabric_abort(
       "Livy returned a malformed statement collection",
@@ -722,30 +653,40 @@ fabric_livy_statement_page <- function(response, offset, previous_total) {
       total < 0 ||
       total > .Machine$integer.max ||
       total != floor(total) ||
-      offset + length(statements) > total ||
-      (!is.null(previous_total) && total != previous_total)
+      total != length(statements)
   ) {
     .fabric_abort(
-      "Livy returned an invalid or inconsistent statement total",
+      "Livy returned an invalid statement collection total",
       class = "fabric_livy_protocol_error"
     )
   }
-  response_offset <- response$from
-  if (
-    !is.null(response_offset) &&
-      (!is.numeric(response_offset) ||
-        length(response_offset) != 1L ||
-        is.na(response_offset) ||
-        !is.finite(response_offset) ||
-        response_offset != floor(response_offset) ||
-        response_offset != offset)
-  ) {
+  ids <- vapply(
+    statements,
+    function(statement) {
+      id <- statement$id
+      if (
+        !(is.character(id) || is.numeric(id)) ||
+          length(id) != 1L ||
+          is.na(id) ||
+          !nzchar(as.character(id))
+      ) {
+        .fabric_abort(
+          "Livy returned a statement without one valid id",
+          class = "fabric_livy_protocol_error"
+        )
+      }
+      as.character(id)
+    },
+    character(1)
+  )
+  if (anyDuplicated(ids)) {
     .fabric_abort(
-      "Livy returned a statement page from an unexpected offset",
+      "Livy returned duplicate statements in its collection",
       class = "fabric_livy_protocol_error"
     )
   }
-  list(statements = statements, total = as.integer(total))
+  response$total_statements <- as.integer(total)
+  response
 }
 
 #' A statement submitted to a Fabric Livy session
@@ -832,17 +773,44 @@ FabricLivyStatement <- R6::R6Class(
 
     #' @description Retrieve statement state and available output
     #' @param refresh Whether to retrieve current state from Fabric
+    #' @param from Optional zero-based byte offset for returned statement output
+    #' @param size Optional maximum number of output bytes to return
     #' @param deadline Internal wall-clock deadline for the status request
     #' @returns The raw statement response list
-    status = function(refresh = TRUE, deadline = NULL) {
+    status = function(
+      refresh = TRUE,
+      from = NULL,
+      size = NULL,
+      deadline = NULL
+    ) {
       fabric_livy_check_flag(refresh, "refresh")
+      if (!is.null(from)) {
+        fabric_livy_check_integer(from, "from", minimum = 0L)
+      }
+      if (!is.null(size)) {
+        fabric_livy_check_integer(size, "size")
+      }
+      if (!isTRUE(refresh) && (!is.null(from) || !is.null(size))) {
+        .fabric_abort("from and size require refresh = TRUE")
+      }
       if (isTRUE(refresh)) {
-        self$response <- fabric_livy_json(
-          "GET",
-          self$url,
-          fabric_livy_handle_credential(private$credential_ref),
+        query <- Filter(
+          Negate(is.null),
+          list(
+            from = if (!is.null(from)) as.integer(from),
+            size = if (!is.null(size)) as.integer(size)
+          )
+        )
+        request <- list(
+          method = "GET",
+          url = self$url,
+          credential = fabric_livy_handle_credential(private$credential_ref),
           deadline = deadline
         )
+        if (length(query)) {
+          request$query <- query
+        }
+        self$response <- do.call(fabric_livy_json, request)
         self$state <- self$response$state %||% self$state
       }
       self$response
@@ -906,10 +874,17 @@ FabricLivyStatement <- R6::R6Class(
     #' @description Return parsed output and timing metadata
     #' @param refresh Whether to retrieve current state from Fabric
     #' @param error_on_failure Raise a structured error for failed statements
+    #' @param from Optional zero-based byte offset for returned statement output
+    #' @param size Optional maximum number of output bytes to return
     #' @returns A `fabric_livy_statement_result` list
-    result = function(refresh = TRUE, error_on_failure = TRUE) {
+    result = function(
+      refresh = TRUE,
+      error_on_failure = TRUE,
+      from = NULL,
+      size = NULL
+    ) {
       fabric_livy_check_flag(error_on_failure, "error_on_failure")
-      response <- self$status(refresh = refresh)
+      response <- self$status(refresh = refresh, from = from, size = size)
       state <- fabric_livy_state(response)
       if (
         !identical(state, "available") &&

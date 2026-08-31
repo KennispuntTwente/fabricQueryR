@@ -117,13 +117,20 @@ session$close()
   Retrieve statement state and available output
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivyStatement$status(refresh = TRUE, deadline = NULL)}
+    \preformatted{FabricLivyStatement$status(
+  refresh = TRUE,
+  from = NULL,
+  size = NULL,
+  deadline = NULL
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{refresh}}{Whether to retrieve current state from Fabric}
+      \item{\code{from}}{Optional zero-based byte offset for returned statement output}
+      \item{\code{size}}{Optional maximum number of output bytes to return}
       \item{\code{deadline}}{Internal wall-clock deadline for the status request}
     }
     \if{html}{\out{</div>}}
@@ -168,7 +175,12 @@ session$close()
   Return parsed output and timing metadata
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLivyStatement$result(refresh = TRUE, error_on_failure = TRUE)}
+    \preformatted{FabricLivyStatement$result(
+  refresh = TRUE,
+  error_on_failure = TRUE,
+  from = NULL,
+  size = NULL
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -176,6 +188,8 @@ session$close()
     \describe{
       \item{\code{refresh}}{Whether to retrieve current state from Fabric}
       \item{\code{error_on_failure}}{Raise a structured error for failed statements}
+      \item{\code{from}}{Optional zero-based byte offset for returned statement output}
+      \item{\code{size}}{Optional maximum number of output bytes to return}
     }
     \if{html}{\out{</div>}}
   }

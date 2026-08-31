@@ -513,29 +513,26 @@ test_that("session statement listing follows the Livy collection contract", {
   expect_identical(result$total_statements, 3L)
   expect_equal(vapply(result$statements, `[[`, integer(1), "id"), 1:3)
   expect_length(urls, 1L)
-  expect_match(urls, "/statements[?]")
-  expect_match(utils::URLdecode(urls), "from=0", fixed = TRUE)
-  expect_match(utils::URLdecode(urls), "size=100", fixed = TRUE)
+  expect_match(urls, "/statements$")
   session$close()
 })
 
-test_that("session statement listing retrieves every Livy page", {
-  urls <- character()
+test_that("statement output byte ranges apply only to individual lookups", {
+  calls <- list()
   local_mocked_bindings(
-    fabric_livy_json = function(method, url, ...) {
-      if (method == "POST") {
+    fabric_livy_json = function(method, url, query = NULL, ...) {
+      calls[[length(calls) + 1L]] <<- list(
+        method = method,
+        url = url,
+        query = query
+      )
+      if (method == "POST" && grepl("/sessions$", url)) {
         return(list(id = "session", state = "idle"))
       }
-      urls <<- c(urls, utils::URLdecode(url))
-      offset <- if (grepl("from=0", url, fixed = TRUE)) 0L else 2L
-      ids <- if (offset == 0L) 1:2 else 3L
-      list(
-        from = offset,
-        total_statements = 3L,
-        statements = lapply(ids, function(id) {
-          list(id = id, state = "available")
-        })
-      )
+      if (method == "POST" && grepl("/statements$", url)) {
+        return(list(id = 4L, state = "waiting"))
+      }
+      list(id = 4L, state = "available", output = list(status = "ok"))
     },
     fabric_livy_ok = function(...) TRUE
   )
@@ -544,15 +541,20 @@ test_that("session statement listing retrieves every Livy page", {
     token = "token",
     verbose = FALSE
   )
+  statement <- session$submit("print('large output')", kind = "pyspark")
 
-  result <- session$statements(page_size = 2L)
+  result <- statement$status(from = 16L, size = 32L)
 
-  expect_identical(result$total_statements, 3L)
-  expect_identical(result$from, 0L)
-  expect_equal(vapply(result$statements, `[[`, integer(1), "id"), 1:3)
-  expect_length(urls, 2L)
-  expect_match(urls[[1L]], "from=0&size=2", fixed = TRUE)
-  expect_match(urls[[2L]], "from=2&size=2", fixed = TRUE)
+  expect_identical(result$state, "available")
+  expect_match(calls[[3L]]$url, "/statements/4$")
+  expect_identical(calls[[3L]]$query, list(from = 16L, size = 32L))
+  expect_error(statement$status(from = -1), "from must")
+  expect_error(statement$status(size = 0), "size must")
+  expect_error(
+    statement$status(refresh = FALSE, from = 0),
+    "require refresh = TRUE",
+    fixed = TRUE
+  )
   session$close()
 })
 
