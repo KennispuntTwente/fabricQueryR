@@ -938,6 +938,10 @@ test_that("user-data-function vignette executes scalar and structured calls", {
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
   }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  expect_match(source, "default to\\n`detail = FALSE`", perl = TRUE)
+  expect_match(source, "[$]details\\(detail = TRUE\\)")
+  expect_match(source, "not service principals or managed identities")
   calls <- list()
 
   example <- vignette_evaluate_chunks(

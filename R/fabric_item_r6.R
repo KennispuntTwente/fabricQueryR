@@ -413,7 +413,9 @@ FabricItem <- R6::R6Class(
       super$initialize(record, legacy_class, credential)
     },
 
-    #' @description Retrieve fresh workload details for this item.
+    #' @description Retrieve a fresh item record and supported workload details.
+    #'   User Data Function workload details require `detail = TRUE` and a
+    #'   delegated user identity.
     #' @param ... Arguments forwarded to [fabric_item()].
     #' @returns A new `FabricItem` object or one of its subclasses.
     details = function(...) {

@@ -565,7 +565,9 @@ lakehouse_record <- lakehouse$as_list()
 \if{html}{\out{<a id="method-FabricItem-details"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricItem-details}{}}}
 \subsection{\code{FabricItem$details()}}{
-  Retrieve fresh workload details for this item.
+  Retrieve a fresh item record and supported workload details.
+User Data Function workload details require \code{detail = TRUE} and a
+delegated user identity.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricItem$details(...)}
