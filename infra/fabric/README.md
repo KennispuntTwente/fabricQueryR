@@ -23,7 +23,7 @@ supported by the Microsoft Fabric Terraform provider.
 - A capacity/region and tenant configuration that supports open mirroring
 - A capacity/region that supports Eventhouse and KQL Database items
 - A capacity/region that supports API for GraphQL items
-- A capacity/region that supports Fabric Spark Runtime 1.3; the preview Delta
+- A capacity/region that supports Fabric Spark Runtime 1.3; the Runtime 2.0 GA
   lane additionally requires Fabric Spark Runtime 2.0
 - Tenant settings that permit the executing identity to use Fabric APIs and create
   workspaces
@@ -76,11 +76,13 @@ Both the sandbox command and the R test helper resolve
 'testthat' runs tests from a nested working directory. Set
 `FABRIC_TEST_MANIFEST` only to override that shared location.
 Before running the seed notebook, the sandbox sets the dedicated workspace to
-the selected runtime lane. The default `core` lane uses the GA Fabric Runtime
-1.3. The `preview` lane uses Fabric Runtime 2.0 for V2 checkpoints, stable type
-widening, Variant, and other forward-looking Delta coverage. Select that lane
-by setting both `FABRIC_SPARK_RUNTIME_LANE=preview` and
-`FABRIC_SPARK_RUNTIME_VERSION=2.0`; mismatched values fail configuration.
+the selected runtime lane. The default `core` lane uses Fabric Runtime 1.3.
+The `runtime2` lane uses the latest GA Fabric Runtime 2.0 for V2 checkpoints,
+stable type widening, Variant, and other advanced Delta coverage. Select that
+lane by setting both `FABRIC_SPARK_RUNTIME_LANE=runtime2` and
+`FABRIC_SPARK_RUNTIME_VERSION=2.0`; mismatched values fail configuration. The
+older `preview` lane name remains accepted as a compatibility alias for
+existing automation.
 Seeding also fails instead of replacing a named workspace default Environment.
 The observed Spark and Delta build versions are stored in the manifest and
 included in the fixture revision, so a changed hosted runtime cannot silently
@@ -150,8 +152,9 @@ sandbox provisioning.
 
 The workflow provisions and seeds two isolated workspaces: a Runtime 1.3 `core`
 workspace for authentication/discovery, KQL/GraphQL, SQL, Livy, item jobs, and
-Power BI, plus a Runtime 2.0 `preview` workspace for OneLake/Delta compatibility
-coverage. Each feature job downloads its lane's generated manifest, acquires
+Power BI, plus a Runtime 2.0 GA workspace for OneLake/Delta compatibility and
+Livy coverage. Existing workflow artifacts retain the legacy `preview` lane
+identifier. Each feature job downloads its lane's generated manifest, acquires
 its own short-lived tokens, and uses independent R sessions. Terraform state is
 retained as a one-day workflow artifact and
 consumed by a final teardown job after every matrix leg succeeds, fails, or is
@@ -176,8 +179,9 @@ The manually dispatched **Manage persistent Fabric sandbox** workflow creates
 definitions, and seed fixtures as the ephemeral integration workflow. Choose
 `rebuild` to delete the repository-owned workspace with that exact name and
 recreate it from source, or `teardown` to delete it without rebuilding.
-The persistent sandbox uses the preview lane so one interactive workspace
-contains the complete advanced Delta fixture matrix.
+The persistent sandbox uses Runtime 2.0 so one interactive workspace contains
+the complete advanced Delta fixture matrix. Its existing workflow input retains
+the legacy `preview` lane identifier.
 
 The workflow grants the configured Entra user object ID the `Admin` workspace
 role. Fabric role assignments use the object ID and principal type (`User`), so

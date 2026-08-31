@@ -34,7 +34,7 @@ find_replace:
     item_type: "Notebook"
     item_name: "SeedFixtures"
     file_path: "**/notebook-content.py"
-  - find_value: '(?m)^runtime_lane\s*=\s*"(core|preview)"'
+  - find_value: '(?m)^runtime_lane\s*=\s*"(core|runtime2|preview)"'
     replace_value:
       _ALL_: "$ENV:FABRIC_SPARK_RUNTIME_LANE"
     is_regex: "true"

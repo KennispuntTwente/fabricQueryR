@@ -86,13 +86,23 @@ test_that("required runtime lanes reject missing or inconsistent configuration",
     FABRIC_SPARK_RUNTIME_LANE = "typo",
     FABRIC_SPARK_RUNTIME_VERSION = "1.3"
   ))
-  expect_error(fabric_test_runtime_lane("core"), "must be 'core' or 'preview'")
+  expect_error(fabric_test_runtime_lane("core"), "must be 'core' or 'runtime2'")
 
   withr::local_envvar(c(
     FABRIC_SPARK_RUNTIME_LANE = "preview",
     FABRIC_SPARK_RUNTIME_VERSION = "1.3"
   ))
-  expect_error(fabric_test_runtime_lane("preview"), "requires version 2.0")
+  expect_error(fabric_test_runtime_lane("runtime2"), "requires version 2.0")
+})
+
+test_that("the preview runtime lane remains a Runtime 2.0 alias", {
+  withr::local_envvar(c(
+    FABRIC_INTEGRATION_REQUIRED = "true",
+    FABRIC_SPARK_RUNTIME_LANE = "preview",
+    FABRIC_SPARK_RUNTIME_VERSION = "2.0"
+  ))
+
+  expect_no_error(fabric_test_runtime_lane("runtime2"))
 })
 
 test_that("live token providers acquire by audience and cache until refresh", {

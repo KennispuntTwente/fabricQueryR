@@ -56,7 +56,7 @@ try:
         "1.3": ("3.5.", "3.2."),
         "2.0": ("4.1.", "4.2."),
     }
-    if runtime_lane not in {"core", "preview"}:
+    if runtime_lane not in {"core", "runtime2", "preview"}:
         raise RuntimeError(f"Unknown runtime lane {runtime_lane!r}")
     expected_lane_version = "1.3" if runtime_lane == "core" else "2.0"
     if expected_runtime_version != expected_lane_version:

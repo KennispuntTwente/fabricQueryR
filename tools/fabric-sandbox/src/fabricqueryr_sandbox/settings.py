@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from os import environ
 from pathlib import Path
 
-RUNTIME_LANES = {"core": "1.3", "preview": "2.0"}
+RUNTIME_LANES = {"core": "1.3", "runtime2": "2.0", "preview": "2.0"}
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,10 @@ class SandboxSettings:
     def __post_init__(self) -> None:
         expected = RUNTIME_LANES.get(self.spark_runtime_lane)
         if expected is None:
-            raise ValueError("FABRIC_SPARK_RUNTIME_LANE must be core or preview")
+            raise ValueError(
+                "FABRIC_SPARK_RUNTIME_LANE must be core or runtime2 "
+                "(preview remains a compatibility alias)"
+            )
         if self.spark_runtime_version != expected:
             raise ValueError(
                 f"runtime lane {self.spark_runtime_lane!r} requires Fabric "

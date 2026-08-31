@@ -71,13 +71,30 @@ def test_runtime_lane_and_version_must_match(tmp_path):
         )
 
 
-def test_preview_runtime_lane_can_be_selected_from_environment(
+def test_runtime_2_lane_can_be_selected_from_environment(
     monkeypatch,
 ):
-    monkeypatch.setenv("FABRIC_SPARK_RUNTIME_LANE", "preview")
+    monkeypatch.setenv("FABRIC_SPARK_RUNTIME_LANE", "runtime2")
     monkeypatch.setenv("FABRIC_SPARK_RUNTIME_VERSION", "2.0")
 
     settings = SandboxSettings.from_environment()
 
-    assert settings.spark_runtime_lane == "preview"
+    assert settings.spark_runtime_lane == "runtime2"
     assert settings.spark_runtime_version == "2.0"
+
+
+def test_preview_remains_a_runtime_2_compatibility_alias(tmp_path):
+    settings = SandboxSettings(
+        workspace_id=None,
+        lakehouse_id=None,
+        workspace_name="test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+        spark_runtime_lane="preview",
+        spark_runtime_version="2.0",
+    )
+
+    assert settings.spark_runtime_lane == "preview"

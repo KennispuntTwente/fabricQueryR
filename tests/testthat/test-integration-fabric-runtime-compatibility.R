@@ -21,7 +21,7 @@ test_that("delta-rs reads a Fabric table on Runtime 1.3", {
 })
 
 test_that("Livy executes PySpark on Runtime 2.0", {
-  fabric_test_runtime_lane("preview")
+  fabric_test_runtime_lane("runtime2")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
@@ -46,7 +46,7 @@ test_that("Livy executes PySpark on Runtime 2.0", {
 })
 
 test_that("Livy sessions exercise supported languages on Runtime 2.0", {
-  fabric_test_runtime_lane("preview")
+  fabric_test_runtime_lane("runtime2")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
@@ -131,7 +131,7 @@ test_that("Livy sessions exercise supported languages on Runtime 2.0", {
 })
 
 test_that("high-concurrency Livy executes on Runtime 2.0", {
-  fabric_test_runtime_lane("preview")
+  fabric_test_runtime_lane("runtime2")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
@@ -165,7 +165,7 @@ test_that("high-concurrency Livy executes on Runtime 2.0", {
 })
 
 test_that("Livy batches complete on Runtime 2.0", {
-  fabric_test_runtime_lane("preview")
+  fabric_test_runtime_lane("runtime2")
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()

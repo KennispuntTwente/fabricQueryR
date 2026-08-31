@@ -37,7 +37,7 @@ def test_seed_notebook_ids_are_parameterized():
     core_exit = notebook.index('if runtime_lane == "core":')
     assert notebook.rfind("except Exception:", 0, core_exit) > 0
     assert notebook.index("try:", core_exit) > core_exit
-    assert 'runtime_lane\\s*=\\s*"(core|preview)"' in parameters
+    assert 'runtime_lane\\s*=\\s*"(core|runtime2|preview)"' in parameters
     assert 'expected_runtime_version\\s*=\\s*"(1\\.3|2\\.0)"' in parameters
     assert '.saveAsTable("dbo.fabricqueryr_runtime")' in notebook
     assert '.option("replaceWhere", "category = \'B\'")' in notebook

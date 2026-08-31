@@ -282,10 +282,11 @@ fabric_test_runtime_lane <- function(expected) {
     "FABRIC_SPARK_RUNTIME_VERSION",
     "Spark runtime compatibility coverage"
   )
-  versions <- c(core = "1.3", preview = "2.0")
+  versions <- c(core = "1.3", runtime2 = "2.0", preview = "2.0")
   if (!lane %in% names(versions)) {
     rlang::abort(paste0(
-      "FABRIC_SPARK_RUNTIME_LANE must be 'core' or 'preview', not '",
+      "FABRIC_SPARK_RUNTIME_LANE must be 'core' or 'runtime2' ",
+      "('preview' remains an alias), not '",
       lane,
       "'"
     ))
@@ -301,7 +302,8 @@ fabric_test_runtime_lane <- function(expected) {
       version
     )
   )
-  if (!identical(lane, expected)) {
+  canonical <- c(core = "core", runtime2 = "runtime2", preview = "runtime2")
+  if (!identical(unname(canonical[[lane]]), unname(canonical[[expected]]))) {
     testthat::skip(paste("Test belongs to Spark runtime lane", expected))
   }
   invisible(TRUE)
