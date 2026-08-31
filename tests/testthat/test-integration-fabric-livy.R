@@ -80,7 +80,25 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   )
   expect_equal(assignment$output$status, "ok")
 
-  reused <- session$run(
+  discovered <- fabric_livy_sessions(
+    lakehouse$livy_url,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
+  )
+  expect_true(session$id %in% discovered$id)
+  recovered <- fabric_livy_session_attach(
+    lakehouse$livy_url,
+    session$id,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
+    verbose = FALSE
+  )
+  on.exit(try(recovered$close(), silent = TRUE), add = TRUE)
+  expect_identical(recovered$id, session$id)
+
+  reused <- recovered$run(
     "print('FABRICQUERYR_SHARED_VALUE=' + str(fabricqueryr_shared_value + 2))",
     kind = "pyspark",
     timeout = 300,
@@ -337,8 +355,35 @@ test_that("Livy batches cover success, failure, and cancellation", {
     auth_args = auth$auth_args,
     verbose = FALSE
   )
-  success$wait(timeout = 1200, poll_interval = 5)
-  success_result <- success$result(refresh = FALSE)
+  on.exit(try(success$cancel(), silent = TRUE), add = TRUE)
+  discovery_deadline <- Sys.time() + 120
+  repeat {
+    discovered_batches <- fabric_livy_batches(
+      lakehouse$livy_url,
+      tenant_id = auth$tenant_id,
+      client_id = auth$client_id,
+      auth_args = auth$auth_args
+    )
+    if (success$id %in% discovered_batches$id) {
+      break
+    }
+    if (Sys.time() >= discovery_deadline) {
+      rlang::abort("Submitted Livy batch did not appear in activity discovery")
+    }
+    Sys.sleep(2)
+  }
+  recovered_success <- fabric_livy_batch_attach(
+    lakehouse$livy_url,
+    success$id,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
+    verbose = FALSE
+  )
+  on.exit(try(recovered_success$cancel(), silent = TRUE), add = TRUE)
+  expect_identical(recovered_success$id, success$id)
+  recovered_success$wait(timeout = 1200, poll_interval = 5)
+  success_result <- recovered_success$result(refresh = FALSE)
   expect_s3_class(success_result, "fabric_livy_batch_result")
   expect_identical(success_result$id, success$id)
   expect_equal(tolower(success_result$state), "success")
