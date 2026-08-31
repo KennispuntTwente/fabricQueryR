@@ -83,8 +83,10 @@ For a Dataflow publish schedule, set \code{job_type = "ApplyChanges"}
 explicitly. Lakehouses require an explicit value because they do not have
 a safe generic default; use \code{"RefreshMaterializedLakeViews"} for the
 materialized Lake View refresh route and supply its documented
-\code{execution_data}. Unknown item types retain the Core Scheduler's
-\code{"DefaultJob"} fallback. Supply an explicit value for another
+\code{execution_data}. Microsoft labels the Lakehouse materialized Lake View
+schedule API as Preview, for evaluation and development only, and does not
+recommend it for production use. Unknown item types retain the Core
+Scheduler's \code{"DefaultJob"} fallback. Supply an explicit value for another
 workload-specific schedule job type. When passing one of these item types
 as a GUID instead of a discovered item, also supply \code{item_type} or set the
 documented \code{job_type} explicitly.}

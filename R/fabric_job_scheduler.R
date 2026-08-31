@@ -239,8 +239,10 @@ fabric_job_schedule_config <- function(
 #'   explicitly. Lakehouses require an explicit value because they do not have
 #'   a safe generic default; use `"RefreshMaterializedLakeViews"` for the
 #'   materialized Lake View refresh route and supply its documented
-#'   `execution_data`. Unknown item types retain the Core Scheduler's
-#'   `"DefaultJob"` fallback. Supply an explicit value for another
+#'   `execution_data`. Microsoft labels the Lakehouse materialized Lake View
+#'   schedule API as Preview, for evaluation and development only, and does not
+#'   recommend it for production use. Unknown item types retain the Core
+#'   Scheduler's `"DefaultJob"` fallback. Supply an explicit value for another
 #'   workload-specific schedule job type. When passing one of these item types
 #'   as a GUID instead of a discovered item, also supply `item_type` or set the
 #'   documented `job_type` explicitly.
